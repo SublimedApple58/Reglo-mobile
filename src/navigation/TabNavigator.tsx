@@ -1,14 +1,16 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { IstruttoreHomeScreen } from '../screens/IstruttoreHomeScreen';
 import { RoleHomeScreen } from '../screens/RoleHomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { InstructorManageScreen } from '../screens/InstructorManageScreen';
+import { OwnerInstructorScreen } from '../screens/OwnerInstructorScreen';
 import { GlassTabBar } from '../components/GlassTabBar';
 import { useSession } from '../context/SessionContext';
 
 export type RootTabParamList = {
   Home: undefined;
   Istruttore: undefined;
+  Gestione: undefined;
   Settings: undefined;
 };
 
@@ -16,7 +18,8 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export const TabNavigator = () => {
   const { autoscuolaRole } = useSession();
-  const showInstructorTab = autoscuolaRole === 'OWNER';
+  const showInstructorTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const isOwner = autoscuolaRole === 'OWNER';
 
   return (
     <Tab.Navigator
@@ -26,7 +29,11 @@ export const TabNavigator = () => {
     >
       <Tab.Screen name="Home" component={RoleHomeScreen} />
       {showInstructorTab ? (
-        <Tab.Screen name="Istruttore" component={IstruttoreHomeScreen} />
+        isOwner ? (
+          <Tab.Screen name="Istruttore" component={OwnerInstructorScreen} />
+        ) : (
+          <Tab.Screen name="Gestione" component={InstructorManageScreen} />
+        )
       ) : null}
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

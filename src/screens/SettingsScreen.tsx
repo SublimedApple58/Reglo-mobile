@@ -10,12 +10,12 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 
 export const SettingsScreen = () => {
-  const { user, companies, activeCompanyId, refreshMe, signOut } = useSession();
+  const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
   const [name, setName] = useState(user?.name ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [availabilityWeeks, setAvailabilityWeeks] = useState('4');
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -24,8 +24,20 @@ export const SettingsScreen = () => {
 
   useEffect(() => {
     setName(user?.name ?? '');
-    setEmail(user?.email ?? '');
   }, [user]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (autoscuolaRole !== 'OWNER') return;
+      try {
+        const settings = await regloApi.getAutoscuolaSettings();
+        setAvailabilityWeeks(String(settings.availabilityWeeks));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Errore caricando impostazioni');
+      }
+    };
+    loadSettings();
+  }, [autoscuolaRole]);
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -52,6 +64,22 @@ export const SettingsScreen = () => {
     await signOut();
   };
 
+  const handleSaveWeeks = async () => {
+    const parsed = Number(availabilityWeeks);
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 12) {
+      setError('Numero settimane non valido');
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    try {
+      await regloApi.updateAutoscuolaSettings({ availabilityWeeks: parsed });
+      setMessage('Impostazioni aggiornate');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore aggiornando impostazioni');
+    }
+  };
+
   const logoLabel = (activeCompany?.name ?? '?').slice(0, 1).toUpperCase();
 
   return (
@@ -69,7 +97,6 @@ export const SettingsScreen = () => {
         <GlassCard title="Profilo">
           <View style={styles.form}>
             <GlassInput placeholder="Nome" value={name} onChangeText={setName} />
-            <GlassInput placeholder="Email" value={email} editable={false} />
           </View>
           <GlassButton
             label={saving ? 'Salvataggio...' : 'Salva'}
@@ -94,6 +121,20 @@ export const SettingsScreen = () => {
             </View>
           </View>
         </GlassCard>
+
+        {autoscuolaRole === 'OWNER' ? (
+          <GlassCard title="Disponibilita autoscuola">
+            <View style={styles.form}>
+              <GlassInput
+                placeholder="Settimane disponibilita (1-12)"
+                value={availabilityWeeks}
+                onChangeText={setAvailabilityWeeks}
+                keyboardType="number-pad"
+              />
+              <GlassButton label="Salva settimane" onPress={handleSaveWeeks} />
+            </View>
+          </GlassCard>
+        ) : null}
 
         <GlassCard title="Account">
           <GlassButton label="Logout" onPress={handleSignOut} />

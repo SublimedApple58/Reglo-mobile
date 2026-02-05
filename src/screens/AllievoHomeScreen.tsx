@@ -1,22 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
+import { GlassInput } from '../components/GlassInput';
 import { SectionHeader } from '../components/SectionHeader';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
 import {
   AutoscuolaAppointmentWithRelations,
-  AutoscuolaAvailabilitySlot,
   AutoscuolaStudent,
+  AutoscuolaSettings,
 } from '../types/regloApi';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 
-const getTodayString = () => new Date().toISOString().slice(0, 10);
+const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+
+const toDateString = (value: Date) => value.toISOString().slice(0, 10);
+const toTimeString = (value: Date) => value.toTimeString().slice(0, 5);
+
+const buildTime = (hours: number, minutes: number) => {
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
 
 const statusLabel = (status: string) => {
   if (status === 'completed') return { label: 'Completata', tone: 'success' as const };
@@ -25,14 +36,58 @@ const statusLabel = (status: string) => {
   return { label: 'Programmato', tone: 'default' as const };
 };
 
+type PickerFieldProps = {
+  label: string;
+  value: Date;
+  mode: 'date' | 'time';
+  onChange: (date: Date) => void;
+};
+
+const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View>
+      <Pressable onPress={() => setOpen(true)}>
+        <GlassInput
+          editable={false}
+          placeholder={label}
+          value={mode === 'date' ? formatDay(value.toISOString()) : toTimeString(value)}
+        />
+      </Pressable>
+      {open ? (
+        <DateTimePicker
+          value={value}
+          mode={mode}
+          display="default"
+          onChange={(_, selected) => {
+            setOpen(false);
+            if (selected) onChange(selected);
+          }}
+        />
+      ) : null}
+    </View>
+  );
+};
+
 export const AllievoHomeScreen = () => {
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [slots, setSlots] = useState<AutoscuolaAvailabilitySlot[]>([]);
+  const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [availabilityDays, setAvailabilityDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [availabilityStart, setAvailabilityStart] = useState(buildTime(9, 0));
+  const [availabilityEnd, setAvailabilityEnd] = useState(buildTime(18, 0));
+
+  const [preferredDate, setPreferredDate] = useState(new Date());
+  const [preferredStart, setPreferredStart] = useState(buildTime(9, 0));
+  const [preferredEnd, setPreferredEnd] = useState(buildTime(18, 0));
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [suggestion, setSuggestion] = useState<{ startsAt: string; endsAt: string } | null>(null);
 
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) ?? null,
@@ -49,16 +104,12 @@ export const AllievoHomeScreen = () => {
       setLoading(true);
       setError(null);
       try {
-        const [appointmentsResponse, slotsResponse] = await Promise.all([
+        const [appointmentsResponse, settingsResponse] = await Promise.all([
           regloApi.getAppointments(),
-          regloApi.getAvailabilitySlots({
-            ownerType: 'student',
-            ownerId: studentId,
-            date: getTodayString(),
-          }),
+          regloApi.getAutoscuolaSettings(),
         ]);
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
-        setSlots(slotsResponse.filter((slot) => slot.status === 'open'));
+        setSettings(settingsResponse);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Errore nel caricamento');
       } finally {
@@ -89,7 +140,7 @@ export const AllievoHomeScreen = () => {
   const upcoming = useMemo(() => {
     const now = new Date();
     return [...appointments]
-      .filter((item) => new Date(item.startsAt) >= now)
+      .filter((item) => item.status !== 'cancelled' && new Date(item.startsAt) >= now)
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   }, [appointments]);
 
@@ -107,17 +158,119 @@ export const AllievoHomeScreen = () => {
     setSelectedStudentId(studentId);
   };
 
-  const handleBookingRequest = async (slot: AutoscuolaAvailabilitySlot) => {
+  const toggleDay = (day: number) => {
+    setAvailabilityDays((prev) =>
+      prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()
+    );
+  };
+
+  const handleCreateAvailability = async () => {
     if (!selectedStudentId) return;
+    if (!availabilityDays.length) {
+      setError('Seleziona almeno un giorno');
+      return;
+    }
+    if (availabilityEnd <= availabilityStart) {
+      setError('Orario non valido');
+      return;
+    }
+    setError(null);
     setMessage(null);
     try {
-      await regloApi.createBookingRequest({
-        studentId: selectedStudentId,
-        desiredDate: slot.startsAt,
+      const anchor = new Date();
+      anchor.setHours(0, 0, 0, 0);
+      const start = new Date(anchor);
+      start.setHours(availabilityStart.getHours(), availabilityStart.getMinutes(), 0, 0);
+      const end = new Date(anchor);
+      end.setHours(availabilityEnd.getHours(), availabilityEnd.getMinutes(), 0, 0);
+      await regloApi.createAvailabilitySlots({
+        ownerType: 'student',
+        ownerId: selectedStudentId,
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        daysOfWeek: availabilityDays,
+        weeks: settings?.availabilityWeeks ?? 4,
       });
-      setMessage('Richiesta inviata con successo');
+      setMessage('Disponibilita salvata');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore salvando disponibilita');
+    }
+  };
+
+  const handleDeleteAvailability = async () => {
+    if (!selectedStudentId) return;
+    setError(null);
+    setMessage(null);
+    try {
+      const anchor = new Date();
+      anchor.setHours(0, 0, 0, 0);
+      const start = new Date(anchor);
+      start.setHours(availabilityStart.getHours(), availabilityStart.getMinutes(), 0, 0);
+      const end = new Date(anchor);
+      end.setHours(availabilityEnd.getHours(), availabilityEnd.getMinutes(), 0, 0);
+      await regloApi.deleteAvailabilitySlots({
+        ownerType: 'student',
+        ownerId: selectedStudentId,
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        daysOfWeek: availabilityDays,
+        weeks: settings?.availabilityWeeks ?? 4,
+      });
+      setMessage('Disponibilita rimossa');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore rimuovendo disponibilita');
+    }
+  };
+
+  const handleBookingRequest = async () => {
+    if (!selectedStudentId) return;
+    setMessage(null);
+    setSuggestion(null);
+    setError(null);
+    if (preferredEnd <= preferredStart) {
+      setError('Orario non valido');
+      return;
+    }
+    try {
+      const response = await regloApi.createBookingRequest({
+        studentId: selectedStudentId,
+        preferredDate: toDateString(preferredDate),
+        durationMinutes,
+        preferredStartTime: toTimeString(preferredStart),
+        preferredEndTime: toTimeString(preferredEnd),
+        maxDays: 4,
+      });
+
+      if (response.matched) {
+        setMessage('Guida prenotata');
+        await loadData(selectedStudentId);
+        return;
+      }
+
+      setMessage('Nessuna disponibilita per il giorno scelto');
+      setSuggestion(response.suggestion ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore nella richiesta');
+    }
+  };
+
+  const handleAcceptSuggestion = async () => {
+    if (!selectedStudentId || !suggestion) return;
+    setMessage(null);
+    try {
+      const response = await regloApi.createBookingRequest({
+        studentId: selectedStudentId,
+        preferredDate: toDateString(preferredDate),
+        durationMinutes,
+        selectedStartsAt: suggestion.startsAt,
+      });
+      if (response.matched) {
+        setMessage('Guida prenotata');
+        setSuggestion(null);
+        await loadData(selectedStudentId);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore prenotando slot');
     }
   };
 
@@ -197,24 +350,101 @@ export const AllievoHomeScreen = () => {
               )}
             </GlassCard>
 
-            <SectionHeader title="Richiedi una guida" action="Slot liberi" />
+            <SectionHeader title="Disponibilita" action={`Ripeti ${settings?.availabilityWeeks ?? 4} sett.`} />
             <GlassCard>
-              <View style={styles.slotList}>
-                {slots.map((slot) => (
-                  <View key={slot.id} style={styles.slotRow}>
-                    <View>
-                      <Text style={styles.slotTime}>
-                        {formatDay(slot.startsAt)} · {formatTime(slot.startsAt)}
-                      </Text>
-                      <Text style={styles.slotMeta}>Slot da 30 min</Text>
-                    </View>
-                    <GlassButton label="Richiedi" onPress={() => handleBookingRequest(slot)} />
-                  </View>
+              <View style={styles.dayRow}>
+                {dayLabels.map((label, index) => (
+                  <Pressable
+                    key={label}
+                    onPress={() => toggleDay(index)}
+                    style={[
+                      styles.dayChip,
+                      availabilityDays.includes(index) && styles.dayChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={availabilityDays.includes(index) ? styles.dayTextActive : styles.dayText}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
                 ))}
-                {!slots.length ? (
-                  <Text style={styles.empty}>Nessuno slot disponibile al momento.</Text>
-                ) : null}
               </View>
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label="Inizio"
+                  value={availabilityStart}
+                  mode="time"
+                  onChange={setAvailabilityStart}
+                />
+                <PickerField
+                  label="Fine"
+                  value={availabilityEnd}
+                  mode="time"
+                  onChange={setAvailabilityEnd}
+                />
+              </View>
+              <View style={styles.actionRow}>
+                <GlassButton label="Salva" onPress={handleCreateAvailability} />
+                <GlassButton label="Rimuovi" onPress={handleDeleteAvailability} />
+              </View>
+            </GlassCard>
+
+            <SectionHeader title="Prenota una guida" action="Preferenze" />
+            <GlassCard>
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label="Giorno"
+                  value={preferredDate}
+                  mode="date"
+                  onChange={setPreferredDate}
+                />
+                <View style={styles.durationWrap}>
+                  <Pressable
+                    style={[styles.durationChip, durationMinutes === 30 && styles.durationChipActive]}
+                    onPress={() => setDurationMinutes(30)}
+                  >
+                    <Text
+                      style={durationMinutes === 30 ? styles.durationTextActive : styles.durationText}
+                    >
+                      30m
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.durationChip, durationMinutes === 60 && styles.durationChipActive]}
+                    onPress={() => setDurationMinutes(60)}
+                  >
+                    <Text
+                      style={durationMinutes === 60 ? styles.durationTextActive : styles.durationText}
+                    >
+                      60m
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label="Dalle"
+                  value={preferredStart}
+                  mode="time"
+                  onChange={setPreferredStart}
+                />
+                <PickerField
+                  label="Alle"
+                  value={preferredEnd}
+                  mode="time"
+                  onChange={setPreferredEnd}
+                />
+              </View>
+              <GlassButton label="Prenota" onPress={handleBookingRequest} />
+              {suggestion ? (
+                <View style={styles.suggestionBox}>
+                  <Text style={styles.suggestionText}>
+                    Slot alternativo: {formatDay(suggestion.startsAt)} · {formatTime(suggestion.startsAt)}
+                  </Text>
+                  <GlassButton label="Prenota questo" onPress={handleAcceptSuggestion} />
+                </View>
+              ) : null}
             </GlassCard>
 
             <SectionHeader title="Storico" action="Ultime guide" />
@@ -264,14 +494,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  error: {
-    ...typography.body,
-    color: colors.danger,
-  },
-  message: {
-    ...typography.body,
-    color: colors.success,
-  },
   lessonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -287,28 +509,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  empty: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  slotList: {
-    gap: spacing.md,
-  },
-  slotRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  slotTime: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  slotMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
   historyList: {
     gap: spacing.md,
   },
@@ -318,7 +518,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   historyTime: {
-    ...typography.body,
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   selectList: {
@@ -328,7 +528,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    gap: spacing.md,
   },
   selectName: {
     ...typography.subtitle,
@@ -338,5 +538,81 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  durationWrap: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
+  durationChip: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  durationChipActive: {
+    backgroundColor: colors.glassStrong,
+  },
+  durationText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  durationTextActive: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  dayChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
+  },
+  dayChipActive: {
+    backgroundColor: colors.glassStrong,
+  },
+  dayText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  dayTextActive: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  suggestionBox: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  suggestionText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  empty: {
+    ...typography.body,
+    color: colors.textMuted,
+  },
+  error: {
+    ...typography.body,
+    color: colors.danger,
+  },
+  message: {
+    ...typography.body,
+    color: colors.success,
   },
 });

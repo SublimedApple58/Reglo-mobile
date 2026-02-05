@@ -4,18 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassCard } from '../components/GlassCard';
-import { SectionHeader } from '../components/SectionHeader';
 import { regloApi } from '../services/regloApi';
-import { sessionStorage } from '../services/sessionStorage';
-import {
-  AutoscuolaAppointmentWithRelations,
-  AutoscuolaAvailabilitySlot,
-  AutoscuolaInstructor,
-} from '../types/regloApi';
+import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
-
-const getTodayString = () => new Date().toISOString().slice(0, 10);
+import { useSession } from '../context/SessionContext';
 
 const isSameDay = (date: Date, iso: string) => {
   const target = new Date(iso);
@@ -26,89 +19,77 @@ const isSameDay = (date: Date, iso: string) => {
   );
 };
 
+const durationLabel = (lesson: AutoscuolaAppointmentWithRelations) => {
+  const start = new Date(lesson.startsAt).getTime();
+  const end = lesson.endsAt ? new Date(lesson.endsAt).getTime() : start + 30 * 60 * 1000;
+  const minutes = Math.round((end - start) / 60000);
+  return `${minutes} min`;
+};
+
 export const IstruttoreHomeScreen = () => {
-  const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
-  const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
+  const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [slots, setSlots] = useState<AutoscuolaAvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const selectedInstructor = useMemo(
-    () => instructors.find((item) => item.id === selectedInstructorId) ?? null,
-    [instructors, selectedInstructorId]
-  );
-
-  const loadInstructors = useCallback(async () => {
-    const list = await regloApi.getInstructors();
-    setInstructors(list);
-  }, []);
-
-  const loadData = useCallback(
-    async (instructorId: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [appointmentsResponse, slotsResponse] = await Promise.all([
-          regloApi.getAppointments(),
-          regloApi.getAvailabilitySlots({
-            ownerType: 'instructor',
-            ownerId: instructorId,
-            date: getTodayString(),
-          }),
-        ]);
-        setAppointments(appointmentsResponse.filter((item) => item.instructorId === instructorId));
-        setSlots(slotsResponse);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Errore nel caricamento');
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const loadData = useCallback(async () => {
+    if (!instructorId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const appointmentsResponse = await regloApi.getAppointments();
+      setAppointments(appointmentsResponse.filter((item) => item.instructorId === instructorId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento');
+    } finally {
+      setLoading(false);
+    }
+  }, [instructorId]);
 
   useEffect(() => {
-    const init = async () => {
-      const storedInstructor = await sessionStorage.getSelectedInstructorId();
-      setSelectedInstructorId(storedInstructor);
-      try {
-        await loadInstructors();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Errore nel caricamento istruttori');
-      }
-    };
-    init();
-  }, [loadInstructors]);
+    loadData();
+  }, [loadData]);
 
-  useEffect(() => {
-    if (!selectedInstructorId) return;
-    loadData(selectedInstructorId);
-  }, [loadData, selectedInstructorId]);
+  const upcoming = useMemo(() => {
+    const now = new Date();
+    return [...appointments]
+      .filter((item) => item.status !== 'cancelled' && new Date(item.startsAt) >= now)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [appointments]);
 
   const today = useMemo(() => {
     const now = new Date();
     return appointments.filter((item) => isSameDay(now, item.startsAt));
   }, [appointments]);
 
-  const handleInstructorSelect = async (instructorId: string) => {
-    await sessionStorage.setSelectedInstructorId(instructorId);
-    setSelectedInstructorId(instructorId);
-  };
+  const nextLesson = upcoming[0] ?? null;
 
   const handleStatusUpdate = async (appointmentId: string, status: string) => {
     setMessage(null);
     try {
       await regloApi.updateAppointmentStatus(appointmentId, { status });
       setMessage('Stato aggiornato');
-      if (selectedInstructorId) {
-        await loadData(selectedInstructorId);
-      }
+      await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore aggiornando stato');
     }
   };
+
+  if (!instructorId) {
+    return (
+      <Screen>
+        <StatusBar style="dark" />
+        <View style={styles.emptyState}>
+          <GlassCard title="Profilo istruttore mancante">
+            <Text style={styles.emptyText}>
+              Il tuo account non e ancora collegato a un profilo istruttore.
+            </Text>
+          </GlassCard>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -116,8 +97,8 @@ export const IstruttoreHomeScreen = () => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Ciao, {selectedInstructor?.name ?? 'Istruttore'}</Text>
-            <Text style={styles.subtitle}>Agenda e presenza studenti</Text>
+            <Text style={styles.title}>Ciao, Istruttore</Text>
+            <Text style={styles.subtitle}>Prossima guida e presenza studenti</Text>
           </View>
           <GlassBadge label="Istruttore" />
         </View>
@@ -125,88 +106,63 @@ export const IstruttoreHomeScreen = () => {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
 
-        {!selectedInstructor ? (
-          <GlassCard title="Seleziona un istruttore" subtitle="Necessario per continuare">
-            <View style={styles.selectList}>
-              {instructors.map((instructor) => (
-                <Pressable
-                  key={instructor.id}
-                  style={styles.selectRow}
-                  onPress={() => handleInstructorSelect(instructor.id)}
-                >
-                  <View>
-                    <Text style={styles.selectName}>{instructor.name}</Text>
-                    <Text style={styles.selectMeta}>{instructor.phone ?? '—'}</Text>
-                  </View>
-                  <GlassBadge label="Scegli" />
-                </Pressable>
-              ))}
-              {!instructors.length ? (
-                <Text style={styles.empty}>Nessun istruttore disponibile.</Text>
-              ) : null}
+        <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'In programma'}>
+          {nextLesson ? (
+            <View style={styles.lessonRow}>
+              <View>
+                <Text style={styles.lessonTime}>
+                  {formatDay(nextLesson.startsAt)} · {formatTime(nextLesson.startsAt)}
+                </Text>
+                <Text style={styles.lessonMeta}>
+                  Allievo: {nextLesson.student?.firstName} {nextLesson.student?.lastName}
+                </Text>
+                <Text style={styles.lessonMeta}>Durata: {durationLabel(nextLesson)}</Text>
+              </View>
+              <View style={styles.actions}>
+                <ActionPill
+                  label="Check-in"
+                  tone="success"
+                  onPress={() => handleStatusUpdate(nextLesson.id, 'checked_in')}
+                />
+                <ActionPill
+                  label="No-show"
+                  tone="danger"
+                  onPress={() => handleStatusUpdate(nextLesson.id, 'no_show')}
+                />
+              </View>
             </View>
-          </GlassCard>
-        ) : (
-          <>
-            <GlassCard title="Agenda di oggi" subtitle={loading ? 'Aggiornamento...' : 'Check-in e stato guida'}>
-              <View style={styles.agendaList}>
-                {today.map((lesson) => (
-                  <View key={lesson.id} style={styles.agendaRow}>
-                    <View>
-                      <Text style={styles.lessonTime}>
-                        {formatTime(lesson.startsAt)} · {lesson.student?.firstName} {lesson.student?.lastName}
-                      </Text>
-                      <Text style={styles.lessonMeta}>
-                        Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                      </Text>
-                    </View>
-                    <View style={styles.actions}>
-                      <ActionPill
-                        label="Check-in"
-                        tone="success"
-                        onPress={() => handleStatusUpdate(lesson.id, 'checked_in')}
-                      />
-                      <ActionPill
-                        label="No-show"
-                        tone="danger"
-                        onPress={() => handleStatusUpdate(lesson.id, 'no_show')}
-                      />
-                      <ActionPill
-                        label="Completa"
-                        tone="default"
-                        onPress={() => handleStatusUpdate(lesson.id, 'completed')}
-                      />
-                    </View>
-                  </View>
-                ))}
-                {!today.length ? <Text style={styles.empty}>Nessuna guida prevista oggi.</Text> : null}
-              </View>
-            </GlassCard>
+          ) : (
+            <Text style={styles.emptyText}>Nessuna guida prevista.</Text>
+          )}
+        </GlassCard>
 
-            <SectionHeader title="Disponibilita" action={formatDay(new Date().toISOString())} />
-            <GlassCard>
-              <View style={styles.slotList}>
-                {slots.map((slot) => (
-                  <View key={slot.id} style={styles.slotRow}>
-                    <View>
-                      <Text style={styles.slotTime}>
-                        {formatTime(slot.startsAt)} - {formatTime(slot.endsAt)}
-                      </Text>
-                      <Text style={styles.slotMeta}>Slot {slot.status}</Text>
-                    </View>
-                    <GlassBadge
-                      label={slot.status === 'open' ? 'Disponibile' : 'Occupato'}
-                      tone={slot.status === 'open' ? 'success' : 'warning'}
-                    />
-                  </View>
-                ))}
-                {!slots.length ? (
-                  <Text style={styles.empty}>Nessuna disponibilita inserita.</Text>
-                ) : null}
+        <GlassCard title="Agenda di oggi" subtitle="Lezioni in programma">
+          <View style={styles.agendaList}>
+            {today.map((lesson) => (
+              <View key={lesson.id} style={styles.agendaRow}>
+                <View>
+                  <Text style={styles.lessonTime}>
+                    {formatTime(lesson.startsAt)} · {lesson.student?.firstName} {lesson.student?.lastName}
+                  </Text>
+                  <Text style={styles.lessonMeta}>Durata: {durationLabel(lesson)}</Text>
+                </View>
+                <View style={styles.actions}>
+                  <ActionPill
+                    label="Check-in"
+                    tone="success"
+                    onPress={() => handleStatusUpdate(lesson.id, 'checked_in')}
+                  />
+                  <ActionPill
+                    label="No-show"
+                    tone="danger"
+                    onPress={() => handleStatusUpdate(lesson.id, 'no_show')}
+                  />
+                </View>
               </View>
-            </GlassCard>
-          </>
-        )}
+            ))}
+            {!today.length ? <Text style={styles.emptyText}>Nessuna guida oggi.</Text> : null}
+          </View>
+        </GlassCard>
       </ScrollView>
     </Screen>
   );
@@ -252,11 +208,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  agendaList: {
+  lessonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.md,
-  },
-  agendaRow: {
-    gap: spacing.sm,
   },
   lessonTime: {
     ...typography.subtitle,
@@ -267,56 +223,46 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  actionPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  actionText: {
-    ...typography.caption,
-    color: colors.navy,
-  },
-  pill_default: {
-    backgroundColor: colors.glassStrong,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  pill_success: {
-    backgroundColor: 'rgba(59, 190, 147, 0.2)',
-    borderWidth: 1,
-    borderColor: colors.success,
-  },
-  pill_danger: {
-    backgroundColor: 'rgba(226, 109, 109, 0.2)',
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  empty: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  slotList: {
+  agendaList: {
     gap: spacing.md,
   },
-  slotRow: {
+  agendaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.md,
   },
-  slotTime: {
-    ...typography.subtitle,
+  actions: {
+    gap: spacing.xs,
+  },
+  actionPill: {
+    borderRadius: 14,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  pill_default: {
+    backgroundColor: colors.glass,
+  },
+  pill_success: {
+    backgroundColor: 'rgba(59, 190, 147, 0.2)',
+  },
+  pill_danger: {
+    backgroundColor: 'rgba(226, 109, 109, 0.2)',
+  },
+  actionText: {
+    ...typography.body,
     color: colors.textPrimary,
   },
-  slotMeta: {
+  emptyState: {
+    flex: 1,
+    padding: spacing.lg,
+    justifyContent: 'center',
+  },
+  emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+    color: colors.textMuted,
   },
   error: {
     ...typography.body,
@@ -325,23 +271,5 @@ const styles = StyleSheet.create({
   message: {
     ...typography.body,
     color: colors.success,
-  },
-  selectList: {
-    gap: spacing.sm,
-  },
-  selectRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  selectName: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  selectMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
   },
 });

@@ -18,6 +18,7 @@ const CONTAINER_RADIUS = 28;
 const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home-outline',
   Istruttore: 'speedometer-outline',
+  Gestione: 'car-outline',
   Settings: 'settings-outline',
 };
 

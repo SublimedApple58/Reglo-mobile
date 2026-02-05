@@ -43,6 +43,7 @@ export type AuthPayload = {
   user: UserPublic;
   activeCompanyId: Uuid | null;
   autoscuolaRole: AutoscuolaRole | null;
+  instructorId?: Uuid | null;
   companies: CompanySummary[];
 };
 
@@ -50,6 +51,7 @@ export type MePayload = {
   user: UserPublic;
   activeCompanyId: Uuid | null;
   autoscuolaRole: AutoscuolaRole | null;
+  instructorId?: Uuid | null;
   companies: CompanySummary[];
 };
 
@@ -90,6 +92,7 @@ export type AutoscuolaCaseWithStudent = AutoscuolaCase & {
 export type AutoscuolaInstructor = {
   id: Uuid;
   companyId: Uuid;
+  userId?: Uuid | null;
   name: string;
   phone: string | null;
   status: string;
@@ -228,17 +231,35 @@ export type UpdateAppointmentStatusInput = { status: string };
 
 export type CreateInstructorInput = { name: string; phone?: string };
 export type CreateVehicleInput = { name: string; plate?: string };
+export type UpdateInstructorInput = {
+  name?: string;
+  phone?: string | null;
+  status?: string;
+  userId?: Uuid | null;
+};
+export type UpdateVehicleInput = {
+  name?: string;
+  plate?: string | null;
+  status?: string;
+};
 
 export type CreateAvailabilitySlotsInput = {
   ownerType: "student" | "instructor" | "vehicle";
   ownerId: Uuid;
   startsAt: IsoDate;
   endsAt: IsoDate;
+  daysOfWeek?: number[];
+  weeks?: number;
 };
 
 export type CreateBookingRequestInput = {
   studentId: Uuid;
-  desiredDate: IsoDate;
+  preferredDate: IsoDate;
+  durationMinutes: number;
+  preferredStartTime?: string;
+  preferredEndTime?: string;
+  maxDays?: number;
+  selectedStartsAt?: IsoDate;
 };
 
 export type RespondWaitlistOfferInput = {
@@ -250,7 +271,11 @@ export type CreateSlotsResult = { count: number };
 
 export type CreateBookingRequestResult =
   | { matched: true; appointment: AutoscuolaAppointment; request: AutoscuolaBookingRequest }
-  | { matched: false; request: AutoscuolaBookingRequest };
+  | {
+      matched: false;
+      request: AutoscuolaBookingRequest;
+      suggestion?: { startsAt: IsoDate; endsAt: IsoDate };
+    };
 
 export type RespondWaitlistOfferResult =
   | { accepted: true; appointment: AutoscuolaAppointment; response: AutoscuolaWaitlistResponse }
@@ -271,3 +296,4 @@ export type SignupInput = {
 
 export type SelectCompanyInput = { companyId: Uuid };
 export type UpdateProfileInput = { name: string };
+export type AutoscuolaSettings = { availabilityWeeks: number };

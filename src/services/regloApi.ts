@@ -21,6 +21,7 @@ import {
   CreateSlotsResult,
   CreateStudentInput,
   CreateVehicleInput,
+  UpdateInstructorInput,
   LoginInput,
   LogoutPayload,
   MePayload,
@@ -32,7 +33,9 @@ import {
   SignupInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
+  UpdateVehicleInput,
   UserPublic,
+  AutoscuolaSettings,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -75,6 +78,13 @@ export const createRegloApi = (baseUrl?: string) => {
     },
     updateProfile: async (input: UpdateProfileInput) =>
       client.request<UserPublic>('/api/mobile/profile', {
+        method: 'PATCH',
+        body: input,
+      }),
+    getAutoscuolaSettings: async () =>
+      client.request<AutoscuolaSettings>('/api/autoscuole/settings'),
+    updateAutoscuolaSettings: async (input: AutoscuolaSettings) =>
+      client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',
         body: input,
       }),
@@ -129,11 +139,25 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+    updateInstructor: async (instructorId: string, input: UpdateInstructorInput) =>
+      client.request<AutoscuolaInstructor>(`/api/autoscuole/instructors/${instructorId}`, {
+        method: 'PATCH',
+        body: input,
+      }),
     getVehicles: async () => client.request<AutoscuolaVehicle[]>('/api/autoscuole/vehicles'),
     createVehicle: async (input: CreateVehicleInput) =>
       client.request<AutoscuolaVehicle>('/api/autoscuole/vehicles', {
         method: 'POST',
         body: input,
+      }),
+    updateVehicle: async (vehicleId: string, input: UpdateVehicleInput) =>
+      client.request<AutoscuolaVehicle>(`/api/autoscuole/vehicles/${vehicleId}`, {
+        method: 'PATCH',
+        body: input,
+      }),
+    deleteVehicle: async (vehicleId: string) =>
+      client.request<AutoscuolaVehicle>(`/api/autoscuole/vehicles/${vehicleId}`, {
+        method: 'DELETE',
       }),
     getDeadlines: async () =>
       client.request<AutoscuolaDeadlineItem[]>('/api/autoscuole/deadlines'),
@@ -141,6 +165,11 @@ export const createRegloApi = (baseUrl?: string) => {
     createAvailabilitySlots: async (input: CreateAvailabilitySlotsInput) =>
       client.request<CreateSlotsResult>('/api/autoscuole/availability/slots', {
         method: 'POST',
+        body: input,
+      }),
+    deleteAvailabilitySlots: async (input: CreateAvailabilitySlotsInput) =>
+      client.request<CreateSlotsResult>('/api/autoscuole/availability/slots', {
+        method: 'DELETE',
         body: input,
       }),
     getAvailabilitySlots: async (params: {

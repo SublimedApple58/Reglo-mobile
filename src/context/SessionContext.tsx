@@ -12,6 +12,7 @@ type SessionState = {
   companies: CompanySummary[];
   activeCompanyId: string | null;
   autoscuolaRole: AutoscuolaRole | null;
+  instructorId: string | null;
 };
 
 type SessionContextValue = SessionState & {
@@ -56,6 +57,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     companies: [],
     activeCompanyId: null,
     autoscuolaRole: null,
+    instructorId: null,
   });
 
   const setAuthenticated = useCallback((payload: {
@@ -63,6 +65,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     companies: CompanySummary[];
     activeCompanyId: string | null;
     autoscuolaRole?: AutoscuolaRole | null;
+    instructorId?: string | null;
   }) => {
     const status = resolveStatus(payload.activeCompanyId, payload.companies);
     const autoscuolaRole = resolveAutoscuolaRole(
@@ -76,6 +79,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       companies: payload.companies,
       activeCompanyId: payload.activeCompanyId,
       autoscuolaRole,
+      instructorId: payload.instructorId ?? null,
     });
   }, []);
 
@@ -86,6 +90,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       companies: me.companies,
       activeCompanyId: me.activeCompanyId,
       autoscuolaRole: me.autoscuolaRole,
+      instructorId: me.instructorId ?? null,
     });
   }, [setAuthenticated]);
 
@@ -98,6 +103,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         companies: [],
         activeCompanyId: null,
         autoscuolaRole: null,
+        instructorId: null,
       });
       return;
     }
@@ -114,6 +120,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         companies: [],
         activeCompanyId: null,
         autoscuolaRole: null,
+        instructorId: null,
       });
     }
   }, [refreshMe]);
@@ -136,6 +143,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         companies: payload.companies,
         activeCompanyId: payload.activeCompanyId,
         autoscuolaRole: payload.autoscuolaRole ?? null,
+        instructorId: payload.instructorId ?? null,
       });
     },
     [setAuthenticated]
@@ -161,6 +169,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         companies: payload.companies,
         activeCompanyId: payload.activeCompanyId,
         autoscuolaRole: payload.autoscuolaRole ?? null,
+        instructorId: payload.instructorId ?? null,
       });
     },
     [setAuthenticated]
@@ -180,20 +189,17 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       companies: [],
       activeCompanyId: null,
       autoscuolaRole: null,
+      instructorId: null,
     });
   }, []);
 
-  const selectCompany = useCallback(async (companyId: string) => {
-    const payload = await regloApi.selectCompany({ companyId });
-    setState((prev) => ({
-      ...prev,
-      activeCompanyId: payload.activeCompanyId,
-      autoscuolaRole:
-        prev.companies.find((item) => item.id === payload.activeCompanyId)
-          ?.autoscuolaRole ?? null,
-      status: resolveStatus(payload.activeCompanyId, prev.companies),
-    }));
-  }, []);
+  const selectCompany = useCallback(
+    async (companyId: string) => {
+      await regloApi.selectCompany({ companyId });
+      await refreshMe();
+    },
+    [refreshMe]
+  );
 
   const value = useMemo<SessionContextValue>(
     () => ({
