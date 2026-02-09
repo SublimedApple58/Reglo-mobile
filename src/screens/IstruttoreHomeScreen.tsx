@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassCard } from '../components/GlassCard';
+import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing, typography } from '../theme';
@@ -30,8 +31,9 @@ export const IstruttoreHomeScreen = () => {
   const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!instructorId) return;
@@ -66,15 +68,21 @@ export const IstruttoreHomeScreen = () => {
   const nextLesson = upcoming[0] ?? null;
 
   const handleStatusUpdate = async (appointmentId: string, status: string) => {
-    setMessage(null);
+    setToast(null);
     try {
       await regloApi.updateAppointmentStatus(appointmentId, { status });
-      setMessage('Stato aggiornato');
+      setToast({ text: 'Stato aggiornato', tone: 'success' });
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore aggiornando stato');
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   if (!instructorId) {
     return (
@@ -94,7 +102,23 @@ export const IstruttoreHomeScreen = () => {
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ToastNotice
+        message={toast?.text ?? null}
+        tone={toast?.tone}
+        onHide={() => setToast(null)}
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.navy}
+            colors={[colors.navy]}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Ciao, Istruttore</Text>
@@ -104,7 +128,6 @@ export const IstruttoreHomeScreen = () => {
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
 
         <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'In programma'}>
           {nextLesson ? (
@@ -267,9 +290,5 @@ const styles = StyleSheet.create({
   error: {
     ...typography.body,
     color: colors.danger,
-  },
-  message: {
-    ...typography.body,
-    color: colors.success,
   },
 });

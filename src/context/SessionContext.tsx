@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authStorage } from '../services/apiClient';
+import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
 import { AutoscuolaRole, CompanySummary, UserPublic } from '../types/regloApi';
@@ -129,6 +130,13 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     bootstrap();
   }, [bootstrap]);
 
+  useEffect(() => {
+    if (state.status !== 'ready' || !state.autoscuolaRole) return;
+    registerPushToken().catch((error) => {
+      console.warn('[Session] Push registration failed', error);
+    });
+  }, [state.status, state.autoscuolaRole, state.activeCompanyId, state.user?.id]);
+
   const signIn = useCallback(
     async (email: string, password: string) => {
       const payload = await regloApi.login({ email, password });
@@ -176,6 +184,11 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   );
 
   const signOut = useCallback(async () => {
+    try {
+      await unregisterPushToken();
+    } catch (error) {
+      console.warn('[Session] Push unregister failed', error);
+    }
     try {
       await regloApi.logout();
     } catch (error) {

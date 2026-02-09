@@ -7,13 +7,15 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassInput } from '../components/GlassInput';
 import { colors, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { useRouter } from 'expo-router';
 
-export type SignupScreenProps = NativeStackScreenProps<AuthStackParamList, 'Signup'>;
+type SignupScreenProps = {
+  onLogin?: () => void;
+};
 
-export const SignupScreen = ({ navigation }: SignupScreenProps) => {
+export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
   const { signUp } = useSession();
+  const router = useRouter();
   const [companyName, setCompanyName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -71,7 +73,16 @@ export const SignupScreen = ({ navigation }: SignupScreenProps) => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Hai gia un account?</Text>
-          <Text style={styles.footerLink} onPress={() => navigation.goBack()}>
+          <Text
+            style={styles.footerLink}
+            onPress={() => {
+              if (onLogin) {
+                onLogin();
+              } else {
+                router.back();
+              }
+            }}
+          >
             Accedi
           </Text>
         </View>

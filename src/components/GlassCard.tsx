@@ -12,33 +12,40 @@ type GlassCardProps = {
 
 export const GlassCard = ({ title, subtitle, children, style }: GlassCardProps) => {
   return (
-    <BlurView intensity={24} tint="light" style={[styles.container, style]}>
+    <View style={[styles.card, style]}>
+      <BlurView intensity={24} tint="light" style={styles.blur} />
       <View style={styles.overlay}>
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </View>
-    </BlurView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     borderRadius: 20,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.glassBorder,
     backgroundColor: colors.glass,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    shadowColor: 'rgba(50, 77, 122, 0.5)',
+    shadowOpacity: 0.35,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+    overflow: 'visible',
+  },
+  blur: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   overlay: {
     padding: spacing.lg,
     gap: spacing.sm,
     backgroundColor: colors.glass,
+    borderRadius: 20,
   },
   title: {
     ...typography.subtitle,

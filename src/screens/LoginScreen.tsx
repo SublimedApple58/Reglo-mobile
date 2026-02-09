@@ -7,13 +7,15 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassInput } from '../components/GlassInput';
 import { colors, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { useRouter } from 'expo-router';
 
-export type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+type LoginScreenProps = {
+  onSignup?: () => void;
+};
 
-export const LoginScreen = ({ navigation }: LoginScreenProps) => {
+export const LoginScreen = ({ onSignup }: LoginScreenProps) => {
   const { signIn } = useSession();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,16 @@ export const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Non hai un account?</Text>
-          <Text style={styles.footerLink} onPress={() => navigation.navigate('Signup')}>
+          <Text
+            style={styles.footerLink}
+            onPress={() => {
+              if (onSignup) {
+                onSignup();
+              } else {
+                router.push('/(auth)/signup');
+              }
+            }}
+          >
             Crea account
           </Text>
         </View>

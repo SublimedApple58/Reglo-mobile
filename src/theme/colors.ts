@@ -1,8 +1,8 @@
 export const colors = {
   mint: '#AFE2D4',
   navy: '#324D7A',
-  backgroundTop: '#F0FBF6',
-  backgroundBottom: '#DDE8FF',
+  backgroundTop: '#DFF3EC',
+  backgroundBottom: '#FFFFFF',
   glass: 'rgba(255, 255, 255, 0.28)',
   glassStrong: 'rgba(255, 255, 255, 0.5)',
   glassBorder: 'rgba(255, 255, 255, 0.7)',

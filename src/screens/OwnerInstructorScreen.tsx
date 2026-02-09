@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
@@ -23,6 +23,7 @@ export const OwnerInstructorScreen = () => {
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -66,10 +67,27 @@ export const OwnerInstructorScreen = () => {
 
   const nextLesson = upcoming[0] ?? null;
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.navy}
+            colors={[colors.navy]}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Istruttori</Text>

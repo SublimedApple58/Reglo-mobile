@@ -11,6 +11,7 @@ import {
   AutoscuolaOverview,
   AutoscuolaStudent,
   AutoscuolaVehicle,
+  AutoscuolaWaitlistOfferWithSlot,
   CancelAppointmentResult,
   CreateAppointmentInput,
   CreateAvailabilitySlotsInput,
@@ -28,9 +29,11 @@ import {
   UpdateProfileInput,
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
+  RegisterPushTokenInput,
   SelectCompanyInput,
   SelectCompanyPayload,
   SignupInput,
+  UnregisterPushTokenInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
   UpdateVehicleInput,
@@ -193,6 +196,20 @@ export const createRegloApi = (baseUrl?: string) => {
           body: input,
         }
       ),
+    getWaitlistOffers: async (studentId: string, limit?: number) =>
+      client.request<AutoscuolaWaitlistOfferWithSlot[]>('/api/autoscuole/waitlist/offers', {
+        params: { studentId, limit },
+      }),
+    registerPushToken: async (input: RegisterPushTokenInput) =>
+      client.request<{ id: string }>('/api/mobile/push/register', {
+        method: 'POST',
+        body: input,
+      }),
+    unregisterPushToken: async (input: UnregisterPushTokenInput = {}) =>
+      client.request<{ count: number }>('/api/mobile/push/unregister', {
+        method: 'POST',
+        body: input,
+      }),
   };
 };
 

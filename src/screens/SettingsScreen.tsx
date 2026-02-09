@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { GlassInput } from '../components/GlassInput';
+import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
@@ -14,8 +15,11 @@ export const SettingsScreen = () => {
   const [name, setName] = useState(user?.name ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [availabilityWeeks, setAvailabilityWeeks] = useState('4');
+  const [studentReminderMinutes, setStudentReminderMinutes] = useState('60');
+  const [instructorReminderMinutes, setInstructorReminderMinutes] = useState('60');
+  const [refreshing, setRefreshing] = useState(false);
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -26,18 +30,21 @@ export const SettingsScreen = () => {
     setName(user?.name ?? '');
   }, [user]);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      if (autoscuolaRole !== 'OWNER') return;
-      try {
-        const settings = await regloApi.getAutoscuolaSettings();
-        setAvailabilityWeeks(String(settings.availabilityWeeks));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Errore caricando impostazioni');
-      }
-    };
-    loadSettings();
+  const loadSettings = useCallback(async () => {
+    if (autoscuolaRole !== 'OWNER') return;
+    try {
+      const settings = await regloApi.getAutoscuolaSettings();
+      setAvailabilityWeeks(String(settings.availabilityWeeks));
+      setStudentReminderMinutes(String(settings.studentReminderMinutes));
+      setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore caricando impostazioni');
+    }
   }, [autoscuolaRole]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -48,11 +55,11 @@ export const SettingsScreen = () => {
 
     setSaving(true);
     setError(null);
-    setMessage(null);
+    setToast(null);
     try {
       await regloApi.updateProfile({ name: trimmed });
       await refreshMe();
-      setMessage('Profilo aggiornato');
+      setToast({ text: 'Profilo aggiornato', tone: 'success' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore aggiornando profilo');
     } finally {
@@ -70,29 +77,73 @@ export const SettingsScreen = () => {
       setError('Numero settimane non valido');
       return;
     }
+    const studentReminder = Number(studentReminderMinutes);
+    const instructorReminder = Number(instructorReminderMinutes);
+    const allowedReminderMinutes = [120, 60, 30, 20, 15];
+    if (!allowedReminderMinutes.includes(studentReminder)) {
+      setError('Preavviso allievo non valido');
+      return;
+    }
+    if (!allowedReminderMinutes.includes(instructorReminder)) {
+      setError('Preavviso istruttore non valido');
+      return;
+    }
     setError(null);
-    setMessage(null);
+    setToast(null);
     try {
-      await regloApi.updateAutoscuolaSettings({ availabilityWeeks: parsed });
-      setMessage('Impostazioni aggiornate');
+      await regloApi.updateAutoscuolaSettings({
+        availabilityWeeks: parsed,
+        studentReminderMinutes: studentReminder as 120 | 60 | 30 | 20 | 15,
+        instructorReminderMinutes: instructorReminder as 120 | 60 | 30 | 20 | 15,
+      });
+      setToast({ text: 'Impostazioni aggiornate', tone: 'success' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore aggiornando impostazioni');
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    setToast(null);
+    try {
+      await refreshMe();
+      await loadSettings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore nel refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadSettings, refreshMe]);
 
   const logoLabel = (activeCompany?.name ?? '?').slice(0, 1).toUpperCase();
 
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ToastNotice
+        message={toast?.text ?? null}
+        tone={toast?.tone}
+        onHide={() => setToast(null)}
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.navy}
+            colors={[colors.navy]}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
           <Text style={styles.subtitle}>Profilo e autoscuola</Text>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
 
         <GlassCard title="Profilo">
           <View style={styles.form}>
@@ -131,7 +182,19 @@ export const SettingsScreen = () => {
                 onChangeText={setAvailabilityWeeks}
                 keyboardType="number-pad"
               />
-              <GlassButton label="Salva settimane" onPress={handleSaveWeeks} />
+              <GlassInput
+                placeholder="Reminder allievo (120,60,30,20,15)"
+                value={studentReminderMinutes}
+                onChangeText={setStudentReminderMinutes}
+                keyboardType="number-pad"
+              />
+              <GlassInput
+                placeholder="Reminder istruttore (120,60,30,20,15)"
+                value={instructorReminderMinutes}
+                onChangeText={setInstructorReminderMinutes}
+                keyboardType="number-pad"
+              />
+              <GlassButton label="Salva impostazioni" onPress={handleSaveWeeks} />
             </View>
           </GlassCard>
         ) : null}
@@ -204,9 +267,5 @@ const styles = StyleSheet.create({
   error: {
     ...typography.body,
     color: colors.danger,
-  },
-  message: {
-    ...typography.body,
-    color: colors.success,
   },
 });

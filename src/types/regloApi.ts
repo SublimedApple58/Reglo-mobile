@@ -185,6 +185,10 @@ export type AutoscuolaWaitlistOffer = {
   updatedAt: IsoDate;
 };
 
+export type AutoscuolaWaitlistOfferWithSlot = AutoscuolaWaitlistOffer & {
+  slot: AutoscuolaAvailabilitySlot;
+};
+
 export type AutoscuolaWaitlistResponse = {
   id: Uuid;
   offerId: Uuid;
@@ -260,6 +264,8 @@ export type CreateBookingRequestInput = {
   preferredEndTime?: string;
   maxDays?: number;
   selectedStartsAt?: IsoDate;
+  excludeStartsAt?: IsoDate;
+  requestId?: Uuid;
 };
 
 export type RespondWaitlistOfferInput = {
@@ -296,4 +302,22 @@ export type SignupInput = {
 
 export type SelectCompanyInput = { companyId: Uuid };
 export type UpdateProfileInput = { name: string };
-export type AutoscuolaSettings = { availabilityWeeks: number };
+export type AutoscuolaSettings = {
+  availabilityWeeks: number;
+  studentReminderMinutes: 120 | 60 | 30 | 20 | 15;
+  instructorReminderMinutes: 120 | 60 | 30 | 20 | 15;
+  slotFillChannels?: Array<'push' | 'whatsapp' | 'email'>;
+  studentReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
+  instructorReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
+};
+
+export type RegisterPushTokenInput = {
+  token: string;
+  platform: 'ios' | 'android';
+  deviceId?: string;
+  appVersion?: string;
+};
+
+export type UnregisterPushTokenInput = {
+  token?: string;
+};

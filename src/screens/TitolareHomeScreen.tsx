@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
@@ -18,30 +18,49 @@ export const TitolareHomeScreen = () => {
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [deadlines, setDeadlines] = useState<AutoscuolaDeadlineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setError(null);
+    try {
+      const [overviewResponse, vehiclesResponse, deadlinesResponse] = await Promise.all([
+        regloApi.getOverview(),
+        regloApi.getVehicles(),
+        regloApi.getDeadlines(),
+      ]);
+      setOverview(overviewResponse);
+      setVehicles(vehiclesResponse);
+      setDeadlines(deadlinesResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento');
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      setError(null);
-      try {
-        const [overviewResponse, vehiclesResponse, deadlinesResponse] = await Promise.all([
-          regloApi.getOverview(),
-          regloApi.getVehicles(),
-          regloApi.getDeadlines(),
-        ]);
-        setOverview(overviewResponse);
-        setVehicles(vehiclesResponse);
-        setDeadlines(deadlinesResponse);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Errore nel caricamento');
-      }
-    };
-    load();
-  }, []);
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.navy}
+            colors={[colors.navy]}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Reglo Autoscuole</Text>
