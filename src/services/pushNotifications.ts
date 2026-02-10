@@ -12,6 +12,12 @@ const PUSH_INTENT_KEY = 'reglo_push_intent';
 let listenersBound = false;
 const intentListeners = new Set<(intent: string) => void>();
 
+type PushRegistrationSkippedReason = 'web' | 'simulator' | 'permission_denied';
+
+export type PushRegistrationResult =
+  | { status: 'registered'; token: string }
+  | { status: 'skipped'; reason: PushRegistrationSkippedReason };
+
 const getProjectId = () => {
   const easConfig = (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig;
   if (easConfig?.projectId) return easConfig.projectId;
@@ -82,28 +88,46 @@ const ensureListeners = () => {
 };
 
 export const registerPushToken = async () => {
-  if (Platform.OS === 'web') return;
-  if (!Device.isDevice) return;
+  if (Platform.OS === 'web') return { status: 'skipped', reason: 'web' } satisfies PushRegistrationResult;
+  if (!Device.isDevice) return { status: 'skipped', reason: 'simulator' } satisfies PushRegistrationResult;
   ensureListeners();
 
   const granted = await requestPushPermission();
-  if (!granted) return;
+  if (!granted) {
+    return { status: 'skipped', reason: 'permission_denied' } satisfies PushRegistrationResult;
+  }
 
   const projectId = getProjectId();
+  console.log(`[Push] Register start (projectId=${projectId ?? 'none'})`);
   let token: string | null = null;
+  let withProjectError: unknown;
+  let fallbackError: unknown;
 
   if (projectId) {
     try {
       const tokenRes = await Notifications.getExpoPushTokenAsync({ projectId });
       token = tokenRes.data;
     } catch (error) {
+      withProjectError = error;
       console.warn('[Push] getExpoPushTokenAsync with projectId failed', error);
     }
   }
 
   if (!token) {
-    const tokenRes = await Notifications.getExpoPushTokenAsync();
-    token = tokenRes.data;
+    try {
+      const tokenRes = await Notifications.getExpoPushTokenAsync();
+      token = tokenRes.data;
+    } catch (error) {
+      fallbackError = error;
+    }
+  }
+
+  if (!token) {
+    throw new Error(
+      `[Push] Unable to obtain Expo push token. projectId=${projectId ?? 'none'} ` +
+        `withProjectError=${String(withProjectError ?? 'none')} ` +
+        `fallbackError=${String(fallbackError ?? 'none')}`
+    );
   }
 
   await regloApi.registerPushToken({
@@ -111,6 +135,9 @@ export const registerPushToken = async () => {
     platform: Platform.OS === 'android' ? 'android' : 'ios',
   });
   await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
+  const tokenPreview = `${token.slice(0, 12)}...${token.slice(-6)}`;
+  console.log(`[Push] Device token registered (${tokenPreview})`);
+  return { status: 'registered', token } satisfies PushRegistrationResult;
 };
 
 export const unregisterPushToken = async () => {

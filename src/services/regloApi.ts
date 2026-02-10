@@ -12,6 +12,7 @@ import {
   AutoscuolaStudent,
   AutoscuolaVehicle,
   AutoscuolaWaitlistOfferWithSlot,
+  AcceptMobileInviteInput,
   CancelAppointmentResult,
   CreateAppointmentInput,
   CreateAvailabilitySlotsInput,
@@ -24,6 +25,7 @@ import {
   CreateVehicleInput,
   UpdateInstructorInput,
   LoginInput,
+  MobileInviteContext,
   LogoutPayload,
   MePayload,
   UpdateProfileInput,
@@ -76,6 +78,17 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       });
+      await authStorage.setActiveCompanyId(payload.activeCompanyId);
+      return payload;
+    },
+    getInviteContext: async (token: string) =>
+      client.request<MobileInviteContext>(`/api/mobile/invites/${token}/context`),
+    acceptInvite: async (token: string, input: AcceptMobileInviteInput) => {
+      const payload = await client.request<AuthPayload>(`/api/mobile/invites/${token}/accept`, {
+        method: 'POST',
+        body: input,
+      });
+      await authStorage.setToken(payload.token);
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Reglo",
     "slug": "reglo-mobile",
+    "scheme": "com.tiziano.developer.reglo-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -32,6 +33,13 @@
       "expo-router",
       "expo-secure-store",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2e35dc03-e963-4f93-be94-61a2389ebe20"
+      }
+    },
+    "owner": "tiziano.developer"
   }
 }

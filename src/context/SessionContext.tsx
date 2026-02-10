@@ -131,11 +131,17 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   }, [bootstrap]);
 
   useEffect(() => {
-    if (state.status !== 'ready' || !state.autoscuolaRole) return;
-    registerPushToken().catch((error) => {
-      console.warn('[Session] Push registration failed', error);
-    });
-  }, [state.status, state.autoscuolaRole, state.activeCompanyId, state.user?.id]);
+    if (state.status !== 'ready' || !state.user?.id) return;
+    registerPushToken()
+      .then((result) => {
+        if (result.status === 'skipped') {
+          console.info(`[Session] Push registration skipped (${result.reason})`);
+        }
+      })
+      .catch((error) => {
+        console.warn('[Session] Push registration failed', error);
+      });
+  }, [state.status, state.activeCompanyId, state.user?.id]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {

@@ -302,6 +302,26 @@ export type SignupInput = {
 
 export type SelectCompanyInput = { companyId: Uuid };
 export type UpdateProfileInput = { name: string };
+export type MobileInviteContext = {
+  companyName: string;
+  companyId: Uuid;
+  email: string;
+  role: string;
+  expiresAt: IsoDate;
+  hasAccount: boolean;
+  alreadyMember: boolean;
+  autoscuolaActive: boolean;
+  requiresPhone: boolean;
+};
+
+export type AcceptMobileInviteInput = {
+  mode: 'existing' | 'register';
+  name?: string;
+  password: string;
+  confirmPassword?: string;
+  phone?: string;
+};
+
 export type AutoscuolaSettings = {
   availabilityWeeks: number;
   studentReminderMinutes: 120 | 60 | 30 | 20 | 15;

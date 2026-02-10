@@ -20,7 +20,8 @@ const AuthGate = () => {
     const inTabs = root === '(tabs)';
 
     if (status === 'unauthenticated') {
-      if (!inAuth || leaf !== 'login') {
+      const allowedAuthLeaves = new Set(['login', 'signup', 'invite']);
+      if (!inAuth || !allowedAuthLeaves.has(leaf ?? '')) {
         router.replace('/(auth)/login');
       }
       return;
