@@ -1,6 +1,6 @@
 import React from 'react';
 import { BlurView } from 'expo-blur';
-import { Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, spacing, typography } from '../theme';
 
 type GlassButtonProps = {
@@ -22,6 +22,13 @@ const toneStyles: Record<'standard' | 'primary' | 'danger', ToneStyle> = {
     root: {
       backgroundColor: colors.glassStrong,
       borderColor: colors.glassBorder,
+    },
+    shadow: {
+      shadowColor: 'rgba(27, 43, 68, 0.45)',
+      shadowOpacity: 0.24,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
     },
     label: {
       color: colors.textPrimary,
@@ -68,13 +75,51 @@ export const GlassButton = ({
   disabled = false,
   fullWidth = false,
 }: GlassButtonProps) => {
+  const isIOS = Platform.OS === 'ios';
   const toneStyle = toneStyles[tone];
+
+  if (!isIOS) {
+    const androidBackground =
+      tone === 'standard' ? 'rgba(255, 255, 255, 0.9)' : toneStyle.root.backgroundColor;
+    const androidBorder =
+      tone === 'standard' ? 'rgba(50, 77, 122, 0.24)' : toneStyle.root.borderColor;
+
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.shadowWrap,
+          styles.shadowWrapAndroid,
+          fullWidth && styles.fullWidth,
+          toneStyle.shadow,
+          pressed && styles.pressed,
+          disabled && styles.disabled,
+        ]}
+      >
+        <View
+          style={[
+            styles.androidSurface,
+            { backgroundColor: androidBackground },
+            { borderColor: androidBorder },
+            fullWidth && styles.surfaceFull,
+          ]}
+        >
+          <Text style={[styles.label, styles.labelAndroid, toneStyle.label, disabled && styles.labelDisabled]}>
+            {label}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.shadowWrap,
+        styles.shadowWrapIOS,
         fullWidth && styles.fullWidth,
         toneStyle.shadow,
         pressed && styles.pressed,
@@ -103,11 +148,20 @@ export const GlassButton = ({
 const styles = StyleSheet.create({
   shadowWrap: {
     borderRadius: 16,
+  },
+  shadowWrapIOS: {
     shadowColor: 'rgba(50, 77, 122, 0.6)',
     shadowOpacity: 0.28,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
+  },
+  shadowWrapAndroid: {
+    shadowColor: 'rgba(50, 77, 122, 0.2)',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   fullWidth: {
     width: '100%',
@@ -122,6 +176,16 @@ const styles = StyleSheet.create({
   surface: {
     borderRadius: 16,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  androidSurface: {
+    borderRadius: 16,
+    borderWidth: 1,
+    minHeight: 48,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
   },
   surfaceFull: {
@@ -142,6 +206,11 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body,
+    textDecorationLine: 'none',
+  },
+  labelAndroid: {
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   labelDisabled: {
     color: colors.textMuted,

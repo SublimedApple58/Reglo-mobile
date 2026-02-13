@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
+import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -26,6 +27,7 @@ import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
 import {
   AutoscuolaAppointmentWithRelations,
+  MobileStudentPaymentProfile,
   AutoscuolaStudent,
   AutoscuolaSettings,
   AutoscuolaWaitlistOfferWithSlot,
@@ -36,6 +38,7 @@ import { formatDay, formatTime } from '../utils/date';
 const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in']);
 const proposalStatuses = new Set(['proposal']);
+const historyPageSize = 10;
 
 const pad = (value: number) => value.toString().padStart(2, '0');
 
@@ -154,6 +157,7 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 
 
 export const AllievoHomeScreen = () => {
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user } = useSession();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
@@ -178,6 +182,8 @@ export const AllievoHomeScreen = () => {
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [bookingRequestId, setBookingRequestId] = useState<string | null>(null);
+  const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
+  const [payNowLoading, setPayNowLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pendingSuggestionOpen, setPendingSuggestionOpen] = useState(false);
   const [waitlistOffer, setWaitlistOffer] = useState<AutoscuolaWaitlistOfferWithSlot | null>(null);
@@ -185,6 +191,7 @@ export const AllievoHomeScreen = () => {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
+  const [historyVisibleCount, setHistoryVisibleCount] = useState(historyPageSize);
 
   const openPreferences = () => {
     setPrefsOpen(true);
@@ -208,12 +215,14 @@ export const AllievoHomeScreen = () => {
       setLoading(true);
       setToast(null);
       try {
-        const [appointmentsResponse, settingsResponse] = await Promise.all([
+        const [appointmentsResponse, settingsResponse, paymentResponse] = await Promise.all([
           regloApi.getAppointments(),
           regloApi.getAutoscuolaSettings(),
+          regloApi.getPaymentProfile(),
         ]);
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
         setSettings(settingsResponse);
+        setPaymentProfile(paymentResponse);
       } catch (err) {
         setToast({
           text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -369,6 +378,15 @@ export const AllievoHomeScreen = () => {
       .filter((item) => new Date(item.startsAt) < now)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [appointments]);
+  const visibleHistory = useMemo(
+    () => history.slice(0, historyVisibleCount),
+    [history, historyVisibleCount]
+  );
+  const hasMoreHistory = visibleHistory.length < history.length;
+
+  useEffect(() => {
+    setHistoryVisibleCount(historyPageSize);
+  }, [selectedStudentId]);
 
   const nextLesson = upcoming[0];
   const pendingProposal = useMemo(() => {
@@ -458,6 +476,20 @@ export const AllievoHomeScreen = () => {
 
   const handleBookingRequest = async () => {
     if (!selectedStudentId) return;
+    if (paymentProfile?.autoPaymentsEnabled && !paymentProfile?.hasPaymentMethod) {
+      setToast({
+        text: 'Aggiungi un metodo di pagamento dalle impostazioni prima di prenotare.',
+        tone: 'info',
+      });
+      return;
+    }
+    if (paymentProfile?.blockedByInsoluti) {
+      setToast({
+        text: 'Hai pagamenti insoluti. Salda prima di prenotare una nuova guida.',
+        tone: 'danger',
+      });
+      return;
+    }
     setToast(null);
     setSuggestion(null);
     setBookingLoading(true);
@@ -690,6 +722,52 @@ export const AllievoHomeScreen = () => {
     }
   };
 
+  const handlePayNow = async () => {
+    if (!selectedStudentId || !paymentProfile?.outstanding.length) return;
+    const outstanding = paymentProfile.outstanding[0];
+    setPayNowLoading(true);
+    setToast(null);
+    try {
+      const setup = await regloApi.preparePayNow(outstanding.appointmentId);
+      const init = await initPaymentSheet({
+        merchantDisplayName: 'Reglo Autoscuole',
+        customerId: setup.customerId,
+        customerEphemeralKeySecret: setup.ephemeralKey,
+        paymentIntentClientSecret: setup.paymentIntentClientSecret,
+        applePay: { merchantCountryCode: 'IT' },
+        googlePay: { merchantCountryCode: 'IT', testEnv: true },
+      });
+
+      if (init.error) {
+        throw new Error(init.error.message);
+      }
+
+      const result = await presentPaymentSheet();
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const finalized = await regloApi.finalizePayNow(
+        outstanding.appointmentId,
+        setup.paymentIntentId
+      );
+
+      if (!finalized.success) {
+        throw new Error(finalized.message ?? 'Pagamento in elaborazione.');
+      }
+
+      setToast({ text: 'Pagamento completato', tone: 'success' });
+      await loadData(selectedStudentId);
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore durante pagamento',
+        tone: 'danger',
+      });
+    } finally {
+      setPayNowLoading(false);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setToast(null);
@@ -826,16 +904,48 @@ export const AllievoHomeScreen = () => {
 
             <SectionHeader title="Prenota una guida" action="Preferenze" />
             <GlassCard>
+              {paymentProfile?.blockedByInsoluti ? (
+                <View style={styles.outstandingBlock}>
+                  <Text style={styles.outstandingTitle}>Pagamento in sospeso</Text>
+                  <Text style={styles.outstandingText}>
+                    Hai importi da saldare prima di poter prenotare nuove guide.
+                  </Text>
+                  <Text style={styles.outstandingText}>
+                    Da saldare: € {paymentProfile.outstanding[0]?.amountDue.toFixed(2) ?? '0.00'}
+                  </Text>
+                  <GlassButton
+                    label={payNowLoading ? 'Attendi...' : 'Salda ora'}
+                    tone="primary"
+                    onPress={handlePayNow}
+                    disabled={payNowLoading}
+                  />
+                </View>
+              ) : null}
+              {paymentProfile?.autoPaymentsEnabled && !paymentProfile?.hasPaymentMethod ? (
+                <View style={styles.outstandingBlock}>
+                  <Text style={styles.outstandingTitle}>Metodo di pagamento richiesto</Text>
+                  <Text style={styles.outstandingText}>
+                    Questa autoscuola richiede un metodo di pagamento valido per prenotare.
+                  </Text>
+                </View>
+              ) : null}
               <Text style={styles.bookingHint}>
                 Imposta le tue preferenze e richiedi una guida.
               </Text>
-              <GlassButton label="Apri preferenze" onPress={openPreferences} />
+              <GlassButton
+                label="Apri preferenze"
+                onPress={openPreferences}
+                disabled={Boolean(
+                  paymentProfile?.blockedByInsoluti ||
+                    (paymentProfile?.autoPaymentsEnabled && !paymentProfile?.hasPaymentMethod)
+                )}
+              />
             </GlassCard>
 
             <SectionHeader title="Storico" action="Ultime guide" />
             <GlassCard>
               <View style={styles.historyList}>
-                {history.map((lesson) => {
+                {visibleHistory.map((lesson) => {
                   const status = statusLabel(lesson.status);
                   return (
                     <View key={lesson.id} style={styles.historyRow}>
@@ -850,6 +960,16 @@ export const AllievoHomeScreen = () => {
                   );
                 })}
                 {!history.length ? <Text style={styles.empty}>Nessuna guida passata.</Text> : null}
+                {hasMoreHistory ? (
+                  <View style={styles.historyMore}>
+                    <GlassButton
+                      label="Carica altre"
+                      onPress={() =>
+                        setHistoryVisibleCount((prev) => Math.min(prev + historyPageSize, history.length))
+                      }
+                    />
+                  </View>
+                ) : null}
               </View>
             </GlassCard>
           </>
@@ -1114,6 +1234,9 @@ const styles = StyleSheet.create({
   historyList: {
     gap: spacing.md,
   },
+  historyMore: {
+    marginTop: spacing.xs,
+  },
   historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1181,6 +1304,18 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  outstandingBlock: {
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  outstandingTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  outstandingText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   sheetContent: {
     gap: spacing.xs,

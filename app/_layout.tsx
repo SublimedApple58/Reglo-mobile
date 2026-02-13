@@ -1,17 +1,20 @@
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
+import Constants from 'expo-constants';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
 import { consumePendingOrLaunchPushIntent } from '../src/services/pushNotifications';
 import { colors } from '../src/theme';
 
 const AuthGate = () => {
-  const { status, autoscuolaRole } = useSession();
+  const { status, autoscuolaRole, signOut } = useSession();
   const segments = useSegments();
   const router = useRouter();
+  const forcedLogoutRef = useRef(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -35,16 +38,23 @@ const AuthGate = () => {
     }
 
     if (!autoscuolaRole) {
-      if (!inAuth || leaf !== 'role-blocked') {
-        router.replace('/(auth)/role-blocked');
+      if (forcedLogoutRef.current) {
+        return;
       }
+      forcedLogoutRef.current = true;
+      signOut()
+        .catch(() => undefined)
+        .finally(() => {
+          router.replace('/(auth)/login');
+        });
       return;
     }
 
+    forcedLogoutRef.current = false;
     if (!inTabs) {
       router.replace('/(tabs)/home');
     }
-  }, [status, autoscuolaRole, router, segments]);
+  }, [status, autoscuolaRole, router, segments, signOut]);
 
   useEffect(() => {
     if (status !== 'ready' || !autoscuolaRole) return;
@@ -67,7 +77,15 @@ const AuthGate = () => {
 };
 
 export default function RootLayout() {
-  return (
+  const stripePublishableKey =
+    process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
+    (Constants.expoConfig?.extra?.stripePublishableKey as string | undefined) ??
+    '';
+  const merchantIdentifier =
+    (Constants.expoConfig?.extra?.stripeMerchantIdentifier as string | undefined) ??
+    'merchant.com.tiziano.developer.reglo-mobile';
+
+  const content = (
     <SessionProvider>
       <View style={styles.root}>
         <LinearGradient
@@ -81,6 +99,19 @@ export default function RootLayout() {
         <AuthGate />
       </View>
     </SessionProvider>
+  );
+
+  if (!stripePublishableKey) {
+    return content;
+  }
+
+  return (
+    <StripeProvider
+      publishableKey={stripePublishableKey}
+      merchantIdentifier={merchantIdentifier}
+    >
+      {content}
+    </StripeProvider>
   );
 }
 

@@ -168,16 +168,45 @@ export const InviteAcceptScreen = () => {
                 <View style={styles.phoneBlock}>
                   <Text style={styles.phoneLabel}>Cellulare</Text>
                   <View style={styles.phoneRow}>
-                    <View style={styles.prefixSelectWrap}>
-                      <BlurView intensity={24} tint="light" style={styles.phoneFieldBlur}>
-                        <Pressable
-                          style={styles.prefixSelectButton}
-                          onPress={() => setShowPrefixMenu((prev) => !prev)}
-                        >
-                          <Text style={styles.prefixValue}>{phonePrefix}</Text>
-                          <Text style={styles.prefixChevron}>▾</Text>
-                        </Pressable>
-                      </BlurView>
+                    <View style={styles.prefixSelectContainer}>
+                      <View style={styles.prefixSelectWrap}>
+                        <BlurView intensity={24} tint="light" style={styles.phoneFieldBlur}>
+                          <Pressable
+                            style={styles.prefixSelectButton}
+                            onPress={() => setShowPrefixMenu((prev) => !prev)}
+                          >
+                            <Text style={styles.prefixValue}>{phonePrefix}</Text>
+                            <Text style={styles.prefixChevron}>▾</Text>
+                          </Pressable>
+                        </BlurView>
+                      </View>
+
+                      {showPrefixMenu ? (
+                        <View style={styles.prefixDropdown}>
+                          {PHONE_PREFIX_OPTIONS.map((option) => (
+                            <Pressable
+                              key={option}
+                              onPress={() => {
+                                setPhonePrefix(option);
+                                setShowPrefixMenu(false);
+                              }}
+                              style={[
+                                styles.prefixOption,
+                                option === phonePrefix && styles.prefixOptionActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.prefixOptionText,
+                                  option === phonePrefix && styles.prefixOptionTextActive,
+                                ]}
+                              >
+                                {option}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : null}
                     </View>
 
                     <View style={styles.phoneInputWrap}>
@@ -195,32 +224,6 @@ export const InviteAcceptScreen = () => {
                     </View>
                   </View>
 
-                  {showPrefixMenu ? (
-                    <View style={styles.prefixMenu}>
-                      {PHONE_PREFIX_OPTIONS.map((option) => (
-                        <Pressable
-                          key={option}
-                          onPress={() => {
-                            setPhonePrefix(option);
-                            setShowPrefixMenu(false);
-                          }}
-                          style={[
-                            styles.prefixOption,
-                            option === phonePrefix && styles.prefixOptionActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.prefixOptionText,
-                              option === phonePrefix && styles.prefixOptionTextActive,
-                            ]}
-                          >
-                            {option}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
                 </View>
               ) : null}
 
@@ -288,8 +291,12 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: spacing.sm,
   },
-  prefixSelectWrap: {
+  prefixSelectContainer: {
     width: 96,
+    position: 'relative',
+    zIndex: 20,
+  },
+  prefixSelectWrap: {
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
@@ -312,6 +319,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 20,
   },
+  prefixDropdown: {
+    position: 'absolute',
+    top: 52,
+    left: 0,
+    right: 0,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
   phoneInputWrap: {
     flex: 1,
     borderRadius: 16,
@@ -330,30 +353,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.glass,
     minHeight: 48,
   },
-  prefixMenu: {
-    marginTop: spacing.xs,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
   prefixOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glass,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    backgroundColor: '#fff',
   },
   prefixOptionActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: '#EEF3FB',
   },
   prefixOptionText: {
-    ...typography.caption,
+    ...typography.body,
     color: colors.textPrimary,
   },
   prefixOptionTextActive: {
-    color: '#fff',
+    color: colors.navy,
   },
   loadingWrap: {
     alignItems: 'center',

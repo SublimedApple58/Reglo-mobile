@@ -10,6 +10,7 @@ const PUSH_TOKEN_KEY = 'reglo_push_token';
 const PUSH_INTENT_KEY = 'reglo_push_intent';
 
 let listenersBound = false;
+let androidChannelReady = false;
 const intentListeners = new Set<(intent: string) => void>();
 
 type PushRegistrationSkippedReason = 'web' | 'simulator' | 'permission_denied';
@@ -87,10 +88,27 @@ const ensureListeners = () => {
   listenersBound = true;
 };
 
+const ensureAndroidNotificationChannel = async () => {
+  if (Platform.OS !== 'android' || androidChannelReady) return;
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Reglo',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 220, 120, 220],
+      lightColor: '#324D7A',
+      sound: 'default',
+    });
+    androidChannelReady = true;
+  } catch (error) {
+    console.warn('[Push] Failed to configure Android notification channel', error);
+  }
+};
+
 export const registerPushToken = async () => {
   if (Platform.OS === 'web') return { status: 'skipped', reason: 'web' } satisfies PushRegistrationResult;
   if (!Device.isDevice) return { status: 'skipped', reason: 'simulator' } satisfies PushRegistrationResult;
   ensureListeners();
+  await ensureAndroidNotificationChannel();
 
   const granted = await requestPushPermission();
   if (!granted) {

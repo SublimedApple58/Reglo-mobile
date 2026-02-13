@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
@@ -9,9 +10,11 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
+import { MobileStudentPaymentProfile } from '../types/regloApi';
 
 export const SettingsScreen = () => {
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [name, setName] = useState(user?.name ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +23,8 @@ export const SettingsScreen = () => {
   const [studentReminderMinutes, setStudentReminderMinutes] = useState('60');
   const [instructorReminderMinutes, setInstructorReminderMinutes] = useState('60');
   const [refreshing, setRefreshing] = useState(false);
+  const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -31,12 +36,19 @@ export const SettingsScreen = () => {
   }, [user]);
 
   const loadSettings = useCallback(async () => {
-    if (autoscuolaRole !== 'OWNER') return;
     try {
-      const settings = await regloApi.getAutoscuolaSettings();
-      setAvailabilityWeeks(String(settings.availabilityWeeks));
-      setStudentReminderMinutes(String(settings.studentReminderMinutes));
-      setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+      if (autoscuolaRole === 'OWNER') {
+        const settings = await regloApi.getAutoscuolaSettings();
+        setAvailabilityWeeks(String(settings.availabilityWeeks));
+        setStudentReminderMinutes(String(settings.studentReminderMinutes));
+        setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+      }
+      if (autoscuolaRole === 'STUDENT') {
+        const profile = await regloApi.getPaymentProfile();
+        setPaymentProfile(profile);
+      } else {
+        setPaymentProfile(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore caricando impostazioni');
     }
@@ -115,6 +127,48 @@ export const SettingsScreen = () => {
       setRefreshing(false);
     }
   }, [loadSettings, refreshMe]);
+
+  const handleConfigurePaymentMethod = async () => {
+    if (autoscuolaRole !== 'STUDENT') return;
+    setPaymentLoading(true);
+    setError(null);
+    setToast(null);
+    try {
+      const setup = await regloApi.createSetupIntent();
+      const init = await initPaymentSheet({
+        merchantDisplayName: 'Reglo Autoscuole',
+        customerId: setup.customerId,
+        customerEphemeralKeySecret: setup.ephemeralKey,
+        setupIntentClientSecret: setup.setupIntentClientSecret,
+        applePay: { merchantCountryCode: 'IT' },
+        googlePay: { merchantCountryCode: 'IT', testEnv: true },
+        defaultBillingDetails: {
+          name: user?.name ?? undefined,
+          email: user?.email ?? undefined,
+        },
+      });
+
+      if (init.error) {
+        throw new Error(init.error.message);
+      }
+
+      const result = await presentPaymentSheet();
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      await regloApi.confirmPaymentMethod({
+        setupIntentId: setup.setupIntentId,
+      });
+      const profile = await regloApi.getPaymentProfile();
+      setPaymentProfile(profile);
+      setToast({ text: 'Metodo di pagamento salvato', tone: 'success' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore configurando pagamento');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const logoLabel = (activeCompany?.name ?? '?').slice(0, 1).toUpperCase();
 
@@ -195,6 +249,35 @@ export const SettingsScreen = () => {
                 keyboardType="number-pad"
               />
               <GlassButton label="Salva impostazioni" onPress={handleSaveWeeks} />
+            </View>
+          </GlassCard>
+        ) : null}
+
+        {autoscuolaRole === 'STUDENT' ? (
+          <GlassCard title="Metodo di pagamento">
+            <View style={styles.form}>
+              {paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod ? (
+                <Text style={styles.companyMeta}>
+                  Carta {paymentProfile.paymentMethod.brand.toUpperCase()} ••••
+                  {paymentProfile.paymentMethod.last4}
+                </Text>
+              ) : (
+                <Text style={styles.companyMeta}>Nessun metodo salvato.</Text>
+              )}
+              {paymentProfile?.blockedByInsoluti ? (
+                <Text style={styles.error}>Hai pagamenti insoluti. Salda dalla Home.</Text>
+              ) : null}
+              <GlassButton
+                label={
+                  paymentLoading
+                    ? 'Attendi...'
+                    : paymentProfile?.hasPaymentMethod
+                    ? 'Aggiorna metodo'
+                    : 'Aggiungi metodo'
+                }
+                onPress={handleConfigurePaymentMethod}
+                disabled={paymentLoading}
+              />
             </View>
           </GlassCard>
         ) : null}

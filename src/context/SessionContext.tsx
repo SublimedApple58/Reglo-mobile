@@ -32,6 +32,15 @@ type SessionContextValue = SessionState & {
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
+const unauthenticatedState: SessionState = {
+  status: 'unauthenticated',
+  user: null,
+  companies: [],
+  activeCompanyId: null,
+  autoscuolaRole: null,
+  instructorId: null,
+};
+
 const resolveStatus = (activeCompanyId: string | null, companies: CompanySummary[]) => {
   if (!activeCompanyId && companies.length > 0) return 'company_select' as const;
   return 'ready' as const;
@@ -84,8 +93,33 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     });
   }, []);
 
+  const clearSessionAndUnauthenticate = useCallback(async () => {
+    await authStorage.clear();
+    await sessionStorage.clear();
+    setState(unauthenticatedState);
+  }, []);
+
   const refreshMe = useCallback(async () => {
     const me = await regloApi.me();
+    const resolvedRole = resolveAutoscuolaRole(
+      me.activeCompanyId,
+      me.companies,
+      me.autoscuolaRole
+    );
+
+    // If the user has been removed from all companies, force a clean logout.
+    if (!me.companies.length) {
+      await clearSessionAndUnauthenticate();
+      return;
+    }
+
+    // If an active company exists but role resolution fails, session is inconsistent:
+    // force login so the user doesn't stay in a broken app state.
+    if (me.activeCompanyId && !resolvedRole) {
+      await clearSessionAndUnauthenticate();
+      return;
+    }
+
     setAuthenticated({
       user: me.user,
       companies: me.companies,
@@ -93,19 +127,12 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       autoscuolaRole: me.autoscuolaRole,
       instructorId: me.instructorId ?? null,
     });
-  }, [setAuthenticated]);
+  }, [clearSessionAndUnauthenticate, setAuthenticated]);
 
   const bootstrap = useCallback(async () => {
     const token = await authStorage.getToken();
     if (!token) {
-      setState({
-        status: 'unauthenticated',
-        user: null,
-        companies: [],
-        activeCompanyId: null,
-        autoscuolaRole: null,
-        instructorId: null,
-      });
+      setState(unauthenticatedState);
       return;
     }
 
@@ -113,18 +140,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       await refreshMe();
     } catch (error) {
       console.warn('[Session] Failed to restore session', error);
-      await authStorage.clear();
-      await sessionStorage.clear();
-      setState({
-        status: 'unauthenticated',
-        user: null,
-        companies: [],
-        activeCompanyId: null,
-        autoscuolaRole: null,
-        instructorId: null,
-      });
+      await clearSessionAndUnauthenticate();
     }
-  }, [refreshMe]);
+  }, [clearSessionAndUnauthenticate, refreshMe]);
 
   useEffect(() => {
     bootstrap();
@@ -202,14 +220,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     }
     await authStorage.clear();
     await sessionStorage.clear();
-    setState({
-      status: 'unauthenticated',
-      user: null,
-      companies: [],
-      activeCompanyId: null,
-      autoscuolaRole: null,
-      instructorId: null,
-    });
+    setState(unauthenticatedState);
   }, []);
 
   const selectCompany = useCallback(

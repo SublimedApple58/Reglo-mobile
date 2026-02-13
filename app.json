@@ -22,6 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.tiziano.developer.reglomobile"
@@ -32,13 +33,21 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.tiziano.developer.reglo-mobile",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "extra": {
       "router": {},
       "eas": {
         "projectId": "2e35dc03-e963-4f93-be94-61a2389ebe20"
-      }
+      },
+      "stripeMerchantIdentifier": "merchant.com.tiziano.developer.reglo-mobile"
     },
     "owner": "tiziano.developer"
   }

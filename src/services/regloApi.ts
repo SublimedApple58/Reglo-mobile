@@ -32,10 +32,16 @@ import {
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
   RegisterPushTokenInput,
+  MobileStudentPaymentProfile,
+  MobileSetupIntentPayload,
+  MobileConfirmPaymentMethodPayload,
+  MobilePreparePayNowPayload,
+  MobileFinalizePayNowPayload,
   SelectCompanyInput,
   SelectCompanyPayload,
   SignupInput,
   UnregisterPushTokenInput,
+  UpdateAppointmentDetailsInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
   UpdateVehicleInput,
@@ -141,6 +147,11 @@ export const createRegloApi = (baseUrl?: string) => {
           body: input,
         }
       ),
+    updateAppointmentDetails: async (appointmentId: string, input: UpdateAppointmentDetailsInput) =>
+      client.request<AutoscuolaAppointment>(`/api/autoscuole/appointments/${appointmentId}`, {
+        method: 'PATCH',
+        body: input,
+      }),
     cancelAppointment: async (appointmentId: string) =>
       client.request<CancelAppointmentResult>(
         `/api/autoscuole/appointments/${appointmentId}/cancel`,
@@ -223,6 +234,40 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+    getPaymentProfile: async () =>
+      client.request<MobileStudentPaymentProfile>('/api/mobile/payments/profile'),
+    createSetupIntent: async () =>
+      client.request<MobileSetupIntentPayload>('/api/mobile/payments/setup-intent', {
+        method: 'POST',
+        body: {},
+      }),
+    confirmPaymentMethod: async (input: {
+      setupIntentId?: string;
+      paymentMethodId?: string;
+    }) =>
+      client.request<MobileConfirmPaymentMethodPayload>(
+        '/api/mobile/payments/confirm-method',
+        {
+          method: 'POST',
+          body: input,
+        }
+      ),
+    preparePayNow: async (appointmentId: string) =>
+      client.request<MobilePreparePayNowPayload>(
+        `/api/mobile/payments/appointments/${appointmentId}/pay-now`,
+        {
+          method: 'POST',
+          body: {},
+        }
+      ),
+    finalizePayNow: async (appointmentId: string, paymentIntentId: string) =>
+      client.request<MobileFinalizePayNowPayload>(
+        `/api/mobile/payments/appointments/${appointmentId}/pay-now`,
+        {
+          method: 'POST',
+          body: { paymentIntentId },
+        }
+      ),
   };
 };
 

@@ -231,7 +231,15 @@ export type CreateAppointmentInput = {
   notes?: string;
 };
 
-export type UpdateAppointmentStatusInput = { status: string };
+export type UpdateAppointmentStatusInput = {
+  status: string;
+  lessonType?: string;
+};
+
+export type UpdateAppointmentDetailsInput = {
+  lessonType?: string;
+  notes?: string | null;
+};
 
 export type CreateInstructorInput = { name: string; phone?: string };
 export type CreateVehicleInput = { name: string; plate?: string };
@@ -329,6 +337,63 @@ export type AutoscuolaSettings = {
   slotFillChannels?: Array<'push' | 'whatsapp' | 'email'>;
   studentReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
   instructorReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
+  autoPaymentsEnabled?: boolean;
+  lessonPrice30?: number;
+  lessonPrice60?: number;
+  penaltyCutoffHoursPreset?: 1 | 2 | 4 | 6 | 12 | 24 | 48;
+  penaltyPercentPreset?: 25 | 50 | 75 | 100;
+  paymentNotificationChannels?: Array<'push' | 'email'>;
+  ficVatTypeId?: string | null;
+  ficPaymentMethodId?: string | null;
+};
+
+export type PaymentMethodSummary = {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+};
+
+export type StudentPaymentOutstanding = {
+  appointmentId: Uuid;
+  startsAt: IsoDate;
+  amountDue: number;
+  status: string;
+};
+
+export type MobileStudentPaymentProfile = {
+  autoPaymentsEnabled: boolean;
+  hasPaymentMethod: boolean;
+  paymentMethod: PaymentMethodSummary | null;
+  blockedByInsoluti: boolean;
+  outstanding: StudentPaymentOutstanding[];
+};
+
+export type MobileSetupIntentPayload = {
+  customerId: string;
+  ephemeralKey: string;
+  setupIntentClientSecret: string;
+  setupIntentId: string;
+};
+
+export type MobileConfirmPaymentMethodPayload = {
+  id: string;
+  paymentMethod: PaymentMethodSummary | null;
+};
+
+export type MobilePreparePayNowPayload = {
+  customerId: string;
+  ephemeralKey: string;
+  paymentIntentClientSecret: string;
+  paymentIntentId: string;
+  amountDue: number;
+};
+
+export type MobileFinalizePayNowPayload = {
+  success: boolean;
+  status: 'succeeded' | 'processing' | 'failed';
+  message?: string;
 };
 
 export type RegisterPushTokenInput = {
