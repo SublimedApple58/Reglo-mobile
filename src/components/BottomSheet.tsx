@@ -157,7 +157,7 @@ export const BottomSheet = ({
           style={[
             styles.sheetCard,
             hasFooter ? styles.sheetCardWithFooter : null,
-            { paddingBottom: hasFooter ? 0 : 0 },
+            { paddingBottom: hasFooter ? 0 : spacing.lg + insets.bottom },
             hasFooter ? { minHeight: minHeight ?? 320 } : null,
             { transform: [{ translateY: Animated.add(translateY, dragY) }] },
           ]}
@@ -180,7 +180,7 @@ export const BottomSheet = ({
             </View>
           </View>
           {hasFooter ? (
-            <View style={[styles.footer, { paddingBottom: insets.bottom }]}>
+            <View style={[styles.footer, { paddingBottom: spacing.lg + insets.bottom }]}>
               {footer}
             </View>
           ) : null}
