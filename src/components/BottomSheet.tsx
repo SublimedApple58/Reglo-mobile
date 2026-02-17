@@ -23,6 +23,7 @@ type BottomSheetProps = {
   dragEnabled?: boolean;
   closeDisabled?: boolean;
   closeOnBackdrop?: boolean;
+  bottomInsetMode?: 'safe' | 'none';
 };
 
 export const BottomSheet = ({
@@ -36,8 +37,12 @@ export const BottomSheet = ({
   dragEnabled = true,
   closeDisabled = false,
   closeOnBackdrop = true,
+  bottomInsetMode = 'safe',
 }: BottomSheetProps) => {
   const insets = useSafeAreaInsets();
+  const bottomInset = bottomInsetMode === 'none' ? 0 : insets.bottom;
+  const cardBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
+  const footerBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const hasFooter = Boolean(footer);
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
@@ -157,7 +162,7 @@ export const BottomSheet = ({
           style={[
             styles.sheetCard,
             hasFooter ? styles.sheetCardWithFooter : null,
-            { paddingBottom: hasFooter ? 0 : spacing.lg + insets.bottom },
+            { paddingBottom: hasFooter ? 0 : cardBottomPadding },
             hasFooter ? { minHeight: minHeight ?? 320 } : null,
             { transform: [{ translateY: Animated.add(translateY, dragY) }] },
           ]}
@@ -180,7 +185,7 @@ export const BottomSheet = ({
             </View>
           </View>
           {hasFooter ? (
-            <View style={[styles.footer, { paddingBottom: spacing.lg + insets.bottom }]}>
+            <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
               {footer}
             </View>
           ) : null}

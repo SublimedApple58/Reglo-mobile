@@ -40,7 +40,8 @@
           "merchantIdentifier": "merchant.com.tiziano.developer.reglo-mobile",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

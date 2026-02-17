@@ -1,17 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AppState,
+  Linking,
   Modal,
   Platform,
   Pressable,
   RefreshControl,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
@@ -27,13 +31,22 @@ import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
 import {
   AutoscuolaAppointmentWithRelations,
+  MobileAppointmentPaymentDocument,
   MobileStudentPaymentProfile,
   AutoscuolaStudent,
   AutoscuolaSettings,
+  StudentAppointmentPaymentHistoryItem,
   AutoscuolaWaitlistOfferWithSlot,
 } from '../types/regloApi';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
+import {
+  invoiceStatusLabel,
+  paymentEventStatusLabel,
+  paymentPhaseLabel,
+  paymentStatusLabel,
+} from '../utils/payment';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in']);
@@ -68,6 +81,30 @@ const statusLabel = (status: string) => {
   if (status === 'cancelled') return { label: 'Annullata', tone: 'warning' as const };
   if (status === 'proposal') return { label: 'Proposta', tone: 'default' as const };
   return { label: 'Programmato', tone: 'default' as const };
+};
+
+const lessonDurationMinutes = (appointment: AutoscuolaAppointmentWithRelations) => {
+  const startsAt = new Date(appointment.startsAt).getTime();
+  const endsAt = appointment.endsAt
+    ? new Date(appointment.endsAt).getTime()
+    : startsAt + 30 * 60 * 1000;
+  return Math.max(30, Math.round((endsAt - startsAt) / 60000));
+};
+
+let sharingModulePromise: Promise<typeof import('expo-sharing') | null> | null = null;
+const getSharingModule = async () => {
+  if (!sharingModulePromise) {
+    sharingModulePromise = import('expo-sharing').catch(() => null);
+  }
+  return sharingModulePromise;
+};
+
+let webBrowserModulePromise: Promise<typeof import('expo-web-browser') | null> | null = null;
+const getWebBrowserModule = async () => {
+  if (!webBrowserModulePromise) {
+    webBrowserModulePromise = import('expo-web-browser').catch(() => null);
+  }
+  return webBrowserModulePromise;
 };
 
 const normalize = (value: string | null | undefined) =>
@@ -157,6 +194,8 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 
 
 export const AllievoHomeScreen = () => {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user } = useSession();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
@@ -183,6 +222,11 @@ export const AllievoHomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [bookingRequestId, setBookingRequestId] = useState<string | null>(null);
   const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<StudentAppointmentPaymentHistoryItem[]>([]);
+  const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
+  const [selectedHistoryLesson, setSelectedHistoryLesson] =
+    useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [historyDocumentBusy, setHistoryDocumentBusy] = useState<'view' | 'share' | null>(null);
   const [payNowLoading, setPayNowLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pendingSuggestionOpen, setPendingSuggestionOpen] = useState(false);
@@ -192,6 +236,10 @@ export const AllievoHomeScreen = () => {
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
   const [historyVisibleCount, setHistoryVisibleCount] = useState(historyPageSize);
+  const historyDetailsMaxHeight = useMemo(
+    () => Math.max(320, Math.min(windowHeight * 0.62, windowHeight - insets.top - 180)),
+    [insets.top, windowHeight]
+  );
 
   const openPreferences = () => {
     setPrefsOpen(true);
@@ -215,14 +263,17 @@ export const AllievoHomeScreen = () => {
       setLoading(true);
       setToast(null);
       try {
-        const [appointmentsResponse, settingsResponse, paymentResponse] = await Promise.all([
+        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse] =
+          await Promise.all([
           regloApi.getAppointments(),
           regloApi.getAutoscuolaSettings(),
           regloApi.getPaymentProfile(),
+          regloApi.getPaymentHistory(40),
         ]);
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
         setSettings(settingsResponse);
         setPaymentProfile(paymentResponse);
+        setPaymentHistory(paymentHistoryResponse);
       } catch (err) {
         setToast({
           text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -378,15 +429,39 @@ export const AllievoHomeScreen = () => {
       .filter((item) => new Date(item.startsAt) < now)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [appointments]);
+  const paymentByAppointmentId = useMemo(
+    () => new Map(paymentHistory.map((item) => [item.appointmentId, item])),
+    [paymentHistory]
+  );
   const visibleHistory = useMemo(
     () => history.slice(0, historyVisibleCount),
     [history, historyVisibleCount]
   );
   const hasMoreHistory = visibleHistory.length < history.length;
+  const selectedHistoryPayment = useMemo(
+    () =>
+      selectedHistoryLesson
+        ? paymentByAppointmentId.get(selectedHistoryLesson.id) ?? null
+        : null,
+    [paymentByAppointmentId, selectedHistoryLesson]
+  );
 
   useEffect(() => {
     setHistoryVisibleCount(historyPageSize);
+    setHistoryDetailsOpen(false);
+    setSelectedHistoryLesson(null);
   }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!selectedHistoryLesson) return;
+    const updated = appointments.find((item) => item.id === selectedHistoryLesson.id);
+    if (!updated) {
+      setHistoryDetailsOpen(false);
+      setSelectedHistoryLesson(null);
+      return;
+    }
+    setSelectedHistoryLesson(updated);
+  }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
   const pendingProposal = useMemo(() => {
@@ -722,6 +797,118 @@ export const AllievoHomeScreen = () => {
     }
   };
 
+  const handleOpenHistoryDetails = (lesson: AutoscuolaAppointmentWithRelations) => {
+    setSelectedHistoryLesson(lesson);
+    setHistoryDetailsOpen(true);
+  };
+
+  const getPaymentDocument = useCallback(
+    async (appointmentId: string): Promise<MobileAppointmentPaymentDocument | null> => {
+      const document = await regloApi.getAppointmentPaymentDocument(appointmentId);
+      if (document.documentType === 'none' || !document.viewUrl) {
+        setToast({
+          text: 'Documento non disponibile al momento.',
+          tone: 'info',
+        });
+        return null;
+      }
+      return document;
+    },
+    []
+  );
+
+  const handleOpenPaymentDocument = useCallback(async () => {
+    if (!selectedHistoryPayment || historyDocumentBusy) return;
+    setHistoryDocumentBusy('view');
+    try {
+      const document = await getPaymentDocument(selectedHistoryPayment.appointmentId);
+      if (!document?.viewUrl) return;
+      const webBrowser = await getWebBrowserModule();
+      if (webBrowser) {
+        await webBrowser.openBrowserAsync(document.viewUrl, {
+          presentationStyle: webBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        });
+        return;
+      }
+      await Linking.openURL(document.viewUrl);
+      setToast({
+        text: 'Viewer in-app non disponibile su questa build. Aperto nel browser.',
+        tone: 'info',
+      });
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore aprendo il documento',
+        tone: 'danger',
+      });
+    } finally {
+      setHistoryDocumentBusy(null);
+    }
+  }, [getPaymentDocument, historyDocumentBusy, selectedHistoryPayment]);
+
+  const handleSharePaymentDocument = useCallback(async () => {
+    if (!selectedHistoryPayment || historyDocumentBusy) return;
+    setHistoryDocumentBusy('share');
+    let downloadedUri: string | null = null;
+    try {
+      const document = await regloApi.getAppointmentPaymentDocument(selectedHistoryPayment.appointmentId);
+      if (document.documentType === 'none' || !document.shareUrl || document.shareMode === 'none') {
+        setToast({
+          text: 'Documento non disponibile al momento.',
+          tone: 'info',
+        });
+        return;
+      }
+
+      if (document.shareMode === 'file') {
+        const sharing = await getSharingModule();
+        if (!sharing || !(await sharing.isAvailableAsync())) {
+          await Share.share({
+            message: document.shareUrl,
+            url: document.shareUrl,
+          });
+          setToast({
+            text: 'Condivisione file non disponibile su questa build. Ti condivido il link.',
+            tone: 'info',
+          });
+          return;
+        }
+
+        const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+        if (!cacheDir) {
+          throw new Error('Storage locale non disponibile sul dispositivo.');
+        }
+        const fileUri = `${cacheDir}payment-${selectedHistoryPayment.appointmentId}-${Date.now()}.pdf`;
+        const downloaded = await FileSystem.downloadAsync(document.shareUrl, fileUri);
+        downloadedUri = downloaded.uri;
+        await sharing.shareAsync(downloaded.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: document.label,
+          UTI: 'com.adobe.pdf',
+        });
+        return;
+      }
+
+      await Share.share({
+        message: document.shareUrl,
+        url: document.shareUrl,
+      });
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore condividendo il documento',
+        tone: 'danger',
+      });
+    } finally {
+      if (downloadedUri) {
+        try {
+          await FileSystem.deleteAsync(downloadedUri, { idempotent: true });
+        } catch {
+          // ignore cleanup error
+        }
+      }
+      setHistoryDocumentBusy(null);
+    }
+  }, [historyDocumentBusy, selectedHistoryPayment]);
+
   const handlePayNow = async () => {
     if (!selectedStudentId || !paymentProfile?.outstanding.length) return;
     const outstanding = paymentProfile.outstanding[0];
@@ -947,15 +1134,25 @@ export const AllievoHomeScreen = () => {
               <View style={styles.historyList}>
                 {visibleHistory.map((lesson) => {
                   const status = statusLabel(lesson.status);
+                  const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
                   return (
                     <View key={lesson.id} style={styles.historyRow}>
-                      <View>
+                      <View style={styles.historyRowMain}>
                         <Text style={styles.historyTime}>
                           {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
                         </Text>
                         <Text style={styles.lessonMeta}>{lesson.instructor?.name ?? 'Istruttore'}</Text>
+                        {lessonPayment ? (
+                          <Text style={styles.lessonMeta}>
+                            {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
+                            {lessonPayment.dueAmount.toFixed(2)}
+                          </Text>
+                        ) : null}
                       </View>
-                      <GlassBadge label={status.label} tone={status.tone} />
+                      <View style={styles.historyRowActions}>
+                        <GlassBadge label={status.label} tone={status.tone} />
+                        <GlassButton label="Dettagli" onPress={() => handleOpenHistoryDetails(lesson)} />
+                      </View>
                     </View>
                   );
                 })}
@@ -975,6 +1172,103 @@ export const AllievoHomeScreen = () => {
           </>
         )}
       </ScrollView>
+      <BottomSheet
+        visible={historyDetailsOpen && !!selectedHistoryLesson}
+        title="Dettaglio guida"
+        onClose={() => setHistoryDetailsOpen(false)}
+      >
+        {selectedHistoryLesson ? (
+          <ScrollView
+            style={[styles.paymentDetailsScroll, { maxHeight: historyDetailsMaxHeight }]}
+            contentContainerStyle={styles.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentInsetAdjustmentBehavior="never"
+            automaticallyAdjustContentInsets={false}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+          >
+            <Text style={styles.sheetText}>
+              Guida {formatDay(selectedHistoryLesson.startsAt)} · {formatTime(selectedHistoryLesson.startsAt)}
+            </Text>
+            <Text style={styles.sheetMeta}>
+              Durata: {lessonDurationMinutes(selectedHistoryLesson)} min
+            </Text>
+            <Text style={styles.sheetMeta}>
+              Istruttore: {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
+            </Text>
+            <Text style={styles.sheetMeta}>Veicolo: {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}</Text>
+            <Text style={styles.sheetMeta}>
+              Stato guida: {statusLabel(selectedHistoryLesson.status).label}
+            </Text>
+            <Text style={styles.sheetDivider}>Pagamento</Text>
+            {selectedHistoryPayment ? (
+              <>
+                <Text style={styles.sheetMeta}>
+                  Stato pagamento: {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
+                </Text>
+                <Text style={styles.sheetMeta}>Prezzo guida: € {selectedHistoryPayment.priceAmount.toFixed(2)}</Text>
+                <Text style={styles.sheetMeta}>Penale: € {selectedHistoryPayment.penaltyAmount.toFixed(2)}</Text>
+                <Text style={styles.sheetMeta}>
+                  Totale dovuto: € {selectedHistoryPayment.finalAmount.toFixed(2)}
+                </Text>
+                <Text style={styles.sheetMeta}>Pagato: € {selectedHistoryPayment.paidAmount.toFixed(2)}</Text>
+                <Text style={styles.sheetMeta}>Residuo: € {selectedHistoryPayment.dueAmount.toFixed(2)}</Text>
+                <Text style={styles.sheetMeta}>
+                  Fattura: {invoiceStatusLabel(selectedHistoryPayment.invoiceStatus)}
+                </Text>
+                <View style={styles.paymentDocumentActions}>
+                  <View style={styles.paymentDocumentActionWrap}>
+                    <GlassButton
+                      label={historyDocumentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
+                      onPress={handleOpenPaymentDocument}
+                      disabled={Boolean(historyDocumentBusy)}
+                      fullWidth
+                    />
+                  </View>
+                  <View style={styles.paymentDocumentActionWrap}>
+                    <GlassButton
+                      label={historyDocumentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
+                      onPress={handleSharePaymentDocument}
+                      disabled={Boolean(historyDocumentBusy)}
+                      fullWidth
+                    />
+                  </View>
+                </View>
+                <Text style={styles.sheetDivider}>Tentativi di addebito</Text>
+                <View style={styles.paymentEventsList}>
+                  {selectedHistoryPayment.payments.map((payment) => {
+                    const paymentEventStatus = paymentEventStatusLabel(payment.status);
+                    return (
+                      <View key={payment.id} style={styles.paymentEventRow}>
+                        <View style={styles.paymentEventMain}>
+                          <Text style={styles.paymentEventTitle}>
+                            {paymentPhaseLabel(payment.phase)} · € {payment.amount.toFixed(2)}
+                          </Text>
+                          <Text style={styles.paymentEventMeta}>
+                            {formatDay(payment.paidAt ?? payment.createdAt)} ·{' '}
+                            {formatTime(payment.paidAt ?? payment.createdAt)}
+                          </Text>
+                          {payment.failureMessage ? (
+                            <Text style={styles.paymentEventMeta}>{payment.failureMessage}</Text>
+                          ) : null}
+                        </View>
+                        <GlassBadge label={paymentEventStatus.label} tone={paymentEventStatus.tone} />
+                      </View>
+                    );
+                  })}
+                  {!selectedHistoryPayment.payments.length ? (
+                    <Text style={styles.empty}>Nessun tentativo registrato.</Text>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.sheetMeta}>
+                Nessun dettaglio pagamento disponibile per questa guida.
+              </Text>
+            )}
+          </ScrollView>
+        ) : null}
+      </BottomSheet>
       <BottomSheet
         visible={proposalAppointmentOpen && !!pendingProposal}
         title="Nuova proposta guida"
@@ -1240,7 +1534,20 @@ const styles = StyleSheet.create({
   historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  historyRowMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+    paddingRight: spacing.xs,
+  },
+  historyRowActions: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+    flexShrink: 0,
+    alignSelf: 'flex-start',
   },
   historyTime: {
     ...typography.subtitle,
@@ -1320,6 +1627,13 @@ const styles = StyleSheet.create({
   sheetContent: {
     gap: spacing.xs,
   },
+  sheetScrollContent: {
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  paymentDetailsScroll: {
+    width: '100%',
+  },
   sheetText: {
     ...typography.subtitle,
     color: colors.textPrimary,
@@ -1327,6 +1641,53 @@ const styles = StyleSheet.create({
   sheetMeta: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  sheetDivider: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  paymentDocumentActions: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    overflow: 'visible',
+  },
+  paymentDocumentActionWrap: {
+    width: '100%',
+    alignSelf: 'stretch',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 2,
+    overflow: 'visible',
+  },
+  paymentEventsList: {
+    gap: spacing.sm,
+  },
+  paymentEventRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassStrong,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  paymentEventMain: {
+    flex: 1,
+    gap: 2,
+  },
+  paymentEventTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  paymentEventMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   sheetActionsDock: {
     gap: spacing.sm,

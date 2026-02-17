@@ -8,10 +8,12 @@ import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTi
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
+import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { colors } from '../../src/theme';
 
 type AndroidTabBarExtraProps = {
   showRoleTab: boolean;
+  showPaymentsTab: boolean;
   isOwner: boolean;
 };
 
@@ -84,11 +86,16 @@ const AndroidTabBar = ({
   descriptors,
   navigation,
   showRoleTab,
+  showPaymentsTab,
   isOwner,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
 
-  const visibleRoutes = state.routes.filter((route) => showRoleTab || route.name !== 'role');
+  const visibleRoutes = state.routes.filter((route) => {
+    if (route.name === 'role') return showRoleTab;
+    if (route.name === 'payments') return showPaymentsTab;
+    return true;
+  });
   if (!visibleRoutes.length) return null;
 
   return (
@@ -108,6 +115,8 @@ const AndroidTabBar = ({
               ? isOwner
                 ? 'Istruttore'
                 : 'Gestione'
+              : route.name === 'payments'
+                ? 'Pagamenti'
               : route.name === 'settings'
                 ? 'Impostazioni'
                 : 'Home';
@@ -121,6 +130,10 @@ const AndroidTabBar = ({
                 : isFocused
                   ? 'car-sport'
                   : 'car-sport-outline'
+              : route.name === 'payments'
+                ? isFocused
+                  ? 'card'
+                  : 'card-outline'
               : route.name === 'settings'
                 ? isFocused
                   ? 'settings'
@@ -160,7 +173,9 @@ const AndroidTabBar = ({
 
 export default function TabsLayout() {
   const { autoscuolaRole } = useSession();
+  const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isOwner = autoscuolaRole === 'OWNER';
 
   const transparent =
@@ -188,7 +203,14 @@ export default function TabsLayout() {
   if (Platform.OS !== 'ios') {
     return (
       <Tabs
-        tabBar={(props) => <AndroidTabBar {...props} showRoleTab={showRoleTab} isOwner={isOwner} />}
+        tabBar={(props) => (
+          <AndroidTabBar
+            {...props}
+            showRoleTab={showRoleTab}
+            showPaymentsTab={showPaymentsTab}
+            isOwner={isOwner}
+          />
+        )}
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: true,
@@ -205,6 +227,13 @@ export default function TabsLayout() {
           options={{
             href: showRoleTab ? '/(tabs)/role' : null,
             title: isOwner ? 'Istruttore' : 'Gestione',
+          }}
+        />
+        <Tabs.Screen
+          name="payments"
+          options={{
+            href: showPaymentsTab ? '/(tabs)/payments' : null,
+            title: 'Pagamenti',
           }}
         />
         <Tabs.Screen
@@ -244,6 +273,12 @@ export default function TabsLayout() {
             drawable="ic_menu_manage"
           />
           <Label>{isOwner ? 'Istruttore' : 'Gestione'}</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showPaymentsTab ? (
+        <NativeTabs.Trigger name="payments">
+          <Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} drawable="ic_menu_view" />
+          <Label>Pagamenti</Label>
         </NativeTabs.Trigger>
       ) : null}
       <NativeTabs.Trigger name="settings">

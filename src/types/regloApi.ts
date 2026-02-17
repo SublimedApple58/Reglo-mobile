@@ -362,6 +362,37 @@ export type StudentPaymentOutstanding = {
   status: string;
 };
 
+export type StudentAppointmentPaymentEvent = {
+  id: Uuid;
+  phase: 'penalty' | 'settlement' | 'manual_recovery' | string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'abandoned' | string;
+  amount: number;
+  attemptCount: number;
+  nextAttemptAt: IsoDate | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+  createdAt: IsoDate;
+  paidAt: IsoDate | null;
+};
+
+export type StudentAppointmentPaymentHistoryItem = {
+  appointmentId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate | null;
+  lessonStatus: string;
+  paymentStatus: string;
+  priceAmount: number;
+  penaltyAmount: number;
+  finalAmount: number;
+  paidAmount: number;
+  dueAmount: number;
+  invoiceStatus: string | null;
+  instructorName: string | null;
+  vehicleName: string | null;
+  latestPaidAt: IsoDate | null;
+  payments: StudentAppointmentPaymentEvent[];
+};
+
 export type MobileStudentPaymentProfile = {
   autoPaymentsEnabled: boolean;
   hasPaymentMethod: boolean;
@@ -394,6 +425,17 @@ export type MobileFinalizePayNowPayload = {
   success: boolean;
   status: 'succeeded' | 'processing' | 'failed';
   message?: string;
+};
+
+export type MobileAppointmentPaymentDocument = {
+  documentType: 'invoice' | 'receipt' | 'none';
+  label: string;
+  viewUrl: string | null;
+  shareMode: 'file' | 'link' | 'none';
+  shareUrl: string | null;
+  invoiceId: string | null;
+  invoiceStatus: string | null;
+  source: 'fic' | 'stripe' | 'none';
 };
 
 export type RegisterPushTokenInput = {

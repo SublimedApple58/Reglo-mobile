@@ -37,6 +37,8 @@ import {
   MobileConfirmPaymentMethodPayload,
   MobilePreparePayNowPayload,
   MobileFinalizePayNowPayload,
+  MobileAppointmentPaymentDocument,
+  StudentAppointmentPaymentHistoryItem,
   SelectCompanyInput,
   SelectCompanyPayload,
   SignupInput,
@@ -236,6 +238,10 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     getPaymentProfile: async () =>
       client.request<MobileStudentPaymentProfile>('/api/mobile/payments/profile'),
+    getPaymentHistory: async (limit?: number) =>
+      client.request<StudentAppointmentPaymentHistoryItem[]>('/api/mobile/payments/history', {
+        params: limit ? { limit } : undefined,
+      }),
     createSetupIntent: async () =>
       client.request<MobileSetupIntentPayload>('/api/mobile/payments/setup-intent', {
         method: 'POST',
@@ -267,6 +273,10 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'POST',
           body: { paymentIntentId },
         }
+      ),
+    getAppointmentPaymentDocument: async (appointmentId: string) =>
+      client.request<MobileAppointmentPaymentDocument>(
+        `/api/mobile/payments/appointments/${appointmentId}/document`
       ),
   };
 };
