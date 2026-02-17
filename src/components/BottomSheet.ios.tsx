@@ -1,17 +1,7 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Modal,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BottomSheet as NativeBottomSheet } from '@expo/ui/swift-ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Host, Rectangle } from '@expo/ui/swift-ui';
-import { foregroundStyle, glassEffect } from '@expo/ui/swift-ui/modifiers';
 import { colors, spacing, typography } from '../theme';
 
 type BottomSheetProps = {
@@ -27,6 +17,8 @@ type BottomSheetProps = {
   closeOnBackdrop?: boolean;
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 export const BottomSheet = ({
   visible,
   onClose,
@@ -41,200 +33,78 @@ export const BottomSheet = ({
 }: BottomSheetProps) => {
   const insets = useSafeAreaInsets();
   const hasFooter = Boolean(footer);
-  const [mounted, setMounted] = useState(visible);
-  const [dismissEnabled, setDismissEnabled] = useState(false);
-  const translateY = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const lastDrag = useRef(0);
   const screenHeight = Dimensions.get('window').height;
-
-  const resetDrag = () => {
-    dragY.setValue(0);
-    lastDrag.current = 0;
-  };
-
-  const triggerClose = (fromDrag = false) => {
-    if (closeDisabled) return;
-    if (fromDrag) {
-      const baseOffset = Math.max(0, lastDrag.current);
-      translateY.setValue(baseOffset);
-      dragY.setValue(0);
-    }
-    onClose();
-  };
+  const closeNotifiedRef = useRef(!visible);
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
-      setDismissEnabled(false);
-      resetDrag();
-      translateY.setValue(screenHeight);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 22,
-          stiffness: 240,
-        }),
-      ]).start(() => {
-        setDismissEnabled(true);
-      });
+      closeNotifiedRef.current = false;
       return;
     }
-    if (!mounted) return;
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: screenHeight,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setMounted(false);
-      resetDrag();
-      translateY.setValue(screenHeight);
+    if (!closeNotifiedRef.current) {
+      closeNotifiedRef.current = true;
       onClosed?.();
-    });
-  }, [visible, mounted, screenHeight, backdropOpacity, translateY]);
+    }
+  }, [visible, onClosed]);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => dragEnabled && !closeDisabled,
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          dragEnabled && !closeDisabled && Math.abs(gesture.dy) > 4,
-        onPanResponderMove: (_, gesture) => {
-          if (!dragEnabled || closeDisabled) return;
-          const drag = gesture.dy < 0 ? gesture.dy * 0.2 : gesture.dy;
-          const clamped = Math.max(-8, drag);
-          lastDrag.current = clamped;
-          dragY.setValue(clamped);
-        },
-        onPanResponderRelease: (_, gesture) => {
-          if (!dragEnabled || closeDisabled) return;
-          const shouldClose = gesture.dy > 120 || gesture.vy > 0.9;
-          if (shouldClose) {
-            triggerClose(true);
-          } else {
-            Animated.spring(dragY, {
-              toValue: 0,
-              useNativeDriver: true,
-              stiffness: 220,
-              damping: 18,
-            }).start();
-          }
-        },
-      }),
-    [dragEnabled, closeDisabled, dragY]
-  );
+  const presentationDetents = useMemo<(number | 'medium' | 'large')[]>(() => {
+    if (minHeight) {
+      const minRatio = clamp(minHeight / screenHeight, 0.22, 0.95);
+      return [minRatio, 'large'];
+    }
+    return ['medium', 'large'];
+  }, [minHeight, screenHeight]);
 
-  if (!mounted) return null;
+  const handleOpenStateChange = (isOpened: boolean) => {
+    if (isOpened) return;
+    onClose();
+    if (!closeNotifiedRef.current) {
+      closeNotifiedRef.current = true;
+      onClosed?.();
+    }
+  };
 
   return (
-    <Modal
-      transparent
-      animationType="none"
-      visible={mounted}
-      onRequestClose={() => triggerClose(false)}
+    <NativeBottomSheet
+      isOpened={visible}
+      onIsOpenedChange={handleOpenStateChange}
+      interactiveDismissDisabled={closeDisabled || !dragEnabled || !closeOnBackdrop}
+      presentationDetents={presentationDetents}
+      presentationDragIndicator={dragEnabled ? 'visible' : 'hidden'}
     >
-      <View style={styles.backdrop}>
-        <Animated.View style={[styles.backdropOverlay, { opacity: backdropOpacity }]} />
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => triggerClose(false)}
-          disabled={!dismissEnabled || closeDisabled || !closeOnBackdrop}
-        />
-        <Animated.View
-          style={[
-            styles.sheetCard,
-            hasFooter ? styles.sheetCardWithFooter : null,
-            { paddingBottom: hasFooter ? 0 : spacing.lg + insets.bottom },
-            hasFooter ? { minHeight: minHeight ?? 320 } : null,
-            { transform: [{ translateY: Animated.add(translateY, dragY) }] },
-          ]}
-        >
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Host style={StyleSheet.absoluteFill} useViewportSizeMeasurement>
-              <Rectangle
-                modifiers={[
-                  foregroundStyle('clear'),
-                  glassEffect({ glass: { variant: 'regular' }, shape: 'rectangle' }),
-                ]}
-              />
-            </Host>
+      <View style={styles.sheetCard}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={8}
+            style={styles.close}
+            disabled={closeDisabled}
+          >
+            <Text style={styles.closeText}>×</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.content}>
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {children}
+        </View>
+
+        {hasFooter ? (
+          <View style={[styles.footer, { paddingBottom: insets.bottom }]}>
+            {footer}
           </View>
-          <View style={styles.dragZone} {...panResponder.panHandlers} />
-          <View style={styles.body}>
-            <View style={styles.header}>
-              <Pressable
-                onPress={() => triggerClose(false)}
-                hitSlop={8}
-                style={styles.close}
-                disabled={closeDisabled}
-              >
-                <Text style={styles.closeText}>×</Text>
-              </Pressable>
-            </View>
-            <View style={styles.content}>
-              {title ? <Text style={styles.title}>{title}</Text> : null}
-              {children}
-            </View>
-          </View>
-          {hasFooter ? (
-            <View style={[styles.footer, { paddingBottom: spacing.lg + insets.bottom }]}>
-              {footer}
-            </View>
-          ) : null}
-        </Animated.View>
+        ) : null}
       </View>
-    </Modal>
+    </NativeBottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdropOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 15, 30, 0.45)',
-  },
   sheetCard: {
-    backgroundColor: 'rgba(250, 252, 255, 0.86)',
     width: '100%',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 0,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    overflow: 'hidden',
-  },
-  sheetCardWithFooter: {
-    justifyContent: 'space-between',
-  },
-  dragZone: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 24,
-  },
-  body: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: 0,
     gap: spacing.sm,
   },
   header: {
