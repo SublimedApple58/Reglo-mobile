@@ -88,28 +88,39 @@ export const TitolareHomeScreen = () => {
           </View>
         </GlassCard>
 
-        <SectionHeader title="Gestione veicoli" action="Flotta" />
+        <SectionHeader
+          title="Gestione veicoli"
+          subtitle="Stato e disponibilita mezzi"
+          action="Flotta"
+        />
         <GlassCard>
           <View style={styles.vehicleList}>
             {vehicles.map((vehicle) => (
               <View key={vehicle.id} style={styles.vehicleRow}>
-                <View>
+                <View style={styles.vehicleMain}>
                   <Text style={styles.vehicleName}>{vehicle.name}</Text>
                   <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
-                  <Text style={styles.vehicleMeta}>Stato: {vehicle.status}</Text>
                 </View>
+                <GlassBadge
+                  label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                  tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                />
               </View>
             ))}
             {!vehicles.length ? <Text style={styles.empty}>Nessun veicolo.</Text> : null}
           </View>
         </GlassCard>
 
-        <SectionHeader title="Scadenze" action="Attenzione" />
+        <SectionHeader
+          title="Scadenze"
+          subtitle="Documenti e pratiche imminenti"
+          action="Attenzione"
+        />
         <GlassCard>
           <View style={styles.deadlineList}>
             {deadlines.map((deadline) => (
               <View key={deadline.id} style={styles.deadlineRow}>
-                <View>
+                <View style={styles.deadlineMain}>
                   <Text style={styles.deadlineTitle}>{deadline.studentName}</Text>
                   <Text style={styles.deadlineMeta}>{deadline.deadlineType}</Text>
                 </View>
@@ -155,11 +166,12 @@ const styles = StyleSheet.create({
   },
   kpiItem: {
     flex: 1,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: 16,
-    backgroundColor: colors.glassStrong,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
   },
   kpiValue: {
     ...typography.subtitle,
@@ -176,8 +188,17 @@ const styles = StyleSheet.create({
   vehicleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  vehicleMain: {
+    flex: 1,
   },
   vehicleName: {
     ...typography.subtitle,
@@ -195,6 +216,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  deadlineMain: {
+    flex: 1,
+    minWidth: 0,
   },
   deadlineTitle: {
     ...typography.subtitle,

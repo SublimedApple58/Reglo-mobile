@@ -28,6 +28,7 @@ import {
   MobileInviteContext,
   LogoutPayload,
   MePayload,
+  GetAppointmentsParams,
   UpdateProfileInput,
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
@@ -134,8 +135,10 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
-    getAppointments: async () =>
-      client.request<AutoscuolaAppointmentWithRelations[]>('/api/autoscuole/appointments'),
+    getAppointments: async (params?: GetAppointmentsParams) =>
+      client.request<AutoscuolaAppointmentWithRelations[]>('/api/autoscuole/appointments', {
+        params,
+      }),
     createAppointment: async (input: CreateAppointmentInput) =>
       client.request<AutoscuolaAppointment>('/api/autoscuole/appointments', {
         method: 'POST',

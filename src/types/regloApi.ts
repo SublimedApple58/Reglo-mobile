@@ -134,6 +134,16 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   vehicle: AutoscuolaVehicle | null;
 };
 
+export type GetAppointmentsParams = {
+  from?: IsoDate;
+  to?: IsoDate;
+  studentId?: Uuid;
+  instructorId?: Uuid;
+  status?: string;
+  type?: string;
+  limit?: number;
+};
+
 export type AutoscuolaOverview = {
   studentsCount: number;
   activeCasesCount: number;

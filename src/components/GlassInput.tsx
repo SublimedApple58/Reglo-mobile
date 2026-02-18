@@ -30,7 +30,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   wrapperIOS: {
-    borderColor: colors.glassBorder,
+    borderColor: 'rgba(50, 77, 122, 0.24)',
+    backgroundColor: 'rgba(255, 255, 255, 0.36)',
   },
   wrapperAndroid: {
     borderColor: 'rgba(50, 77, 122, 0.18)',
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
   },
   inputIOS: {
     paddingVertical: spacing.sm,
-    backgroundColor: colors.glass,
+    backgroundColor: 'rgba(255, 255, 255, 0.64)',
   },
   inputAndroid: {
     paddingVertical: spacing.md,

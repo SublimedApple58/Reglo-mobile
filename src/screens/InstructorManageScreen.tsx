@@ -597,10 +597,15 @@ export const InstructorManageScreen = () => {
           <View style={styles.vehicleList}>
             {vehicles.map((vehicle) => (
               <View key={vehicle.id} style={styles.vehicleRow}>
-                <View>
+                <View style={styles.vehicleMain}>
                   <Text style={styles.vehicleName}>{vehicle.name}</Text>
                   <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
-                  <Text style={styles.vehicleMeta}>Stato: {vehicle.status}</Text>
+                  <View style={styles.vehicleStatusRow}>
+                    <GlassBadge
+                      label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                      tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                    />
+                  </View>
                 </View>
                 <View style={styles.vehicleActions}>
                   <GlassButton label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} />
@@ -770,8 +775,18 @@ const styles = StyleSheet.create({
   vehicleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.58)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  vehicleMain: {
+    flex: 1,
+    minWidth: 0,
   },
   vehicleActions: {
     alignItems: 'flex-end',
@@ -784,6 +799,9 @@ const styles = StyleSheet.create({
   vehicleMeta: {
     ...typography.body,
     color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  vehicleStatusRow: {
     marginTop: spacing.xs,
   },
   vehicleInfoBox: {

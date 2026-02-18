@@ -234,7 +234,19 @@ export const IstruttoreHomeScreen = () => {
     setLoading(true);
     setError(null);
     try {
-      const appointmentsResponse = await regloApi.getAppointments();
+      const from = new Date();
+      from.setDate(from.getDate() - 1);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date();
+      to.setDate(to.getDate() + 2);
+      to.setHours(23, 59, 59, 999);
+
+      const appointmentsResponse = await regloApi.getAppointments({
+        instructorId,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: 400,
+      });
       const nextAppointments = dedupeAppointments(
         appointmentsResponse.filter((item) => item.instructorId === instructorId),
       );
@@ -478,7 +490,7 @@ export const IstruttoreHomeScreen = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Ciao, Istruttore</Text>
-            <Text style={styles.subtitle}>Prossima guida e presenza studenti</Text>
+            <Text style={styles.subtitle}>Agenda di oggi e azioni rapide</Text>
           </View>
           <GlassBadge label="Istruttore" />
         </View>
@@ -579,6 +591,9 @@ export const IstruttoreHomeScreen = () => {
                       Allievo: {lesson.student?.firstName} {lesson.student?.lastName}
                     </Text>
                     <Text style={styles.lessonMeta}>Durata: {durationLabel(lesson)}</Text>
+                    <Text style={styles.lessonMeta}>
+                      Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
+                    </Text>
                     {lesson.notes ? (
                       <Text numberOfLines={1} style={styles.lessonMeta}>
                         Note: {lesson.notes}
@@ -592,6 +607,7 @@ export const IstruttoreHomeScreen = () => {
                       tone="standard"
                       onPress={isDetailsEditable(lesson, now) ? () => openLessonDrawer(lesson) : undefined}
                       disabled={!isDetailsEditable(lesson, now)}
+                      fullWidth
                     />
                   </View>
                 </View>
@@ -761,15 +777,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   agendaRowPast: {
-    opacity: 0.78,
+    opacity: 0.85,
   },
   agendaActionWrap: {
-    width: 120,
+    width: 116,
   },
   topActions: {
     gap: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(50, 77, 122, 0.1)',
+    paddingTop: spacing.sm,
   },
   topActionsRow: {
     flexDirection: 'row',

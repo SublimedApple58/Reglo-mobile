@@ -5,13 +5,21 @@ import { colors, spacing, typography } from '../theme';
 type SectionHeaderProps = {
   title: string;
   action?: string;
+  subtitle?: string;
 };
 
-export const SectionHeader = ({ title, action }: SectionHeaderProps) => {
+export const SectionHeader = ({ title, action, subtitle }: SectionHeaderProps) => {
   return (
     <View style={styles.row}>
-      <Text style={styles.title}>{title}</Text>
-      {action ? <Text style={styles.action}>{action}</Text> : null}
+      <View style={styles.textWrap}>
+        <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
+      {action ? (
+        <View style={styles.actionPill}>
+          <Text style={styles.action}>{action}</Text>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -20,16 +28,36 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  textWrap: {
+    flex: 1,
+    gap: 2,
   },
   title: {
     ...typography.subtitle,
     color: colors.textPrimary,
   },
-  action: {
+  subtitle: {
     ...typography.caption,
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
+    textTransform: 'none',
+  },
+  actionPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.44)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    alignSelf: 'center',
+  },
+  action: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'none',
+    letterSpacing: 0.2,
   },
 });

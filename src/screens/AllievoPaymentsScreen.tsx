@@ -117,6 +117,16 @@ export const AllievoPaymentsScreen = () => {
     [transactions, visibleCount]
   );
   const hasMore = visibleTransactions.length < transactions.length;
+  const stats = useMemo(() => {
+    const succeeded = transactions.filter(
+      (item) => paymentEventStatusLabel(item.event.status).tone === 'success'
+    ).length;
+    const failed = transactions.filter(
+      (item) => paymentEventStatusLabel(item.event.status).tone === 'danger'
+    ).length;
+    const totalAmount = transactions.reduce((sum, item) => sum + item.event.amount, 0);
+    return { succeeded, failed, totalAmount };
+  }, [transactions]);
 
   const selectedTransaction = useMemo(
     () => transactions.find((item) => item.key === selectedTransactionKey) ?? null,
@@ -271,11 +281,35 @@ export const AllievoPaymentsScreen = () => {
         }
       >
         <View style={styles.header}>
+          <View style={styles.rolePill}>
+            <Text style={styles.rolePillText}>Allievo</Text>
+          </View>
           <Text style={styles.title}>Pagamenti</Text>
           <Text style={styles.subtitle}>
             {user?.name ? `${user.name}, cronologia transazioni` : 'Cronologia transazioni'}
           </Text>
         </View>
+
+        <GlassCard title="Riepilogo rapido" subtitle="Ultimi movimenti registrati">
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{transactions.length}</Text>
+              <Text style={styles.summaryLabel}>Movimenti</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{stats.succeeded}</Text>
+              <Text style={styles.summaryLabel}>Riusciti</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{stats.failed}</Text>
+              <Text style={styles.summaryLabel}>Falliti</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>€ {stats.totalAmount.toFixed(0)}</Text>
+              <Text style={styles.summaryLabel}>Totale</Text>
+            </View>
+          </View>
+        </GlassCard>
 
         <GlassCard title="Transazioni" subtitle="Movimenti e tentativi di addebito">
           <View style={styles.list}>
@@ -283,22 +317,26 @@ export const AllievoPaymentsScreen = () => {
               const status = paymentEventStatusLabel(transaction.event.status);
               return (
                 <View key={transaction.key} style={styles.row}>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.rowTitle}>
-                      {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
-                      {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
-                      {formatTime(transaction.appointment.startsAt)}
-                    </Text>
+                  <View style={styles.rowTop}>
+                    <View style={styles.rowMain}>
+                      <Text style={styles.rowTitle}>
+                        {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
+                      </Text>
+                      <Text style={styles.rowMeta}>
+                        {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
+                        {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
+                      </Text>
+                      <Text style={styles.rowMeta}>
+                        Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
+                        {formatTime(transaction.appointment.startsAt)}
+                      </Text>
+                    </View>
+                    <GlassBadge label={status.label} tone={status.tone} />
                   </View>
                   <View style={styles.rowActions}>
-                    <GlassBadge label={status.label} tone={status.tone} />
-                    <GlassButton label="Dettagli" onPress={() => openDetails(transaction)} />
+                    <View style={styles.detailsButtonWrap}>
+                      <GlassButton label="Dettagli" onPress={() => openDetails(transaction)} />
+                    </View>
                   </View>
                 </View>
               );
@@ -414,6 +452,22 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.xs,
   },
+  rolePill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: 'rgba(50, 77, 122, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.18)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    marginBottom: 2,
+  },
+  rolePillText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   title: {
     ...typography.title,
     color: colors.textPrimary,
@@ -422,13 +476,48 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  summaryItem: {
+    minWidth: '47%',
+    flexGrow: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.54)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  summaryValue: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  summaryLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'none',
+    letterSpacing: 0.1,
+    marginTop: 2,
+  },
   list: {
     gap: spacing.md,
   },
   row: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  rowTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: spacing.sm,
   },
   rowMain: {
@@ -438,7 +527,9 @@ const styles = StyleSheet.create({
   },
   rowActions: {
     alignItems: 'flex-end',
-    gap: spacing.xs,
+  },
+  detailsButtonWrap: {
+    minWidth: 110,
   },
   rowTitle: {
     ...typography.subtitle,

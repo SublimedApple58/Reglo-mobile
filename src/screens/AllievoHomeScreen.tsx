@@ -271,9 +271,19 @@ export const AllievoHomeScreen = () => {
       setLoading(true);
       setToast(null);
       try {
+        const from = addDays(new Date(), -7);
+        from.setHours(0, 0, 0, 0);
+        const to = addDays(new Date(), 30);
+        to.setHours(23, 59, 59, 999);
+
         const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse] =
           await Promise.all([
-          regloApi.getAppointments(),
+          regloApi.getAppointments({
+            studentId,
+            from: from.toISOString(),
+            to: to.toISOString(),
+            limit: 500,
+          }),
           regloApi.getAutoscuolaSettings(),
           regloApi.getPaymentProfile(),
           regloApi.getPaymentHistory(40),
@@ -1074,7 +1084,11 @@ export const AllievoHomeScreen = () => {
               )}
             </GlassCard>
 
-            <SectionHeader title="Disponibilita" action={`Ripeti ${settings?.availabilityWeeks ?? 4} sett.`} />
+            <SectionHeader
+              title="Disponibilita"
+              subtitle="Slot ricorrenti per proposta guida"
+              action={`Ripeti ${settings?.availabilityWeeks ?? 4} sett.`}
+            />
             <GlassCard>
               <View style={styles.dayRow}>
                 {dayLabels.map((label, index) => (
@@ -1111,7 +1125,11 @@ export const AllievoHomeScreen = () => {
               </View>
             </GlassCard>
 
-            <SectionHeader title="Prenota una guida" action="Preferenze" />
+            <SectionHeader
+              title="Prenota una guida"
+              subtitle="Scegli giorno, fascia oraria e durata"
+              action="Preferenze"
+            />
             <GlassCard>
               {paymentProfile?.blockedByInsoluti ? (
                 <View style={styles.outstandingBlock}>
@@ -1151,7 +1169,7 @@ export const AllievoHomeScreen = () => {
               />
             </GlassCard>
 
-            <SectionHeader title="Storico" action="Ultime guide" />
+            <SectionHeader title="Storico" subtitle="Guide recenti e dettagli pagamento" action="Ultime guide" />
             <GlassCard>
               <View style={styles.historyList}>
                 {visibleHistory.map((lesson) => {
@@ -1159,21 +1177,28 @@ export const AllievoHomeScreen = () => {
                   const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
                   return (
                     <View key={lesson.id} style={styles.historyRow}>
-                      <View style={styles.historyRowMain}>
-                        <Text style={styles.historyTime}>
-                          {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-                        </Text>
-                        <Text style={styles.lessonMeta}>{lesson.instructor?.name ?? 'Istruttore'}</Text>
-                        {lessonPayment ? (
-                          <Text style={styles.lessonMeta}>
-                            {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
-                            {lessonPayment.dueAmount.toFixed(2)}
+                      <View style={styles.historyRowTop}>
+                        <View style={styles.historyRowMain}>
+                          <Text style={styles.historyTime}>
+                            {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
                           </Text>
-                        ) : null}
-                      </View>
-                      <View style={styles.historyRowActions}>
+                          <Text style={styles.lessonMeta}>{lesson.instructor?.name ?? 'Istruttore'}</Text>
+                        </View>
                         <GlassBadge label={status.label} tone={status.tone} />
-                        <GlassButton label="Dettagli" onPress={() => handleOpenHistoryDetails(lesson)} />
+                      </View>
+                      {lessonPayment ? (
+                        <Text style={styles.historyPaymentMeta}>
+                          Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
+                          {lessonPayment.dueAmount.toFixed(2)}
+                        </Text>
+                      ) : null}
+                      <View style={styles.historyRowFooter}>
+                        <View style={styles.historyDetailButtonWrap}>
+                          <GlassButton
+                            label="Dettagli guida"
+                            onPress={() => handleOpenHistoryDetails(lesson)}
+                          />
+                        </View>
                       </View>
                     </View>
                   );
@@ -1554,22 +1579,39 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   historyRow: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.58)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  historyRowTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: spacing.sm,
   },
   historyRowMain: {
     flex: 1,
     minWidth: 0,
     gap: 2,
-    paddingRight: spacing.xs,
+    paddingRight: 2,
   },
-  historyRowActions: {
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-    flexShrink: 0,
-    alignSelf: 'flex-start',
+  historyRowFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingTop: 2,
+  },
+  historyDetailButtonWrap: {
+    minWidth: 132,
+  },
+  historyPaymentMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   historyTime: {
     ...typography.subtitle,
