@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tiziano.developer.reglo-mobile"
+      "bundleIdentifier": "com.tiziano.developer.reglo-mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Reglo usa la fotocamera per acquisire foto e documenti utili alla gestione delle pratiche in autoscuola."
+      }
     },
     "android": {
       "adaptiveIcon": {
