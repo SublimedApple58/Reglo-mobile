@@ -12,6 +12,14 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { MobileStudentPaymentProfile } from '../types/regloApi';
 
+const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
+  const normalized = (message ?? '').toLowerCase();
+  return (
+    normalized.includes('merchantidentifier') ||
+    normalized.includes('merchant identifier')
+  );
+};
+
 export const SettingsScreen = () => {
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -135,18 +143,32 @@ export const SettingsScreen = () => {
     setToast(null);
     try {
       const setup = await regloApi.createSetupIntent();
-      const init = await initPaymentSheet({
+      const baseSheetConfig = {
         merchantDisplayName: 'Reglo Autoscuole',
         customerId: setup.customerId,
         customerEphemeralKeySecret: setup.ephemeralKey,
         setupIntentClientSecret: setup.setupIntentClientSecret,
-        applePay: { merchantCountryCode: 'IT' },
-        googlePay: { merchantCountryCode: 'IT', testEnv: true },
         defaultBillingDetails: {
           name: user?.name ?? undefined,
           email: user?.email ?? undefined,
         },
+      } as const;
+
+      let init = await initPaymentSheet({
+        ...baseSheetConfig,
+        applePay: { merchantCountryCode: 'IT' },
+        googlePay: { merchantCountryCode: 'IT', testEnv: __DEV__ },
       });
+
+      if (init.error && shouldRetryPaymentSheetWithoutWallet(init.error.message)) {
+        init = await initPaymentSheet(baseSheetConfig);
+        if (!init.error) {
+          setToast({
+            text: 'Apple Pay non disponibile su questa build. Usa carta o Link.',
+            tone: 'info',
+          });
+        }
+      }
 
       if (init.error) {
         throw new Error(init.error.message);

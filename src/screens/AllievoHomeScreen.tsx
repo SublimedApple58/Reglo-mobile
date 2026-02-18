@@ -91,6 +91,14 @@ const lessonDurationMinutes = (appointment: AutoscuolaAppointmentWithRelations) 
   return Math.max(30, Math.round((endsAt - startsAt) / 60000));
 };
 
+const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
+  const normalized = (message ?? '').toLowerCase();
+  return (
+    normalized.includes('merchantidentifier') ||
+    normalized.includes('merchant identifier')
+  );
+};
+
 let sharingModulePromise: Promise<typeof import('expo-sharing') | null> | null = null;
 const getSharingModule = async () => {
   if (!sharingModulePromise) {
@@ -916,14 +924,28 @@ export const AllievoHomeScreen = () => {
     setToast(null);
     try {
       const setup = await regloApi.preparePayNow(outstanding.appointmentId);
-      const init = await initPaymentSheet({
+      const baseSheetConfig = {
         merchantDisplayName: 'Reglo Autoscuole',
         customerId: setup.customerId,
         customerEphemeralKeySecret: setup.ephemeralKey,
         paymentIntentClientSecret: setup.paymentIntentClientSecret,
+      } as const;
+
+      let init = await initPaymentSheet({
+        ...baseSheetConfig,
         applePay: { merchantCountryCode: 'IT' },
-        googlePay: { merchantCountryCode: 'IT', testEnv: true },
+        googlePay: { merchantCountryCode: 'IT', testEnv: __DEV__ },
       });
+
+      if (init.error && shouldRetryPaymentSheetWithoutWallet(init.error.message)) {
+        init = await initPaymentSheet(baseSheetConfig);
+        if (!init.error) {
+          setToast({
+            text: 'Apple Pay non disponibile su questa build. Usa carta o Link.',
+            tone: 'info',
+          });
+        }
+      }
 
       if (init.error) {
         throw new Error(init.error.message);
