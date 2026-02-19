@@ -39,6 +39,7 @@ import {
   MobilePreparePayNowPayload,
   MobileFinalizePayNowPayload,
   MobileAppointmentPaymentDocument,
+  MobileBookingOptions,
   StudentAppointmentPaymentHistoryItem,
   SelectCompanyInput,
   SelectCompanyPayload,
@@ -216,6 +217,10 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<CreateBookingRequestResult>('/api/autoscuole/booking-requests', {
         method: 'POST',
         body: input,
+      }),
+    getBookingOptions: async (studentId: string) =>
+      client.request<MobileBookingOptions>('/api/autoscuole/booking-options', {
+        params: { studentId },
       }),
     respondWaitlistOffer: async (offerId: string, input: RespondWaitlistOfferInput) =>
       client.request<RespondWaitlistOfferResult>(

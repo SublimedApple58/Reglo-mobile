@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
   Linking,
@@ -25,6 +25,7 @@ import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { GlassInput } from '../components/GlassInput';
 import { SelectableChip } from '../components/SelectableChip';
+import { ScrollHintFab } from '../components/ScrollHintFab';
 import { SectionHeader } from '../components/SectionHeader';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
@@ -32,6 +33,7 @@ import { subscribePushIntent } from '../services/pushNotifications';
 import {
   AutoscuolaAppointmentWithRelations,
   MobileAppointmentPaymentDocument,
+  MobileBookingOptions,
   MobileStudentPaymentProfile,
   AutoscuolaStudent,
   AutoscuolaSettings,
@@ -52,6 +54,26 @@ const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in']);
 const proposalStatuses = new Set(['proposal']);
 const historyPageSize = 10;
+const DEFAULT_BOOKING_LESSON_TYPES = [
+  'manovre',
+  'urbano',
+  'extraurbano',
+  'notturna',
+  'autostrada',
+  'parcheggio',
+  'altro',
+] as const;
+const lessonTypeLabelMap: Record<string, string> = {
+  manovre: 'Manovre',
+  urbano: 'Urbano',
+  extraurbano: 'Extraurbano',
+  notturna: 'Notturna',
+  autostrada: 'Autostrada',
+  parcheggio: 'Parcheggio',
+  altro: 'Altro',
+  guida: 'Guida',
+  esame: 'Esame',
+};
 
 const pad = (value: number) => value.toString().padStart(2, '0');
 
@@ -117,6 +139,9 @@ const getWebBrowserModule = async () => {
 
 const normalize = (value: string | null | undefined) =>
   (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const formatLessonType = (value: string | null | undefined) =>
+  lessonTypeLabelMap[normalize(value)] ?? value ?? 'Guida';
 
 const findLinkedStudent = (
   students: AutoscuolaStudent[],
@@ -219,9 +244,11 @@ export const AllievoHomeScreen = () => {
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
 
   const [preferredDate, setPreferredDate] = useState(new Date());
-  const [preferredStart, setPreferredStart] = useState(buildTime(9, 0));
-  const [preferredEnd, setPreferredEnd] = useState(buildTime(18, 0));
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [selectedLessonType, setSelectedLessonType] = useState<string>(
+    DEFAULT_BOOKING_LESSON_TYPES[0],
+  );
+  const [bookingOptions, setBookingOptions] = useState<MobileBookingOptions | null>(null);
   const [suggestion, setSuggestion] = useState<{ startsAt: string; endsAt: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [proposalLoading, setProposalLoading] = useState(false);
@@ -244,10 +271,44 @@ export const AllievoHomeScreen = () => {
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
   const [historyVisibleCount, setHistoryVisibleCount] = useState(historyPageSize);
+  const historyDetailsScrollRef = useRef<ScrollView | null>(null);
+  const [historyDetailsLayoutHeight, setHistoryDetailsLayoutHeight] = useState(0);
+  const [historyDetailsContentHeight, setHistoryDetailsContentHeight] = useState(0);
+  const [historyDetailsOffsetY, setHistoryDetailsOffsetY] = useState(0);
   const historyDetailsMaxHeight = useMemo(
     () => Math.max(320, Math.min(windowHeight * 0.62, windowHeight - insets.top - 180)),
     [insets.top, windowHeight]
   );
+  const historyDetailsMaxOffset = Math.max(
+    0,
+    historyDetailsContentHeight - historyDetailsLayoutHeight
+  );
+  const canScrollHistoryDetails = historyDetailsMaxOffset > 12;
+  const showHistoryScrollUp = canScrollHistoryDetails && historyDetailsOffsetY > 24;
+  const showHistoryScrollDown =
+    canScrollHistoryDetails &&
+    !showHistoryScrollUp &&
+    historyDetailsOffsetY < historyDetailsMaxOffset - 24;
+
+  const handleHistoryDetailsQuickScroll = useCallback(
+    (direction: 'up' | 'down') => {
+      if (!historyDetailsScrollRef.current) return;
+      const step = Math.max(180, historyDetailsLayoutHeight * 0.85);
+      const nextOffset =
+        direction === 'down'
+          ? Math.min(historyDetailsOffsetY + step, historyDetailsMaxOffset)
+          : Math.max(historyDetailsOffsetY - step, 0);
+      historyDetailsScrollRef.current.scrollTo({ y: nextOffset, animated: true });
+    },
+    [historyDetailsLayoutHeight, historyDetailsMaxOffset, historyDetailsOffsetY]
+  );
+
+  useEffect(() => {
+    if (historyDetailsOpen) return;
+    setHistoryDetailsOffsetY(0);
+    setHistoryDetailsLayoutHeight(0);
+    setHistoryDetailsContentHeight(0);
+  }, [historyDetailsOpen]);
 
   const openPreferences = () => {
     setPrefsOpen(true);
@@ -258,6 +319,20 @@ export const AllievoHomeScreen = () => {
     [students, user]
   );
   const selectedStudentId = selectedStudent?.id ?? null;
+  const availableDurations = useMemo(
+    () =>
+      (bookingOptions?.bookingSlotDurations ?? settings?.bookingSlotDurations ?? [30, 60])
+        .slice()
+        .sort((a, b) => a - b),
+    [bookingOptions?.bookingSlotDurations, settings?.bookingSlotDurations],
+  );
+  const availableLessonTypes = useMemo<string[]>(
+    () =>
+      bookingOptions?.availableLessonTypes ??
+      settings?.lessonRequiredTypes ??
+      [...DEFAULT_BOOKING_LESSON_TYPES],
+    [bookingOptions?.availableLessonTypes, settings?.lessonRequiredTypes],
+  );
 
   const loadStudents = useCallback(async () => {
     const list = await regloApi.getStudents();
@@ -276,7 +351,7 @@ export const AllievoHomeScreen = () => {
         const to = addDays(new Date(), 30);
         to.setHours(23, 59, 59, 999);
 
-        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse] =
+        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse, bookingOptionsResponse] =
           await Promise.all([
           regloApi.getAppointments({
             studentId,
@@ -287,11 +362,32 @@ export const AllievoHomeScreen = () => {
           regloApi.getAutoscuolaSettings(),
           regloApi.getPaymentProfile(),
           regloApi.getPaymentHistory(40),
+          regloApi
+            .getBookingOptions(studentId)
+            .catch(() => null),
         ]);
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
         setSettings(settingsResponse);
         setPaymentProfile(paymentResponse);
         setPaymentHistory(paymentHistoryResponse);
+        const resolvedBookingOptions: MobileBookingOptions = bookingOptionsResponse ?? {
+          bookingSlotDurations: settingsResponse.bookingSlotDurations ?? [30, 60],
+          availableLessonTypes: [...DEFAULT_BOOKING_LESSON_TYPES],
+        };
+        setBookingOptions(resolvedBookingOptions);
+        const sortedDurations = (resolvedBookingOptions.bookingSlotDurations ?? [30, 60])
+          .slice()
+          .sort((a, b) => a - b);
+        setDurationMinutes((current) =>
+          sortedDurations.includes(current) ? current : sortedDurations[0] ?? 60,
+        );
+        const availableTypes = (resolvedBookingOptions.availableLessonTypes ??
+          [...DEFAULT_BOOKING_LESSON_TYPES]) as string[];
+        setSelectedLessonType((current) =>
+          availableTypes.includes(current)
+            ? current
+            : availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0],
+        );
       } catch (err) {
         setToast({
           text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -586,8 +682,13 @@ export const AllievoHomeScreen = () => {
     setToast(null);
     setSuggestion(null);
     setBookingLoading(true);
-    if (preferredEnd <= preferredStart) {
-      setToast({ text: 'Orario non valido', tone: 'danger' });
+    if (!availableDurations.includes(durationMinutes)) {
+      setToast({ text: 'Durata non disponibile', tone: 'danger' });
+      setBookingLoading(false);
+      return;
+    }
+    if (!selectedLessonType || !availableLessonTypes.includes(selectedLessonType)) {
+      setToast({ text: 'Tipo guida non disponibile', tone: 'danger' });
       setBookingLoading(false);
       return;
     }
@@ -596,8 +697,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         durationMinutes,
-        preferredStartTime: toTimeString(preferredStart),
-        preferredEndTime: toTimeString(preferredEnd),
+        lessonType: selectedLessonType,
         maxDays: 4,
         requestId: bookingRequestId ?? undefined,
       });
@@ -641,6 +741,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         durationMinutes,
+        lessonType: selectedLessonType,
         selectedStartsAt: suggestion.startsAt,
         requestId: bookingRequestId ?? undefined,
       });
@@ -721,8 +822,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         durationMinutes,
-        preferredStartTime: toTimeString(preferredStart),
-        preferredEndTime: toTimeString(preferredEnd),
+        lessonType: selectedLessonType,
         maxDays: 4,
         excludeStartsAt: suggestion.startsAt,
         requestId: bookingRequestId ?? undefined,
@@ -1127,8 +1227,8 @@ export const AllievoHomeScreen = () => {
 
             <SectionHeader
               title="Prenota una guida"
-              subtitle="Scegli giorno, fascia oraria e durata"
-              action="Preferenze"
+              subtitle="Scegli giorno, tipo guida e durata"
+              action="Prenotazione"
             />
             <GlassCard>
               {paymentProfile?.blockedByInsoluti ? (
@@ -1157,10 +1257,10 @@ export const AllievoHomeScreen = () => {
                 </View>
               ) : null}
               <Text style={styles.bookingHint}>
-                Imposta le tue preferenze e richiedi una guida.
+                Seleziona giorno, tipo guida e durata per ricevere la proposta migliore.
               </Text>
               <GlassButton
-                label="Apri preferenze"
+                label="Prenota una guida"
                 onPress={openPreferences}
                 disabled={Boolean(
                   paymentProfile?.blockedByInsoluti ||
@@ -1177,28 +1277,29 @@ export const AllievoHomeScreen = () => {
                   const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
                   return (
                     <View key={lesson.id} style={styles.historyRow}>
-                      <View style={styles.historyRowTop}>
-                        <View style={styles.historyRowMain}>
-                          <Text style={styles.historyTime}>
-                            {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                      <View style={styles.historyHeader}>
+                        <Text style={styles.historyTime}>
+                          {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                        </Text>
+                        <Text style={styles.historySubtitle}>
+                          {lesson.instructor?.name ?? 'Istruttore'}
+                        </Text>
+                        {lessonPayment ? (
+                          <Text style={styles.historyPaymentMeta}>
+                            Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
+                            {lessonPayment.dueAmount.toFixed(2)}
                           </Text>
-                          <Text style={styles.lessonMeta}>{lesson.instructor?.name ?? 'Istruttore'}</Text>
-                        </View>
+                        ) : null}
+                      </View>
+                      <View style={styles.historyStatusWrap}>
                         <GlassBadge label={status.label} tone={status.tone} />
                       </View>
-                      {lessonPayment ? (
-                        <Text style={styles.historyPaymentMeta}>
-                          Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
-                          {lessonPayment.dueAmount.toFixed(2)}
-                        </Text>
-                      ) : null}
-                      <View style={styles.historyRowFooter}>
-                        <View style={styles.historyDetailButtonWrap}>
-                          <GlassButton
-                            label="Dettagli guida"
-                            onPress={() => handleOpenHistoryDetails(lesson)}
-                          />
-                        </View>
+                      <View style={styles.historyCtaWrap}>
+                        <GlassButton
+                          label="Dettagli guida"
+                          onPress={() => handleOpenHistoryDetails(lesson)}
+                          fullWidth
+                        />
                       </View>
                     </View>
                   );
@@ -1225,95 +1326,118 @@ export const AllievoHomeScreen = () => {
         onClose={() => setHistoryDetailsOpen(false)}
       >
         {selectedHistoryLesson ? (
-          <ScrollView
-            style={[styles.paymentDetailsScroll, { maxHeight: historyDetailsMaxHeight }]}
-            contentContainerStyle={styles.sheetScrollContent}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            contentInsetAdjustmentBehavior="never"
-            automaticallyAdjustContentInsets={false}
-            automaticallyAdjustsScrollIndicatorInsets={false}
-          >
-            <Text style={styles.sheetText}>
-              Guida {formatDay(selectedHistoryLesson.startsAt)} · {formatTime(selectedHistoryLesson.startsAt)}
-            </Text>
-            <Text style={styles.sheetMeta}>
-              Durata: {lessonDurationMinutes(selectedHistoryLesson)} min
-            </Text>
-            <Text style={styles.sheetMeta}>
-              Istruttore: {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
-            </Text>
-            <Text style={styles.sheetMeta}>Veicolo: {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}</Text>
-            <Text style={styles.sheetMeta}>
-              Stato guida: {statusLabel(selectedHistoryLesson.status).label}
-            </Text>
-            <Text style={styles.sheetDivider}>Pagamento</Text>
-            {selectedHistoryPayment ? (
-              <>
-                <Text style={styles.sheetMeta}>
-                  Stato pagamento: {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
-                </Text>
-                <Text style={styles.sheetMeta}>Prezzo guida: € {selectedHistoryPayment.priceAmount.toFixed(2)}</Text>
-                <Text style={styles.sheetMeta}>Penale: € {selectedHistoryPayment.penaltyAmount.toFixed(2)}</Text>
-                <Text style={styles.sheetMeta}>
-                  Totale dovuto: € {selectedHistoryPayment.finalAmount.toFixed(2)}
-                </Text>
-                <Text style={styles.sheetMeta}>Pagato: € {selectedHistoryPayment.paidAmount.toFixed(2)}</Text>
-                <Text style={styles.sheetMeta}>Residuo: € {selectedHistoryPayment.dueAmount.toFixed(2)}</Text>
-                <Text style={styles.sheetMeta}>
-                  Fattura: {invoiceStatusLabel(selectedHistoryPayment.invoiceStatus)}
-                </Text>
-                <View style={styles.paymentDocumentActions}>
-                  <View style={styles.paymentDocumentActionWrap}>
-                    <GlassButton
-                      label={historyDocumentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
-                      onPress={handleOpenPaymentDocument}
-                      disabled={Boolean(historyDocumentBusy)}
-                      fullWidth
-                    />
-                  </View>
-                  <View style={styles.paymentDocumentActionWrap}>
-                    <GlassButton
-                      label={historyDocumentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
-                      onPress={handleSharePaymentDocument}
-                      disabled={Boolean(historyDocumentBusy)}
-                      fullWidth
-                    />
-                  </View>
-                </View>
-                <Text style={styles.sheetDivider}>Tentativi di addebito</Text>
-                <View style={styles.paymentEventsList}>
-                  {selectedHistoryPayment.payments.map((payment) => {
-                    const paymentEventStatus = paymentEventStatusLabel(payment.status);
-                    return (
-                      <View key={payment.id} style={styles.paymentEventRow}>
-                        <View style={styles.paymentEventMain}>
-                          <Text style={styles.paymentEventTitle}>
-                            {paymentPhaseLabel(payment.phase)} · € {payment.amount.toFixed(2)}
-                          </Text>
-                          <Text style={styles.paymentEventMeta}>
-                            {formatDay(payment.paidAt ?? payment.createdAt)} ·{' '}
-                            {formatTime(payment.paidAt ?? payment.createdAt)}
-                          </Text>
-                          {payment.failureMessage ? (
-                            <Text style={styles.paymentEventMeta}>{payment.failureMessage}</Text>
-                          ) : null}
-                        </View>
-                        <GlassBadge label={paymentEventStatus.label} tone={paymentEventStatus.tone} />
-                      </View>
-                    );
-                  })}
-                  {!selectedHistoryPayment.payments.length ? (
-                    <Text style={styles.empty}>Nessun tentativo registrato.</Text>
-                  ) : null}
-                </View>
-              </>
-            ) : (
-              <Text style={styles.sheetMeta}>
-                Nessun dettaglio pagamento disponibile per questa guida.
+          <View style={styles.sheetScrollContainer}>
+            <ScrollView
+              ref={historyDetailsScrollRef}
+              style={[styles.paymentDetailsScroll, { maxHeight: historyDetailsMaxHeight }]}
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentInsetAdjustmentBehavior="never"
+              automaticallyAdjustContentInsets={false}
+              automaticallyAdjustsScrollIndicatorInsets={false}
+              scrollEventThrottle={16}
+              onLayout={(event) =>
+                setHistoryDetailsLayoutHeight(event.nativeEvent.layout.height)
+              }
+              onContentSizeChange={(_, height) => setHistoryDetailsContentHeight(height)}
+              onScroll={(event) => setHistoryDetailsOffsetY(event.nativeEvent.contentOffset.y)}
+            >
+              <Text style={styles.sheetText}>
+                Guida {formatDay(selectedHistoryLesson.startsAt)} · {formatTime(selectedHistoryLesson.startsAt)}
               </Text>
-            )}
-          </ScrollView>
+              <Text style={styles.sheetMeta}>
+                Durata: {lessonDurationMinutes(selectedHistoryLesson)} min
+              </Text>
+              <Text style={styles.sheetMeta}>
+                Istruttore: {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
+              </Text>
+              <Text style={styles.sheetMeta}>Veicolo: {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}</Text>
+              <Text style={styles.sheetMeta}>
+                Stato guida: {statusLabel(selectedHistoryLesson.status).label}
+              </Text>
+              <Text style={styles.sheetDivider}>Pagamento</Text>
+              {selectedHistoryPayment ? (
+                <>
+                  <Text style={styles.sheetMeta}>
+                    Stato pagamento: {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
+                  </Text>
+                  <Text style={styles.sheetMeta}>Prezzo guida: € {selectedHistoryPayment.priceAmount.toFixed(2)}</Text>
+                  <Text style={styles.sheetMeta}>Penale: € {selectedHistoryPayment.penaltyAmount.toFixed(2)}</Text>
+                  <Text style={styles.sheetMeta}>
+                    Totale dovuto: € {selectedHistoryPayment.finalAmount.toFixed(2)}
+                  </Text>
+                  <Text style={styles.sheetMeta}>Pagato: € {selectedHistoryPayment.paidAmount.toFixed(2)}</Text>
+                  <Text style={styles.sheetMeta}>Residuo: € {selectedHistoryPayment.dueAmount.toFixed(2)}</Text>
+                  <Text style={styles.sheetMeta}>
+                    Fattura: {invoiceStatusLabel(selectedHistoryPayment.invoiceStatus)}
+                  </Text>
+                  <View style={styles.paymentDocumentActions}>
+                    <View style={styles.paymentDocumentActionWrap}>
+                      <GlassButton
+                        label={historyDocumentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
+                        onPress={handleOpenPaymentDocument}
+                        disabled={Boolean(historyDocumentBusy)}
+                        fullWidth
+                      />
+                    </View>
+                    <View style={styles.paymentDocumentActionWrap}>
+                      <GlassButton
+                        label={historyDocumentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
+                        onPress={handleSharePaymentDocument}
+                        disabled={Boolean(historyDocumentBusy)}
+                        fullWidth
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.sheetDivider}>Tentativi di addebito</Text>
+                  <View style={styles.paymentEventsList}>
+                    {selectedHistoryPayment.payments.map((payment) => {
+                      const paymentEventStatus = paymentEventStatusLabel(payment.status);
+                      return (
+                        <View key={payment.id} style={styles.paymentEventRow}>
+                          <View style={styles.paymentEventMain}>
+                            <Text style={styles.paymentEventTitle}>
+                              {paymentPhaseLabel(payment.phase)} · € {payment.amount.toFixed(2)}
+                            </Text>
+                            <Text style={styles.paymentEventMeta}>
+                              {formatDay(payment.paidAt ?? payment.createdAt)} ·{' '}
+                              {formatTime(payment.paidAt ?? payment.createdAt)}
+                            </Text>
+                            {payment.failureMessage ? (
+                              <Text style={styles.paymentEventMeta}>{payment.failureMessage}</Text>
+                            ) : null}
+                          </View>
+                          <GlassBadge label={paymentEventStatus.label} tone={paymentEventStatus.tone} />
+                        </View>
+                      );
+                    })}
+                    {!selectedHistoryPayment.payments.length ? (
+                      <Text style={styles.empty}>Nessun tentativo registrato.</Text>
+                    ) : null}
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.sheetMeta}>
+                  Nessun dettaglio pagamento disponibile per questa guida.
+                </Text>
+              )}
+            </ScrollView>
+            {showHistoryScrollDown ? (
+              <ScrollHintFab
+                direction="down"
+                style={styles.scrollHintBottom}
+                onPress={() => handleHistoryDetailsQuickScroll('down')}
+              />
+            ) : null}
+            {showHistoryScrollUp ? (
+              <ScrollHintFab
+                direction="up"
+                style={styles.scrollHintTop}
+                onPress={() => handleHistoryDetailsQuickScroll('up')}
+              />
+            ) : null}
+          </View>
         ) : null}
       </BottomSheet>
       <BottomSheet
@@ -1416,7 +1540,7 @@ export const AllievoHomeScreen = () => {
       </BottomSheet>
       <BottomSheet
         visible={prefsOpen}
-        title="Preferenze guida"
+        title="Prenota guida"
         onClose={handleClosePreferences}
         onClosed={() => {
           if (pendingSuggestionOpen) {
@@ -1440,49 +1564,67 @@ export const AllievoHomeScreen = () => {
         }
       >
         <View style={styles.sheetContent}>
-          <View style={styles.pickerRow}>
+          <View style={styles.bookingFormBlock}>
             <PickerField
               label="Giorno"
               value={preferredDate}
               mode="date"
               onChange={setPreferredDate}
             />
+          </View>
+          <View style={styles.bookingFormBlock}>
+            <Text style={styles.sheetMeta}>Tipo guida</Text>
             <View style={styles.durationWrap}>
-              <Pressable
-                style={[styles.durationChip, durationMinutes === 30 && styles.durationChipActive]}
-                onPress={() => setDurationMinutes(30)}
-              >
-                <Text
-                  style={durationMinutes === 30 ? styles.durationTextActive : styles.durationText}
+              {availableLessonTypes.map((lessonType) => (
+                <Pressable
+                  key={`type-${lessonType}`}
+                  style={[
+                    styles.durationChip,
+                    selectedLessonType === lessonType && styles.durationChipActive,
+                  ]}
+                  onPress={() => setSelectedLessonType(lessonType)}
                 >
-                  30m
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.durationChip, durationMinutes === 60 && styles.durationChipActive]}
-                onPress={() => setDurationMinutes(60)}
-              >
-                <Text
-                  style={durationMinutes === 60 ? styles.durationTextActive : styles.durationText}
-                >
-                  60m
-                </Text>
-              </Pressable>
+                  <Text
+                    style={
+                      selectedLessonType === lessonType
+                        ? styles.durationTextActive
+                        : styles.durationText
+                    }
+                  >
+                    {formatLessonType(lessonType)}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </View>
-          <View style={styles.pickerRow}>
-            <PickerField
-              label="Dalle"
-              value={preferredStart}
-              mode="time"
-              onChange={setPreferredStart}
-            />
-            <PickerField
-              label="Alle"
-              value={preferredEnd}
-              mode="time"
-              onChange={setPreferredEnd}
-            />
+          <View style={styles.bookingFormBlock}>
+            <Text style={styles.sheetMeta}>Durata</Text>
+            {availableDurations.length === 1 ? (
+              <Text style={styles.sheetText}>{availableDurations[0]} min</Text>
+            ) : (
+              <View style={styles.durationWrap}>
+                {availableDurations.map((duration) => (
+                  <Pressable
+                    key={`duration-${duration}`}
+                    style={[
+                      styles.durationChip,
+                      durationMinutes === duration && styles.durationChipActive,
+                    ]}
+                    onPress={() => setDurationMinutes(duration)}
+                  >
+                    <Text
+                      style={
+                        durationMinutes === duration
+                          ? styles.durationTextActive
+                          : styles.durationText
+                      }
+                    >
+                      {duration}m
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </BottomSheet>
@@ -1527,6 +1669,7 @@ export const AllievoHomeScreen = () => {
             <Text style={styles.sheetText}>
               {formatDay(suggestion.startsAt)} · {formatTime(suggestion.startsAt)}
             </Text>
+            <Text style={styles.sheetMeta}>Tipo guida: {formatLessonType(selectedLessonType)}</Text>
             <Text style={styles.sheetMeta}>Durata: {durationMinutes} min</Text>
             <Text style={styles.sheetMeta}>Istruttore: da assegnare</Text>
             <Text style={styles.sheetMeta}>Veicolo: da assegnare</Text>
@@ -1587,31 +1730,25 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.xs,
   },
-  historyRowTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  historyRowMain: {
-    flex: 1,
-    minWidth: 0,
+  historyHeader: {
     gap: 2,
-    paddingRight: 2,
   },
-  historyRowFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  historyStatusWrap: {
     paddingTop: 2,
   },
-  historyDetailButtonWrap: {
-    minWidth: 132,
+  historyCtaWrap: {
+    width: '100%',
+    paddingTop: 2,
   },
   historyPaymentMeta: {
     ...typography.caption,
     color: colors.textSecondary,
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  historySubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   historyTime: {
     ...typography.subtitle,
@@ -1621,8 +1758,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  bookingFormBlock: {
+    gap: spacing.xs,
+  },
   durationWrap: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     alignItems: 'center',
   },
@@ -1695,6 +1836,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingBottom: spacing.sm,
   },
+  sheetScrollContainer: {
+    width: '100%',
+    position: 'relative',
+  },
   paymentDetailsScroll: {
     width: '100%',
   },
@@ -1752,6 +1897,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  scrollHintBottom: {
+    bottom: spacing.sm,
+  },
+  scrollHintTop: {
+    top: spacing.xs,
   },
   sheetActionsDock: {
     gap: spacing.sm,

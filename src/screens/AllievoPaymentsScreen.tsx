@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   RefreshControl,
@@ -17,6 +17,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
+import { ScrollHintFab } from '../components/ScrollHintFab';
 import { Screen } from '../components/Screen';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { useSession } from '../context/SessionContext';
@@ -71,10 +72,32 @@ export const AllievoPaymentsScreen = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState<'view' | 'share' | null>(null);
+  const detailsScrollRef = useRef<ScrollView | null>(null);
+  const [detailsLayoutHeight, setDetailsLayoutHeight] = useState(0);
+  const [detailsContentHeight, setDetailsContentHeight] = useState(0);
+  const [detailsOffsetY, setDetailsOffsetY] = useState(0);
 
   const detailsMaxHeight = useMemo(
     () => Math.max(320, Math.min(windowHeight * 0.62, windowHeight - insets.top - 180)),
     [insets.top, windowHeight]
+  );
+  const detailsMaxOffset = Math.max(0, detailsContentHeight - detailsLayoutHeight);
+  const canQuickScrollDetails = detailsMaxOffset > 12;
+  const showDetailsScrollUp = canQuickScrollDetails && detailsOffsetY > 24;
+  const showDetailsScrollDown =
+    canQuickScrollDetails && !showDetailsScrollUp && detailsOffsetY < detailsMaxOffset - 24;
+
+  const handleDetailsQuickScroll = useCallback(
+    (direction: 'up' | 'down') => {
+      if (!detailsScrollRef.current) return;
+      const step = Math.max(180, detailsLayoutHeight * 0.85);
+      const nextOffset =
+        direction === 'down'
+          ? Math.min(detailsOffsetY + step, detailsMaxOffset)
+          : Math.max(detailsOffsetY - step, 0);
+      detailsScrollRef.current.scrollTo({ y: nextOffset, animated: true });
+    },
+    [detailsLayoutHeight, detailsMaxOffset, detailsOffsetY]
   );
 
   const load = useCallback(async () => {
@@ -140,6 +163,13 @@ export const AllievoPaymentsScreen = () => {
       setSelectedTransactionKey(null);
     }
   }, [selectedTransaction, selectedTransactionKey]);
+
+  useEffect(() => {
+    if (detailsOpen) return;
+    setDetailsOffsetY(0);
+    setDetailsLayoutHeight(0);
+    setDetailsContentHeight(0);
+  }, [detailsOpen]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -317,26 +347,28 @@ export const AllievoPaymentsScreen = () => {
               const status = paymentEventStatusLabel(transaction.event.status);
               return (
                 <View key={transaction.key} style={styles.row}>
-                  <View style={styles.rowTop}>
-                    <View style={styles.rowMain}>
-                      <Text style={styles.rowTitle}>
-                        {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
-                      </Text>
-                      <Text style={styles.rowMeta}>
-                        {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
-                        {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
-                      </Text>
-                      <Text style={styles.rowMeta}>
-                        Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
-                        {formatTime(transaction.appointment.startsAt)}
-                      </Text>
-                    </View>
+                  <View style={styles.rowHeader}>
+                    <Text style={styles.rowTitle}>
+                      {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
+                    </Text>
+                    <Text style={styles.rowSubtitle}>
+                      {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
+                      {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
+                    </Text>
+                    <Text style={styles.rowMeta}>
+                      Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
+                      {formatTime(transaction.appointment.startsAt)}
+                    </Text>
+                  </View>
+                  <View style={styles.rowStatusWrap}>
                     <GlassBadge label={status.label} tone={status.tone} />
                   </View>
                   <View style={styles.rowActions}>
-                    <View style={styles.detailsButtonWrap}>
-                      <GlassButton label="Dettagli" onPress={() => openDetails(transaction)} />
-                    </View>
+                    <GlassButton
+                      label="Dettagli"
+                      onPress={() => openDetails(transaction)}
+                      fullWidth
+                    />
                   </View>
                 </View>
               );
@@ -362,82 +394,103 @@ export const AllievoPaymentsScreen = () => {
         onClose={() => setDetailsOpen(false)}
       >
         {selectedTransaction ? (
-          <ScrollView
-            style={[styles.detailsScroll, { maxHeight: detailsMaxHeight }]}
-            contentContainerStyle={styles.detailsScrollContent}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            contentInsetAdjustmentBehavior="never"
-            automaticallyAdjustContentInsets={false}
-            automaticallyAdjustsScrollIndicatorInsets={false}
-          >
-            <Text style={styles.detailsTitle}>
-              {paymentPhaseLabel(selectedTransaction.event.phase)} · €{' '}
-              {selectedTransaction.event.amount.toFixed(2)}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Stato: {paymentEventStatusLabel(selectedTransaction.event.status).label}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Data: {formatDay(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)} ·{' '}
-              {formatTime(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)}
-            </Text>
-            <Text style={styles.detailsMeta}>Tentativi: {selectedTransaction.event.attemptCount}</Text>
-            {selectedTransaction.event.failureMessage ? (
-              <Text style={styles.detailsMeta}>{selectedTransaction.event.failureMessage}</Text>
+          <View style={styles.detailsScrollContainer}>
+            <ScrollView
+              ref={detailsScrollRef}
+              style={[styles.detailsScroll, { maxHeight: detailsMaxHeight }]}
+              contentContainerStyle={styles.detailsScrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentInsetAdjustmentBehavior="never"
+              automaticallyAdjustContentInsets={false}
+              automaticallyAdjustsScrollIndicatorInsets={false}
+              scrollEventThrottle={16}
+              onLayout={(event) => setDetailsLayoutHeight(event.nativeEvent.layout.height)}
+              onContentSizeChange={(_, height) => setDetailsContentHeight(height)}
+              onScroll={(event) => setDetailsOffsetY(event.nativeEvent.contentOffset.y)}
+            >
+              <Text style={styles.detailsTitle}>
+                {paymentPhaseLabel(selectedTransaction.event.phase)} · €{' '}
+                {selectedTransaction.event.amount.toFixed(2)}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Stato: {paymentEventStatusLabel(selectedTransaction.event.status).label}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Data: {formatDay(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)} ·{' '}
+                {formatTime(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)}
+              </Text>
+              <Text style={styles.detailsMeta}>Tentativi: {selectedTransaction.event.attemptCount}</Text>
+              {selectedTransaction.event.failureMessage ? (
+                <Text style={styles.detailsMeta}>{selectedTransaction.event.failureMessage}</Text>
+              ) : null}
+
+              <Text style={styles.detailsDivider}>Guida collegata</Text>
+              <Text style={styles.detailsMeta}>
+                {formatDay(selectedTransaction.appointment.startsAt)} ·{' '}
+                {formatTime(selectedTransaction.appointment.startsAt)}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Istruttore: {selectedTransaction.appointment.instructorName ?? 'Da assegnare'}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Veicolo: {selectedTransaction.appointment.vehicleName ?? 'Da assegnare'}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Stato guida: {selectedTransaction.appointment.lessonStatus}
+              </Text>
+
+              <Text style={styles.detailsDivider}>Pagamento guida</Text>
+              <Text style={styles.detailsMeta}>
+                Stato pagamento: {paymentStatusLabel(selectedTransaction.appointment.paymentStatus).label}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Totale dovuto: € {selectedTransaction.appointment.finalAmount.toFixed(2)}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Pagato: € {selectedTransaction.appointment.paidAmount.toFixed(2)}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Residuo: € {selectedTransaction.appointment.dueAmount.toFixed(2)}
+              </Text>
+              <Text style={styles.detailsMeta}>
+                Fattura: {invoiceStatusLabel(selectedTransaction.appointment.invoiceStatus)}
+              </Text>
+
+              <View style={styles.documentActions}>
+                <View style={styles.documentActionWrap}>
+                  <GlassButton
+                    label={documentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
+                    onPress={handleOpenPaymentDocument}
+                    disabled={Boolean(documentBusy)}
+                    fullWidth
+                  />
+                </View>
+                <View style={styles.documentActionWrap}>
+                  <GlassButton
+                    label={documentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
+                    onPress={handleSharePaymentDocument}
+                    disabled={Boolean(documentBusy)}
+                    fullWidth
+                  />
+                </View>
+              </View>
+            </ScrollView>
+            {showDetailsScrollDown ? (
+              <ScrollHintFab
+                direction="down"
+                style={styles.scrollHintBottom}
+                onPress={() => handleDetailsQuickScroll('down')}
+              />
             ) : null}
-
-            <Text style={styles.detailsDivider}>Guida collegata</Text>
-            <Text style={styles.detailsMeta}>
-              {formatDay(selectedTransaction.appointment.startsAt)} ·{' '}
-              {formatTime(selectedTransaction.appointment.startsAt)}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Istruttore: {selectedTransaction.appointment.instructorName ?? 'Da assegnare'}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Veicolo: {selectedTransaction.appointment.vehicleName ?? 'Da assegnare'}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Stato guida: {selectedTransaction.appointment.lessonStatus}
-            </Text>
-
-            <Text style={styles.detailsDivider}>Pagamento guida</Text>
-            <Text style={styles.detailsMeta}>
-              Stato pagamento: {paymentStatusLabel(selectedTransaction.appointment.paymentStatus).label}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Totale dovuto: € {selectedTransaction.appointment.finalAmount.toFixed(2)}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Pagato: € {selectedTransaction.appointment.paidAmount.toFixed(2)}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Residuo: € {selectedTransaction.appointment.dueAmount.toFixed(2)}
-            </Text>
-            <Text style={styles.detailsMeta}>
-              Fattura: {invoiceStatusLabel(selectedTransaction.appointment.invoiceStatus)}
-            </Text>
-
-            <View style={styles.documentActions}>
-              <View style={styles.documentActionWrap}>
-                <GlassButton
-                  label={documentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
-                  onPress={handleOpenPaymentDocument}
-                  disabled={Boolean(documentBusy)}
-                  fullWidth
-                />
-              </View>
-              <View style={styles.documentActionWrap}>
-                <GlassButton
-                  label={documentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
-                  onPress={handleSharePaymentDocument}
-                  disabled={Boolean(documentBusy)}
-                  fullWidth
-                />
-              </View>
-            </View>
-          </ScrollView>
+            {showDetailsScrollUp ? (
+              <ScrollHintFab
+                direction="up"
+                style={styles.scrollHintTop}
+                onPress={() => handleDetailsQuickScroll('up')}
+              />
+            ) : null}
+          </View>
         ) : null}
       </BottomSheet>
     </Screen>
@@ -514,30 +567,29 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.xs,
   },
-  rowTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  rowMain: {
-    flex: 1,
-    minWidth: 0,
+  rowHeader: {
     gap: 2,
   },
-  rowActions: {
-    alignItems: 'flex-end',
+  rowStatusWrap: {
+    paddingTop: 2,
   },
-  detailsButtonWrap: {
-    minWidth: 110,
+  rowActions: {
+    width: '100%',
+    paddingTop: 2,
   },
   rowTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,
   },
-  rowMeta: {
+  rowSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  rowMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   more: {
     marginTop: spacing.xs,
@@ -548,6 +600,10 @@ const styles = StyleSheet.create({
   },
   detailsScroll: {
     width: '100%',
+  },
+  detailsScrollContainer: {
+    width: '100%',
+    position: 'relative',
   },
   detailsScrollContent: {
     gap: spacing.xs,
@@ -578,5 +634,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 2,
     overflow: 'visible',
+  },
+  scrollHintBottom: {
+    bottom: spacing.sm,
+  },
+  scrollHintTop: {
+    top: spacing.xs,
   },
 });

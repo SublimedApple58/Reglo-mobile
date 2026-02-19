@@ -278,6 +278,7 @@ export type CreateBookingRequestInput = {
   studentId: Uuid;
   preferredDate: IsoDate;
   durationMinutes: number;
+  lessonType?: string;
   preferredStartTime?: string;
   preferredEndTime?: string;
   maxDays?: number;
@@ -355,6 +356,23 @@ export type AutoscuolaSettings = {
   paymentNotificationChannels?: Array<'push' | 'email'>;
   ficVatTypeId?: string | null;
   ficPaymentMethodId?: string | null;
+  lessonPolicyEnabled?: boolean;
+  lessonRequiredTypesEnabled?: boolean;
+  lessonRequiredTypes?: Array<'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'>;
+  lessonTypeConstraints?: Partial<
+    Record<
+      'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro',
+      { daysOfWeek: number[]; startMinutes: number; endMinutes: number } | null
+    >
+  >;
+  bookingSlotDurations?: number[];
+};
+
+export type MobileBookingOptions = {
+  bookingSlotDurations: number[];
+  availableLessonTypes: Array<
+    'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
+  >;
 };
 
 export type PaymentMethodSummary = {
