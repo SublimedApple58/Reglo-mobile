@@ -7,6 +7,7 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { BottomSheet } from '../components/BottomSheet';
 import { SelectableChip } from '../components/SelectableChip';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
@@ -15,7 +16,7 @@ import { formatDay, formatTime } from '../utils/date';
 import { useSession } from '../context/SessionContext';
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
-type DrawerAction = InstructorActionStatus | 'save_details';
+type DrawerAction = InstructorActionStatus | 'save_details' | 'reposition';
 type LessonTypeOption = {
   value: string;
   label: string;
@@ -216,17 +217,42 @@ const getTodayLessonTimingMeta = (lesson: AutoscuolaAppointmentWithRelations, no
   return { label: 'Passata', tone: 'past' as const };
 };
 
+const canOperationalReposition = (
+  lesson: AutoscuolaAppointmentWithRelations,
+  now: Date,
+) => {
+  const status = normalizeStatus(lesson.status);
+  if (CLOSED_ACTION_STATUSES.has(status)) return false;
+  return new Date(lesson.startsAt).getTime() > now.getTime();
+};
+
+const formatFutureDayLabel = (isoDate: string) =>
+  new Date(isoDate).toLocaleDateString('it-IT', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+
+const toLocalDayKey = (isoDate: string) => {
+  const date = new Date(isoDate);
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
 export const IstruttoreHomeScreen = () => {
   const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [selectedLessonType, setSelectedLessonType] = useState('');
   const [lessonNotes, setLessonNotes] = useState('');
+  const [selectedFutureDayKey, setSelectedFutureDayKey] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
@@ -238,7 +264,7 @@ export const IstruttoreHomeScreen = () => {
       from.setDate(from.getDate() - 1);
       from.setHours(0, 0, 0, 0);
       const to = new Date();
-      to.setDate(to.getDate() + 2);
+      to.setDate(to.getDate() + 14);
       to.setHours(23, 59, 59, 999);
 
       const appointmentsResponse = await regloApi.getAppointments({
@@ -257,6 +283,7 @@ export const IstruttoreHomeScreen = () => {
       return [];
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }, [instructorId]);
 
@@ -304,6 +331,43 @@ export const IstruttoreHomeScreen = () => {
       .filter((item) => normalizeStatus(item.status) !== 'cancelled')
       .sort((a, b) => getStartsAtTs(b) - getStartsAtTs(a));
   }, [appointments, now]);
+  const futureLessons = useMemo(() => {
+    const tomorrowStart = new Date(now);
+    tomorrowStart.setHours(0, 0, 0, 0);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    return [...appointments]
+      .filter((item) => new Date(item.startsAt).getTime() >= tomorrowStart.getTime())
+      .filter((item) => !CLOSED_ACTION_STATUSES.has(normalizeStatus(item.status)))
+      .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
+  }, [appointments, now]);
+  const futureDayOptions = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; label: string; startsAtTs: number; count: number }
+    >();
+
+    for (const lesson of futureLessons) {
+      const key = toLocalDayKey(lesson.startsAt);
+      const current = map.get(key);
+      if (current) {
+        current.count += 1;
+        continue;
+      }
+      map.set(key, {
+        key,
+        label: formatFutureDayLabel(lesson.startsAt),
+        startsAtTs: getStartsAtTs(lesson),
+        count: 1,
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.startsAtTs - b.startsAtTs);
+  }, [futureLessons]);
+  const visibleFutureLessons = useMemo(() => {
+    if (!selectedFutureDayKey) return [];
+    return futureLessons.filter((lesson) => toLocalDayKey(lesson.startsAt) === selectedFutureDayKey);
+  }, [futureLessons, selectedFutureDayKey]);
 
   const featuredLesson = inProgressLesson ?? upcomingLessons[0] ?? null;
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
@@ -329,6 +393,9 @@ export const IstruttoreHomeScreen = () => {
   }, [featuredLesson, now]);
 
   const canRunStatusAction = Boolean(sheetActionAvailability?.enabled);
+  const canRepositionSheetLesson = sheetLesson
+    ? canOperationalReposition(sheetLesson, now)
+    : false;
   const featuredCheckinHint = featuredLesson ? getCheckinStateText(featuredLesson, now) : null;
   const sheetStateMeta = useMemo(
     () => (sheetLesson ? getLessonStateMeta(sheetLesson, now) : null),
@@ -456,6 +523,55 @@ export const IstruttoreHomeScreen = () => {
     setRefreshing(false);
   }, [loadData]);
 
+  useEffect(() => {
+    if (!futureDayOptions.length) {
+      if (selectedFutureDayKey !== null) setSelectedFutureDayKey(null);
+      return;
+    }
+    if (!selectedFutureDayKey || !futureDayOptions.some((item) => item.key === selectedFutureDayKey)) {
+      setSelectedFutureDayKey(futureDayOptions[0].key);
+    }
+  }, [futureDayOptions, selectedFutureDayKey]);
+
+  const handleRepositionLesson = useCallback(
+    async (lesson: AutoscuolaAppointmentWithRelations) => {
+      if (!canOperationalReposition(lesson, now)) {
+        setToast({ text: 'Puoi riposizionare solo guide future.', tone: 'info' });
+        return;
+      }
+      setPendingAction('reposition');
+      setToast(null);
+      try {
+        const response = await regloApi.repositionAppointment(lesson.id, 'instructor_cancel');
+        if (response.proposalCreated && response.proposalStartsAt) {
+          setToast({
+            text: `Nuova proposta inviata (${formatDay(response.proposalStartsAt)} · ${formatTime(
+              response.proposalStartsAt,
+            )})`,
+            tone: 'success',
+          });
+        } else {
+          setToast({
+            text: 'Guida cancellata. Ricerca nuovo slot in corso.',
+            tone: 'info',
+          });
+        }
+        if (sheetLesson?.id === lesson.id) {
+          setSheetLesson(null);
+        }
+        await loadData();
+      } catch (err) {
+        setToast({
+          text: err instanceof Error ? err.message : 'Errore durante il riposizionamento',
+          tone: 'danger',
+        });
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [loadData, now, sheetLesson?.id],
+  );
+
   if (!instructorId) {
     return (
       <Screen>
@@ -490,15 +606,24 @@ export const IstruttoreHomeScreen = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Ciao, Istruttore</Text>
-            <Text style={styles.subtitle}>Agenda di oggi e azioni rapide</Text>
+            <Text style={styles.subtitle}>Agenda e gestione riposizionamenti</Text>
           </View>
           <GlassBadge label="Istruttore" />
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
         <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'In programma'}>
-          {featuredLesson ? (
+          {initialLoading ? (
+            <SkeletonCard>
+              <SkeletonBlock width="38%" height={20} />
+              <SkeletonBlock width="62%" height={24} />
+              <SkeletonBlock width="76%" />
+              <SkeletonBlock width="68%" />
+              <SkeletonBlock width="72%" />
+              <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+            </SkeletonCard>
+          ) : featuredLesson ? (
             <View style={styles.lessonRow}>
               <View style={styles.lessonInfo}>
                 {getLessonStateMeta(featuredLesson, now) ? (
@@ -563,7 +688,16 @@ export const IstruttoreHomeScreen = () => {
 
         <GlassCard title="Guide di oggi" subtitle="Future e passate della giornata">
           <View style={styles.agendaList}>
-            {todayLessons.map((lesson) => {
+            {initialLoading
+              ? Array.from({ length: 3 }).map((_, index) => (
+                  <SkeletonCard key={`instructor-agenda-skeleton-${index}`}>
+                    <SkeletonBlock width="56%" height={22} />
+                    <SkeletonBlock width="74%" />
+                    <SkeletonBlock width="62%" />
+                    <SkeletonBlock width="100%" height={40} radius={14} style={styles.skeletonButton} />
+                  </SkeletonCard>
+                ))
+              : todayLessons.map((lesson) => {
               const timeMeta = getTodayLessonTimingMeta(lesson, now);
               const lessonStateMeta = getLessonStateMeta(lesson, now);
               return (
@@ -613,7 +747,73 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               );
             })}
-            {!todayLessons.length ? <Text style={styles.emptyText}>Nessuna guida oggi.</Text> : null}
+            {!initialLoading && !todayLessons.length ? (
+              <Text style={styles.emptyText}>Nessuna guida oggi.</Text>
+            ) : null}
+          </View>
+        </GlassCard>
+
+        <GlassCard title="Guide future" subtitle="Scorri i giorni e apri azioni guida">
+          <View style={styles.agendaList}>
+            {!initialLoading && futureDayOptions.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.futureDaysScroller}
+              >
+                {futureDayOptions.map((day) => (
+                  <SelectableChip
+                    key={day.key}
+                    label={`${day.label} · ${day.count}`}
+                    active={selectedFutureDayKey === day.key}
+                    onPress={() => setSelectedFutureDayKey(day.key)}
+                    style={styles.futureDayChip}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
+            {initialLoading
+              ? Array.from({ length: 2 }).map((_, index) => (
+                  <SkeletonCard key={`instructor-future-skeleton-${index}`}>
+                    <SkeletonBlock width="56%" height={22} />
+                    <SkeletonBlock width="74%" />
+                    <SkeletonBlock width="62%" />
+                    <SkeletonBlock width="100%" height={40} radius={14} style={styles.skeletonButton} />
+                  </SkeletonCard>
+                ))
+              : visibleFutureLessons.map((lesson) => {
+                  const lessonStateMeta = getLessonStateMeta(lesson, now);
+                  const canOpenActions = isDetailsEditable(lesson, now) && !isPending;
+                  return (
+                    <View key={lesson.id} style={[styles.agendaRow, styles.futureAgendaRow]}>
+                      <View style={styles.lessonInfo}>
+                        <Text style={styles.lessonTime}>
+                          {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                        </Text>
+                        <Text style={styles.lessonMeta}>
+                          Allievo: {lesson.student?.firstName} {lesson.student?.lastName}
+                        </Text>
+                        <Text style={styles.lessonMeta}>Durata: {durationLabel(lesson)}</Text>
+                        <Text style={styles.lessonMeta}>
+                          Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
+                        </Text>
+                        {lessonStateMeta ? <LessonStateTag meta={lessonStateMeta} compact /> : null}
+                      </View>
+                      <View style={styles.futureRowActions}>
+                        <GlassButton
+                          label="Azioni"
+                          tone="standard"
+                          onPress={canOpenActions ? () => openLessonDrawer(lesson) : undefined}
+                          disabled={!canOpenActions}
+                          fullWidth
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+            {!initialLoading && !visibleFutureLessons.length ? (
+              <Text style={styles.emptyText}>Nessuna guida futura.</Text>
+            ) : null}
           </View>
         </GlassCard>
       </ScrollView>
@@ -632,6 +832,17 @@ export const IstruttoreHomeScreen = () => {
               tone="standard"
               onPress={!isPending && isSheetDetailsEditable ? handleSaveDetails : undefined}
               disabled={isPending || !isSheetDetailsEditable}
+              fullWidth
+            />
+            <GlassButton
+              label={pendingAction === 'reposition' ? 'Attendi...' : 'Cancella e riposiziona'}
+              tone="danger"
+              onPress={
+                !isPending && sheetLesson && canRepositionSheetLesson
+                  ? () => handleRepositionLesson(sheetLesson)
+                  : undefined
+              }
+              disabled={isPending || !canRepositionSheetLesson}
               fullWidth
             />
             {canRunStatusAction ? (
@@ -790,6 +1001,22 @@ const styles = StyleSheet.create({
   agendaActionWrap: {
     width: 116,
   },
+  futureAgendaRow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing.sm,
+  },
+  futureDaysScroller: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  futureDayChip: {
+    borderRadius: 999,
+  },
+  futureRowActions: {
+    width: '100%',
+  },
   topActions: {
     gap: spacing.xs,
     borderTopWidth: 1,
@@ -806,6 +1033,9 @@ const styles = StyleSheet.create({
   actionHint: {
     ...typography.caption,
     color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  skeletonButton: {
     marginTop: spacing.xs,
   },
   timeMetaTag: {

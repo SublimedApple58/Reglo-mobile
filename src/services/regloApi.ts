@@ -33,6 +33,7 @@ import {
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
   RegisterPushTokenInput,
+  RepositionAppointmentResult,
   MobileStudentPaymentProfile,
   MobileSetupIntentPayload,
   MobileConfirmPaymentMethodPayload,
@@ -163,6 +164,14 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/appointments/${appointmentId}/cancel`,
         {
           method: 'POST',
+        }
+      ),
+    repositionAppointment: async (appointmentId: string, reason?: string) =>
+      client.request<RepositionAppointmentResult>(
+        `/api/autoscuole/appointments/${appointmentId}/reposition`,
+        {
+          method: 'POST',
+          body: reason ? { reason } : {},
         }
       ),
     getInstructors: async () =>

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassCard } from '../components/GlassCard';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
@@ -23,6 +24,7 @@ export const OwnerInstructorScreen = () => {
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +54,8 @@ export const OwnerInstructorScreen = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore nel caricamento');
+    } finally {
+      setInitialLoading(false);
     }
   }, [selectedInstructorId]);
 
@@ -108,35 +112,52 @@ export const OwnerInstructorScreen = () => {
           <GlassBadge label="Owner" />
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
         <GlassCard title="Seleziona istruttore">
           <View style={styles.selectList}>
-            {instructors.map((instructor) => (
-              <Pressable
-                key={instructor.id}
-                style={styles.selectRow}
-                onPress={() => setSelectedInstructorId(instructor.id)}
-              >
-                <View>
-                  <Text style={styles.selectName}>{instructor.name}</Text>
-                  <Text style={styles.selectMeta}>{instructor.phone ?? '—'}</Text>
-                </View>
-                {selectedInstructorId === instructor.id ? (
-                  <GlassBadge label="Attivo" tone="success" />
-                ) : (
-                  <GlassBadge label="Scegli" />
-                )}
-              </Pressable>
-            ))}
-            {!instructors.length ? (
-              <Text style={styles.empty}>Nessun istruttore disponibile.</Text>
-            ) : null}
+            {initialLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`owner-instructor-skeleton-${index}`}>
+                  <SkeletonBlock width="52%" height={22} />
+                  <SkeletonBlock width="34%" />
+                </SkeletonCard>
+              ))
+            ) : (
+              <>
+                {instructors.map((instructor) => (
+                  <Pressable
+                    key={instructor.id}
+                    style={styles.selectRow}
+                    onPress={() => setSelectedInstructorId(instructor.id)}
+                  >
+                    <View>
+                      <Text style={styles.selectName}>{instructor.name}</Text>
+                      <Text style={styles.selectMeta}>{instructor.phone ?? '—'}</Text>
+                    </View>
+                    {selectedInstructorId === instructor.id ? (
+                      <GlassBadge label="Attivo" tone="success" />
+                    ) : (
+                      <GlassBadge label="Scegli" />
+                    )}
+                  </Pressable>
+                ))}
+                {!instructors.length ? (
+                  <Text style={styles.empty}>Nessun istruttore disponibile.</Text>
+                ) : null}
+              </>
+            )}
           </View>
         </GlassCard>
 
         <GlassCard title="Prossima guida">
-          {nextLesson ? (
+          {initialLoading ? (
+            <SkeletonCard>
+              <SkeletonBlock width="58%" height={24} />
+              <SkeletonBlock width="68%" />
+              <SkeletonBlock width="44%" />
+            </SkeletonCard>
+          ) : nextLesson ? (
             <View style={styles.lessonRow}>
               <View>
                 <Text style={styles.lessonTime}>
@@ -155,19 +176,30 @@ export const OwnerInstructorScreen = () => {
 
         <GlassCard title="Agenda prossime guide" subtitle={selectedInstructor?.name ?? 'Istruttore'}>
           <View style={styles.agendaList}>
-            {upcoming.slice(0, 5).map((lesson) => (
-              <View key={lesson.id} style={styles.agendaRow}>
-                <View>
-                  <Text style={styles.lessonTime}>
-                    {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-                  </Text>
-                  <Text style={styles.lessonMeta}>
-                    {lesson.student?.firstName} {lesson.student?.lastName} · {durationLabel(lesson)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {!upcoming.length ? <Text style={styles.empty}>Nessuna guida futura.</Text> : null}
+            {initialLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`owner-agenda-skeleton-${index}`}>
+                  <SkeletonBlock width="56%" height={22} />
+                  <SkeletonBlock width="72%" />
+                </SkeletonCard>
+              ))
+            ) : (
+              <>
+                {upcoming.slice(0, 5).map((lesson) => (
+                  <View key={lesson.id} style={styles.agendaRow}>
+                    <View>
+                      <Text style={styles.lessonTime}>
+                        {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                      </Text>
+                      <Text style={styles.lessonMeta}>
+                        {lesson.student?.firstName} {lesson.student?.lastName} · {durationLabel(lesson)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                {!upcoming.length ? <Text style={styles.empty}>Nessuna guida futura.</Text> : null}
+              </>
+            )}
           </View>
         </GlassCard>
       </ScrollView>

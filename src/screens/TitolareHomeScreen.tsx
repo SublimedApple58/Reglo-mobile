@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassCard } from '../components/GlassCard';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { SectionHeader } from '../components/SectionHeader';
 import { regloApi } from '../services/regloApi';
 import {
@@ -18,6 +19,7 @@ export const TitolareHomeScreen = () => {
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [deadlines, setDeadlines] = useState<AutoscuolaDeadlineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -33,6 +35,8 @@ export const TitolareHomeScreen = () => {
       setDeadlines(deadlinesResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore nel caricamento');
+    } finally {
+      setInitialLoading(false);
     }
   }, []);
 
@@ -69,23 +73,34 @@ export const TitolareHomeScreen = () => {
           <GlassBadge label="Titolare" />
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
         <GlassCard title="Dashboard KPI" subtitle="Performance quotidiana">
-          <View style={styles.kpiGrid}>
-            <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>{overview?.studentsCount ?? '—'}</Text>
-              <Text style={styles.kpiLabel}>Allievi</Text>
+          {initialLoading ? (
+            <View style={styles.kpiGrid}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`owner-kpi-skeleton-${index}`} style={styles.kpiSkeletonItem}>
+                  <SkeletonBlock width="48%" height={24} />
+                  <SkeletonBlock width="72%" height={12} />
+                </SkeletonCard>
+              ))}
             </View>
-            <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>{overview?.activeCasesCount ?? '—'}</Text>
-              <Text style={styles.kpiLabel}>Pratiche attive</Text>
+          ) : (
+            <View style={styles.kpiGrid}>
+              <View style={styles.kpiItem}>
+                <Text style={styles.kpiValue}>{overview?.studentsCount ?? '—'}</Text>
+                <Text style={styles.kpiLabel}>Allievi</Text>
+              </View>
+              <View style={styles.kpiItem}>
+                <Text style={styles.kpiValue}>{overview?.activeCasesCount ?? '—'}</Text>
+                <Text style={styles.kpiLabel}>Pratiche attive</Text>
+              </View>
+              <View style={styles.kpiItem}>
+                <Text style={styles.kpiValue}>{overview?.upcomingAppointmentsCount ?? '—'}</Text>
+                <Text style={styles.kpiLabel}>Guide in arrivo</Text>
+              </View>
             </View>
-            <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>{overview?.upcomingAppointmentsCount ?? '—'}</Text>
-              <Text style={styles.kpiLabel}>Guide in arrivo</Text>
-            </View>
-          </View>
+          )}
         </GlassCard>
 
         <SectionHeader
@@ -95,19 +110,31 @@ export const TitolareHomeScreen = () => {
         />
         <GlassCard>
           <View style={styles.vehicleList}>
-            {vehicles.map((vehicle) => (
-              <View key={vehicle.id} style={styles.vehicleRow}>
-                <View style={styles.vehicleMain}>
-                  <Text style={styles.vehicleName}>{vehicle.name}</Text>
-                  <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
-                </View>
-                <GlassBadge
-                  label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
-                  tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
-                />
-              </View>
-            ))}
-            {!vehicles.length ? <Text style={styles.empty}>Nessun veicolo.</Text> : null}
+            {initialLoading ? (
+              Array.from({ length: 2 }).map((_, index) => (
+                <SkeletonCard key={`owner-vehicle-skeleton-${index}`}>
+                  <SkeletonBlock width="52%" height={20} />
+                  <SkeletonBlock width="34%" />
+                  <SkeletonBlock width="26%" height={22} radius={999} />
+                </SkeletonCard>
+              ))
+            ) : (
+              <>
+                {vehicles.map((vehicle) => (
+                  <View key={vehicle.id} style={styles.vehicleRow}>
+                    <View style={styles.vehicleMain}>
+                      <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                      <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
+                    </View>
+                    <GlassBadge
+                      label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                      tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                    />
+                  </View>
+                ))}
+                {!vehicles.length ? <Text style={styles.empty}>Nessun veicolo.</Text> : null}
+              </>
+            )}
           </View>
         </GlassCard>
 
@@ -118,19 +145,30 @@ export const TitolareHomeScreen = () => {
         />
         <GlassCard>
           <View style={styles.deadlineList}>
-            {deadlines.map((deadline) => (
-              <View key={deadline.id} style={styles.deadlineRow}>
-                <View style={styles.deadlineMain}>
-                  <Text style={styles.deadlineTitle}>{deadline.studentName}</Text>
-                  <Text style={styles.deadlineMeta}>{deadline.deadlineType}</Text>
-                </View>
-                <GlassBadge
-                  label={deadline.status}
-                  tone={deadline.status === 'overdue' ? 'danger' : deadline.status === 'soon' ? 'warning' : 'default'}
-                />
-              </View>
-            ))}
-            {!deadlines.length ? <Text style={styles.empty}>Nessuna scadenza.</Text> : null}
+            {initialLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`owner-deadline-skeleton-${index}`}>
+                  <SkeletonBlock width="58%" height={20} />
+                  <SkeletonBlock width="44%" />
+                </SkeletonCard>
+              ))
+            ) : (
+              <>
+                {deadlines.map((deadline) => (
+                  <View key={deadline.id} style={styles.deadlineRow}>
+                    <View style={styles.deadlineMain}>
+                      <Text style={styles.deadlineTitle}>{deadline.studentName}</Text>
+                      <Text style={styles.deadlineMeta}>{deadline.deadlineType}</Text>
+                    </View>
+                    <GlassBadge
+                      label={deadline.status}
+                      tone={deadline.status === 'overdue' ? 'danger' : deadline.status === 'soon' ? 'warning' : 'default'}
+                    />
+                  </View>
+                ))}
+                {!deadlines.length ? <Text style={styles.empty}>Nessuna scadenza.</Text> : null}
+              </>
+            )}
           </View>
         </GlassCard>
 
@@ -172,6 +210,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(50, 77, 122, 0.12)',
+  },
+  kpiSkeletonItem: {
+    flex: 1,
   },
   kpiValue: {
     ...typography.subtitle,

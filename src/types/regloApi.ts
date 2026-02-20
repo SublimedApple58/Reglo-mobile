@@ -123,6 +123,9 @@ export type AutoscuolaAppointment = {
   instructorId: Uuid | null;
   vehicleId: Uuid | null;
   notes: string | null;
+  cancellationKind?: string | null;
+  cancellationReason?: string | null;
+  replacedByAppointmentId?: Uuid | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -310,6 +313,13 @@ export type CancelAppointmentResult =
   | { rescheduled: true; newStartsAt: IsoDate }
   | { rescheduled: false; broadcasted?: boolean };
 
+export type RepositionAppointmentResult = {
+  queued: true;
+  proposalCreated: boolean;
+  proposalStartsAt?: IsoDate;
+  taskId?: Uuid;
+};
+
 export type LoginInput = { email: string; password: string };
 export type SignupInput = {
   companyName: string;
@@ -370,6 +380,7 @@ export type AutoscuolaSettings = {
 
 export type MobileBookingOptions = {
   bookingSlotDurations: number[];
+  lessonTypeSelectionEnabled?: boolean;
   availableLessonTypes: Array<
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
@@ -427,6 +438,7 @@ export type MobileStudentPaymentProfile = {
   paymentMethod: PaymentMethodSummary | null;
   blockedByInsoluti: boolean;
   outstanding: StudentPaymentOutstanding[];
+  lessonCreditsAvailable: number;
 };
 
 export type MobileSetupIntentPayload = {

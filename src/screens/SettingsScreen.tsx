@@ -8,6 +8,7 @@ import { Screen } from '../components/Screen';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { GlassInput } from '../components/GlassInput';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { SelectableChip } from '../components/SelectableChip';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, spacing, typography } from '../theme';
@@ -50,6 +51,7 @@ export const SettingsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -103,6 +105,8 @@ export const SettingsScreen = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore caricando impostazioni');
+    } finally {
+      setInitialLoading(false);
     }
   }, [autoscuolaRole]);
 
@@ -276,175 +280,201 @@ export const SettingsScreen = () => {
           </View>
         ) : null}
 
-        <GlassCard title="Account" subtitle="Dati personali e accesso">
-          <View style={styles.profileHeroRow}>
-            <View style={styles.userAvatar}>
-              <Text style={styles.userAvatarText}>{userInitials}</Text>
-            </View>
-            <View style={styles.profileHeroMeta}>
-              <Text style={styles.profileName}>{user?.name ?? 'Utente'}</Text>
-              <Text style={styles.profileHint}>{user?.email ?? 'Email non disponibile'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Nome completo</Text>
-            <GlassInput placeholder="Nome" value={name} onChangeText={setName} />
-          </View>
-
-          <GlassButton
-            label={saving ? 'Salvataggio...' : 'Salva profilo'}
-            onPress={handleSaveProfile}
-            disabled={saving}
-            tone="primary"
-            fullWidth
-          />
-        </GlassCard>
-
-        <GlassCard title="Autoscuola attiva" subtitle="Contesto operativo corrente">
-          <View style={styles.companyRow}>
-            <View style={styles.logoWrap}>
-              {activeCompany?.logoUrl ? (
-                <Image source={{ uri: activeCompany.logoUrl }} style={styles.logo} />
-              ) : (
-                <Text style={styles.logoFallback}>{logoLabel}</Text>
-              )}
-            </View>
-            <View style={styles.companyInfo}>
-              <Text style={styles.companyName}>{activeCompany?.name ?? 'Nessuna autoscuola'}</Text>
-              <Text style={styles.companyMeta}>ID: {activeCompany?.id ?? '-'}</Text>
-            </View>
-          </View>
-        </GlassCard>
-
-        {autoscuolaRole === 'STUDENT' ? (
-          <GlassCard title="Pagamenti" subtitle="Metodo predefinito per addebiti automatici">
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.statusDot,
-                  paymentProfile?.hasPaymentMethod ? styles.statusDotOk : styles.statusDotNeutral,
-                ]}
-              />
-              <Text style={styles.statusText}>{paymentStatusText}</Text>
-            </View>
-
-            {paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod ? (
-              <View style={styles.paymentMethodRow}>
-                <Ionicons name="card-outline" size={18} color={colors.textSecondary} />
-                <Text style={styles.paymentMethodText}>
-                  {paymentProfile.paymentMethod.brand.toUpperCase()} ••••{paymentProfile.paymentMethod.last4}
-                </Text>
+        {initialLoading ? (
+          <>
+            <GlassCard title="Account" subtitle="Dati personali e accesso">
+              <SkeletonCard>
+                <SkeletonBlock width="100%" height={52} radius={14} />
+                <SkeletonBlock width="56%" />
+                <SkeletonBlock width="100%" height={44} radius={14} style={styles.skeletonButton} />
+              </SkeletonCard>
+            </GlassCard>
+            <GlassCard title="Autoscuola attiva" subtitle="Contesto operativo corrente">
+              <SkeletonCard>
+                <SkeletonBlock width="64%" height={22} />
+                <SkeletonBlock width="46%" />
+              </SkeletonCard>
+            </GlassCard>
+            <GlassCard title="Caricamento impostazioni">
+              <SkeletonCard>
+                <SkeletonBlock width="72%" />
+                <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
+              </SkeletonCard>
+            </GlassCard>
+          </>
+        ) : (
+          <>
+            <GlassCard title="Account" subtitle="Dati personali e accesso">
+              <View style={styles.profileHeroRow}>
+                <View style={styles.userAvatar}>
+                  <Text style={styles.userAvatarText}>{userInitials}</Text>
+                </View>
+                <View style={styles.profileHeroMeta}>
+                  <Text style={styles.profileName}>{user?.name ?? 'Utente'}</Text>
+                  <Text style={styles.profileHint}>{user?.email ?? 'Email non disponibile'}</Text>
+                </View>
               </View>
-            ) : (
-              <Text style={styles.inlineHint}>Aggiungi una carta per prenotare e pagare senza attriti.</Text>
-            )}
 
-            {paymentProfile?.blockedByInsoluti ? (
-              <Text style={styles.warningText}>Hai pagamenti insoluti. Salda dalla Home.</Text>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Nome completo</Text>
+                <GlassInput placeholder="Nome" value={name} onChangeText={setName} />
+              </View>
+
+              <GlassButton
+                label={saving ? 'Salvataggio...' : 'Salva profilo'}
+                onPress={handleSaveProfile}
+                disabled={saving}
+                tone="primary"
+                fullWidth
+              />
+            </GlassCard>
+
+            <GlassCard title="Autoscuola attiva" subtitle="Contesto operativo corrente">
+              <View style={styles.companyRow}>
+                <View style={styles.logoWrap}>
+                  {activeCompany?.logoUrl ? (
+                    <Image source={{ uri: activeCompany.logoUrl }} style={styles.logo} />
+                  ) : (
+                    <Text style={styles.logoFallback}>{logoLabel}</Text>
+                  )}
+                </View>
+                <View style={styles.companyInfo}>
+                  <Text style={styles.companyName}>{activeCompany?.name ?? 'Nessuna autoscuola'}</Text>
+                  <Text style={styles.companyMeta}>ID: {activeCompany?.id ?? '-'}</Text>
+                </View>
+              </View>
+            </GlassCard>
+
+            {autoscuolaRole === 'STUDENT' ? (
+              <GlassCard title="Pagamenti" subtitle="Metodo predefinito per addebiti automatici">
+                <View style={styles.statusRow}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      paymentProfile?.hasPaymentMethod ? styles.statusDotOk : styles.statusDotNeutral,
+                    ]}
+                  />
+                  <Text style={styles.statusText}>{paymentStatusText}</Text>
+                </View>
+
+                {paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod ? (
+                  <View style={styles.paymentMethodRow}>
+                    <Ionicons name="card-outline" size={18} color={colors.textSecondary} />
+                    <Text style={styles.paymentMethodText}>
+                      {paymentProfile.paymentMethod.brand.toUpperCase()} ••••{paymentProfile.paymentMethod.last4}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.inlineHint}>Aggiungi una carta per prenotare e pagare senza attriti.</Text>
+                )}
+
+                {paymentProfile?.blockedByInsoluti ? (
+                  <Text style={styles.warningText}>Hai pagamenti insoluti. Salda dalla Home.</Text>
+                ) : null}
+
+                <GlassButton
+                  label={
+                    paymentLoading
+                      ? 'Attendi...'
+                      : paymentProfile?.hasPaymentMethod
+                        ? 'Aggiorna metodo'
+                        : 'Aggiungi metodo'
+                  }
+                  onPress={handleConfigurePaymentMethod}
+                  disabled={paymentLoading}
+                  tone={paymentProfile?.hasPaymentMethod ? 'standard' : 'primary'}
+                  fullWidth
+                />
+              </GlassCard>
             ) : null}
 
-            <GlassButton
-              label={
-                paymentLoading
-                  ? 'Attendi...'
-                  : paymentProfile?.hasPaymentMethod
-                    ? 'Aggiorna metodo'
-                    : 'Aggiungi metodo'
-              }
-              onPress={handleConfigurePaymentMethod}
-              disabled={paymentLoading}
-              tone={paymentProfile?.hasPaymentMethod ? 'standard' : 'primary'}
-              fullWidth
-            />
-          </GlassCard>
-        ) : null}
-
-        {autoscuolaRole === 'OWNER' ? (
-          <GlassCard title="Agenda e notifiche" subtitle="Preferenze globali della tua autoscuola">
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Settimane prenotabili</Text>
-              <GlassInput
-                placeholder="Settimane disponibilita (1-12)"
-                value={availabilityWeeks}
-                onChangeText={setAvailabilityWeeks}
-                keyboardType="number-pad"
-              />
-              <View style={styles.chipRow}>
-                {weekPresets.map((weeks) => (
-                  <SelectableChip
-                    key={weeks}
-                    label={`${weeks}w`}
-                    active={availabilityWeeks === String(weeks)}
-                    onPress={() => setAvailabilityWeeks(String(weeks))}
+            {autoscuolaRole === 'OWNER' ? (
+              <GlassCard title="Agenda e notifiche" subtitle="Preferenze globali della tua autoscuola">
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Settimane prenotabili</Text>
+                  <GlassInput
+                    placeholder="Settimane disponibilita (1-12)"
+                    value={availabilityWeeks}
+                    onChangeText={setAvailabilityWeeks}
+                    keyboardType="number-pad"
                   />
-                ))}
-              </View>
-              <Text style={styles.inlineHint}>Range consentito: da 1 a 12 settimane.</Text>
-            </View>
+                  <View style={styles.chipRow}>
+                    {weekPresets.map((weeks) => (
+                      <SelectableChip
+                        key={weeks}
+                        label={`${weeks}w`}
+                        active={availabilityWeeks === String(weeks)}
+                        onPress={() => setAvailabilityWeeks(String(weeks))}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.inlineHint}>Range consentito: da 1 a 12 settimane.</Text>
+                </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Promemoria allievo</Text>
-              <View style={styles.chipRow}>
-                {reminderOptions.map((minutes) => (
-                  <SelectableChip
-                    key={`student-${minutes}`}
-                    label={toReminderLabel(minutes)}
-                    active={studentReminderMinutes === String(minutes)}
-                    onPress={() => setStudentReminderMinutes(String(minutes))}
-                  />
-                ))}
-              </View>
-            </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Promemoria allievo</Text>
+                  <View style={styles.chipRow}>
+                    {reminderOptions.map((minutes) => (
+                      <SelectableChip
+                        key={`student-${minutes}`}
+                        label={toReminderLabel(minutes)}
+                        active={studentReminderMinutes === String(minutes)}
+                        onPress={() => setStudentReminderMinutes(String(minutes))}
+                      />
+                    ))}
+                  </View>
+                </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Promemoria istruttore</Text>
-              <View style={styles.chipRow}>
-                {reminderOptions.map((minutes) => (
-                  <SelectableChip
-                    key={`instructor-${minutes}`}
-                    label={toReminderLabel(minutes)}
-                    active={instructorReminderMinutes === String(minutes)}
-                    onPress={() => setInstructorReminderMinutes(String(minutes))}
-                  />
-                ))}
-              </View>
-            </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Promemoria istruttore</Text>
+                  <View style={styles.chipRow}>
+                    {reminderOptions.map((minutes) => (
+                      <SelectableChip
+                        key={`instructor-${minutes}`}
+                        label={toReminderLabel(minutes)}
+                        active={instructorReminderMinutes === String(minutes)}
+                        onPress={() => setInstructorReminderMinutes(String(minutes))}
+                      />
+                    ))}
+                  </View>
+                </View>
 
-            <GlassButton
-              label={savingSettings ? 'Salvataggio...' : 'Salva impostazioni'}
-              onPress={handleSaveOwnerSettings}
-              disabled={savingSettings}
-              tone="primary"
-              fullWidth
-            />
-          </GlassCard>
-        ) : null}
+                <GlassButton
+                  label={savingSettings ? 'Salvataggio...' : 'Salva impostazioni'}
+                  onPress={handleSaveOwnerSettings}
+                  disabled={savingSettings}
+                  tone="primary"
+                  fullWidth
+                />
+              </GlassCard>
+            ) : null}
 
-        {autoscuolaRole === 'INSTRUCTOR' ? (
-          <GlassCard title="Operativita istruttore" subtitle="Preferenze e accesso rapido">
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, styles.statusDotOk]} />
-              <Text style={styles.statusText}>
-                Promemoria guide: {toReminderLabel(Number(instructorReminderMinutes))}
-              </Text>
-            </View>
-            <Text style={styles.inlineHint}>
-              Il promemoria viene applicato prima della guida in base alle impostazioni della tua autoscuola.
-            </Text>
-            <GlassButton
-              label="Apri gestione disponibilita"
-              onPress={handleOpenInstructorManage}
-              tone="primary"
-              fullWidth
-            />
-          </GlassCard>
-        ) : null}
+            {autoscuolaRole === 'INSTRUCTOR' ? (
+              <GlassCard title="Operativita istruttore" subtitle="Preferenze e accesso rapido">
+                <View style={styles.statusRow}>
+                  <View style={[styles.statusDot, styles.statusDotOk]} />
+                  <Text style={styles.statusText}>
+                    Promemoria guide: {toReminderLabel(Number(instructorReminderMinutes))}
+                  </Text>
+                </View>
+                <Text style={styles.inlineHint}>
+                  Il promemoria viene applicato prima della guida in base alle impostazioni della tua autoscuola.
+                </Text>
+                <GlassButton
+                  label="Apri gestione disponibilita"
+                  onPress={handleOpenInstructorManage}
+                  tone="primary"
+                  fullWidth
+                />
+              </GlassCard>
+            ) : null}
 
-        <GlassCard title="Sessione" subtitle="Gestione account su questo dispositivo">
-          <Text style={styles.inlineHint}>Esci in modo sicuro e torna alla schermata di accesso.</Text>
-          <GlassButton label="Logout" onPress={handleSignOut} tone="danger" fullWidth />
-        </GlassCard>
+            <GlassCard title="Sessione" subtitle="Gestione account su questo dispositivo">
+              <Text style={styles.inlineHint}>Esci in modo sicuro e torna alla schermata di accesso.</Text>
+              <GlassButton label="Logout" onPress={handleSignOut} tone="danger" fullWidth />
+            </GlassCard>
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -538,6 +568,9 @@ const styles = StyleSheet.create({
   fieldLabel: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  skeletonButton: {
+    marginTop: spacing.xs,
   },
   inlineHint: {
     ...typography.caption,

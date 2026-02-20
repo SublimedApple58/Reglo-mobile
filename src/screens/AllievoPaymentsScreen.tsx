@@ -19,6 +19,7 @@ import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { ScrollHintFab } from '../components/ScrollHintFab';
 import { Screen } from '../components/Screen';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
@@ -69,6 +70,7 @@ export const AllievoPaymentsScreen = () => {
   const [history, setHistory] = useState<StudentAppointmentPaymentHistoryItem[]>([]);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState<'view' | 'share' | null>(null);
@@ -109,6 +111,8 @@ export const AllievoPaymentsScreen = () => {
         text: err instanceof Error ? err.message : 'Errore caricando pagamenti',
         tone: 'danger',
       });
+    } finally {
+      setInitialLoading(false);
     }
   }, []);
 
@@ -321,69 +325,93 @@ export const AllievoPaymentsScreen = () => {
         </View>
 
         <GlassCard title="Riepilogo rapido" subtitle="Ultimi movimenti registrati">
-          <View style={styles.summaryGrid}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{transactions.length}</Text>
-              <Text style={styles.summaryLabel}>Movimenti</Text>
+          {initialLoading ? (
+            <View style={styles.summaryGrid}>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <SkeletonCard key={`summary-skeleton-${index}`} style={styles.summarySkeletonItem}>
+                  <SkeletonBlock width="62%" height={24} />
+                  <SkeletonBlock width="48%" height={12} />
+                </SkeletonCard>
+              ))}
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{stats.succeeded}</Text>
-              <Text style={styles.summaryLabel}>Riusciti</Text>
+          ) : (
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{transactions.length}</Text>
+                <Text style={styles.summaryLabel}>Movimenti</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{stats.succeeded}</Text>
+                <Text style={styles.summaryLabel}>Riusciti</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{stats.failed}</Text>
+                <Text style={styles.summaryLabel}>Falliti</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>€ {stats.totalAmount.toFixed(0)}</Text>
+                <Text style={styles.summaryLabel}>Totale</Text>
+              </View>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{stats.failed}</Text>
-              <Text style={styles.summaryLabel}>Falliti</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>€ {stats.totalAmount.toFixed(0)}</Text>
-              <Text style={styles.summaryLabel}>Totale</Text>
-            </View>
-          </View>
+          )}
         </GlassCard>
 
         <GlassCard title="Transazioni" subtitle="Movimenti e tentativi di addebito">
           <View style={styles.list}>
-            {visibleTransactions.map((transaction) => {
-              const status = paymentEventStatusLabel(transaction.event.status);
-              return (
-                <View key={transaction.key} style={styles.row}>
-                  <View style={styles.rowHeader}>
-                    <Text style={styles.rowTitle}>
-                      {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
-                    </Text>
-                    <Text style={styles.rowSubtitle}>
-                      {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
-                      {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
-                      {formatTime(transaction.appointment.startsAt)}
-                    </Text>
-                  </View>
-                  <View style={styles.rowStatusWrap}>
-                    <GlassBadge label={status.label} tone={status.tone} />
-                  </View>
-                  <View style={styles.rowActions}>
+            {initialLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <SkeletonCard key={`payments-row-skeleton-${index}`}>
+                  <SkeletonBlock width="58%" height={22} />
+                  <SkeletonBlock width="52%" />
+                  <SkeletonBlock width="72%" />
+                  <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+                </SkeletonCard>
+              ))
+            ) : (
+              <>
+                {visibleTransactions.map((transaction) => {
+                  const status = paymentEventStatusLabel(transaction.event.status);
+                  return (
+                    <View key={transaction.key} style={styles.row}>
+                      <View style={styles.rowHeader}>
+                        <Text style={styles.rowTitle}>
+                          {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
+                        </Text>
+                        <Text style={styles.rowSubtitle}>
+                          {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
+                          {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
+                        </Text>
+                        <Text style={styles.rowMeta}>
+                          Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
+                          {formatTime(transaction.appointment.startsAt)}
+                        </Text>
+                      </View>
+                      <View style={styles.rowStatusWrap}>
+                        <GlassBadge label={status.label} tone={status.tone} />
+                      </View>
+                      <View style={styles.rowActions}>
+                        <GlassButton
+                          label="Dettagli"
+                          onPress={() => openDetails(transaction)}
+                          fullWidth
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+                {!transactions.length ? (
+                  <Text style={styles.empty}>Nessuna transazione registrata.</Text>
+                ) : null}
+                {hasMore ? (
+                  <View style={styles.more}>
                     <GlassButton
-                      label="Dettagli"
-                      onPress={() => openDetails(transaction)}
-                      fullWidth
+                      label="Carica altre"
+                      onPress={() => setVisibleCount((prev) => Math.min(prev + pageSize, transactions.length))}
                     />
                   </View>
-                </View>
-              );
-            })}
-            {!transactions.length ? (
-              <Text style={styles.empty}>Nessuna transazione registrata.</Text>
-            ) : null}
-            {hasMore ? (
-              <View style={styles.more}>
-                <GlassButton
-                  label="Carica altre"
-                  onPress={() => setVisibleCount((prev) => Math.min(prev + pageSize, transactions.length))}
-                />
-              </View>
-            ) : null}
+                ) : null}
+              </>
+            )}
           </View>
         </GlassCard>
       </ScrollView>
@@ -544,6 +572,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  summarySkeletonItem: {
+    minWidth: '47%',
+    flexGrow: 1,
+  },
   summaryValue: {
     ...typography.subtitle,
     color: colors.textPrimary,
@@ -576,6 +608,9 @@ const styles = StyleSheet.create({
   rowActions: {
     width: '100%',
     paddingTop: 2,
+  },
+  skeletonButton: {
+    marginTop: spacing.xs,
   },
   rowTitle: {
     ...typography.subtitle,

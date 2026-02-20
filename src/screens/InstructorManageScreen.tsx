@@ -18,6 +18,7 @@ import { GlassBadge } from '../components/GlassBadge';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { GlassInput } from '../components/GlassInput';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SelectableChip } from '../components/SelectableChip';
 import { regloApi } from '../services/regloApi';
@@ -309,6 +310,7 @@ export const InstructorManageScreen = () => {
   const [vehicleAvailabilityLoading, setVehicleAvailabilityLoading] = useState(false);
   const [vehicleAvailabilitySaving, setVehicleAvailabilitySaving] = useState(false);
   const [vehicleStatusSaving, setVehicleStatusSaving] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -325,6 +327,8 @@ export const InstructorManageScreen = () => {
         text: err instanceof Error ? err.message : 'Errore nel caricamento',
         tone: 'danger',
       });
+    } finally {
+      setInitialLoading(false);
     }
   }, []);
 
@@ -578,43 +582,72 @@ export const InstructorManageScreen = () => {
           <GlassBadge label="Gestione" />
         </View>
 
-        <AvailabilityEditor
-          title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
-          ownerType="instructor"
-          ownerId={instructorId}
-          weeks={settings?.availabilityWeeks ?? 4}
-          onToast={(text, tone = 'success') => setToast({ text, tone })}
-        />
-
-        <GlassCard title="Veicoli">
-          <View style={styles.actionRow}>
-            <GlassButton
-              label="Aggiungi veicolo"
-              onPress={openVehicleDrawer}
-              fullWidth
-            />
-          </View>
-          <View style={styles.vehicleList}>
-            {vehicles.map((vehicle) => (
-              <View key={vehicle.id} style={styles.vehicleRow}>
-                <View style={styles.vehicleMain}>
-                  <Text style={styles.vehicleName}>{vehicle.name}</Text>
-                  <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
-                  <View style={styles.vehicleStatusRow}>
-                    <GlassBadge
-                      label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
-                      tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
-                    />
-                  </View>
-                </View>
-                <View style={styles.vehicleActions}>
-                  <GlassButton label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} />
-                </View>
+        {initialLoading ? (
+          <>
+            <GlassCard title="Disponibilita istruttore">
+              <SkeletonCard>
+                <SkeletonBlock width="74%" />
+                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+              </SkeletonCard>
+            </GlassCard>
+            <GlassCard title="Veicoli">
+              <SkeletonCard>
+                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+              </SkeletonCard>
+              <View style={styles.vehicleList}>
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <SkeletonCard key={`vehicles-skeleton-${index}`}>
+                    <SkeletonBlock width="54%" height={22} />
+                    <SkeletonBlock width="36%" />
+                    <SkeletonBlock width="28%" height={22} radius={999} />
+                    <SkeletonBlock width="34%" height={38} radius={12} style={styles.skeletonButton} />
+                  </SkeletonCard>
+                ))}
               </View>
-            ))}
-            {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
-          </View>
-        </GlassCard>
+            </GlassCard>
+          </>
+        ) : (
+          <>
+            <AvailabilityEditor
+              title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
+              ownerType="instructor"
+              ownerId={instructorId}
+              weeks={settings?.availabilityWeeks ?? 4}
+              onToast={(text, tone = 'success') => setToast({ text, tone })}
+            />
+
+            <GlassCard title="Veicoli">
+              <View style={styles.actionRow}>
+                <GlassButton
+                  label="Aggiungi veicolo"
+                  onPress={openVehicleDrawer}
+                  fullWidth
+                />
+              </View>
+              <View style={styles.vehicleList}>
+                {vehicles.map((vehicle) => (
+                  <View key={vehicle.id} style={styles.vehicleRow}>
+                    <View style={styles.vehicleMain}>
+                      <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                      <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
+                      <View style={styles.vehicleStatusRow}>
+                        <GlassBadge
+                          label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                          tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.vehicleActions}>
+                      <GlassButton label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} />
+                    </View>
+                  </View>
+                ))}
+                {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
+              </View>
+            </GlassCard>
+          </>
+        )}
       </ScrollView>
       <BottomSheet
         visible={createVehicleDrawerOpen}
@@ -762,6 +795,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     width: '100%',
+  },
+  skeletonButton: {
+    marginTop: spacing.xs,
   },
   dayRow: {
     flexDirection: 'row',
