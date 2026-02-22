@@ -376,6 +376,8 @@ export type AutoscuolaSettings = {
     >
   >;
   bookingSlotDurations?: number[];
+  appBookingActors?: 'students' | 'instructors' | 'both';
+  instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
 };
 
 export type MobileBookingOptions = {
@@ -384,6 +386,26 @@ export type MobileBookingOptions = {
   availableLessonTypes: Array<
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
+};
+
+export type InstructorBookingMode = 'manual_full' | 'manual_engine' | 'guided_proposal';
+
+export type InstructorBookingSuggestion = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  instructorId: Uuid;
+  vehicleId: Uuid;
+  suggestedLessonType: string;
+  durationMinutes: number;
+};
+
+export type ConfirmInstructorBookingInput = {
+  studentId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  instructorId: Uuid;
+  vehicleId: Uuid;
+  lessonType?: string;
 };
 
 export type PaymentMethodSummary = {

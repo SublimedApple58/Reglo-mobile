@@ -324,6 +324,13 @@ export const AllievoHomeScreen = () => {
   }, [historyDetailsOpen]);
 
   const openPreferences = () => {
+    if (settings?.appBookingActors === 'instructors') {
+      setToast({
+        text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.',
+        tone: 'info',
+      });
+      return;
+    }
     setPrefsOpen(true);
   };
 
@@ -353,6 +360,7 @@ export const AllievoHomeScreen = () => {
     [bookingOptions?.lessonTypeSelectionEnabled, settings?.lessonPolicyEnabled],
   );
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
+  const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
   const requiresPaymentMethodForBooking = Boolean(
     paymentProfile?.autoPaymentsEnabled &&
       !paymentProfile?.hasPaymentMethod &&
@@ -713,6 +721,13 @@ export const AllievoHomeScreen = () => {
 
   const handleBookingRequest = async () => {
     if (!selectedStudentId) return;
+    if (studentBookingDisabledByPolicy) {
+      setToast({
+        text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.',
+        tone: 'info',
+      });
+      return;
+    }
     if (requiresPaymentMethodForBooking) {
       setToast({
         text: 'Aggiungi un metodo di pagamento dalle impostazioni prima di prenotare.',
@@ -1413,6 +1428,14 @@ export const AllievoHomeScreen = () => {
                   ) : null}
                 </View>
               ) : null}
+              {studentBookingDisabledByPolicy ? (
+                <View style={styles.outstandingBlock}>
+                  <Text style={styles.outstandingTitle}>Prenotazioni gestite dall'istruttore</Text>
+                  <Text style={styles.outstandingText}>
+                    In questa autoscuola le richieste guida vengono inserite dagli istruttori.
+                  </Text>
+                </View>
+              ) : null}
               <Text style={styles.bookingHint}>
                 {canSelectLessonType
                   ? 'Seleziona giorno, tipo guida e durata per ricevere la proposta migliore.'
@@ -1423,7 +1446,8 @@ export const AllievoHomeScreen = () => {
                 onPress={openPreferences}
                 disabled={Boolean(
                   paymentProfile?.blockedByInsoluti ||
-                    requiresPaymentMethodForBooking
+                    requiresPaymentMethodForBooking ||
+                    studentBookingDisabledByPolicy
                 )}
               />
             </GlassCard>

@@ -1,22 +1,40 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Screen } from '../components/Screen';
 import { GlassBadge } from '../components/GlassBadge';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { BottomSheet } from '../components/BottomSheet';
+import { GlassInput } from '../components/GlassInput';
+import { CalendarNavigator, CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SelectableChip } from '../components/SelectableChip';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
+import {
+  AutoscuolaAppointmentWithRelations,
+  AutoscuolaSettings,
+  InstructorBookingSuggestion,
+} from '../types/regloApi';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { useSession } from '../context/SessionContext';
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
 type DrawerAction = InstructorActionStatus | 'save_details' | 'reposition';
+type BookingDrawerAction = 'suggest' | 'confirm' | 'create' | null;
 type LessonTypeOption = {
   value: string;
   label: string;
@@ -31,6 +49,18 @@ const LESSON_TYPE_OPTIONS: LessonTypeOption[] = [
   { value: 'parcheggio', label: 'Parcheggio' },
   { value: 'altro', label: 'Altro' },
 ];
+
+const BOOKING_ACTOR_LABEL: Record<'students' | 'instructors' | 'both', string> = {
+  students: 'Solo allievi',
+  instructors: 'Solo istruttori',
+  both: 'Allievi e istruttori',
+};
+
+const INSTRUCTOR_MODE_LABEL: Record<'manual_full' | 'manual_engine' | 'guided_proposal', string> = {
+  manual_full: 'Manuale totale',
+  manual_engine: 'Manuale + motore',
+  guided_proposal: 'Guidata con proposta',
+};
 
 const normalizeStatus = (value: string | null | undefined) =>
   (value ?? '').trim().toLowerCase();
@@ -240,9 +270,90 @@ const toLocalDayKey = (isoDate: string) => {
   return `${date.getFullYear()}-${month}-${day}`;
 };
 
+const toTimeString = (value: Date) =>
+  value.toLocaleTimeString('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+type PickerFieldProps = {
+  label: string;
+  value: Date;
+  mode: 'date' | 'time';
+  onChange: (date: Date) => void;
+};
+
+const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const isTimeField = mode === 'time';
+
+  return (
+    <View style={isTimeField ? styles.timePickerFieldWrap : undefined}>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [
+          isTimeField && styles.timePickerField,
+          pressed && isTimeField && styles.timePickerFieldPressed,
+        ]}
+      >
+        <View pointerEvents="none">
+          <GlassInput
+            editable={false}
+            placeholder={label}
+            value={
+              mode === 'date'
+                ? value.toLocaleDateString('it-IT', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short',
+                  })
+                : toTimeString(value)
+            }
+          />
+        </View>
+      </Pressable>
+      {open ? (
+        Platform.OS === 'ios' ? (
+          <Modal transparent animationType="fade" onRequestClose={close}>
+            <View style={styles.pickerBackdrop}>
+              <View style={styles.pickerCard}>
+                <Text style={styles.pickerTitle}>{label}</Text>
+                <DateTimePicker
+                  value={value}
+                  mode={mode}
+                  display="spinner"
+                  onChange={(_, selected) => {
+                    if (selected) onChange(selected);
+                  }}
+                />
+                <GlassButton label="Fatto" onPress={close} />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={value}
+            mode={mode}
+            display="default"
+            onChange={(_, selected) => {
+              setOpen(false);
+              if (selected) onChange(selected);
+            }}
+          />
+        )
+      ) : null}
+    </View>
+  );
+};
+
 export const IstruttoreHomeScreen = () => {
   const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
+  const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
+  const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -254,25 +365,49 @@ export const IstruttoreHomeScreen = () => {
   const [lessonNotes, setLessonNotes] = useState('');
   const [selectedFutureDayKey, setSelectedFutureDayKey] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
+  const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
+  const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
+  const [bookingStudentId, setBookingStudentId] = useState<string>('');
+  const [bookingVehicleId, setBookingVehicleId] = useState<string>('');
+  const [bookingLessonType, setBookingLessonType] = useState<string>('guida');
+  const [bookingDate, setBookingDate] = useState<Date>(() => new Date());
+  const [bookingStartTime, setBookingStartTime] = useState<Date>(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30 - (now.getMinutes() % 30), 0, 0);
+    return now;
+  });
+  const [bookingDuration, setBookingDuration] = useState<number>(60);
+  const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
     if (!instructorId) return [];
     setLoading(true);
     setError(null);
     try {
-      const from = new Date();
-      from.setDate(from.getDate() - 1);
-      from.setHours(0, 0, 0, 0);
-      const to = new Date();
-      to.setDate(to.getDate() + 14);
-      to.setHours(23, 59, 59, 999);
+      const from = calendarRange ? new Date(calendarRange.from) : new Date();
+      const to = calendarRange ? new Date(calendarRange.to) : new Date();
+      if (!calendarRange) {
+        from.setDate(from.getDate() - 1);
+        from.setHours(0, 0, 0, 0);
+        to.setDate(to.getDate() + 14);
+        to.setHours(23, 59, 59, 999);
+      }
 
-      const appointmentsResponse = await regloApi.getAppointments({
-        instructorId,
-        from: from.toISOString(),
-        to: to.toISOString(),
-        limit: 400,
-      });
+      const [appointmentsResponse, settingsResponse, studentsResponse, vehiclesResponse] =
+        await Promise.all([
+          regloApi.getAppointments({
+            instructorId,
+            from: from.toISOString(),
+            to: to.toISOString(),
+            limit: 400,
+          }),
+          regloApi.getAutoscuolaSettings(),
+          regloApi.getStudents(),
+          regloApi.getVehicles(),
+        ]);
+      setSettings(settingsResponse);
+      setStudents(studentsResponse);
+      setVehicles(vehiclesResponse);
       const nextAppointments = dedupeAppointments(
         appointmentsResponse.filter((item) => item.instructorId === instructorId),
       );
@@ -285,7 +420,7 @@ export const IstruttoreHomeScreen = () => {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, [instructorId]);
+  }, [calendarRange, instructorId]);
 
   useEffect(() => {
     loadData();
@@ -299,6 +434,144 @@ export const IstruttoreHomeScreen = () => {
   }, []);
 
   const now = useMemo(() => new Date(clockTick), [clockTick]);
+  const bookingActors = settings?.appBookingActors ?? 'students';
+  const instructorBookingMode = settings?.instructorBookingMode ?? 'manual_engine';
+  const canInstructorBook =
+    bookingActors === 'instructors' || bookingActors === 'both';
+  const bookingDurations = useMemo(
+    () =>
+      (settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
+    [settings?.bookingSlotDurations],
+  );
+
+  const normalizeToHalfHour = useCallback((value: Date) => {
+    const next = new Date(value);
+    next.setSeconds(0, 0);
+    const minutes = next.getMinutes();
+    const rounded = Math.ceil(minutes / 30) * 30;
+    if (rounded === 60) {
+      next.setHours(next.getHours() + 1, 0, 0, 0);
+    } else {
+      next.setMinutes(rounded, 0, 0);
+    }
+    return next;
+  }, []);
+
+  const resolveBookingStartDate = useCallback(() => {
+    const date = new Date(bookingDate);
+    const time = new Date(bookingStartTime);
+    date.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    return normalizeToHalfHour(date);
+  }, [bookingDate, bookingStartTime, normalizeToHalfHour]);
+
+  const openBookingDrawer = useCallback(() => {
+    if (!canInstructorBook) {
+      setToast({
+        text: 'La prenotazione da app è abilitata solo per allievi.',
+        tone: 'info',
+      });
+      return;
+    }
+    const allowedDurations = (settings?.bookingSlotDurations ?? [30, 60])
+      .slice()
+      .sort((a, b) => a - b);
+    const nowDate = new Date();
+    const roundedNow = normalizeToHalfHour(nowDate);
+    setBookingStudentId((current) => current || students[0]?.id || '');
+    setBookingVehicleId((current) => current || vehicles[0]?.id || '');
+    setBookingLessonType('guida');
+    setBookingDuration((current) =>
+      allowedDurations.includes(current) ? current : allowedDurations[0] ?? 60,
+    );
+    setBookingDate(nowDate);
+    setBookingStartTime(roundedNow);
+    setGuidedSuggestion(null);
+    setBookingSheetOpen(true);
+  }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles]);
+
+  const handleSuggestGuidedBooking = useCallback(async () => {
+    if (!bookingStudentId) {
+      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
+      return;
+    }
+    setBookingPendingAction('suggest');
+    setToast(null);
+    try {
+      const suggestion = await regloApi.suggestInstructorBooking({ studentId: bookingStudentId });
+      setGuidedSuggestion(suggestion);
+      setBookingVehicleId(suggestion.vehicleId);
+      setBookingDuration(suggestion.durationMinutes);
+      setBookingLessonType(suggestion.suggestedLessonType || 'guida');
+      setToast({ text: 'Slot suggerito pronto. Conferma per inviare la proposta.', tone: 'success' });
+    } catch (err) {
+      setGuidedSuggestion(null);
+      setToast({
+        text: err instanceof Error ? err.message : 'Nessuno slot disponibile al momento',
+        tone: 'danger',
+      });
+    } finally {
+      setBookingPendingAction(null);
+    }
+  }, [bookingStudentId]);
+
+  const handleConfirmInstructorBooking = useCallback(async () => {
+    if (!bookingStudentId) {
+      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
+      return;
+    }
+    if (!bookingVehicleId) {
+      setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
+      return;
+    }
+    if (!instructorId) {
+      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
+      return;
+    }
+
+    const start = guidedSuggestion ? new Date(guidedSuggestion.startsAt) : resolveBookingStartDate();
+    const end = guidedSuggestion
+      ? new Date(guidedSuggestion.endsAt)
+      : new Date(start.getTime() + bookingDuration * 60 * 1000);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      setToast({ text: 'Intervallo orario non valido.', tone: 'danger' });
+      return;
+    }
+
+    setBookingPendingAction(guidedSuggestion ? 'confirm' : 'create');
+    setToast(null);
+    try {
+      await regloApi.confirmInstructorBooking({
+        studentId: bookingStudentId,
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        instructorId,
+        vehicleId: guidedSuggestion?.vehicleId ?? bookingVehicleId,
+        ...(bookingLessonType && bookingLessonType !== 'guida'
+          ? { lessonType: bookingLessonType }
+          : {}),
+      });
+      setBookingSheetOpen(false);
+      setGuidedSuggestion(null);
+      setToast({ text: 'Proposta inviata all’allievo.', tone: 'success' });
+      await loadData();
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore creando la proposta',
+        tone: 'danger',
+      });
+    } finally {
+      setBookingPendingAction(null);
+    }
+  }, [
+    bookingDuration,
+    bookingLessonType,
+    bookingStudentId,
+    bookingVehicleId,
+    guidedSuggestion,
+    instructorId,
+    loadData,
+    resolveBookingStartDate,
+  ]);
   const activeLessons = useMemo(
     () => appointments.filter((item) => VISIBLE_LESSON_STATUSES.has(normalizeStatus(item.status))),
     [appointments],
@@ -572,6 +845,95 @@ export const IstruttoreHomeScreen = () => {
     [loadData, now, sheetLesson?.id],
   );
 
+  const handleManualCancelLesson = useCallback(
+    async (lesson: AutoscuolaAppointmentWithRelations) => {
+      if (new Date(lesson.startsAt).getTime() <= Date.now()) {
+        setToast({ text: 'Puoi annullare solo guide future.', tone: 'info' });
+        return;
+      }
+      setPendingAction('reposition');
+      setToast(null);
+      try {
+        await regloApi.cancelAppointment(lesson.id);
+        if (sheetLesson?.id === lesson.id) {
+          setSheetLesson(null);
+        }
+        setToast({ text: 'Guida annullata.', tone: 'success' });
+        await loadData();
+      } catch (err) {
+        setToast({
+          text: err instanceof Error ? err.message : 'Errore durante annullamento guida',
+          tone: 'danger',
+        });
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [loadData, sheetLesson?.id],
+  );
+
+  const handleCancelByMode = useCallback(
+    async (lesson: AutoscuolaAppointmentWithRelations) => {
+      if (instructorBookingMode === 'manual_full') {
+        await handleManualCancelLesson(lesson);
+        return;
+      }
+      await handleRepositionLesson(lesson);
+    },
+    [handleManualCancelLesson, handleRepositionLesson, instructorBookingMode],
+  );
+
+  const resetGuidedSuggestionForStudent = useCallback((nextStudentId: string) => {
+    setBookingStudentId(nextStudentId);
+    setGuidedSuggestion(null);
+  }, []);
+
+  const bookingSheetFooter = useMemo(() => {
+    if (!canInstructorBook) return null;
+
+    if (instructorBookingMode === 'guided_proposal') {
+      if (guidedSuggestion) {
+        return (
+          <GlassButton
+            label={bookingPendingAction === 'confirm' ? 'Invio proposta...' : 'Invia proposta'}
+            tone="primary"
+            onPress={!bookingPendingAction ? handleConfirmInstructorBooking : undefined}
+            disabled={Boolean(bookingPendingAction)}
+            fullWidth
+          />
+        );
+      }
+      return (
+        <GlassButton
+          label={bookingPendingAction === 'suggest' ? 'Ricerca slot...' : 'Trova slot'}
+          tone="primary"
+          onPress={!bookingPendingAction ? handleSuggestGuidedBooking : undefined}
+          disabled={Boolean(bookingPendingAction) || !bookingStudentId}
+          fullWidth
+        />
+      );
+    }
+
+    return (
+      <GlassButton
+        label={bookingPendingAction ? 'Invio proposta...' : 'Invia proposta'}
+        tone="primary"
+        onPress={!bookingPendingAction ? handleConfirmInstructorBooking : undefined}
+        disabled={Boolean(bookingPendingAction) || !bookingStudentId || !bookingVehicleId}
+        fullWidth
+      />
+    );
+  }, [
+    bookingPendingAction,
+    bookingStudentId,
+    bookingVehicleId,
+    canInstructorBook,
+    guidedSuggestion,
+    handleConfirmInstructorBooking,
+    handleSuggestGuidedBooking,
+    instructorBookingMode,
+  ]);
+
   if (!instructorId) {
     return (
       <Screen>
@@ -612,6 +974,35 @@ export const IstruttoreHomeScreen = () => {
         </View>
 
         {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <GlassCard title="Calendario" subtitle="Naviga giorno, settimana o mese">
+          <CalendarNavigator
+            initialMode="week"
+            onChange={setCalendarRange}
+          />
+        </GlassCard>
+
+        <GlassCard title="Nuova prenotazione" subtitle="Crea una proposta per i tuoi allievi">
+          <Text style={styles.lessonMeta}>
+            Prenotazioni da app: {BOOKING_ACTOR_LABEL[bookingActors]}.
+          </Text>
+          {(bookingActors === 'instructors' || bookingActors === 'both') ? (
+            <Text style={styles.lessonMeta}>
+              Modalità: {INSTRUCTOR_MODE_LABEL[instructorBookingMode]}.
+            </Text>
+          ) : (
+            <Text style={styles.lessonMeta}>
+              Il titolare ha disabilitato le prenotazioni istruttore da app.
+            </Text>
+          )}
+          <GlassButton
+            label="Nuova prenotazione"
+            tone="primary"
+            onPress={openBookingDrawer}
+            disabled={!canInstructorBook || isPending || Boolean(bookingPendingAction)}
+            fullWidth
+          />
+        </GlassCard>
 
         <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'In programma'}>
           {initialLoading ? (
@@ -835,11 +1226,17 @@ export const IstruttoreHomeScreen = () => {
               fullWidth
             />
             <GlassButton
-              label={pendingAction === 'reposition' ? 'Attendi...' : 'Cancella e riposiziona'}
+              label={
+                pendingAction === 'reposition'
+                  ? 'Attendi...'
+                  : instructorBookingMode === 'manual_full'
+                    ? 'Annulla guida'
+                    : 'Cancella e riposiziona'
+              }
               tone="danger"
               onPress={
                 !isPending && sheetLesson && canRepositionSheetLesson
-                  ? () => handleRepositionLesson(sheetLesson)
+                  ? () => handleCancelByMode(sheetLesson)
                   : undefined
               }
               disabled={isPending || !canRepositionSheetLesson}
@@ -916,6 +1313,168 @@ export const IstruttoreHomeScreen = () => {
             </View>
           </View>
         ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        visible={bookingSheetOpen}
+        onClose={() => {
+          if (!bookingPendingAction) {
+            setBookingSheetOpen(false);
+          }
+        }}
+        closeDisabled={Boolean(bookingPendingAction)}
+        title="Nuova prenotazione istruttore"
+        footer={bookingSheetFooter}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.sheetMeta}>
+            Modalità attiva: {INSTRUCTOR_MODE_LABEL[instructorBookingMode]}.
+          </Text>
+
+          {!canInstructorBook ? (
+            <Text style={styles.actionHint}>
+              La prenotazione da app è abilitata solo per allievi.
+            </Text>
+          ) : null}
+
+          <View style={styles.lessonTypeBlock}>
+            <Text style={styles.lessonTypeTitle}>Allievo</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipScroller}
+            >
+              {students.map((student) => {
+                const isActive = bookingStudentId === student.id;
+                return (
+                  <SelectableChip
+                    key={student.id}
+                    label={`${student.firstName} ${student.lastName}`}
+                    active={isActive}
+                    onPress={() => resetGuidedSuggestionForStudent(student.id)}
+                    style={styles.lessonTypeChip}
+                  />
+                );
+              })}
+            </ScrollView>
+            {!students.length ? (
+              <Text style={styles.actionHint}>Nessun allievo disponibile.</Text>
+            ) : null}
+          </View>
+
+          {instructorBookingMode === 'guided_proposal' ? (
+            <>
+              {guidedSuggestion ? (
+                <View style={styles.guidedSuggestionCard}>
+                  <Text style={styles.guidedSuggestionTitle}>Slot suggerito dal motore</Text>
+                  <Text style={styles.sheetMeta}>
+                    {formatDay(guidedSuggestion.startsAt)} · {formatTime(guidedSuggestion.startsAt)}
+                  </Text>
+                  <Text style={styles.sheetMeta}>
+                    Durata: {guidedSuggestion.durationMinutes} min
+                  </Text>
+                  <Text style={styles.sheetMeta}>
+                    Tipo guida: {guidedSuggestion.suggestedLessonType || 'guida'}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.actionHint}>
+                  Seleziona l’allievo e premi “Trova slot” per ricevere una proposta ottimizzata.
+                </Text>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={styles.lessonTypeBlock}>
+                <Text style={styles.lessonTypeTitle}>Veicolo</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipScroller}
+                >
+                  {vehicles.map((vehicle) => (
+                    <SelectableChip
+                      key={vehicle.id}
+                      label={vehicle.name}
+                      active={bookingVehicleId === vehicle.id}
+                      onPress={() => setBookingVehicleId(vehicle.id)}
+                      style={styles.lessonTypeChip}
+                    />
+                  ))}
+                </ScrollView>
+                {!vehicles.length ? (
+                  <Text style={styles.actionHint}>Nessun veicolo disponibile.</Text>
+                ) : null}
+              </View>
+
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label="Giorno"
+                  value={bookingDate}
+                  mode="date"
+                  onChange={(nextDate) => {
+                    setBookingDate(nextDate);
+                    setGuidedSuggestion(null);
+                  }}
+                />
+              </View>
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label="Ora inizio"
+                  value={bookingStartTime}
+                  mode="time"
+                  onChange={(nextTime) => {
+                    setBookingStartTime(nextTime);
+                    setGuidedSuggestion(null);
+                  }}
+                />
+              </View>
+
+              <View style={styles.lessonTypeBlock}>
+                <Text style={styles.lessonTypeTitle}>Durata slot</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipScroller}
+                >
+                  {bookingDurations.map((duration) => (
+                    <SelectableChip
+                      key={`duration-${duration}`}
+                      label={`${duration} min`}
+                      active={bookingDuration === duration}
+                      onPress={() => {
+                        setBookingDuration(duration);
+                        setGuidedSuggestion(null);
+                      }}
+                      style={styles.lessonTypeChip}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          )}
+
+          {instructorBookingMode !== 'guided_proposal' ? (
+            <View style={styles.lessonTypeBlock}>
+              <Text style={styles.lessonTypeTitle}>Tipo guida (facoltativo)</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipScroller}
+              >
+                {LESSON_TYPE_OPTIONS.map((option) => (
+                  <SelectableChip
+                    key={option.value}
+                    label={option.label}
+                    active={bookingLessonType === option.value}
+                    onPress={() => setBookingLessonType(option.value)}
+                    style={styles.lessonTypeChip}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
       </BottomSheet>
     </Screen>
   );
@@ -1112,6 +1671,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
+  chipScroller: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: 1,
+  },
   lessonTypeChip: {
     marginRight: spacing.xs,
   },
@@ -1138,6 +1702,49 @@ const styles = StyleSheet.create({
   sheetFooterActions: {
     gap: spacing.sm,
     width: '100%',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  timePickerFieldWrap: {
+    flex: 1,
+  },
+  timePickerField: {
+    borderRadius: 14,
+  },
+  timePickerFieldPressed: {
+    opacity: 0.8,
+  },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.3)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  pickerCard: {
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  pickerTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  guidedSuggestionCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.16)',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  guidedSuggestionTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   emptyState: {
     flex: 1,

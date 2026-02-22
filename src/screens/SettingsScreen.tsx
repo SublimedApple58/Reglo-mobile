@@ -35,6 +35,18 @@ const roleLabelMap = {
   OWNER: 'Titolare',
 } as const;
 
+const bookingActorLabelMap = {
+  students: 'Solo allievi',
+  instructors: 'Solo istruttori',
+  both: 'Allievi e istruttori',
+} as const;
+
+const instructorModeLabelMap = {
+  manual_full: 'Manuale totale',
+  manual_engine: 'Manuale + motore annullamenti',
+  guided_proposal: 'Guidata con proposta',
+} as const;
+
 export const SettingsScreen = () => {
   const router = useRouter();
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
@@ -48,6 +60,9 @@ export const SettingsScreen = () => {
   const [availabilityWeeks, setAvailabilityWeeks] = useState('4');
   const [studentReminderMinutes, setStudentReminderMinutes] = useState('60');
   const [instructorReminderMinutes, setInstructorReminderMinutes] = useState('60');
+  const [appBookingActors, setAppBookingActors] = useState<'students' | 'instructors' | 'both'>('students');
+  const [instructorBookingMode, setInstructorBookingMode] =
+    useState<'manual_full' | 'manual_engine' | 'guided_proposal'>('manual_engine');
   const [refreshing, setRefreshing] = useState(false);
   const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -90,6 +105,8 @@ export const SettingsScreen = () => {
           setAvailabilityWeeks(String(settings.availabilityWeeks));
           setStudentReminderMinutes(String(settings.studentReminderMinutes));
           setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+          setAppBookingActors(settings.appBookingActors ?? 'students');
+          setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
         } catch (settingsErr) {
           if (autoscuolaRole === 'OWNER') {
             throw settingsErr;
@@ -439,6 +456,23 @@ export const SettingsScreen = () => {
                   </View>
                 </View>
 
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Prenotazioni da app</Text>
+                  <Text style={styles.inlineHint}>
+                    Attori abilitati: {bookingActorLabelMap[appBookingActors]}.
+                  </Text>
+                  {(appBookingActors === 'instructors' || appBookingActors === 'both') ? (
+                    <Text style={styles.inlineHint}>
+                      Modalità istruttore: {instructorModeLabelMap[instructorBookingMode]}.
+                    </Text>
+                  ) : (
+                    <Text style={styles.inlineHint}>
+                      Configurazione istruttore non necessaria con policy attuale.
+                    </Text>
+                  )}
+                  <Text style={styles.inlineHint}>Configura i dettagli da Reglo Web &gt; Autoscuole &gt; Disponibilità.</Text>
+                </View>
+
                 <GlassButton
                   label={savingSettings ? 'Salvataggio...' : 'Salva impostazioni'}
                   onPress={handleSaveOwnerSettings}
@@ -460,6 +494,15 @@ export const SettingsScreen = () => {
                 <Text style={styles.inlineHint}>
                   Il promemoria viene applicato prima della guida in base alle impostazioni della tua autoscuola.
                 </Text>
+                <Text style={styles.inlineHint}>
+                  Prenotazioni da app: {bookingActorLabelMap[appBookingActors]}.
+                </Text>
+                {(appBookingActors === 'instructors' || appBookingActors === 'both') ? (
+                  <Text style={styles.inlineHint}>
+                    Modalità corrente: {instructorModeLabelMap[instructorBookingMode]}.
+                  </Text>
+                ) : null}
+                <Text style={styles.inlineHint}>Questa policy è configurata dal titolare in web app.</Text>
                 <GlassButton
                   label="Apri gestione disponibilita"
                   onPress={handleOpenInstructorManage}
