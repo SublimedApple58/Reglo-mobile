@@ -68,6 +68,11 @@ const toMonthEnd = (value: Date) => {
 const formatShort = (value: Date) =>
   value.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
 
+const isSameDay = (left: Date, right: Date) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
 const formatLabel = (mode: CalendarNavigatorMode, anchor: Date, from: Date, to: Date) => {
   if (mode === 'day') {
     return anchor.toLocaleDateString('it-IT', {
@@ -126,6 +131,11 @@ export const CalendarNavigator = ({
     };
   }, [anchor, mode]);
 
+  const isTodaySelected = useMemo(() => {
+    const today = new Date();
+    return mode === 'day' && isSameDay(today, range.anchor);
+  }, [mode, range.anchor]);
+
   useEffect(() => {
     onChange(range);
   }, [onChange, range]);
@@ -156,7 +166,14 @@ export const CalendarNavigator = ({
             onPress={() => setMode(item.value)}
           />
         ))}
-        <SelectableChip label="Oggi" active={false} onPress={() => setAnchor(new Date())} />
+        <SelectableChip
+          label="Oggi"
+          active={isTodaySelected}
+          onPress={() => {
+            setMode('day');
+            setAnchor(new Date());
+          }}
+        />
       </View>
     </View>
   );

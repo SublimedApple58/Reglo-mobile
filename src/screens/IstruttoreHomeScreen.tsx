@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -19,6 +19,7 @@ import { GlassButton } from '../components/GlassButton';
 import { BottomSheet } from '../components/BottomSheet';
 import { GlassInput } from '../components/GlassInput';
 import { CalendarNavigator, CalendarNavigatorRange } from '../components/CalendarNavigator';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -49,12 +50,6 @@ const LESSON_TYPE_OPTIONS: LessonTypeOption[] = [
   { value: 'parcheggio', label: 'Parcheggio' },
   { value: 'altro', label: 'Altro' },
 ];
-
-const BOOKING_ACTOR_LABEL: Record<'students' | 'instructors' | 'both', string> = {
-  students: 'Solo allievi',
-  instructors: 'Solo istruttori',
-  both: 'Allievi e istruttori',
-};
 
 const INSTRUCTOR_MODE_LABEL: Record<'manual_full' | 'manual_engine' | 'guided_proposal', string> = {
   manual_full: 'Manuale totale',
@@ -239,14 +234,6 @@ const getLessonStateLabel = (lesson: AutoscuolaAppointmentWithRelations, now: Da
   return meta?.label ?? lesson.status;
 };
 
-const getTodayLessonTimingMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Date) => {
-  const start = new Date(lesson.startsAt);
-  const end = getLessonEnd(lesson);
-  if (now < start) return { label: 'Futura', tone: 'future' as const };
-  if (now >= start && now < end) return { label: 'In corso', tone: 'live' as const };
-  return { label: 'Passata', tone: 'past' as const };
-};
-
 const canOperationalReposition = (
   lesson: AutoscuolaAppointmentWithRelations,
   now: Date,
@@ -256,18 +243,29 @@ const canOperationalReposition = (
   return new Date(lesson.startsAt).getTime() > now.getTime();
 };
 
-const formatFutureDayLabel = (isoDate: string) =>
-  new Date(isoDate).toLocaleDateString('it-IT', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
+const pickFeaturedLesson = (
+  source: AutoscuolaAppointmentWithRelations[],
+  now: Date,
+) => {
+  const active = source.filter((item) => VISIBLE_LESSON_STATUSES.has(normalizeStatus(item.status)));
+  const inProgress = [...active]
+    .filter((item) => {
+      const status = normalizeStatus(item.status);
+      if (status !== 'checked_in') return false;
+      const startsAt = new Date(item.startsAt);
+      const endsAt = getLessonEnd(item);
+      return now >= startsAt && now < endsAt;
+    })
+    .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b))[0];
+  if (inProgress) return inProgress;
 
-const toLocalDayKey = (isoDate: string) => {
-  const date = new Date(isoDate);
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+  return [...active]
+    .filter((item) => {
+      const status = normalizeStatus(item.status);
+      if (status === 'checked_in') return getLessonEnd(item) >= now;
+      return new Date(item.startsAt) >= now;
+    })
+    .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b))[0] ?? null;
 };
 
 const toTimeString = (value: Date) =>
@@ -350,20 +348,22 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 export const IstruttoreHomeScreen = () => {
   const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [featuredAppointments, setFeaturedAppointments] = useState<
+    AutoscuolaAppointmentWithRelations[]
+  >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [clockTick, setClockTick] = useState(() => Date.now());
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [rangeLoading, setRangeLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [selectedLessonType, setSelectedLessonType] = useState('');
   const [lessonNotes, setLessonNotes] = useState('');
-  const [selectedFutureDayKey, setSelectedFutureDayKey] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
   const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
   const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
@@ -378,11 +378,14 @@ export const IstruttoreHomeScreen = () => {
   });
   const [bookingDuration, setBookingDuration] = useState<number>(60);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
+  const rangeKeyRef = useRef<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
     if (!instructorId) return [];
-    setLoading(true);
+    const requestId = ++loadRequestRef.current;
     setError(null);
+    let shouldShowRangeSkeleton = false;
     try {
       const from = calendarRange ? new Date(calendarRange.from) : new Date();
       const to = calendarRange ? new Date(calendarRange.to) : new Date();
@@ -392,8 +395,23 @@ export const IstruttoreHomeScreen = () => {
         to.setDate(to.getDate() + 14);
         to.setHours(23, 59, 59, 999);
       }
+      const rangeKey = `${from.toISOString()}|${to.toISOString()}`;
+      if (rangeKeyRef.current !== rangeKey) {
+        shouldShowRangeSkeleton = true;
+        setRangeLoading(true);
+      }
+      rangeKeyRef.current = rangeKey;
+      const featuredFrom = new Date();
+      featuredFrom.setDate(featuredFrom.getDate() - 1);
+      featuredFrom.setHours(0, 0, 0, 0);
 
-      const [appointmentsResponse, settingsResponse, studentsResponse, vehiclesResponse] =
+      const [
+        appointmentsResponse,
+        featuredAppointmentsResponse,
+        settingsResponse,
+        studentsResponse,
+        vehiclesResponse,
+      ] =
         await Promise.all([
           regloApi.getAppointments({
             instructorId,
@@ -401,24 +419,43 @@ export const IstruttoreHomeScreen = () => {
             to: to.toISOString(),
             limit: 400,
           }),
+          regloApi.getAppointments({
+            instructorId,
+            from: featuredFrom.toISOString(),
+            limit: 500,
+          }),
           regloApi.getAutoscuolaSettings(),
           regloApi.getStudents(),
           regloApi.getVehicles(),
         ]);
+      if (requestId !== loadRequestRef.current) {
+        return [];
+      }
       setSettings(settingsResponse);
       setStudents(studentsResponse);
       setVehicles(vehiclesResponse);
       const nextAppointments = dedupeAppointments(
         appointmentsResponse.filter((item) => item.instructorId === instructorId),
       );
+      const nextFeaturedAppointments = dedupeAppointments(
+        featuredAppointmentsResponse.filter((item) => item.instructorId === instructorId),
+      );
       setAppointments(nextAppointments);
+      setFeaturedAppointments(nextFeaturedAppointments);
       return nextAppointments;
     } catch (err) {
+      if (requestId !== loadRequestRef.current) {
+        return [];
+      }
       setError(err instanceof Error ? err.message : 'Errore nel caricamento');
       return [];
     } finally {
-      setLoading(false);
-      setInitialLoading(false);
+      if (requestId === loadRequestRef.current) {
+        setInitialLoading(false);
+        if (shouldShowRangeSkeleton) {
+          setRangeLoading(false);
+        }
+      }
     }
   }, [calendarRange, instructorId]);
 
@@ -443,6 +480,20 @@ export const IstruttoreHomeScreen = () => {
       (settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
     [settings?.bookingSlotDurations],
   );
+  const bookingStudentOptions = useMemo(
+    () =>
+      students.map((student) => ({
+        value: student.id,
+        label: `${student.firstName} ${student.lastName}`.trim(),
+        subtitle: null,
+      })),
+    [students],
+  );
+  const selectedBookingStudent = useMemo(
+    () => students.find((student) => student.id === bookingStudentId) ?? null,
+    [bookingStudentId, students],
+  );
+  const appointmentsLoading = initialLoading || rangeLoading;
 
   const normalizeToHalfHour = useCallback((value: Date) => {
     const next = new Date(value);
@@ -477,7 +528,7 @@ export const IstruttoreHomeScreen = () => {
       .sort((a, b) => a - b);
     const nowDate = new Date();
     const roundedNow = normalizeToHalfHour(nowDate);
-    setBookingStudentId((current) => current || students[0]?.id || '');
+    setBookingStudentId('');
     setBookingVehicleId((current) => current || vehicles[0]?.id || '');
     setBookingLessonType('guida');
     setBookingDuration((current) =>
@@ -572,84 +623,19 @@ export const IstruttoreHomeScreen = () => {
     loadData,
     resolveBookingStartDate,
   ]);
-  const activeLessons = useMemo(
-    () => appointments.filter((item) => VISIBLE_LESSON_STATUSES.has(normalizeStatus(item.status))),
-    [appointments],
+  const featuredLesson = useMemo(
+    () => pickFeaturedLesson(featuredAppointments, now),
+    [featuredAppointments, now],
   );
-  const inProgressLesson = useMemo(() => {
-    return [...activeLessons]
-      .filter((item) => {
-        const status = normalizeStatus(item.status);
-        if (status !== 'checked_in') return false;
-        const startsAt = new Date(item.startsAt);
-        const endsAt = getLessonEnd(item);
-        return now >= startsAt && now < endsAt;
-      })
-      .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b))[0];
-  }, [activeLessons, now]);
-
-  const upcomingLessons = useMemo(() => {
-    return [...activeLessons]
-      .filter((item) => {
-        const status = normalizeStatus(item.status);
-        if (status === 'checked_in') return getLessonEnd(item) >= now;
-        return new Date(item.startsAt) >= now;
-      })
-      .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
-  }, [activeLessons, now]);
-
-  const todayLessons = useMemo(() => {
+  const agendaLessons = useMemo(() => {
     return [...appointments]
-      .filter((item) => isSameDay(now, item.startsAt))
+      .filter((item) => item.id !== featuredLesson?.id)
       .filter((item) => normalizeStatus(item.status) !== 'cancelled')
-      .sort((a, b) => getStartsAtTs(b) - getStartsAtTs(a));
-  }, [appointments, now]);
-  const futureLessons = useMemo(() => {
-    const tomorrowStart = new Date(now);
-    tomorrowStart.setHours(0, 0, 0, 0);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-    return [...appointments]
-      .filter((item) => new Date(item.startsAt).getTime() >= tomorrowStart.getTime())
-      .filter((item) => !CLOSED_ACTION_STATUSES.has(normalizeStatus(item.status)))
       .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
-  }, [appointments, now]);
-  const futureDayOptions = useMemo(() => {
-    const map = new Map<
-      string,
-      { key: string; label: string; startsAtTs: number; count: number }
-    >();
-
-    for (const lesson of futureLessons) {
-      const key = toLocalDayKey(lesson.startsAt);
-      const current = map.get(key);
-      if (current) {
-        current.count += 1;
-        continue;
-      }
-      map.set(key, {
-        key,
-        label: formatFutureDayLabel(lesson.startsAt),
-        startsAtTs: getStartsAtTs(lesson),
-        count: 1,
-      });
-    }
-
-    return Array.from(map.values()).sort((a, b) => a.startsAtTs - b.startsAtTs);
-  }, [futureLessons]);
-  const visibleFutureLessons = useMemo(() => {
-    if (!selectedFutureDayKey) return [];
-    return futureLessons.filter((lesson) => toLocalDayKey(lesson.startsAt) === selectedFutureDayKey);
-  }, [futureLessons, selectedFutureDayKey]);
-
-  const featuredLesson = inProgressLesson ?? upcomingLessons[0] ?? null;
+  }, [appointments, featuredLesson?.id]);
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
 
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
-    if (!isDetailsEditable(lesson, now)) {
-      setToast({ text: 'Guida non modificabile.', tone: 'info' });
-      return;
-    }
     setSheetLesson(lesson);
     setSelectedLessonType(resolveInitialLessonType(lesson.type));
     setLessonNotes(lesson.notes ?? '');
@@ -795,16 +781,6 @@ export const IstruttoreHomeScreen = () => {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
-
-  useEffect(() => {
-    if (!futureDayOptions.length) {
-      if (selectedFutureDayKey !== null) setSelectedFutureDayKey(null);
-      return;
-    }
-    if (!selectedFutureDayKey || !futureDayOptions.some((item) => item.key === selectedFutureDayKey)) {
-      setSelectedFutureDayKey(futureDayOptions[0].key);
-    }
-  }, [futureDayOptions, selectedFutureDayKey]);
 
   const handleRepositionLesson = useCallback(
     async (lesson: AutoscuolaAppointmentWithRelations) => {
@@ -975,37 +951,12 @@ export const IstruttoreHomeScreen = () => {
 
         {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <GlassCard title="Calendario" subtitle="Naviga giorno, settimana o mese">
-          <CalendarNavigator
-            initialMode="week"
-            onChange={setCalendarRange}
-          />
-        </GlassCard>
-
-        <GlassCard title="Nuova prenotazione" subtitle="Crea una proposta per i tuoi allievi">
-          <Text style={styles.lessonMeta}>
-            Prenotazioni da app: {BOOKING_ACTOR_LABEL[bookingActors]}.
-          </Text>
-          {(bookingActors === 'instructors' || bookingActors === 'both') ? (
-            <Text style={styles.lessonMeta}>
-              Modalità: {INSTRUCTOR_MODE_LABEL[instructorBookingMode]}.
-            </Text>
-          ) : (
-            <Text style={styles.lessonMeta}>
-              Il titolare ha disabilitato le prenotazioni istruttore da app.
-            </Text>
-          )}
-          <GlassButton
-            label="Nuova prenotazione"
-            tone="primary"
-            onPress={openBookingDrawer}
-            disabled={!canInstructorBook || isPending || Boolean(bookingPendingAction)}
-            fullWidth
-          />
-        </GlassCard>
-
-        <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'In programma'}>
-          {initialLoading ? (
+        <GlassCard
+          title="Prossima guida"
+          subtitle={undefined}
+          hierarchy="primary"
+        >
+          {initialLoading && !featuredLesson ? (
             <SkeletonCard>
               <SkeletonBlock width="38%" height={20} />
               <SkeletonBlock width="62%" height={24} />
@@ -1020,14 +971,14 @@ export const IstruttoreHomeScreen = () => {
                 {getLessonStateMeta(featuredLesson, now) ? (
                   <LessonStateTag meta={getLessonStateMeta(featuredLesson, now)!} />
                 ) : null}
-                <Text style={styles.lessonTime}>
+                <Text style={styles.primaryLessonTime}>
                   {formatDay(featuredLesson.startsAt)} · {formatTime(featuredLesson.startsAt)}
                 </Text>
-                <Text style={styles.lessonMeta}>
+                <Text style={styles.primaryLessonMeta}>
                   Allievo: {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
                 </Text>
-                <Text style={styles.lessonMeta}>Durata: {durationLabel(featuredLesson)}</Text>
-                <Text style={styles.lessonMeta}>
+                <Text style={styles.primaryLessonMeta}>Durata: {durationLabel(featuredLesson)}</Text>
+                <Text style={styles.primaryLessonMeta}>
                   Veicolo: {featuredLesson.vehicle?.name ?? 'Da assegnare'}
                 </Text>
               </View>
@@ -1077,9 +1028,35 @@ export const IstruttoreHomeScreen = () => {
           )}
         </GlassCard>
 
-        <GlassCard title="Guide di oggi" subtitle="Future e passate della giornata">
+        <GlassCard title="Nuova prenotazione" hierarchy="secondary">
+          <Text style={styles.bookingModeInfo}>
+            {canInstructorBook
+              ? `Modalità: ${INSTRUCTOR_MODE_LABEL[instructorBookingMode]}`
+              : 'Prenotazioni da app disabilitate dal titolare'}
+          </Text>
+          <GlassButton
+            label="Nuova prenotazione"
+            tone="primary"
+            onPress={openBookingDrawer}
+            disabled={!canInstructorBook || isPending || Boolean(bookingPendingAction)}
+            fullWidth
+          />
+        </GlassCard>
+
+        <GlassCard hierarchy="tertiary">
+          <CalendarNavigator
+            initialMode="week"
+            onChange={setCalendarRange}
+          />
+        </GlassCard>
+
+        <GlassCard
+          title="Agenda guide"
+          subtitle={undefined}
+          hierarchy="tertiary"
+        >
           <View style={styles.agendaList}>
-            {initialLoading
+            {appointmentsLoading
               ? Array.from({ length: 3 }).map((_, index) => (
                   <SkeletonCard key={`instructor-agenda-skeleton-${index}`}>
                     <SkeletonBlock width="56%" height={22} />
@@ -1088,109 +1065,36 @@ export const IstruttoreHomeScreen = () => {
                     <SkeletonBlock width="100%" height={40} radius={14} style={styles.skeletonButton} />
                   </SkeletonCard>
                 ))
-              : todayLessons.map((lesson) => {
-              const timeMeta = getTodayLessonTimingMeta(lesson, now);
-              const lessonStateMeta = getLessonStateMeta(lesson, now);
-              return (
-                <View
-                  key={lesson.id}
-                  style={[styles.agendaRow, timeMeta.tone === 'past' ? styles.agendaRowPast : null]}
-                >
-                  <View style={styles.lessonInfo}>
-                    <Text style={styles.lessonTime}>
-                      {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-                    </Text>
-                    {timeMeta.tone !== 'live' ? (
-                      <Text
-                        style={[
-                          styles.timeMetaTag,
-                          timeMeta.tone === 'past'
-                            ? styles.timeMetaTagPast
-                            : styles.timeMetaTagFuture,
-                        ]}
-                      >
-                        {timeMeta.label}
-                      </Text>
-                    ) : null}
-                    <Text style={styles.lessonMeta}>
-                      Allievo: {lesson.student?.firstName} {lesson.student?.lastName}
-                    </Text>
-                    <Text style={styles.lessonMeta}>Durata: {durationLabel(lesson)}</Text>
-                    <Text style={styles.lessonMeta}>
-                      Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                    </Text>
-                    {lesson.notes ? (
-                      <Text numberOfLines={1} style={styles.lessonMeta}>
-                        Note: {lesson.notes}
-                      </Text>
-                    ) : null}
-                    {lessonStateMeta ? <LessonStateTag meta={lessonStateMeta} compact /> : null}
-                  </View>
-                  <View style={styles.agendaActionWrap}>
-                    <GlassButton
-                      label="Dettagli"
-                      tone="standard"
-                      onPress={isDetailsEditable(lesson, now) ? () => openLessonDrawer(lesson) : undefined}
-                      disabled={!isDetailsEditable(lesson, now)}
-                      fullWidth
-                    />
-                  </View>
-                </View>
-              );
-            })}
-            {!initialLoading && !todayLessons.length ? (
-              <Text style={styles.emptyText}>Nessuna guida oggi.</Text>
-            ) : null}
-          </View>
-        </GlassCard>
-
-        <GlassCard title="Guide future" subtitle="Scorri i giorni e apri azioni guida">
-          <View style={styles.agendaList}>
-            {!initialLoading && futureDayOptions.length ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.futureDaysScroller}
-              >
-                {futureDayOptions.map((day) => (
-                  <SelectableChip
-                    key={day.key}
-                    label={`${day.label} · ${day.count}`}
-                    active={selectedFutureDayKey === day.key}
-                    onPress={() => setSelectedFutureDayKey(day.key)}
-                    style={styles.futureDayChip}
-                  />
-                ))}
-              </ScrollView>
-            ) : null}
-            {initialLoading
-              ? Array.from({ length: 2 }).map((_, index) => (
-                  <SkeletonCard key={`instructor-future-skeleton-${index}`}>
-                    <SkeletonBlock width="56%" height={22} />
-                    <SkeletonBlock width="74%" />
-                    <SkeletonBlock width="62%" />
-                    <SkeletonBlock width="100%" height={40} radius={14} style={styles.skeletonButton} />
-                  </SkeletonCard>
-                ))
-              : visibleFutureLessons.map((lesson) => {
+              : agendaLessons.map((lesson) => {
+                  const isPastLesson = getLessonEnd(lesson).getTime() < now.getTime();
                   const lessonStateMeta = getLessonStateMeta(lesson, now);
-                  const canOpenActions = isDetailsEditable(lesson, now) && !isPending;
+                  const canOpenActions = !isPending;
                   return (
-                    <View key={lesson.id} style={[styles.agendaRow, styles.futureAgendaRow]}>
-                      <View style={styles.lessonInfo}>
+                    <View
+                      key={lesson.id}
+                      style={[styles.agendaRow, isPastLesson ? styles.agendaRowPast : null]}
+                    >
+                      <View style={styles.agendaHeader}>
                         <Text style={styles.lessonTime}>
                           {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
                         </Text>
-                        <Text style={styles.lessonMeta}>
-                          Allievo: {lesson.student?.firstName} {lesson.student?.lastName}
-                        </Text>
-                        <Text style={styles.lessonMeta}>Durata: {durationLabel(lesson)}</Text>
-                        <Text style={styles.lessonMeta}>
-                          Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                        </Text>
-                        {lessonStateMeta ? <LessonStateTag meta={lessonStateMeta} compact /> : null}
+                        <View style={styles.agendaTagRow}>
+                          {lessonStateMeta ? <LessonStateTag meta={lessonStateMeta} compact /> : null}
+                        </View>
                       </View>
-                      <View style={styles.futureRowActions}>
+                      <Text style={styles.agendaPrimaryMeta}>
+                        Allievo: {lesson.student?.firstName} {lesson.student?.lastName}
+                      </Text>
+                      <Text style={styles.agendaDetailMeta}>Durata: {durationLabel(lesson)}</Text>
+                      <Text style={styles.agendaDetailMeta}>
+                        Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
+                      </Text>
+                      {lesson.notes ? (
+                        <Text numberOfLines={1} style={styles.agendaDetailMeta}>
+                          Note: {lesson.notes}
+                        </Text>
+                      ) : null}
+                      <View style={styles.agendaActions}>
                         <GlassButton
                           label="Azioni"
                           tone="standard"
@@ -1202,8 +1106,8 @@ export const IstruttoreHomeScreen = () => {
                     </View>
                   );
                 })}
-            {!initialLoading && !visibleFutureLessons.length ? (
-              <Text style={styles.emptyText}>Nessuna guida futura.</Text>
+            {!appointmentsLoading && !agendaLessons.length ? (
+              <Text style={styles.emptyText}>Nessuna guida nel periodo selezionato.</Text>
             ) : null}
           </View>
         </GlassCard>
@@ -1338,25 +1242,20 @@ export const IstruttoreHomeScreen = () => {
           ) : null}
 
           <View style={styles.lessonTypeBlock}>
-            <Text style={styles.lessonTypeTitle}>Allievo</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipScroller}
-            >
-              {students.map((student) => {
-                const isActive = bookingStudentId === student.id;
-                return (
-                  <SelectableChip
-                    key={student.id}
-                    label={`${student.firstName} ${student.lastName}`}
-                    active={isActive}
-                    onPress={() => resetGuidedSuggestionForStudent(student.id)}
-                    style={styles.lessonTypeChip}
-                  />
-                );
-              })}
-            </ScrollView>
+            <SearchableSelect
+              label="Allievo"
+              placeholder="Seleziona un allievo"
+              value={bookingStudentId}
+              options={bookingStudentOptions}
+              onChange={resetGuidedSuggestionForStudent}
+              disabled={Boolean(bookingPendingAction) || !students.length}
+              emptyText="Nessun allievo trovato."
+            />
+            {selectedBookingStudent ? (
+              <Text style={styles.sheetMeta}>
+                Selezionato: {selectedBookingStudent.firstName} {selectedBookingStudent.lastName}
+              </Text>
+            ) : null}
             {!students.length ? (
               <Text style={styles.actionHint}>Nessun allievo disponibile.</Text>
             ) : null}
@@ -1533,6 +1432,37 @@ const styles = StyleSheet.create({
   lessonTime: {
     ...typography.subtitle,
     color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  primaryLessonTime: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  primaryLessonMeta: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  bookingModeInfo: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  agendaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  agendaTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   lessonMeta: {
     ...typography.body,
@@ -1543,37 +1473,37 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   agendaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.md,
+    flexDirection: 'column',
+    gap: spacing.xs,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.56)',
-    paddingHorizontal: spacing.md,
+    borderColor: 'rgba(50, 77, 122, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
+    shadowColor: 'rgba(15, 29, 51, 0.18)',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   agendaRowPast: {
-    opacity: 0.85,
+    opacity: 0.88,
   },
-  agendaActionWrap: {
-    width: 116,
+  agendaPrimaryMeta: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: 2,
   },
-  futureAgendaRow: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: spacing.sm,
+  agendaDetailMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
-  futureDaysScroller: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingBottom: spacing.xs,
-  },
-  futureDayChip: {
-    borderRadius: 999,
-  },
-  futureRowActions: {
+  agendaActions: {
+    marginTop: spacing.xs,
     width: '100%',
   },
   topActions: {
@@ -1596,23 +1526,6 @@ const styles = StyleSheet.create({
   },
   skeletonButton: {
     marginTop: spacing.xs,
-  },
-  timeMetaTag: {
-    ...typography.caption,
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingVertical: 2,
-    paddingHorizontal: spacing.sm,
-    marginTop: spacing.xs,
-    fontWeight: '700',
-  },
-  timeMetaTagFuture: {
-    backgroundColor: 'rgba(50, 77, 122, 0.12)',
-    color: colors.textSecondary,
-  },
-  timeMetaTagPast: {
-    backgroundColor: 'rgba(124, 140, 170, 0.18)',
-    color: '#5D6D88',
   },
   stateTag: {
     alignSelf: 'flex-start',
@@ -1638,7 +1551,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   stateTagCompact: {
-    marginTop: spacing.xs,
+    marginTop: 0,
     marginBottom: 0,
     paddingVertical: 2,
     paddingHorizontal: spacing.xs,

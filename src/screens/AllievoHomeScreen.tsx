@@ -25,7 +25,7 @@ import { GlassBadge } from '../components/GlassBadge';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
 import { GlassInput } from '../components/GlassInput';
-import { SelectableChip } from '../components/SelectableChip';
+import { CalendarNavigator, CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { ScrollHintFab } from '../components/ScrollHintFab';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { SectionHeader } from '../components/SectionHeader';
@@ -52,11 +52,8 @@ import {
 } from '../utils/payment';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in']);
 const proposalStatuses = new Set(['proposal']);
-const historyPageSize = 10;
-const futurePageSize = 8;
 const DEFAULT_BOOKING_LESSON_TYPES = [
   'manovre',
   'urbano',
@@ -87,12 +84,6 @@ const toDateString = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 const toTimeString = (value: Date) => value.toTimeString().slice(0, 5);
-
-const buildTime = (hours: number, minutes: number) => {
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-};
 
 const addDays = (date: Date, amount: number) => {
   const copy = new Date(date);
@@ -241,11 +232,6 @@ export const AllievoHomeScreen = () => {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
-  const [availabilityDays, setAvailabilityDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [availabilityStart, setAvailabilityStart] = useState(buildTime(9, 0));
-  const [availabilityEnd, setAvailabilityEnd] = useState(buildTime(18, 0));
-  const [availabilitySaving, setAvailabilitySaving] = useState(false);
-
   const [preferredDate, setPreferredDate] = useState(new Date());
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [selectedLessonType, setSelectedLessonType] = useState<string>(
@@ -273,10 +259,13 @@ export const AllievoHomeScreen = () => {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
-  const [historyVisibleCount, setHistoryVisibleCount] = useState(historyPageSize);
-  const [futureVisibleCount, setFutureVisibleCount] = useState(futurePageSize);
+  const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
+  const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
+  const [rangeLoading, setRangeLoading] = useState(false);
   const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
   const [studentDataReady, setStudentDataReady] = useState(false);
+  const rangeKeyRef = useRef<string | null>(null);
+  const loadRequestRef = useRef(0);
   const historyDetailsScrollRef = useRef<ScrollView | null>(null);
   const [historyDetailsLayoutHeight, setHistoryDetailsLayoutHeight] = useState(0);
   const [historyDetailsContentHeight, setHistoryDetailsContentHeight] = useState(0);
@@ -376,15 +365,33 @@ export const AllievoHomeScreen = () => {
 
   const loadData = useCallback(
     async (studentId: string) => {
+      const requestId = ++loadRequestRef.current;
       setLoading(true);
       setToast(null);
+      let shouldShowRangeSkeleton = false;
       try {
-        const from = addDays(new Date(), -7);
-        from.setHours(0, 0, 0, 0);
-        const to = addDays(new Date(), 30);
-        to.setHours(23, 59, 59, 999);
+        const defaultFrom = addDays(new Date(), -7);
+        defaultFrom.setHours(0, 0, 0, 0);
+        const defaultTo = addDays(new Date(), 30);
+        defaultTo.setHours(23, 59, 59, 999);
 
-        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse, bookingOptionsResponse] =
+        const selectedFrom = calendarRange ? new Date(calendarRange.from) : new Date(defaultFrom);
+        selectedFrom.setHours(0, 0, 0, 0);
+        const selectedTo = calendarRange ? new Date(calendarRange.to) : new Date(defaultTo);
+        selectedTo.setHours(23, 59, 59, 999);
+
+        const from =
+          selectedFrom.getTime() < defaultFrom.getTime() ? selectedFrom : defaultFrom;
+        const to = selectedTo.getTime() > defaultTo.getTime() ? selectedTo : defaultTo;
+
+        const rangeKey = `${selectedFrom.toISOString()}|${selectedTo.toISOString()}`;
+        if (rangeKeyRef.current !== rangeKey) {
+          shouldShowRangeSkeleton = true;
+          setRangeLoading(true);
+        }
+        rangeKeyRef.current = rangeKey;
+
+        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse] =
           await Promise.all([
           regloApi.getAppointments({
             studentId,
@@ -395,18 +402,28 @@ export const AllievoHomeScreen = () => {
           regloApi.getAutoscuolaSettings(),
           regloApi.getPaymentProfile(),
           regloApi.getPaymentHistory(40),
-          regloApi
-            .getBookingOptions(studentId)
-            .catch(() => null),
         ]);
+        if (requestId !== loadRequestRef.current) {
+          return;
+        }
+
+        const studentCanBookFromApp = settingsResponse.appBookingActors !== 'instructors';
+        let bookingOptionsResponse: MobileBookingOptions | null = null;
+        if (studentCanBookFromApp) {
+          bookingOptionsResponse = await regloApi.getBookingOptions(studentId).catch(() => null);
+          if (requestId !== loadRequestRef.current) {
+            return;
+          }
+        }
+
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
         setSettings(settingsResponse);
         setPaymentProfile(paymentResponse);
         setPaymentHistory(paymentHistoryResponse);
         const resolvedBookingOptions: MobileBookingOptions = bookingOptionsResponse ?? {
           bookingSlotDurations: settingsResponse.bookingSlotDurations ?? [30, 60],
-          lessonTypeSelectionEnabled: Boolean(settingsResponse.lessonPolicyEnabled),
-          availableLessonTypes: settingsResponse.lessonPolicyEnabled
+          lessonTypeSelectionEnabled: studentCanBookFromApp && Boolean(settingsResponse.lessonPolicyEnabled),
+          availableLessonTypes: studentCanBookFromApp && settingsResponse.lessonPolicyEnabled
             ? [...DEFAULT_BOOKING_LESSON_TYPES]
             : [],
         };
@@ -428,16 +445,24 @@ export const AllievoHomeScreen = () => {
             : availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0],
         );
       } catch (err) {
+        if (requestId !== loadRequestRef.current) {
+          return;
+        }
         setToast({
           text: err instanceof Error ? err.message : 'Errore nel caricamento',
           tone: 'danger',
         });
       } finally {
-        setLoading(false);
-        setStudentDataReady(true);
+        if (requestId === loadRequestRef.current) {
+          setLoading(false);
+          setStudentDataReady(true);
+          if (shouldShowRangeSkeleton) {
+            setRangeLoading(false);
+          }
+        }
       }
     },
-    []
+    [calendarRange]
   );
 
   const loadWaitlistOffers = useCallback(async (studentId: string) => {
@@ -451,59 +476,6 @@ export const AllievoHomeScreen = () => {
       });
     }
   }, []);
-
-  const loadAvailabilityPreset = useCallback(
-    async (studentId: string) => {
-      try {
-        const anchor = new Date();
-        anchor.setHours(0, 0, 0, 0);
-        const dates = Array.from({ length: 7 }, (_, index) => addDays(anchor, index));
-        const responses = await Promise.all(
-          dates.map((day) =>
-            regloApi.getAvailabilitySlots({
-              ownerType: 'student',
-              ownerId: studentId,
-              date: toDateString(day),
-            })
-          )
-        );
-
-        const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
-        responses.forEach((response, index) => {
-          if (!response || response.length === 0) return;
-          const usableSlots = response
-            .filter((slot) => slot.status !== 'cancelled')
-            .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-          if (!usableSlots.length) return;
-          const first = new Date(usableSlots[0].startsAt);
-          const last = new Date(usableSlots[usableSlots.length - 1].endsAt);
-          const startMin = first.getHours() * 60 + first.getMinutes();
-          const endMin = last.getHours() * 60 + last.getMinutes();
-          ranges.push({ dayIndex: dates[index].getDay(), startMin, endMin });
-        });
-
-        if (!ranges.length) {
-          setAvailabilityDays([]);
-          setAvailabilityStart(buildTime(9, 0));
-          setAvailabilityEnd(buildTime(18, 0));
-          return;
-        }
-
-        const daySet = Array.from(new Set(ranges.map((item) => item.dayIndex))).sort();
-        const minStart = Math.min(...ranges.map((item) => item.startMin));
-        const maxEnd = Math.max(...ranges.map((item) => item.endMin));
-        setAvailabilityDays(daySet);
-        setAvailabilityStart(buildTime(Math.floor(minStart / 60), minStart % 60));
-        setAvailabilityEnd(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
-      } catch (err) {
-        setToast({
-          text: err instanceof Error ? err.message : 'Errore caricando disponibilita',
-          tone: 'danger',
-        });
-      }
-    },
-    []
-  );
 
   useEffect(() => {
     const init = async () => {
@@ -526,9 +498,8 @@ export const AllievoHomeScreen = () => {
       return;
     }
     loadData(selectedStudentId);
-    loadAvailabilityPreset(selectedStudentId);
     loadWaitlistOffers(selectedStudentId);
-  }, [loadAvailabilityPreset, loadData, loadWaitlistOffers, selectedStudentId]);
+  }, [loadData, loadWaitlistOffers, selectedStudentId]);
 
   useEffect(() => {
     if (!waitlistOffer) {
@@ -585,27 +556,27 @@ export const AllievoHomeScreen = () => {
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   }, [appointments]);
 
-  const history = useMemo(() => {
-    const now = new Date();
-    return [...appointments]
-      .filter((item) => new Date(item.startsAt) < now)
-      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-  }, [appointments]);
   const paymentByAppointmentId = useMemo(
     () => new Map(paymentHistory.map((item) => [item.appointmentId, item])),
     [paymentHistory]
   );
-  const visibleHistory = useMemo(
-    () => history.slice(0, historyVisibleCount),
-    [history, historyVisibleCount]
+  const agendaLessons = useMemo(() => {
+    const fromTs = calendarRange ? new Date(calendarRange.from).getTime() : null;
+    const toTs = calendarRange ? new Date(calendarRange.to).getTime() : null;
+    return [...appointments]
+      .filter((item) => item.id !== upcoming[0]?.id)
+      .filter((item) => {
+        const startsAtTs = new Date(item.startsAt).getTime();
+        if (fromTs !== null && startsAtTs < fromTs) return false;
+        if (toTs !== null && startsAtTs > toTs) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [appointments, calendarRange, upcoming]);
+  const visibleAgendaLessons = useMemo(
+    () => (showAllAgendaLessons ? agendaLessons : agendaLessons.slice(0, 4)),
+    [agendaLessons, showAllAgendaLessons],
   );
-  const hasMoreHistory = visibleHistory.length < history.length;
-  const futureLessons = useMemo(() => upcoming.slice(1), [upcoming]);
-  const visibleFutureLessons = useMemo(
-    () => futureLessons.slice(0, futureVisibleCount),
-    [futureLessons, futureVisibleCount]
-  );
-  const hasMoreFutureLessons = visibleFutureLessons.length < futureLessons.length;
   const selectedHistoryPayment = useMemo(
     () =>
       selectedHistoryLesson
@@ -615,12 +586,14 @@ export const AllievoHomeScreen = () => {
   );
 
   useEffect(() => {
-    setHistoryVisibleCount(historyPageSize);
-    setFutureVisibleCount(futurePageSize);
     setHistoryDetailsOpen(false);
     setSelectedHistoryLesson(null);
     setStudentDataReady(false);
   }, [selectedStudentId]);
+
+  useEffect(() => {
+    setShowAllAgendaLessons(false);
+  }, [calendarRange?.from, calendarRange?.to, selectedStudentId]);
 
   useEffect(() => {
     if (!selectedHistoryLesson) return;
@@ -634,6 +607,7 @@ export const AllievoHomeScreen = () => {
   }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
+  const agendaLoading = rangeLoading || loading;
   const pendingProposal = useMemo(() => {
     const now = new Date();
     return [...appointments]
@@ -653,71 +627,6 @@ export const AllievoHomeScreen = () => {
       setProposalAppointmentOpen(true);
     }
   }, [pendingProposal, prefsOpen, sheetOpen, waitlistOpen]);
-
-  const toggleDay = (day: number) => {
-    setAvailabilityDays((prev) =>
-      prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()
-    );
-  };
-
-  const handleCreateAvailability = async () => {
-    if (!selectedStudentId) return;
-    if (!availabilityDays.length) {
-      setToast({ text: 'Seleziona almeno un giorno', tone: 'danger' });
-      return;
-    }
-    if (availabilityEnd <= availabilityStart) {
-      setToast({ text: 'Orario non valido', tone: 'danger' });
-      return;
-    }
-    setToast(null);
-    setAvailabilitySaving(true);
-    try {
-      const anchor = new Date();
-      anchor.setHours(0, 0, 0, 0);
-      const start = new Date(anchor);
-      start.setHours(availabilityStart.getHours(), availabilityStart.getMinutes(), 0, 0);
-      const end = new Date(anchor);
-      end.setHours(availabilityEnd.getHours(), availabilityEnd.getMinutes(), 0, 0);
-      const resetStart = new Date(anchor);
-      resetStart.setHours(0, 0, 0, 0);
-      const resetEnd = new Date(anchor);
-      resetEnd.setHours(23, 59, 0, 0);
-      try {
-        await regloApi.deleteAvailabilitySlots({
-          ownerType: 'student',
-          ownerId: selectedStudentId,
-          startsAt: resetStart.toISOString(),
-          endsAt: resetEnd.toISOString(),
-          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-          weeks: settings?.availabilityWeeks ?? 4,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/nessuno slot/i.test(message)) {
-          throw err;
-        }
-      }
-      await regloApi.createAvailabilitySlots({
-        ownerType: 'student',
-        ownerId: selectedStudentId,
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        daysOfWeek: availabilityDays,
-        weeks: settings?.availabilityWeeks ?? 4,
-      });
-      setToast({ text: 'Disponibilita salvata', tone: 'success' });
-      await loadAvailabilityPreset(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore salvando disponibilita',
-        tone: 'danger',
-      });
-    } finally {
-      setAvailabilitySaving(false);
-    }
-  };
-
 
   const handleBookingRequest = async () => {
     if (!selectedStudentId) return;
@@ -1164,11 +1073,7 @@ export const AllievoHomeScreen = () => {
       const list = await loadStudents();
       const linkedStudent = findLinkedStudent(list, user);
       if (linkedStudent?.id) {
-        await Promise.all([
-          loadData(linkedStudent.id),
-          loadAvailabilityPreset(linkedStudent.id),
-          loadWaitlistOffers(linkedStudent.id),
-        ]);
+        await Promise.all([loadData(linkedStudent.id), loadWaitlistOffers(linkedStudent.id)]);
       }
     } catch (err) {
       setToast({
@@ -1178,7 +1083,7 @@ export const AllievoHomeScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [loadAvailabilityPreset, loadData, loadStudents, loadWaitlistOffers, user]);
+  }, [loadData, loadStudents, loadWaitlistOffers, user]);
 
   return (
     <Screen>
@@ -1226,6 +1131,7 @@ export const AllievoHomeScreen = () => {
                 ? 'Questo account STUDENT non e collegato a un allievo della company.'
                 : 'Recupero dati allievo in corso.'
             }
+            hierarchy="secondary"
           >
             {studentsLoaded ? (
               <Text style={styles.empty}>Contatta il titolare per collegare il tuo profilo.</Text>
@@ -1233,7 +1139,7 @@ export const AllievoHomeScreen = () => {
           </GlassCard>
         ) : !studentDataReady ? (
           <>
-            <GlassCard title="Prossima guida" subtitle="Caricamento dati...">
+            <GlassCard title="Prossima guida" subtitle="Caricamento dati..." hierarchy="primary">
               <SkeletonCard>
                 <SkeletonBlock width="58%" height={26} />
                 <SkeletonBlock width="72%" />
@@ -1242,28 +1148,26 @@ export const AllievoHomeScreen = () => {
               </SkeletonCard>
             </GlassCard>
 
-            <SectionHeader title="Disponibilita" subtitle="Slot ricorrenti per proposta guida" />
-            <GlassCard>
+            <GlassCard title="Prenota guida" hierarchy="secondary">
               <SkeletonCard>
-                <SkeletonBlock width="100%" height={16} />
-                <SkeletonBlock width="100%" height={16} />
+                <SkeletonBlock width="34%" height={24} />
+                <SkeletonBlock width="28%" height={32} />
                 <SkeletonBlock width="100%" height={44} radius={14} style={styles.skeletonButton} />
               </SkeletonCard>
             </GlassCard>
 
-            <SectionHeader title="Prenota una guida" subtitle="Scegli giorno e durata" />
-            <GlassCard>
+            <GlassCard title="Calendario" hierarchy="tertiary">
               <SkeletonCard>
-                <SkeletonBlock width="82%" />
-                <SkeletonBlock width="100%" height={44} radius={14} style={styles.skeletonButton} />
+                <SkeletonBlock width="100%" height={34} radius={14} />
+                <SkeletonBlock width="82%" height={28} radius={14} />
               </SkeletonCard>
             </GlassCard>
 
-            <SectionHeader title="Storico" subtitle="Guide recenti e dettagli pagamento" />
-            <GlassCard>
-              <View style={styles.historyList}>
+            <SectionHeader title="Agenda" hierarchy="tertiary" />
+            <GlassCard hierarchy="tertiary">
+              <View style={styles.agendaList}>
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <SkeletonCard key={`history-skeleton-${index}`}>
+                  <SkeletonCard key={`agenda-skeleton-${index}`}>
                     <SkeletonBlock width="56%" height={24} />
                     <SkeletonBlock width="66%" />
                     <SkeletonBlock width="78%" />
@@ -1275,17 +1179,21 @@ export const AllievoHomeScreen = () => {
           </>
         ) : (
           <>
-            <GlassCard title="Prossima guida" subtitle={loading ? 'Aggiornamento...' : 'Prenotazione confermata'}>
+            <GlassCard
+              title="Prossima guida"
+              subtitle={undefined}
+              hierarchy="primary"
+            >
               {nextLesson ? (
                 <View style={styles.lessonRow}>
                   <View style={styles.lessonInfo}>
-                    <Text style={styles.lessonTime}>
+                    <Text style={styles.primaryLessonTime}>
                       {formatDay(nextLesson.startsAt)} · {formatTime(nextLesson.startsAt)}
                     </Text>
-                    <Text style={styles.lessonMeta}>
+                    <Text style={styles.primaryLessonMeta}>
                       Istruttore: {nextLesson.instructor?.name ?? 'Da assegnare'}
                     </Text>
-                    <Text style={styles.lessonMeta}>
+                    <Text style={styles.primaryLessonMeta}>
                       Veicolo: {nextLesson.vehicle?.name ?? 'Da assegnare'}
                     </Text>
                   </View>
@@ -1303,203 +1211,91 @@ export const AllievoHomeScreen = () => {
               )}
             </GlassCard>
 
-            <SectionHeader title="In programma" subtitle="Le tue prossime guide" action="Future" />
-            <GlassCard>
-              <View style={styles.historyList}>
-                {visibleFutureLessons.map((lesson) => {
-                  const status = statusLabel(lesson.status);
-                  return (
-                    <View key={lesson.id} style={styles.historyRow}>
-                      <View style={styles.historyHeader}>
-                        <Text style={styles.historyTime}>
-                          {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-                        </Text>
-                        <Text style={styles.historySubtitle}>
-                          Istruttore: {lesson.instructor?.name ?? 'Da assegnare'}
-                        </Text>
-                        <Text style={styles.historySubtitle}>
-                          Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                        </Text>
-                      </View>
-                      <View style={styles.historyStatusWrap}>
-                        <GlassBadge label={status.label} tone={status.tone} />
-                      </View>
-                    </View>
-                  );
-                })}
-                {!futureLessons.length ? (
-                  <Text style={styles.empty}>Nessuna guida futura oltre la prossima.</Text>
-                ) : null}
-                {hasMoreFutureLessons ? (
-                  <View style={styles.historyMore}>
-                    <GlassButton
-                      label="Carica altre"
-                      onPress={() =>
-                        setFutureVisibleCount((prev) =>
-                          Math.min(prev + futurePageSize, futureLessons.length)
-                        )
-                      }
-                    />
-                  </View>
-                ) : null}
-              </View>
-            </GlassCard>
-
-            <SectionHeader
-              title="Disponibilita"
-              subtitle="Slot ricorrenti per proposta guida"
-              action={`Ripeti ${settings?.availabilityWeeks ?? 4} sett.`}
-            />
-            <GlassCard>
-              <View style={styles.dayRow}>
-                {dayLabels.map((label, index) => (
-                  <SelectableChip
-                    key={label}
-                    label={label}
-                    active={availabilityDays.includes(index)}
-                    onPress={() => toggleDay(index)}
-                  />
-                ))}
-              </View>
-              <View style={styles.pickerRow}>
-                <PickerField
-                  label="Inizio"
-                  value={availabilityStart}
-                  mode="time"
-                  onChange={setAvailabilityStart}
-                />
-                <PickerField
-                  label="Fine"
-                  value={availabilityEnd}
-                  mode="time"
-                  onChange={setAvailabilityEnd}
-                />
-              </View>
-              <View style={styles.actionRow}>
-                <GlassButton
-                  label={availabilitySaving ? 'Salvataggio...' : 'Salva'}
-                  tone="primary"
-                  onPress={handleCreateAvailability}
-                  disabled={availabilitySaving}
-                  fullWidth
-                />
-              </View>
-            </GlassCard>
-
-            <SectionHeader
-              title="Prenota una guida"
-              subtitle={canSelectLessonType ? "Scegli giorno, tipo guida e durata" : "Scegli giorno e durata"}
-              action="Prenotazione"
-            />
-            <GlassCard>
-              {paymentProfile?.blockedByInsoluti ? (
-                <View style={styles.outstandingBlock}>
-                  <Text style={styles.outstandingTitle}>Pagamento in sospeso</Text>
-                  <Text style={styles.outstandingText}>
-                    Hai importi da saldare prima di poter prenotare nuove guide.
-                  </Text>
-                  <Text style={styles.outstandingText}>
-                    Da saldare: € {paymentProfile.outstanding[0]?.amountDue.toFixed(2) ?? '0.00'}
-                  </Text>
+            {!studentBookingDisabledByPolicy ? (
+              <>
+                <GlassCard title="Prenota guida" hierarchy="secondary">
                   <GlassButton
-                    label={payNowLoading ? 'Attendi...' : 'Salda ora'}
+                    label={
+                      paymentProfile?.blockedByInsoluti
+                        ? payNowLoading
+                          ? 'Attendi...'
+                          : 'Salda ora'
+                        : 'Prenota'
+                    }
+                    onPress={paymentProfile?.blockedByInsoluti ? handlePayNow : openPreferences}
+                    disabled={paymentProfile?.blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking}
                     tone="primary"
-                    onPress={handlePayNow}
-                    disabled={payNowLoading}
+                    fullWidth
                   />
-                </View>
-              ) : null}
-              {requiresPaymentMethodForBooking ? (
-                <View style={styles.outstandingBlock}>
-                  <Text style={styles.outstandingTitle}>Metodo di pagamento richiesto</Text>
-                  <Text style={styles.outstandingText}>
-                    Questa autoscuola richiede un metodo di pagamento valido per prenotare.
-                  </Text>
-                </View>
-              ) : null}
-              {paymentProfile?.autoPaymentsEnabled ? (
-                <View style={styles.outstandingBlock}>
-                  <Text style={styles.outstandingTitle}>Crediti guida disponibili</Text>
-                  <Text style={styles.outstandingText}>
-                    Saldo: {paymentProfile.lessonCreditsAvailable ?? 0} crediti.
-                  </Text>
-                  {hasLessonCredits ? (
-                    <Text style={styles.outstandingText}>Userai 1 credito guida per la prossima prenotazione.</Text>
-                  ) : null}
-                </View>
-              ) : null}
-              {studentBookingDisabledByPolicy ? (
-                <View style={styles.outstandingBlock}>
-                  <Text style={styles.outstandingTitle}>Prenotazioni gestite dall'istruttore</Text>
-                  <Text style={styles.outstandingText}>
-                    In questa autoscuola le richieste guida vengono inserite dagli istruttori.
-                  </Text>
-                </View>
-              ) : null}
-              <Text style={styles.bookingHint}>
-                {canSelectLessonType
-                  ? 'Seleziona giorno, tipo guida e durata per ricevere la proposta migliore.'
-                  : 'Seleziona giorno e durata per ricevere la proposta migliore.'}
-              </Text>
-              <GlassButton
-                label="Prenota una guida"
-                onPress={openPreferences}
-                disabled={Boolean(
-                  paymentProfile?.blockedByInsoluti ||
-                    requiresPaymentMethodForBooking ||
-                    studentBookingDisabledByPolicy
-                )}
-              />
+                </GlassCard>
+              </>
+            ) : null}
+
+            <GlassCard title="Calendario" hierarchy="tertiary">
+              <CalendarNavigator initialMode="week" onChange={setCalendarRange} />
             </GlassCard>
 
-            <SectionHeader title="Storico" subtitle="Guide recenti e dettagli pagamento" action="Ultime guide" />
-            <GlassCard>
-              <View style={styles.historyList}>
-                {visibleHistory.map((lesson) => {
-                  const status = statusLabel(lesson.status);
-                  const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
-                  return (
-                    <View key={lesson.id} style={styles.historyRow}>
-                      <View style={styles.historyHeader}>
-                        <Text style={styles.historyTime}>
-                          {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-                        </Text>
-                        <Text style={styles.historySubtitle}>
-                          {lesson.instructor?.name ?? 'Istruttore'}
-                        </Text>
-                        {lessonPayment ? (
-                          <Text style={styles.historyPaymentMeta}>
-                            Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
-                            {lessonPayment.dueAmount.toFixed(2)}
+            <SectionHeader title="Agenda" hierarchy="tertiary" />
+            <GlassCard hierarchy="tertiary">
+              <View style={styles.agendaList}>
+                {agendaLoading
+                  ? Array.from({ length: 3 }).map((_, index) => (
+                      <SkeletonCard key={`agenda-range-skeleton-${index}`}>
+                        <SkeletonBlock width="56%" height={24} />
+                        <SkeletonBlock width="66%" />
+                        <SkeletonBlock width="78%" />
+                        <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+                      </SkeletonCard>
+                    ))
+                  : visibleAgendaLessons.map((lesson) => {
+                      const status = statusLabel(lesson.status);
+                      const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
+                      return (
+                        <View key={lesson.id} style={styles.agendaRow}>
+                          <View style={styles.agendaTop}>
+                            <Text style={styles.agendaTime}>
+                              {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                            </Text>
+                            <GlassBadge label={status.label} tone={status.tone} />
+                          </View>
+                          <Text style={styles.agendaInstructor}>
+                            {lesson.instructor?.name ?? 'Istruttore da assegnare'}
                           </Text>
-                        ) : null}
-                      </View>
-                      <View style={styles.historyStatusWrap}>
-                        <GlassBadge label={status.label} tone={status.tone} />
-                      </View>
-                      <View style={styles.historyCtaWrap}>
-                        <GlassButton
-                          label="Dettagli guida"
-                          onPress={() => handleOpenHistoryDetails(lesson)}
-                          fullWidth
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
-                {!history.length ? <Text style={styles.empty}>Nessuna guida passata.</Text> : null}
-                {hasMoreHistory ? (
-                  <View style={styles.historyMore}>
+                          <Text style={styles.agendaMeta}>
+                            Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
+                          </Text>
+                          {lessonPayment ? (
+                            <Text style={styles.historyPaymentMeta}>
+                              Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
+                              {lessonPayment.dueAmount.toFixed(2)}
+                            </Text>
+                          ) : null}
+                          <View style={styles.agendaCtaWrap}>
+                            <GlassButton
+                              label="Dettagli"
+                              tone="standard"
+                              onPress={() => handleOpenHistoryDetails(lesson)}
+                            />
+                          </View>
+                        </View>
+                      );
+                    })}
+                {!agendaLoading && !agendaLessons.length ? (
+                  <Text style={styles.empty}>Nessuna guida nel periodo selezionato.</Text>
+                ) : null}
+                {!agendaLoading && agendaLessons.length > 4 ? (
+                  <View style={styles.agendaToggleWrap}>
                     <GlassButton
-                      label="Carica altre"
-                      onPress={() =>
-                        setHistoryVisibleCount((prev) => Math.min(prev + historyPageSize, history.length))
-                      }
+                      label={showAllAgendaLessons ? 'Mostra meno' : 'Mostra di più'}
+                      onPress={() => setShowAllAgendaLessons((prev) => !prev)}
+                      tone="standard"
+                      fullWidth
                     />
                   </View>
                 ) : null}
               </View>
             </GlassCard>
+
           </>
         )}
       </ScrollView>
@@ -1747,6 +1543,14 @@ export const AllievoHomeScreen = () => {
         }
       >
         <View style={styles.sheetContent}>
+          {paymentProfile?.autoPaymentsEnabled ? (
+            <View style={styles.bookingCreditsInline}>
+              <Text style={styles.bookingCreditsInlineLabel}>Crediti disponibili</Text>
+              <Text style={styles.bookingCreditsInlineValue}>
+                {paymentProfile.lessonCreditsAvailable ?? 0}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.bookingFormBlock}>
             <PickerField
               label="Giorno"
@@ -1888,19 +1692,29 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   lessonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   lessonInfo: {
     flex: 1,
     minWidth: 0,
   },
   nextLessonActionWrap: {
-    width: 132,
-    flexShrink: 0,
-    paddingTop: 2,
+    width: '100%',
+    paddingTop: spacing.xs,
+  },
+  primaryLessonTime: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  primaryLessonMeta: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   lessonTime: {
     ...typography.subtitle,
@@ -1911,47 +1725,66 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  historyList: {
-    gap: spacing.md,
-  },
-  historyMore: {
-    marginTop: spacing.xs,
+  agendaList: {
+    gap: spacing.sm,
   },
   skeletonButton: {
     marginTop: spacing.xs,
   },
-  historyRow: {
-    borderRadius: 16,
+  agendaRow: {
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.58)',
-    paddingHorizontal: spacing.md,
+    borderColor: 'rgba(50, 77, 122, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     gap: spacing.xs,
+    shadowColor: 'rgba(15, 29, 51, 0.2)',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
-  historyHeader: {
-    gap: 2,
+  agendaTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
-  historyStatusWrap: {
-    paddingTop: 2,
+  agendaTime: {
+    ...typography.body,
+    color: colors.textPrimary,
+    flex: 1,
+    fontWeight: '600',
+    fontSize: 16,
+    lineHeight: 21,
   },
-  historyCtaWrap: {
-    width: '100%',
-    paddingTop: 2,
+  agendaInstructor: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  agendaMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  agendaCtaWrap: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  agendaToggleWrap: {
+    marginTop: spacing.xs,
   },
   historyPaymentMeta: {
     ...typography.caption,
     color: colors.textSecondary,
     textTransform: 'none',
     letterSpacing: 0,
-  },
-  historySubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  historyTime: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
+    fontSize: 11,
+    lineHeight: 15,
   },
   pickerRow: {
     flexDirection: 'row',
@@ -1993,16 +1826,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: '#FFFFFF',
   },
-  dayRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    width: '100%',
-  },
   suggestionBox: {
     marginTop: spacing.sm,
     gap: spacing.sm,
@@ -2011,22 +1834,31 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  bookingHint: {
-    ...typography.body,
+  bookingCreditsInline: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.38)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  bookingCreditsInlineLabel: {
+    ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    letterSpacing: 0,
+    textTransform: 'none',
+    fontWeight: '500',
   },
-  outstandingBlock: {
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  outstandingTitle: {
-    ...typography.subtitle,
+  bookingCreditsInlineValue: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
     color: colors.textPrimary,
-  },
-  outstandingText: {
-    ...typography.body,
-    color: colors.textSecondary,
+    letterSpacing: -0.2,
   },
   sheetContent: {
     gap: spacing.xs,
@@ -2115,6 +1947,8 @@ const styles = StyleSheet.create({
   empty: {
     ...typography.body,
     color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   pickerBackdrop: {
     flex: 1,
