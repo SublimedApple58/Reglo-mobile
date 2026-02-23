@@ -213,6 +213,8 @@ export const SettingsScreen = () => {
   const paymentStatusText = paymentProfile?.hasPaymentMethod
     ? 'Metodo di pagamento configurato'
     : 'Nessun metodo configurato';
+  const showStudentPaymentCard =
+    autoscuolaRole === 'STUDENT' && paymentProfile?.autoPaymentsEnabled === true;
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -655,7 +657,7 @@ export const SettingsScreen = () => {
               ) : null}
             </GlassCard>
 
-            {autoscuolaRole === 'STUDENT' ? (
+            {showStudentPaymentCard ? (
               <>
                 <GlassCard title="Pagamenti" subtitle="Metodo predefinito per addebiti automatici">
                   <View style={styles.statusRow}>
