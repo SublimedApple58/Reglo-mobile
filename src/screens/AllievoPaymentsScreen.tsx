@@ -529,6 +529,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.md,
+    paddingBottom: spacing.xxl * 2 + spacing.md,
   },
   header: {
     gap: spacing.xs,

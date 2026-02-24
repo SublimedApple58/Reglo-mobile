@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.lg,
-    paddingBottom: spacing.xxl * 2,
+    paddingBottom: spacing.xxl * 2 + spacing.md,
   },
   headerBlock: {
     gap: spacing.xs,
