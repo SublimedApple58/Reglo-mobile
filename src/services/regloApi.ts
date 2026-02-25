@@ -43,6 +43,8 @@ import {
   MobileBookingOptions,
   InstructorBookingSuggestion,
   ConfirmInstructorBookingInput,
+  DeleteAccountInput,
+  DeleteAccountPayload,
   StudentAppointmentPaymentHistoryItem,
   SelectCompanyInput,
   SelectCompanyPayload,
@@ -85,6 +87,11 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.clear();
       return payload;
     },
+    deleteAccount: async (input: DeleteAccountInput = { confirm: true }) =>
+      client.request<DeleteAccountPayload>('/api/mobile/auth/delete-account', {
+        method: 'POST',
+        body: input,
+      }),
     me: async () => client.request<MePayload>('/api/mobile/me'),
     selectCompany: async (input: SelectCompanyInput) => {
       const payload = await client.request<SelectCompanyPayload>('/api/mobile/auth/select-company', {

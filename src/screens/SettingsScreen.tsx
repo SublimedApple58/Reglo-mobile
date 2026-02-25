@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Platform,
@@ -187,6 +188,7 @@ export const SettingsScreen = () => {
   const [availabilityEnd, setAvailabilityEnd] = useState(buildTime(18, 0));
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
   const activeCompany = useMemo(
@@ -333,6 +335,36 @@ export const SettingsScreen = () => {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Elimina account',
+      'Questa azione è definitiva: perderai accesso all’app e i tuoi dati profilo verranno rimossi.',
+      [
+        {
+          text: 'Annulla',
+          style: 'cancel',
+        },
+        {
+          text: 'Elimina',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            setError(null);
+            setToast(null);
+            try {
+              await regloApi.deleteAccount({ confirm: true });
+              await signOut();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Errore durante eliminazione account');
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveOwnerSettings = async () => {
@@ -812,6 +844,17 @@ export const SettingsScreen = () => {
             <GlassCard title="Sessione" subtitle="Gestione account su questo dispositivo">
               <Text style={styles.inlineHint}>Esci in modo sicuro e torna alla schermata di accesso.</Text>
               <GlassButton label="Logout" onPress={handleSignOut} tone="danger" fullWidth />
+              <View style={styles.sessionDivider} />
+              <Text style={styles.inlineHint}>
+                Eliminazione account: rimuove accesso e dati profilo in modo irreversibile.
+              </Text>
+              <GlassButton
+                label={deletingAccount ? 'Eliminazione...' : 'Elimina account'}
+                onPress={handleDeleteAccount}
+                tone="danger"
+                fullWidth
+                disabled={deletingAccount}
+              />
             </GlassCard>
           </>
         )}
@@ -915,6 +958,11 @@ const styles = StyleSheet.create({
   inlineHint: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  sessionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(50, 77, 122, 0.12)',
+    marginVertical: spacing.sm,
   },
   companyRow: {
     flexDirection: 'row',

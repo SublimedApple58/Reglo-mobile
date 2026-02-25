@@ -56,6 +56,8 @@ export type MePayload = {
 };
 
 export type LogoutPayload = { success: true };
+export type DeleteAccountInput = { confirm: true };
+export type DeleteAccountPayload = { deleted: true };
 export type SelectCompanyPayload = { activeCompanyId: Uuid };
 
 export type AutoscuolaStudent = {
