@@ -2,8 +2,11 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
   Animated,
   Dimensions,
+  Keyboard,
+  KeyboardEvent,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -46,8 +49,10 @@ export const BottomSheet = ({
   const hasFooter = Boolean(footer);
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const lastDrag = useRef(0);
   const screenHeight = Dimensions.get('window').height;
@@ -106,16 +111,81 @@ export const BottomSheet = ({
       setMounted(false);
       resetDrag();
       translateY.setValue(screenHeight);
+      keyboardOffset.setValue(0);
+      setKeyboardVisible(false);
       onClosed?.();
     });
-  }, [visible, mounted, screenHeight, backdropOpacity, translateY]);
+  }, [visible, mounted, screenHeight, backdropOpacity, translateY, keyboardOffset]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const resolveKeyboardOffset = (event: KeyboardEvent) => {
+      const screenY = event.endCoordinates?.screenY;
+      const byHeight = Math.max(0, (event.endCoordinates?.height ?? 0) - bottomInset);
+      if (typeof screenY === 'number') {
+        const overlap = Math.max(0, screenHeight - screenY);
+        const byScreen = Math.max(0, overlap - bottomInset);
+        return Math.max(byScreen, byHeight);
+      }
+      return byHeight;
+    };
+
+    const animateKeyboard = (toValue: number, event?: KeyboardEvent) => {
+      const duration = Platform.OS === 'ios' ? (event?.duration ?? 220) : (event?.duration ?? 180);
+      Animated.timing(keyboardOffset, {
+        toValue,
+        duration,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const onShowOrChange = (event: KeyboardEvent) => {
+      const nextOffset = resolveKeyboardOffset(event);
+      setKeyboardVisible(nextOffset > 0);
+      animateKeyboard(nextOffset, event);
+    };
+
+    const onHide = (event: KeyboardEvent) => {
+      setKeyboardVisible(false);
+      animateKeyboard(0, event);
+    };
+
+    const subs =
+      Platform.OS === 'ios'
+        ? [
+            Keyboard.addListener('keyboardWillShow', onShowOrChange),
+            Keyboard.addListener('keyboardWillChangeFrame', onShowOrChange),
+            Keyboard.addListener('keyboardDidShow', onShowOrChange),
+            Keyboard.addListener('keyboardWillHide', onHide),
+            Keyboard.addListener('keyboardDidHide', onHide),
+          ]
+        : [
+            Keyboard.addListener('keyboardDidShow', onShowOrChange),
+            Keyboard.addListener('keyboardDidHide', onHide),
+          ];
+
+    return () => {
+      subs.forEach((sub) => sub.remove());
+    };
+  }, [mounted, bottomInset, keyboardOffset]);
+
+  const animatedSheetTranslate = useMemo(
+    () =>
+      Animated.add(
+        Animated.add(translateY, dragY),
+        Animated.multiply(keyboardOffset, -1),
+      ),
+    [translateY, dragY, keyboardOffset],
+  );
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => dragEnabled && !closeDisabled,
+        onStartShouldSetPanResponder: () =>
+          dragEnabled && !closeDisabled && !keyboardVisible,
         onMoveShouldSetPanResponder: (_, gesture) =>
-          dragEnabled && !closeDisabled && Math.abs(gesture.dy) > 4,
+          dragEnabled && !closeDisabled && !keyboardVisible && Math.abs(gesture.dy) > 4,
         onPanResponderMove: (_, gesture) => {
           if (!dragEnabled || closeDisabled) return;
           const drag = gesture.dy < 0 ? gesture.dy * 0.2 : gesture.dy;
@@ -138,7 +208,7 @@ export const BottomSheet = ({
           }
         },
       }),
-    [dragEnabled, closeDisabled, dragY]
+    [dragEnabled, closeDisabled, dragY, keyboardVisible]
   );
 
   if (!mounted) return null;
@@ -164,7 +234,7 @@ export const BottomSheet = ({
             hasFooter ? styles.sheetCardWithFooter : null,
             { paddingBottom: hasFooter ? 0 : cardBottomPadding },
             hasFooter ? { minHeight: minHeight ?? 320 } : null,
-            { transform: [{ translateY: Animated.add(translateY, dragY) }] },
+            { transform: [{ translateY: animatedSheetTranslate }] },
           ]}
         >
           <View style={styles.dragZone} {...panResponder.panHandlers} />

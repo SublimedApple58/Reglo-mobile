@@ -38,19 +38,16 @@ export const OwnerInstructorScreen = () => {
       to.setDate(to.getDate() + 7);
       to.setHours(23, 59, 59, 999);
 
-      const [instructorsResponse, appointmentsResponse] = await Promise.all([
-        regloApi.getInstructors(),
-        regloApi.getAppointments({
+      const agendaBootstrap = await regloApi.getAgendaBootstrap({
           instructorId: selectedInstructorId ?? undefined,
           from: from.toISOString(),
           to: to.toISOString(),
-          limit: 500,
-        }),
-      ]);
-      setInstructors(instructorsResponse);
-      setAppointments(appointmentsResponse);
-      if (!selectedInstructorId && instructorsResponse.length) {
-        setSelectedInstructorId(instructorsResponse[0].id);
+          limit: 180,
+      });
+      setInstructors(agendaBootstrap.instructors);
+      setAppointments(agendaBootstrap.appointments);
+      if (!selectedInstructorId && agendaBootstrap.instructors.length) {
+        setSelectedInstructorId(agendaBootstrap.instructors[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore nel caricamento');

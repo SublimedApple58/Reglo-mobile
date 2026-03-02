@@ -1,5 +1,7 @@
 import { authStorage, createApiClient } from './apiClient';
 import {
+  AgendaBootstrapParams,
+  AgendaBootstrapPayload,
   AuthPayload,
   AutoscuolaAppointment,
   AutoscuolaAppointmentWithRelations,
@@ -37,12 +39,15 @@ import {
   MobileStudentPaymentProfile,
   MobileSetupIntentPayload,
   MobileConfirmPaymentMethodPayload,
+  MobileRemovePaymentMethodPayload,
   MobilePreparePayNowPayload,
   MobileFinalizePayNowPayload,
   MobileAppointmentPaymentDocument,
   MobileBookingOptions,
+  SuggestInstructorBookingInput,
   InstructorBookingSuggestion,
   ConfirmInstructorBookingInput,
+  LatestStudentAppointmentNote,
   DeleteAccountInput,
   DeleteAccountPayload,
   StudentAppointmentPaymentHistoryItem,
@@ -150,6 +155,17 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaAppointmentWithRelations[]>('/api/autoscuole/appointments', {
         params,
       }),
+    getAgendaBootstrap: async (params: AgendaBootstrapParams) =>
+      client.request<AgendaBootstrapPayload>('/api/autoscuole/agenda/bootstrap', {
+        params,
+      }),
+    getLatestStudentAppointmentNote: async (studentId: string, before?: string) =>
+      client.request<LatestStudentAppointmentNote | null>(
+        '/api/autoscuole/appointments/latest-note',
+        {
+          params: before ? { studentId, before } : { studentId },
+        }
+      ),
     createAppointment: async (input: CreateAppointmentInput) =>
       client.request<AutoscuolaAppointment>('/api/autoscuole/appointments', {
         method: 'POST',
@@ -240,7 +256,7 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<MobileBookingOptions>('/api/autoscuole/booking-options', {
         params: { studentId },
       }),
-    suggestInstructorBooking: async (input: { studentId: string }) =>
+    suggestInstructorBooking: async (input: SuggestInstructorBookingInput) =>
       client.request<InstructorBookingSuggestion>('/api/autoscuole/instructor-bookings/suggest', {
         method: 'POST',
         body: input,
@@ -292,6 +308,14 @@ export const createRegloApi = (baseUrl?: string) => {
         {
           method: 'POST',
           body: input,
+        }
+      ),
+    removePaymentMethod: async () =>
+      client.request<MobileRemovePaymentMethodPayload>(
+        '/api/mobile/payments/remove-method',
+        {
+          method: 'POST',
+          body: {},
         }
       ),
     preparePayNow: async (appointmentId: string) =>

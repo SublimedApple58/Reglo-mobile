@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Keyboard,
+  KeyboardEvent,
   Modal,
   Platform,
   Pressable,
@@ -8,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -145,6 +148,15 @@ const durationLabel = (lesson: AutoscuolaAppointmentWithRelations) => {
 const getLessonEnd = (lesson: AutoscuolaAppointmentWithRelations) =>
   lesson.endsAt ? new Date(lesson.endsAt) : new Date(new Date(lesson.startsAt).getTime() + 30 * 60 * 1000);
 
+const isLessonInProgressWindow = (
+  lesson: AutoscuolaAppointmentWithRelations,
+  now: Date,
+) => {
+  const startsAt = new Date(lesson.startsAt);
+  const endsAt = getLessonEnd(lesson);
+  return now >= startsAt && now < endsAt;
+};
+
 const computeStatusWindow = (lesson: AutoscuolaAppointmentWithRelations) => {
   const startsAt = new Date(lesson.startsAt);
   const opensAt = new Date(startsAt.getTime() - 10 * 60 * 1000);
@@ -158,6 +170,13 @@ const toClockLabel = (value: Date) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+const toDateOnlyString = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getActionAvailability = (
   lesson: AutoscuolaAppointmentWithRelations,
@@ -186,11 +205,11 @@ const getActionAvailability = (
 const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Date) => {
   const status = normalizeStatus(lesson.status);
   if (!VISIBLE_LESSON_STATUSES.has(status)) return null;
-  const startsAt = new Date(lesson.startsAt);
-  const endsAt = getLessonEnd(lesson);
-
-  if (status === 'checked_in' && now >= startsAt && now < endsAt) {
-    return { label: 'In corso', tone: 'live' as const };
+  if (isLessonInProgressWindow(lesson, now)) {
+    if (status === 'checked_in') {
+      return { label: 'In corso', tone: 'live' as const };
+    }
+    return { label: 'In corso', tone: 'scheduled' as const };
   }
   if (status === 'checked_in') {
     return { label: 'Confermata', tone: 'confirmed' as const };
@@ -249,14 +268,13 @@ const pickFeaturedLesson = (
 ) => {
   const active = source.filter((item) => VISIBLE_LESSON_STATUSES.has(normalizeStatus(item.status)));
   const inProgress = [...active]
-    .filter((item) => {
-      const status = normalizeStatus(item.status);
-      if (status !== 'checked_in') return false;
-      const startsAt = new Date(item.startsAt);
-      const endsAt = getLessonEnd(item);
-      return now >= startsAt && now < endsAt;
-    })
-    .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b))[0];
+    .filter((item) => isLessonInProgressWindow(item, now))
+    .sort((a, b) => {
+      const aCheckedIn = normalizeStatus(a.status) === 'checked_in' ? 1 : 0;
+      const bCheckedIn = normalizeStatus(b.status) === 'checked_in' ? 1 : 0;
+      if (aCheckedIn !== bCheckedIn) return bCheckedIn - aCheckedIn;
+      return getStartsAtTs(a) - getStartsAtTs(b);
+    })[0];
   if (inProgress) return inProgress;
 
   return [...active]
@@ -347,6 +365,7 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 
 export const IstruttoreHomeScreen = () => {
   const { instructorId } = useSession();
+  const { height: windowHeight } = useWindowDimensions();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
@@ -378,8 +397,16 @@ export const IstruttoreHomeScreen = () => {
   });
   const [bookingDuration, setBookingDuration] = useState<number>(60);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
+  const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
+  const [latestStudentLessonNote, setLatestStudentLessonNote] = useState<{
+    startsAt: string;
+    note: string;
+  } | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const rangeKeyRef = useRef<string | null>(null);
   const loadRequestRef = useRef(0);
+  const lessonSheetScrollRef = useRef<ScrollView | null>(null);
+  const bookingSheetScrollRef = useRef<ScrollView | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
     if (!instructorId) return [];
@@ -404,38 +431,39 @@ export const IstruttoreHomeScreen = () => {
       const featuredFrom = new Date();
       featuredFrom.setDate(featuredFrom.getDate() - 1);
       featuredFrom.setHours(0, 0, 0, 0);
+      const featuredTo = new Date();
+      featuredTo.setDate(featuredTo.getDate() + 60);
+      featuredTo.setHours(23, 59, 59, 999);
 
       const [
-        appointmentsResponse,
+        agendaBootstrap,
         featuredAppointmentsResponse,
         settingsResponse,
-        studentsResponse,
-        vehiclesResponse,
       ] =
         await Promise.all([
-          regloApi.getAppointments({
+          regloApi.getAgendaBootstrap({
             instructorId,
             from: from.toISOString(),
             to: to.toISOString(),
-            limit: 400,
+            limit: 280,
           }),
           regloApi.getAppointments({
             instructorId,
             from: featuredFrom.toISOString(),
-            limit: 500,
+            to: featuredTo.toISOString(),
+            limit: 220,
+            light: true,
           }),
           regloApi.getAutoscuolaSettings(),
-          regloApi.getStudents(),
-          regloApi.getVehicles(),
         ]);
       if (requestId !== loadRequestRef.current) {
         return [];
       }
       setSettings(settingsResponse);
-      setStudents(studentsResponse);
-      setVehicles(vehiclesResponse);
+      setStudents(agendaBootstrap.students);
+      setVehicles(agendaBootstrap.vehicles);
       const nextAppointments = dedupeAppointments(
-        appointmentsResponse.filter((item) => item.instructorId === instructorId),
+        agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
       );
       const nextFeaturedAppointments = dedupeAppointments(
         featuredAppointmentsResponse.filter((item) => item.instructorId === instructorId),
@@ -469,6 +497,39 @@ export const IstruttoreHomeScreen = () => {
     }, 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const resolveKeyboardHeight = (event: KeyboardEvent) => {
+      const screenY = event.endCoordinates?.screenY;
+      if (typeof screenY === 'number') {
+        return Math.max(0, windowHeight - screenY);
+      }
+      return Math.max(0, event.endCoordinates?.height ?? 0);
+    };
+
+    const onShowOrChange = (event: KeyboardEvent) => {
+      setKeyboardHeight(resolveKeyboardHeight(event));
+    };
+
+    const onHide = () => setKeyboardHeight(0);
+
+    const subs =
+      Platform.OS === 'ios'
+        ? [
+            Keyboard.addListener('keyboardWillShow', onShowOrChange),
+            Keyboard.addListener('keyboardWillChangeFrame', onShowOrChange),
+            Keyboard.addListener('keyboardWillHide', onHide),
+            Keyboard.addListener('keyboardDidHide', onHide),
+          ]
+        : [
+            Keyboard.addListener('keyboardDidShow', onShowOrChange),
+            Keyboard.addListener('keyboardDidHide', onHide),
+          ];
+
+    return () => {
+      subs.forEach((sub) => sub.remove());
+    };
+  }, [windowHeight]);
 
   const now = useMemo(() => new Date(clockTick), [clockTick]);
   const bookingActors = settings?.appBookingActors ?? 'students';
@@ -537,6 +598,7 @@ export const IstruttoreHomeScreen = () => {
     setBookingDate(nowDate);
     setBookingStartTime(roundedNow);
     setGuidedSuggestion(null);
+    setGuidedPreferredDate(null);
     setBookingSheetOpen(true);
   }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles]);
 
@@ -548,12 +610,23 @@ export const IstruttoreHomeScreen = () => {
     setBookingPendingAction('suggest');
     setToast(null);
     try {
-      const suggestion = await regloApi.suggestInstructorBooking({ studentId: bookingStudentId });
+      const requestedDate = guidedPreferredDate ? toDateOnlyString(guidedPreferredDate) : undefined;
+      const suggestion = await regloApi.suggestInstructorBooking({
+        studentId: bookingStudentId,
+        preferredDate: requestedDate,
+      });
       setGuidedSuggestion(suggestion);
       setBookingVehicleId(suggestion.vehicleId);
       setBookingDuration(suggestion.durationMinutes);
       setBookingLessonType(suggestion.suggestedLessonType || 'guida');
-      setToast({ text: 'Slot suggerito pronto. Conferma per inviare la proposta.', tone: 'success' });
+      const suggestedDate = toDateOnlyString(new Date(suggestion.startsAt));
+      const usedFallbackDate = Boolean(requestedDate && requestedDate !== suggestedDate);
+      setToast({
+        text: usedFallbackDate
+          ? 'Nessuno slot nella data scelta: proposta sul primo giorno utile.'
+          : 'Slot suggerito pronto. Conferma per inviare la proposta.',
+        tone: 'success',
+      });
     } catch (err) {
       setGuidedSuggestion(null);
       setToast({
@@ -563,7 +636,7 @@ export const IstruttoreHomeScreen = () => {
     } finally {
       setBookingPendingAction(null);
     }
-  }, [bookingStudentId]);
+  }, [bookingStudentId, guidedPreferredDate]);
 
   const handleConfirmInstructorBooking = useCallback(async () => {
     if (!bookingStudentId) {
@@ -651,10 +724,68 @@ export const IstruttoreHomeScreen = () => {
     return getActionAvailability(featuredLesson, now);
   }, [featuredLesson, now]);
 
+  useEffect(() => {
+    let active = true;
+    if (!featuredLesson) {
+      setLatestStudentLessonNote(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadLatestNote = async () => {
+      try {
+        const latestNote = await regloApi.getLatestStudentAppointmentNote(
+          featuredLesson.studentId,
+          featuredLesson.startsAt,
+        );
+        if (!active) return;
+        setLatestStudentLessonNote(
+          latestNote
+            ? {
+                startsAt: latestNote.startsAt,
+                note: latestNote.note,
+              }
+            : null,
+        );
+      } catch {
+        if (!active) return;
+        setLatestStudentLessonNote(null);
+      }
+    };
+
+    loadLatestNote();
+    return () => {
+      active = false;
+    };
+  }, [featuredLesson?.id, featuredLesson?.studentId, featuredLesson?.startsAt]);
+
   const canRunStatusAction = Boolean(sheetActionAvailability?.enabled);
   const canRepositionSheetLesson = sheetLesson
     ? canOperationalReposition(sheetLesson, now)
     : false;
+  const lessonSheetMaxHeight = useMemo(() => {
+    const base = Math.max(300, Math.min(windowHeight * 0.52, windowHeight - 350));
+    if (!keyboardHeight) return base;
+    return Math.max(base, Math.min(windowHeight * 0.72, windowHeight - 160));
+  }, [windowHeight, keyboardHeight]);
+  const lessonSheetMinHeight = useMemo(
+    () =>
+      Math.max(360, Math.min(windowHeight * 0.62, windowHeight - 180)) +
+      Math.min(220, Math.round(keyboardHeight * 0.6)),
+    [windowHeight, keyboardHeight],
+  );
+  const bookingSheetMaxHeight = useMemo(() => {
+    const base = Math.max(340, Math.min(windowHeight * 0.64, windowHeight - 260));
+    if (!keyboardHeight) return base;
+    return Math.max(base, Math.min(windowHeight * 0.78, windowHeight - 120));
+  }, [windowHeight, keyboardHeight]);
+  const bookingSheetMinHeight = useMemo(
+    () =>
+      Math.max(420, Math.min(windowHeight * 0.72, windowHeight - 120)) +
+      Math.min(180, Math.round(keyboardHeight * 0.45)),
+    [windowHeight, keyboardHeight],
+  );
   const featuredCheckinHint = featuredLesson ? getCheckinStateText(featuredLesson, now) : null;
   const sheetStateMeta = useMemo(
     () => (sheetLesson ? getLessonStateMeta(sheetLesson, now) : null),
@@ -981,6 +1112,15 @@ export const IstruttoreHomeScreen = () => {
                 <Text style={styles.primaryLessonMeta}>
                   Veicolo: {featuredLesson.vehicle?.name ?? 'Da assegnare'}
                 </Text>
+                {latestStudentLessonNote ? (
+                  <View style={styles.lastNoteCard}>
+                    <Text style={styles.lastNoteLabel}>
+                      Ultime note allievo · {formatDay(latestStudentLessonNote.startsAt)} ·{' '}
+                      {formatTime(latestStudentLessonNote.startsAt)}
+                    </Text>
+                    <Text style={styles.lastNoteText}>{latestStudentLessonNote.note}</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={styles.topActions}>
                 <View style={styles.topActionsRow}>
@@ -1120,6 +1260,7 @@ export const IstruttoreHomeScreen = () => {
         }}
         closeDisabled={isPending}
         title="Gestisci guida"
+        minHeight={lessonSheetMinHeight}
         footer={
           <View style={styles.sheetFooterActions}>
             <GlassButton
@@ -1168,7 +1309,15 @@ export const IstruttoreHomeScreen = () => {
         }
       >
         {sheetLesson ? (
-          <View style={styles.sheetContent}>
+          <ScrollView
+            ref={lessonSheetScrollRef}
+            style={[styles.sheetScroll, { maxHeight: lessonSheetMaxHeight }]}
+            contentContainerStyle={styles.sheetContentScroll}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            showsVerticalScrollIndicator={false}
+          >
             <Text style={styles.sheetMeta}>
               {formatDay(sheetLesson.startsAt)} · {formatTime(sheetLesson.startsAt)} · {durationLabel(sheetLesson)}
             </Text>
@@ -1213,9 +1362,14 @@ export const IstruttoreHomeScreen = () => {
                 numberOfLines={4}
                 style={styles.notesInput}
                 editable={!isPending}
+                onFocus={() => {
+                  setTimeout(() => {
+                    lessonSheetScrollRef.current?.scrollToEnd({ animated: true });
+                  }, 60);
+                }}
               />
             </View>
-          </View>
+          </ScrollView>
         ) : null}
       </BottomSheet>
 
@@ -1228,9 +1382,18 @@ export const IstruttoreHomeScreen = () => {
         }}
         closeDisabled={Boolean(bookingPendingAction)}
         title="Nuova prenotazione istruttore"
+        minHeight={bookingSheetMinHeight}
         footer={bookingSheetFooter}
       >
-        <View style={styles.sheetContent}>
+        <ScrollView
+          ref={bookingSheetScrollRef}
+          style={[styles.sheetScroll, { maxHeight: bookingSheetMaxHeight }]}
+          contentContainerStyle={styles.sheetContentScroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.sheetMeta}>
             Modalità attiva: {INSTRUCTOR_MODE_LABEL[instructorBookingMode]}.
           </Text>
@@ -1248,6 +1411,12 @@ export const IstruttoreHomeScreen = () => {
               value={bookingStudentId}
               options={bookingStudentOptions}
               onChange={resetGuidedSuggestionForStudent}
+              persistSelectedLabel={false}
+              onFocus={() => {
+                setTimeout(() => {
+                  bookingSheetScrollRef.current?.scrollTo({ y: 0, animated: true });
+                }, 40);
+              }}
               disabled={Boolean(bookingPendingAction) || !students.length}
               emptyText="Nessun allievo trovato."
             />
@@ -1263,6 +1432,31 @@ export const IstruttoreHomeScreen = () => {
 
           {instructorBookingMode === 'guided_proposal' ? (
             <>
+              <View style={styles.pickerRow}>
+                <PickerField
+                  label={guidedPreferredDate ? 'Data preferita' : 'Data (opzionale)'}
+                  value={guidedPreferredDate ?? new Date()}
+                  mode="date"
+                  onChange={(nextDate) => {
+                    setGuidedPreferredDate(nextDate);
+                    setGuidedSuggestion(null);
+                  }}
+                />
+              </View>
+              <GlassButton
+                label={
+                  guidedPreferredDate
+                    ? 'Rimuovi data preferita'
+                    : 'Lascia scegliere al motore'
+                }
+                tone="standard"
+                onPress={() => {
+                  setGuidedPreferredDate(null);
+                  setGuidedSuggestion(null);
+                }}
+                disabled={Boolean(bookingPendingAction)}
+                fullWidth
+              />
               {guidedSuggestion ? (
                 <View style={styles.guidedSuggestionCard}>
                   <Text style={styles.guidedSuggestionTitle}>Slot suggerito dal motore</Text>
@@ -1373,7 +1567,7 @@ export const IstruttoreHomeScreen = () => {
               </ScrollView>
             </View>
           ) : null}
-        </View>
+        </ScrollView>
       </BottomSheet>
     </Screen>
   );
@@ -1447,6 +1641,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  lastNoteCard: {
+    marginTop: spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(50, 77, 122, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: 4,
+  },
+  lastNoteLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  lastNoteText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   bookingModeInfo: {
     ...typography.body,
@@ -1561,6 +1775,13 @@ const styles = StyleSheet.create({
   },
   sheetContent: {
     gap: spacing.sm,
+  },
+  sheetScroll: {
+    width: '100%',
+  },
+  sheetContentScroll: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   sheetMeta: {
     ...typography.body,

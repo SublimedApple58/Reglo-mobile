@@ -15,9 +15,11 @@ type SearchableSelectProps = {
   value: string | null;
   options: SearchableSelectOption[];
   onChange: (value: string) => void;
+  onFocus?: () => void;
   disabled?: boolean;
   emptyText?: string;
   maxSuggestions?: number;
+  persistSelectedLabel?: boolean;
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -28,9 +30,11 @@ export const SearchableSelect = ({
   value,
   options,
   onChange,
+  onFocus,
   disabled = false,
   emptyText = 'Nessun risultato.',
   maxSuggestions = 8,
+  persistSelectedLabel = true,
 }: SearchableSelectProps) => {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -43,9 +47,9 @@ export const SearchableSelect = ({
 
   useEffect(() => {
     if (!focused) {
-      setQuery(selectedOption?.label ?? '');
+      setQuery(persistSelectedLabel ? selectedOption?.label ?? '' : '');
     }
-  }, [focused, selectedOption]);
+  }, [focused, selectedOption, persistSelectedLabel]);
 
   const filteredOptions = useMemo(() => {
     const needle = normalize(query);
@@ -76,7 +80,10 @@ export const SearchableSelect = ({
           onChangeText={setQuery}
           placeholder={placeholder}
           editable={!disabled}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
           onBlur={() => {
             setTimeout(() => setFocused(false), 120);
           }}
@@ -119,7 +126,7 @@ export const SearchableSelect = ({
                       key={option.value}
                       onPress={() => {
                         onChange(option.value);
-                        setQuery(option.label);
+                        setQuery(persistSelectedLabel ? option.label : '');
                         setFocused(false);
                       }}
                       style={({ pressed }) => [

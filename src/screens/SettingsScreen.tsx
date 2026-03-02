@@ -540,6 +540,36 @@ export const SettingsScreen = () => {
     }
   };
 
+  const handleRemovePaymentMethod = () => {
+    if (autoscuolaRole !== 'STUDENT' || !paymentProfile?.hasPaymentMethod) return;
+    Alert.alert(
+      'Rimuovi metodo',
+      'Rimuovendo il metodo di pagamento non potrai prenotare nuove guide finché non ne aggiungi uno nuovo.',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Rimuovi',
+          style: 'destructive',
+          onPress: async () => {
+            setPaymentLoading(true);
+            setError(null);
+            setToast(null);
+            try {
+              await regloApi.removePaymentMethod();
+              const profile = await regloApi.getPaymentProfile();
+              setPaymentProfile(profile);
+              setToast({ text: 'Metodo di pagamento rimosso', tone: 'success' });
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Errore rimuovendo il metodo');
+            } finally {
+              setPaymentLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleOpenInstructorManage = () => {
     router.push('/(tabs)/role');
   };
@@ -730,6 +760,15 @@ export const SettingsScreen = () => {
                     tone={paymentProfile?.hasPaymentMethod ? 'standard' : 'primary'}
                     fullWidth
                   />
+                  {paymentProfile?.hasPaymentMethod ? (
+                    <GlassButton
+                      label={paymentLoading ? 'Attendi...' : 'Rimuovi metodo'}
+                      onPress={handleRemovePaymentMethod}
+                      disabled={paymentLoading}
+                      tone="danger"
+                      fullWidth
+                    />
+                  ) : null}
                 </GlassCard>
               </>
             ) : null}

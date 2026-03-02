@@ -147,6 +147,37 @@ export type GetAppointmentsParams = {
   status?: string;
   type?: string;
   limit?: number;
+  light?: boolean;
+};
+
+export type LatestStudentAppointmentNote = {
+  appointmentId: Uuid;
+  startsAt: IsoDate;
+  note: string;
+};
+
+export type AgendaBootstrapParams = {
+  from: IsoDate;
+  to: IsoDate;
+  instructorId?: Uuid;
+  vehicleId?: Uuid;
+  status?: string;
+  type?: string;
+  limit?: number;
+};
+
+export type AgendaBootstrapPayload = {
+  appointments: AutoscuolaAppointmentWithRelations[];
+  students: AutoscuolaStudent[];
+  instructors: AutoscuolaInstructor[];
+  vehicles: AutoscuolaVehicle[];
+  meta: {
+    from: IsoDate;
+    to: IsoDate;
+    generatedAt: IsoDate;
+    count: number;
+    cache?: boolean;
+  };
 };
 
 export type AutoscuolaOverview = {
@@ -401,6 +432,11 @@ export type InstructorBookingSuggestion = {
   durationMinutes: number;
 };
 
+export type SuggestInstructorBookingInput = {
+  studentId: Uuid;
+  preferredDate?: string;
+};
+
 export type ConfirmInstructorBookingInput = {
   studentId: Uuid;
   startsAt: IsoDate;
@@ -475,6 +511,10 @@ export type MobileSetupIntentPayload = {
 export type MobileConfirmPaymentMethodPayload = {
   id: string;
   paymentMethod: PaymentMethodSummary | null;
+};
+
+export type MobileRemovePaymentMethodPayload = {
+  removed: boolean;
 };
 
 export type MobilePreparePayNowPayload = {
