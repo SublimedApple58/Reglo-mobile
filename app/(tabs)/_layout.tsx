@@ -214,8 +214,6 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: true,
-          lazy: true,
-          freezeOnBlur: true,
         }}
       >
         <Tabs.Screen
