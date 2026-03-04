@@ -295,7 +295,9 @@ export const SettingsScreen = () => {
         const linkedStudent = findLinkedStudent(studentsList, user);
         setStudentProfile(linkedStudent);
         if (linkedStudent?.id) {
-          await loadStudentAvailabilityPreset(linkedStudent.id);
+          loadStudentAvailabilityPreset(linkedStudent.id).catch((presetError) => {
+            console.warn('[Settings] Failed to load student availability preset', presetError);
+          });
         }
       } else {
         setPaymentProfile(null);
