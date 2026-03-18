@@ -303,6 +303,36 @@ export type UpdateVehicleInput = {
   status?: string;
 };
 
+export type WeeklyAvailabilityOverride = {
+  id: Uuid;
+  companyId: Uuid;
+  ownerType: string;
+  ownerId: Uuid;
+  weekStart: IsoDate;
+  daysOfWeek: number[];
+  startMinutes: number;
+  endMinutes: number;
+  startMinutes2?: number | null;
+  endMinutes2?: number | null;
+};
+
+export type SetWeeklyAvailabilityOverrideInput = {
+  ownerType: 'instructor' | 'vehicle';
+  ownerId: Uuid;
+  weekStart: string; // YYYY-MM-DD Monday
+  daysOfWeek: number[];
+  startMinutes: number;
+  endMinutes: number;
+  startMinutes2?: number;
+  endMinutes2?: number;
+};
+
+export type DeleteWeeklyAvailabilityOverrideInput = {
+  ownerType: 'instructor' | 'vehicle';
+  ownerId: Uuid;
+  weekStart: string;
+};
+
 export type CreateAvailabilitySlotsInput = {
   ownerType: "student" | "instructor" | "vehicle";
   ownerId: Uuid;
@@ -397,6 +427,7 @@ export type AutoscuolaSettings = {
   studentReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
   instructorReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
   autoPaymentsEnabled?: boolean;
+  lessonCreditFlowEnabled?: boolean;
   lessonPrice30?: number;
   lessonPrice60?: number;
   penaltyCutoffHoursPreset?: 1 | 2 | 4 | 6 | 12 | 24 | 48;
@@ -499,6 +530,7 @@ export type StudentAppointmentPaymentHistoryItem = {
 
 export type MobileStudentPaymentProfile = {
   autoPaymentsEnabled: boolean;
+  lessonCreditFlowEnabled: boolean;
   hasPaymentMethod: boolean;
   paymentMethod: PaymentMethodSummary | null;
   blockedByInsoluti: boolean;

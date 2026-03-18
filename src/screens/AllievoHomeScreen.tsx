@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   AppState,
   Image,
   Linking,
@@ -291,10 +292,17 @@ export const AllievoHomeScreen = () => {
     [bookingOptions?.lessonTypeSelectionEnabled, settings?.lessonPolicyEnabled],
   );
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
+  const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
   const requiresPaymentMethodForBooking = Boolean(
     paymentProfile?.autoPaymentsEnabled &&
+      !creditFlowEnabled &&
       !paymentProfile?.hasPaymentMethod &&
+      !hasLessonCredits
+  );
+  const requiresCreditsForBooking = Boolean(
+    creditFlowEnabled &&
+      !paymentProfile?.autoPaymentsEnabled &&
       !hasLessonCredits
   );
 
@@ -688,6 +696,13 @@ export const AllievoHomeScreen = () => {
       });
       return;
     }
+    if (requiresCreditsForBooking) {
+      setToast({
+        text: 'Non hai crediti guida disponibili. Contatta la tua autoscuola.',
+        tone: 'info',
+      });
+      return;
+    }
     if (paymentProfile?.blockedByInsoluti) {
       setToast({
         text: 'Hai pagamenti insoluti. Salda prima di prenotare una nuova guida.',
@@ -919,7 +934,7 @@ export const AllievoHomeScreen = () => {
   };
 
 
-  const handleCancel = async (appointmentId: string) => {
+  const executeCancel = async (appointmentId: string) => {
     setToast(null);
     setCancellingAppointmentId(appointmentId);
     try {
@@ -936,6 +951,35 @@ export const AllievoHomeScreen = () => {
     } finally {
       setCancellingAppointmentId(null);
     }
+  };
+
+  const handleCancel = (appointmentId: string) => {
+    const appointment = appointments.find((a) => a.id === appointmentId);
+    const cutoffHours = settings?.penaltyCutoffHoursPreset ?? 0;
+    const autoPayments = settings?.autoPaymentsEnabled ?? false;
+    const creditFlow = settings?.lessonCreditFlowEnabled ?? false;
+
+    if (appointment && cutoffHours > 0 && (autoPayments || creditFlow)) {
+      const startsAt = new Date(appointment.startsAt).getTime();
+      const cutoffTime = startsAt - cutoffHours * 60 * 60 * 1000;
+      if (Date.now() >= cutoffTime) {
+        Alert.alert(
+          'Annullare la guida?',
+          `Mancano meno di ${cutoffHours} ore alla guida. Annullando, la lezione verrà comunque addebitata.`,
+          [
+            { text: 'Indietro', style: 'cancel' },
+            {
+              text: 'Annulla guida',
+              style: 'destructive',
+              onPress: () => executeCancel(appointmentId),
+            },
+          ],
+        );
+        return;
+      }
+    }
+
+    executeCancel(appointmentId);
   };
 
   const handleOpenHistoryDetails = (lesson: AutoscuolaAppointmentWithRelations) => {
@@ -1302,11 +1346,11 @@ export const AllievoHomeScreen = () => {
             {!studentBookingDisabledByPolicy ? (
               <Pressable
                 onPress={blockedByInsoluti ? handlePayNow : openPreferences}
-                disabled={blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking}
+                disabled={blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking)}
                 style={({ pressed }) => [
                   styles.ctaButton,
                   pressed && styles.ctaButtonPressed,
-                  (blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking) && styles.ctaButtonDisabled,
+                  (blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking)) && styles.ctaButtonDisabled,
                 ]}
               >
                 <Text style={styles.ctaButtonLabel}>
@@ -1314,7 +1358,9 @@ export const AllievoHomeScreen = () => {
                     ? payNowLoading
                       ? 'Attendi...'
                       : 'Salda ora'
-                    : 'Prenota nuova guida'}
+                    : requiresCreditsForBooking
+                      ? 'Crediti guida esauriti'
+                      : 'Prenota nuova guida'}
                 </Text>
               </Pressable>
             ) : null}
@@ -1653,10 +1699,10 @@ export const AllievoHomeScreen = () => {
         closeDisabled={bookingLoading}
         showHandle
         titleRight={
-          paymentProfile?.autoPaymentsEnabled ? (
+          (paymentProfile?.autoPaymentsEnabled || creditFlowEnabled) ? (
             <View style={styles.bookingCreditsBadge}>
               <Text style={styles.bookingCreditsBadgeText}>
-                Crediti: {paymentProfile.lessonCreditsAvailable ?? 0}
+                Crediti: {paymentProfile?.lessonCreditsAvailable ?? 0}
               </Text>
             </View>
           ) : undefined

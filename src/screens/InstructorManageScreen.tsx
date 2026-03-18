@@ -19,7 +19,7 @@ import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaVehicle, AutoscuolaSettings } from '../types/regloApi';
+import { AutoscuolaVehicle, AutoscuolaSettings, WeeklyAvailabilityOverride } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 
@@ -46,6 +46,28 @@ const addDays = (date: Date, amount: number) => {
   return copy;
 };
 const toTimeString = (value: Date) => value.toTimeString().slice(0, 5);
+
+type WeekOption = { label: string; weekStart: string };
+const buildWeekOptions = (): WeekOption[] => {
+  const today = new Date();
+  const dow = today.getDay();
+  const daysBack = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysBack);
+  monday.setHours(0, 0, 0, 0);
+  const options: WeekOption[] = [];
+  for (let i = 0; i < 12; i++) {
+    const wk = new Date(monday);
+    wk.setDate(monday.getDate() + i * 7);
+    const sun = new Date(wk);
+    sun.setDate(wk.getDate() + 6);
+    options.push({
+      label: `${wk.getDate()}/${wk.getMonth() + 1} – ${sun.getDate()}/${sun.getMonth() + 1}`,
+      weekStart: toDateString(wk),
+    });
+  }
+  return options;
+};
 
 type AvailabilityEditorProps = {
   title: string;
@@ -74,6 +96,10 @@ const AvailabilityEditor = ({
   const [endTimePickerOpen, setEndTimePickerOpen] = useState(false);
   const [startTimePicker2Open, setStartTimePicker2Open] = useState(false);
   const [endTimePicker2Open, setEndTimePicker2Open] = useState(false);
+  // Week override state
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const [weekOverrides, setWeekOverrides] = useState<WeeklyAvailabilityOverride[]>([]);
+  const weekOpts = React.useMemo(buildWeekOptions, []);
 
   const toggleDay = (day: number) => {
     setDays((prev) => (prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()));
@@ -183,7 +209,59 @@ const AvailabilityEditor = ({
 
   useEffect(() => {
     loadPreset();
-  }, [loadPreset]);
+    // Also load overrides
+    if (ownerId && (ownerType === 'instructor' || ownerType === 'vehicle')) {
+      regloApi.getWeeklyAvailabilityOverrides({
+        ownerType: ownerType as 'instructor' | 'vehicle',
+        ownerId,
+      }).then((res) => setWeekOverrides(res ?? [])).catch(() => {});
+    }
+  }, [loadPreset, ownerId, ownerType]);
+
+  const handleSelectWeek = useCallback((weekStart: string | null) => {
+    setSelectedWeek(weekStart);
+    if (!ownerId) return;
+    if (weekStart) {
+      const override = weekOverrides.find(
+        (o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart,
+      );
+      if (override) {
+        setDays(override.daysOfWeek);
+        setStartTime(buildTime(Math.floor(override.startMinutes / 60), override.startMinutes % 60));
+        setEndTime(buildTime(Math.floor(override.endMinutes / 60), override.endMinutes % 60));
+        if (override.startMinutes2 != null && override.endMinutes2 != null) {
+          setHasSecondRange(true);
+          setStartTime2(buildTime(Math.floor(override.startMinutes2 / 60), override.startMinutes2 % 60));
+          setEndTime2(buildTime(Math.floor(override.endMinutes2 / 60), override.endMinutes2 % 60));
+        } else {
+          setHasSecondRange(false);
+        }
+      } else {
+        loadPreset();
+      }
+    } else {
+      loadPreset();
+    }
+  }, [ownerId, weekOverrides, loadPreset]);
+
+  const handleResetOverride = useCallback(async () => {
+    if (!ownerId || !selectedWeek || ownerType === 'student') return;
+    setSaving(true);
+    try {
+      await regloApi.deleteWeeklyAvailabilityOverride({
+        ownerType: ownerType as 'instructor' | 'vehicle',
+        ownerId,
+        weekStart: selectedWeek,
+      });
+      setWeekOverrides((prev) => prev.filter((o) => new Date(o.weekStart).toISOString().slice(0, 10) !== selectedWeek));
+      await loadPreset();
+      onToast?.('Override rimosso', 'success');
+    } catch (err) {
+      onToast?.(err instanceof Error ? err.message : 'Errore', 'danger');
+    } finally {
+      setSaving(false);
+    }
+  }, [ownerId, ownerType, selectedWeek, loadPreset, onToast]);
 
   const buildAnchorRange = () => {
     const anchor = new Date();
@@ -207,46 +285,84 @@ const AvailabilityEditor = ({
     }
     setSaving(true);
     try {
-      const { start, end } = buildAnchorRange();
-      const resetStart = new Date(start);
-      resetStart.setHours(0, 0, 0, 0);
-      const resetEnd = new Date(start);
-      resetEnd.setHours(23, 59, 0, 0);
-      try {
-        await regloApi.deleteAvailabilitySlots({
+      if (selectedWeek && ownerType !== 'student') {
+        // Save as weekly override
+        const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+        const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+        const overrideInput: {
+          ownerType: 'instructor' | 'vehicle';
+          ownerId: string;
+          weekStart: string;
+          daysOfWeek: number[];
+          startMinutes: number;
+          endMinutes: number;
+          startMinutes2?: number;
+          endMinutes2?: number;
+        } = {
+          ownerType: ownerType as 'instructor' | 'vehicle',
+          ownerId,
+          weekStart: selectedWeek,
+          daysOfWeek: days,
+          startMinutes,
+          endMinutes,
+        };
+        if (hasSecondRange) {
+          overrideInput.startMinutes2 = startTime2.getHours() * 60 + startTime2.getMinutes();
+          overrideInput.endMinutes2 = endTime2.getHours() * 60 + endTime2.getMinutes();
+        }
+        await regloApi.setWeeklyAvailabilityOverride(overrideInput);
+        // Refresh overrides
+        try {
+          const res = await regloApi.getWeeklyAvailabilityOverrides({
+            ownerType: ownerType as 'instructor' | 'vehicle',
+            ownerId,
+          });
+          setWeekOverrides(res ?? []);
+        } catch { /* ignore */ }
+        onToast?.('Override settimanale salvato', 'success');
+      } else {
+        // Default availability save
+        const { start, end } = buildAnchorRange();
+        const resetStart = new Date(start);
+        resetStart.setHours(0, 0, 0, 0);
+        const resetEnd = new Date(start);
+        resetEnd.setHours(23, 59, 0, 0);
+        try {
+          await regloApi.deleteAvailabilitySlots({
+            ownerType,
+            ownerId,
+            startsAt: resetStart.toISOString(),
+            endsAt: resetEnd.toISOString(),
+            daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+            weeks,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (!/nessuno slot/i.test(message)) {
+            throw err;
+          }
+        }
+        const secondRange = hasSecondRange ? (() => {
+          const anchor = new Date();
+          anchor.setHours(0, 0, 0, 0);
+          const s2 = new Date(anchor);
+          s2.setHours(startTime2.getHours(), startTime2.getMinutes(), 0, 0);
+          const e2 = new Date(anchor);
+          e2.setHours(endTime2.getHours(), endTime2.getMinutes(), 0, 0);
+          return { startsAt2: s2.toISOString(), endsAt2: e2.toISOString() };
+        })() : {};
+
+        await regloApi.createAvailabilitySlots({
           ownerType,
           ownerId,
-          startsAt: resetStart.toISOString(),
-          endsAt: resetEnd.toISOString(),
-          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+          startsAt: start.toISOString(),
+          endsAt: end.toISOString(),
+          ...secondRange,
+          daysOfWeek: days,
           weeks,
         });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/nessuno slot/i.test(message)) {
-          throw err;
-        }
+        onToast?.('Disponibilita salvata', 'success');
       }
-      const secondRange = hasSecondRange ? (() => {
-        const anchor = new Date();
-        anchor.setHours(0, 0, 0, 0);
-        const s2 = new Date(anchor);
-        s2.setHours(startTime2.getHours(), startTime2.getMinutes(), 0, 0);
-        const e2 = new Date(anchor);
-        e2.setHours(endTime2.getHours(), endTime2.getMinutes(), 0, 0);
-        return { startsAt2: s2.toISOString(), endsAt2: e2.toISOString() };
-      })() : {};
-
-      await regloApi.createAvailabilitySlots({
-        ownerType,
-        ownerId,
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        ...secondRange,
-        daysOfWeek: days,
-        weeks,
-      });
-      onToast?.('Disponibilita salvata', 'success');
       await loadPreset();
     } catch (err) {
       onToast?.(err instanceof Error ? err.message : 'Errore salvando disponibilita', 'danger');
@@ -266,6 +382,46 @@ const AvailabilityEditor = ({
       <View style={[styles.editorContent, loading && styles.editorContentLoading]} pointerEvents={loading ? 'none' : 'auto'}>
         <Text style={styles.sectionLabel}>LA TUA DISPONIBILIT&Agrave;</Text>
         <Text style={styles.weeksSubtitle}>Ripetizione ogni {weeks} settimane</Text>
+
+        {/* Week selector strip (only for instructor/vehicle) */}
+        {ownerType !== 'student' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <Pressable
+              onPress={() => handleSelectWeek(null)}
+              style={[styles.weekChip, selectedWeek === null && styles.weekChipActive]}
+            >
+              <Text style={[styles.weekChipText, selectedWeek === null && styles.weekChipTextActive]}>
+                Predefinito
+              </Text>
+            </Pressable>
+            {weekOpts.map((wo) => {
+              const hasOverride = weekOverrides.some(
+                (o) => new Date(o.weekStart).toISOString().slice(0, 10) === wo.weekStart,
+              );
+              return (
+                <Pressable
+                  key={wo.weekStart}
+                  onPress={() => handleSelectWeek(wo.weekStart)}
+                  style={[styles.weekChip, selectedWeek === wo.weekStart && styles.weekChipActive]}
+                >
+                  <Text style={[styles.weekChipText, selectedWeek === wo.weekStart && styles.weekChipTextActive]}>
+                    {wo.label}
+                  </Text>
+                  {hasOverride && <View style={styles.weekChipDot} />}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Reset override button */}
+        {selectedWeek && weekOverrides.some((o) => new Date(o.weekStart).toISOString().slice(0, 10) === selectedWeek) && (
+          <Pressable onPress={handleResetOverride} style={{ marginBottom: 8 }}>
+            <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '600' }}>
+              Ripristina predefinito
+            </Text>
+          </Pressable>
+        )}
 
         <View style={styles.dayCircleRow}>
           {dayLetters.map((letter, index) => (
@@ -989,6 +1145,35 @@ const styles = StyleSheet.create({
   },
   editorContentLoading: {
     opacity: 0.5,
+  },
+
+  /* ─── Week Chips ──────────────────────────────────── */
+  weekChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+    backgroundColor: '#F1F5F9',
+    marginRight: 6,
+  },
+  weekChipActive: {
+    backgroundColor: '#FACC15',
+  },
+  weekChipText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  weekChipTextActive: {
+    color: '#FFFFFF',
+  },
+  weekChipDot: {
+    position: 'absolute' as const,
+    top: -2,
+    right: -2,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primary,
   },
 
   /* ─── Day Circles ─────────────────────────────────── */

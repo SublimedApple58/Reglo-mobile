@@ -63,6 +63,9 @@ import {
   AutoscuolaSettings,
   CreateInstructorBlockInput,
   InstructorBlock,
+  WeeklyAvailabilityOverride,
+  SetWeeklyAvailabilityOverrideInput,
+  DeleteWeeklyAvailabilityOverrideInput,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -252,6 +255,25 @@ export const createRegloApi = (baseUrl?: string) => {
       date: string;
     }) =>
       client.request<AutoscuolaAvailabilitySlot[]>('/api/autoscuole/availability/slots', {
+        params,
+      }),
+    setWeeklyAvailabilityOverride: async (input: SetWeeklyAvailabilityOverrideInput) =>
+      client.request<WeeklyAvailabilityOverride>('/api/autoscuole/availability/overrides', {
+        method: 'POST',
+        body: input,
+      }),
+    deleteWeeklyAvailabilityOverride: async (input: DeleteWeeklyAvailabilityOverrideInput) =>
+      client.request<void>('/api/autoscuole/availability/overrides', {
+        method: 'DELETE',
+        body: input,
+      }),
+    getWeeklyAvailabilityOverrides: async (params: {
+      ownerType: 'instructor' | 'vehicle';
+      ownerId: string;
+      from?: string;
+      to?: string;
+    }) =>
+      client.request<WeeklyAvailabilityOverride[]>('/api/autoscuole/availability/overrides', {
         params,
       }),
     createBookingRequest: async (input: CreateBookingRequestInput) =>
