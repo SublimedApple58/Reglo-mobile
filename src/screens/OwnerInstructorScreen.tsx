@@ -906,6 +906,7 @@ export const OwnerInstructorScreen = () => {
                           setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex, field }), 350);
                         }}
                         disabled={calSaving}
+                        variant="flat"
                       />
                       <View style={styles.calActionRow}>
                         <Pressable

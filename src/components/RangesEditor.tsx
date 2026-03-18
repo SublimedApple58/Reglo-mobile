@@ -11,53 +11,55 @@ export type RangesEditorProps = {
   onChange: (ranges: TimeRange[]) => void;
   onPickTime: (index: number, field: 'start' | 'end') => void;
   disabled?: boolean;
+  /** 'card' = white card rows (default tab), 'flat' = compact rows (calendar day detail) */
+  variant?: 'card' | 'flat';
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
 const DEFAULT_RANGE: TimeRange = { startMinutes: 540, endMinutes: 1080 };
 
-export default function RangesEditor({ ranges, onChange, onPickTime, disabled = false }: RangesEditorProps) {
+export default function RangesEditor({ ranges, onChange, onPickTime, disabled = false, variant = 'card' }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
+  const isFlat = variant === 'flat';
 
   return (
-    <View style={styles.container}>
+    <View style={isFlat ? styles.containerFlat : styles.containerCard}>
       {ranges.map((range, index) => (
-        <Animated.View key={index} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.row}>
-          {/* Clock icon */}
-          <Ionicons name="time-outline" size={18} color="#EC4899" style={styles.clockIcon} />
+        <Animated.View
+          key={index}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={isFlat ? styles.rowFlat : styles.rowCard}
+        >
+          <Ionicons name="time-outline" size={isFlat ? 16 : 18} color="#EC4899" style={{ marginRight: isFlat ? 8 : 10 }} />
 
-          {/* Start time — tappable */}
           <Pressable onPress={() => onPickTime(index, 'start')} disabled={disabled} hitSlop={4}>
-            <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+            <Text style={isFlat ? styles.timeTextFlat : styles.timeTextCard}>{fmtMin(range.startMinutes)}</Text>
           </Pressable>
 
-          <Text style={styles.dash}> – </Text>
+          <Text style={isFlat ? styles.dashFlat : styles.dashCard}> – </Text>
 
-          {/* End time — tappable */}
           <Pressable onPress={() => onPickTime(index, 'end')} disabled={disabled} hitSlop={4}>
-            <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
+            <Text style={isFlat ? styles.timeTextFlat : styles.timeTextCard}>{fmtMin(range.endMinutes)}</Text>
           </Pressable>
 
-          {/* Spacer */}
-          <View style={styles.spacer} />
+          <View style={{ flex: 1 }} />
 
-          {/* Trash */}
           {canRemove ? (
             <Pressable onPress={() => onChange(ranges.filter((_, i) => i !== index))} disabled={disabled} hitSlop={10}>
-              <Ionicons name="trash-outline" size={17} color="#CBD5E1" />
+              <Ionicons name="trash-outline" size={isFlat ? 15 : 17} color="#CBD5E1" />
             </Pressable>
           ) : null}
         </Animated.View>
       ))}
 
-      {/* Add range */}
       <Pressable
         style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
         onPress={() => onChange([...ranges, { ...DEFAULT_RANGE }])}
         disabled={disabled}
       >
-        <Ionicons name="add-circle-outline" size={18} color="#CA8A04" />
+        <Ionicons name="add-circle-outline" size={16} color="#CA8A04" />
         <Text style={styles.addText}>Aggiungi fascia</Text>
       </Pressable>
     </View>
@@ -65,8 +67,9 @@ export default function RangesEditor({ ranges, onChange, onPickTime, disabled = 
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6 },
-  row: {
+  // ── Card variant (Predefinito tab) ──
+  containerCard: { gap: 6 },
+  rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -81,16 +84,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  clockIcon: { marginRight: 10 },
-  timeText: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
-  dash: { fontSize: 15, color: '#94A3B8' },
-  spacer: { flex: 1 },
+  timeTextCard: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
+  dashCard: { fontSize: 15, color: '#94A3B8' },
+
+  // ── Flat variant (Calendar day detail) ──
+  containerFlat: { gap: 2 },
+  rowFlat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
+  timeTextFlat: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+  dashFlat: { fontSize: 13, color: '#94A3B8' },
+
+  // ── Shared ──
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
+    gap: 5,
+    paddingVertical: 8,
   },
   addText: { fontSize: 13, fontWeight: '600', color: '#CA8A04' },
 });
