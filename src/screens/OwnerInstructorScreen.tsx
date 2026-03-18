@@ -266,6 +266,16 @@ export const OwnerInstructorScreen = () => {
     return { total: todayAppts.length, completed, upcoming };
   }, [appointments, selectedInstructorId, now]);
 
+  const todayLessonCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of appointments) {
+      if (a.instructorId && a.status !== 'cancelled' && isToday(a.startsAt)) {
+        counts[a.instructorId] = (counts[a.instructorId] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [appointments]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
@@ -577,56 +587,73 @@ export const OwnerInstructorScreen = () => {
           </Text>
         </View>
 
-        {/* ── Live Status Circle Row ─────────────── */}
+        {/* ── Instructor Cards Row ─────────────── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.circleRow}
+          contentContainerStyle={styles.instructorCardRow}
         >
           {initialLoading
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <View key={`skel-circle-${i}`} style={styles.circleItem}>
-                  <SkeletonBlock width={68} height={68} radius={34} />
-                  <SkeletonBlock width={48} height={10} radius={5} style={{ marginTop: 6 }} />
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <View key={`skel-card-${i}`} style={styles.instructorCard}>
+                  <SkeletonBlock width={56} height={56} radius={28} />
+                  <SkeletonBlock width={80} height={14} radius={7} />
+                  <SkeletonBlock width={50} height={11} radius={5} />
+                  <SkeletonBlock width={60} height={11} radius={5} />
                 </View>
               ))
             : instructors.map((instructor) => {
                 const status = getInstructorStatus(instructor, appointments, now);
-                const ringColor = statusColor(status);
+                const color = statusColor(status);
                 const isSelected = selectedInstructorId === instructor.id;
-                const firstName = instructor.name.split(/\s+/)[0];
+                const lessonCount = todayLessonCounts[instructor.id] ?? 0;
 
                 return (
                   <Pressable
                     key={instructor.id}
-                    style={styles.circleItem}
+                    style={[
+                      styles.instructorCard,
+                      isSelected && styles.instructorCardSelected,
+                    ]}
                     onPress={() => setSelectedInstructorId(instructor.id)}
                   >
-                    <View
-                      style={[
-                        styles.circleOuter,
-                        { backgroundColor: ringColor },
-                        isSelected && styles.circleSelected,
-                        isSelected && { shadowColor: ringColor },
-                      ]}
-                    >
-                      <View style={styles.circleWhiteRing}>
-                        <View style={styles.circleInner}>
-                          <Text style={styles.circleInitials}>
-                            {getInitials(instructor.name)}
-                          </Text>
-                        </View>
-                      </View>
-                      {/* Status dot */}
+                    {/* Avatar with status dot */}
+                    <View>
                       <View
                         style={[
-                          styles.statusDot,
-                          { backgroundColor: ringColor },
+                          styles.instructorCardAvatar,
+                          { backgroundColor: color + '20' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.instructorCardInitials,
+                            { color },
+                          ]}
+                        >
+                          {getInitials(instructor.name)}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.instructorCardStatusDot,
+                          { backgroundColor: color },
                         ]}
                       />
                     </View>
-                    <Text style={styles.circleName} numberOfLines={1}>
-                      {firstName}
+                    <Text style={styles.instructorCardName} numberOfLines={1}>
+                      {instructor.name.split(/\s+/)[0]}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.instructorCardStatus,
+                        { color },
+                      ]}
+                    >
+                      {statusLabel(status)}
+                    </Text>
+                    <Text style={styles.instructorCardLessons}>
+                      {lessonCount} {lessonCount === 1 ? 'guida' : 'guide'} oggi
                     </Text>
                   </Pressable>
                 );
@@ -1011,71 +1038,75 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
 
-  // Circle row
-  circleRow: {
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    gap: 16,
+  // Instructor card row
+  instructorCardRow: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    gap: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  circleItem: {
-    alignItems: 'center',
-    width: 70,
-  },
-  circleOuter: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    padding: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  circleSelected: {
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-  },
-  circleWhiteRing: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  instructorCard: {
+    width: 140,
     backgroundColor: '#FFFFFF',
-    padding: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  instructorCardSelected: {
+    borderColor: '#EC4899',
+    borderWidth: 2,
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  instructorCardAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  circleInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#FCE7F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  circleInitials: {
+  instructorCardInitials: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#FFFFFF',
   },
-  statusDot: {
+  instructorCardStatusDot: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2.5,
     borderColor: '#FFFFFF',
   },
-  circleName: {
-    fontSize: 12,
-    fontWeight: '500',
+  instructorCardName: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1E293B',
     textAlign: 'center',
-    width: 70,
-    marginTop: 6,
+  },
+  instructorCardStatus: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  instructorCardLessons: {
+    fontSize: 11,
+    color: '#94A3B8',
   },
 
   // Detail card
