@@ -1513,8 +1513,15 @@ export const IstruttoreHomeScreen = () => {
                 const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
                 const isAvailable = availableHours.has(hour);
                 const prevAvailable = availableHours.has(hour - 1);
-                // Show label only on first hour of an unavailable block
                 const isUnavailableBlockStart = !isAvailable && (hour === HOUR_SLOTS[0] || prevAvailable);
+                // Count consecutive unavailable hours from this one
+                let unavailableBlockSize = 0;
+                if (isUnavailableBlockStart) {
+                  for (let h = hour; h <= HOUR_SLOTS[HOUR_SLOTS.length - 1]; h++) {
+                    if (!availableHours.has(h)) unavailableBlockSize++;
+                    else break;
+                  }
+                }
                 const isNowHour = nowHourFraction !== null &&
                   nowHourFraction >= hour && nowHourFraction < hour + 1;
 
@@ -1526,9 +1533,11 @@ export const IstruttoreHomeScreen = () => {
                         styles.timelineSlotArea,
                         isAvailable ? styles.timelineSlotAvailable : styles.timelineSlotUnavailable,
                       ]}>
-                        {/* Unavailable label — only on first hour of contiguous block */}
+                        {/* Unavailable label — centered across the full block */}
                         {isUnavailableBlockStart && !hasAppts && (
-                          <Text style={styles.unavailableLabel}>Non disponibile</Text>
+                          <View style={[styles.unavailableLabelWrap, { height: unavailableBlockSize * 52 }]} pointerEvents="none">
+                            <Text style={styles.unavailableLabel}>Non disponibile</Text>
+                          </View>
                         )}
                         {hasAppts ? (
                           <>
@@ -3201,11 +3210,21 @@ const styles = StyleSheet.create({
     borderLeftColor: '#E5E7EB',
     borderStyle: 'dashed' as const,
   },
+  unavailableLabelWrap: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 14,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
   unavailableLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontStyle: 'italic' as const,
+    fontWeight: '500' as const,
     color: '#CBD5E1',
-    paddingTop: 4,
+    letterSpacing: 0.3,
   },
   emptyHourLine: {
     height: 1,
