@@ -813,7 +813,13 @@ export const OwnerInstructorScreen = () => {
           ) : undefined
         }
       >
-        <View style={styles.sheetContent}>
+        <ScrollView
+          style={styles.sheetScrollContent}
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          nestedScrollEnabled
+        >
           {availLoading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
@@ -942,7 +948,7 @@ export const OwnerInstructorScreen = () => {
               )}
             </>
           )}
-        </View>
+        </ScrollView>
       </BottomSheet>
 
       {/* ── Unified Time Picker Drawer ───────────────── */}
@@ -1219,8 +1225,12 @@ const styles = StyleSheet.create({
   },
 
   // BottomSheet content
+  sheetScrollContent: {
+    maxHeight: 480,
+  },
   sheetContent: {
     gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
   sheetFooter: {
     width: '100%',
