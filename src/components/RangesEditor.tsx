@@ -2,9 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme';
+import { spacing } from '../theme';
 
-// ─── Types ──────────────────────────────────────────────────
 export type TimeRange = { startMinutes: number; endMinutes: number };
 
 export type RangesEditorProps = {
@@ -14,84 +13,48 @@ export type RangesEditorProps = {
   disabled?: boolean;
 };
 
-// ─── Helpers ────────────────────────────────────────────────
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
-
 const DEFAULT_RANGE: TimeRange = { startMinutes: 540, endMinutes: 1080 };
 
-// ─── Component ──────────────────────────────────────────────
-export default function RangesEditor({
-  ranges,
-  onChange,
-  onPickTime,
-  disabled = false,
-}: RangesEditorProps) {
+export default function RangesEditor({ ranges, onChange, onPickTime, disabled = false }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
-
-  const handleAdd = () => {
-    onChange([...ranges, { ...DEFAULT_RANGE }]);
-  };
-
-  const handleRemove = (index: number) => {
-    onChange(ranges.filter((_, i) => i !== index));
-  };
 
   return (
     <View style={styles.container}>
       {ranges.map((range, index) => (
-        <Animated.View
-          key={index}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-          style={styles.rangeRow}
-        >
-          {/* Start time card */}
-          <Pressable
-            style={({ pressed }) => [styles.timeCard, pressed && styles.timeCardPressed]}
-            onPress={() => onPickTime(index, 'start')}
-            disabled={disabled}
-          >
-            <Text style={styles.timeLabel}>INIZIO</Text>
-            <View style={styles.timeValueRow}>
-              <Ionicons name="time-outline" size={16} color="#EC4899" />
-              <Text style={styles.timeValue}>{fmtMin(range.startMinutes)}</Text>
-            </View>
+        <Animated.View key={index} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.row}>
+          {/* Clock icon */}
+          <Ionicons name="time-outline" size={18} color="#EC4899" style={styles.clockIcon} />
+
+          {/* Start time — tappable */}
+          <Pressable onPress={() => onPickTime(index, 'start')} disabled={disabled} hitSlop={4}>
+            <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
           </Pressable>
 
-          {/* End time card */}
-          <Pressable
-            style={({ pressed }) => [styles.timeCard, pressed && styles.timeCardPressed]}
-            onPress={() => onPickTime(index, 'end')}
-            disabled={disabled}
-          >
-            <Text style={styles.timeLabel}>FINE</Text>
-            <View style={styles.timeValueRow}>
-              <Ionicons name="time-outline" size={16} color="#EC4899" />
-              <Text style={styles.timeValue}>{fmtMin(range.endMinutes)}</Text>
-            </View>
+          <Text style={styles.dash}> – </Text>
+
+          {/* End time — tappable */}
+          <Pressable onPress={() => onPickTime(index, 'end')} disabled={disabled} hitSlop={4}>
+            <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
           </Pressable>
 
-          {/* Remove button */}
+          {/* Spacer */}
+          <View style={styles.spacer} />
+
+          {/* Trash */}
           {canRemove ? (
-            <Pressable
-              onPress={() => handleRemove(index)}
-              disabled={disabled}
-              hitSlop={10}
-              style={styles.trashBtn}
-            >
-              <Ionicons name="trash-outline" size={18} color="#CBD5E1" />
+            <Pressable onPress={() => onChange(ranges.filter((_, i) => i !== index))} disabled={disabled} hitSlop={10}>
+              <Ionicons name="trash-outline" size={17} color="#CBD5E1" />
             </Pressable>
-          ) : (
-            <View style={styles.trashPlaceholder} />
-          )}
+          ) : null}
         </Animated.View>
       ))}
 
-      {/* Add range button */}
+      {/* Add range */}
       <Pressable
-        style={({ pressed }) => [styles.addButton, pressed && { opacity: 0.7 }]}
-        onPress={handleAdd}
+        style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
+        onPress={() => onChange([...ranges, { ...DEFAULT_RANGE }])}
         disabled={disabled}
       >
         <Ionicons name="add-circle-outline" size={18} color="#CA8A04" />
@@ -101,70 +64,33 @@ export default function RangesEditor({
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  rangeRow: {
+  container: { gap: 6 },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  timeCard: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: radii.sm,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#F1F5F9',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  timeCardPressed: {
-    backgroundColor: '#F8FAFC',
-    transform: [{ scale: 0.98 }],
-  },
-  timeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-  },
-  timeValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timeValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  trashBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trashPlaceholder: {
-    width: 32,
-  },
-  addButton: {
+  clockIcon: { marginRight: 10 },
+  timeText: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
+  dash: { fontSize: 15, color: '#94A3B8' },
+  spacer: { flex: 1 },
+  addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  addText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#CA8A04',
-  },
+  addText: { fontSize: 13, fontWeight: '600', color: '#CA8A04' },
 });

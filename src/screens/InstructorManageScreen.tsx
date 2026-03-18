@@ -1251,19 +1251,9 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
 
-  /* ─── Availability Card ───────────────────────────── */
+  /* ─── Availability Section ─────────────────────────── */
   availabilityCard: {
-    borderRadius: radii.lg,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 22,
     gap: spacing.sm,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
   },
   sectionLabel: {
     fontSize: 12,
@@ -1287,15 +1277,18 @@ const styles = StyleSheet.create({
   /* ─── Segmented Control ──────────────────────────── */
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
     padding: 3,
-    marginBottom: 4,
+    marginBottom: 8,
+    alignSelf: 'center',
   },
   segmentedPill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1304,7 +1297,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
   segmentedPillText: {
