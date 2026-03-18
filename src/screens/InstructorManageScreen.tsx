@@ -146,7 +146,7 @@ const detectRangesFromSlots = (
   return ranges;
 };
 
-const AvailabilityEditor = ({
+export const AvailabilityEditor = ({
   title,
   ownerType,
   ownerId,

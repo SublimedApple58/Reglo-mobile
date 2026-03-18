@@ -104,7 +104,7 @@ const AndroidTabBar = ({
             route.name === 'role'
               ? isOwner
                 ? 'Istruttore'
-                : 'Gestione'
+                : 'Disponibilità'
               : route.name === 'payments'
                 ? 'Pagamenti'
               : route.name === 'vehicles'
@@ -120,8 +120,8 @@ const AndroidTabBar = ({
                   ? 'speedometer'
                   : 'speedometer-outline'
                 : isFocused
-                  ? 'car-sport'
-                  : 'car-sport-outline'
+                  ? 'calendar'
+                  : 'calendar-outline'
               : route.name === 'payments'
                 ? isFocused
                   ? 'card'
@@ -172,7 +172,7 @@ export default function TabsLayout() {
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
-  const showVehiclesTab = autoscuolaRole === 'OWNER';
+  const showVehiclesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const isOwner = autoscuolaRole === 'OWNER';
 
   const transparent =
@@ -224,7 +224,7 @@ export default function TabsLayout() {
           name="role"
           options={{
             href: showRoleTab ? '/(tabs)/role' : null,
-            title: isOwner ? 'Istruttore' : 'Gestione',
+            title: isOwner ? 'Istruttore' : 'Disponibilità',
           }}
         />
         <Tabs.Screen
@@ -274,10 +274,10 @@ export default function TabsLayout() {
       {showRoleTab ? (
         <NativeTabs.Trigger name="role">
           <Icon
-            sf={{ default: isOwner ? 'speedometer' : 'car', selected: isOwner ? 'speedometer' : 'car.fill' }}
+            sf={{ default: isOwner ? 'speedometer' : 'calendar', selected: isOwner ? 'speedometer' : 'calendar' }}
             drawable="ic_menu_manage"
           />
-          <Label>{isOwner ? 'Istruttore' : 'Gestione'}</Label>
+          <Label>{isOwner ? 'Istruttore' : 'Disponibilità'}</Label>
         </NativeTabs.Trigger>
       ) : null}
       {showVehiclesTab ? (

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSession } from '../../src/context/SessionContext';
 import { OwnerInstructorScreen } from '../../src/screens/OwnerInstructorScreen';
-import { InstructorManageScreen } from '../../src/screens/InstructorManageScreen';
+import { InstructorAvailabilityScreen } from '../../src/screens/InstructorAvailabilityScreen';
 import { RoleHomeScreen } from '../../src/screens/RoleHomeScreen';
 
 export default function RoleRoute() {
@@ -16,6 +16,6 @@ export default function RoleRoute() {
   }, [autoscuolaRole, router]);
 
   if (autoscuolaRole === 'OWNER') return <OwnerInstructorScreen />;
-  if (autoscuolaRole === 'INSTRUCTOR') return <InstructorManageScreen />;
+  if (autoscuolaRole === 'INSTRUCTOR') return <InstructorAvailabilityScreen />;
   return <RoleHomeScreen />;
 }
