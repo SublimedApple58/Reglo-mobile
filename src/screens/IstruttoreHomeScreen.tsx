@@ -648,16 +648,15 @@ export const IstruttoreHomeScreen = () => {
   }, [bookingDate, bookingStartTime, normalizeToHalfHour]);
 
   const openBlockDrawer = useCallback(() => {
-    const nowDate = new Date();
-    const roundedNow = normalizeToHalfHour(nowDate);
+    const roundedNow = normalizeToHalfHour(new Date());
     const endTime = new Date(roundedNow);
     endTime.setMinutes(endTime.getMinutes() + 60);
-    setBlockDate(nowDate);
+    setBlockDate(selectedDate);
     setBlockStartTime(roundedNow);
     setBlockEndTime(endTime);
     setBlockReason('');
     setBlockSheetOpen(true);
-  }, [normalizeToHalfHour]);
+  }, [normalizeToHalfHour, selectedDate]);
 
   const handleCreateBlock = useCallback(async () => {
     setBlockPending(true);
@@ -722,12 +721,12 @@ export const IstruttoreHomeScreen = () => {
     setBookingDuration((current) =>
       allowedDurations.includes(current) ? current : allowedDurations[0] ?? 60,
     );
-    setBookingDate(nowDate);
+    setBookingDate(selectedDate);
     setBookingStartTime(roundedNow);
     setGuidedSuggestion(null);
     setGuidedPreferredDate(null);
     setBookingSheetOpen(true);
-  }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles]);
+  }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
 
   const handleSuggestGuidedBooking = useCallback(async () => {
     if (!bookingStudentId) {
