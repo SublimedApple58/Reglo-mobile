@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { BlurView } from 'expo-blur';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +52,7 @@ const TabItem = ({ label, isFocused, onPress }: TabItemProps) => {
         <Ionicons
           name={iconName}
           size={20}
-          color={isFocused ? colors.navy : colors.textMuted}
+          color={isFocused ? colors.primary : colors.textMuted}
         />
         <Animated.Text style={styles.label} accessibilityElementsHidden>
           {label}
@@ -78,8 +77,7 @@ export const GlassTabBar = ({ state, descriptors, navigation }: BottomTabBarProp
       ]}
       pointerEvents="box-none"
     >
-      <BlurView intensity={60} tint="light" style={styles.container}>
-        <View style={styles.glassOverlay} pointerEvents="none" />
+      <View style={styles.container}>
         <View style={styles.row}>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
@@ -114,7 +112,7 @@ export const GlassTabBar = ({ state, descriptors, navigation }: BottomTabBarProp
             );
           })}
         </View>
-      </BlurView>
+      </View>
     </View>
   );
 };
@@ -128,19 +126,16 @@ const styles = StyleSheet.create({
   },
   container: {
     borderRadius: CONTAINER_RADIUS,
-    borderColor: colors.glassBorder,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
     paddingVertical: 6,
-    backgroundColor: colors.glass,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.25,
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
-  },
-  glassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.glass,
   },
   row: {
     flexDirection: 'row',
@@ -166,9 +161,9 @@ const styles = StyleSheet.create({
     right: HIGHLIGHT_INSET,
     height: HIGHLIGHT_HEIGHT,
     borderRadius: CONTAINER_RADIUS,
-    backgroundColor: colors.glassStrong,
+    backgroundColor: colors.pink[50],
     borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderColor: colors.pink[200],
     top: HIGHLIGHT_OFFSET,
   },
   label: {

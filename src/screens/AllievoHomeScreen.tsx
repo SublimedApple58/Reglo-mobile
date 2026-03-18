@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
+  Image,
   Linking,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   Share,
@@ -13,22 +12,21 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system/legacy';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { GlassBadge } from '../components/GlassBadge';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
-import { GlassInput } from '../components/GlassInput';
-import { CalendarNavigator, CalendarNavigatorRange } from '../components/CalendarNavigator';
+import { Badge } from '../components/Badge';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { CalendarDrawer } from '../components/CalendarDrawer';
+import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { ScrollHintFab } from '../components/ScrollHintFab';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
-import { SectionHeader } from '../components/SectionHeader';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
@@ -42,7 +40,7 @@ import {
   StudentAppointmentPaymentHistoryItem,
   AutoscuolaWaitlistOfferWithSlot,
 } from '../types/regloApi';
-import { colors, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import {
   invoiceStatusLabel,
@@ -50,9 +48,10 @@ import {
   paymentPhaseLabel,
   paymentStatusLabel,
 } from '../utils/payment';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in']);
+const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
 const proposalStatuses = new Set(['proposal']);
 const DEFAULT_BOOKING_LESSON_TYPES = [
   'manovre',
@@ -96,6 +95,7 @@ const statusLabel = (status: string) => {
   if (status === 'no_show') return { label: 'No-show', tone: 'danger' as const };
   if (status === 'cancelled') return { label: 'Annullata', tone: 'warning' as const };
   if (status === 'proposal') return { label: 'Proposta', tone: 'default' as const };
+  if (status === 'pending_review') return { label: 'Da confermare', tone: 'warning' as const };
   return { label: 'Programmato', tone: 'default' as const };
 };
 
@@ -155,74 +155,12 @@ const findLinkedStudent = (
   return byName ?? null;
 };
 
-type PickerFieldProps = {
-  label: string;
-  value: Date;
-  mode: 'date' | 'time';
-  onChange: (date: Date) => void;
-};
-
-const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-  const isTimeField = mode === 'time';
-
-  return (
-    <View style={isTimeField ? styles.timePickerFieldWrap : undefined}>
-      <Pressable
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => [
-          isTimeField && styles.timePickerField,
-          pressed && isTimeField && styles.timePickerFieldPressed,
-        ]}
-      >
-        <View pointerEvents="none">
-          <GlassInput
-            editable={false}
-            placeholder={label}
-            value={mode === 'date' ? formatDay(value.toISOString()) : toTimeString(value)}
-          />
-        </View>
-      </Pressable>
-      {open ? (
-        Platform.OS === 'ios' ? (
-          <Modal transparent animationType="fade" onRequestClose={close}>
-            <View style={styles.pickerBackdrop}>
-              <View style={styles.pickerCard}>
-                <Text style={styles.pickerTitle}>{label}</Text>
-                <DateTimePicker
-                  value={value}
-                  mode={mode}
-                  display="spinner"
-                  onChange={(_, selected) => {
-                    if (selected) onChange(selected);
-                  }}
-                />
-                <GlassButton label="Fatto" onPress={close} />
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={value}
-            mode={mode}
-            display="default"
-            onChange={(_, selected) => {
-              setOpen(false);
-              if (selected) onChange(selected);
-            }}
-          />
-        )
-      ) : null}
-    </View>
-  );
-};
 
 
 
 export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user } = useSession();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
@@ -260,6 +198,10 @@ export const AllievoHomeScreen = () => {
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
+  const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
+  const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
   const [rangeLoading, setRangeLoading] = useState(false);
   const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
@@ -549,12 +491,29 @@ export const AllievoHomeScreen = () => {
 
   const upcoming = useMemo(() => {
     const now = new Date();
-    return [...appointments]
+    const confirmed = appointments.filter((item) => {
+      const status = (item.status ?? '').trim().toLowerCase();
+      return upcomingConfirmedStatuses.has(status);
+    });
+
+    // First: find any lesson currently in progress (startsAt <= now < endsAt)
+    const inProgress = confirmed
       .filter((item) => {
-        const status = (item.status ?? '').trim().toLowerCase();
-        return upcomingConfirmedStatuses.has(status) && new Date(item.startsAt) >= now;
+        const start = new Date(item.startsAt);
+        const end = item.endsAt
+          ? new Date(item.endsAt)
+          : new Date(start.getTime() + 60 * 60 * 1000);
+        return start <= now && now < end;
       })
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+    // Then: future lessons
+    const future = confirmed
+      .filter((item) => new Date(item.startsAt) >= now)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+    // In-progress first, then future
+    return [...inProgress, ...future];
   }, [appointments]);
 
   const paymentByAppointmentId = useMemo(
@@ -572,7 +531,13 @@ export const AllievoHomeScreen = () => {
         if (toTs !== null && startsAtTs > toTs) return false;
         return true;
       })
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+      .sort((a, b) => {
+        const activeStatuses = upcomingConfirmedStatuses;
+        const aActive = activeStatuses.has((a.status ?? '').trim().toLowerCase()) ? 0 : 1;
+        const bActive = activeStatuses.has((b.status ?? '').trim().toLowerCase()) ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+      });
   }, [appointments, calendarRange, upcoming]);
   const visibleAgendaLessons = useMemo(
     () => (showAllAgendaLessons ? agendaLessons : agendaLessons.slice(0, 4)),
@@ -597,6 +562,14 @@ export const AllievoHomeScreen = () => {
   }, [calendarRange?.from, calendarRange?.to, selectedStudentId]);
 
   useEffect(() => {
+    const from = new Date(selectedDate);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(selectedDate);
+    to.setHours(23, 59, 59, 999);
+    setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
+  }, [selectedDate]);
+
+  useEffect(() => {
     if (!selectedHistoryLesson) return;
     const updated = appointments.find((item) => item.id === selectedHistoryLesson.id);
     if (!updated) {
@@ -608,7 +581,77 @@ export const AllievoHomeScreen = () => {
   }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
+  const isLessonInProgress = useMemo(() => {
+    if (!nextLesson) return false;
+    const now = new Date();
+    const start = new Date(nextLesson.startsAt);
+    const end = nextLesson.endsAt
+      ? new Date(nextLesson.endsAt)
+      : new Date(start.getTime() + 60 * 60 * 1000);
+    return start <= now && now < end;
+  }, [nextLesson]);
   const agendaLoading = rangeLoading || loading;
+
+  const ITALIAN_WEEKDAYS = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'] as const;
+  const ITALIAN_MONTHS = [
+    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+  ] as const;
+  const maxWeeks = Number(settings?.availabilityWeeks) || 4;
+  const calendarDays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = addDays(today, -7);
+    const totalDays = 7 + maxWeeks * 7; // 1 week back + maxWeeks forward
+    const days: { date: Date; dayNum: number; weekday: string }[] = [];
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(start, i);
+      days.push({
+        date: d,
+        dayNum: d.getDate(),
+        weekday: ITALIAN_WEEKDAYS[d.getDay()],
+      });
+    }
+    return days;
+  }, [maxWeeks]);
+  const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+  const dayScrollMountedRef = useRef(false);
+
+  const scrollToDay = useCallback(
+    (animated: boolean) => {
+      const DAY_PILL_WIDTH = 58;
+      const DAY_PILL_GAP = 8;
+      const selectedNorm = new Date(selectedDate);
+      selectedNorm.setHours(0, 0, 0, 0);
+      const idx = calendarDays.findIndex(
+        (d) => d.date.getTime() === selectedNorm.getTime(),
+      );
+      if (idx >= 0 && dayScrollRef.current) {
+        const offset =
+          idx * (DAY_PILL_WIDTH + DAY_PILL_GAP) -
+          (screenWidth - spacing.lg * 2) / 2 +
+          DAY_PILL_WIDTH / 2;
+        dayScrollRef.current.scrollTo({ x: Math.max(0, offset), animated });
+      }
+    },
+    [calendarDays, screenWidth, selectedDate],
+  );
+
+  const handleDayScrollLayout = useCallback(() => {
+    if (!dayScrollMountedRef.current) {
+      dayScrollMountedRef.current = true;
+      scrollToDay(false);
+    }
+  }, [scrollToDay]);
+
+  // Scroll to center when user taps a different day (skip initial — handled by onLayout)
+  useEffect(() => {
+    if (dayScrollMountedRef.current) {
+      scrollToDay(true);
+    }
+  }, [scrollToDay]);
+
   const pendingProposal = useMemo(() => {
     const now = new Date();
     return [...appointments]
@@ -1086,6 +1129,15 @@ export const AllievoHomeScreen = () => {
     }
   }, [loadData, loadStudents, loadWaitlistOffers, user]);
 
+  const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
+
+  const formatInstructorInitials = (name: string | null | undefined) => {
+    if (!name) return 'Da assegnare';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length < 2) return name;
+    return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+  };
+
   return (
     <Screen>
       <StatusBar style="dark" />
@@ -1105,147 +1157,249 @@ export const AllievoHomeScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.navy}
-            colors={[colors.navy]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
+        {/* ── Header ── */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Ciao, {selectedStudent?.firstName ?? 'Allievo'}</Text>
-            <Text style={styles.subtitle}>
-              {selectedStudent
-                ? 'Gestisci le tue guide'
-                : studentsLoaded
-                  ? 'Profilo allievo non collegato'
-                  : 'Caricamento profilo...'}
-            </Text>
-          </View>
-          <GlassBadge label="Allievo" />
+          <Text style={styles.title}>
+            Ciao, {selectedStudent?.firstName ?? 'Allievo'} {'\uD83D\uDC4B'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {selectedStudent
+              ? 'Pronto per la tua prossima guida?'
+              : studentsLoaded
+                ? 'Profilo allievo non collegato'
+                : 'Caricamento profilo...'}
+          </Text>
+
         </View>
 
         {!selectedStudent ? (
-          <GlassCard
-            title={studentsLoaded ? 'Profilo non associato' : 'Caricamento profilo'}
-            subtitle={
-              studentsLoaded
-                ? 'Questo account STUDENT non e collegato a un allievo della company.'
-                : 'Recupero dati allievo in corso.'
-            }
-            hierarchy="secondary"
-          >
-            {studentsLoaded ? (
-              <Text style={styles.empty}>Contatta il titolare per collegare il tuo profilo.</Text>
-            ) : null}
-          </GlassCard>
+          studentsLoaded ? (
+            <View style={styles.emptyLessonCard}>
+              <Image
+                source={require('../../assets/duck-zen.png')}
+                style={styles.emptyLessonImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.emptyLessonText}>Profilo allievo non collegato</Text>
+            </View>
+          ) : (
+            <>
+              <SkeletonCard style={styles.nextLessonSkeleton}>
+                <SkeletonBlock width="40%" height={12} radius={6} />
+                <SkeletonBlock width="75%" height={26} radius={8} />
+                <SkeletonBlock width="55%" height={16} radius={6} />
+              </SkeletonCard>
+              <SkeletonBlock width="100%" height={58} radius={radii.sm} />
+              <View style={styles.calendarSection}>
+                <SkeletonBlock width="40%" height={22} radius={8} />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonBlock key={`init-cal-sk-${i}`} width={58} height={72} radius={16} />
+                  ))}
+                </View>
+              </View>
+            </>
+          )
         ) : !studentDataReady ? (
           <>
-            <GlassCard title="Prossima guida" subtitle="Caricamento dati..." hierarchy="primary">
-              <SkeletonCard>
-                <SkeletonBlock width="58%" height={26} />
-                <SkeletonBlock width="72%" />
-                <SkeletonBlock width="64%" />
-                <SkeletonBlock width={132} height={44} radius={14} style={styles.skeletonButton} />
-              </SkeletonCard>
-            </GlassCard>
+            {/* Skeleton: Prossima Guida — matches yellow gradient card */}
+            <SkeletonCard style={styles.nextLessonSkeleton}>
+              <SkeletonBlock width="40%" height={12} radius={6} />
+              <SkeletonBlock width="75%" height={26} radius={8} />
+              <SkeletonBlock width="55%" height={16} radius={6} />
+            </SkeletonCard>
 
-            <GlassCard title="Prenota guida" hierarchy="secondary">
-              <SkeletonCard>
-                <SkeletonBlock width="34%" height={24} />
-                <SkeletonBlock width="28%" height={32} />
-                <SkeletonBlock width="100%" height={44} radius={14} style={styles.skeletonButton} />
-              </SkeletonCard>
-            </GlassCard>
+            {/* Skeleton: CTA Button */}
+            <SkeletonBlock width="100%" height={58} radius={radii.sm} />
 
-            <GlassCard title="Calendario" hierarchy="tertiary">
-              <SkeletonCard>
-                <SkeletonBlock width="100%" height={34} radius={14} />
-                <SkeletonBlock width="82%" height={28} radius={14} />
-              </SkeletonCard>
-            </GlassCard>
+            {/* Skeleton: Calendar */}
+            <View style={styles.calendarSection}>
+              <SkeletonBlock width="40%" height={22} radius={8} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <SkeletonBlock key={`cal-sk-${i}`} width={58} height={72} radius={16} />
+                ))}
+              </View>
+            </View>
 
-            <SectionHeader title="Agenda" hierarchy="tertiary" />
-            <GlassCard hierarchy="tertiary">
+            {/* Skeleton: Agenda */}
+            <View style={styles.agendaSection}>
+              <SkeletonBlock width="30%" height={20} radius={8} />
               <View style={styles.agendaList}>
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <SkeletonCard key={`agenda-skeleton-${index}`}>
-                    <SkeletonBlock width="56%" height={24} />
-                    <SkeletonBlock width="66%" />
-                    <SkeletonBlock width="78%" />
-                    <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <SkeletonCard key={`agenda-skeleton-${index}`} style={styles.agendaRowSkeleton}>
+                    <SkeletonBlock width="65%" height={18} radius={6} />
+                    <SkeletonBlock width="50%" height={14} radius={6} />
+                    <SkeletonBlock width="40%" height={14} radius={6} />
+                    <SkeletonBlock width="100%" height={48} radius={radii.sm} />
                   </SkeletonCard>
                 ))}
               </View>
-            </GlassCard>
+            </View>
           </>
         ) : (
           <>
-            <GlassCard
-              title="Prossima guida"
-              subtitle={undefined}
-              hierarchy="primary"
-            >
-              {nextLesson ? (
-                <View style={styles.lessonRow}>
-                  <View style={styles.lessonInfo}>
-                    <Text style={styles.primaryLessonTime}>
-                      {formatDay(nextLesson.startsAt)} · {formatTime(nextLesson.startsAt)}
-                    </Text>
-                    <Text style={styles.primaryLessonMeta}>
-                      Istruttore: {nextLesson.instructor?.name ?? 'Da assegnare'}
-                    </Text>
-                    <Text style={styles.primaryLessonMeta}>
-                      Veicolo: {nextLesson.vehicle?.name ?? 'Da assegnare'}
-                    </Text>
-                  </View>
-                  <View style={styles.nextLessonActionWrap}>
-                    <GlassButton
-                      label={cancellingAppointmentId === nextLesson.id ? 'Annulla...' : 'Annulla'}
+            {/* ── Prossima Guida Card ── */}
+            {nextLesson ? (
+              <View style={styles.nextLessonShadow}>
+                <Image
+                  source={require('../../assets/duck-peek.png')}
+                  style={styles.nextLessonDuck}
+                  resizeMode="contain"
+                />
+                <LinearGradient
+                  colors={['#FACC15', '#FDE68A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={styles.nextLessonCard}
+                >
+                  {isLessonInProgress ? (
+                    <View style={styles.inProgressBadge}>
+                      <View style={styles.inProgressDot} />
+                      <Text style={styles.inProgressBadgeText}>GUIDA IN CORSO</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.nextLessonLabel}>PROSSIMA GUIDA</Text>
+                  )}
+                  <Text style={styles.nextLessonDateTime}>
+                    {formatDay(nextLesson.startsAt)} {'\u2022'} {formatTime(nextLesson.startsAt)}
+                  </Text>
+                  <Text style={styles.nextLessonDetails}>
+                    {formatInstructorInitials(nextLesson.instructor?.name)} {'\u2022'}{' '}
+                    {nextLesson.vehicle?.name ?? 'Da assegnare'}
+                  </Text>
+                  {!isLessonInProgress ? (
+                    <Pressable
                       onPress={() => handleCancel(nextLesson.id)}
                       disabled={cancellingAppointmentId === nextLesson.id}
-                      fullWidth
-                    />
-                  </View>
-                </View>
-              ) : (
-                <Text style={styles.empty}>Nessuna guida programmata.</Text>
-              )}
-            </GlassCard>
+                    >
+                      <Text style={styles.nextLessonCancelText}>
+                        {cancellingAppointmentId === nextLesson.id
+                          ? 'Annullamento...'
+                          : 'Annulla prenotazione'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </LinearGradient>
+              </View>
+            ) : (
+              <View style={styles.emptyLessonCard}>
+                <Image
+                  source={require('../../assets/duck-zen.png')}
+                  style={styles.emptyLessonImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyLessonText}>Nessuna guida prenotata</Text>
+              </View>
+            )}
 
+            {/* ── CTA Button (standalone) ── */}
             {!studentBookingDisabledByPolicy ? (
-              <>
-                <GlassCard title="Prenota guida" hierarchy="secondary">
-                  <GlassButton
-                    label={
-                      paymentProfile?.blockedByInsoluti
-                        ? payNowLoading
-                          ? 'Attendi...'
-                          : 'Salda ora'
-                        : 'Prenota'
-                    }
-                    onPress={paymentProfile?.blockedByInsoluti ? handlePayNow : openPreferences}
-                    disabled={paymentProfile?.blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking}
-                    tone="primary"
-                    fullWidth
-                  />
-                </GlassCard>
-              </>
+              <Pressable
+                onPress={blockedByInsoluti ? handlePayNow : openPreferences}
+                disabled={blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking}
+                style={({ pressed }) => [
+                  styles.ctaButton,
+                  pressed && styles.ctaButtonPressed,
+                  (blockedByInsoluti ? payNowLoading : requiresPaymentMethodForBooking) && styles.ctaButtonDisabled,
+                ]}
+              >
+                <Text style={styles.ctaButtonLabel}>
+                  {blockedByInsoluti
+                    ? payNowLoading
+                      ? 'Attendi...'
+                      : 'Salda ora'
+                    : 'Prenota nuova guida'}
+                </Text>
+              </Pressable>
             ) : null}
 
-            <GlassCard title="Calendario" hierarchy="tertiary">
-              <CalendarNavigator initialMode="week" onChange={setCalendarRange} />
-            </GlassCard>
+            {/* ── Horizontal Day Calendar ── */}
+            <View style={styles.calendarSection}>
+              <View style={styles.calendarMonthRow}>
+                <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
+                <Pressable
+                  onPress={() => setCalendarDrawerOpen(true)}
+                  style={styles.calendarIconBtn}
+                >
+                  <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
+                </Pressable>
+              </View>
+              <ScrollView
+                ref={dayScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dayPillsRow}
+                onLayout={handleDayScrollLayout}
+              >
+                {calendarDays.map((day, index) => {
+                  const dayNorm = new Date(day.date);
+                  dayNorm.setHours(0, 0, 0, 0);
+                  const selNorm = new Date(selectedDate);
+                  selNorm.setHours(0, 0, 0, 0);
+                  const todayNorm = new Date();
+                  todayNorm.setHours(0, 0, 0, 0);
+                  const isToday = dayNorm.getTime() === todayNorm.getTime();
+                  const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
+                  return (
+                    <Pressable
+                      key={`day-${index}`}
+                      style={[
+                        styles.dayPill,
+                        isSelected
+                          ? styles.dayPillSelected
+                          : isToday
+                            ? styles.dayPillToday
+                            : styles.dayPillUnselected,
+                      ]}
+                      onPress={() => setSelectedDate(day.date)}
+                    >
+                      <Text
+                        style={[
+                          styles.dayPillWeekday,
+                          isSelected
+                            ? styles.dayPillWeekdaySelected
+                            : isToday
+                              ? styles.dayPillWeekdayToday
+                              : styles.dayPillWeekdayUnselected,
+                        ]}
+                      >
+                        {day.weekday}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dayPillNumber,
+                          isSelected
+                            ? styles.dayPillNumberSelected
+                            : isToday
+                              ? styles.dayPillNumberToday
+                              : styles.dayPillNumberUnselected,
+                        ]}
+                      >
+                        {day.dayNum}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-            <SectionHeader title="Agenda" hierarchy="tertiary" />
-            <GlassCard hierarchy="tertiary">
+            {/* ── Agenda Section ── */}
+            <View style={styles.agendaSection}>
+              <Text style={styles.agendaSectionTitle}>Agenda</Text>
               <View style={styles.agendaList}>
                 {agendaLoading
                   ? Array.from({ length: 3 }).map((_, index) => (
-                      <SkeletonCard key={`agenda-range-skeleton-${index}`}>
-                        <SkeletonBlock width="56%" height={24} />
-                        <SkeletonBlock width="66%" />
-                        <SkeletonBlock width="78%" />
-                        <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
+                      <SkeletonCard key={`agenda-range-skeleton-${index}`} style={styles.agendaRowSkeleton}>
+                        <SkeletonBlock width="65%" height={18} radius={6} />
+                        <SkeletonBlock width="50%" height={14} radius={6} />
+                        <SkeletonBlock width="40%" height={14} radius={6} />
+                        <SkeletonBlock width="100%" height={48} radius={radii.sm} />
                       </SkeletonCard>
                     ))
                   : visibleAgendaLessons.map((lesson) => {
@@ -1255,29 +1409,28 @@ export const AllievoHomeScreen = () => {
                         <View key={lesson.id} style={styles.agendaRow}>
                           <View style={styles.agendaTop}>
                             <Text style={styles.agendaTime}>
-                              {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+                              {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}
                             </Text>
-                            <GlassBadge label={status.label} tone={status.tone} />
+                            <Badge label={status.label} tone={status.tone} />
                           </View>
                           <Text style={styles.agendaInstructor}>
-                            {lesson.instructor?.name ?? 'Istruttore da assegnare'}
+                            Istruttore: {lesson.instructor?.name ?? 'Da assegnare'}
                           </Text>
                           <Text style={styles.agendaMeta}>
                             Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
                           </Text>
                           {lessonPayment ? (
                             <Text style={styles.historyPaymentMeta}>
-                              Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} · Residuo €{' '}
-                              {lessonPayment.dueAmount.toFixed(2)}
+                              Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} {'\u2022'} Residuo{' '}
+                              {'\u20AC'} {lessonPayment.dueAmount.toFixed(2)}
                             </Text>
                           ) : null}
-                          <View style={styles.agendaCtaWrap}>
-                            <GlassButton
-                              label="Dettagli"
-                              tone="standard"
-                              onPress={() => handleOpenHistoryDetails(lesson)}
-                            />
-                          </View>
+                          <Button
+                            label="Dettagli"
+                            tone="standard"
+                            onPress={() => handleOpenHistoryDetails(lesson)}
+                            fullWidth
+                          />
                         </View>
                       );
                     })}
@@ -1286,7 +1439,7 @@ export const AllievoHomeScreen = () => {
                 ) : null}
                 {!agendaLoading && agendaLessons.length > 4 ? (
                   <View style={styles.agendaToggleWrap}>
-                    <GlassButton
+                    <Button
                       label={showAllAgendaLessons ? 'Mostra meno' : 'Mostra di più'}
                       onPress={() => setShowAllAgendaLessons((prev) => !prev)}
                       tone="standard"
@@ -1295,168 +1448,142 @@ export const AllievoHomeScreen = () => {
                   </View>
                 ) : null}
               </View>
-            </GlassCard>
-
+            </View>
           </>
         )}
       </ScrollView>
+      {/* ── Lesson Detail BottomSheet ── */}
       <BottomSheet
         visible={historyDetailsOpen && !!selectedHistoryLesson}
-        title="Dettaglio guida"
         onClose={() => setHistoryDetailsOpen(false)}
+        title="Dettaglio guida"
+        showHandle
       >
         {selectedHistoryLesson ? (
-          <View style={styles.sheetScrollContainer}>
-            <ScrollView
-              ref={historyDetailsScrollRef}
-              style={[styles.paymentDetailsScroll, { maxHeight: historyDetailsMaxHeight }]}
-              contentContainerStyle={styles.sheetScrollContent}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-              contentInsetAdjustmentBehavior="never"
-              automaticallyAdjustContentInsets={false}
-              automaticallyAdjustsScrollIndicatorInsets={false}
-              scrollEventThrottle={16}
-              onLayout={(event) =>
-                setHistoryDetailsLayoutHeight(event.nativeEvent.layout.height)
-              }
-              onContentSizeChange={(_, height) => setHistoryDetailsContentHeight(height)}
-              onScroll={(event) => setHistoryDetailsOffsetY(event.nativeEvent.contentOffset.y)}
-            >
-              <Text style={styles.sheetText}>
-                Guida {formatDay(selectedHistoryLesson.startsAt)} · {formatTime(selectedHistoryLesson.startsAt)}
-              </Text>
-              <Text style={styles.sheetMeta}>
+          <>
+            {/* Hero info card */}
+            <View style={styles.chunkyHeroCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.chunkyHeroTitle}>
+                  {formatDay(selectedHistoryLesson.startsAt)} {'\u2022'} {formatTime(selectedHistoryLesson.startsAt)}
+                </Text>
+                <View style={[styles.chunkyStatusPill, { backgroundColor: '#FEF9C3' }]}>
+                  <Text style={[styles.chunkyStatusPillText, { color: '#CA8A04' }]}>
+                    {statusLabel(selectedHistoryLesson.status).label.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.chunkyHeroSub}>
                 Durata: {lessonDurationMinutes(selectedHistoryLesson)} min
               </Text>
-              <Text style={styles.sheetMeta}>
-                Istruttore: {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
-              </Text>
-              <Text style={styles.sheetMeta}>Veicolo: {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}</Text>
-              <Text style={styles.sheetMeta}>
-                Stato guida: {statusLabel(selectedHistoryLesson.status).label}
-              </Text>
-              <Text style={styles.sheetDivider}>Pagamento</Text>
-              {selectedHistoryPayment ? (
-                <>
-                  <Text style={styles.sheetMeta}>
-                    Stato pagamento: {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
+            </View>
+
+            {/* Icon rows */}
+            <View style={{ gap: 16 }}>
+              {/* Instructor */}
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="person-outline" size={18} color="#3B82F6" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>ISTRUTTORE</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
                   </Text>
-                  <Text style={styles.sheetMeta}>Prezzo guida: € {selectedHistoryPayment.priceAmount.toFixed(2)}</Text>
-                  <Text style={styles.sheetMeta}>Penale: € {selectedHistoryPayment.penaltyAmount.toFixed(2)}</Text>
-                  <Text style={styles.sheetMeta}>
-                    Totale dovuto: € {selectedHistoryPayment.finalAmount.toFixed(2)}
+                </View>
+              </View>
+
+              {/* Vehicle */}
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                  <Ionicons name="car-outline" size={18} color="#CA8A04" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>VEICOLO</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}
                   </Text>
-                  <Text style={styles.sheetMeta}>Pagato: € {selectedHistoryPayment.paidAmount.toFixed(2)}</Text>
-                  <Text style={styles.sheetMeta}>Residuo: € {selectedHistoryPayment.dueAmount.toFixed(2)}</Text>
-                  <Text style={styles.sheetMeta}>
-                    Fattura: {invoiceStatusLabel(selectedHistoryPayment.invoiceStatus)}
-                  </Text>
-                  <View style={styles.paymentDocumentActions}>
-                    <View style={styles.paymentDocumentActionWrap}>
-                      <GlassButton
-                        label={historyDocumentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
-                        onPress={handleOpenPaymentDocument}
-                        disabled={Boolean(historyDocumentBusy)}
-                        fullWidth
-                      />
-                    </View>
-                    <View style={styles.paymentDocumentActionWrap}>
-                      <GlassButton
-                        label={historyDocumentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
-                        onPress={handleSharePaymentDocument}
-                        disabled={Boolean(historyDocumentBusy)}
-                        fullWidth
-                      />
-                    </View>
-                  </View>
-                  <Text style={styles.sheetDivider}>Tentativi di addebito</Text>
-                  <View style={styles.paymentEventsList}>
-                    {selectedHistoryPayment.payments.map((payment) => {
-                      const paymentEventStatus = paymentEventStatusLabel(payment.status);
-                      return (
-                        <View key={payment.id} style={styles.paymentEventRow}>
-                          <View style={styles.paymentEventMain}>
-                            <Text style={styles.paymentEventTitle}>
-                              {paymentPhaseLabel(payment.phase)} · € {payment.amount.toFixed(2)}
-                            </Text>
-                            <Text style={styles.paymentEventMeta}>
-                              {formatDay(payment.paidAt ?? payment.createdAt)} ·{' '}
-                              {formatTime(payment.paidAt ?? payment.createdAt)}
-                            </Text>
-                            {payment.failureMessage ? (
-                              <Text style={styles.paymentEventMeta}>{payment.failureMessage}</Text>
-                            ) : null}
-                          </View>
-                          <GlassBadge label={paymentEventStatus.label} tone={paymentEventStatus.tone} />
-                        </View>
-                      );
-                    })}
-                    {!selectedHistoryPayment.payments.length ? (
-                      <Text style={styles.empty}>Nessun tentativo registrato.</Text>
-                    ) : null}
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.sheetMeta}>
-                  Nessun dettaglio pagamento disponibile per questa guida.
-                </Text>
-              )}
-            </ScrollView>
-            {showHistoryScrollDown ? (
-              <ScrollHintFab
-                direction="down"
-                style={styles.scrollHintBottom}
-                onPress={() => handleHistoryDetailsQuickScroll('down')}
-              />
-            ) : null}
-            {showHistoryScrollUp ? (
-              <ScrollHintFab
-                direction="up"
-                style={styles.scrollHintTop}
-                onPress={() => handleHistoryDetailsQuickScroll('up')}
-              />
-            ) : null}
-          </View>
+                </View>
+              </View>
+
+              {/* Payment */}
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="wallet-outline" size={18} color="#EC4899" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>PAGAMENTO</Text>
+                  {selectedHistoryPayment ? (
+                    <Text style={[styles.chunkyRowValue, { fontStyle: 'italic', color: '#64748B' }]}>
+                      {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
+                      {selectedHistoryPayment.dueAmount > 0
+                        ? ` \u2022 Residuo \u20AC ${selectedHistoryPayment.dueAmount.toFixed(2)}`
+                        : ''}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.chunkyRowValue, { fontStyle: 'italic', color: '#64748B' }]}>
+                      Nessun dettaglio disponibile
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          </>
         ) : null}
       </BottomSheet>
+      {/* ── Proposal BottomSheet ── */}
       <BottomSheet
         visible={proposalAppointmentOpen && !!pendingProposal}
-        title="Nuova proposta guida"
-        onClose={() => {
-          if (!proposalAppointmentLoading) setProposalAppointmentOpen(false);
-        }}
+        onClose={() => { if (!proposalAppointmentLoading) setProposalAppointmentOpen(false); }}
+        title="Nuova proposta"
         closeDisabled={proposalAppointmentLoading}
+        showHandle
         footer={
-          <View style={styles.sheetActionsDock}>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label={proposalAppointmentLoading ? 'Attendi...' : 'Accetta'}
-                tone="primary"
+          pendingProposal ? (
+            <View style={{ gap: 12 }}>
+              <Pressable
                 onPress={proposalAppointmentLoading ? undefined : handleAcceptAppointmentProposal}
                 disabled={proposalAppointmentLoading}
-                fullWidth
-              />
-            </View>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label={proposalAppointmentLoading ? 'Attendi...' : 'Rifiuta'}
-                tone="danger"
+                style={[styles.chunkyPinkCta, proposalAppointmentLoading && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyPinkCtaText}>
+                  {proposalAppointmentLoading ? 'Attendi...' : 'Accetta guida'}
+                </Text>
+              </Pressable>
+              <Pressable
                 onPress={proposalAppointmentLoading ? undefined : handleDeclineAppointmentProposal}
                 disabled={proposalAppointmentLoading}
-                fullWidth
-              />
+                style={[styles.chunkyOutlineBtn, proposalAppointmentLoading && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyOutlineBtnText}>
+                  {proposalAppointmentLoading ? 'Attendi...' : 'Chiedi cambio orario'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (!proposalAppointmentLoading) {
+                    handleDeclineAppointmentProposal();
+                  }
+                }}
+                disabled={proposalAppointmentLoading}
+                style={styles.chunkyRedLink}
+              >
+                <Text style={styles.chunkyRedLinkText}>Rifiuta proposta</Text>
+              </Pressable>
             </View>
-          </View>
+          ) : undefined
         }
       >
         {pendingProposal ? (
-          <View style={styles.sheetContent}>
-            <Text style={styles.sheetText}>
-              {formatDay(pendingProposal.startsAt)} · {formatTime(pendingProposal.startsAt)}
+          <View style={styles.chunkyYellowCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.chunkyYellowDot} />
+              <Text style={styles.chunkyYellowLabel}>HAI UNA PROPOSTA!</Text>
+            </View>
+            <Text style={styles.chunkyYellowTitle}>
+              {formatDay(pendingProposal.startsAt)} {'\u2022'} {formatTime(pendingProposal.startsAt)}
             </Text>
-            <Text style={styles.sheetMeta}>
-              Durata:{' '}
+            <Text style={styles.chunkyYellowSub}>
               {Math.max(
                 30,
                 Math.round(
@@ -1467,13 +1594,7 @@ export const AllievoHomeScreen = () => {
                     60000
                 )
               )}{' '}
-              min
-            </Text>
-            <Text style={styles.sheetMeta}>
-              Istruttore: {pendingProposal.instructor?.name ?? 'Da assegnare'}
-            </Text>
-            <Text style={styles.sheetMeta}>
-              Veicolo: {pendingProposal.vehicle?.name ?? 'Da assegnare'}
+              min {'\u2022'} {pendingProposal.instructor?.name ?? 'Istruttore da assegnare'}
             </Text>
           </View>
         ) : null}
@@ -1486,7 +1607,7 @@ export const AllievoHomeScreen = () => {
         footer={
           <View style={styles.sheetActionsDock}>
             <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
+              <Button
                 label={waitlistLoading ? 'Attendi...' : 'Accetta'}
                 tone="primary"
                 onPress={waitlistLoading ? undefined : handleAcceptWaitlistOffer}
@@ -1495,7 +1616,7 @@ export const AllievoHomeScreen = () => {
               />
             </View>
             <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
+              <Button
                 label={waitlistLoading ? 'Attendi...' : 'Rifiuta'}
                 tone="danger"
                 onPress={waitlistLoading ? undefined : handleDeclineWaitlistOffer}
@@ -1518,9 +1639,9 @@ export const AllievoHomeScreen = () => {
           </View>
         ) : null}
       </BottomSheet>
+      {/* ── Booking Preferences BottomSheet ── */}
       <BottomSheet
         visible={prefsOpen}
-        title="Prenota guida"
         onClose={handleClosePreferences}
         onClosed={() => {
           if (pendingSuggestionOpen) {
@@ -1528,146 +1649,182 @@ export const AllievoHomeScreen = () => {
             setPendingSuggestionOpen(false);
           }
         }}
+        title="Prenota guida"
         closeDisabled={bookingLoading}
-        footer={
-          <View style={styles.sheetActionsDock}>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label={bookingLoading ? 'Attendi...' : 'Prenota'}
-                tone="primary"
-                onPress={bookingLoading ? undefined : handleBookingRequest}
-                disabled={bookingLoading}
-                fullWidth
-              />
-            </View>
-          </View>
-        }
-      >
-        <View style={styles.sheetContent}>
-          {paymentProfile?.autoPaymentsEnabled ? (
-            <View style={styles.bookingCreditsInline}>
-              <Text style={styles.bookingCreditsInlineLabel}>Crediti disponibili</Text>
-              <Text style={styles.bookingCreditsInlineValue}>
-                {paymentProfile.lessonCreditsAvailable ?? 0}
+        showHandle
+        titleRight={
+          paymentProfile?.autoPaymentsEnabled ? (
+            <View style={styles.bookingCreditsBadge}>
+              <Text style={styles.bookingCreditsBadgeText}>
+                Crediti: {paymentProfile.lessonCreditsAvailable ?? 0}
               </Text>
             </View>
-          ) : null}
-          <View style={styles.bookingFormBlock}>
-            <PickerField
-              label="Giorno"
-              value={preferredDate}
-              mode="date"
-              onChange={setPreferredDate}
-            />
-          </View>
-          {canSelectLessonType ? (
-            <View style={styles.bookingFormBlock}>
-              <Text style={styles.sheetMeta}>Tipo guida</Text>
-              <View style={styles.durationWrap}>
-                {availableLessonTypes.map((lessonType) => (
+          ) : undefined
+        }
+        footer={
+          <Pressable
+            onPress={bookingLoading ? undefined : handleBookingRequest}
+            disabled={bookingLoading}
+            style={[styles.chunkyPinkCta, bookingLoading && { opacity: 0.5 }]}
+          >
+            <Text style={styles.chunkyPinkCtaText}>
+              {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
+            </Text>
+          </Pressable>
+        }
+      >
+        {/* GIORNO */}
+        <View style={styles.bookingSection}>
+          <Text style={styles.bookingSectionLabel}>GIORNO</Text>
+          <Pressable
+            style={({ pressed }) => [styles.bookingDateCardChunky, pressed && { opacity: 0.85 }]}
+            onPress={() => {
+              setPrefsOpen(false);
+              setTimeout(() => setBookingCalendarOpen(true), 350);
+            }}
+          >
+            <View style={styles.bookingDateIconLg}>
+              <Ionicons name="calendar" size={20} color="#CA8A04" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bookingDateMainText}>
+                {formatDay(preferredDate.toISOString())}
+              </Text>
+              <Text style={styles.bookingDateHint}>Scegli quando guidare</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+          </Pressable>
+        </View>
+
+        {/* DURATA */}
+        <View style={styles.bookingSection}>
+          <Text style={styles.bookingSectionLabel}>DURATA</Text>
+          {availableDurations.length === 1 ? (
+            <Text style={styles.bookingDurationSingle}>{availableDurations[0]} min</Text>
+          ) : (
+            <View style={styles.bookingChipRow}>
+              {availableDurations.map((duration) => {
+                const isActive = durationMinutes === duration;
+                const label = duration >= 60
+                  ? duration === 60 ? '1 ora' : duration === 90 ? '1 ora e mezza' : `${duration / 60} ore`
+                  : `${duration} min`;
+                return (
+                  <Pressable
+                    key={`duration-${duration}`}
+                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
+                    onPress={() => setDurationMinutes(duration)}
+                  >
+                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* TIPO GUIDA */}
+        {canSelectLessonType ? (
+          <View style={styles.bookingSection}>
+            <Text style={styles.bookingSectionLabel}>TIPO GUIDA</Text>
+            <View style={styles.bookingChipRow}>
+              {availableLessonTypes.map((lessonType) => {
+                const isActive = selectedLessonType === lessonType;
+                return (
                   <Pressable
                     key={`type-${lessonType}`}
-                    style={[
-                      styles.durationChip,
-                      selectedLessonType === lessonType && styles.durationChipActive,
-                    ]}
+                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
                     onPress={() => setSelectedLessonType(lessonType)}
                   >
-                    <Text
-                      style={
-                        selectedLessonType === lessonType
-                          ? styles.durationTextActive
-                          : styles.durationText
-                      }
-                    >
+                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
                       {formatLessonType(lessonType)}
                     </Text>
                   </Pressable>
-                ))}
-              </View>
+                );
+              })}
             </View>
-          ) : null}
-          <View style={styles.bookingFormBlock}>
-            <Text style={styles.sheetMeta}>Durata</Text>
-            {availableDurations.length === 1 ? (
-              <Text style={styles.sheetText}>{availableDurations[0]} min</Text>
-            ) : (
-              <View style={styles.durationWrap}>
-                {availableDurations.map((duration) => (
-                  <Pressable
-                    key={`duration-${duration}`}
-                    style={[
-                      styles.durationChip,
-                      durationMinutes === duration && styles.durationChipActive,
-                    ]}
-                    onPress={() => setDurationMinutes(duration)}
-                  >
-                    <Text
-                      style={
-                        durationMinutes === duration
-                          ? styles.durationTextActive
-                          : styles.durationText
-                      }
-                    >
-                      {duration}m
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      </BottomSheet>
-      <BottomSheet
-        visible={sheetOpen}
-        title="Proposta di guida"
-        onClose={handleRejectSuggestion}
-        closeDisabled={proposalLoading}
-        footer={
-          <View style={styles.sheetActionsDock}>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label={proposalLoading ? 'Attendi...' : 'Accetta'}
-                tone="primary"
-                onPress={proposalLoading ? undefined : handleAcceptSuggestion}
-                disabled={proposalLoading}
-                fullWidth
-              />
-            </View>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label={proposalLoading ? 'Attendi...' : 'Proponimi altro'}
-                onPress={proposalLoading ? undefined : handleAlternativeSuggestion}
-                disabled={proposalLoading}
-                fullWidth
-              />
-            </View>
-            <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
-                label="Rifiuta"
-                tone="danger"
-                onPress={proposalLoading ? undefined : handleRejectSuggestion}
-                disabled={proposalLoading}
-                fullWidth
-              />
-            </View>
-          </View>
-        }
-      >
-        {suggestion ? (
-          <View style={styles.sheetContent}>
-            <Text style={styles.sheetText}>
-              {formatDay(suggestion.startsAt)} · {formatTime(suggestion.startsAt)}
-            </Text>
-            {canSelectLessonType ? (
-              <Text style={styles.sheetMeta}>Tipo guida: {formatLessonType(selectedLessonType)}</Text>
-            ) : null}
-            <Text style={styles.sheetMeta}>Durata: {durationMinutes} min</Text>
-            <Text style={styles.sheetMeta}>Istruttore: da assegnare</Text>
-            <Text style={styles.sheetMeta}>Veicolo: da assegnare</Text>
           </View>
         ) : null}
       </BottomSheet>
+      {/* ── Booking Suggestion BottomSheet ── */}
+      <BottomSheet
+        visible={sheetOpen}
+        onClose={handleRejectSuggestion}
+        title="Nuova proposta"
+        closeDisabled={proposalLoading}
+        showHandle
+        footer={
+          suggestion ? (
+            <View style={{ gap: 12 }}>
+              <Pressable
+                onPress={proposalLoading ? undefined : handleAcceptSuggestion}
+                disabled={proposalLoading}
+                style={[styles.chunkyPinkCta, proposalLoading && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyPinkCtaText}>
+                  {proposalLoading ? 'Attendi...' : 'Accetta guida'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={proposalLoading ? undefined : handleAlternativeSuggestion}
+                disabled={proposalLoading}
+                style={[styles.chunkyOutlineBtn, proposalLoading && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyOutlineBtnText}>
+                  {proposalLoading ? 'Attendi...' : 'Chiedi cambio orario'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (!proposalLoading) handleRejectSuggestion();
+                }}
+                disabled={proposalLoading}
+                style={styles.chunkyRedLink}
+              >
+                <Text style={styles.chunkyRedLinkText}>Rifiuta proposta</Text>
+              </Pressable>
+            </View>
+          ) : undefined
+        }
+      >
+        {suggestion ? (
+          <View style={styles.chunkyYellowCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.chunkyYellowDot} />
+              <Text style={styles.chunkyYellowLabel}>HAI UNA PROPOSTA!</Text>
+            </View>
+            <Text style={styles.chunkyYellowTitle}>
+              {formatDay(suggestion.startsAt)} {'\u2022'} {formatTime(suggestion.startsAt)}
+            </Text>
+            <Text style={styles.chunkyYellowSub}>
+              {durationMinutes} min {'\u2022'} Istruttore da assegnare
+            </Text>
+          </View>
+        ) : null}
+      </BottomSheet>
+
+      <CalendarDrawer
+        visible={bookingCalendarOpen}
+        onClose={() => {
+          setBookingCalendarOpen(false);
+          setTimeout(() => setPrefsOpen(true), 350);
+        }}
+        onSelectDate={(date) => {
+          setPreferredDate(date);
+          setBookingCalendarOpen(false);
+          setTimeout(() => setPrefsOpen(true), 350);
+        }}
+        selectedDate={preferredDate}
+        maxWeeks={Number(settings?.availabilityWeeks) || 4}
+      />
+      <CalendarDrawer
+        visible={calendarDrawerOpen}
+        onClose={() => setCalendarDrawerOpen(false)}
+        onSelectDate={(date) => setSelectedDate(date)}
+        selectedDate={selectedDate}
+        maxWeeks={Number(settings?.availabilityWeeks) || 4}
+      />
     </Screen>
   );
 };
@@ -1678,73 +1835,280 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingBottom: spacing.xxl * 2 + spacing.md,
   },
+
+  /* ── Header ── */
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 4,
   },
   title: {
     ...typography.title,
-    color: colors.textPrimary,
+    color: '#1E293B',
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+    color: '#64748B',
+    marginTop: 2,
   },
-  lessonRow: {
+
+  /* ── Next Lesson Card (yellow) ── */
+  nextLessonShadow: {
+    borderRadius: radii.lg,
+    shadowColor: '#B45309',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  nextLessonDuck: {
+    position: 'absolute',
+    top: -49.5,
+    right: 20,
+    width: 80,
+    height: 50,
+    zIndex: 10,
+  },
+  nextLessonCard: {
+    borderRadius: radii.lg,
+    padding: 22,
+    gap: 8,
+    overflow: 'hidden',
+  },
+  inProgressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  inProgressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+  },
+  inProgressBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#15803D',
+    letterSpacing: 0.6,
+  },
+  nextLessonLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(120, 53, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  nextLessonDateTime: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(120, 53, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  nextLessonDetails: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(120, 53, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  nextLessonCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
+    marginTop: 4,
+  },
+  emptyLessonCard: {
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: '#FACC15',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: spacing.lg,
+    gap: 8,
+  },
+  emptyLessonImage: {
+    width: 200,
+    height: 125,
+  },
+  emptyLessonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ACABB2',
+    fontStyle: 'italic',
+  },
+
+  /* ── CTA Button ── */
+  ctaButton: {
+    backgroundColor: '#EC4899',
+    borderRadius: radii.sm,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  ctaButtonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.92,
+  },
+  ctaButtonDisabled: {
+    opacity: 0.5,
+  },
+  ctaButtonLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* ── Calendar Section ── */
+  calendarSection: {
     gap: spacing.sm,
   },
-  lessonInfo: {
-    flex: 1,
-    minWidth: 0,
+  calendarMonthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  nextLessonActionWrap: {
-    width: '100%',
-    paddingTop: spacing.xs,
-  },
-  primaryLessonTime: {
-    fontSize: 24,
-    lineHeight: 30,
+  calendarMonthTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    letterSpacing: -0.3,
-    color: colors.textPrimary,
+    color: '#1E293B',
   },
-  primaryLessonMeta: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+  calendarIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  lessonTime: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
+  dayPillsRow: {
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  lessonMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+  dayPill: {
+    width: 58,
+    height: 72,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  dayPillSelected: {
+    backgroundColor: '#FCE7F3',
+    borderWidth: 2,
+    borderColor: '#EC4899',
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  dayPillUnselected: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dayPillToday: {
+    backgroundColor: '#FEF9C3',
+    borderWidth: 2,
+    borderColor: '#FACC15',
+    shadowColor: '#D97706',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  dayPillWeekday: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  dayPillWeekdaySelected: {
+    color: '#BE185D',
+  },
+  dayPillWeekdayUnselected: {
+    color: '#94A3B8',
+  },
+  dayPillWeekdayToday: {
+    color: '#CA8A04',
+  },
+  dayPillNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  dayPillNumberSelected: {
+    color: '#BE185D',
+  },
+  dayPillNumberUnselected: {
+    color: '#1E293B',
+  },
+  dayPillNumberToday: {
+    color: '#CA8A04',
+  },
+
+  /* ── Agenda Section ── */
+  agendaSection: {
+    gap: spacing.sm,
+  },
+  agendaSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   agendaList: {
     gap: spacing.sm,
   },
-  skeletonButton: {
-    marginTop: spacing.xs,
+  nextLessonSkeleton: {
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    gap: 12,
+  },
+  agendaRowSkeleton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 10,
   },
   agendaRow: {
-    borderRadius: 14,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.xs,
-    shadowColor: 'rgba(15, 29, 51, 0.2)',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   agendaTop: {
     flexDirection: 'row',
@@ -1753,28 +2117,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   agendaTime: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-    fontWeight: '600',
     fontSize: 16,
     lineHeight: 21,
+    fontWeight: '700',
+    color: '#1E293B',
+    flex: 1,
   },
   agendaInstructor: {
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 20,
-    color: colors.textPrimary,
-    fontWeight: '600',
+    color: '#1E293B',
+    fontWeight: '500',
   },
   agendaMeta: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: '#64748B',
   },
   agendaCtaWrap: {
     alignSelf: 'flex-start',
-    marginTop: 2,
+    marginTop: 4,
   },
   agendaToggleWrap: {
     marginTop: spacing.xs,
@@ -1787,6 +2150,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
+
+  /* ── BottomSheet / Booking Preferences (unchanged styles) ── */
   pickerRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -1805,15 +2170,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(50, 77, 122, 0.35)',
-    backgroundColor: 'rgba(239, 244, 252, 0.9)',
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
   durationChipActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-    shadowColor: colors.navy,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOpacity: 0.32,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -1835,17 +2200,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  bookingCreditsInline: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.38)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+  _oldBookingCreditsInline: {
+    display: 'none',
   },
   bookingCreditsInlineLabel: {
     ...typography.caption,
@@ -1911,8 +2267,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassStrong,
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
@@ -1951,41 +2307,398 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  pickerBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(10, 15, 30, 0.78)',
-    padding: spacing.lg,
-  },
-  pickerCard: {
-    backgroundColor: '#F7FAFF',
-    borderRadius: 20,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  pickerTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  timePickerFieldWrap: {
-    flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.34)',
-    backgroundColor: 'rgba(238, 244, 252, 0.92)',
-    padding: 3,
-    shadowColor: 'rgba(50, 77, 122, 0.4)',
-    shadowOpacity: 0.14,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  timePickerField: {
+  /* ── BottomSheet shared styles ── */
+  sheetInfoCard: {
+    backgroundColor: '#FEF9C3',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 16,
+    gap: 4,
   },
-  timePickerFieldPressed: {
-    opacity: 0.9,
+  sheetInfoLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#CA8A04',
+  },
+  sheetInfoDateTime: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#111111',
+  },
+  sheetInfoMeta: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#111111',
+  },
+  sheetFormLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  sheetTextAction: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+  },
+  sheetTextActionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  bookingDateCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bookingDateIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF9C3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookingDateText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  detailInfoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 2,
+  },
+  detailDateTime: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  detailStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  detailDuration: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  detailSection: {
+    gap: 2,
+  },
+  detailSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  detailSectionValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  detailPaymentInfo: {
+    fontSize: 13,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    color: '#64748B',
+  },
+
+  /* ── Chunky Google-style BottomSheet styles ── */
+  chunkyHeroCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    padding: 20,
+    gap: 6,
+  },
+  chunkyHeroTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyHeroSub: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#94A3B8',
+  },
+  chunkyStatusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  chunkyStatusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chunkyIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  chunkyIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyRowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chunkyRowValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyYellowCard: {
+    backgroundColor: '#FEF9C3',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 20,
+    gap: 6,
+  },
+  chunkyYellowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#CA8A04',
+  },
+  chunkyYellowLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#CA8A04',
+    textTransform: 'uppercase',
+  },
+  chunkyYellowTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyYellowSub: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#64748B',
+  },
+  chunkyPinkCta: {
+    backgroundColor: '#EC4899',
+    height: 54,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  chunkyPinkCtaText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  chunkyOutlineBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    height: 54,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyOutlineBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyRedLink: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+  },
+  chunkyRedLinkText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  chunkyFormLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chunkyDateCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    padding: 18,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chunkyDateText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    alignItems: 'center',
+  },
+  chunkyChip: {
+    height: 44,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyChipActive: {
+    backgroundColor: '#EC4899',
+    borderColor: '#EC4899',
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.32,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  chunkyChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  chunkyChipTextActive: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  chunkyCreditsRow: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  chunkyCreditsLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  chunkyCreditsValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+
+  /* ── Booking drawer (chunky redesign) ── */
+  bookingCreditsBadge: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  bookingCreditsBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  bookingSection: {
+    gap: 10,
+  },
+  bookingSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bookingDateCardChunky: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  bookingDateIconLg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FEF9C3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookingDateMainText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  bookingDateHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  bookingDurationSingle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  bookingChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bookingChipChunky: {
+    height: 46,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookingChipChunkyActive: {
+    backgroundColor: '#FACC15',
+    borderColor: '#FACC15',
+  },
+  bookingChipChunkyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  bookingChipChunkyTextActive: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
   },
 });

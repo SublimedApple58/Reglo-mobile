@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing } from '../theme';
 
 type SelectableChipProps = {
   label: string;
@@ -10,8 +10,10 @@ type SelectableChipProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-const ACTIVE_COLOR = '#324D7A';
-const INACTIVE_BG = 'rgba(255, 255, 255, 0.7)';
+const ACTIVE_BG = '#FACC15';
+const ACTIVE_BORDER = '#FACC15';
+const INACTIVE_BG = '#F8FAFC';
+const INACTIVE_BORDER = '#E2E8F0';
 
 export const SelectableChip = ({
   label,
@@ -34,11 +36,11 @@ export const SelectableChip = ({
     () => ({
       backgroundColor: progress.interpolate({
         inputRange: [0, 1],
-        outputRange: [INACTIVE_BG, ACTIVE_COLOR],
+        outputRange: [INACTIVE_BG, ACTIVE_BG],
       }),
       borderColor: progress.interpolate({
         inputRange: [0, 1],
-        outputRange: [colors.glassBorder, ACTIVE_COLOR],
+        outputRange: [INACTIVE_BORDER, ACTIVE_BORDER],
       }),
     }),
     [progress],
@@ -46,11 +48,11 @@ export const SelectableChip = ({
 
   const animatedTextColor = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.textSecondary, '#FFFFFF'],
+    outputRange: ['#64748B', '#92400E'],
   });
 
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <Animated.View style={[styles.chip, animatedStyles, style]}>
         <Animated.Text style={[styles.text, { color: animatedTextColor }, textStyle]}>
           {label}
@@ -62,12 +64,16 @@ export const SelectableChip = ({
 
 const styles = StyleSheet.create({
   chip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 14,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
     borderWidth: 1,
   },
   text: {
-    ...typography.body,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

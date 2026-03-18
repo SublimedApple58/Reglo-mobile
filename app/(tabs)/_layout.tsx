@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { LinearGradient } from 'expo-linear-gradient';
 import { DynamicColorIOS, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
@@ -14,6 +13,7 @@ import { colors } from '../../src/theme';
 type AndroidTabBarExtraProps = {
   showRoleTab: boolean;
   showPaymentsTab: boolean;
+  showVehiclesTab: boolean;
   isOwner: boolean;
 };
 
@@ -62,14 +62,7 @@ const AndroidTabItem = ({ routeKey, tabLabel, label, iconName, isFocused, onPres
       onPress={onPress}
       style={({ pressed }) => [styles.androidTabItem, pressed && styles.androidTabItemPressed]}
     >
-      <Animated.View pointerEvents="none" style={[styles.androidActiveFill, activeFillStyle]}>
-        <LinearGradient
-          colors={['#324D7A', '#2B436A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      <Animated.View pointerEvents="none" style={[styles.androidActiveFill, activeFillStyle]} />
 
       <Animated.View style={[styles.androidTabContent, contentStyle]}>
         <Ionicons name={iconName} size={20} color={isFocused ? '#FFFFFF' : colors.textSecondary} style={styles.androidTabIcon} />
@@ -87,6 +80,7 @@ const AndroidTabBar = ({
   navigation,
   showRoleTab,
   showPaymentsTab,
+  showVehiclesTab,
   isOwner,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
@@ -94,18 +88,14 @@ const AndroidTabBar = ({
   const visibleRoutes = state.routes.filter((route) => {
     if (route.name === 'role') return showRoleTab;
     if (route.name === 'payments') return showPaymentsTab;
+    if (route.name === 'vehicles') return showVehiclesTab;
     return true;
   });
   if (!visibleRoutes.length) return null;
 
   return (
     <View style={[styles.androidBarWrapper, { bottom: Math.max(8, insets.bottom + 6) }]}>
-      <LinearGradient
-        colors={['rgba(255,255,255,0.98)', 'rgba(243,250,247,0.97)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.androidBar}
-      >
+      <View style={styles.androidBar}>
         {visibleRoutes.map((route) => {
           const descriptor = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((item) => item.key === route.key);
@@ -117,6 +107,8 @@ const AndroidTabBar = ({
                 : 'Gestione'
               : route.name === 'payments'
                 ? 'Pagamenti'
+              : route.name === 'vehicles'
+                ? 'Veicoli'
               : route.name === 'settings'
                 ? 'Impostazioni'
                 : 'Home';
@@ -134,6 +126,10 @@ const AndroidTabBar = ({
                 ? isFocused
                   ? 'card'
                   : 'card-outline'
+              : route.name === 'vehicles'
+                ? isFocused
+                  ? 'car'
+                  : 'car-outline'
               : route.name === 'settings'
                 ? isFocused
                   ? 'settings'
@@ -166,7 +162,7 @@ const AndroidTabBar = ({
             />
           );
         })}
-      </LinearGradient>
+      </View>
     </View>
   );
 };
@@ -176,6 +172,7 @@ export default function TabsLayout() {
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
+  const showVehiclesTab = autoscuolaRole === 'OWNER';
   const isOwner = autoscuolaRole === 'OWNER';
 
   const transparent =
@@ -195,10 +192,10 @@ export default function TabsLayout() {
   const selectedLabelColor =
     Platform.OS === 'ios'
       ? DynamicColorIOS({
-          light: colors.navy,
-          dark: colors.navy,
+          light: colors.primary,
+          dark: colors.primary,
         })
-      : colors.navy;
+      : colors.primary;
 
   if (Platform.OS !== 'ios') {
     return (
@@ -208,6 +205,7 @@ export default function TabsLayout() {
             {...props}
             showRoleTab={showRoleTab}
             showPaymentsTab={showPaymentsTab}
+            showVehiclesTab={showVehiclesTab}
             isOwner={isOwner}
           />
         )}
@@ -227,6 +225,13 @@ export default function TabsLayout() {
           options={{
             href: showRoleTab ? '/(tabs)/role' : null,
             title: isOwner ? 'Istruttore' : 'Gestione',
+          }}
+        />
+        <Tabs.Screen
+          name="vehicles"
+          options={{
+            href: showVehiclesTab ? '/(tabs)/vehicles' : null,
+            title: 'Veicoli',
           }}
         />
         <Tabs.Screen
@@ -257,7 +262,7 @@ export default function TabsLayout() {
         selected: { color: selectedLabelColor, fontSize: 11, fontWeight: '600' },
       }}
       tintColor={selectedLabelColor}
-      backgroundColor={Platform.OS === 'ios' ? transparent : colors.backgroundTop}
+      backgroundColor={Platform.OS === 'ios' ? transparent : colors.background}
       blurEffect={Platform.OS === 'ios' ? 'none' : undefined}
       shadowColor={Platform.OS === 'ios' ? transparent : undefined}
       disableTransparentOnScrollEdge={Platform.OS === 'ios' ? false : undefined}
@@ -273,6 +278,12 @@ export default function TabsLayout() {
             drawable="ic_menu_manage"
           />
           <Label>{isOwner ? 'Istruttore' : 'Gestione'}</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showVehiclesTab ? (
+        <NativeTabs.Trigger name="vehicles">
+          <Icon sf={{ default: 'car', selected: 'car.fill' }} drawable="ic_menu_manage" />
+          <Label>Veicoli</Label>
         </NativeTabs.Trigger>
       ) : null}
       {showPaymentsTab ? (
@@ -302,11 +313,12 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.15)',
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 8,
-    shadowColor: 'rgba(20, 36, 61, 0.22)',
-    shadowOpacity: 0.22,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 7 },
     elevation: 9,
@@ -323,6 +335,7 @@ const styles = StyleSheet.create({
   androidActiveFill: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 22,
+    backgroundColor: colors.primary,
   },
   androidTabContent: {
     flex: 1,

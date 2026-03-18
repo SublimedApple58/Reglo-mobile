@@ -7,7 +7,7 @@ const navigationTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: colors.backgroundTop,
+    background: colors.background,
   },
 };
 

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,23 +8,22 @@ import {
   Text,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
-import { GlassBadge } from '../components/GlassBadge';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
-import { GlassInput } from '../components/GlassInput';
+import { TimePickerDrawer } from '../components/TimePickerDrawer';
+import { Badge } from '../components/Badge';
+import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { SelectableChip } from '../components/SelectableChip';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaVehicle, AutoscuolaSettings } from '../types/regloApi';
-import { colors, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 
-const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const dayLetters = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 
 const buildTime = (hours: number, minutes: number) => {
   const date = new Date();
@@ -50,69 +47,6 @@ const addDays = (date: Date, amount: number) => {
 };
 const toTimeString = (value: Date) => value.toTimeString().slice(0, 5);
 
-type PickerFieldProps = {
-  label: string;
-  value: Date;
-  mode: 'date' | 'time';
-  onChange: (date: Date) => void;
-};
-
-const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-  const isTimeField = mode === 'time';
-
-  return (
-    <View style={isTimeField ? styles.timePickerFieldWrap : undefined}>
-      <Pressable
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => [
-          isTimeField && styles.timePickerField,
-          pressed && isTimeField && styles.timePickerFieldPressed,
-        ]}
-      >
-        <View pointerEvents="none">
-          <GlassInput
-            editable={false}
-            placeholder={label}
-            value={mode === 'date' ? value.toLocaleDateString('it-IT') : toTimeString(value)}
-          />
-        </View>
-      </Pressable>
-      {open ? (
-        Platform.OS === 'ios' ? (
-          <Modal transparent animationType="fade" onRequestClose={close}>
-            <View style={styles.pickerBackdrop}>
-              <View style={styles.pickerCard}>
-                <Text style={styles.pickerTitle}>{label}</Text>
-                <DateTimePicker
-                  value={value}
-                  mode={mode}
-                  display="spinner"
-                  onChange={(_, selected) => {
-                    if (selected) onChange(selected);
-                  }}
-                />
-                <GlassButton label="Fatto" onPress={close} />
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={value}
-            mode={mode}
-            display="default"
-            onChange={(_, selected) => {
-              setOpen(false);
-              if (selected) onChange(selected);
-            }}
-          />
-        )
-      ) : null}
-    </View>
-  );
-};
-
 type AvailabilityEditorProps = {
   title: string;
   ownerType: 'student' | 'instructor' | 'vehicle';
@@ -131,8 +65,15 @@ const AvailabilityEditor = ({
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [startTime, setStartTime] = useState(buildTime(9, 0));
   const [endTime, setEndTime] = useState(buildTime(18, 0));
+  const [hasSecondRange, setHasSecondRange] = useState(false);
+  const [startTime2, setStartTime2] = useState(buildTime(14, 0));
+  const [endTime2, setEndTime2] = useState(buildTime(18, 0));
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [startTimePickerOpen, setStartTimePickerOpen] = useState(false);
+  const [endTimePickerOpen, setEndTimePickerOpen] = useState(false);
+  const [startTimePicker2Open, setStartTimePicker2Open] = useState(false);
+  const [endTimePicker2Open, setEndTimePicker2Open] = useState(false);
 
   const toggleDay = (day: number) => {
     setDays((prev) => (prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()));
@@ -161,32 +102,78 @@ const AvailabilityEditor = ({
         ),
       );
 
-      const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
+      const GAP_THRESHOLD = 30; // minutes gap to detect a second range
+      const ranges: Array<{
+        dayIndex: number;
+        startMin: number;
+        endMin: number;
+        startMin2?: number;
+        endMin2?: number;
+      }> = [];
       responses.forEach((response, index) => {
         if (!response || response.length === 0) return;
         const usableSlots = response
           .filter((slot) => slot.status !== 'cancelled')
           .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
         if (!usableSlots.length) return;
+
+        // Detect gap to identify two ranges
+        let gapIndex = -1;
+        for (let i = 1; i < usableSlots.length; i++) {
+          const prevEnd = new Date(usableSlots[i - 1].endsAt).getTime();
+          const currStart = new Date(usableSlots[i].startsAt).getTime();
+          if ((currStart - prevEnd) / 60000 >= GAP_THRESHOLD) {
+            gapIndex = i;
+            break;
+          }
+        }
+
         const first = new Date(usableSlots[0].startsAt);
-        const last = new Date(usableSlots[usableSlots.length - 1].endsAt);
-        const startMin = first.getHours() * 60 + first.getMinutes();
-        const endMin = last.getHours() * 60 + last.getMinutes();
-        ranges.push({ dayIndex: dates[index].getDay(), startMin, endMin });
+        if (gapIndex > 0) {
+          // Two ranges
+          const lastOfFirst = new Date(usableSlots[gapIndex - 1].endsAt);
+          const firstOfSecond = new Date(usableSlots[gapIndex].startsAt);
+          const lastOfSecond = new Date(usableSlots[usableSlots.length - 1].endsAt);
+          ranges.push({
+            dayIndex: dates[index].getDay(),
+            startMin: first.getHours() * 60 + first.getMinutes(),
+            endMin: lastOfFirst.getHours() * 60 + lastOfFirst.getMinutes(),
+            startMin2: firstOfSecond.getHours() * 60 + firstOfSecond.getMinutes(),
+            endMin2: lastOfSecond.getHours() * 60 + lastOfSecond.getMinutes(),
+          });
+        } else {
+          const last = new Date(usableSlots[usableSlots.length - 1].endsAt);
+          ranges.push({
+            dayIndex: dates[index].getDay(),
+            startMin: first.getHours() * 60 + first.getMinutes(),
+            endMin: last.getHours() * 60 + last.getMinutes(),
+          });
+        }
       });
 
       if (!ranges.length) {
         setDays([]);
         setStartTime(buildTime(9, 0));
         setEndTime(buildTime(18, 0));
+        setHasSecondRange(false);
         return;
       }
       const daySet = Array.from(new Set(ranges.map((item) => item.dayIndex))).sort();
       const minStart = Math.min(...ranges.map((item) => item.startMin));
-      const maxEnd = Math.max(...ranges.map((item) => item.endMin));
+      const maxEnd1 = Math.max(...ranges.map((item) => item.endMin));
       setDays(daySet);
       setStartTime(buildTime(Math.floor(minStart / 60), minStart % 60));
-      setEndTime(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
+      setEndTime(buildTime(Math.floor(maxEnd1 / 60), maxEnd1 % 60));
+
+      // Detect second range from any day that has it
+      const withSecond = ranges.find((r) => r.startMin2 != null && r.endMin2 != null);
+      if (withSecond && withSecond.startMin2 != null && withSecond.endMin2 != null) {
+        setHasSecondRange(true);
+        setStartTime2(buildTime(Math.floor(withSecond.startMin2 / 60), withSecond.startMin2 % 60));
+        setEndTime2(buildTime(Math.floor(withSecond.endMin2 / 60), withSecond.endMin2 % 60));
+      } else {
+        setHasSecondRange(false);
+      }
     } catch (err) {
       onToast?.(err instanceof Error ? err.message : 'Errore caricando disponibilita', 'danger');
     } finally {
@@ -240,11 +227,22 @@ const AvailabilityEditor = ({
           throw err;
         }
       }
+      const secondRange = hasSecondRange ? (() => {
+        const anchor = new Date();
+        anchor.setHours(0, 0, 0, 0);
+        const s2 = new Date(anchor);
+        s2.setHours(startTime2.getHours(), startTime2.getMinutes(), 0, 0);
+        const e2 = new Date(anchor);
+        e2.setHours(endTime2.getHours(), endTime2.getMinutes(), 0, 0);
+        return { startsAt2: s2.toISOString(), endsAt2: e2.toISOString() };
+      })() : {};
+
       await regloApi.createAvailabilitySlots({
         ownerType,
         ownerId,
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
+        ...secondRange,
         daysOfWeek: days,
         weeks,
       });
@@ -258,39 +256,144 @@ const AvailabilityEditor = ({
   };
 
   return (
-    <GlassCard title={title}>
+    <View style={styles.availabilityCard}>
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={colors.navy} />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.loadingText}>Caricamento disponibilita...</Text>
         </View>
       ) : null}
       <View style={[styles.editorContent, loading && styles.editorContentLoading]} pointerEvents={loading ? 'none' : 'auto'}>
-        <View style={styles.dayRow}>
-          {dayLabels.map((label, index) => (
-            <SelectableChip
-              key={label}
-              label={label}
-              active={days.includes(index)}
+        <Text style={styles.sectionLabel}>LA TUA DISPONIBILIT&Agrave;</Text>
+        <Text style={styles.weeksSubtitle}>Ripetizione ogni {weeks} settimane</Text>
+
+        <View style={styles.dayCircleRow}>
+          {dayLetters.map((letter, index) => (
+            <Pressable
+              key={`day-${index}`}
               onPress={() => toggleDay(index)}
-            />
+              style={[
+                styles.dayCircle,
+                days.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.dayCircleText,
+                  days.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                ]}
+              >
+                {letter}
+              </Text>
+            </Pressable>
           ))}
         </View>
-        <View style={styles.pickerRow}>
-          <PickerField label="Inizio" value={startTime} mode="time" onChange={setStartTime} />
-          <PickerField label="Fine" value={endTime} mode="time" onChange={setEndTime} />
+
+        <View style={styles.timeCardsRow}>
+          <Pressable
+            onPress={() => setStartTimePickerOpen(true)}
+            style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.timeCardLabel}>Inizio</Text>
+            <View style={styles.timeCardRow}>
+              <Ionicons name="time-outline" size={16} color="#EC4899" />
+              <Text style={styles.timeCardValue}>{toTimeString(startTime)}</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => setEndTimePickerOpen(true)}
+            style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.timeCardLabel}>Fine</Text>
+            <View style={styles.timeCardRow}>
+              <Ionicons name="time-outline" size={16} color="#EC4899" />
+              <Text style={styles.timeCardValue}>{toTimeString(endTime)}</Text>
+            </View>
+          </Pressable>
         </View>
-        <View style={styles.actionRow}>
-          <GlassButton
-            label={saving ? 'Salvataggio...' : 'Salva'}
-            tone="primary"
-            onPress={handleCreate}
-            disabled={saving}
-            fullWidth
-          />
-        </View>
+
+        {/* Second range toggle + cards */}
+        {!hasSecondRange ? (
+          <Pressable
+            onPress={() => setHasSecondRange(true)}
+            style={({ pressed }) => [styles.addRangeBtn, pressed && { opacity: 0.8 }]}
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#CA8A04" />
+            <Text style={styles.addRangeBtnText}>Aggiungi seconda fascia</Text>
+          </Pressable>
+        ) : (
+          <>
+            <View style={styles.secondRangeHeader}>
+              <Text style={styles.sectionLabel}>SECONDA FASCIA</Text>
+              <Pressable onPress={() => setHasSecondRange(false)}>
+                <Text style={styles.removeRangeText}>Rimuovi</Text>
+              </Pressable>
+            </View>
+            <View style={styles.timeCardsRow}>
+              <Pressable
+                onPress={() => setStartTimePicker2Open(true)}
+                style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.timeCardLabel}>Inizio</Text>
+                <View style={styles.timeCardRow}>
+                  <Ionicons name="time-outline" size={16} color="#EC4899" />
+                  <Text style={styles.timeCardValue}>{toTimeString(startTime2)}</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => setEndTimePicker2Open(true)}
+                style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.timeCardLabel}>Fine</Text>
+                <View style={styles.timeCardRow}>
+                  <Ionicons name="time-outline" size={16} color="#EC4899" />
+                  <Text style={styles.timeCardValue}>{toTimeString(endTime2)}</Text>
+                </View>
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        <Pressable
+          onPress={handleCreate}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.saveCta,
+            pressed && styles.saveCtaPressed,
+            saving && styles.saveCtaDisabled,
+          ]}
+        >
+          <Text style={styles.saveCtaText}>
+            {saving ? 'Salvataggio...' : 'Salva disponibilità'}
+          </Text>
+        </Pressable>
       </View>
-    </GlassCard>
+
+      <TimePickerDrawer
+        visible={startTimePickerOpen}
+        selectedTime={startTime}
+        onSelectTime={setStartTime}
+        onClose={() => setStartTimePickerOpen(false)}
+      />
+      <TimePickerDrawer
+        visible={endTimePickerOpen}
+        selectedTime={endTime}
+        onSelectTime={setEndTime}
+        onClose={() => setEndTimePickerOpen(false)}
+      />
+      <TimePickerDrawer
+        visible={startTimePicker2Open}
+        selectedTime={startTime2}
+        onSelectTime={setStartTime2}
+        onClose={() => setStartTimePicker2Open(false)}
+      />
+      <TimePickerDrawer
+        visible={endTimePicker2Open}
+        selectedTime={endTime2}
+        onSelectTime={setEndTime2}
+        onClose={() => setEndTimePicker2Open(false)}
+      />
+    </View>
   );
 };
 
@@ -310,6 +413,8 @@ export const InstructorManageScreen = () => {
   const [vehicleAvailabilityLoading, setVehicleAvailabilityLoading] = useState(false);
   const [vehicleAvailabilitySaving, setVehicleAvailabilitySaving] = useState(false);
   const [vehicleStatusSaving, setVehicleStatusSaving] = useState(false);
+  const [vehicleStartTimePickerOpen, setVehicleStartTimePickerOpen] = useState(false);
+  const [vehicleEndTimePickerOpen, setVehicleEndTimePickerOpen] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
@@ -544,11 +649,12 @@ export const InstructorManageScreen = () => {
       <Screen>
         <StatusBar style="dark" />
         <View style={styles.emptyState}>
-          <GlassCard title="Profilo istruttore mancante">
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyCardTitle}>Profilo istruttore mancante</Text>
             <Text style={styles.emptyText}>
               Il tuo account non e ancora collegato a un profilo istruttore.
             </Text>
-          </GlassCard>
+          </View>
         </View>
       </Screen>
     );
@@ -569,43 +675,43 @@ export const InstructorManageScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.navy}
-            colors={[colors.navy]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
+        {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Gestione istruttore</Text>
-            <Text style={styles.subtitle}>Disponibilita e veicoli</Text>
-          </View>
-          <GlassBadge label="Gestione" />
+          <Text style={styles.title}>Gestione</Text>
+          <Badge label="Istruttore" />
         </View>
 
         {initialLoading ? (
           <>
-            <GlassCard title="Disponibilita istruttore">
-              <SkeletonCard>
-                <SkeletonBlock width="74%" />
-                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
-                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
-              </SkeletonCard>
-            </GlassCard>
-            <GlassCard title="Veicoli">
-              <SkeletonCard>
-                <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
-              </SkeletonCard>
-              <View style={styles.vehicleList}>
-                {Array.from({ length: 2 }).map((_, index) => (
-                  <SkeletonCard key={`vehicles-skeleton-${index}`}>
-                    <SkeletonBlock width="54%" height={22} />
-                    <SkeletonBlock width="36%" />
-                    <SkeletonBlock width="28%" height={22} radius={999} />
-                    <SkeletonBlock width="34%" height={38} radius={12} style={styles.skeletonButton} />
-                  </SkeletonCard>
-                ))}
+            {/* Availability skeleton */}
+            <SkeletonCard style={styles.availabilitySkeletonCard}>
+              <SkeletonBlock width="60%" height={12} />
+              <SkeletonBlock width="50%" height={10} />
+              <SkeletonBlock width="100%" height={40} radius={20} style={styles.skeletonButton} />
+              <View style={styles.timeCardsRow}>
+                <SkeletonBlock width="48%" height={60} radius={radii.sm} />
+                <SkeletonBlock width="48%" height={60} radius={radii.sm} />
               </View>
-            </GlassCard>
+              <SkeletonBlock width="100%" height={50} radius={radii.sm} style={styles.skeletonButton} />
+            </SkeletonCard>
+
+            {/* Vehicles skeleton */}
+            <View style={styles.vehiclesSection}>
+              <Text style={styles.sectionLabel}>I TUOI VEICOLI</Text>
+              {Array.from({ length: 2 }).map((_, index) => (
+                <SkeletonCard key={`vehicles-skeleton-${index}`} style={styles.vehicleSkeletonCard}>
+                  <SkeletonBlock width="54%" height={18} />
+                  <SkeletonBlock width="36%" height={14} />
+                  <SkeletonBlock width="28%" height={22} radius={999} />
+                  <SkeletonBlock width="100%" height={48} radius={radii.sm} style={styles.skeletonButton} />
+                </SkeletonCard>
+              ))}
+            </View>
           </>
         ) : (
           <>
@@ -617,47 +723,50 @@ export const InstructorManageScreen = () => {
               onToast={(text, tone = 'success') => setToast({ text, tone })}
             />
 
-            <GlassCard title="Veicoli">
-              <View style={styles.actionRow}>
-                <GlassButton
-                  label="Aggiungi veicolo"
-                  onPress={openVehicleDrawer}
-                  fullWidth
-                />
-              </View>
-              <View style={styles.vehicleList}>
-                {vehicles.map((vehicle) => (
-                  <View key={vehicle.id} style={styles.vehicleRow}>
-                    <View style={styles.vehicleMain}>
-                      <Text style={styles.vehicleName}>{vehicle.name}</Text>
-                      <Text style={styles.vehicleMeta}>Targa: {vehicle.plate ?? '—'}</Text>
-                      <View style={styles.vehicleStatusRow}>
-                        <GlassBadge
-                          label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
-                          tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.vehicleActions}>
-                      <GlassButton label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} />
-                    </View>
+            {/* Vehicles Section */}
+            <View style={styles.vehiclesSection}>
+              <Text style={styles.sectionLabel}>I TUOI VEICOLI</Text>
+
+              <Pressable
+                onPress={openVehicleDrawer}
+                style={({ pressed }) => [
+                  styles.addVehicleButton,
+                  pressed && styles.addVehicleButtonPressed,
+                ]}
+              >
+                <Text style={styles.addVehicleText}>+ Aggiungi veicolo</Text>
+              </Pressable>
+
+              {vehicles.map((vehicle) => (
+                <View key={vehicle.id} style={styles.vehicleCard}>
+                  <View style={styles.vehicleCardTopRow}>
+                    <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                    <Badge
+                      label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                      tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                    />
                   </View>
-                ))}
-                {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
-              </View>
-            </GlassCard>
+                  <Text style={styles.vehiclePlate}>Targa: {vehicle.plate ?? '\u2014'}</Text>
+                  <Button label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} fullWidth tone="standard" />
+                </View>
+              ))}
+              {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
+            </View>
           </>
         )}
       </ScrollView>
+
+      {/* Create Vehicle BottomSheet */}
       <BottomSheet
         visible={createVehicleDrawerOpen}
         title="Nuovo veicolo"
         onClose={closeVehicleDrawer}
         closeDisabled={vehicleCreating}
+        showHandle
         footer={
           <View style={styles.sheetActionsDock}>
             <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
+              <Button
                 label={vehicleCreating ? 'Creazione...' : 'Crea'}
                 tone="primary"
                 onPress={vehicleCreating ? undefined : handleCreateVehicle}
@@ -669,19 +778,22 @@ export const InstructorManageScreen = () => {
         }
       >
         <View style={styles.sheetContent}>
-          <GlassInput placeholder="Nome veicolo" value={vehicleName} onChangeText={setVehicleName} />
-          <GlassInput placeholder="Targa" value={vehiclePlate} onChangeText={setVehiclePlate} />
+          <Input placeholder="Nome veicolo" value={vehicleName} onChangeText={setVehicleName} />
+          <Input placeholder="Targa" value={vehiclePlate} onChangeText={setVehiclePlate} />
         </View>
       </BottomSheet>
+
+      {/* Edit Vehicle BottomSheet */}
       <BottomSheet
         visible={editVehicleDrawerOpen}
         title={editingVehicle ? `Modifica ${editingVehicle.name}` : 'Modifica veicolo'}
         onClose={closeEditVehicleDrawer}
         closeDisabled={vehicleAvailabilitySaving || vehicleStatusSaving}
+        showHandle
         footer={
           <View style={styles.sheetActionsDock}>
             <View style={styles.fullWidthButtonWrap}>
-              <GlassButton
+              <Button
                 label={vehicleAvailabilitySaving ? 'Salvataggio...' : 'Salva'}
                 tone="primary"
                 onPress={vehicleAvailabilitySaving ? undefined : handleSaveEditingVehicleAvailability}
@@ -694,53 +806,111 @@ export const InstructorManageScreen = () => {
       >
         {editingVehicle ? (
           <View style={styles.sheetContent}>
+            {/* Vehicle info card */}
             <View style={styles.vehicleInfoBox}>
-              <Text style={styles.vehicleInfoTitle}>{editingVehicle.name}</Text>
-              <Text style={styles.vehicleInfoMeta}>Targa: {editingVehicle.plate ?? '—'}</Text>
-              <Text style={styles.vehicleInfoMeta}>Stato: {editingVehicle.status}</Text>
+              <View style={styles.vehicleInfoRow}>
+                <View style={styles.vehicleInfoLeft}>
+                  <Text style={styles.vehicleEmoji}>{'\uD83D\uDE97'}</Text>
+                  <View>
+                    <Text style={styles.vehicleInfoTitle}>{editingVehicle.name}</Text>
+                    <Text style={styles.vehicleInfoMeta}>Targa: {editingVehicle.plate ?? '\u2014'}</Text>
+                  </View>
+                </View>
+                <View style={[
+                  styles.vehicleStatusBadge,
+                  editingVehicle.status === 'inactive' ? styles.vehicleStatusInactive : styles.vehicleStatusActive,
+                ]}>
+                  <View style={[
+                    styles.vehicleStatusDot,
+                    { backgroundColor: editingVehicle.status === 'inactive' ? '#D97706' : '#16A34A' },
+                  ]} />
+                  <Text style={[
+                    styles.vehicleStatusLabel,
+                    { color: editingVehicle.status === 'inactive' ? '#D97706' : '#16A34A' },
+                  ]}>
+                    {editingVehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <GlassButton
-              label={
-                vehicleStatusSaving
-                  ? 'Aggiornamento...'
-                  : editingVehicle.status === 'inactive'
-                    ? 'Attiva'
-                    : 'Disattiva'
-              }
+
+            {/* Status toggle */}
+            <Pressable
               onPress={vehicleStatusSaving ? undefined : handleToggleEditingVehicleStatus}
               disabled={vehicleStatusSaving || vehicleAvailabilitySaving}
-            />
+              style={({ pressed }) => [
+                styles.vehicleToggleBtn,
+                pressed && { opacity: 0.8 },
+                (vehicleStatusSaving || vehicleAvailabilitySaving) && { opacity: 0.5 },
+              ]}
+            >
+              <Text style={[
+                styles.vehicleToggleText,
+                { color: editingVehicle.status === 'inactive' ? '#16A34A' : '#EF4444' },
+              ]}>
+                {vehicleStatusSaving
+                  ? 'Aggiornamento...'
+                  : editingVehicle.status === 'inactive'
+                    ? 'Attiva veicolo'
+                    : 'Disattiva veicolo'}
+              </Text>
+            </Pressable>
             <View style={styles.vehicleAvailabilitySection}>
               {vehicleAvailabilityLoading ? (
                 <View style={styles.loadingRow}>
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                   <Text style={styles.loadingText}>Caricamento disponibilita...</Text>
                 </View>
               ) : (
                 <View style={styles.editorContent}>
-                  <View style={styles.dayRow}>
-                    {dayLabels.map((label, index) => (
-                      <SelectableChip
-                        key={`vehicle-day-${label}`}
-                        label={label}
-                        active={vehicleAvailabilityDays.includes(index)}
+                  <View style={styles.dayCircleRow}>
+                    {dayLetters.map((letter, index) => (
+                      <Pressable
+                        key={`vehicle-day-${index}`}
                         onPress={() => toggleVehicleDay(index)}
-                      />
+                        style={[
+                          styles.dayCircle,
+                          vehicleAvailabilityDays.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayCircleText,
+                            vehicleAvailabilityDays.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                          ]}
+                        >
+                          {letter}
+                        </Text>
+                      </Pressable>
                     ))}
                   </View>
-                  <View style={styles.pickerRow}>
-                    <PickerField
-                      label="Inizio"
-                      value={vehicleAvailabilityStart}
-                      mode="time"
-                      onChange={setVehicleAvailabilityStart}
-                    />
-                    <PickerField
-                      label="Fine"
-                      value={vehicleAvailabilityEnd}
-                      mode="time"
-                      onChange={setVehicleAvailabilityEnd}
-                    />
+                  <View style={styles.timeCardsRow}>
+                    <Pressable
+                      onPress={() => {
+                        setEditVehicleDrawerOpen(false);
+                        setTimeout(() => setVehicleStartTimePickerOpen(true), 350);
+                      }}
+                      style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+                    >
+                      <Text style={styles.timeCardLabel}>Inizio</Text>
+                      <View style={styles.timeCardRow}>
+                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityStart)}</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setEditVehicleDrawerOpen(false);
+                        setTimeout(() => setVehicleEndTimePickerOpen(true), 350);
+                      }}
+                      style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
+                    >
+                      <Text style={styles.timeCardLabel}>Fine</Text>
+                      <View style={styles.timeCardRow}>
+                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityEnd)}</Text>
+                      </View>
+                    </Pressable>
                   </View>
                 </View>
               )}
@@ -748,6 +918,25 @@ export const InstructorManageScreen = () => {
           </View>
         ) : null}
       </BottomSheet>
+
+      <TimePickerDrawer
+        visible={vehicleStartTimePickerOpen}
+        selectedTime={vehicleAvailabilityStart}
+        onSelectTime={setVehicleAvailabilityStart}
+        onClose={() => {
+          setVehicleStartTimePickerOpen(false);
+          setTimeout(() => setEditVehicleDrawerOpen(true), 350);
+        }}
+      />
+      <TimePickerDrawer
+        visible={vehicleEndTimePickerOpen}
+        selectedTime={vehicleAvailabilityEnd}
+        onSelectTime={setVehicleAvailabilityEnd}
+        onClose={() => {
+          setVehicleEndTimePickerOpen(false);
+          setTimeout(() => setEditVehicleDrawerOpen(true), 350);
+        }}
+      />
     </Screen>
   );
 };
@@ -764,17 +953,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    ...typography.title,
-    color: colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  pickerRow: {
-    flexDirection: 'row',
+
+  /* ─── Availability Card ───────────────────────────── */
+  availabilityCard: {
+    borderRadius: radii.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    padding: 22,
     gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  weeksSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
   },
   editorContent: {
     gap: spacing.sm,
@@ -782,6 +990,176 @@ const styles = StyleSheet.create({
   editorContentLoading: {
     opacity: 0.5,
   },
+
+  /* ─── Day Circles ─────────────────────────────────── */
+  dayCircleRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  dayCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleActive: {
+    backgroundColor: '#FACC15',
+  },
+  dayCircleInactive: {
+    backgroundColor: '#F1F5F9',
+  },
+  dayCircleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  dayCircleTextActive: {
+    color: '#FFFFFF',
+  },
+  dayCircleTextInactive: {
+    color: '#64748B',
+  },
+
+  /* ─── Time Picker Cards ───────────────────────────── */
+  timeCardsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: spacing.xs,
+  },
+  timeCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 4,
+  },
+  timeCardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
+  timeCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeCardValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+
+  /* ─── Save CTA ────────────────────────────────────── */
+  saveCta: {
+    width: '100%',
+    height: 50,
+    borderRadius: radii.sm,
+    backgroundColor: '#EC4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  saveCtaPressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  saveCtaDisabled: {
+    opacity: 0.6,
+  },
+  addRangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#FACC15',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+  },
+  addRangeBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#CA8A04',
+  },
+  secondRangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  removeRangeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  saveCtaText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* ─── Vehicles Section ────────────────────────────── */
+  vehiclesSection: {
+    gap: spacing.sm,
+  },
+  addVehicleButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#FACC15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addVehicleButtonPressed: {
+    opacity: 0.7,
+  },
+  addVehicleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#CA8A04',
+  },
+  vehicleCard: {
+    borderRadius: radii.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    padding: 20,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  vehicleCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  vehicleName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  vehiclePlate: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+
+  /* ─── Loading ─────────────────────────────────────── */
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -791,125 +1169,126 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    width: '100%',
+
+  /* ─── Skeletons ───────────────────────────────────── */
+  availabilitySkeletonCard: {
+    borderRadius: radii.lg,
+    backgroundColor: '#F8FAFC',
+    padding: 22,
+  },
+  vehicleSkeletonCard: {
+    borderRadius: radii.lg,
+    backgroundColor: '#F8FAFC',
   },
   skeletonButton: {
     marginTop: spacing.xs,
   },
-  dayRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  vehicleList: {
-    marginTop: spacing.sm,
-    gap: spacing.md,
-  },
-  vehicleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.58)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  vehicleMain: {
-    flex: 1,
-    minWidth: 0,
-  },
-  vehicleActions: {
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
-  vehicleName: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  vehicleMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  vehicleStatusRow: {
-    marginTop: spacing.xs,
-  },
-  vehicleInfoBox: {
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassStrong,
-  },
-  vehicleInfoTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  vehicleInfoMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
+
+  /* ─── Empty State ─────────────────────────────────── */
   emptyState: {
     flex: 1,
     padding: spacing.lg,
     justifyContent: 'center',
   },
+  emptyCard: {
+    borderRadius: radii.lg,
+    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    gap: spacing.sm,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  emptyCardTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
   },
-  pickerBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(10, 15, 30, 0.78)',
-    padding: spacing.lg,
-  },
-  pickerCard: {
-    backgroundColor: '#F7FAFF',
-    borderRadius: 20,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  pickerTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  timePickerFieldWrap: {
-    flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.34)',
-    backgroundColor: 'rgba(238, 244, 252, 0.92)',
-    padding: 3,
-    shadowColor: 'rgba(50, 77, 122, 0.4)',
-    shadowOpacity: 0.14,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  timePickerField: {
-    borderRadius: 16,
-  },
-  timePickerFieldPressed: {
-    opacity: 0.9,
-  },
+
+  /* ─── BottomSheet Content ─────────────────────────── */
   sheetContent: {
     gap: spacing.sm,
+  },
+  vehicleInfoBox: {
+    padding: 16,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  vehicleInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  vehicleInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vehicleEmoji: {
+    fontSize: 22,
+  },
+  vehicleInfoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  vehicleInfoMeta: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  vehicleStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  vehicleStatusActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  vehicleStatusInactive: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  vehicleStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  vehicleStatusLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  vehicleToggleBtn: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleToggleText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   vehicleAvailabilitySection: {
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.glassBorder,
+    borderTopColor: colors.border,
   },
   sheetActionsDock: {
     gap: spacing.sm,

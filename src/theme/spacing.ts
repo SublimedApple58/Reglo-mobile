@@ -6,3 +6,8 @@ export const spacing = {
   xl: 28,
   xxl: 36,
 };
+
+export const radii = {
+  sm: 20,
+  lg: 35,
+} as const;

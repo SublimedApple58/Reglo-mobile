@@ -53,7 +53,7 @@ import {
   StudentAppointmentPaymentHistoryItem,
   SelectCompanyInput,
   SelectCompanyPayload,
-  SignupInput,
+  StudentRegisterInput,
   UnregisterPushTokenInput,
   UpdateAppointmentDetailsInput,
   UpdateAppointmentStatusInput,
@@ -61,6 +61,8 @@ import {
   UpdateVehicleInput,
   UserPublic,
   AutoscuolaSettings,
+  CreateInstructorBlockInput,
+  InstructorBlock,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -76,8 +78,8 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },
-    signup: async (input: SignupInput) => {
-      const payload = await client.request<AuthPayload>('/api/mobile/auth/signup', {
+    studentRegister: async (input: StudentRegisterInput) => {
+      const payload = await client.request<AuthPayload>('/api/mobile/auth/student-register', {
         method: 'POST',
         body: input,
       });
@@ -106,6 +108,11 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },
+    createInvite: async (input: { email: string; autoscuolaRole?: 'INSTRUCTOR' | 'STUDENT' }) =>
+      client.request<{ message: string }>('/api/mobile/invites/create', {
+        method: 'POST',
+        body: input,
+      }),
     getInviteContext: async (token: string) =>
       client.request<MobileInviteContext>(`/api/mobile/invites/${token}/context`),
     acceptInvite: async (token: string, input: AcceptMobileInviteInput) => {
@@ -265,6 +272,15 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaAppointment>('/api/autoscuole/instructor-bookings/confirm', {
         method: 'POST',
         body: input,
+      }),
+    createInstructorBlock: async (input: CreateInstructorBlockInput) =>
+      client.request<InstructorBlock>('/api/autoscuole/instructor-blocks', {
+        method: 'POST',
+        body: input,
+      }),
+    deleteInstructorBlock: async (blockId: string) =>
+      client.request<{ deleted: boolean }>(`/api/autoscuole/instructor-blocks/${blockId}`, {
+        method: 'DELETE',
       }),
     respondWaitlistOffer: async (offerId: string, input: RespondWaitlistOfferInput) =>
       client.request<RespondWaitlistOfferResult>(

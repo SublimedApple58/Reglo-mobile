@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
-import { GlassCard } from '../components/GlassCard';
-import { GlassButton } from '../components/GlassButton';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
 import { colors, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 
@@ -33,10 +33,10 @@ export const CompanySelectScreen = () => {
           <Text style={styles.subtitle}>Ciao {user?.name ?? user?.email}</Text>
         </View>
 
-        <GlassCard>
+        <Card>
           <View style={styles.list}>
             {companies.map((company) => (
-              <GlassButton
+              <Button
                 key={company.id}
                 label={loadingId === company.id ? 'Seleziono...' : company.name}
                 onPress={() => handleSelect(company.id)}
@@ -44,9 +44,9 @@ export const CompanySelectScreen = () => {
             ))}
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
-        </GlassCard>
+        </Card>
 
-        <GlassButton label="Esci" onPress={signOut} />
+        <Button label="Esci" onPress={signOut} />
       </View>
     </Screen>
   );
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.body,
-    color: colors.danger,
+    color: colors.destructive,
     marginTop: spacing.sm,
   },
 });

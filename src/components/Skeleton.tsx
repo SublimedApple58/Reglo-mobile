@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { radii } from '../theme';
 
 type SkeletonBlockProps = {
   width?: number | `${number}%` | '100%';
@@ -60,15 +61,12 @@ export const SkeletonCard = ({
 
 const styles = StyleSheet.create({
   block: {
-    backgroundColor: 'rgba(50, 77, 122, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
   },
   card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.54)',
-    padding: 12,
-    gap: 8,
+    borderRadius: radii.lg,
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    gap: 10,
   },
 });
-

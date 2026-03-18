@@ -2,8 +2,8 @@ import React from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
-import { GlassCard } from '../components/GlassCard';
-import { GlassButton } from '../components/GlassButton';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
 import { colors, spacing, typography } from '../theme';
 
 export const RoleBlockedScreen = () => {
@@ -15,13 +15,13 @@ export const RoleBlockedScreen = () => {
     <Screen>
       <StatusBar style="dark" />
       <View style={styles.container}>
-        <GlassCard title="Accesso non abilitato">
+        <Card title="Accesso non abilitato">
           <Text style={styles.message}>
             Il tuo ruolo autoscuola non e configurato. Contatta l'amministratore per
             sbloccare l'accesso.
           </Text>
-          <GlassButton label="Contatta admin" onPress={handleContact} />
-        </GlassCard>
+          <Button label="Contatta admin" onPress={handleContact} />
+        </Card>
       </View>
     </Screen>
   );

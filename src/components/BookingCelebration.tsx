@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../theme';
+import { colors, pink, spacing, typography } from '../theme';
 
 type BookingCelebrationProps = {
   visible: boolean;
@@ -110,7 +110,7 @@ export const BookingCelebration = ({ visible, onHidden }: BookingCelebrationProp
 
       {sparkStyles.map((sparkStyle, index) => (
         <Animated.View key={`spark-${index}`} style={[styles.sparkWrap, sparkStyle]}>
-          <Ionicons name="sparkles" size={18} color={colors.accent} />
+          <Ionicons name="sparkles" size={18} color={colors.primary} />
         </Animated.View>
       ))}
 
@@ -124,7 +124,7 @@ export const BookingCelebration = ({ visible, onHidden }: BookingCelebrationProp
         ]}
       >
         <View style={styles.iconCircle}>
-          <Ionicons name="checkmark-circle" size={46} color={colors.success} />
+          <Ionicons name="checkmark-circle" size={46} color={colors.positive} />
         </View>
         <Text style={styles.title}>Prenotazione confermata</Text>
       </Animated.View>
@@ -147,15 +147,15 @@ const styles = StyleSheet.create({
     minWidth: 248,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0.97)',
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     gap: spacing.sm,
-    shadowColor: 'rgba(27, 43, 68, 0.5)',
-    shadowOpacity: 0.34,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 16,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     height: 154,
     borderRadius: 77,
     borderWidth: 3,
-    borderColor: 'rgba(90, 123, 198, 0.32)',
+    borderColor: pink[200],
   },
   sparkWrap: {
     position: 'absolute',
@@ -177,9 +177,9 @@ const styles = StyleSheet.create({
     borderRadius: 33,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(59, 190, 147, 0.12)',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 190, 147, 0.35)',
+    borderColor: 'rgba(34, 197, 94, 0.35)',
   },
   title: {
     ...typography.subtitle,
@@ -187,4 +187,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

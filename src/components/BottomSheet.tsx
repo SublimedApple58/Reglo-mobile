@@ -27,6 +27,8 @@ type BottomSheetProps = {
   closeDisabled?: boolean;
   closeOnBackdrop?: boolean;
   bottomInsetMode?: 'safe' | 'none';
+  showHandle?: boolean;
+  titleRight?: React.ReactNode;
 };
 
 export const BottomSheet = ({
@@ -41,6 +43,8 @@ export const BottomSheet = ({
   closeDisabled = false,
   closeOnBackdrop = true,
   bottomInsetMode = 'safe',
+  showHandle = false,
+  titleRight,
 }: BottomSheetProps) => {
   const insets = useSafeAreaInsets();
   const bottomInset = bottomInsetMode === 'none' ? 0 : insets.bottom;
@@ -55,7 +59,9 @@ export const BottomSheet = ({
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const lastDrag = useRef(0);
+  const sheetHeight = useRef(0);
   const screenHeight = Dimensions.get('window').height;
+  const topInset = insets.top || 20;
 
   const resetDrag = () => {
     dragY.setValue(0);
@@ -123,12 +129,20 @@ export const BottomSheet = ({
     const resolveKeyboardOffset = (event: KeyboardEvent) => {
       const screenY = event.endCoordinates?.screenY;
       const byHeight = Math.max(0, (event.endCoordinates?.height ?? 0) - bottomInset);
+      let raw: number;
       if (typeof screenY === 'number') {
         const overlap = Math.max(0, screenHeight - screenY);
         const byScreen = Math.max(0, overlap - bottomInset);
-        return Math.max(byScreen, byHeight);
+        raw = Math.max(byScreen, byHeight);
+      } else {
+        raw = byHeight;
       }
-      return byHeight;
+      // Cap so the sheet top never goes above the top safe area
+      if (sheetHeight.current > 0) {
+        const maxOffset = Math.max(0, screenHeight - sheetHeight.current - topInset);
+        return Math.min(raw, maxOffset);
+      }
+      return raw;
     };
 
     const animateKeyboard = (toValue: number, event?: KeyboardEvent) => {
@@ -229,6 +243,7 @@ export const BottomSheet = ({
         />
         <Animated.View
           {...panResponder.panHandlers}
+          onLayout={(e) => { sheetHeight.current = e.nativeEvent.layout.height; }}
           style={[
             styles.sheetCard,
             hasFooter ? styles.sheetCardWithFooter : null,
@@ -238,19 +253,31 @@ export const BottomSheet = ({
           ]}
         >
           <View style={styles.dragZone} {...panResponder.panHandlers} />
-          <View style={styles.body}>
-            <View style={styles.header}>
-              <Pressable
-                onPress={() => triggerClose(false)}
-                hitSlop={8}
-                style={styles.close}
-                disabled={closeDisabled}
-              >
-                <Text style={styles.closeText}>×</Text>
-              </Pressable>
+          {showHandle ? (
+            <View style={styles.handleRow}>
+              <View style={styles.handle} />
             </View>
+          ) : null}
+          <View style={styles.body}>
+            {!showHandle ? (
+              <View style={styles.header}>
+                <Pressable
+                  onPress={() => triggerClose(false)}
+                  hitSlop={8}
+                  style={styles.close}
+                  disabled={closeDisabled}
+                >
+                  <Text style={styles.closeText}>×</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <View style={styles.content}>
-              {title ? <Text style={styles.title}>{title}</Text> : null}
+              {title ? (
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{title}</Text>
+                  {titleRight ?? null}
+                </View>
+              ) : null}
               {children}
             </View>
           </View>
@@ -275,21 +302,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 15, 30, 0.45)',
   },
   sheetCard: {
-    backgroundColor: 'rgba(250, 252, 255, 0.86)',
+    backgroundColor: '#FFFFFF',
     width: '100%',
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     borderRadius: 0,
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: spacing.lg,
     gap: spacing.sm,
     borderWidth: 0,
     borderColor: 'transparent',
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.2,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: -6 },
     elevation: 6,
@@ -304,12 +331,28 @@ const styles = StyleSheet.create({
     right: 0,
     height: 24,
   },
+  handleRow: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+  },
   body: {
     gap: spacing.sm,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     ...typography.subtitle,

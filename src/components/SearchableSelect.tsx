@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { GlassInput } from './GlassInput';
-import { colors, spacing, typography } from '../theme';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, pink, radii, spacing, typography } from '../theme';
 
 export type SearchableSelectOption = {
   value: string;
@@ -75,19 +75,24 @@ export const SearchableSelect = ({
     <View style={styles.container}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={styles.fieldWrap}>
-        <GlassInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={placeholder}
-          editable={!disabled}
-          onFocus={() => {
-            setFocused(true);
-            onFocus?.();
-          }}
-          onBlur={() => {
-            setTimeout(() => setFocused(false), 120);
-          }}
-        />
+        <View style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}>
+          <Ionicons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            editable={!disabled}
+            onFocus={() => {
+              setFocused(true);
+              onFocus?.();
+            }}
+            onBlur={() => {
+              setTimeout(() => setFocused(false), 120);
+            }}
+            style={styles.searchInput}
+          />
+        </View>
         <Animated.View
           pointerEvents={showSuggestions ? 'auto' : 'none'}
           style={[
@@ -166,6 +171,28 @@ const styles = StyleSheet.create({
   fieldWrap: {
     position: 'relative',
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  inputWrapperFocused: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFFFFF',
+  },
+  searchIcon: {
+    paddingLeft: 16,
+  },
+  searchInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
   suggestionsFloating: {
     position: 'absolute',
     top: '100%',
@@ -176,15 +203,14 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   suggestionsCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
     maxHeight: 220,
-    shadowColor: '#0F1D33',
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   suggestionsScroll: {
     maxHeight: 220,
@@ -193,12 +219,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   optionRow: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     gap: 2,
   },
   optionRowSelected: {
-    backgroundColor: 'rgba(50, 77, 122, 0.08)',
+    backgroundColor: pink[50],
   },
   optionRowPressed: {
     opacity: 0.72,

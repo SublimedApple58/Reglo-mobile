@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, typography } from '../theme';
+import { radii, spacing } from '../theme';
 
 export type ToastTone = 'success' | 'info' | 'danger';
 
@@ -12,24 +13,35 @@ type ToastNoticeProps = {
   onHide?: () => void;
 };
 
-const toneStyles: Record<ToastTone, { bg: string; border: string; text: string; accent: string }> = {
+type ToneConfig = {
+  bg: string;
+  text: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  shadow: string;
+};
+
+const toneConfig: Record<ToastTone, ToneConfig> = {
   success: {
-    bg: '#FFFFFF',
-    border: 'rgba(59, 190, 147, 0.55)',
-    text: colors.textPrimary,
-    accent: colors.success,
+    bg: '#22C55E',
+    text: '#FFFFFF',
+    icon: 'checkmark-circle',
+    iconColor: '#FFFFFF',
+    shadow: '#16A34A',
   },
   info: {
-    bg: '#FFFFFF',
-    border: 'rgba(90, 123, 198, 0.55)',
-    text: colors.textPrimary,
-    accent: colors.accent,
+    bg: '#1E293B',
+    text: '#FFFFFF',
+    icon: 'information-circle',
+    iconColor: '#94A3B8',
+    shadow: '#0F172A',
   },
   danger: {
-    bg: '#FFFFFF',
-    border: 'rgba(226, 109, 109, 0.55)',
-    text: colors.textPrimary,
-    accent: colors.danger,
+    bg: '#EF4444',
+    text: '#FFFFFF',
+    icon: 'alert-circle',
+    iconColor: '#FFFFFF',
+    shadow: '#DC2626',
   },
 };
 
@@ -41,64 +53,93 @@ export const ToastNotice = ({
 }: ToastNoticeProps) => {
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(-12)).current;
-
-  const stylesTone = useMemo(() => toneStyles[tone], [tone]);
+  const translateY = useRef(new Animated.Value(-30)).current;
+  const scale = useRef(new Animated.Value(0.92)).current;
+  const [visibleMessage, setVisibleMessage] = useState<string | null>(null);
+  const [visibleTone, setVisibleTone] = useState<ToastTone>(tone);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageIdRef = useRef(0);
 
   useEffect(() => {
-    if (!message) return;
+    // Clear any pending dismiss timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (!message) {
+      // Animate out if currently visible
+      if (visibleMessage) {
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: -20, duration: 200, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
+        ]).start(() => setVisibleMessage(null));
+      }
+      return;
+    }
+
+    // New message — capture id to avoid stale callbacks
+    const id = ++messageIdRef.current;
+    setVisibleMessage(message);
+    setVisibleTone(tone);
+
+    // Reset + animate in
+    opacity.setValue(0);
+    translateY.setValue(-30);
+    scale.setValue(0.92);
+
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
+      Animated.spring(translateY, { toValue: 0, damping: 18, stiffness: 300, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, damping: 16, stiffness: 280, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
 
-    const timer = setTimeout(() => {
+    // Schedule dismiss
+    timerRef.current = setTimeout(() => {
+      if (messageIdRef.current !== id) return; // stale
       Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: -10,
-          duration: 220,
-          useNativeDriver: true,
-        }),
+        Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -20, duration: 250, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 0.95, duration: 250, useNativeDriver: true }),
       ]).start(() => {
+        if (messageIdRef.current !== id) return; // stale
+        setVisibleMessage(null);
         onHide?.();
       });
     }, durationMs);
 
-    return () => clearTimeout(timer);
-  }, [message, durationMs, opacity, translateY, onHide]);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [message, tone, durationMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!message) return null;
+  if (!visibleMessage) return null;
+
+  const config = toneConfig[visibleTone];
 
   return (
     <Animated.View
       pointerEvents="none"
       style={[
         styles.wrapper,
-        { top: spacing.xl + spacing.sm + insets.top },
-        { opacity, transform: [{ translateY }] },
+        { top: spacing.sm + insets.top },
+        { opacity, transform: [{ translateY }, { scale }] },
       ]}
     >
       <View
         style={[
           styles.toast,
-          { backgroundColor: stylesTone.bg, borderColor: stylesTone.border },
+          { backgroundColor: config.bg, shadowColor: config.shadow },
         ]}
       >
-        <View style={[styles.accent, { backgroundColor: stylesTone.accent }]} />
-        <Text style={[styles.text, { color: stylesTone.text }]}>{message}</Text>
+        <Ionicons name={config.icon} size={22} color={config.iconColor} />
+        <Text style={[styles.text, { color: config.text }]} numberOfLines={2}>
+          {visibleMessage}
+        </Text>
       </View>
     </Animated.View>
   );
@@ -107,32 +148,29 @@ export const ToastNotice = ({
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 20,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 50,
+    alignItems: 'center',
   },
   toast: {
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    shadowColor: colors.shadow,
+    borderRadius: radii.sm,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-    overflow: 'hidden',
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  accent: {
-    width: 6,
-    height: '100%',
-    borderRadius: 4,
+    gap: 12,
+    maxWidth: 400,
+    width: '100%',
   },
   text: {
-    ...typography.body,
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 20,
   },
 });

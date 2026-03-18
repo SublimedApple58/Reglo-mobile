@@ -1,7 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
 import { StripeProvider } from '@stripe/stripe-react-native';
@@ -88,14 +87,6 @@ export default function RootLayout() {
   const content = (
     <SessionProvider>
       <View style={styles.root}>
-        <LinearGradient
-          colors={[colors.backgroundTop, colors.backgroundBottom]}
-          locations={[0, 0.75]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
         <AuthGate />
       </View>
     </SessionProvider>
@@ -118,6 +109,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.backgroundTop,
+    backgroundColor: colors.background,
   },
 });

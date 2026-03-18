@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Image,
   Linking,
+  Pressable,
   RefreshControl,
   ScrollView,
   Share,
@@ -11,12 +13,11 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system/legacy';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../components/BottomSheet';
-import { GlassBadge } from '../components/GlassBadge';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
+import { Button } from '../components/Button';
 import { ScrollHintFab } from '../components/ScrollHintFab';
 import { Screen } from '../components/Screen';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
@@ -28,7 +29,8 @@ import {
   StudentAppointmentPaymentEvent,
   StudentAppointmentPaymentHistoryItem,
 } from '../types/regloApi';
-import { colors, spacing, typography } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import {
   invoiceStatusLabel,
@@ -309,216 +311,299 @@ export const AllievoPaymentsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.navy}
-            colors={[colors.navy]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
-        <View style={styles.header}>
-          <View style={styles.rolePill}>
-            <Text style={styles.rolePillText}>Allievo</Text>
+        {/* ── Header ── */}
+        <Text style={styles.title}>Pagamenti</Text>
+
+        {/* ── Hero Card — Yellow gradient totals ── */}
+        {initialLoading ? (
+          <SkeletonCard style={styles.heroSkeleton}>
+            <SkeletonBlock width="45%" height={14} radius={6} />
+            <SkeletonBlock width="60%" height={36} radius={8} />
+            <SkeletonBlock width="70%" height={13} radius={6} />
+          </SkeletonCard>
+        ) : (
+          <View style={styles.heroShadow}>
+            <LinearGradient
+              colors={['#FACC15', '#FDE68A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.heroGradient}
+            >
+              <Text style={styles.heroLabel}>Totale transazioni</Text>
+              <Text style={styles.heroAmount}>{'\u20AC'} {stats.totalAmount.toFixed(2)}</Text>
+              <Text style={styles.heroMeta}>
+                {transactions.length} movimenti {'\u00B7'} {stats.succeeded} riusciti {'\u00B7'} {stats.failed} falliti
+              </Text>
+            </LinearGradient>
           </View>
-          <Text style={styles.title}>Pagamenti</Text>
-          <Text style={styles.subtitle}>
-            {user?.name ? `${user.name}, cronologia transazioni` : 'Cronologia transazioni'}
-          </Text>
-        </View>
+        )}
 
-        <GlassCard title="Riepilogo rapido" subtitle="Ultimi movimenti registrati">
-          {initialLoading ? (
-            <View style={styles.summaryGrid}>
-              {Array.from({ length: 4 }).map((_, index) => (
-                <SkeletonCard key={`summary-skeleton-${index}`} style={styles.summarySkeletonItem}>
-                  <SkeletonBlock width="62%" height={24} />
-                  <SkeletonBlock width="48%" height={12} />
-                </SkeletonCard>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{transactions.length}</Text>
-                <Text style={styles.summaryLabel}>Movimenti</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{stats.succeeded}</Text>
-                <Text style={styles.summaryLabel}>Riusciti</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{stats.failed}</Text>
-                <Text style={styles.summaryLabel}>Falliti</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>€ {stats.totalAmount.toFixed(0)}</Text>
-                <Text style={styles.summaryLabel}>Totale</Text>
-              </View>
-            </View>
-          )}
-        </GlassCard>
+        {/* ── Transaction list section ── */}
+        {(initialLoading || transactions.length > 0) ? (
+          <Text style={styles.sectionTitle}>Ultime transazioni</Text>
+        ) : null}
 
-        <GlassCard title="Transazioni" subtitle="Movimenti e tentativi di addebito">
+        {initialLoading ? (
           <View style={styles.list}>
-            {initialLoading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <SkeletonCard key={`payments-row-skeleton-${index}`}>
-                  <SkeletonBlock width="58%" height={22} />
-                  <SkeletonBlock width="52%" />
-                  <SkeletonBlock width="72%" />
-                  <SkeletonBlock width="100%" height={42} radius={14} style={styles.skeletonButton} />
-                </SkeletonCard>
-              ))
-            ) : (
-              <>
-                {visibleTransactions.map((transaction) => {
-                  const status = paymentEventStatusLabel(transaction.event.status);
-                  return (
-                    <View key={transaction.key} style={styles.row}>
-                      <View style={styles.rowHeader}>
-                        <Text style={styles.rowTitle}>
-                          {paymentPhaseLabel(transaction.event.phase)} · € {transaction.event.amount.toFixed(2)}
-                        </Text>
-                        <Text style={styles.rowSubtitle}>
-                          {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} ·{' '}
-                          {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
-                        </Text>
-                        <Text style={styles.rowMeta}>
-                          Guida: {formatDay(transaction.appointment.startsAt)} ·{' '}
-                          {formatTime(transaction.appointment.startsAt)}
-                        </Text>
-                      </View>
-                      <View style={styles.rowStatusWrap}>
-                        <GlassBadge label={status.label} tone={status.tone} />
-                      </View>
-                      <View style={styles.rowActions}>
-                        <GlassButton
-                          label="Dettagli"
-                          onPress={() => openDetails(transaction)}
-                          fullWidth
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
-                {!transactions.length ? (
-                  <Text style={styles.empty}>Nessuna transazione registrata.</Text>
-                ) : null}
-                {hasMore ? (
-                  <View style={styles.more}>
-                    <GlassButton
-                      label="Carica altre"
-                      onPress={() => setVisibleCount((prev) => Math.min(prev + pageSize, transactions.length))}
-                    />
+            {Array.from({ length: 4 }).map((_, index) => (
+              <SkeletonCard key={`payments-row-skeleton-${index}`} style={styles.txRowSkeleton}>
+                <View style={{ flexDirection: 'row', gap: 14 }}>
+                  <SkeletonBlock width={40} height={40} radius={12} />
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <SkeletonBlock width="60%" height={18} />
+                    <SkeletonBlock width="45%" height={13} />
                   </View>
-                ) : null}
-              </>
-            )}
+                </View>
+              </SkeletonCard>
+            ))}
           </View>
-        </GlassCard>
+        ) : (
+          <View style={styles.list}>
+            {visibleTransactions.map((transaction) => {
+              const status = paymentEventStatusLabel(transaction.event.status);
+              const isFailed = status.tone === 'danger';
+              const phaseLabel = paymentPhaseLabel(transaction.event.phase);
+              const iconText = isFailed ? 'ERR' : phaseLabel.slice(0, 3).toUpperCase();
+
+              return (
+                <Pressable
+                  key={transaction.key}
+                  style={styles.txRow}
+                  onPress={() => openDetails(transaction)}
+                >
+                  {/* Icon square */}
+                  <View
+                    style={[
+                      styles.txIcon,
+                      isFailed ? styles.txIconDanger : styles.txIconSuccess,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.txIconText,
+                        isFailed ? styles.txIconTextDanger : styles.txIconTextSuccess,
+                      ]}
+                    >
+                      {iconText}
+                    </Text>
+                  </View>
+
+                  {/* Center info */}
+                  <View style={styles.txCenter}>
+                    <Text style={styles.txTitle} numberOfLines={1}>
+                      {phaseLabel}
+                    </Text>
+                    <Text style={styles.txDate}>
+                      {formatDay(transaction.event.paidAt ?? transaction.event.createdAt)} {'\u00B7'}{' '}
+                      {formatTime(transaction.event.paidAt ?? transaction.event.createdAt)}
+                    </Text>
+                    {isFailed ? (
+                      <Text style={styles.txFailed}>Pagamento fallito</Text>
+                    ) : null}
+                  </View>
+
+                  {/* Right amount */}
+                  <Text style={styles.txAmount}>
+                    {'\u20AC'} {transaction.event.amount.toFixed(2)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            {hasMore ? (
+              <View style={styles.more}>
+                <Button
+                  label="Carica altre"
+                  onPress={() => setVisibleCount((prev) => Math.min(prev + pageSize, transactions.length))}
+                  fullWidth
+                />
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {/* Empty state — no transactions */}
+        {!initialLoading && !transactions.length ? (
+          <View style={styles.emptyWrap}>
+            <Image
+              source={require('../../assets/duck-coins.png')}
+              style={styles.emptyImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.emptyTitle}>Nessuna transazione</Text>
+            <Text style={styles.emptySubtitle}>I tuoi movimenti appariranno qui</Text>
+          </View>
+        ) : null}
       </ScrollView>
 
+      {/* ── Detail BottomSheet ── */}
       <BottomSheet
         visible={detailsOpen && !!selectedTransaction}
-        title="Dettaglio transazione"
         onClose={() => setDetailsOpen(false)}
+        title="Dettaglio transazione"
+        showHandle
+        footer={
+          selectedTransaction ? (
+            <View style={styles.chunkyFooterRow}>
+              <Pressable
+                onPress={handleSharePaymentDocument}
+                disabled={Boolean(documentBusy)}
+                style={[styles.chunkyOutlineBtn, { flex: 1 }, documentBusy && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyOutlineBtnText}>
+                  {documentBusy === 'share' ? 'Attendi...' : 'Condividi'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleOpenPaymentDocument}
+                disabled={Boolean(documentBusy)}
+                style={[styles.chunkyDarkBtn, { flex: 1 }, documentBusy && { opacity: 0.5 }]}
+              >
+                <Text style={styles.chunkyDarkBtnText}>
+                  {documentBusy === 'view' ? 'Attendi...' : 'Visualizza'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : undefined
+        }
       >
         {selectedTransaction ? (
-          <View style={styles.detailsScrollContainer}>
-            <ScrollView
-              ref={detailsScrollRef}
-              style={[styles.detailsScroll, { maxHeight: detailsMaxHeight }]}
-              contentContainerStyle={styles.detailsScrollContent}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-              contentInsetAdjustmentBehavior="never"
-              automaticallyAdjustContentInsets={false}
-              automaticallyAdjustsScrollIndicatorInsets={false}
-              scrollEventThrottle={16}
-              onLayout={(event) => setDetailsLayoutHeight(event.nativeEvent.layout.height)}
-              onContentSizeChange={(_, height) => setDetailsContentHeight(height)}
-              onScroll={(event) => setDetailsOffsetY(event.nativeEvent.contentOffset.y)}
-            >
-              <Text style={styles.detailsTitle}>
-                {paymentPhaseLabel(selectedTransaction.event.phase)} · €{' '}
+          <>
+            {/* Hero card */}
+            <View style={styles.chunkyHeroCard}>
+              <Text style={styles.chunkyHeroTitle}>
+                {paymentPhaseLabel(selectedTransaction.event.phase)} {'\u00B7'} {'\u20AC'}{' '}
                 {selectedTransaction.event.amount.toFixed(2)}
               </Text>
-              <Text style={styles.detailsMeta}>
-                Stato: {paymentEventStatusLabel(selectedTransaction.event.status).label}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Data: {formatDay(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)} ·{' '}
+              <View style={[
+                styles.chunkyStatusPill,
+                {
+                  backgroundColor: paymentEventStatusLabel(selectedTransaction.event.status).tone === 'success'
+                    ? '#F0FDF4'
+                    : paymentEventStatusLabel(selectedTransaction.event.status).tone === 'danger'
+                      ? '#FEF2F2'
+                      : '#F8FAFC',
+                  alignSelf: 'flex-start',
+                },
+              ]}>
+                <Text style={[
+                  styles.chunkyStatusPillText,
+                  {
+                    color: paymentEventStatusLabel(selectedTransaction.event.status).tone === 'success'
+                      ? '#16A34A'
+                      : paymentEventStatusLabel(selectedTransaction.event.status).tone === 'danger'
+                        ? '#DC2626'
+                        : '#64748B',
+                  },
+                ]}>
+                  {paymentEventStatusLabel(selectedTransaction.event.status).label}
+                </Text>
+              </View>
+              <Text style={styles.chunkyHeroSub}>
+                {formatDay(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)} {'\u00B7'}{' '}
                 {formatTime(selectedTransaction.event.paidAt ?? selectedTransaction.event.createdAt)}
               </Text>
-              <Text style={styles.detailsMeta}>Tentativi: {selectedTransaction.event.attemptCount}</Text>
               {selectedTransaction.event.failureMessage ? (
-                <Text style={styles.detailsMeta}>{selectedTransaction.event.failureMessage}</Text>
+                <Text style={styles.chunkyFailureMsg}>{selectedTransaction.event.failureMessage}</Text>
               ) : null}
+            </View>
 
-              <Text style={styles.detailsDivider}>Guida collegata</Text>
-              <Text style={styles.detailsMeta}>
-                {formatDay(selectedTransaction.appointment.startsAt)} ·{' '}
-                {formatTime(selectedTransaction.appointment.startsAt)}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Istruttore: {selectedTransaction.appointment.instructorName ?? 'Da assegnare'}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Veicolo: {selectedTransaction.appointment.vehicleName ?? 'Da assegnare'}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Stato guida: {selectedTransaction.appointment.lessonStatus}
-              </Text>
-
-              <Text style={styles.detailsDivider}>Pagamento guida</Text>
-              <Text style={styles.detailsMeta}>
-                Stato pagamento: {paymentStatusLabel(selectedTransaction.appointment.paymentStatus).label}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Totale dovuto: € {selectedTransaction.appointment.finalAmount.toFixed(2)}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Pagato: € {selectedTransaction.appointment.paidAmount.toFixed(2)}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Residuo: € {selectedTransaction.appointment.dueAmount.toFixed(2)}
-              </Text>
-              <Text style={styles.detailsMeta}>
-                Fattura: {invoiceStatusLabel(selectedTransaction.appointment.invoiceStatus)}
-              </Text>
-
-              <View style={styles.documentActions}>
-                <View style={styles.documentActionWrap}>
-                  <GlassButton
-                    label={documentBusy === 'view' ? 'Apertura...' : 'Visualizza documento'}
-                    onPress={handleOpenPaymentDocument}
-                    disabled={Boolean(documentBusy)}
-                    fullWidth
-                  />
+            {/* GUIDA COLLEGATA section */}
+            <Text style={styles.chunkyRowLabel}>GUIDA COLLEGATA</Text>
+            <View style={{ gap: 16 }}>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                  <Ionicons name="calendar-outline" size={18} color="#CA8A04" />
                 </View>
-                <View style={styles.documentActionWrap}>
-                  <GlassButton
-                    label={documentBusy === 'share' ? 'Condivisione...' : 'Condividi documento'}
-                    onPress={handleSharePaymentDocument}
-                    disabled={Boolean(documentBusy)}
-                    fullWidth
-                  />
+                <View>
+                  <Text style={styles.chunkyRowLabel}>DATA</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {formatDay(selectedTransaction.appointment.startsAt)} {'\u00B7'}{' '}
+                    {formatTime(selectedTransaction.appointment.startsAt)}
+                  </Text>
                 </View>
               </View>
-            </ScrollView>
-            {showDetailsScrollDown ? (
-              <ScrollHintFab
-                direction="down"
-                style={styles.scrollHintBottom}
-                onPress={() => handleDetailsQuickScroll('down')}
-              />
-            ) : null}
-            {showDetailsScrollUp ? (
-              <ScrollHintFab
-                direction="up"
-                style={styles.scrollHintTop}
-                onPress={() => handleDetailsQuickScroll('up')}
-              />
-            ) : null}
-          </View>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="person-outline" size={18} color="#3B82F6" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>ISTRUTTORE</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {selectedTransaction.appointment.instructorName ?? 'Da assegnare'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                  <Ionicons name="car-outline" size={18} color="#CA8A04" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>VEICOLO</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {selectedTransaction.appointment.vehicleName ?? 'Da assegnare'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#F0FDF4' }]}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#16A34A" />
+                </View>
+                <View>
+                  <Text style={styles.chunkyRowLabel}>STATO GUIDA</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {selectedTransaction.appointment.lessonStatus}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* PAGAMENTO section */}
+            <Text style={[styles.chunkyRowLabel, { marginTop: 8 }]}>PAGAMENTO</Text>
+            <View style={{ gap: 16 }}>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="wallet-outline" size={18} color="#EC4899" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chunkyRowLabel}>STATO</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {paymentStatusLabel(selectedTransaction.appointment.paymentStatus).label}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="cash-outline" size={18} color="#EC4899" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chunkyRowLabel}>IMPORTI</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    Dovuto {'\u20AC'} {selectedTransaction.appointment.finalAmount.toFixed(2)} {'\u00B7'}{' '}
+                    Pagato {'\u20AC'} {selectedTransaction.appointment.paidAmount.toFixed(2)} {'\u00B7'}{' '}
+                    Residuo {'\u20AC'} {selectedTransaction.appointment.dueAmount.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.chunkyIconRow}>
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="document-text-outline" size={18} color="#EC4899" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chunkyRowLabel}>FATTURA</Text>
+                  <Text style={styles.chunkyRowValue}>
+                    {invoiceStatusLabel(selectedTransaction.appointment.invoiceStatus)} {'\u00B7'}{' '}
+                    Tentativi: {selectedTransaction.event.attemptCount}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </>
         ) : null}
       </BottomSheet>
     </Screen>
@@ -531,150 +616,306 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: spacing.xxl * 2 + spacing.md,
   },
-  header: {
-    gap: spacing.xs,
-  },
-  rolePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    backgroundColor: 'rgba(50, 77, 122, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.18)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-    marginBottom: 2,
-  },
-  rolePillText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
+
+  /* ── Header ── */
   title: {
-    ...typography.title,
-    color: colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
+
+  /* ── Hero Card (yellow gradient) ── */
+  heroShadow: {
+    borderRadius: radii.lg,
+    shadowColor: '#B45309',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
   },
-  summaryGrid: {
+  heroGradient: {
+    borderRadius: radii.lg,
+    padding: 24,
+    overflow: 'hidden',
+    gap: 6,
+  },
+  heroLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  heroAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  heroMeta: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#FFFFFF',
+    opacity: 0.85,
+  },
+  heroSkeleton: {
+    backgroundColor: '#FEF9C3',
+    padding: 24,
+    gap: 10,
+  },
+
+  /* ── Section title ── */
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginTop: spacing.xs,
+  },
+
+  /* ── Transaction list ── */
+  list: {
+    gap: 12,
+  },
+  txRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    alignItems: 'center',
+    borderRadius: radii.lg,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  summaryItem: {
-    minWidth: '47%',
-    flexGrow: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.54)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+  txRowSkeleton: {
+    borderRadius: radii.lg,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
   },
-  summarySkeletonItem: {
-    minWidth: '47%',
-    flexGrow: 1,
+  txIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  summaryValue: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
+  txIconSuccess: {
+    backgroundColor: '#FEF9C3',
   },
-  summaryLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'none',
-    letterSpacing: 0.1,
+  txIconDanger: {
+    backgroundColor: '#FCE7F3',
+  },
+  txIconText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  txIconTextSuccess: {
+    color: '#CA8A04',
+  },
+  txIconTextDanger: {
+    color: '#EC4899',
+  },
+  txCenter: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  txTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  txDate: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#94A3B8',
     marginTop: 2,
   },
-  list: {
-    gap: spacing.md,
+  txFailed: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#EF4444',
+    marginTop: 2,
   },
-  row: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(50, 77, 122, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.56)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-  },
-  rowHeader: {
-    gap: 2,
-  },
-  rowStatusWrap: {
-    paddingTop: 2,
-  },
-  rowActions: {
-    width: '100%',
-    paddingTop: 2,
-  },
-  skeletonButton: {
-    marginTop: spacing.xs,
-  },
-  rowTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  rowSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  rowMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'none',
-    letterSpacing: 0,
-  },
-  more: {
-    marginTop: spacing.xs,
+  txAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginLeft: 10,
   },
   empty: {
     ...typography.body,
     color: colors.textMuted,
+    paddingVertical: spacing.md,
   },
-  detailsScroll: {
-    width: '100%',
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: 8,
   },
-  detailsScrollContainer: {
-    width: '100%',
-    position: 'relative',
+  emptyImage: {
+    width: 380,
+    height: 253,
+    marginBottom: -36,
   },
-  detailsScrollContent: {
-    gap: spacing.xs,
-    paddingBottom: spacing.md,
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#64748B',
+    textAlign: 'center',
   },
-  detailsTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
+  emptySubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#94A3B8',
+    textAlign: 'center',
   },
-  detailsMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  detailsDivider: {
-    ...typography.caption,
-    color: colors.textSecondary,
+  more: {
     marginTop: spacing.xs,
-    textTransform: 'uppercase',
   },
-  documentActions: {
+
+  /* ── Detail BottomSheet ── */
+  sheetFooter: {
+    gap: 10,
+  },
+  detailInfoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 2,
+  },
+  detailInfoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  detailInfoStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  detailInfoDate: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  detailFailureMsg: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#EF4444',
+  },
+  detailSection: {
+    gap: 2,
     marginTop: spacing.sm,
-    gap: spacing.sm,
-    overflow: 'visible',
   },
-  documentActionWrap: {
-    width: '100%',
-    alignSelf: 'stretch',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
-    overflow: 'visible',
+  detailSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
+  detailSectionValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+
+  /* ── Scroll hints ── */
   scrollHintBottom: {
     bottom: spacing.sm,
   },
   scrollHintTop: {
     top: spacing.xs,
+  },
+
+  /* ── Chunky Google-style BottomSheet styles ── */
+  chunkyHeroCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    padding: 20,
+    gap: 6,
+  },
+  chunkyHeroTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyHeroSub: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#94A3B8',
+  },
+  chunkyStatusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  chunkyStatusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chunkyFailureMsg: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#EF4444',
+  },
+  chunkyIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  chunkyIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyRowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chunkyRowValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyFooterRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  chunkyOutlineBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    height: 50,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyOutlineBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  chunkyDarkBtn: {
+    backgroundColor: '#1E293B',
+    height: 50,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chunkyDarkBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

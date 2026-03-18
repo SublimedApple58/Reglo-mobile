@@ -30,7 +30,7 @@ export const LoadingScreen = () => {
     <View style={styles.root}>
       <View style={styles.container}>
         <Image
-          source={require('../../assets/logo-text.png')}
+          source={require('../../assets/duck_login.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -68,15 +68,15 @@ const styles = StyleSheet.create({
     width: 190,
     height: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(50, 77, 122, 0.14)',
+    backgroundColor: colors.pink[100],
     overflow: 'hidden',
   },
   barSlider: {
     width: 78,
     height: '100%',
     borderRadius: 999,
-    backgroundColor: colors.navy,
-    shadowColor: colors.navy,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },

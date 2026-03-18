@@ -19,11 +19,12 @@ type SessionState = {
 type SessionContextValue = SessionState & {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: {
-    companyName: string;
     name: string;
     email: string;
+    phone: string;
     password: string;
     confirmPassword: string;
+    schoolCode: string;
   }) => Promise<void>;
   signOut: () => Promise<void>;
   selectCompany: (companyId: string) => Promise<void>;
@@ -183,13 +184,14 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
 
   const signUp = useCallback(
     async (input: {
-      companyName: string;
       name: string;
       email: string;
+      phone: string;
       password: string;
       confirmPassword: string;
+      schoolCode: string;
     }) => {
-      const payload = await regloApi.signup(input);
+      const payload = await regloApi.studentRegister(input);
       if (!payload.activeCompanyId && payload.companies.length === 1) {
         const companyId = payload.companies[0].id;
         await regloApi.selectCompany({ companyId });

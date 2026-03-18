@@ -95,7 +95,7 @@ const ensureAndroidNotificationChannel = async () => {
       name: 'Reglo',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 220, 120, 220],
-      lightColor: '#324D7A',
+      lightColor: '#EC4899',
       sound: 'default',
     });
     androidChannelReady = true;

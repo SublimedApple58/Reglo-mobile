@@ -34,6 +34,7 @@ export type UserPublic = {
   id: Uuid;
   name: string | null;
   email: string;
+  phone: string | null;
   role: string;
 };
 
@@ -171,6 +172,7 @@ export type AgendaBootstrapPayload = {
   students: AutoscuolaStudent[];
   instructors: AutoscuolaInstructor[];
   vehicles: AutoscuolaVehicle[];
+  instructorBlocks?: InstructorBlock[];
   meta: {
     from: IsoDate;
     to: IsoDate;
@@ -306,6 +308,8 @@ export type CreateAvailabilitySlotsInput = {
   ownerId: Uuid;
   startsAt: IsoDate;
   endsAt: IsoDate;
+  startsAt2?: IsoDate;
+  endsAt2?: IsoDate;
   daysOfWeek?: number[];
   weeks?: number;
 };
@@ -354,16 +358,17 @@ export type RepositionAppointmentResult = {
 };
 
 export type LoginInput = { email: string; password: string };
-export type SignupInput = {
-  companyName: string;
+export type StudentRegisterInput = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
+  schoolCode: string;
 };
 
 export type SelectCompanyInput = { companyId: Uuid };
-export type UpdateProfileInput = { name: string };
+export type UpdateProfileInput = { name: string; phone?: string };
 export type MobileInviteContext = {
   companyName: string;
   companyId: Uuid;
@@ -540,6 +545,23 @@ export type MobileAppointmentPaymentDocument = {
   invoiceId: string | null;
   invoiceStatus: string | null;
   source: 'fic' | 'stripe' | 'none';
+};
+
+export type InstructorBlock = {
+  id: Uuid;
+  companyId: Uuid;
+  instructorId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  reason: string | null;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+};
+
+export type CreateInstructorBlockInput = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  reason?: string;
 };
 
 export type RegisterPushTokenInput = {

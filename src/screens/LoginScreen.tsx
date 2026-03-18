@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
-import { GlassInput } from '../components/GlassInput';
-import { colors, spacing, typography } from '../theme';
+import { Input } from '../components/Input';
+import { colors, radii, spacing } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { useRouter } from 'expo-router';
 
@@ -40,31 +38,49 @@ export const LoginScreen = ({ onSignup }: LoginScreenProps) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
-        <View style={styles.header}>
+        {/* Logo + Duck + Title */}
+        <View style={styles.hero}>
+          <Image
+            source={require('../../assets/duck_login.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Reglo</Text>
           <Text style={styles.subtitle}>Accedi alla tua autoscuola</Text>
         </View>
 
-        <GlassCard>
-          <View style={styles.form}>
-            <GlassInput
-              placeholder="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-            <GlassInput
-              placeholder="Password"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <GlassButton label={loading ? 'Accesso...' : 'Accedi'} onPress={handleLogin} />
-          </View>
-        </GlassCard>
+        {/* Form */}
+        <View style={styles.form}>
+          <Input
+            placeholder="Email"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Pressable
+            onPress={handleLogin}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.cta,
+              pressed && styles.ctaPressed,
+              loading && styles.ctaDisabled,
+            ]}
+          >
+            <Text style={styles.ctaText}>
+              {loading ? 'Accesso...' : 'Accedi'}
+            </Text>
+          </Pressable>
+        </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Non hai un account?</Text>
           <Text
@@ -77,7 +93,7 @@ export const LoginScreen = ({ onSignup }: LoginScreenProps) => {
               }
             }}
           >
-            Crea account
+            Registrati come allievo
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -90,25 +106,61 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.lg,
     justifyContent: 'center',
-    gap: spacing.lg,
+    gap: 32,
   },
-  header: {
-    gap: spacing.xs,
+  hero: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  logo: {
+    width: 110,
+    height: 154,
+    alignSelf: 'center',
+    marginBottom: 4,
   },
   title: {
-    ...typography.title,
-    color: colors.textPrimary,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#94A3B8',
   },
   form: {
-    gap: spacing.md,
+    gap: 12,
   },
   error: {
-    ...typography.body,
-    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.destructive,
+    textAlign: 'center',
+  },
+  cta: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.sm,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  ctaDisabled: {
+    opacity: 0.6,
+  },
+  ctaText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   footer: {
     flexDirection: 'row',
@@ -116,12 +168,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   footerText: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#94A3B8',
   },
   footerLink: {
-    ...typography.body,
-    color: colors.navy,
+    fontSize: 15,
     fontWeight: '700',
+    color: colors.primary,
   },
 });

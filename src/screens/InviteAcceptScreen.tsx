@@ -11,12 +11,11 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
 
 import { Screen } from '../components/Screen';
-import { GlassButton } from '../components/GlassButton';
-import { GlassCard } from '../components/GlassCard';
-import { GlassInput } from '../components/GlassInput';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { Input } from '../components/Input';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { MobileInviteContext } from '../types/regloApi';
@@ -135,21 +134,21 @@ export const InviteAcceptScreen = () => {
           <Text style={styles.subtitle}>Completa l&apos;accesso e entra direttamente in app</Text>
         </View>
 
-        <GlassCard>
+        <Card>
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator color={colors.navy} />
+              <ActivityIndicator color={colors.primary} />
               <Text style={styles.infoText}>Caricamento invito...</Text>
             </View>
           ) : error || !context ? (
             <View style={styles.form}>
               <Text style={styles.error}>{error ?? 'Invito non disponibile'}</Text>
-              <GlassButton label="Vai al login" onPress={() => router.replace('/(auth)/login')} />
+              <Button label="Vai al login" onPress={() => router.replace('/(auth)/login')} />
             </View>
           ) : context.alreadyMember ? (
             <View style={styles.form}>
               <Text style={styles.infoText}>Sei già membro di {context.companyName}.</Text>
-              <GlassButton label="Accedi" onPress={() => router.replace('/(auth)/login')} />
+              <Button label="Accedi" onPress={() => router.replace('/(auth)/login')} />
             </View>
           ) : (
             <View style={styles.form}>
@@ -157,7 +156,7 @@ export const InviteAcceptScreen = () => {
               <Text style={styles.inviteEmail}>{context.email}</Text>
 
               {!context.hasAccount ? (
-                <GlassInput
+                <Input
                   placeholder="Nome completo"
                   value={name}
                   onChangeText={setName}
@@ -170,15 +169,13 @@ export const InviteAcceptScreen = () => {
                   <View style={styles.phoneRow}>
                     <View style={styles.prefixSelectContainer}>
                       <View style={styles.prefixSelectWrap}>
-                        <BlurView intensity={24} tint="light" style={styles.phoneFieldBlur}>
-                          <Pressable
-                            style={styles.prefixSelectButton}
-                            onPress={() => setShowPrefixMenu((prev) => !prev)}
-                          >
-                            <Text style={styles.prefixValue}>{phonePrefix}</Text>
-                            <Text style={styles.prefixChevron}>▾</Text>
-                          </Pressable>
-                        </BlurView>
+                        <Pressable
+                          style={styles.prefixSelectButton}
+                          onPress={() => setShowPrefixMenu((prev) => !prev)}
+                        >
+                          <Text style={styles.prefixValue}>{phonePrefix}</Text>
+                          <Text style={styles.prefixChevron}>▾</Text>
+                        </Pressable>
                       </View>
 
                       {showPrefixMenu ? (
@@ -210,24 +207,22 @@ export const InviteAcceptScreen = () => {
                     </View>
 
                     <View style={styles.phoneInputWrap}>
-                      <BlurView intensity={24} tint="light" style={styles.phoneFieldBlur}>
-                        <TextInput
-                          value={phoneNumber}
-                          onChangeText={setPhoneNumber}
-                          keyboardType="phone-pad"
-                          placeholder="Numero"
-                          placeholderTextColor={colors.textMuted}
-                          style={styles.phoneInput}
-                          onFocus={() => setShowPrefixMenu(false)}
-                        />
-                      </BlurView>
+                      <TextInput
+                        value={phoneNumber}
+                        onChangeText={setPhoneNumber}
+                        keyboardType="phone-pad"
+                        placeholder="Numero"
+                        placeholderTextColor={colors.textMuted}
+                        style={styles.phoneInput}
+                        onFocus={() => setShowPrefixMenu(false)}
+                      />
                     </View>
                   </View>
 
                 </View>
               ) : null}
 
-              <GlassInput
+              <Input
                 placeholder="Password"
                 value={password}
                 onChangeText={setPassword}
@@ -235,7 +230,7 @@ export const InviteAcceptScreen = () => {
               />
 
               {!context.hasAccount ? (
-                <GlassInput
+                <Input
                   placeholder="Conferma password"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -245,14 +240,14 @@ export const InviteAcceptScreen = () => {
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <GlassButton
+              <Button
                 label={saving ? 'Attendi...' : 'Entra in autoscuola'}
                 onPress={handleAccept}
                 disabled={!canSubmit || saving}
               />
             </View>
           )}
-        </GlassCard>
+        </Card>
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -297,10 +292,10 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   prefixSelectWrap: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderColor: colors.border,
   },
   prefixSelectButton: {
     minHeight: 48,
@@ -308,7 +303,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.glass,
+    backgroundColor: '#FFFFFF',
   },
   prefixValue: {
     ...typography.body,
@@ -327,9 +322,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -337,37 +332,34 @@ const styles = StyleSheet.create({
   },
   phoneInputWrap: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  phoneFieldBlur: {
-    borderRadius: 16,
+    borderColor: colors.border,
   },
   phoneInput: {
     ...typography.body,
     color: colors.textPrimary,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    backgroundColor: colors.glass,
+    backgroundColor: '#FFFFFF',
     minHeight: 48,
   },
   prefixOption: {
     minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   prefixOptionActive: {
-    backgroundColor: '#EEF3FB',
+    backgroundColor: colors.pink[50],
   },
   prefixOptionText: {
     ...typography.body,
     color: colors.textPrimary,
   },
   prefixOptionTextActive: {
-    color: colors.navy,
+    color: colors.primary,
   },
   loadingWrap: {
     alignItems: 'center',
@@ -389,6 +381,6 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.body,
-    color: colors.danger,
+    color: colors.destructive,
   },
 });
