@@ -874,6 +874,10 @@ export const OwnerInstructorScreen = () => {
                   <RangesEditor
                     ranges={defaultRanges}
                     onChange={setDefaultRanges}
+                    onPickTime={(rangeIndex, field) => {
+                      setAvailDrawerOpen(false);
+                      setTimeout(() => setTimePickerContext({ tab: 'default', rangeIndex, field }), 350);
+                    }}
                     onAddRange={() => {
                       setDefaultRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                     }}
@@ -901,6 +905,10 @@ export const OwnerInstructorScreen = () => {
                       <RangesEditor
                         ranges={calRanges}
                         onChange={setCalRanges}
+                        onPickTime={(rangeIndex, field) => {
+                          setAvailDrawerOpen(false);
+                          setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex, field }), 350);
+                        }}
                         onAddRange={() => {
                           setCalRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                         }}

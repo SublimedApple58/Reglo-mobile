@@ -519,6 +519,7 @@ export const AvailabilityEditor = ({
               <RangesEditor
                 ranges={ranges}
                 onChange={setRanges}
+                onPickTime={(index, field) => handleOpenTimePicker(0, index, field)}
                 onAddRange={() => {
                   setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                 }}
@@ -568,6 +569,7 @@ export const AvailabilityEditor = ({
                   <RangesEditor
                     ranges={overrideRanges}
                     onChange={setOverrideRanges}
+                    onPickTime={(index, field) => handleOpenTimePicker(1, index, field)}
                     onAddRange={() => {
                       setOverrideRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                     }}

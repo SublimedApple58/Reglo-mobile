@@ -8,7 +8,7 @@ export type TimeRange = { startMinutes: number; endMinutes: number };
 export type RangesEditorProps = {
   ranges: TimeRange[];
   onChange: (ranges: TimeRange[]) => void;
-  /** Called when user taps "Aggiungi fascia" — parent should add a default range and open the start time picker for it */
+  onPickTime: (index: number, field: 'start' | 'end') => void;
   onAddRange: () => void;
   disabled?: boolean;
 };
@@ -16,7 +16,7 @@ export type RangesEditorProps = {
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
 
-export default function RangesEditor({ ranges, onChange, onAddRange, disabled = false }: RangesEditorProps) {
+export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange, disabled = false }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
 
   return (
@@ -28,16 +28,23 @@ export default function RangesEditor({ ranges, onChange, onAddRange, disabled = 
             <Ionicons name="time" size={18} color="#EC4899" />
           </View>
 
-          {/* Time range text — read-only */}
-          <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+          {/* Start time — tappable */}
+          <Pressable onPress={() => onPickTime(index, 'start')} disabled={disabled} hitSlop={6}>
+            <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+          </Pressable>
+
           <Text style={styles.dash}> – </Text>
-          <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
+
+          {/* End time — tappable */}
+          <Pressable onPress={() => onPickTime(index, 'end')} disabled={disabled} hitSlop={6}>
+            <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
+          </Pressable>
 
           <View style={{ flex: 1 }} />
 
           {/* Trash */}
           {canRemove ? (
-            <Pressable onPress={() => onChange(ranges.filter((_, i) => i !== index))} disabled={disabled} hitSlop={10} style={styles.trashBtn}>
+            <Pressable onPress={() => onChange(ranges.filter((_, i) => i !== index))} disabled={disabled} hitSlop={10}>
               <Ionicons name="trash-outline" size={18} color="#94A3B8" />
             </Pressable>
           ) : null}
@@ -86,16 +93,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1E293B',
+    textDecorationLine: 'underline',
+    textDecorationColor: '#E2E8F0',
   },
   dash: {
     fontSize: 15,
     color: '#94A3B8',
-  },
-  trashBtn: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   addBtn: {
     flexDirection: 'row',
