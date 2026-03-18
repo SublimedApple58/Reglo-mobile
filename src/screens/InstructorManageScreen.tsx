@@ -441,6 +441,13 @@ const AvailabilityEditor = ({
           prev.map((r, i) => (i === timePickerTarget.rangeIndex ? { ...r, [key]: minutes } : r)),
         );
       }
+
+      // After selecting start, auto-open end picker
+      if (timePickerTarget.field === 'start') {
+        setTimeout(() => {
+          setTimePickerTarget({ ...timePickerTarget, field: 'end' });
+        }, 350);
+      }
     },
     [timePickerTarget],
   );
@@ -518,7 +525,11 @@ const AvailabilityEditor = ({
               <RangesEditor
                 ranges={ranges}
                 onChange={setRanges}
-                onPickTime={(index, field) => handleOpenTimePicker(0, index, field)}
+                onAddRange={() => {
+                  const newIndex = ranges.length;
+                  setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
+                  handleOpenTimePicker(0, newIndex, 'start');
+                }}
                 disabled={saving}
               />
             </View>
@@ -565,7 +576,11 @@ const AvailabilityEditor = ({
                   <RangesEditor
                     ranges={overrideRanges}
                     onChange={setOverrideRanges}
-                    onPickTime={(index, field) => handleOpenTimePicker(1, index, field)}
+                    onAddRange={() => {
+                      const newIndex = overrideRanges.length;
+                      setOverrideRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
+                      handleOpenTimePicker(1, newIndex, 'start');
+                    }}
                     disabled={overrideSaving}
                   />
 

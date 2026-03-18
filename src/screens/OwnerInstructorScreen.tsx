@@ -873,9 +873,11 @@ export const OwnerInstructorScreen = () => {
                   <RangesEditor
                     ranges={defaultRanges}
                     onChange={setDefaultRanges}
-                    onPickTime={(rangeIndex, field) => {
+                    onAddRange={() => {
+                      const newIndex = defaultRanges.length;
+                      setDefaultRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                       setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerContext({ tab: 'default', rangeIndex, field }), 350);
+                      setTimeout(() => setTimePickerContext({ tab: 'default', rangeIndex: newIndex, field: 'start' }), 350);
                     }}
                     disabled={availSaving}
                   />
@@ -901,9 +903,11 @@ export const OwnerInstructorScreen = () => {
                       <RangesEditor
                         ranges={calRanges}
                         onChange={setCalRanges}
-                        onPickTime={(rangeIndex, field) => {
+                        onAddRange={() => {
+                          const newIndex = calRanges.length;
+                          setCalRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                           setAvailDrawerOpen(false);
-                          setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex, field }), 350);
+                          setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex: newIndex, field: 'start' }), 350);
                         }}
                         disabled={calSaving}
                       />
@@ -962,6 +966,11 @@ export const OwnerInstructorScreen = () => {
             setCalRanges((prev) =>
               prev.map((r, i) => (i === rangeIndex ? { ...r, [key]: minutes } : r)),
             );
+          }
+          // After selecting start, auto-open end picker
+          if (field === 'start') {
+            setTimeout(() => setTimePickerContext({ tab, rangeIndex, field: 'end' }), 350);
+            return; // don't close + reopen drawer, just chain pickers
           }
         }}
         onClose={() => {

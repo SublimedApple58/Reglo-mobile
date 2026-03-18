@@ -8,15 +8,15 @@ export type TimeRange = { startMinutes: number; endMinutes: number };
 export type RangesEditorProps = {
   ranges: TimeRange[];
   onChange: (ranges: TimeRange[]) => void;
-  onPickTime: (index: number, field: 'start' | 'end') => void;
+  /** Called when user taps "Aggiungi fascia" — parent should add a default range and open the start time picker for it */
+  onAddRange: () => void;
   disabled?: boolean;
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
-const DEFAULT_RANGE: TimeRange = { startMinutes: 540, endMinutes: 1080 };
 
-export default function RangesEditor({ ranges, onChange, onPickTime, disabled = false }: RangesEditorProps) {
+export default function RangesEditor({ ranges, onChange, onAddRange, disabled = false }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
 
   return (
@@ -28,16 +28,10 @@ export default function RangesEditor({ ranges, onChange, onPickTime, disabled = 
             <Ionicons name="time" size={18} color="#EC4899" />
           </View>
 
-          {/* Time range text — tappable */}
-          <View style={styles.timeArea}>
-            <Pressable onPress={() => onPickTime(index, 'start')} disabled={disabled} hitSlop={6} style={styles.timeTap}>
-              <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
-            </Pressable>
-            <Text style={styles.dash}> – </Text>
-            <Pressable onPress={() => onPickTime(index, 'end')} disabled={disabled} hitSlop={6} style={styles.timeTap}>
-              <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
-            </Pressable>
-          </View>
+          {/* Time range text — read-only */}
+          <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+          <Text style={styles.dash}> – </Text>
+          <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
 
           <View style={{ flex: 1 }} />
 
@@ -53,7 +47,7 @@ export default function RangesEditor({ ranges, onChange, onPickTime, disabled = 
       {/* Add range — dashed border pill */}
       <Pressable
         style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
-        onPress={() => onChange([...ranges, { ...DEFAULT_RANGE }])}
+        onPress={onAddRange}
         disabled={disabled}
       >
         <Ionicons name="add-circle" size={18} color="#64748B" />
@@ -88,11 +82,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  timeArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeTap: {},
   timeText: {
     fontSize: 16,
     fontWeight: '600',
