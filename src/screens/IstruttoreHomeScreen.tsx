@@ -1512,8 +1512,9 @@ export const IstruttoreHomeScreen = () => {
                 const hourBlocks = blocksByHour.get(hour);
                 const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
                 const isAvailable = availableHours.has(hour);
-                // Show NOW line before this hour row if now falls here
-                // NOW line overlays the current hour's block
+                const prevAvailable = availableHours.has(hour - 1);
+                // Show label only on first hour of an unavailable block
+                const isUnavailableBlockStart = !isAvailable && (hour === HOUR_SLOTS[0] || prevAvailable);
                 const isNowHour = nowHourFraction !== null &&
                   nowHourFraction >= hour && nowHourFraction < hour + 1;
 
@@ -1525,8 +1526,8 @@ export const IstruttoreHomeScreen = () => {
                         styles.timelineSlotArea,
                         isAvailable ? styles.timelineSlotAvailable : styles.timelineSlotUnavailable,
                       ]}>
-                        {/* Unavailable label */}
-                        {!isAvailable && !hasAppts && (
+                        {/* Unavailable label — only on first hour of contiguous block */}
+                        {isUnavailableBlockStart && !hasAppts && (
                           <Text style={styles.unavailableLabel}>Non disponibile</Text>
                         )}
                         {hasAppts ? (
