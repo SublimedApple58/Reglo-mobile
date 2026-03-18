@@ -595,6 +595,7 @@ const AvailabilityEditor = ({
 
 export const InstructorManageScreen = () => {
   const { instructorId } = useSession();
+  const [mainTab, setMainTab] = useState<'availability' | 'vehicles'>('availability');
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [vehicleName, setVehicleName] = useState('');
@@ -882,72 +883,127 @@ export const InstructorManageScreen = () => {
           <Badge label="Istruttore" />
         </View>
 
+        {/* Top-level tab bar */}
+        <View style={styles.mainTabRow}>
+          <Pressable
+            onPress={() => {
+              if (mainTab !== 'availability') {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setMainTab('availability');
+              }
+            }}
+            style={[
+              styles.mainTab,
+              mainTab === 'availability' && styles.mainTabActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.mainTabText,
+                mainTab === 'availability' ? styles.mainTabTextActive : styles.mainTabTextInactive,
+              ]}
+            >
+              Disponibilit{'\u00E0'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (mainTab !== 'vehicles') {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setMainTab('vehicles');
+              }
+            }}
+            style={[
+              styles.mainTab,
+              mainTab === 'vehicles' && styles.mainTabActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.mainTabText,
+                mainTab === 'vehicles' ? styles.mainTabTextActive : styles.mainTabTextInactive,
+              ]}
+            >
+              Veicoli
+            </Text>
+          </Pressable>
+        </View>
+
         {initialLoading ? (
           <>
-            {/* Availability skeleton */}
-            <SkeletonCard style={styles.availabilitySkeletonCard}>
-              <SkeletonBlock width="60%" height={12} />
-              <SkeletonBlock width="50%" height={10} />
-              <SkeletonBlock width="100%" height={40} radius={20} style={styles.skeletonButton} />
-              <View style={styles.timeCardsRow}>
-                <SkeletonBlock width="48%" height={60} radius={radii.sm} />
-                <SkeletonBlock width="48%" height={60} radius={radii.sm} />
+            {mainTab === 'availability' ? (
+              <SkeletonCard style={styles.availabilitySkeletonCard}>
+                <SkeletonBlock width="60%" height={12} />
+                <SkeletonBlock width="50%" height={10} />
+                <SkeletonBlock width="100%" height={40} radius={20} style={styles.skeletonButton} />
+                <View style={styles.timeCardsRow}>
+                  <SkeletonBlock width="48%" height={60} radius={radii.sm} />
+                  <SkeletonBlock width="48%" height={60} radius={radii.sm} />
+                </View>
+                <SkeletonBlock width="100%" height={50} radius={radii.sm} style={styles.skeletonButton} />
+              </SkeletonCard>
+            ) : (
+              <View style={styles.vehiclesSection}>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <SkeletonCard key={`vehicles-skeleton-${index}`} style={styles.vehicleSkeletonCard}>
+                    <SkeletonBlock width="54%" height={18} />
+                    <SkeletonBlock width="36%" height={14} />
+                  </SkeletonCard>
+                ))}
               </View>
-              <SkeletonBlock width="100%" height={50} radius={radii.sm} style={styles.skeletonButton} />
-            </SkeletonCard>
-
-            {/* Vehicles skeleton */}
-            <View style={styles.vehiclesSection}>
-              <Text style={styles.sectionLabel}>I TUOI VEICOLI</Text>
-              {Array.from({ length: 2 }).map((_, index) => (
-                <SkeletonCard key={`vehicles-skeleton-${index}`} style={styles.vehicleSkeletonCard}>
-                  <SkeletonBlock width="54%" height={18} />
-                  <SkeletonBlock width="36%" height={14} />
-                  <SkeletonBlock width="28%" height={22} radius={999} />
-                  <SkeletonBlock width="100%" height={48} radius={radii.sm} style={styles.skeletonButton} />
-                </SkeletonCard>
-              ))}
-            </View>
+            )}
           </>
         ) : (
           <>
-            <AvailabilityEditor
-              title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
-              ownerType="instructor"
-              ownerId={instructorId}
-              weeks={settings?.availabilityWeeks ?? 4}
-              onToast={(text, tone = 'success') => setToast({ text, tone })}
-            />
+            {mainTab === 'availability' && (
+              <AvailabilityEditor
+                title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
+                ownerType="instructor"
+                ownerId={instructorId}
+                weeks={settings?.availabilityWeeks ?? 4}
+                onToast={(text, tone = 'success') => setToast({ text, tone })}
+              />
+            )}
 
-            {/* Vehicles Section */}
-            <View style={styles.vehiclesSection}>
-              <Text style={styles.sectionLabel}>I TUOI VEICOLI</Text>
+            {mainTab === 'vehicles' && (
+              <View style={styles.vehiclesSection}>
+                <Pressable
+                  onPress={openVehicleDrawer}
+                  style={({ pressed }) => [
+                    styles.addVehicleButton,
+                    pressed && styles.addVehicleButtonPressed,
+                  ]}
+                >
+                  <Ionicons name="add" size={18} color="#92400E" style={{ marginRight: 4 }} />
+                  <Text style={styles.addVehicleText}>Aggiungi veicolo</Text>
+                </Pressable>
 
-              <Pressable
-                onPress={openVehicleDrawer}
-                style={({ pressed }) => [
-                  styles.addVehicleButton,
-                  pressed && styles.addVehicleButtonPressed,
-                ]}
-              >
-                <Text style={styles.addVehicleText}>+ Aggiungi veicolo</Text>
-              </Pressable>
-
-              {vehicles.map((vehicle) => (
-                <View key={vehicle.id} style={styles.vehicleCard}>
-                  <View style={styles.vehicleCardTopRow}>
-                    <Text style={styles.vehicleName}>{vehicle.name}</Text>
-                    <Badge
-                      label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
-                      tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
-                    />
-                  </View>
-                  <Text style={styles.vehiclePlate}>Targa: {vehicle.plate ?? '\u2014'}</Text>
-                  <Button label="Modifica" onPress={() => openEditVehicleDrawer(vehicle)} fullWidth tone="standard" />
-                </View>
-              ))}
-              {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
-            </View>
+                {vehicles.map((vehicle) => (
+                  <Pressable
+                    key={vehicle.id}
+                    onPress={() => openEditVehicleDrawer(vehicle)}
+                    style={({ pressed }) => [
+                      styles.vehicleCard,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.vehicleCardEmoji}>{'\uD83D\uDE97'}</Text>
+                    <View style={styles.vehicleCardInfo}>
+                      <View style={styles.vehicleCardTopRow}>
+                        <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                        <Badge
+                          label={vehicle.status === 'inactive' ? 'Inattivo' : 'Attivo'}
+                          tone={vehicle.status === 'inactive' ? 'warning' : 'success'}
+                        />
+                      </View>
+                      <Text style={styles.vehiclePlate}>Targa: {vehicle.plate ?? '\u2014'}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                  </Pressable>
+                ))}
+                {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -1154,6 +1210,33 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
 
+  /* ─── Main Tab Bar ───────────────────────────────── */
+  mainTabRow: {
+    flexDirection: 'row',
+    gap: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  mainTab: {
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  mainTabActive: {
+    borderBottomColor: '#EC4899',
+  },
+  mainTabText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  mainTabTextActive: {
+    color: '#EC4899',
+  },
+  mainTabTextInactive: {
+    color: '#94A3B8',
+  },
+
   /* ─── Availability Card ───────────────────────────── */
   availabilityCard: {
     borderRadius: radii.lg,
@@ -1312,36 +1395,48 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   addVehicleButton: {
-    width: '100%',
-    height: 48,
-    borderRadius: radii.sm,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#FACC15',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: '#FACC15',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   addVehicleButtonPressed: {
-    opacity: 0.7,
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   addVehicleText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#CA8A04',
+    color: '#92400E',
   },
   vehicleCard: {
-    borderRadius: radii.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radii.sm,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#F1F5F9',
-    padding: 20,
-    gap: 10,
+    padding: 16,
+    gap: 14,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  vehicleCardEmoji: {
+    fontSize: 28,
+  },
+  vehicleCardInfo: {
+    flex: 1,
+    gap: 2,
   },
   vehicleCardTopRow: {
     flexDirection: 'row',
@@ -1355,8 +1450,7 @@ const styles = StyleSheet.create({
   },
   vehiclePlate: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#64748B',
+    color: '#94A3B8',
   },
 
   /* ─── Loading ─────────────────────────────────────── */
