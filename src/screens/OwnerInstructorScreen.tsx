@@ -24,6 +24,7 @@ import {
   AutoscuolaInstructor,
   AutoscuolaSettings,
   WeeklyAvailabilityOverride,
+  DayScheduleEntry,
 } from '../types/regloApi';
 import { colors, radii, spacing } from '../theme';
 
@@ -362,26 +363,18 @@ export const OwnerInstructorScreen = () => {
     setSelectedWeek(weekStart);
     if (!selectedInstructorId) return;
     if (weekStart) {
-      // Check if there's an override for this week
       const override = overrides.find((o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart);
-      if (override) {
-        setAvailDays(override.daysOfWeek);
-        const startH = Math.floor(override.startMinutes / 60);
-        const startM = override.startMinutes % 60;
-        const endH = Math.floor(override.endMinutes / 60);
-        const endM = override.endMinutes % 60;
+      if (override && Array.isArray(override.schedule) && override.schedule.length) {
+        // Use the first entry's times as a representative display (mobile uses morning/afternoon toggles)
+        const entries = override.schedule as DayScheduleEntry[];
+        setAvailDays(entries.map((e) => e.dayOfWeek).sort());
+        const minStart = Math.min(...entries.map((e) => e.startMinutes));
+        const maxEnd = Math.max(...entries.map((e) => e.endMinutes));
         setMorningActive(true);
-        setMorningStart(buildTime(startH, startM));
-        setMorningEnd(buildTime(endH, endM));
-        if (override.startMinutes2 != null && override.endMinutes2 != null) {
-          setAfternoonActive(true);
-          setAfternoonStart(buildTime(Math.floor(override.startMinutes2 / 60), override.startMinutes2 % 60));
-          setAfternoonEnd(buildTime(Math.floor(override.endMinutes2 / 60), override.endMinutes2 % 60));
-        } else {
-          setAfternoonActive(false);
-        }
+        setMorningStart(buildTime(Math.floor(minStart / 60), minStart % 60));
+        setMorningEnd(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
+        setAfternoonActive(false);
       } else {
-        // Pre-fill from current (default) availability
         loadInstructorAvailability(selectedInstructorId);
       }
     } else {
@@ -416,31 +409,24 @@ export const OwnerInstructorScreen = () => {
     setAvailSaving(true);
     try {
       if (selectedWeek) {
-        // Save as weekly override
+        // Save as weekly override with per-day schedule
         const startMinutes = primaryStart.getHours() * 60 + primaryStart.getMinutes();
         const endMinutes = primaryEnd.getHours() * 60 + primaryEnd.getMinutes();
-        const overrideInput: {
-          ownerType: 'instructor';
-          ownerId: string;
-          weekStart: string;
-          daysOfWeek: number[];
-          startMinutes: number;
-          endMinutes: number;
-          startMinutes2?: number;
-          endMinutes2?: number;
-        } = {
+        // Build per-day schedule: each active day gets the same time range
+        const schedule: DayScheduleEntry[] = availDays.map((dow) => {
+          const entry: DayScheduleEntry = { dayOfWeek: dow, startMinutes, endMinutes };
+          if (hasSecondRange) {
+            entry.startMinutes2 = afternoonStart.getHours() * 60 + afternoonStart.getMinutes();
+            entry.endMinutes2 = afternoonEnd.getHours() * 60 + afternoonEnd.getMinutes();
+          }
+          return entry;
+        });
+        await regloApi.setWeeklyAvailabilityOverride({
           ownerType: 'instructor',
           ownerId: selectedInstructorId,
           weekStart: selectedWeek,
-          daysOfWeek: availDays,
-          startMinutes,
-          endMinutes,
-        };
-        if (hasSecondRange) {
-          overrideInput.startMinutes2 = afternoonStart.getHours() * 60 + afternoonStart.getMinutes();
-          overrideInput.endMinutes2 = afternoonEnd.getHours() * 60 + afternoonEnd.getMinutes();
-        }
-        await regloApi.setWeeklyAvailabilityOverride(overrideInput);
+          schedule,
+        });
         // Refresh overrides
         try {
           const res = await regloApi.getWeeklyAvailabilityOverrides({

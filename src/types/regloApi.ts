@@ -303,28 +303,28 @@ export type UpdateVehicleInput = {
   status?: string;
 };
 
-export type WeeklyAvailabilityOverride = {
-  id: Uuid;
-  companyId: Uuid;
-  ownerType: string;
-  ownerId: Uuid;
-  weekStart: IsoDate;
-  daysOfWeek: number[];
+export type DayScheduleEntry = {
+  dayOfWeek: number;
   startMinutes: number;
   endMinutes: number;
   startMinutes2?: number | null;
   endMinutes2?: number | null;
 };
 
+export type WeeklyAvailabilityOverride = {
+  id: Uuid;
+  companyId: Uuid;
+  ownerType: string;
+  ownerId: Uuid;
+  weekStart: IsoDate;
+  schedule: DayScheduleEntry[];
+};
+
 export type SetWeeklyAvailabilityOverrideInput = {
   ownerType: 'instructor' | 'vehicle';
   ownerId: Uuid;
   weekStart: string; // YYYY-MM-DD Monday
-  daysOfWeek: number[];
-  startMinutes: number;
-  endMinutes: number;
-  startMinutes2?: number;
-  endMinutes2?: number;
+  schedule: DayScheduleEntry[];
 };
 
 export type DeleteWeeklyAvailabilityOverrideInput = {

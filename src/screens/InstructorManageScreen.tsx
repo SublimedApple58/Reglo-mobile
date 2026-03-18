@@ -19,7 +19,7 @@ import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaVehicle, AutoscuolaSettings, WeeklyAvailabilityOverride } from '../types/regloApi';
+import { AutoscuolaVehicle, AutoscuolaSettings, WeeklyAvailabilityOverride, DayScheduleEntry } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 
@@ -225,14 +225,18 @@ const AvailabilityEditor = ({
       const override = weekOverrides.find(
         (o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart,
       );
-      if (override) {
-        setDays(override.daysOfWeek);
-        setStartTime(buildTime(Math.floor(override.startMinutes / 60), override.startMinutes % 60));
-        setEndTime(buildTime(Math.floor(override.endMinutes / 60), override.endMinutes % 60));
-        if (override.startMinutes2 != null && override.endMinutes2 != null) {
+      if (override && Array.isArray(override.schedule) && override.schedule.length) {
+        const entries = override.schedule as DayScheduleEntry[];
+        setDays(entries.map((e) => e.dayOfWeek).sort());
+        const minStart = Math.min(...entries.map((e) => e.startMinutes));
+        const maxEnd = Math.max(...entries.map((e) => e.endMinutes));
+        setStartTime(buildTime(Math.floor(minStart / 60), minStart % 60));
+        setEndTime(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
+        const withSecond = entries.find((e) => e.startMinutes2 != null && e.endMinutes2 != null);
+        if (withSecond?.startMinutes2 != null && withSecond?.endMinutes2 != null) {
           setHasSecondRange(true);
-          setStartTime2(buildTime(Math.floor(override.startMinutes2 / 60), override.startMinutes2 % 60));
-          setEndTime2(buildTime(Math.floor(override.endMinutes2 / 60), override.endMinutes2 % 60));
+          setStartTime2(buildTime(Math.floor(withSecond.startMinutes2 / 60), withSecond.startMinutes2 % 60));
+          setEndTime2(buildTime(Math.floor(withSecond.endMinutes2 / 60), withSecond.endMinutes2 % 60));
         } else {
           setHasSecondRange(false);
         }
@@ -286,31 +290,23 @@ const AvailabilityEditor = ({
     setSaving(true);
     try {
       if (selectedWeek && ownerType !== 'student') {
-        // Save as weekly override
-        const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-        const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-        const overrideInput: {
-          ownerType: 'instructor' | 'vehicle';
-          ownerId: string;
-          weekStart: string;
-          daysOfWeek: number[];
-          startMinutes: number;
-          endMinutes: number;
-          startMinutes2?: number;
-          endMinutes2?: number;
-        } = {
+        // Save as weekly override with per-day schedule
+        const startMins = startTime.getHours() * 60 + startTime.getMinutes();
+        const endMins = endTime.getHours() * 60 + endTime.getMinutes();
+        const schedule: DayScheduleEntry[] = days.map((dow) => {
+          const entry: DayScheduleEntry = { dayOfWeek: dow, startMinutes: startMins, endMinutes: endMins };
+          if (hasSecondRange) {
+            entry.startMinutes2 = startTime2.getHours() * 60 + startTime2.getMinutes();
+            entry.endMinutes2 = endTime2.getHours() * 60 + endTime2.getMinutes();
+          }
+          return entry;
+        });
+        await regloApi.setWeeklyAvailabilityOverride({
           ownerType: ownerType as 'instructor' | 'vehicle',
           ownerId,
           weekStart: selectedWeek,
-          daysOfWeek: days,
-          startMinutes,
-          endMinutes,
-        };
-        if (hasSecondRange) {
-          overrideInput.startMinutes2 = startTime2.getHours() * 60 + startTime2.getMinutes();
-          overrideInput.endMinutes2 = endTime2.getHours() * 60 + endTime2.getMinutes();
-        }
-        await regloApi.setWeeklyAvailabilityOverride(overrideInput);
+          schedule,
+        });
         // Refresh overrides
         try {
           const res = await regloApi.getWeeklyAvailabilityOverrides({
