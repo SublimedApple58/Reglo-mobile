@@ -174,7 +174,6 @@ export const AvailabilityEditor = ({
     rangeIndex: number;
     field: 'start' | 'end';
   } | null>(null);
-  const chainingPickerRef = React.useRef(false);
 
   // ── Computed: marked dates for calendar dots ───────────────────
   const markedDates = useMemo(
@@ -443,14 +442,6 @@ export const AvailabilityEditor = ({
         );
       }
 
-      // After selecting start, chain to end picker
-      if (timePickerTarget.field === 'start') {
-        chainingPickerRef.current = true;
-        setTimeout(() => {
-          setTimePickerTarget({ ...timePickerTarget, field: 'end' });
-          chainingPickerRef.current = false;
-        }, 400);
-      }
     },
     [timePickerTarget],
   );
@@ -529,9 +520,7 @@ export const AvailabilityEditor = ({
                 ranges={ranges}
                 onChange={setRanges}
                 onAddRange={() => {
-                  const newIndex = ranges.length;
                   setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
-                  handleOpenTimePicker(0, newIndex, 'start');
                 }}
                 disabled={saving}
               />
@@ -580,9 +569,7 @@ export const AvailabilityEditor = ({
                     ranges={overrideRanges}
                     onChange={setOverrideRanges}
                     onAddRange={() => {
-                      const newIndex = overrideRanges.length;
                       setOverrideRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
-                      handleOpenTimePicker(1, newIndex, 'start');
                     }}
                     disabled={overrideSaving}
                   />
@@ -619,7 +606,7 @@ export const AvailabilityEditor = ({
         visible={timePickerTarget !== null}
         selectedTime={timePickerSelectedTime}
         onSelectTime={handleTimePickerSelect}
-        onClose={() => { if (!chainingPickerRef.current) setTimePickerTarget(null); }}
+        onClose={() => setTimePickerTarget(null)}
       />
     </View>
   );

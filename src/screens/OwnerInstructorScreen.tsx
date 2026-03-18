@@ -201,7 +201,6 @@ export const OwnerInstructorScreen = () => {
     rangeIndex: number;
     field: 'start' | 'end';
   } | null>(null);
-  const chainingPickerRef = React.useRef(false);
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -876,10 +875,7 @@ export const OwnerInstructorScreen = () => {
                     ranges={defaultRanges}
                     onChange={setDefaultRanges}
                     onAddRange={() => {
-                      const newIndex = defaultRanges.length;
                       setDefaultRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
-                      setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerContext({ tab: 'default', rangeIndex: newIndex, field: 'start' }), 350);
                     }}
                     disabled={availSaving}
                   />
@@ -906,10 +902,7 @@ export const OwnerInstructorScreen = () => {
                         ranges={calRanges}
                         onChange={setCalRanges}
                         onAddRange={() => {
-                          const newIndex = calRanges.length;
                           setCalRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
-                          setAvailDrawerOpen(false);
-                          setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex: newIndex, field: 'start' }), 350);
                         }}
                         disabled={calSaving}
                       />
@@ -969,18 +962,8 @@ export const OwnerInstructorScreen = () => {
               prev.map((r, i) => (i === rangeIndex ? { ...r, [key]: minutes } : r)),
             );
           }
-          // After selecting start, chain to end picker
-          if (field === 'start') {
-            chainingPickerRef.current = true;
-            setTimeout(() => {
-              setTimePickerContext({ tab, rangeIndex, field: 'end' });
-              chainingPickerRef.current = false;
-            }, 400);
-          }
         }}
         onClose={() => {
-          // Don't cancel if we're chaining start → end
-          if (chainingPickerRef.current) return;
           setTimePickerContext(null);
           setTimeout(() => setAvailDrawerOpen(true), 350);
         }}
