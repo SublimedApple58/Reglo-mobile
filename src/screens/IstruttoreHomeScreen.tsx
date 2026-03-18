@@ -471,6 +471,7 @@ export const IstruttoreHomeScreen = () => {
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const dayScrollRef = useRef<ScrollView | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
@@ -1077,7 +1078,28 @@ export const IstruttoreHomeScreen = () => {
     const to = new Date(selectedDate);
     to.setHours(23, 59, 59, 999);
     setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
-  }, [selectedDate]);
+
+    // Fetch instructor's availability for this date
+    if (instructorId) {
+      regloApi.getAvailabilitySlots({
+        ownerType: 'instructor',
+        ownerId: instructorId,
+        date: toDateOnlyString(selectedDate),
+      }).then((slots) => {
+        const hours = new Set<number>();
+        if (slots) {
+          for (const slot of slots) {
+            const startHour = new Date(slot.startsAt).getHours();
+            const endHour = new Date(slot.endsAt).getHours();
+            for (let h = startHour; h < endHour; h++) {
+              hours.add(h);
+            }
+          }
+        }
+        setAvailableHours(hours);
+      }).catch(() => setAvailableHours(new Set()));
+    }
+  }, [selectedDate, instructorId]);
 
   const refreshAndSyncDrawer = useCallback(
     async (lessonId: string) => {
@@ -1482,167 +1504,172 @@ export const IstruttoreHomeScreen = () => {
               </View>
             ))}
           </View>
-        ) : hasTimelineAppointments ? (
-          <View style={styles.timelineSection}>
-            {HOUR_SLOTS.map((hour) => {
-              const hourAppts = appointmentsByHour.get(hour);
-              const hourBlocks = blocksByHour.get(hour);
-              const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
-              // Show NOW line before this hour row if now falls here
-              // NOW line overlays the current hour's block
-              const isNowHour = nowHourFraction !== null &&
-                nowHourFraction >= hour && nowHourFraction < hour + 1;
+        ) : (
+          <View style={styles.timelineGridWrapper}>
+            {/* Floating empty-state card when no appointments */}
+            {!hasTimelineAppointments && (
+              <View style={styles.emptyFloatingCard}>
+                <Image
+                  source={require('../../assets/duck-zen.png')}
+                  style={styles.emptyLessonImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyLessonText}>Nessuna guida oggi</Text>
+              </View>
+            )}
+            <View style={styles.timelineSection}>
+              {HOUR_SLOTS.map((hour) => {
+                const hourAppts = appointmentsByHour.get(hour);
+                const hourBlocks = blocksByHour.get(hour);
+                const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
+                const isAvailable = availableHours.has(hour);
+                // Show NOW line before this hour row if now falls here
+                // NOW line overlays the current hour's block
+                const isNowHour = nowHourFraction !== null &&
+                  nowHourFraction >= hour && nowHourFraction < hour + 1;
 
-              return (
-                <View key={`hour-${hour}`}>
-                  <View style={[styles.timelineRow, isNowHour && { zIndex: 10 }]}>
-                    <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
-                    <View style={styles.timelineSlotArea}>
-                      {hasAppts ? (
-                        <>
-                        {hourBlocks?.map((block) => (
-                          <Pressable
-                            key={`block-${block.id}`}
-                            onPress={() => handleDeleteBlock(block.id)}
-                            style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC' }]}
-                          >
-                            <View style={styles.timelineBlockHeader}>
-                              <Text style={styles.timelineBlockTime}>
-                                {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
-                              </Text>
-                              <View style={[styles.timelineStatusBadge, { backgroundColor: '#F1F5F9' }]}>
-                                <Text style={[styles.timelineStatusText, { color: '#64748B' }]}>
-                                  Bloccato
-                                </Text>
-                              </View>
-                            </View>
-                            <Text style={[styles.timelineBlockStudent, { color: '#94A3B8' }]}>
-                              {block.reason || 'Slot bloccato'}
-                            </Text>
-                          </Pressable>
-                        ))}
-                        {hourAppts?.map((appt) => {
-                          const config = timelineStatusConfig(appt.status);
-                          const isActive = isLessonInProgressWindow(appt, now);
-                          const actionAvail = getActionAvailability(appt, now);
-                          const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
-
-                          return (
+                return (
+                  <View key={`hour-${hour}`}>
+                    <View style={[styles.timelineRow, !isAvailable && styles.timelineRowUnavailable, isNowHour && { zIndex: 10 }]}>
+                      <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
+                      <View style={styles.timelineSlotArea}>
+                        {hasAppts ? (
+                          <>
+                          {hourBlocks?.map((block) => (
                             <Pressable
-                              key={appt.id}
-                              onPress={() => openLessonDrawer(appt)}
-                              style={[
-                                styles.timelineBlock,
-                                { borderLeftColor: config.border },
-                                isActive && styles.timelineBlockActive,
-                              ]}
+                              key={`block-${block.id}`}
+                              onPress={() => handleDeleteBlock(block.id)}
+                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC' }]}
                             >
                               <View style={styles.timelineBlockHeader}>
                                 <Text style={styles.timelineBlockTime}>
-                                  {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(new Date(appt.startsAt).getTime() + 60 * 60 * 1000).toISOString())}
+                                  {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
                                 </Text>
-                                <View style={[styles.timelineStatusBadge, { backgroundColor: config.badgeBg }]}>
-                                  <Text style={[styles.timelineStatusText, { color: config.badgeText }]}>
-                                    {config.label}
+                                <View style={[styles.timelineStatusBadge, { backgroundColor: '#F1F5F9' }]}>
+                                  <Text style={[styles.timelineStatusText, { color: '#64748B' }]}>
+                                    Bloccato
                                   </Text>
                                 </View>
                               </View>
-                              <Text style={styles.timelineBlockStudent} numberOfLines={1}>
-                                {appt.student?.firstName} {appt.student?.lastName}
+                              <Text style={[styles.timelineBlockStudent, { color: '#94A3B8' }]}>
+                                {block.reason || 'Slot bloccato'}
                               </Text>
-                              <Text style={styles.timelineBlockMeta} numberOfLines={1}>
-                                {[appt.vehicle?.name, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
-                              </Text>
-
-                              {/* Latest note from previous lesson */}
-                              {appt.studentId && studentNotesMap[appt.studentId] ? (
-                                <View style={styles.timelineNoteRow}>
-                                  <Ionicons name="document-text-outline" size={13} color="#94A3B8" />
-                                  <Text style={styles.timelineNoteText} numberOfLines={1}>
-                                    {studentNotesMap[appt.studentId]}
-                                  </Text>
-                                </View>
-                              ) : null}
-
-                              {/* Inline actions for active lesson */}
-                              {isActive && !isCheckedIn && actionAvail.enabled ? (
-                                <View style={styles.timelineActions}>
-                                  <Pressable
-                                    onPress={(e) => {
-                                      e.stopPropagation?.();
-                                      if (!isPending) executeStatusAction(appt, 'checked_in');
-                                    }}
-                                    disabled={isPending}
-                                    style={({ pressed }) => [
-                                      styles.timelineActionBtn,
-                                      styles.timelineCheckIn,
-                                      pressed && { opacity: 0.8 },
-                                      isPending && { opacity: 0.5 },
-                                    ]}
-                                  >
-                                    <Text style={styles.timelineCheckInText}>
-                                      {pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Check-in'}
-                                    </Text>
-                                  </Pressable>
-                                  <Pressable
-                                    onPress={(e) => {
-                                      e.stopPropagation?.();
-                                      if (!isPending) executeStatusAction(appt, 'no_show');
-                                    }}
-                                    disabled={isPending}
-                                    style={({ pressed }) => [
-                                      styles.timelineActionBtn,
-                                      styles.timelineNoShow,
-                                      pressed && { opacity: 0.8 },
-                                      isPending && { opacity: 0.5 },
-                                    ]}
-                                  >
-                                    <Text style={styles.timelineNoShowText}>
-                                      {pendingAction === 'no_show' ? 'Attendi...' : '\u2717 No-show'}
-                                    </Text>
-                                  </Pressable>
-                                </View>
-                              ) : null}
-
-                              {/* Waiting hint for future lessons */}
-                              {!isCheckedIn && !actionAvail.enabled && actionAvail.reason ? (
-                                <View style={styles.timelineWaiting}>
-                                  <Ionicons name="time-outline" size={14} color="#94A3B8" />
-                                  <Text style={styles.timelineWaitingText}>{actionAvail.reason}</Text>
-                                </View>
-                              ) : null}
                             </Pressable>
-                          );
-                        })}
-                        </>
-                      ) : (
-                        <View style={styles.emptyHourLine} />
-                      )}
-                      {/* NOW line overlay */}
-                      {isNowHour && nowHourFraction !== null ? (
-                        <View style={[styles.nowLineOverlay, { top: `${(nowHourFraction - hour) * 100}%` }]} pointerEvents="none">
-                          <View style={styles.nowDot} />
-                          <View style={styles.nowLine} />
-                          <Text style={styles.nowLabel}>
-                            {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
-                          </Text>
-                        </View>
-                      ) : null}
+                          ))}
+                          {hourAppts?.map((appt) => {
+                            const config = timelineStatusConfig(appt.status);
+                            const isActive = isLessonInProgressWindow(appt, now);
+                            const actionAvail = getActionAvailability(appt, now);
+                            const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
+
+                            return (
+                              <Pressable
+                                key={appt.id}
+                                onPress={() => openLessonDrawer(appt)}
+                                style={[
+                                  styles.timelineBlock,
+                                  { borderLeftColor: config.border },
+                                  isActive && styles.timelineBlockActive,
+                                ]}
+                              >
+                                <View style={styles.timelineBlockHeader}>
+                                  <Text style={styles.timelineBlockTime}>
+                                    {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(new Date(appt.startsAt).getTime() + 60 * 60 * 1000).toISOString())}
+                                  </Text>
+                                  <View style={[styles.timelineStatusBadge, { backgroundColor: config.badgeBg }]}>
+                                    <Text style={[styles.timelineStatusText, { color: config.badgeText }]}>
+                                      {config.label}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={styles.timelineBlockStudent} numberOfLines={1}>
+                                  {appt.student?.firstName} {appt.student?.lastName}
+                                </Text>
+                                <Text style={styles.timelineBlockMeta} numberOfLines={1}>
+                                  {[appt.vehicle?.name, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
+                                </Text>
+
+                                {/* Latest note from previous lesson */}
+                                {appt.studentId && studentNotesMap[appt.studentId] ? (
+                                  <View style={styles.timelineNoteRow}>
+                                    <Ionicons name="document-text-outline" size={13} color="#94A3B8" />
+                                    <Text style={styles.timelineNoteText} numberOfLines={1}>
+                                      {studentNotesMap[appt.studentId]}
+                                    </Text>
+                                  </View>
+                                ) : null}
+
+                                {/* Inline actions for active lesson */}
+                                {isActive && !isCheckedIn && actionAvail.enabled ? (
+                                  <View style={styles.timelineActions}>
+                                    <Pressable
+                                      onPress={(e) => {
+                                        e.stopPropagation?.();
+                                        if (!isPending) executeStatusAction(appt, 'checked_in');
+                                      }}
+                                      disabled={isPending}
+                                      style={({ pressed }) => [
+                                        styles.timelineActionBtn,
+                                        styles.timelineCheckIn,
+                                        pressed && { opacity: 0.8 },
+                                        isPending && { opacity: 0.5 },
+                                      ]}
+                                    >
+                                      <Text style={styles.timelineCheckInText}>
+                                        {pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Check-in'}
+                                      </Text>
+                                    </Pressable>
+                                    <Pressable
+                                      onPress={(e) => {
+                                        e.stopPropagation?.();
+                                        if (!isPending) executeStatusAction(appt, 'no_show');
+                                      }}
+                                      disabled={isPending}
+                                      style={({ pressed }) => [
+                                        styles.timelineActionBtn,
+                                        styles.timelineNoShow,
+                                        pressed && { opacity: 0.8 },
+                                        isPending && { opacity: 0.5 },
+                                      ]}
+                                    >
+                                      <Text style={styles.timelineNoShowText}>
+                                        {pendingAction === 'no_show' ? 'Attendi...' : '\u2717 No-show'}
+                                      </Text>
+                                    </Pressable>
+                                  </View>
+                                ) : null}
+
+                                {/* Waiting hint for future lessons */}
+                                {!isCheckedIn && !actionAvail.enabled && actionAvail.reason ? (
+                                  <View style={styles.timelineWaiting}>
+                                    <Ionicons name="time-outline" size={14} color="#94A3B8" />
+                                    <Text style={styles.timelineWaitingText}>{actionAvail.reason}</Text>
+                                  </View>
+                                ) : null}
+                              </Pressable>
+                            );
+                          })}
+                          </>
+                        ) : (
+                          <View style={styles.emptyHourLine} />
+                        )}
+                        {/* NOW line overlay */}
+                        {isNowHour && nowHourFraction !== null ? (
+                          <View style={[styles.nowLineOverlay, { top: `${(nowHourFraction - hour) * 100}%` }]} pointerEvents="none">
+                            <View style={styles.nowDot} />
+                            <View style={styles.nowLine} />
+                            <Text style={styles.nowLabel}>
+                              {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
                   </View>
-                </View>
-              );
-            })}
-            {/* (no trailing NOW line needed — it overlays the current hour row) */}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Image
-              source={require('../../assets/duck-zen.png')}
-              style={styles.emptyLessonImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.emptyLessonText}>Nessuna guida oggi</Text>
+                );
+              })}
+              {/* (no trailing NOW line needed — it overlays the current hour row) */}
+            </View>
           </View>
         )}
       </ScrollView>
@@ -3149,6 +3176,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     minHeight: 52,
     alignItems: 'flex-start',
+  },
+  timelineRowUnavailable: {
+    backgroundColor: '#F8FAFC',
+  },
+  timelineGridWrapper: {
+    position: 'relative' as const,
+  },
+  emptyFloatingCard: {
+    position: 'absolute' as const,
+    top: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+    zIndex: 100,
   },
   hourLabel: {
     width: 46,
