@@ -1509,13 +1509,17 @@ export const IstruttoreHomeScreen = () => {
             {/* Empty day hint — inline above the grid */}
             {!hasTimelineAppointments && (
               <View style={styles.emptyDayBanner}>
-                <Image
-                  source={require('../../assets/duck-zen.png')}
-                  style={styles.emptyDayDuck}
-                  resizeMode="contain"
-                />
-                <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
-                <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
+                <View style={styles.emptyDayDuckClip}>
+                  <Image
+                    source={require('../../assets/duck-zen.png')}
+                    style={styles.emptyDayDuck}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
+                  <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
+                </View>
               </View>
             )}
             <View style={styles.timelineSection}>
@@ -3199,13 +3203,13 @@ const styles = StyleSheet.create({
     position: 'relative' as const,
   },
   emptyDayBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    borderRadius: 24,
+    padding: 16,
     marginBottom: 20,
-    gap: 12,
+    gap: 14,
     borderWidth: 1,
     borderColor: '#F1F5F9',
     shadowColor: '#000',
@@ -3213,22 +3217,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 2,
+    overflow: 'hidden',
+  },
+  emptyDayDuckClip: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    backgroundColor: '#FDF2F8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyDayDuck: {
-    width: 140,
-    height: 140,
+    width: 120,
+    height: 120,
   },
   emptyDayTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
-    textAlign: 'center',
   },
   emptyDaySubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 2,
+    lineHeight: 18,
   },
   hourLabel: {
     width: 46,
