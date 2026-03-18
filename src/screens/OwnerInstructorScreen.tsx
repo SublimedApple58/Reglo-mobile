@@ -184,6 +184,9 @@ export const OwnerInstructorScreen = () => {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null); // null = "Predefinito"
   const [overrides, setOverrides] = useState<WeeklyAvailabilityOverride[]>([]);
   const weekOptions = useMemo(buildWeekOptions, []);
+  // Per-day schedule for override mode
+  const [daySchedule, setDaySchedule] = useState<DayScheduleEntry[]>([]);
+  const [dayTimePickerTarget, setDayTimePickerTarget] = useState<{ dayOfWeek: number; field: 'start' | 'end' } | null>(null);
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -361,29 +364,70 @@ export const OwnerInstructorScreen = () => {
 
   const handleSelectWeek = useCallback((weekStart: string | null) => {
     setSelectedWeek(weekStart);
+    setDayTimePickerTarget(null);
     if (!selectedInstructorId) return;
     if (weekStart) {
       const override = overrides.find((o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart);
       if (override && Array.isArray(override.schedule) && override.schedule.length) {
-        // Use the first entry's times as a representative display (mobile uses morning/afternoon toggles)
-        const entries = override.schedule as DayScheduleEntry[];
-        setAvailDays(entries.map((e) => e.dayOfWeek).sort());
-        const minStart = Math.min(...entries.map((e) => e.startMinutes));
-        const maxEnd = Math.max(...entries.map((e) => e.endMinutes));
-        setMorningActive(true);
-        setMorningStart(buildTime(Math.floor(minStart / 60), minStart % 60));
-        setMorningEnd(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
-        setAfternoonActive(false);
+        setDaySchedule(override.schedule as DayScheduleEntry[]);
       } else {
-        loadInstructorAvailability(selectedInstructorId);
+        // Pre-fill from default: Mon–Fri 8:00–12:00 (or from loaded availability)
+        const defaultEntries: DayScheduleEntry[] = availDays.map((dow) => ({
+          dayOfWeek: dow,
+          startMinutes: morningStart.getHours() * 60 + morningStart.getMinutes(),
+          endMinutes: (morningActive ? morningEnd : afternoonEnd).getHours() * 60 + (morningActive ? morningEnd : afternoonEnd).getMinutes(),
+        }));
+        setDaySchedule(defaultEntries);
       }
     } else {
+      setDaySchedule([]);
       loadInstructorAvailability(selectedInstructorId);
     }
-  }, [selectedInstructorId, overrides, loadInstructorAvailability]);
+  }, [selectedInstructorId, overrides, loadInstructorAvailability, availDays, morningStart, morningEnd, afternoonEnd, morningActive]);
 
   const handleSaveAvailability = useCallback(async () => {
     if (!selectedInstructorId) return;
+
+    // ── Override mode: save per-day schedule directly ──
+    if (selectedWeek) {
+      if (!daySchedule.length) {
+        setError('Attiva almeno un giorno');
+        return;
+      }
+      // Validate each day
+      for (const entry of daySchedule) {
+        if (entry.endMinutes <= entry.startMinutes) {
+          setError(`Orario non valido per ${dayLetters[entry.dayOfWeek]}`);
+          return;
+        }
+      }
+      setAvailSaving(true);
+      try {
+        await regloApi.setWeeklyAvailabilityOverride({
+          ownerType: 'instructor',
+          ownerId: selectedInstructorId,
+          weekStart: selectedWeek,
+          schedule: daySchedule,
+        });
+        try {
+          const res = await regloApi.getWeeklyAvailabilityOverrides({
+            ownerType: 'instructor',
+            ownerId: selectedInstructorId,
+          });
+          setOverrides(res ?? []);
+        } catch { /* ignore */ }
+        setSuccessMsg('Override settimanale salvato');
+        setError(null);
+        setAvailDrawerOpen(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Errore salvando override');
+      } finally {
+        setAvailSaving(false);
+      }
+      return;
+    }
+
+    // ── Default mode: flat days + morning/afternoon ──
     if (!availDays.length) {
       setError('Seleziona almeno un giorno');
       return;
@@ -393,7 +437,6 @@ export const OwnerInstructorScreen = () => {
       return;
     }
 
-    // Determine primary and secondary ranges
     const primaryStart = morningActive ? morningStart : afternoonStart;
     const primaryEnd = morningActive ? morningEnd : afternoonEnd;
     if (primaryEnd <= primaryStart) {
@@ -408,35 +451,7 @@ export const OwnerInstructorScreen = () => {
 
     setAvailSaving(true);
     try {
-      if (selectedWeek) {
-        // Save as weekly override with per-day schedule
-        const startMinutes = primaryStart.getHours() * 60 + primaryStart.getMinutes();
-        const endMinutes = primaryEnd.getHours() * 60 + primaryEnd.getMinutes();
-        // Build per-day schedule: each active day gets the same time range
-        const schedule: DayScheduleEntry[] = availDays.map((dow) => {
-          const entry: DayScheduleEntry = { dayOfWeek: dow, startMinutes, endMinutes };
-          if (hasSecondRange) {
-            entry.startMinutes2 = afternoonStart.getHours() * 60 + afternoonStart.getMinutes();
-            entry.endMinutes2 = afternoonEnd.getHours() * 60 + afternoonEnd.getMinutes();
-          }
-          return entry;
-        });
-        await regloApi.setWeeklyAvailabilityOverride({
-          ownerType: 'instructor',
-          ownerId: selectedInstructorId,
-          weekStart: selectedWeek,
-          schedule,
-        });
-        // Refresh overrides
-        try {
-          const res = await regloApi.getWeeklyAvailabilityOverrides({
-            ownerType: 'instructor',
-            ownerId: selectedInstructorId,
-          });
-          setOverrides(res ?? []);
-        } catch { /* ignore */ }
-        setSuccessMsg('Override settimanale salvato');
-      } else {
+      {
         // Save as default availability (existing logic)
         const anchor = new Date();
         anchor.setHours(0, 0, 0, 0);
@@ -491,7 +506,7 @@ export const OwnerInstructorScreen = () => {
     } finally {
       setAvailSaving(false);
     }
-  }, [selectedInstructorId, selectedWeek, availDays, morningActive, afternoonActive, morningStart, morningEnd, afternoonStart, afternoonEnd, settings, overrides]);
+  }, [selectedInstructorId, selectedWeek, daySchedule, availDays, morningActive, afternoonActive, morningStart, morningEnd, afternoonStart, afternoonEnd, settings]);
 
   const handleResetOverride = useCallback(async () => {
     if (!selectedInstructorId || !selectedWeek) return;
@@ -849,102 +864,122 @@ export const OwnerInstructorScreen = () => {
                 </Pressable>
               )}
 
-              {/* Day circles */}
-              <View style={styles.dayCircleRow}>
-                {dayLetters.map((letter, index) => (
-                  <Pressable
-                    key={`day-${index}`}
-                    onPress={() => toggleAvailDay(index)}
-                    style={[
-                      styles.dayCircle,
-                      availDays.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayCircleText,
-                        availDays.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
-                      ]}
-                    >
-                      {letter}
-                    </Text>
+              {/* ── Default mode: flat day circles + morning/afternoon ── */}
+              {!selectedWeek && (
+                <>
+                  <View style={styles.dayCircleRow}>
+                    {dayLetters.map((letter, index) => (
+                      <Pressable
+                        key={`day-${index}`}
+                        onPress={() => toggleAvailDay(index)}
+                        style={[
+                          styles.dayCircle,
+                          availDays.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayCircleText,
+                            availDays.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                          ]}
+                        >
+                          {letter}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable onPress={() => setMorningActive((v) => !v)} style={styles.slotToggleRow}>
+                    <Text style={[styles.slotToggleLabel, morningActive && styles.slotToggleLabelActive]}>Mattina</Text>
+                    <View style={[styles.slotToggleDot, morningActive && styles.slotToggleDotActive]} />
                   </Pressable>
-                ))}
-              </View>
-
-              {/* ── Mattina ─────────────────────── */}
-              <Pressable onPress={() => setMorningActive((v) => !v)} style={styles.slotToggleRow}>
-                <Text style={[styles.slotToggleLabel, morningActive && styles.slotToggleLabelActive]}>
-                  Mattina
-                </Text>
-                <View style={[styles.slotToggleDot, morningActive && styles.slotToggleDotActive]} />
-              </Pressable>
-              {morningActive && (
-                <View style={styles.timeCardsRow}>
-                  <Pressable
-                    onPress={() => {
-                      setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerTarget('morningStart'), 350);
-                    }}
-                    style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={styles.timeCardLabel}>Inizio</Text>
-                    <View style={styles.timeCardRow}>
-                      <Ionicons name="time-outline" size={16} color="#EC4899" />
-                      <Text style={styles.timeCardValue}>{toTimeString(morningStart)}</Text>
+                  {morningActive && (
+                    <View style={styles.timeCardsRow}>
+                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('morningStart'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                        <Text style={styles.timeCardLabel}>Inizio</Text>
+                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(morningStart)}</Text></View>
+                      </Pressable>
+                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('morningEnd'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                        <Text style={styles.timeCardLabel}>Fine</Text>
+                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(morningEnd)}</Text></View>
+                      </Pressable>
                     </View>
+                  )}
+                  <Pressable onPress={() => setAfternoonActive((v) => !v)} style={styles.slotToggleRow}>
+                    <Text style={[styles.slotToggleLabel, afternoonActive && styles.slotToggleLabelActive]}>Pomeriggio</Text>
+                    <View style={[styles.slotToggleDot, afternoonActive && styles.slotToggleDotActive]} />
                   </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerTarget('morningEnd'), 350);
-                    }}
-                    style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={styles.timeCardLabel}>Fine</Text>
-                    <View style={styles.timeCardRow}>
-                      <Ionicons name="time-outline" size={16} color="#EC4899" />
-                      <Text style={styles.timeCardValue}>{toTimeString(morningEnd)}</Text>
+                  {afternoonActive && (
+                    <View style={styles.timeCardsRow}>
+                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('afternoonStart'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                        <Text style={styles.timeCardLabel}>Inizio</Text>
+                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(afternoonStart)}</Text></View>
+                      </Pressable>
+                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('afternoonEnd'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                        <Text style={styles.timeCardLabel}>Fine</Text>
+                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(afternoonEnd)}</Text></View>
+                      </Pressable>
                     </View>
-                  </Pressable>
-                </View>
+                  )}
+                </>
               )}
 
-              {/* ── Pomeriggio ──────────────────── */}
-              <Pressable onPress={() => setAfternoonActive((v) => !v)} style={styles.slotToggleRow}>
-                <Text style={[styles.slotToggleLabel, afternoonActive && styles.slotToggleLabelActive]}>
-                  Pomeriggio
-                </Text>
-                <View style={[styles.slotToggleDot, afternoonActive && styles.slotToggleDotActive]} />
-              </Pressable>
-              {afternoonActive && (
-                <View style={styles.timeCardsRow}>
-                  <Pressable
-                    onPress={() => {
-                      setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerTarget('afternoonStart'), 350);
-                    }}
-                    style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={styles.timeCardLabel}>Inizio</Text>
-                    <View style={styles.timeCardRow}>
-                      <Ionicons name="time-outline" size={16} color="#EC4899" />
-                      <Text style={styles.timeCardValue}>{toTimeString(afternoonStart)}</Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      setAvailDrawerOpen(false);
-                      setTimeout(() => setTimePickerTarget('afternoonEnd'), 350);
-                    }}
-                    style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={styles.timeCardLabel}>Fine</Text>
-                    <View style={styles.timeCardRow}>
-                      <Ionicons name="time-outline" size={16} color="#EC4899" />
-                      <Text style={styles.timeCardValue}>{toTimeString(afternoonEnd)}</Text>
-                    </View>
-                  </Pressable>
+              {/* ── Override mode: per-day schedule editor ── */}
+              {selectedWeek && (
+                <View style={{ gap: 8 }}>
+                  {dayLetters.map((letter, index) => {
+                    const entry = daySchedule.find((e) => e.dayOfWeek === index);
+                    const isActive = Boolean(entry);
+                    const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+                    return (
+                      <View key={`ds-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Pressable
+                          onPress={() => {
+                            if (isActive) {
+                              setDaySchedule((prev) => prev.filter((e) => e.dayOfWeek !== index));
+                            } else {
+                              setDaySchedule((prev) => [...prev, { dayOfWeek: index, startMinutes: 9 * 60, endMinutes: 18 * 60 }]);
+                            }
+                          }}
+                          style={[styles.dayCircle, { width: 34, height: 34 }, isActive ? styles.dayCircleActive : styles.dayCircleInactive]}
+                        >
+                          <Text style={[styles.dayCircleText, { fontSize: 12 }, isActive ? styles.dayCircleTextActive : styles.dayCircleTextInactive]}>
+                            {letter}
+                          </Text>
+                        </Pressable>
+                        {isActive && entry ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                            <Pressable
+                              onPress={() => {
+                                setAvailDrawerOpen(false);
+                                setTimeout(() => setDayTimePickerTarget({ dayOfWeek: index, field: 'start' }), 350);
+                              }}
+                              style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
+                            >
+                              <View style={styles.timeCardRow}>
+                                <Ionicons name="time-outline" size={14} color="#EC4899" />
+                                <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.startMinutes)}</Text>
+                              </View>
+                            </Pressable>
+                            <Text style={{ color: '#94A3B8', fontSize: 12 }}>–</Text>
+                            <Pressable
+                              onPress={() => {
+                                setAvailDrawerOpen(false);
+                                setTimeout(() => setDayTimePickerTarget({ dayOfWeek: index, field: 'end' }), 350);
+                              }}
+                              style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
+                            >
+                              <View style={styles.timeCardRow}>
+                                <Ionicons name="time-outline" size={14} color="#EC4899" />
+                                <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.endMinutes)}</Text>
+                              </View>
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>spento</Text>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               )}
             </>
@@ -969,6 +1004,34 @@ export const OwnerInstructorScreen = () => {
         }}
         onClose={() => {
           setTimePickerTarget(null);
+          setTimeout(() => setAvailDrawerOpen(true), 350);
+        }}
+      />
+
+      {/* ── Per-day Time Picker Drawer ─────────────── */}
+      <TimePickerDrawer
+        visible={dayTimePickerTarget !== null}
+        selectedTime={(() => {
+          if (!dayTimePickerTarget) return buildTime(9, 0);
+          const entry = daySchedule.find((e) => e.dayOfWeek === dayTimePickerTarget.dayOfWeek);
+          if (!entry) return buildTime(9, 0);
+          const mins = dayTimePickerTarget.field === 'start' ? entry.startMinutes : entry.endMinutes;
+          return buildTime(Math.floor(mins / 60), mins % 60);
+        })()}
+        onSelectTime={(date) => {
+          if (!dayTimePickerTarget) return;
+          const minutes = date.getHours() * 60 + date.getMinutes();
+          const { dayOfWeek, field } = dayTimePickerTarget;
+          setDaySchedule((prev) =>
+            prev.map((e) =>
+              e.dayOfWeek === dayOfWeek
+                ? { ...e, [field === 'start' ? 'startMinutes' : 'endMinutes']: minutes }
+                : e,
+            ),
+          );
+        }}
+        onClose={() => {
+          setDayTimePickerTarget(null);
           setTimeout(() => setAvailDrawerOpen(true), 350);
         }}
       />

@@ -100,6 +100,8 @@ const AvailabilityEditor = ({
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [weekOverrides, setWeekOverrides] = useState<WeeklyAvailabilityOverride[]>([]);
   const weekOpts = React.useMemo(buildWeekOptions, []);
+  const [overrideDaySchedule, setOverrideDaySchedule] = useState<DayScheduleEntry[]>([]);
+  const [dayTimePickerTarget, setDayTimePickerTarget] = useState<{ dayOfWeek: number; field: 'start' | 'end' } | null>(null);
 
   const toggleDay = (day: number) => {
     setDays((prev) => (prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()));
@@ -220,33 +222,25 @@ const AvailabilityEditor = ({
 
   const handleSelectWeek = useCallback((weekStart: string | null) => {
     setSelectedWeek(weekStart);
+    setDayTimePickerTarget(null);
     if (!ownerId) return;
     if (weekStart) {
       const override = weekOverrides.find(
         (o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart,
       );
       if (override && Array.isArray(override.schedule) && override.schedule.length) {
-        const entries = override.schedule as DayScheduleEntry[];
-        setDays(entries.map((e) => e.dayOfWeek).sort());
-        const minStart = Math.min(...entries.map((e) => e.startMinutes));
-        const maxEnd = Math.max(...entries.map((e) => e.endMinutes));
-        setStartTime(buildTime(Math.floor(minStart / 60), minStart % 60));
-        setEndTime(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
-        const withSecond = entries.find((e) => e.startMinutes2 != null && e.endMinutes2 != null);
-        if (withSecond?.startMinutes2 != null && withSecond?.endMinutes2 != null) {
-          setHasSecondRange(true);
-          setStartTime2(buildTime(Math.floor(withSecond.startMinutes2 / 60), withSecond.startMinutes2 % 60));
-          setEndTime2(buildTime(Math.floor(withSecond.endMinutes2 / 60), withSecond.endMinutes2 % 60));
-        } else {
-          setHasSecondRange(false);
-        }
+        setOverrideDaySchedule(override.schedule as DayScheduleEntry[]);
       } else {
-        loadPreset();
+        // Pre-fill from current defaults
+        const sMins = startTime.getHours() * 60 + startTime.getMinutes();
+        const eMins = endTime.getHours() * 60 + endTime.getMinutes();
+        setOverrideDaySchedule(days.map((dow) => ({ dayOfWeek: dow, startMinutes: sMins, endMinutes: eMins })));
       }
     } else {
+      setOverrideDaySchedule([]);
       loadPreset();
     }
-  }, [ownerId, weekOverrides, loadPreset]);
+  }, [ownerId, weekOverrides, loadPreset, days, startTime, endTime]);
 
   const handleResetOverride = useCallback(async () => {
     if (!ownerId || !selectedWeek || ownerType === 'student') return;
@@ -290,22 +284,24 @@ const AvailabilityEditor = ({
     setSaving(true);
     try {
       if (selectedWeek && ownerType !== 'student') {
-        // Save as weekly override with per-day schedule
-        const startMins = startTime.getHours() * 60 + startTime.getMinutes();
-        const endMins = endTime.getHours() * 60 + endTime.getMinutes();
-        const schedule: DayScheduleEntry[] = days.map((dow) => {
-          const entry: DayScheduleEntry = { dayOfWeek: dow, startMinutes: startMins, endMinutes: endMins };
-          if (hasSecondRange) {
-            entry.startMinutes2 = startTime2.getHours() * 60 + startTime2.getMinutes();
-            entry.endMinutes2 = endTime2.getHours() * 60 + endTime2.getMinutes();
+        // Save per-day schedule override directly
+        if (!overrideDaySchedule.length) {
+          onToast?.('Attiva almeno un giorno', 'danger');
+          setSaving(false);
+          return;
+        }
+        for (const entry of overrideDaySchedule) {
+          if (entry.endMinutes <= entry.startMinutes) {
+            onToast?.(`Orario non valido per ${dayLetters[entry.dayOfWeek]}`, 'danger');
+            setSaving(false);
+            return;
           }
-          return entry;
-        });
+        }
         await regloApi.setWeeklyAvailabilityOverride({
           ownerType: ownerType as 'instructor' | 'vehicle',
           ownerId,
           weekStart: selectedWeek,
-          schedule,
+          schedule: overrideDaySchedule,
         });
         // Refresh overrides
         try {
@@ -419,91 +415,110 @@ const AvailabilityEditor = ({
           </Pressable>
         )}
 
-        <View style={styles.dayCircleRow}>
-          {dayLetters.map((letter, index) => (
-            <Pressable
-              key={`day-${index}`}
-              onPress={() => toggleDay(index)}
-              style={[
-                styles.dayCircle,
-                days.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.dayCircleText,
-                  days.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
-                ]}
-              >
-                {letter}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.timeCardsRow}>
-          <Pressable
-            onPress={() => setStartTimePickerOpen(true)}
-            style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.timeCardLabel}>Inizio</Text>
-            <View style={styles.timeCardRow}>
-              <Ionicons name="time-outline" size={16} color="#EC4899" />
-              <Text style={styles.timeCardValue}>{toTimeString(startTime)}</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => setEndTimePickerOpen(true)}
-            style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.timeCardLabel}>Fine</Text>
-            <View style={styles.timeCardRow}>
-              <Ionicons name="time-outline" size={16} color="#EC4899" />
-              <Text style={styles.timeCardValue}>{toTimeString(endTime)}</Text>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Second range toggle + cards */}
-        {!hasSecondRange ? (
-          <Pressable
-            onPress={() => setHasSecondRange(true)}
-            style={({ pressed }) => [styles.addRangeBtn, pressed && { opacity: 0.8 }]}
-          >
-            <Ionicons name="add-circle-outline" size={18} color="#CA8A04" />
-            <Text style={styles.addRangeBtnText}>Aggiungi seconda fascia</Text>
-          </Pressable>
-        ) : (
+        {/* ── Default mode: flat days + time cards ── */}
+        {!selectedWeek && (
           <>
-            <View style={styles.secondRangeHeader}>
-              <Text style={styles.sectionLabel}>SECONDA FASCIA</Text>
-              <Pressable onPress={() => setHasSecondRange(false)}>
-                <Text style={styles.removeRangeText}>Rimuovi</Text>
-              </Pressable>
+            <View style={styles.dayCircleRow}>
+              {dayLetters.map((letter, index) => (
+                <Pressable
+                  key={`day-${index}`}
+                  onPress={() => toggleDay(index)}
+                  style={[styles.dayCircle, days.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive]}
+                >
+                  <Text style={[styles.dayCircleText, days.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive]}>
+                    {letter}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
             <View style={styles.timeCardsRow}>
-              <Pressable
-                onPress={() => setStartTimePicker2Open(true)}
-                style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-              >
+              <Pressable onPress={() => setStartTimePickerOpen(true)} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
                 <Text style={styles.timeCardLabel}>Inizio</Text>
-                <View style={styles.timeCardRow}>
-                  <Ionicons name="time-outline" size={16} color="#EC4899" />
-                  <Text style={styles.timeCardValue}>{toTimeString(startTime2)}</Text>
-                </View>
+                <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(startTime)}</Text></View>
               </Pressable>
-              <Pressable
-                onPress={() => setEndTimePicker2Open(true)}
-                style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}
-              >
+              <Pressable onPress={() => setEndTimePickerOpen(true)} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
                 <Text style={styles.timeCardLabel}>Fine</Text>
-                <View style={styles.timeCardRow}>
-                  <Ionicons name="time-outline" size={16} color="#EC4899" />
-                  <Text style={styles.timeCardValue}>{toTimeString(endTime2)}</Text>
-                </View>
+                <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(endTime)}</Text></View>
               </Pressable>
             </View>
+            {!hasSecondRange ? (
+              <Pressable onPress={() => setHasSecondRange(true)} style={({ pressed }) => [styles.addRangeBtn, pressed && { opacity: 0.8 }]}>
+                <Ionicons name="add-circle-outline" size={18} color="#CA8A04" />
+                <Text style={styles.addRangeBtnText}>Aggiungi seconda fascia</Text>
+              </Pressable>
+            ) : (
+              <>
+                <View style={styles.secondRangeHeader}>
+                  <Text style={styles.sectionLabel}>SECONDA FASCIA</Text>
+                  <Pressable onPress={() => setHasSecondRange(false)}><Text style={styles.removeRangeText}>Rimuovi</Text></Pressable>
+                </View>
+                <View style={styles.timeCardsRow}>
+                  <Pressable onPress={() => setStartTimePicker2Open(true)} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                    <Text style={styles.timeCardLabel}>Inizio</Text>
+                    <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(startTime2)}</Text></View>
+                  </Pressable>
+                  <Pressable onPress={() => setEndTimePicker2Open(true)} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
+                    <Text style={styles.timeCardLabel}>Fine</Text>
+                    <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(endTime2)}</Text></View>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </>
+        )}
+
+        {/* ── Override mode: per-day schedule editor ── */}
+        {selectedWeek && (
+          <View style={{ gap: 8 }}>
+            {dayLetters.map((letter, index) => {
+              const entry = overrideDaySchedule.find((e) => e.dayOfWeek === index);
+              const isActive = Boolean(entry);
+              const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+              return (
+                <View key={`ds-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Pressable
+                    onPress={() => {
+                      if (isActive) {
+                        setOverrideDaySchedule((prev) => prev.filter((e) => e.dayOfWeek !== index));
+                      } else {
+                        setOverrideDaySchedule((prev) => [...prev, { dayOfWeek: index, startMinutes: 9 * 60, endMinutes: 18 * 60 }]);
+                      }
+                    }}
+                    style={[styles.dayCircle, isActive ? styles.dayCircleActive : styles.dayCircleInactive]}
+                  >
+                    <Text style={[styles.dayCircleText, isActive ? styles.dayCircleTextActive : styles.dayCircleTextInactive]}>
+                      {letter}
+                    </Text>
+                  </Pressable>
+                  {isActive && entry ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Pressable
+                        onPress={() => setDayTimePickerTarget({ dayOfWeek: index, field: 'start' })}
+                        style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
+                      >
+                        <View style={styles.timeCardRow}>
+                          <Ionicons name="time-outline" size={14} color="#EC4899" />
+                          <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.startMinutes)}</Text>
+                        </View>
+                      </Pressable>
+                      <Text style={{ color: '#94A3B8', fontSize: 12 }}>–</Text>
+                      <Pressable
+                        onPress={() => setDayTimePickerTarget({ dayOfWeek: index, field: 'end' })}
+                        style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
+                      >
+                        <View style={styles.timeCardRow}>
+                          <Ionicons name="time-outline" size={14} color="#EC4899" />
+                          <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.endMinutes)}</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>spento</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         )}
 
         <Pressable
@@ -544,6 +559,30 @@ const AvailabilityEditor = ({
         selectedTime={endTime2}
         onSelectTime={setEndTime2}
         onClose={() => setEndTimePicker2Open(false)}
+      />
+      {/* Per-day time picker for override mode */}
+      <TimePickerDrawer
+        visible={dayTimePickerTarget !== null}
+        selectedTime={(() => {
+          if (!dayTimePickerTarget) return buildTime(9, 0);
+          const entry = overrideDaySchedule.find((e) => e.dayOfWeek === dayTimePickerTarget.dayOfWeek);
+          if (!entry) return buildTime(9, 0);
+          const mins = dayTimePickerTarget.field === 'start' ? entry.startMinutes : entry.endMinutes;
+          return buildTime(Math.floor(mins / 60), mins % 60);
+        })()}
+        onSelectTime={(date) => {
+          if (!dayTimePickerTarget) return;
+          const minutes = date.getHours() * 60 + date.getMinutes();
+          const { dayOfWeek, field } = dayTimePickerTarget;
+          setOverrideDaySchedule((prev) =>
+            prev.map((e) =>
+              e.dayOfWeek === dayOfWeek
+                ? { ...e, [field === 'start' ? 'startMinutes' : 'endMinutes']: minutes }
+                : e,
+            ),
+          );
+        }}
+        onClose={() => setDayTimePickerTarget(null)}
       />
     </View>
   );
