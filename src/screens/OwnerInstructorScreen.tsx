@@ -363,7 +363,7 @@ export const OwnerInstructorScreen = () => {
   const handleCalSelectDate = useCallback((dateStr: string) => {
     setCalSelectedDate(dateStr);
     // Check if there's an existing override for this date
-    const existing = overrides.find((o) => o.date === dateStr);
+    const existing = overrides.find((o) => (typeof o.date === 'string' ? o.date.slice(0, 10) : '') === dateStr);
     if (existing) {
       setCalRanges(existing.ranges.map((r) => ({ ...r })));
     } else {
@@ -417,7 +417,7 @@ export const OwnerInstructorScreen = () => {
         ownerId: selectedInstructorId,
         date: calSelectedDate,
       });
-      setOverrides((prev) => prev.filter((o) => o.date !== calSelectedDate));
+      setOverrides((prev) => prev.filter((o) => (typeof o.date === 'string' ? o.date.slice(0, 10) : '') !== calSelectedDate));
       // Reset to default
       setCalRanges(defaultRanges.map((r) => ({ ...r })));
       setSuccessMsg('Override rimosso');
@@ -430,7 +430,7 @@ export const OwnerInstructorScreen = () => {
 
   // ── Computed: set of dates with overrides (for calendar dots) ──
   const overrideDates = useMemo(
-    () => new Set(overrides.map((o) => o.date)),
+    () => new Set(overrides.map((o) => typeof o.date === 'string' ? o.date.slice(0, 10) : '')),
     [overrides],
   );
 
@@ -514,6 +514,7 @@ export const OwnerInstructorScreen = () => {
         ...secondRange,
         daysOfWeek: availDays,
         weeks: settings?.availabilityWeeks ?? 4,
+        ranges: defaultRanges,
       });
 
       setError(null);
