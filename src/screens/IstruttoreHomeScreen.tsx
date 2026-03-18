@@ -1514,10 +1514,8 @@ export const IstruttoreHomeScreen = () => {
                   style={styles.emptyDayDuck}
                   resizeMode="contain"
                 />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
-                  <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
-                </View>
+                <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
+                <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
               </View>
             )}
             <View style={styles.timelineSection}>
@@ -3201,13 +3199,13 @@ const styles = StyleSheet.create({
     position: 'relative' as const,
   },
   emptyDayBanner: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
     marginBottom: 20,
-    gap: 18,
+    gap: 12,
     borderWidth: 1,
     borderColor: '#F1F5F9',
     shadowColor: '#000',
@@ -3217,18 +3215,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   emptyDayDuck: {
-    width: 72,
-    height: 72,
+    width: 140,
+    height: 140,
   },
   emptyDayTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#1E293B',
+    textAlign: 'center',
   },
   emptyDaySubtitle: {
     fontSize: 14,
     color: '#94A3B8',
-    marginTop: 4,
+    textAlign: 'center',
     lineHeight: 20,
   },
   hourLabel: {
