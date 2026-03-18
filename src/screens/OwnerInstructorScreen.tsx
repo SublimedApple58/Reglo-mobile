@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -176,6 +177,10 @@ export const OwnerInstructorScreen = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
 
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Invite drawer state
   const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -275,6 +280,12 @@ export const OwnerInstructorScreen = () => {
     }
     return counts;
   }, [appointments]);
+
+  const filteredInstructors = useMemo(() => {
+    if (!searchQuery.trim()) return instructors;
+    const q = searchQuery.toLowerCase().trim();
+    return instructors.filter((i) => i.name.toLowerCase().includes(q));
+  }, [instructors, searchQuery]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -579,13 +590,44 @@ export const OwnerInstructorScreen = () => {
       >
         {/* ── Header ─────────────────────────────── */}
         <View style={styles.header}>
-          <Text style={styles.title}>I tuoi istruttori</Text>
-          <Text style={styles.subtitle}>
-            {initialLoading
-              ? '...'
-              : `${instructors.length} istruttori \u2022 ${busyCount} in guida`}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>I tuoi istruttori</Text>
+            <Text style={styles.subtitle}>
+              {initialLoading
+                ? '...'
+                : `${instructors.length} istruttori \u2022 ${busyCount} in guida`}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSearchOpen((v) => !v);
+              if (searchOpen) setSearchQuery('');
+            }}
+            style={styles.searchBtn}
+            hitSlop={8}
+          >
+            <Ionicons name={searchOpen ? 'close' : 'search'} size={20} color="#64748B" />
+          </Pressable>
         </View>
+        {searchOpen && (
+          <Animated.View entering={FadeIn.duration(200)} style={styles.searchBar}>
+            <Ionicons name="search" size={16} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Cerca istruttore..."
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
 
         {/* ── Instructor Cards Row ─────────────── */}
         <ScrollView
@@ -602,7 +644,7 @@ export const OwnerInstructorScreen = () => {
                   <SkeletonBlock width={60} height={11} radius={5} />
                 </View>
               ))
-            : instructors.map((instructor) => {
+            : filteredInstructors.map((instructor) => {
                 const status = getInstructorStatus(instructor, appointments, now);
                 const color = statusColor(status);
                 const isSelected = selectedInstructorId === instructor.id;
@@ -1024,7 +1066,35 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1E293B',
+    padding: 0,
   },
   title: {
     fontSize: 28,
