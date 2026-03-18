@@ -567,7 +567,6 @@ const AvailabilityEditor = ({
                     onChange={setOverrideRanges}
                     onPickTime={(index, field) => handleOpenTimePicker(1, index, field)}
                     disabled={overrideSaving}
-                    variant="flat"
                   />
 
                   <Pressable
