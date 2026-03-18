@@ -28,7 +28,6 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { SelectableChip } from '../components/SelectableChip';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
 import { regloApi } from '../services/regloApi';
@@ -464,51 +463,58 @@ const AvailabilityEditor = ({
         style={[styles.editorContent, loading && styles.editorContentLoading]}
         pointerEvents={loading ? 'none' : 'auto'}
       >
-        <Text style={styles.sectionLabel}>LA TUA DISPONIBILIT&Agrave;</Text>
-        <Text style={styles.weeksSubtitle}>Ripetizione ogni {weeks} settimane</Text>
-
-        {/* ── Tab chips ─────────────────────────────────────────── */}
+        {/* ── Segmented control pills ─────────────────────────── */}
         {ownerType !== 'student' && (
-          <View style={styles.tabChipRow}>
-            <SelectableChip
-              label="Predefinito"
-              active={activeTab === 0}
+          <View style={styles.segmentedControl}>
+            <Pressable
               onPress={() => switchTab(0)}
-            />
-            <SelectableChip
-              label="Calendario"
-              active={activeTab === 1}
+              style={[styles.segmentedPill, activeTab === 0 && styles.segmentedPillActive]}
+            >
+              <Text style={[styles.segmentedPillText, activeTab === 0 && styles.segmentedPillTextActive]}>
+                Predefinito
+              </Text>
+            </Pressable>
+            <Pressable
               onPress={() => switchTab(1)}
-            />
+              style={[styles.segmentedPill, activeTab === 1 && styles.segmentedPillActive]}
+            >
+              <Text style={[styles.segmentedPillText, activeTab === 1 && styles.segmentedPillTextActive]}>
+                Calendario
+              </Text>
+            </Pressable>
           </View>
         )}
 
         {/* ── Tab 1: Predefinito (default weekly) ──────────────── */}
         {activeTab === 0 && (
-          <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)}>
-            <View style={styles.dayCircleRow}>
-              {dayLetters.map((letter, index) => (
-                <Pressable
-                  key={`day-${index}`}
-                  onPress={() => toggleDay(index)}
-                  style={[
-                    styles.dayCircle,
-                    days.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
-                  ]}
-                >
-                  <Text
+          <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)} style={{ gap: 16 }}>
+            <View>
+              <Text style={styles.fieldLabel}>GIORNI LAVORATIVI</Text>
+              <View style={styles.dayCircleRow}>
+                {dayLetters.map((letter, index) => (
+                  <Pressable
+                    key={`day-${index}`}
+                    onPress={() => toggleDay(index)}
                     style={[
-                      styles.dayCircleText,
-                      days.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                      styles.dayCircle,
+                      days.includes(index) ? styles.dayCircleActive : styles.dayCircleInactive,
                     ]}
                   >
-                    {letter}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.dayCircleText,
+                        days.includes(index) ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                      ]}
+                    >
+                      {letter}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
 
-            <View style={{ marginTop: spacing.sm }}>
+            <View>
+              <Text style={styles.fieldLabel}>FASCE ORARIE</Text>
               <RangesEditor
                 ranges={ranges}
                 onChange={setRanges}
@@ -545,9 +551,16 @@ const AvailabilityEditor = ({
             <DayDetailAccordion visible={selectedCalendarDate !== null}>
               {selectedCalendarDate && (
                 <View style={styles.dayDetailCard}>
-                  <Text style={styles.dayDetailLabel}>
-                    {formatDateLabel(selectedCalendarDate)}
-                  </Text>
+                  <View style={styles.dayDetailHeader}>
+                    <Text style={styles.dayDetailLabel}>
+                      {formatDateLabel(selectedCalendarDate)}
+                    </Text>
+                    {selectedDateHasOverride && (
+                      <View style={styles.overrideBadge}>
+                        <Text style={styles.overrideBadgeText}>Override attivo</Text>
+                      </View>
+                    )}
+                  </View>
 
                   <RangesEditor
                     ranges={overrideRanges}
@@ -561,6 +574,7 @@ const AvailabilityEditor = ({
                     disabled={overrideSaving}
                     style={({ pressed }) => [
                       styles.saveCta,
+                      { marginTop: 4 },
                       pressed && styles.saveCtaPressed,
                       overrideSaving && styles.saveCtaDisabled,
                     ]}
@@ -1270,11 +1284,44 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 
-  /* ─── Tab Chips ──────────────────────────────────── */
-  tabChipRow: {
+  /* ─── Segmented Control ──────────────────────────── */
+  segmentedControl: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 4,
+  },
+  segmentedPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentedPillActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentedPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  segmentedPillTextActive: {
+    color: '#1E293B',
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
 
   /* ─── Day Circles ─────────────────────────────────── */
@@ -1370,10 +1417,26 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     gap: spacing.sm,
   },
+  dayDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   dayDetailLabel: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
+  },
+  overrideBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  overrideBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16A34A',
   },
   resetOverrideBtn: {
     alignItems: 'center',

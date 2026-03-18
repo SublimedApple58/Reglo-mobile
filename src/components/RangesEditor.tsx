@@ -44,46 +44,53 @@ export default function RangesEditor({
           key={index}
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(150)}
-          style={styles.row}
+          style={styles.rangeRow}
         >
           {/* Start time card */}
           <Pressable
-            style={styles.timeCard}
+            style={({ pressed }) => [styles.timeCard, pressed && styles.timeCardPressed]}
             onPress={() => onPickTime(index, 'start')}
             disabled={disabled}
           >
-            <Ionicons name="time-outline" size={16} color="#EC4899" />
-            <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+            <Text style={styles.timeLabel}>INIZIO</Text>
+            <View style={styles.timeValueRow}>
+              <Ionicons name="time-outline" size={16} color="#EC4899" />
+              <Text style={styles.timeValue}>{fmtMin(range.startMinutes)}</Text>
+            </View>
           </Pressable>
-
-          <Text style={styles.separator}>–</Text>
 
           {/* End time card */}
           <Pressable
-            style={styles.timeCard}
+            style={({ pressed }) => [styles.timeCard, pressed && styles.timeCardPressed]}
             onPress={() => onPickTime(index, 'end')}
             disabled={disabled}
           >
-            <Ionicons name="time-outline" size={16} color="#EC4899" />
-            <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
+            <Text style={styles.timeLabel}>FINE</Text>
+            <View style={styles.timeValueRow}>
+              <Ionicons name="time-outline" size={16} color="#EC4899" />
+              <Text style={styles.timeValue}>{fmtMin(range.endMinutes)}</Text>
+            </View>
           </Pressable>
 
           {/* Remove button */}
-          {canRemove && (
+          {canRemove ? (
             <Pressable
               onPress={() => handleRemove(index)}
               disabled={disabled}
-              hitSlop={8}
+              hitSlop={10}
+              style={styles.trashBtn}
             >
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Ionicons name="trash-outline" size={18} color="#CBD5E1" />
             </Pressable>
+          ) : (
+            <View style={styles.trashPlaceholder} />
           )}
         </Animated.View>
       ))}
 
       {/* Add range button */}
       <Pressable
-        style={styles.addButton}
+        style={({ pressed }) => [styles.addButton, pressed && { opacity: 0.7 }]}
         onPress={handleAdd}
         disabled={disabled}
       >
@@ -97,40 +104,63 @@ export default function RangesEditor({
 // ─── Styles ─────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.sm,
+    gap: 12,
   },
-  row: {
+  rangeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
   },
   timeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: radii.sm,
-    padding: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
-  timeText: {
-    fontSize: 15,
-    fontWeight: 'bold',
+  timeCardPressed: {
+    backgroundColor: '#F8FAFC',
+    transform: [{ scale: 0.98 }],
+  },
+  timeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  timeValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeValue: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#1E293B',
   },
-  separator: {
-    fontSize: 15,
-    color: colors.textSecondary,
+  trashBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trashPlaceholder: {
+    width: 32,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    marginTop: spacing.xs,
+    paddingVertical: 10,
   },
   addText: {
     fontSize: 13,
