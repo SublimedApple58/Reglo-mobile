@@ -63,9 +63,9 @@ import {
   AutoscuolaSettings,
   CreateInstructorBlockInput,
   InstructorBlock,
-  WeeklyAvailabilityOverride,
-  SetWeeklyAvailabilityOverrideInput,
-  DeleteWeeklyAvailabilityOverrideInput,
+  DailyAvailabilityOverride,
+  SetDailyAvailabilityOverrideInput,
+  DeleteDailyAvailabilityOverrideInput,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -257,23 +257,23 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaAvailabilitySlot[]>('/api/autoscuole/availability/slots', {
         params,
       }),
-    setWeeklyAvailabilityOverride: async (input: SetWeeklyAvailabilityOverrideInput) =>
-      client.request<WeeklyAvailabilityOverride>('/api/autoscuole/availability/overrides', {
+    setDailyAvailabilityOverride: async (input: SetDailyAvailabilityOverrideInput) =>
+      client.request<DailyAvailabilityOverride>('/api/autoscuole/availability/overrides', {
         method: 'POST',
         body: input,
       }),
-    deleteWeeklyAvailabilityOverride: async (input: DeleteWeeklyAvailabilityOverrideInput) =>
+    deleteDailyAvailabilityOverride: async (input: DeleteDailyAvailabilityOverrideInput) =>
       client.request<void>('/api/autoscuole/availability/overrides', {
         method: 'DELETE',
         body: input,
       }),
-    getWeeklyAvailabilityOverrides: async (params: {
+    getDailyAvailabilityOverrides: async (params: {
       ownerType: 'instructor' | 'vehicle';
       ownerId: string;
       from?: string;
       to?: string;
     }) =>
-      client.request<WeeklyAvailabilityOverride[]>('/api/autoscuole/availability/overrides', {
+      client.request<DailyAvailabilityOverride[]>('/api/autoscuole/availability/overrides', {
         params,
       }),
     createBookingRequest: async (input: CreateBookingRequestInput) =>

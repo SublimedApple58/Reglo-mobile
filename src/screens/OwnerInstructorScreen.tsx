@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  LayoutAnimation,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -8,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,13 +20,15 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice } from '../components/ToastNotice';
+import { MiniCalendar } from '../components/MiniCalendar';
+import RangesEditor from '../components/RangesEditor';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaInstructor,
   AutoscuolaSettings,
-  WeeklyAvailabilityOverride,
-  DayScheduleEntry,
+  DailyAvailabilityOverride,
+  TimeRange,
 } from '../types/regloApi';
 import { colors, radii, spacing } from '../theme';
 
@@ -124,28 +128,39 @@ const addDays = (date: Date, amount: number) => {
   return copy;
 };
 
-const toTimeString = (value: Date) => value.toTimeString().slice(0, 5);
+const ITALIAN_DAYS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const ITALIAN_MONTHS_SHORT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-type WeekOption = { label: string; weekStart: string };
-const buildWeekOptions = (): WeekOption[] => {
-  const today = new Date();
-  const dow = today.getDay();
-  const daysBack = dow === 0 ? 6 : dow - 1;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - daysBack);
-  monday.setHours(0, 0, 0, 0);
-  const options: WeekOption[] = [];
-  for (let i = 0; i < 12; i++) {
-    const wk = new Date(monday);
-    wk.setDate(monday.getDate() + i * 7);
-    const sun = new Date(wk);
-    sun.setDate(wk.getDate() + 6);
-    options.push({
-      label: `${wk.getDate()}/${wk.getMonth() + 1} – ${sun.getDate()}/${sun.getMonth() + 1}`,
-      weekStart: toDateString(wk),
-    });
+/** Detect ranges from contiguous sorted slots. Gaps >= 60 min create a new range. */
+const detectRangesFromSlots = (
+  slots: Array<{ startsAt: string; endsAt: string; status?: string }>,
+): TimeRange[] => {
+  const usable = slots
+    .filter((s) => s.status !== 'cancelled')
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  if (!usable.length) return [];
+  const ranges: TimeRange[] = [];
+  let rangeStart = new Date(usable[0].startsAt);
+  let rangeEnd = new Date(usable[0].endsAt);
+  for (let i = 1; i < usable.length; i++) {
+    const slotStart = new Date(usable[i].startsAt);
+    const slotEnd = new Date(usable[i].endsAt);
+    const gap = slotStart.getTime() - rangeEnd.getTime();
+    if (gap >= 60 * 60 * 1000) {
+      // gap >= 60 min -> finalize current range, start new one
+      ranges.push({
+        startMinutes: rangeStart.getHours() * 60 + rangeStart.getMinutes(),
+        endMinutes: rangeEnd.getHours() * 60 + rangeEnd.getMinutes(),
+      });
+      rangeStart = slotStart;
+    }
+    rangeEnd = slotEnd;
   }
-  return options;
+  ranges.push({
+    startMinutes: rangeStart.getHours() * 60 + rangeStart.getMinutes(),
+    endMinutes: rangeEnd.getHours() * 60 + rangeEnd.getMinutes(),
+  });
+  return ranges;
 };
 
 // ─── Component ────────────────────────────────────────────────
@@ -169,24 +184,23 @@ export const OwnerInstructorScreen = () => {
   // Availability drawer state
   const [availDrawerOpen, setAvailDrawerOpen] = useState(false);
   const [availDays, setAvailDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [morningActive, setMorningActive] = useState(true);
-  const [afternoonActive, setAfternoonActive] = useState(false);
-  const [morningStart, setMorningStart] = useState(buildTime(8, 0));
-  const [morningEnd, setMorningEnd] = useState(buildTime(12, 0));
-  const [afternoonStart, setAfternoonStart] = useState(buildTime(14, 0));
-  const [afternoonEnd, setAfternoonEnd] = useState(buildTime(18, 0));
   const [availLoading, setAvailLoading] = useState(false);
   const [availSaving, setAvailSaving] = useState(false);
-  const [timePickerTarget, setTimePickerTarget] = useState<
-    'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
-  >(null);
-  // Week override state
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null); // null = "Predefinito"
-  const [overrides, setOverrides] = useState<WeeklyAvailabilityOverride[]>([]);
-  const weekOptions = useMemo(buildWeekOptions, []);
-  // Per-day schedule for override mode
-  const [daySchedule, setDaySchedule] = useState<DayScheduleEntry[]>([]);
-  const [dayTimePickerTarget, setDayTimePickerTarget] = useState<{ dayOfWeek: number; field: 'start' | 'end' } | null>(null);
+  // Tab state: 'default' = Predefinito, 'calendar' = Calendario
+  const [activeTab, setActiveTab] = useState<'default' | 'calendar'>('default');
+  // Default tab: ranges replacing morning/afternoon
+  const [defaultRanges, setDefaultRanges] = useState<TimeRange[]>([{ startMinutes: 480, endMinutes: 720 }]);
+  // Calendar tab
+  const [overrides, setOverrides] = useState<DailyAvailabilityOverride[]>([]);
+  const [calSelectedDate, setCalSelectedDate] = useState<string | null>(null);
+  const [calRanges, setCalRanges] = useState<TimeRange[]>([]);
+  const [calSaving, setCalSaving] = useState(false);
+  // Unified time picker context
+  const [timePickerContext, setTimePickerContext] = useState<{
+    tab: 'default' | 'calendar';
+    rangeIndex: number;
+    field: 'start' | 'end';
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -280,52 +294,27 @@ export const OwnerInstructorScreen = () => {
         ),
       );
 
-      const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
+      // Build detected ranges per day and merge into a single set of ranges
+      const activeDays: number[] = [];
+      let mergedRanges: TimeRange[] = [];
+
       responses.forEach((response, index) => {
         if (!response || response.length === 0) return;
-        const usable = response
-          .filter((s) => s.status !== 'cancelled')
-          .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-        if (!usable.length) return;
-        const first = new Date(usable[0].startsAt);
-        const last = new Date(usable[usable.length - 1].endsAt);
-        ranges.push({
-          dayIndex: dates[index].getDay(),
-          startMin: first.getHours() * 60 + first.getMinutes(),
-          endMin: last.getHours() * 60 + last.getMinutes(),
-        });
+        const detected = detectRangesFromSlots(response);
+        if (detected.length === 0) return;
+        activeDays.push(dates[index].getDay());
+        // Use the ranges from the first active day as the default template
+        if (mergedRanges.length === 0) {
+          mergedRanges = detected;
+        }
       });
 
-      if (ranges.length) {
-        const daySet = Array.from(new Set(ranges.map((r) => r.dayIndex))).sort();
-        const minStart = Math.min(...ranges.map((r) => r.startMin));
-        const maxEnd = Math.max(...ranges.map((r) => r.endMin));
-        setAvailDays(daySet);
-
-        // Detect if there's a gap (>= 60 min break) suggesting two ranges
-        // For now, use the full range as morning; check if the weekly availability
-        // has startMinutes2/endMinutes2 by looking at the slot pattern
-        const midpoint = 12 * 60; // noon
-        if (minStart < midpoint && maxEnd > midpoint + 60) {
-          // Likely a full-day range, present as single morning
-          setMorningActive(true);
-          setAfternoonActive(false);
-          setMorningStart(buildTime(Math.floor(minStart / 60), minStart % 60));
-          setMorningEnd(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
-        } else {
-          setMorningActive(true);
-          setAfternoonActive(false);
-          setMorningStart(buildTime(Math.floor(minStart / 60), minStart % 60));
-          setMorningEnd(buildTime(Math.floor(maxEnd / 60), maxEnd % 60));
-        }
+      if (activeDays.length) {
+        setAvailDays(Array.from(new Set(activeDays)).sort());
+        setDefaultRanges(mergedRanges);
       } else {
         setAvailDays([]);
-        setMorningActive(true);
-        setAfternoonActive(false);
-        setMorningStart(buildTime(8, 0));
-        setMorningEnd(buildTime(12, 0));
-        setAfternoonStart(buildTime(14, 0));
-        setAfternoonEnd(buildTime(18, 0));
+        setDefaultRanges([{ startMinutes: 480, endMinutes: 720 }]);
       }
     } catch {
       setError('Errore caricando disponibilità istruttore');
@@ -336,12 +325,14 @@ export const OwnerInstructorScreen = () => {
 
   const openAvailDrawer = useCallback(async () => {
     if (!selectedInstructorId) return;
-    setSelectedWeek(null);
+    setActiveTab('default');
+    setCalSelectedDate(null);
+    setCalRanges([]);
     setAvailDrawerOpen(true);
     await loadInstructorAvailability(selectedInstructorId);
-    // Load overrides
+    // Load daily overrides
     try {
-      const res = await regloApi.getWeeklyAvailabilityOverrides({
+      const res = await regloApi.getDailyAvailabilityOverrides({
         ownerType: 'instructor',
         ownerId: selectedInstructorId,
       });
@@ -352,9 +343,9 @@ export const OwnerInstructorScreen = () => {
   }, [selectedInstructorId, loadInstructorAvailability]);
 
   const closeAvailDrawer = useCallback(() => {
-    if (availSaving) return;
+    if (availSaving || calSaving) return;
     setAvailDrawerOpen(false);
-  }, [availSaving]);
+  }, [availSaving, calSaving]);
 
   const toggleAvailDay = (day: number) => {
     setAvailDays((prev) =>
@@ -362,142 +353,168 @@ export const OwnerInstructorScreen = () => {
     );
   };
 
-  const handleSelectWeek = useCallback((weekStart: string | null) => {
-    setSelectedWeek(weekStart);
-    setDayTimePickerTarget(null);
-    if (!selectedInstructorId) return;
-    if (weekStart) {
-      const override = overrides.find((o) => new Date(o.weekStart).toISOString().slice(0, 10) === weekStart);
-      if (override && Array.isArray(override.schedule) && override.schedule.length) {
-        setDaySchedule(override.schedule as DayScheduleEntry[]);
-      } else {
-        // Pre-fill from default: Mon–Fri 8:00–12:00 (or from loaded availability)
-        const defaultEntries: DayScheduleEntry[] = availDays.map((dow) => ({
-          dayOfWeek: dow,
-          startMinutes: morningStart.getHours() * 60 + morningStart.getMinutes(),
-          endMinutes: (morningActive ? morningEnd : afternoonEnd).getHours() * 60 + (morningActive ? morningEnd : afternoonEnd).getMinutes(),
-        }));
-        setDaySchedule(defaultEntries);
-      }
-    } else {
-      setDaySchedule([]);
-      loadInstructorAvailability(selectedInstructorId);
-    }
-  }, [selectedInstructorId, overrides, loadInstructorAvailability, availDays, morningStart, morningEnd, afternoonEnd, morningActive]);
+  const handleSwitchTab = useCallback((tab: 'default' | 'calendar') => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setActiveTab(tab);
+    setTimePickerContext(null);
+  }, []);
 
+  // ── Calendar tab: select a date ──
+  const handleCalSelectDate = useCallback((dateStr: string) => {
+    setCalSelectedDate(dateStr);
+    // Check if there's an existing override for this date
+    const existing = overrides.find((o) => o.date === dateStr);
+    if (existing) {
+      setCalRanges(existing.ranges.map((r) => ({ ...r })));
+    } else {
+      // Pre-fill from default ranges
+      setCalRanges(defaultRanges.map((r) => ({ ...r })));
+    }
+  }, [overrides, defaultRanges]);
+
+  // ── Calendar tab: save override for selected date ──
+  const handleCalSaveOverride = useCallback(async () => {
+    if (!selectedInstructorId || !calSelectedDate) return;
+    // Validate ranges
+    for (let i = 0; i < calRanges.length; i++) {
+      if (calRanges[i].endMinutes <= calRanges[i].startMinutes) {
+        setError(`Fascia ${i + 1}: orario non valido`);
+        return;
+      }
+    }
+    setCalSaving(true);
+    try {
+      await regloApi.setDailyAvailabilityOverride({
+        ownerType: 'instructor',
+        ownerId: selectedInstructorId,
+        date: calSelectedDate,
+        ranges: calRanges,
+      });
+      // Refresh overrides
+      try {
+        const res = await regloApi.getDailyAvailabilityOverrides({
+          ownerType: 'instructor',
+          ownerId: selectedInstructorId,
+        });
+        setOverrides(res ?? []);
+      } catch { /* ignore */ }
+      setSuccessMsg('Override salvato');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore salvando override');
+    } finally {
+      setCalSaving(false);
+    }
+  }, [selectedInstructorId, calSelectedDate, calRanges]);
+
+  // ── Calendar tab: reset override for selected date ──
+  const handleCalResetOverride = useCallback(async () => {
+    if (!selectedInstructorId || !calSelectedDate) return;
+    setCalSaving(true);
+    try {
+      await regloApi.deleteDailyAvailabilityOverride({
+        ownerType: 'instructor',
+        ownerId: selectedInstructorId,
+        date: calSelectedDate,
+      });
+      setOverrides((prev) => prev.filter((o) => o.date !== calSelectedDate));
+      // Reset to default
+      setCalRanges(defaultRanges.map((r) => ({ ...r })));
+      setSuccessMsg('Override rimosso');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore rimuovendo override');
+    } finally {
+      setCalSaving(false);
+    }
+  }, [selectedInstructorId, calSelectedDate, defaultRanges]);
+
+  // ── Computed: set of dates with overrides (for calendar dots) ──
+  const overrideDates = useMemo(
+    () => new Set(overrides.map((o) => o.date)),
+    [overrides],
+  );
+
+  // ── Calendar tab: format selected date label ──
+  const calDateLabel = useMemo(() => {
+    if (!calSelectedDate) return '';
+    const [y, m, d] = calSelectedDate.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return `${ITALIAN_DAYS[date.getDay()]} ${d} ${ITALIAN_MONTHS_SHORT[m - 1]}`;
+  }, [calSelectedDate]);
+
+  const hasCalOverride = calSelectedDate != null && overrideDates.has(calSelectedDate);
+
+  // ── Default tab: save availability ──
   const handleSaveAvailability = useCallback(async () => {
     if (!selectedInstructorId) return;
 
-    // ── Override mode: save per-day schedule directly ──
-    if (selectedWeek) {
-      if (!daySchedule.length) {
-        setError('Attiva almeno un giorno');
-        return;
-      }
-      // Validate each day
-      for (const entry of daySchedule) {
-        if (entry.endMinutes <= entry.startMinutes) {
-          setError(`Orario non valido per ${dayLetters[entry.dayOfWeek]}`);
-          return;
-        }
-      }
-      setAvailSaving(true);
-      try {
-        await regloApi.setWeeklyAvailabilityOverride({
-          ownerType: 'instructor',
-          ownerId: selectedInstructorId,
-          weekStart: selectedWeek,
-          schedule: daySchedule,
-        });
-        try {
-          const res = await regloApi.getWeeklyAvailabilityOverrides({
-            ownerType: 'instructor',
-            ownerId: selectedInstructorId,
-          });
-          setOverrides(res ?? []);
-        } catch { /* ignore */ }
-        setSuccessMsg('Override settimanale salvato');
-        setError(null);
-        setAvailDrawerOpen(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Errore salvando override');
-      } finally {
-        setAvailSaving(false);
-      }
-      return;
-    }
-
-    // ── Default mode: flat days + morning/afternoon ──
     if (!availDays.length) {
       setError('Seleziona almeno un giorno');
       return;
     }
-    if (!morningActive && !afternoonActive) {
-      setError('Attiva almeno una fascia oraria');
+    if (!defaultRanges.length) {
+      setError('Aggiungi almeno una fascia oraria');
       return;
     }
-
-    const primaryStart = morningActive ? morningStart : afternoonStart;
-    const primaryEnd = morningActive ? morningEnd : afternoonEnd;
-    if (primaryEnd <= primaryStart) {
-      setError('Orario non valido');
-      return;
-    }
-    const hasSecondRange = morningActive && afternoonActive;
-    if (hasSecondRange && afternoonEnd <= afternoonStart) {
-      setError('Orario pomeriggio non valido');
-      return;
+    // Validate ranges
+    for (let i = 0; i < defaultRanges.length; i++) {
+      if (defaultRanges[i].endMinutes <= defaultRanges[i].startMinutes) {
+        setError(`Fascia ${i + 1}: orario non valido`);
+        return;
+      }
     }
 
     setAvailSaving(true);
     try {
-      {
-        // Save as default availability (existing logic)
-        const anchor = new Date();
-        anchor.setHours(0, 0, 0, 0);
-        const start = new Date(anchor);
-        start.setHours(primaryStart.getHours(), primaryStart.getMinutes(), 0, 0);
-        const end = new Date(anchor);
-        end.setHours(primaryEnd.getHours(), primaryEnd.getMinutes(), 0, 0);
-        const resetStart = new Date(anchor);
-        resetStart.setHours(0, 0, 0, 0);
-        const resetEnd = new Date(anchor);
-        resetEnd.setHours(23, 59, 0, 0);
+      const anchor = new Date();
+      anchor.setHours(0, 0, 0, 0);
+      const resetStart = new Date(anchor);
+      resetStart.setHours(0, 0, 0, 0);
+      const resetEnd = new Date(anchor);
+      resetEnd.setHours(23, 59, 0, 0);
 
-        const secondRange: { startsAt2?: string; endsAt2?: string } = {};
-        if (hasSecondRange) {
-          const s2 = new Date(anchor);
-          s2.setHours(afternoonStart.getHours(), afternoonStart.getMinutes(), 0, 0);
-          const e2 = new Date(anchor);
-          e2.setHours(afternoonEnd.getHours(), afternoonEnd.getMinutes(), 0, 0);
-          secondRange.startsAt2 = s2.toISOString();
-          secondRange.endsAt2 = e2.toISOString();
-        }
-
-        try {
-          await regloApi.deleteAvailabilitySlots({
-            ownerType: 'instructor',
-            ownerId: selectedInstructorId,
-            startsAt: resetStart.toISOString(),
-            endsAt: resetEnd.toISOString(),
-            daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-            weeks: settings?.availabilityWeeks ?? 4,
-          });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          if (!/nessuno slot/i.test(message)) throw err;
-        }
-
-        await regloApi.createAvailabilitySlots({
+      // Delete existing slots
+      try {
+        await regloApi.deleteAvailabilitySlots({
           ownerType: 'instructor',
           ownerId: selectedInstructorId,
-          startsAt: start.toISOString(),
-          endsAt: end.toISOString(),
-          ...secondRange,
-          daysOfWeek: availDays,
+          startsAt: resetStart.toISOString(),
+          endsAt: resetEnd.toISOString(),
+          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
           weeks: settings?.availabilityWeeks ?? 4,
         });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!/nessuno slot/i.test(message)) throw err;
       }
+
+      // Build primary range (first) + optional second range
+      const primary = defaultRanges[0];
+      const startDate = new Date(anchor);
+      startDate.setHours(Math.floor(primary.startMinutes / 60), primary.startMinutes % 60, 0, 0);
+      const endDate = new Date(anchor);
+      endDate.setHours(Math.floor(primary.endMinutes / 60), primary.endMinutes % 60, 0, 0);
+
+      const secondRange: { startsAt2?: string; endsAt2?: string } = {};
+      if (defaultRanges.length >= 2) {
+        const r2 = defaultRanges[1];
+        const s2 = new Date(anchor);
+        s2.setHours(Math.floor(r2.startMinutes / 60), r2.startMinutes % 60, 0, 0);
+        const e2 = new Date(anchor);
+        e2.setHours(Math.floor(r2.endMinutes / 60), r2.endMinutes % 60, 0, 0);
+        secondRange.startsAt2 = s2.toISOString();
+        secondRange.endsAt2 = e2.toISOString();
+      }
+
+      await regloApi.createAvailabilitySlots({
+        ownerType: 'instructor',
+        ownerId: selectedInstructorId,
+        startsAt: startDate.toISOString(),
+        endsAt: endDate.toISOString(),
+        ...secondRange,
+        daysOfWeek: availDays,
+        weeks: settings?.availabilityWeeks ?? 4,
+      });
 
       setError(null);
       setAvailDrawerOpen(false);
@@ -506,26 +523,7 @@ export const OwnerInstructorScreen = () => {
     } finally {
       setAvailSaving(false);
     }
-  }, [selectedInstructorId, selectedWeek, daySchedule, availDays, morningActive, afternoonActive, morningStart, morningEnd, afternoonStart, afternoonEnd, settings]);
-
-  const handleResetOverride = useCallback(async () => {
-    if (!selectedInstructorId || !selectedWeek) return;
-    setAvailSaving(true);
-    try {
-      await regloApi.deleteWeeklyAvailabilityOverride({
-        ownerType: 'instructor',
-        ownerId: selectedInstructorId,
-        weekStart: selectedWeek,
-      });
-      setOverrides((prev) => prev.filter((o) => new Date(o.weekStart).toISOString().slice(0, 10) !== selectedWeek));
-      await loadInstructorAvailability(selectedInstructorId);
-      setSuccessMsg('Override rimosso');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore rimuovendo override');
-    } finally {
-      setAvailSaving(false);
-    }
-  }, [selectedInstructorId, selectedWeek, loadInstructorAvailability]);
+  }, [selectedInstructorId, availDays, defaultRanges, settings]);
 
   // ─── Invite Logic ──────────────────────────────────────────
 
@@ -798,18 +796,20 @@ export const OwnerInstructorScreen = () => {
         visible={availDrawerOpen}
         title={selectedInstructor ? `Disponibilità di ${selectedInstructor.name.split(/\s+/)[0]}` : 'Disponibilità'}
         onClose={closeAvailDrawer}
-        closeDisabled={availSaving}
+        closeDisabled={availSaving || calSaving}
         showHandle
         footer={
-          <View style={styles.sheetFooter}>
-            <Button
-              label={availSaving ? 'Salvataggio...' : 'Salva disponibilità'}
-              tone="primary"
-              onPress={availSaving ? undefined : handleSaveAvailability}
-              disabled={availSaving}
-              fullWidth
-            />
-          </View>
+          activeTab === 'default' ? (
+            <View style={styles.sheetFooter}>
+              <Button
+                label={availSaving ? 'Salvataggio...' : 'Salva disponibilità'}
+                tone="primary"
+                onPress={availSaving ? undefined : handleSaveAvailability}
+                disabled={availSaving}
+                fullWidth
+              />
+            </View>
+          ) : undefined
         }
       >
         <View style={styles.sheetContent}>
@@ -820,52 +820,34 @@ export const OwnerInstructorScreen = () => {
             </View>
           ) : (
             <>
-              {/* Week selector */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {/* ── Tab chips ── */}
+              <View style={styles.tabChipRow}>
                 <Pressable
-                  onPress={() => handleSelectWeek(null)}
+                  onPress={() => handleSwitchTab('default')}
                   style={[
-                    styles.weekChip,
-                    selectedWeek === null && styles.weekChipActive,
+                    styles.tabChip,
+                    activeTab === 'default' && styles.tabChipActive,
                   ]}
                 >
-                  <Text style={[styles.weekChipText, selectedWeek === null && styles.weekChipTextActive]}>
+                  <Text style={[styles.tabChipText, activeTab === 'default' && styles.tabChipTextActive]}>
                     Predefinito
                   </Text>
                 </Pressable>
-                {weekOptions.map((wo) => {
-                  const hasOverride = overrides.some(
-                    (o) => new Date(o.weekStart).toISOString().slice(0, 10) === wo.weekStart,
-                  );
-                  return (
-                    <Pressable
-                      key={wo.weekStart}
-                      onPress={() => handleSelectWeek(wo.weekStart)}
-                      style={[
-                        styles.weekChip,
-                        selectedWeek === wo.weekStart && styles.weekChipActive,
-                      ]}
-                    >
-                      <Text style={[styles.weekChipText, selectedWeek === wo.weekStart && styles.weekChipTextActive]}>
-                        {wo.label}
-                      </Text>
-                      {hasOverride && <View style={styles.weekChipDot} />}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Reset override button */}
-              {selectedWeek && overrides.some((o) => new Date(o.weekStart).toISOString().slice(0, 10) === selectedWeek) && (
-                <Pressable onPress={handleResetOverride} style={{ marginBottom: 8 }}>
-                  <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '600' }}>
-                    Ripristina predefinito
+                <Pressable
+                  onPress={() => handleSwitchTab('calendar')}
+                  style={[
+                    styles.tabChip,
+                    activeTab === 'calendar' && styles.tabChipActive,
+                  ]}
+                >
+                  <Text style={[styles.tabChipText, activeTab === 'calendar' && styles.tabChipTextActive]}>
+                    Calendario
                   </Text>
                 </Pressable>
-              )}
+              </View>
 
-              {/* ── Default mode: flat day circles + morning/afternoon ── */}
-              {!selectedWeek && (
+              {/* ── Tab 1: Predefinito ── */}
+              {activeTab === 'default' && (
                 <>
                   <View style={styles.dayCircleRow}>
                     {dayLetters.map((letter, index) => (
@@ -888,150 +870,102 @@ export const OwnerInstructorScreen = () => {
                       </Pressable>
                     ))}
                   </View>
-                  <Pressable onPress={() => setMorningActive((v) => !v)} style={styles.slotToggleRow}>
-                    <Text style={[styles.slotToggleLabel, morningActive && styles.slotToggleLabelActive]}>Mattina</Text>
-                    <View style={[styles.slotToggleDot, morningActive && styles.slotToggleDotActive]} />
-                  </Pressable>
-                  {morningActive && (
-                    <View style={styles.timeCardsRow}>
-                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('morningStart'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
-                        <Text style={styles.timeCardLabel}>Inizio</Text>
-                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(morningStart)}</Text></View>
-                      </Pressable>
-                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('morningEnd'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
-                        <Text style={styles.timeCardLabel}>Fine</Text>
-                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(morningEnd)}</Text></View>
-                      </Pressable>
-                    </View>
-                  )}
-                  <Pressable onPress={() => setAfternoonActive((v) => !v)} style={styles.slotToggleRow}>
-                    <Text style={[styles.slotToggleLabel, afternoonActive && styles.slotToggleLabelActive]}>Pomeriggio</Text>
-                    <View style={[styles.slotToggleDot, afternoonActive && styles.slotToggleDotActive]} />
-                  </Pressable>
-                  {afternoonActive && (
-                    <View style={styles.timeCardsRow}>
-                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('afternoonStart'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
-                        <Text style={styles.timeCardLabel}>Inizio</Text>
-                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(afternoonStart)}</Text></View>
-                      </Pressable>
-                      <Pressable onPress={() => { setAvailDrawerOpen(false); setTimeout(() => setTimePickerTarget('afternoonEnd'), 350); }} style={({ pressed }) => [styles.timeCard, pressed && { opacity: 0.85 }]}>
-                        <Text style={styles.timeCardLabel}>Fine</Text>
-                        <View style={styles.timeCardRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeCardValue}>{toTimeString(afternoonEnd)}</Text></View>
-                      </Pressable>
-                    </View>
-                  )}
+                  <RangesEditor
+                    ranges={defaultRanges}
+                    onChange={setDefaultRanges}
+                    onPickTime={(rangeIndex, field) => {
+                      setAvailDrawerOpen(false);
+                      setTimeout(() => setTimePickerContext({ tab: 'default', rangeIndex, field }), 350);
+                    }}
+                    disabled={availSaving}
+                  />
                 </>
               )}
 
-              {/* ── Override mode: per-day schedule editor ── */}
-              {selectedWeek && (
-                <View style={{ gap: 8 }}>
-                  {dayLetters.map((letter, index) => {
-                    const entry = daySchedule.find((e) => e.dayOfWeek === index);
-                    const isActive = Boolean(entry);
-                    const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-                    return (
-                      <View key={`ds-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* ── Tab 2: Calendario ── */}
+              {activeTab === 'calendar' && (
+                <>
+                  <MiniCalendar
+                    selectedDate={calSelectedDate}
+                    onSelectDate={handleCalSelectDate}
+                    markedDates={overrideDates}
+                  />
+                  {calSelectedDate && (
+                    <Animated.View entering={FadeIn.duration(250)} style={styles.calDayDetail}>
+                      <Text style={styles.calDayLabel}>{calDateLabel}</Text>
+                      {hasCalOverride && (
+                        <View style={styles.calOverrideBadge}>
+                          <Text style={styles.calOverrideBadgeText}>Override attivo</Text>
+                        </View>
+                      )}
+                      <RangesEditor
+                        ranges={calRanges}
+                        onChange={setCalRanges}
+                        onPickTime={(rangeIndex, field) => {
+                          setAvailDrawerOpen(false);
+                          setTimeout(() => setTimePickerContext({ tab: 'calendar', rangeIndex, field }), 350);
+                        }}
+                        disabled={calSaving}
+                      />
+                      <View style={styles.calActionRow}>
                         <Pressable
-                          onPress={() => {
-                            if (isActive) {
-                              setDaySchedule((prev) => prev.filter((e) => e.dayOfWeek !== index));
-                            } else {
-                              setDaySchedule((prev) => [...prev, { dayOfWeek: index, startMinutes: 9 * 60, endMinutes: 18 * 60 }]);
-                            }
-                          }}
-                          style={[styles.dayCircle, { width: 34, height: 34 }, isActive ? styles.dayCircleActive : styles.dayCircleInactive]}
+                          style={[styles.calBtn, styles.calBtnPrimary]}
+                          onPress={calSaving ? undefined : handleCalSaveOverride}
+                          disabled={calSaving}
                         >
-                          <Text style={[styles.dayCircleText, { fontSize: 12 }, isActive ? styles.dayCircleTextActive : styles.dayCircleTextInactive]}>
-                            {letter}
-                          </Text>
+                          {calSaving ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <Text style={styles.calBtnPrimaryText}>Salva</Text>
+                          )}
                         </Pressable>
-                        {isActive && entry ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                            <Pressable
-                              onPress={() => {
-                                setAvailDrawerOpen(false);
-                                setTimeout(() => setDayTimePickerTarget({ dayOfWeek: index, field: 'start' }), 350);
-                              }}
-                              style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
-                            >
-                              <View style={styles.timeCardRow}>
-                                <Ionicons name="time-outline" size={14} color="#EC4899" />
-                                <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.startMinutes)}</Text>
-                              </View>
-                            </Pressable>
-                            <Text style={{ color: '#94A3B8', fontSize: 12 }}>–</Text>
-                            <Pressable
-                              onPress={() => {
-                                setAvailDrawerOpen(false);
-                                setTimeout(() => setDayTimePickerTarget({ dayOfWeek: index, field: 'end' }), 350);
-                              }}
-                              style={({ pressed }) => [styles.timeCard, { flex: 1, paddingVertical: 6 }, pressed && { opacity: 0.85 }]}
-                            >
-                              <View style={styles.timeCardRow}>
-                                <Ionicons name="time-outline" size={14} color="#EC4899" />
-                                <Text style={[styles.timeCardValue, { fontSize: 13 }]}>{fmtMin(entry.endMinutes)}</Text>
-                              </View>
-                            </Pressable>
-                          </View>
-                        ) : (
-                          <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>spento</Text>
+                        {hasCalOverride && (
+                          <Pressable
+                            style={[styles.calBtn, styles.calBtnOutline]}
+                            onPress={calSaving ? undefined : handleCalResetOverride}
+                            disabled={calSaving}
+                          >
+                            <Text style={styles.calBtnOutlineText}>Ripristina predefinito</Text>
+                          </Pressable>
                         )}
                       </View>
-                    );
-                  })}
-                </View>
+                    </Animated.View>
+                  )}
+                </>
               )}
             </>
           )}
         </View>
       </BottomSheet>
 
-      {/* ── Time Picker Drawer ───────────────────── */}
+      {/* ── Unified Time Picker Drawer ───────────────── */}
       <TimePickerDrawer
-        visible={timePickerTarget !== null}
-        selectedTime={
-          timePickerTarget === 'morningStart' ? morningStart
-            : timePickerTarget === 'morningEnd' ? morningEnd
-            : timePickerTarget === 'afternoonStart' ? afternoonStart
-            : afternoonEnd
-        }
-        onSelectTime={(date) => {
-          if (timePickerTarget === 'morningStart') setMorningStart(date);
-          else if (timePickerTarget === 'morningEnd') setMorningEnd(date);
-          else if (timePickerTarget === 'afternoonStart') setAfternoonStart(date);
-          else if (timePickerTarget === 'afternoonEnd') setAfternoonEnd(date);
-        }}
-        onClose={() => {
-          setTimePickerTarget(null);
-          setTimeout(() => setAvailDrawerOpen(true), 350);
-        }}
-      />
-
-      {/* ── Per-day Time Picker Drawer ─────────────── */}
-      <TimePickerDrawer
-        visible={dayTimePickerTarget !== null}
+        visible={timePickerContext !== null}
         selectedTime={(() => {
-          if (!dayTimePickerTarget) return buildTime(9, 0);
-          const entry = daySchedule.find((e) => e.dayOfWeek === dayTimePickerTarget.dayOfWeek);
-          if (!entry) return buildTime(9, 0);
-          const mins = dayTimePickerTarget.field === 'start' ? entry.startMinutes : entry.endMinutes;
+          if (!timePickerContext) return buildTime(9, 0);
+          const ranges = timePickerContext.tab === 'default' ? defaultRanges : calRanges;
+          const range = ranges[timePickerContext.rangeIndex];
+          if (!range) return buildTime(9, 0);
+          const mins = timePickerContext.field === 'start' ? range.startMinutes : range.endMinutes;
           return buildTime(Math.floor(mins / 60), mins % 60);
         })()}
         onSelectTime={(date) => {
-          if (!dayTimePickerTarget) return;
+          if (!timePickerContext) return;
           const minutes = date.getHours() * 60 + date.getMinutes();
-          const { dayOfWeek, field } = dayTimePickerTarget;
-          setDaySchedule((prev) =>
-            prev.map((e) =>
-              e.dayOfWeek === dayOfWeek
-                ? { ...e, [field === 'start' ? 'startMinutes' : 'endMinutes']: minutes }
-                : e,
-            ),
-          );
+          const { tab, rangeIndex, field } = timePickerContext;
+          const key = field === 'start' ? 'startMinutes' : 'endMinutes';
+          if (tab === 'default') {
+            setDefaultRanges((prev) =>
+              prev.map((r, i) => (i === rangeIndex ? { ...r, [key]: minutes } : r)),
+            );
+          } else {
+            setCalRanges((prev) =>
+              prev.map((r, i) => (i === rangeIndex ? { ...r, [key]: minutes } : r)),
+            );
+          }
         }}
         onClose={() => {
-          setDayTimePickerTarget(null);
+          setTimePickerContext(null);
           setTimeout(() => setAvailDrawerOpen(true), 350);
         }}
       />
@@ -1296,33 +1230,28 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
 
-  // Week chips
-  weekChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  // Tab chips
+  tabChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  tabChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: radii.sm,
     backgroundColor: '#F1F5F9',
-    marginRight: 6,
   },
-  weekChipActive: {
+  tabChipActive: {
     backgroundColor: '#FACC15',
   },
-  weekChipText: {
-    fontSize: 12,
+  tabChipText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
   },
-  weekChipTextActive: {
+  tabChipTextActive: {
     color: '#FFFFFF',
-  },
-  weekChipDot: {
-    position: 'absolute' as const,
-    top: -2,
-    right: -2,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.primary,
   },
 
   // Day circles
@@ -1354,61 +1283,58 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
 
-  // Slot toggle rows (Mattina / Pomeriggio)
-  slotToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginTop: 4,
+  // Calendar day detail accordion
+  calDayDetail: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: spacing.sm,
   },
-  slotToggleLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  slotToggleLabelActive: {
+  calDayLabel: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#1E293B',
   },
-  slotToggleDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E2E8F0',
+  calOverrideBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
-  slotToggleDotActive: {
-    backgroundColor: '#22C55E',
-  },
-
-  // Time cards
-  timeCardsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  timeCard: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 14,
-    gap: 4,
-  },
-  timeCardLabel: {
+  calOverrideBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
+    color: '#CA8A04',
   },
-  timeCardRow: {
+  calActionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    marginTop: 4,
   },
-  timeCardValue: {
-    fontSize: 15,
-    fontWeight: '700',
+  calBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calBtnPrimary: {
+    backgroundColor: '#EC4899',
+  },
+  calBtnPrimaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  calBtnOutline: {
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  calBtnOutlineText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: '#1E293B',
   },
 
