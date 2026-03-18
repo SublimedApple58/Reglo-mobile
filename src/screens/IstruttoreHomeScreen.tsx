@@ -1506,17 +1506,6 @@ export const IstruttoreHomeScreen = () => {
           </View>
         ) : (
           <View style={styles.timelineGridWrapper}>
-            {/* Floating empty-state card when no appointments */}
-            {!hasTimelineAppointments && (
-              <View style={styles.emptyFloatingCard}>
-                <Image
-                  source={require('../../assets/duck-zen.png')}
-                  style={styles.emptyLessonImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.emptyLessonText}>Nessuna guida oggi</Text>
-              </View>
-            )}
             <View style={styles.timelineSection}>
               {HOUR_SLOTS.map((hour) => {
                 const hourAppts = appointmentsByHour.get(hour);
@@ -1530,9 +1519,16 @@ export const IstruttoreHomeScreen = () => {
 
                 return (
                   <View key={`hour-${hour}`}>
-                    <View style={[styles.timelineRow, !isAvailable && styles.timelineRowUnavailable, isNowHour && { zIndex: 10 }]}>
+                    <View style={[styles.timelineRow, isNowHour && { zIndex: 10 }]}>
                       <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
-                      <View style={styles.timelineSlotArea}>
+                      <View style={[
+                        styles.timelineSlotArea,
+                        isAvailable ? styles.timelineSlotAvailable : styles.timelineSlotUnavailable,
+                      ]}>
+                        {/* Unavailable label */}
+                        {!isAvailable && !hasAppts && (
+                          <Text style={styles.unavailableLabel}>Non disponibile</Text>
+                        )}
                         {hasAppts ? (
                           <>
                           {hourBlocks?.map((block) => (
@@ -3177,27 +3173,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'flex-start',
   },
-  timelineRowUnavailable: {
-    backgroundColor: '#F8FAFC',
-  },
   timelineGridWrapper: {
     position: 'relative' as const,
-  },
-  emptyFloatingCard: {
-    position: 'absolute' as const,
-    top: 80,
-    left: 20,
-    right: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center' as const,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
-    zIndex: 100,
   },
   hourLabel: {
     width: 46,
@@ -3208,13 +3185,26 @@ const styles = StyleSheet.create({
   },
   timelineSlotArea: {
     flex: 1,
-    borderLeftWidth: 1,
-    borderLeftColor: '#E5E7EB',
-    paddingLeft: 12,
+    paddingLeft: 14,
     paddingBottom: 8,
     minHeight: 52,
     position: 'relative',
     overflow: 'visible',
+  },
+  timelineSlotAvailable: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#EC4899',
+  },
+  timelineSlotUnavailable: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#E5E7EB',
+    borderStyle: 'dashed' as const,
+  },
+  unavailableLabel: {
+    fontSize: 11,
+    fontStyle: 'italic' as const,
+    color: '#CBD5E1',
+    paddingTop: 4,
   },
   emptyHourLine: {
     height: 1,
