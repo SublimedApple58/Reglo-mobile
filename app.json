@@ -3,7 +3,7 @@
     "name": "Reglo",
     "slug": "reglo-mobile",
     "scheme": "com.tiziano.developer.reglo-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -50,10 +50,10 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2e35dc03-e963-4f93-be94-61a2389ebe20"
+        "projectId": "7eefa215-807f-41a7-983c-de8a494de75c"
       },
       "stripeMerchantIdentifier": "merchant.com.tiziano.developer.reglo-mobile"
     },
-    "owner": "tiziano.developer"
+    "owner": "sublimedapple58"
   }
 }
