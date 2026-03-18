@@ -174,6 +174,7 @@ export const AvailabilityEditor = ({
     rangeIndex: number;
     field: 'start' | 'end';
   } | null>(null);
+  const chainingPickerRef = React.useRef(false);
 
   // ── Computed: marked dates for calendar dots ───────────────────
   const markedDates = useMemo(
@@ -442,11 +443,13 @@ export const AvailabilityEditor = ({
         );
       }
 
-      // After selecting start, auto-open end picker
+      // After selecting start, chain to end picker
       if (timePickerTarget.field === 'start') {
+        chainingPickerRef.current = true;
         setTimeout(() => {
           setTimePickerTarget({ ...timePickerTarget, field: 'end' });
-        }, 350);
+          chainingPickerRef.current = false;
+        }, 400);
       }
     },
     [timePickerTarget],
@@ -616,7 +619,7 @@ export const AvailabilityEditor = ({
         visible={timePickerTarget !== null}
         selectedTime={timePickerSelectedTime}
         onSelectTime={handleTimePickerSelect}
-        onClose={() => setTimePickerTarget(null)}
+        onClose={() => { if (!chainingPickerRef.current) setTimePickerTarget(null); }}
       />
     </View>
   );
