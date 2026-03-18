@@ -1506,6 +1506,20 @@ export const IstruttoreHomeScreen = () => {
           </View>
         ) : (
           <View style={styles.timelineGridWrapper}>
+            {/* Empty day hint — inline above the grid */}
+            {!hasTimelineAppointments && (
+              <View style={styles.emptyDayBanner}>
+                <Image
+                  source={require('../../assets/duck-zen.png')}
+                  style={styles.emptyDayDuck}
+                  resizeMode="contain"
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
+                  <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.timelineSection}>
               {HOUR_SLOTS.map((hour) => {
                 const hourAppts = appointmentsByHour.get(hour);
@@ -3185,6 +3199,36 @@ const styles = StyleSheet.create({
   },
   timelineGridWrapper: {
     position: 'relative' as const,
+  },
+  emptyDayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  emptyDayDuck: {
+    width: 44,
+    height: 44,
+  },
+  emptyDayTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  emptyDaySubtitle: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
   },
   hourLabel: {
     width: 46,
