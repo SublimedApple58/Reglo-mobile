@@ -34,6 +34,12 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7eefa215-807f-41a7-983c-de8a494de75c"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -45,7 +51,8 @@
           "enableGooglePay": true
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-updates"
     ],
     "extra": {
       "router": {},

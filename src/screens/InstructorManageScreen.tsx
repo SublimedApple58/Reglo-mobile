@@ -198,41 +198,14 @@ export const AvailabilityEditor = ({
     }
     setLoading(true);
     try {
-      const anchor = new Date();
-      anchor.setHours(0, 0, 0, 0);
-      const dates = Array.from({ length: 7 }, (_, index) => addDays(anchor, index));
-      const responses = await Promise.all(
-        dates.map((day) =>
-          regloApi.getAvailabilitySlots({
-            ownerType,
-            ownerId,
-            date: toDateString(day),
-          }),
-        ),
-      );
-
-      // Build per-day detected ranges
-      const perDay: Array<{ dayIndex: number; ranges: TimeRange[] }> = [];
-      responses.forEach((response, index) => {
-        if (!response || response.length === 0) return;
-        const detected = detectRangesFromSlots(response);
-        if (detected.length) {
-          perDay.push({ dayIndex: dates[index].getDay(), ranges: detected });
-        }
-      });
-
-      if (!perDay.length) {
+      const result = await regloApi.getDefaultAvailability({ ownerType, ownerId });
+      if (!result) {
         setDays([]);
         setRanges([{ startMinutes: 540, endMinutes: 1080 }]);
         return;
       }
-
-      const daySet = Array.from(new Set(perDay.map((item) => item.dayIndex))).sort();
-      setDays(daySet);
-
-      // Use ranges from the first day that has data as the representative
-      const representative = perDay[0].ranges;
-      setRanges(representative);
+      setDays(result.daysOfWeek);
+      setRanges(result.ranges.length ? result.ranges : [{ startMinutes: 540, endMinutes: 1080 }]);
     } catch (err) {
       onToast?.(err instanceof Error ? err.message : 'Errore caricando disponibilita', 'danger');
     } finally {
@@ -307,28 +280,9 @@ export const AvailabilityEditor = ({
     }
     setSaving(true);
     try {
-      // Delete existing slots
+      // Build the create payload with backwards compat
       const anchor = new Date();
       anchor.setHours(0, 0, 0, 0);
-      const resetStart = new Date(anchor);
-      resetStart.setHours(0, 0, 0, 0);
-      const resetEnd = new Date(anchor);
-      resetEnd.setHours(23, 59, 0, 0);
-      try {
-        await regloApi.deleteAvailabilitySlots({
-          ownerType,
-          ownerId,
-          startsAt: resetStart.toISOString(),
-          endsAt: resetEnd.toISOString(),
-          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-          weeks,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/nessuno slot/i.test(message)) throw err;
-      }
-
-      // Build the create payload with backwards compat
       const r1 = ranges[0];
       const startDate = new Date(anchor);
       startDate.setHours(Math.floor(r1.startMinutes / 60), r1.startMinutes % 60, 0, 0);

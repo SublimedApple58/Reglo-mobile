@@ -66,6 +66,7 @@ import {
   DailyAvailabilityOverride,
   SetDailyAvailabilityOverrideInput,
   DeleteDailyAvailabilityOverrideInput,
+  TimeRange,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -266,6 +267,13 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<void>('/api/autoscuole/availability/overrides', {
         method: 'DELETE',
         body: input,
+      }),
+    getDefaultAvailability: async (params: {
+      ownerType: string;
+      ownerId: string;
+    }) =>
+      client.request<{ daysOfWeek: number[]; ranges: TimeRange[] } | null>('/api/autoscuole/availability/default', {
+        params,
       }),
     getDailyAvailabilityOverrides: async (params: {
       ownerType: 'instructor' | 'vehicle';
