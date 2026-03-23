@@ -44,6 +44,7 @@ import {
   MobileFinalizePayNowPayload,
   MobileAppointmentPaymentDocument,
   MobileBookingOptions,
+  AvailableSlot,
   SuggestInstructorBookingInput,
   InstructorBookingSuggestion,
   ConfirmInstructorBookingInput,
@@ -292,6 +293,15 @@ export const createRegloApi = (baseUrl?: string) => {
     getBookingOptions: async (studentId: string) =>
       client.request<MobileBookingOptions>('/api/autoscuole/booking-options', {
         params: { studentId },
+      }),
+    getAvailableSlots: async (params: {
+      studentId: string;
+      date: string;
+      durationMinutes: number;
+      lessonType?: string;
+    }) =>
+      client.request<AvailableSlot[]>('/api/autoscuole/available-slots', {
+        params,
       }),
     suggestInstructorBooking: async (input: SuggestInstructorBookingInput) =>
       client.request<InstructorBookingSuggestion>('/api/autoscuole/instructor-bookings/suggest', {

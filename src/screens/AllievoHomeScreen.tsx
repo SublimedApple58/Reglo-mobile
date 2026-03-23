@@ -34,6 +34,7 @@ import { subscribePushIntent } from '../services/pushNotifications';
 import {
   AutoscuolaAppointmentWithRelations,
   MobileAppointmentPaymentDocument,
+  AvailableSlot,
   MobileBookingOptions,
   MobileStudentPaymentProfile,
   AutoscuolaStudent,
@@ -202,6 +203,11 @@ export const AllievoHomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
+  const [freeChoiceSlots, setFreeChoiceSlots] = useState<AvailableSlot[]>([]);
+  const [freeChoiceOpen, setFreeChoiceOpen] = useState(false);
+  const [freeChoiceSelected, setFreeChoiceSelected] = useState<AvailableSlot | null>(null);
+  const [freeChoiceBooking, setFreeChoiceBooking] = useState(false);
+  const [pendingFreeChoiceOpen, setPendingFreeChoiceOpen] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
   const [rangeLoading, setRangeLoading] = useState(false);
@@ -726,7 +732,26 @@ export const AllievoHomeScreen = () => {
       setBookingLoading(false);
       return;
     }
+    const mode = bookingOptions?.studentBookingMode ?? 'engine';
     try {
+      if (mode === 'free_choice') {
+        const slots = await regloApi.getAvailableSlots({
+          studentId: selectedStudentId,
+          date: toDateString(preferredDate),
+          durationMinutes,
+          ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        });
+        if (!slots.length) {
+          setToast({ text: 'Nessuna disponibilità per il giorno scelto', tone: 'info' });
+          return;
+        }
+        setFreeChoiceSlots(slots);
+        setFreeChoiceSelected(null);
+        setPendingFreeChoiceOpen(true);
+        setPrefsOpen(false);
+        return;
+      }
+
       const response = await regloApi.createBookingRequest({
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
@@ -806,6 +831,51 @@ export const AllievoHomeScreen = () => {
     setSheetOpen(false);
     setSuggestion(null);
     setBookingRequestId(null);
+  };
+
+  const handleConfirmFreeChoiceSlot = async () => {
+    if (!selectedStudentId || !freeChoiceSelected || freeChoiceBooking) return;
+    setFreeChoiceBooking(true);
+    setToast(null);
+    try {
+      const response = await regloApi.createBookingRequest({
+        studentId: selectedStudentId,
+        preferredDate: toDateString(preferredDate),
+        durationMinutes,
+        ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        selectedStartsAt: freeChoiceSelected.startsAt,
+      });
+      if (response.matched) {
+        setToast({ text: 'Guida prenotata', tone: 'success' });
+        triggerBookingCelebration();
+        setFreeChoiceOpen(false);
+        setFreeChoiceSelected(null);
+        setFreeChoiceSlots([]);
+        await loadData(selectedStudentId);
+        return;
+      }
+      // Slot taken in the meantime — reload available slots
+      setToast({ text: 'Slot non più disponibile, aggiornamento in corso...', tone: 'danger' });
+      try {
+        const refreshed = await regloApi.getAvailableSlots({
+          studentId: selectedStudentId,
+          date: toDateString(preferredDate),
+          durationMinutes,
+          ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        });
+        setFreeChoiceSlots(refreshed);
+        setFreeChoiceSelected(null);
+      } catch {
+        setFreeChoiceOpen(false);
+      }
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
+        tone: 'danger',
+      });
+    } finally {
+      setFreeChoiceBooking(false);
+    }
   };
 
   const handleAcceptAppointmentProposal = async () => {
@@ -1694,6 +1764,10 @@ export const AllievoHomeScreen = () => {
             setSheetOpen(true);
             setPendingSuggestionOpen(false);
           }
+          if (pendingFreeChoiceOpen) {
+            setFreeChoiceOpen(true);
+            setPendingFreeChoiceOpen(false);
+          }
         }}
         title="Prenota guida"
         closeDisabled={bookingLoading}
@@ -1871,6 +1945,69 @@ export const AllievoHomeScreen = () => {
         selectedDate={selectedDate}
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
       />
+      {/* ── Free Choice Slot Picker BottomSheet ── */}
+      <BottomSheet
+        visible={freeChoiceOpen}
+        onClose={() => {
+          if (!freeChoiceBooking) {
+            setFreeChoiceOpen(false);
+            setFreeChoiceSelected(null);
+          }
+        }}
+        title="Scegli un orario"
+        closeDisabled={freeChoiceBooking}
+        showHandle
+        footer={
+          <Pressable
+            onPress={freeChoiceBooking || !freeChoiceSelected ? undefined : handleConfirmFreeChoiceSlot}
+            disabled={freeChoiceBooking || !freeChoiceSelected}
+            style={[
+              styles.chunkyPinkCta,
+              (freeChoiceBooking || !freeChoiceSelected) && { opacity: 0.5 },
+            ]}
+          >
+            <Text style={styles.chunkyPinkCtaText}>
+              {freeChoiceBooking ? 'Attendi...' : 'Prenota'}
+            </Text>
+          </Pressable>
+        }
+      >
+        <Text style={styles.timelineSubtitle}>
+          {formatDay(preferredDate.toISOString())} {'\u2022'} {durationMinutes} min
+        </Text>
+        <ScrollView
+          style={{ maxHeight: 380 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.timelineContainer}>
+            {freeChoiceSlots.map((slot, index) => {
+              const isActive = freeChoiceSelected?.startsAt === slot.startsAt;
+              const isLast = index === freeChoiceSlots.length - 1;
+              return (
+                <View key={slot.startsAt} style={styles.timelineRow}>
+                  <View style={styles.timelineLeft}>
+                    <Text style={styles.timelineHour}>{formatTime(slot.startsAt)}</Text>
+                    {!isLast ? <View style={styles.timelineLine} /> : null}
+                  </View>
+                  <Pressable
+                    style={[styles.timelineCard, isActive && styles.timelineCardActive]}
+                    onPress={() => setFreeChoiceSelected(slot)}
+                  >
+                    <Text style={isActive ? styles.timelineCardTextActive : styles.timelineCardText}>
+                      {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+                    </Text>
+                    {isActive ? (
+                      <View style={styles.timelineCheck}>
+                        <Text style={styles.timelineCheckText}>{'\u2713'}</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </BottomSheet>
     </Screen>
   );
 };
@@ -2746,5 +2883,87 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#92400E',
+  },
+  timelineSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  timelineContainer: {
+    paddingBottom: 12,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minHeight: 62,
+  },
+  timelineLeft: {
+    width: 52,
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  timelineHour: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  timelineLine: {
+    width: 1.5,
+    flex: 1,
+    backgroundColor: '#E2E8F0',
+    marginTop: 8,
+    minHeight: 20,
+  },
+  timelineCard: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  timelineCardActive: {
+    backgroundColor: '#FACC15',
+    borderColor: '#FACC15',
+    shadowColor: '#D97706',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  timelineCardText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  timelineCardTextActive: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  timelineCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#92400E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineCheckText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

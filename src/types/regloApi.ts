@@ -453,7 +453,10 @@ export type MobileBookingOptions = {
   availableLessonTypes: Array<
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
+  studentBookingMode?: 'engine' | 'free_choice';
 };
+
+export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
 
 export type InstructorBookingMode = 'manual_full' | 'manual_engine' | 'guided_proposal';
 
