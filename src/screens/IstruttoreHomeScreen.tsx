@@ -1019,6 +1019,17 @@ export const IstruttoreHomeScreen = () => {
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
   ] as const;
   const maxWeeks = Number(settings?.availabilityWeeks) || 4;
+  const bookedDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const appt of appointments) {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled') continue;
+      const d = new Date(appt.startsAt);
+      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    }
+    return set;
+  }, [appointments]);
+
   const calendarDays = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1445,6 +1456,9 @@ export const IstruttoreHomeScreen = () => {
               todayNorm.setHours(0, 0, 0, 0);
               const isDayToday = dayNorm.getTime() === todayNorm.getTime();
               const isDaySelected = dayNorm.getTime() === selNorm.getTime() && !isDayToday;
+              const hasBooking = bookedDatesSet.has(
+                `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
+              );
               return (
                 <Pressable
                   key={`day-${index}`}
@@ -1482,6 +1496,14 @@ export const IstruttoreHomeScreen = () => {
                   >
                     {day.dayNum}
                   </Text>
+                  {hasBooking ? (
+                    <View
+                      style={[
+                        styles.dayPillDot,
+                        (isDaySelected || isDayToday) && styles.dayPillDotHighlight,
+                      ]}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -2089,6 +2111,7 @@ export const IstruttoreHomeScreen = () => {
         selectedDate={selectedDate}
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
         caption={null}
+        bookedDates={bookedDatesSet}
       />
 
       <CalendarDrawer
@@ -2792,6 +2815,17 @@ const styles = StyleSheet.create({
   },
   dayPillNumberToday: {
     color: '#CA8A04',
+  },
+
+  dayPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EC4899',
+    marginTop: 4,
+  },
+  dayPillDotHighlight: {
+    backgroundColor: '#FFFFFF',
   },
 
   /* ── Agenda Section ── */
