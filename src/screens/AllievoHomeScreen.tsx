@@ -2266,12 +2266,11 @@ const styles = StyleSheet.create({
   },
   dayPill: {
     width: 58,
-    height: 82,
+    height: 72,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingBottom: 6,
   },
   dayPillSelected: {
     backgroundColor: '#FCE7F3',
