@@ -1021,14 +1021,14 @@ export const IstruttoreHomeScreen = () => {
   const maxWeeks = Number(settings?.availabilityWeeks) || 4;
   const bookedDatesSet = useMemo(() => {
     const set = new Set<string>();
-    for (const appt of appointments) {
+    for (const appt of featuredAppointments) {
       const status = (appt.status ?? '').trim().toLowerCase();
       if (status === 'cancelled') continue;
       const d = new Date(appt.startsAt);
       set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
     }
     return set;
-  }, [appointments]);
+  }, [featuredAppointments]);
 
   const calendarDays = useMemo(() => {
     const today = new Date();
