@@ -3,6 +3,7 @@ import {
   Image,
   Keyboard,
   KeyboardEvent,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -1779,6 +1780,11 @@ export const IstruttoreHomeScreen = () => {
               <Text style={styles.modalInfoName}>
                 {sheetLesson.student?.firstName} {sheetLesson.student?.lastName}
               </Text>
+              {sheetLesson.student?.phone ? (
+                <Pressable onPress={() => Linking.openURL(`tel:${sheetLesson.student!.phone}`)}>
+                  <Text style={styles.modalInfoPhone}>{sheetLesson.student.phone}</Text>
+                </Pressable>
+              ) : null}
               <Text style={styles.modalInfoSub}>
                 {durationLabel(sheetLesson)} {'\u00B7'} {sheetLesson.vehicle?.name ?? 'Da assegnare'}
               </Text>
@@ -2913,6 +2919,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#1E293B',
+  },
+  modalInfoPhone: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+    marginTop: 2,
   },
   modalInfoSub: {
     fontSize: 13,

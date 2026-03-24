@@ -1639,6 +1639,17 @@ export const AllievoHomeScreen = () => {
                   <Text style={styles.chunkyRowValue}>
                     {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
                   </Text>
+                  {selectedHistoryLesson.instructor?.phone ? (
+                    <Pressable
+                      onPress={() =>
+                        Linking.openURL(`tel:${selectedHistoryLesson.instructor!.phone}`)
+                      }
+                    >
+                      <Text style={styles.chunkyRowPhone}>
+                        {selectedHistoryLesson.instructor.phone}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
 
@@ -2731,6 +2742,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#1E293B',
+  },
+  chunkyRowPhone: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+    marginTop: 2,
   },
   chunkyYellowCard: {
     backgroundColor: '#FEF9C3',
