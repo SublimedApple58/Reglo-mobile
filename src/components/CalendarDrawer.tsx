@@ -22,6 +22,7 @@ type CalendarDrawerProps = {
   selectedDate: Date;
   maxWeeks?: number;
   caption?: string | null;
+  bookedDates?: Set<string>;
 };
 
 const ITALIAN_MONTHS = [
@@ -58,6 +59,7 @@ export const CalendarDrawer = ({
   selectedDate,
   maxWeeks = 4,
   caption = 'Scegli un giorno e prenota la tua guida!',
+  bookedDates,
 }: CalendarDrawerProps) => {
   const insets = useSafeAreaInsets();
   const screenHeight = Dimensions.get('window').height;
@@ -284,6 +286,9 @@ export const CalendarDrawer = ({
               const isSelected = isSameDay(date, selectedDate) && !isToday;
               const inRange = date >= today && date <= maxDate;
               const tappable = inMonth && inRange;
+              const hasBooking = inMonth && bookedDates?.has(
+                `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+              );
 
               let cellStyle: ViewStyle = styles.dayCell;
               let textStyle: TextStyle = styles.dayText;
@@ -310,6 +315,14 @@ export const CalendarDrawer = ({
                   <View style={cellStyle}>
                     <Text style={textStyle}>{date.getDate()}</Text>
                   </View>
+                  {hasBooking ? (
+                    <View
+                      style={[
+                        styles.dayDot,
+                        (isSelected || isToday) && styles.dayDotHighlight,
+                      ]}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -482,6 +495,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#E2E8F0',
+  },
+  dayDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EC4899',
+    marginTop: 2,
+  },
+  dayDotHighlight: {
+    backgroundColor: '#FACC15',
   },
   mascotSection: {
     alignItems: 'center',

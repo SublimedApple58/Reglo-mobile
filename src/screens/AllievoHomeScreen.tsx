@@ -534,6 +534,17 @@ export const AllievoHomeScreen = () => {
     () => new Map(paymentHistory.map((item) => [item.appointmentId, item])),
     [paymentHistory]
   );
+  const bookedDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const appt of appointments) {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled') continue;
+      const d = new Date(appt.startsAt);
+      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    }
+    return set;
+  }, [appointments]);
+
   const agendaLessons = useMemo(() => {
     const fromTs = calendarRange ? new Date(calendarRange.from).getTime() : null;
     const toTs = calendarRange ? new Date(calendarRange.to).getTime() : null;
@@ -1462,6 +1473,9 @@ export const AllievoHomeScreen = () => {
                   todayNorm.setHours(0, 0, 0, 0);
                   const isToday = dayNorm.getTime() === todayNorm.getTime();
                   const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
+                  const hasBooking = bookedDatesSet.has(
+                    `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
+                  );
                   return (
                     <Pressable
                       key={`day-${index}`}
@@ -1499,6 +1513,14 @@ export const AllievoHomeScreen = () => {
                       >
                         {day.dayNum}
                       </Text>
+                      {hasBooking ? (
+                        <View
+                          style={[
+                            styles.dayPillDot,
+                            (isSelected || isToday) && styles.dayPillDotHighlight,
+                          ]}
+                        />
+                      ) : null}
                     </Pressable>
                   );
                 })}
@@ -1644,6 +1666,29 @@ export const AllievoHomeScreen = () => {
                 </View>
               </View>
             </View>
+
+            {/* Cancel button — only for upcoming confirmed lessons */}
+            {upcomingConfirmedStatuses.has(
+              (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
+            ) &&
+            new Date(selectedHistoryLesson.startsAt).getTime() > Date.now() ? (
+              <Pressable
+                style={styles.detailCancelBtn}
+                onPress={() => {
+                  const id = selectedHistoryLesson.id;
+                  setHistoryDetailsOpen(false);
+                  setTimeout(() => handleCancel(id), 350);
+                }}
+                disabled={cancellingAppointmentId === selectedHistoryLesson.id}
+              >
+                <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
+                <Text style={styles.detailCancelText}>
+                  {cancellingAppointmentId === selectedHistoryLesson.id
+                    ? 'Annullamento...'
+                    : 'Annulla guida'}
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
       </BottomSheet>
@@ -1930,6 +1975,7 @@ export const AllievoHomeScreen = () => {
           setBookingCalendarOpen(false);
           setTimeout(() => setPrefsOpen(true), 350);
         }}
+        bookedDates={bookedDatesSet}
         onSelectDate={(date) => {
           setPreferredDate(date);
           setBookingCalendarOpen(false);
@@ -1944,6 +1990,7 @@ export const AllievoHomeScreen = () => {
         onSelectDate={(date) => setSelectedDate(date)}
         selectedDate={selectedDate}
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
+        bookedDates={bookedDatesSet}
       />
       {/* ── Free Choice Slot Picker BottomSheet ── */}
       <BottomSheet
@@ -2254,6 +2301,30 @@ const styles = StyleSheet.create({
   },
   dayPillNumberToday: {
     color: '#CA8A04',
+  },
+
+  dayPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EC4899',
+    marginTop: 4,
+  },
+  dayPillDotHighlight: {
+    backgroundColor: '#FFFFFF',
+  },
+  detailCancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+    paddingVertical: 12,
+  },
+  detailCancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#EF4444',
   },
 
   /* ── Agenda Section ── */
