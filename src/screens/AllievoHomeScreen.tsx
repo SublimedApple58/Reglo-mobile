@@ -1060,7 +1060,18 @@ export const AllievoHomeScreen = () => {
       }
     }
 
-    executeCancel(appointmentId);
+    Alert.alert(
+      'Annullare la guida?',
+      'Sei sicuro di voler annullare questa guida?',
+      [
+        { text: 'Indietro', style: 'cancel' },
+        {
+          text: 'Annulla guida',
+          style: 'destructive',
+          onPress: () => executeCancel(appointmentId),
+        },
+      ],
+    );
   };
 
   const handleOpenHistoryDetails = (lesson: AutoscuolaAppointmentWithRelations) => {
