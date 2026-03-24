@@ -2325,11 +2325,12 @@ const styles = StyleSheet.create({
   },
 
   dayPillDot: {
+    position: 'absolute',
+    bottom: 8,
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#EC4899',
-    marginTop: 4,
   },
   dayPillDotHighlight: {
     backgroundColor: '#FFFFFF',

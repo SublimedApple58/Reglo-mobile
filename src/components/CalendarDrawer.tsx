@@ -497,11 +497,12 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
   },
   dayDot: {
+    position: 'absolute',
+    bottom: 2,
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#EC4899',
-    marginTop: 2,
   },
   dayDotHighlight: {
     backgroundColor: '#FACC15',
