@@ -14,6 +14,7 @@ type AndroidTabBarExtraProps = {
   showRoleTab: boolean;
   showPaymentsTab: boolean;
   showVehiclesTab: boolean;
+  showNotesTab: boolean;
   isOwner: boolean;
 };
 
@@ -81,6 +82,7 @@ const AndroidTabBar = ({
   showRoleTab,
   showPaymentsTab,
   showVehiclesTab,
+  showNotesTab,
   isOwner,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
@@ -89,6 +91,7 @@ const AndroidTabBar = ({
     if (route.name === 'role') return showRoleTab;
     if (route.name === 'payments') return showPaymentsTab;
     if (route.name === 'vehicles') return showVehiclesTab;
+    if (route.name === 'notes') return showNotesTab;
     return true;
   });
   if (!visibleRoutes.length) return null;
@@ -109,6 +112,8 @@ const AndroidTabBar = ({
                 ? 'Pagamenti'
               : route.name === 'vehicles'
                 ? 'Veicoli'
+              : route.name === 'notes'
+                ? 'Note'
               : route.name === 'settings'
                 ? 'Impostazioni'
                 : 'Home';
@@ -130,6 +135,10 @@ const AndroidTabBar = ({
                 ? isFocused
                   ? 'car'
                   : 'car-outline'
+              : route.name === 'notes'
+                ? isFocused
+                  ? 'document-text'
+                  : 'document-text-outline'
               : route.name === 'settings'
                 ? isFocused
                   ? 'settings'
@@ -173,6 +182,7 @@ export default function TabsLayout() {
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const showVehiclesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const showNotesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const isOwner = autoscuolaRole === 'OWNER';
 
   const transparent =
@@ -206,6 +216,7 @@ export default function TabsLayout() {
             showRoleTab={showRoleTab}
             showPaymentsTab={showPaymentsTab}
             showVehiclesTab={showVehiclesTab}
+            showNotesTab={showNotesTab}
             isOwner={isOwner}
           />
         )}
@@ -232,6 +243,13 @@ export default function TabsLayout() {
           options={{
             href: showVehiclesTab ? '/(tabs)/vehicles' : null,
             title: 'Veicoli',
+          }}
+        />
+        <Tabs.Screen
+          name="notes"
+          options={{
+            href: showNotesTab ? '/(tabs)/notes' : null,
+            title: 'Note',
           }}
         />
         <Tabs.Screen
@@ -284,6 +302,12 @@ export default function TabsLayout() {
         <NativeTabs.Trigger name="vehicles">
           <Icon sf={{ default: 'car', selected: 'car.fill' }} drawable="ic_menu_manage" />
           <Label>Veicoli</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showNotesTab ? (
+        <NativeTabs.Trigger name="notes">
+          <Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} drawable="ic_menu_view" />
+          <Label>Note</Label>
         </NativeTabs.Trigger>
       ) : null}
       {showPaymentsTab ? (

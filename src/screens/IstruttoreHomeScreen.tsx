@@ -411,17 +411,11 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 export const IstruttoreHomeScreen = () => {
   const { instructorId, user } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<'agenda' | 'notes'>('agenda');
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
-  const [notesSearch, setNotesSearch] = useState('');
-  const [notesStudentId, setNotesStudentId] = useState<string | null>(null);
-  const [notesStudentName, setNotesStudentName] = useState('');
-  const [notesAppointments, setNotesAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
@@ -1384,62 +1378,6 @@ export const IstruttoreHomeScreen = () => {
     );
   }
 
-  const filteredNoteStudents = useMemo(() => {
-    if (!notesSearch.trim()) return students;
-    const q = notesSearch.trim().toLowerCase();
-    return students.filter(
-      (s) =>
-        s.firstName.toLowerCase().includes(q) ||
-        s.lastName.toLowerCase().includes(q) ||
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
-    );
-  }, [students, notesSearch]);
-
-  const notesStudentStats = useMemo(() => {
-    const map = new Map<string, { total: number; withNotes: number }>();
-    for (const appt of featuredAppointments) {
-      const sid = appt.studentId;
-      const entry = map.get(sid) ?? { total: 0, withNotes: 0 };
-      entry.total++;
-      if (appt.notes?.trim()) entry.withNotes++;
-      map.set(sid, entry);
-    }
-    return map;
-  }, [featuredAppointments]);
-
-  const handleOpenStudentNotes = useCallback(
-    async (studentId: string, studentName: string) => {
-      setNotesStudentId(studentId);
-      setNotesStudentName(studentName);
-      setNotesLoading(true);
-      try {
-        const result = await regloApi.getAppointments({
-          studentId,
-          instructorId,
-          limit: 200,
-        });
-        setNotesAppointments(
-          result
-            .filter((a) => {
-              const s = (a.status ?? '').trim().toLowerCase();
-              return s !== 'cancelled';
-            })
-            .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()),
-        );
-      } catch {
-        setNotesAppointments([]);
-      } finally {
-        setNotesLoading(false);
-      }
-    },
-    [instructorId],
-  );
-
-  const notesWithContent = useMemo(
-    () => notesAppointments.filter((a) => a.notes?.trim()),
-    [notesAppointments],
-  );
-
   return (
     <Screen>
       <StatusBar style="dark" />
@@ -1467,145 +1405,8 @@ export const IstruttoreHomeScreen = () => {
           <Badge label="Istruttore" />
         </View>
 
-        {/* ── Tab Bar ── */}
-        <View style={styles.notesTabBar}>
-          <Pressable
-            style={[styles.notesTab, activeTab === 'agenda' && styles.notesTabActive]}
-            onPress={() => setActiveTab('agenda')}
-          >
-            <Text style={[styles.notesTabText, activeTab === 'agenda' && styles.notesTabTextActive]}>
-              Agenda
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.notesTab, activeTab === 'notes' && styles.notesTabActive]}
-            onPress={() => setActiveTab('notes')}
-          >
-            <Text style={[styles.notesTabText, activeTab === 'notes' && styles.notesTabTextActive]}>
-              Note allievi
-            </Text>
-          </Pressable>
-        </View>
-
         {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {activeTab === 'notes' ? (
-          /* ── Notes Tab ── */
-          notesStudentId ? (
-            <View style={{ gap: 16 }}>
-              <Pressable
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                onPress={() => { setNotesStudentId(null); setNotesAppointments([]); }}
-              >
-                <Ionicons name="arrow-back" size={22} color="#1E293B" />
-                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1E293B' }}>
-                  {notesStudentName}
-                </Text>
-              </Pressable>
-              <View style={styles.notesSummaryCard}>
-                <Text style={styles.notesSummaryText}>
-                  {notesAppointments.length} guide totali {'\u2022'} {notesWithContent.length} con note
-                </Text>
-              </View>
-              {notesLoading ? (
-                <View style={{ gap: 12 }}>
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <SkeletonCard key={`note-skel-${i}`} style={{ padding: 16, borderRadius: 16 }}>
-                      <SkeletonBlock width="50%" height={14} radius={6} />
-                      <SkeletonBlock width="80%" height={12} radius={6} />
-                      <SkeletonBlock width="100%" height={40} radius={6} />
-                    </SkeletonCard>
-                  ))}
-                </View>
-              ) : (
-                <View style={{ gap: 0 }}>
-                  {notesAppointments.map((appt, idx) => {
-                    const isLast = idx === notesAppointments.length - 1;
-                    const lessonType = appt.type && appt.type !== 'guida' ? appt.type : null;
-                    return (
-                      <View key={appt.id} style={styles.notesTimelineRow}>
-                        <View style={styles.notesTimelineLeft}>
-                          <Text style={styles.notesTimelineDate}>{formatDay(appt.startsAt)}</Text>
-                          {!isLast ? <View style={styles.notesTimelineLine} /> : null}
-                        </View>
-                        <View style={[styles.notesTimelineCard, !appt.notes?.trim() && { opacity: 0.6 }]}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
-                              {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
-                            </Text>
-                            {lessonType ? (
-                              <View style={styles.notesLessonBadge}>
-                                <Text style={styles.notesLessonBadgeText}>
-                                  {lessonType.charAt(0).toUpperCase() + lessonType.slice(1)}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-                          <Text style={{ fontSize: 13, color: '#64748B' }}>
-                            {appt.vehicle?.name ?? 'Veicolo n/d'} {'\u2022'} {appt.student?.firstName} {appt.student?.lastName}
-                          </Text>
-                          <Text style={{ fontSize: 14, color: appt.notes?.trim() ? '#475569' : '#94A3B8', marginTop: 4 }}>
-                            {appt.notes?.trim() || 'Nessuna nota'}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                  {!notesAppointments.length && !notesLoading ? (
-                    <Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 20 }}>
-                      Nessuna guida registrata con questo allievo.
-                    </Text>
-                  ) : null}
-                </View>
-              )}
-            </View>
-          ) : (
-            <View style={{ gap: 12 }}>
-              <View style={styles.notesSearchBar}>
-                <Ionicons name="search" size={18} color="#94A3B8" />
-                <TextInput
-                  value={notesSearch}
-                  onChangeText={setNotesSearch}
-                  placeholder="Cerca allievo..."
-                  placeholderTextColor="#94A3B8"
-                  style={styles.notesSearchInput}
-                />
-              </View>
-              {filteredNoteStudents.map((student) => {
-                const stats = notesStudentStats.get(student.id);
-                const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
-                return (
-                  <Pressable
-                    key={student.id}
-                    style={styles.notesStudentCard}
-                    onPress={() => handleOpenStudentNotes(student.id, `${student.firstName} ${student.lastName}`)}
-                  >
-                    <View style={styles.notesAvatar}>
-                      <Text style={styles.notesAvatarText}>{initials}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
-                        {student.firstName} {student.lastName}
-                      </Text>
-                      <Text style={{ fontSize: 13, color: '#64748B' }}>
-                        {stats?.total ?? 0} guide {'\u2022'} {stats?.withNotes ?? 0} con note
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                  </Pressable>
-                );
-              })}
-              {!filteredNoteStudents.length ? (
-                <Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 20 }}>
-                  Nessun allievo trovato.
-                </Text>
-              ) : null}
-            </View>
-          )
-        ) : null}
-
-        {activeTab === 'agenda' ? (
-        <>
         {/* ── Next Lesson Compact Banner ── */}
         {featuredLesson ? (() => {
           const isLive = isLessonInProgressWindow(featuredLesson, now);
@@ -1915,8 +1716,6 @@ export const IstruttoreHomeScreen = () => {
             </View>
           </View>
         )}
-        </>
-        ) : null}
       </ScrollView>
 
       {/* ── FAB Menu ── */}
@@ -3028,127 +2827,6 @@ const styles = StyleSheet.create({
   },
   dayPillDotHighlight: {
     backgroundColor: '#FFFFFF',
-  },
-
-  /* ── Notes Tab ── */
-  notesTabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 16,
-  },
-  notesTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  notesTabActive: {
-    borderBottomColor: '#EC4899',
-  },
-  notesTabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  notesTabTextActive: {
-    color: '#EC4899',
-    fontWeight: '700',
-  },
-  notesSearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    height: 48,
-    gap: 10,
-  },
-  notesSearchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1E293B',
-  },
-  notesStudentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 14,
-    gap: 12,
-  },
-  notesAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FCE7F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notesAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#EC4899',
-  },
-  notesSummaryCard: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 16,
-  },
-  notesSummaryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  notesTimelineRow: {
-    flexDirection: 'row',
-    minHeight: 90,
-  },
-  notesTimelineLeft: {
-    width: 70,
-    alignItems: 'center',
-    paddingTop: 14,
-  },
-  notesTimelineDate: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  notesTimelineLine: {
-    width: 1.5,
-    flex: 1,
-    backgroundColor: '#E2E8F0',
-    marginTop: 8,
-    minHeight: 20,
-  },
-  notesTimelineCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 14,
-    marginBottom: 10,
-    gap: 2,
-  },
-  notesLessonBadge: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  notesLessonBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#3B82F6',
   },
 
   /* ── Agenda Section ── */
