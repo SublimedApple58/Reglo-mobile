@@ -549,7 +549,6 @@ export const AllievoHomeScreen = () => {
     const fromTs = calendarRange ? new Date(calendarRange.from).getTime() : null;
     const toTs = calendarRange ? new Date(calendarRange.to).getTime() : null;
     return [...appointments]
-      .filter((item) => item.id !== upcoming[0]?.id)
       .filter((item) => {
         const startsAtTs = new Date(item.startsAt).getTime();
         if (fromTs !== null && startsAtTs < fromTs) return false;
