@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useSession } from '../../src/context/SessionContext';
-import { InstructorNotesScreen } from '../../src/screens/InstructorNotesScreen';
+import { useSession } from '../../../src/context/SessionContext';
+import { InstructorNotesScreen } from '../../../src/screens/InstructorNotesScreen';
 
 export default function NotesRoute() {
   const { autoscuolaRole } = useSession();
