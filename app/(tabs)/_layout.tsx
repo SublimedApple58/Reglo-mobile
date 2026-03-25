@@ -1,90 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DynamicColorIOS, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
 import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { colors } from '../../src/theme';
-
-/* ── Helpers ── */
-
-type TabDef = {
-  name: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconFocused: keyof typeof Ionicons.glyphMap;
-  sfIcon?: { default: string; selected: string };
-};
-
-const MAX_VISIBLE_TABS = 4; // 3 primary + 1 "Altro"
-
-const resolveTabDefs = (
-  showRoleTab: boolean,
-  showPaymentsTab: boolean,
-  showVehiclesTab: boolean,
-  showNotesTab: boolean,
-  isOwner: boolean,
-): TabDef[] => {
-  const tabs: TabDef[] = [
-    {
-      name: 'home',
-      label: 'Home',
-      icon: 'home-outline',
-      iconFocused: 'home',
-      sfIcon: { default: 'house', selected: 'house.fill' },
-    },
-  ];
-  if (showRoleTab) {
-    tabs.push({
-      name: 'role',
-      label: isOwner ? 'Istruttore' : 'Disponibilità',
-      icon: isOwner ? 'speedometer-outline' : 'calendar-outline',
-      iconFocused: isOwner ? 'speedometer' : 'calendar',
-      sfIcon: {
-        default: isOwner ? 'speedometer' : 'calendar',
-        selected: isOwner ? 'speedometer' : 'calendar',
-      },
-    });
-  }
-  if (showNotesTab) {
-    tabs.push({
-      name: 'notes',
-      label: 'Note',
-      icon: 'document-text-outline',
-      iconFocused: 'document-text',
-      sfIcon: { default: 'doc.text', selected: 'doc.text.fill' },
-    });
-  }
-  if (showVehiclesTab) {
-    tabs.push({
-      name: 'vehicles',
-      label: 'Veicoli',
-      icon: 'car-outline',
-      iconFocused: 'car',
-      sfIcon: { default: 'car', selected: 'car.fill' },
-    });
-  }
-  if (showPaymentsTab) {
-    tabs.push({
-      name: 'payments',
-      label: 'Pagamenti',
-      icon: 'card-outline',
-      iconFocused: 'card',
-      sfIcon: { default: 'creditcard', selected: 'creditcard.fill' },
-    });
-  }
-  tabs.push({
-    name: 'settings',
-    label: 'Impostazioni',
-    icon: 'settings-outline',
-    iconFocused: 'settings',
-    sfIcon: { default: 'gearshape', selected: 'gearshape.fill' },
-  });
-  return tabs;
-};
 
 /* ── Android Tab Item ── */
 
@@ -144,116 +68,69 @@ const AndroidTabItem = ({ routeKey, tabLabel, label, iconName, isFocused, onPres
   );
 };
 
-/* ── Overflow Menu Modal ── */
-
-type OverflowMenuProps = {
-  visible: boolean;
-  onClose: () => void;
-  items: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; active: boolean }>;
-};
-
-const OverflowMenu = ({ visible, onClose, items }: OverflowMenuProps) => {
-  const insets = useSafeAreaInsets();
-  if (!visible) return null;
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overflowBackdrop} onPress={onClose}>
-        <View style={[styles.overflowSheet, { bottom: 90 + Math.max(insets.bottom, 8) }]}>
-          {items.map((item) => (
-            <Pressable
-              key={item.label}
-              style={[styles.overflowItem, item.active && styles.overflowItemActive]}
-              onPress={() => {
-                onClose();
-                item.onPress();
-              }}
-            >
-              <Ionicons name={item.icon} size={20} color={item.active ? '#EC4899' : '#64748B'} />
-              <Text style={[styles.overflowLabel, item.active && styles.overflowLabelActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </Pressable>
-    </Modal>
-  );
-};
-
 /* ── Android Tab Bar ── */
 
 type AndroidTabBarExtraProps = {
-  tabDefs: TabDef[];
+  isOwner: boolean;
+  showMoreTab: boolean;
+};
+
+const ANDROID_TAB_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconFocused: keyof typeof Ionicons.glyphMap }> = {
+  home: { label: 'Home', icon: 'home-outline', iconFocused: 'home' },
+  role: { label: 'Ruolo', icon: 'calendar-outline', iconFocused: 'calendar' },
+  notes: { label: 'Note', icon: 'document-text-outline', iconFocused: 'document-text' },
+  payments: { label: 'Pagamenti', icon: 'card-outline', iconFocused: 'card' },
+  more: { label: 'Altro', icon: 'ellipsis-horizontal-circle-outline', iconFocused: 'ellipsis-horizontal-circle' },
+  settings: { label: 'Impostazioni', icon: 'settings-outline', iconFocused: 'settings' },
 };
 
 const AndroidTabBar = ({
   state,
   descriptors,
   navigation,
-  tabDefs,
+  isOwner,
+  showMoreTab,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
-  const [moreOpen, setMoreOpen] = useState(false);
 
-  const allRoutes = state.routes.filter((route) =>
-    tabDefs.some((t) => t.name === route.name),
-  );
-
-  const needsOverflow = tabDefs.length > MAX_VISIBLE_TABS;
-  const primaryDefs = needsOverflow ? tabDefs.slice(0, MAX_VISIBLE_TABS - 1) : tabDefs;
-  const overflowDefs = needsOverflow ? tabDefs.slice(MAX_VISIBLE_TABS - 1) : [];
-
-  const overflowNames = new Set(overflowDefs.map((d) => d.name));
-  const currentRouteName = state.routes[state.index]?.name;
-  const isOverflowActive = overflowNames.has(currentRouteName);
-
-  const primaryRoutes = allRoutes.filter((r) => primaryDefs.some((d) => d.name === r.name));
+  // Only show tabs that have href (not hidden)
+  const visibleRoutes = state.routes.filter((route) => {
+    const options = descriptors[route.key]?.options;
+    if ((options as { href?: string | null })?.href === null) return false;
+    return true;
+  });
 
   return (
-    <>
-      <OverflowMenu
-        visible={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        items={overflowDefs.map((def) => ({
-          label: def.label,
-          icon: currentRouteName === def.name ? def.iconFocused : def.icon,
-          active: currentRouteName === def.name,
-          onPress: () => navigation.navigate(def.name as never),
-        }))}
-      />
-      <View style={[styles.androidBarWrapper, { bottom: Math.max(8, insets.bottom + 6) }]}>
-        <View style={styles.androidBar}>
-          {primaryRoutes.map((route) => {
-            const def = tabDefs.find((d) => d.name === route.name)!;
-            const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
-            return (
-              <AndroidTabItem
-                key={route.key}
-                routeKey={route.key}
-                tabLabel={def.label}
-                label={def.label}
-                iconName={isFocused ? def.iconFocused : def.icon}
-                isFocused={isFocused}
-                onPress={() => {
-                  const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                  if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name as never);
-                }}
-              />
-            );
-          })}
-          {needsOverflow ? (
+    <View style={[styles.androidBarWrapper, { bottom: Math.max(8, insets.bottom + 6) }]}>
+      <View style={styles.androidBar}>
+        {visibleRoutes.map((route) => {
+          const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
+          const meta = ANDROID_TAB_META[route.name];
+          let label = meta?.label ?? route.name;
+          if (route.name === 'role') {
+            label = isOwner ? 'Istruttore' : 'Disponibilità';
+          }
+          const iconName = meta
+            ? isFocused ? meta.iconFocused : meta.icon
+            : 'help-outline';
+
+          return (
             <AndroidTabItem
-              routeKey="__more__"
-              tabLabel="Altro"
-              label="Altro"
-              iconName={isOverflowActive ? 'ellipsis-horizontal-circle' : 'ellipsis-horizontal-circle-outline'}
-              isFocused={isOverflowActive}
-              onPress={() => setMoreOpen(true)}
+              key={route.key}
+              routeKey={route.key}
+              tabLabel={label}
+              label={label}
+              iconName={iconName}
+              isFocused={isFocused}
+              onPress={() => {
+                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name as never);
+              }}
             />
-          ) : null}
-        </View>
+          );
+        })}
       </View>
-    </>
+    </View>
   );
 };
 
@@ -264,31 +141,94 @@ export default function TabsLayout() {
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
-  const showVehiclesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showNotesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
   const isOwner = autoscuolaRole === 'OWNER';
 
-  const tabDefs = useMemo(
-    () => resolveTabDefs(showRoleTab, showPaymentsTab, showVehiclesTab, showNotesTab, isOwner),
-    [showRoleTab, showPaymentsTab, showVehiclesTab, showNotesTab, isOwner],
-  );
+  const transparent =
+    Platform.OS === 'ios'
+      ? DynamicColorIOS({ light: 'transparent', dark: 'transparent' })
+      : 'transparent';
+  const defaultLabelColor =
+    Platform.OS === 'ios'
+      ? DynamicColorIOS({ light: colors.textMuted, dark: colors.textMuted })
+      : colors.textMuted;
+  const selectedLabelColor =
+    Platform.OS === 'ios'
+      ? DynamicColorIOS({ light: colors.primary, dark: colors.primary })
+      : colors.primary;
 
-  const needsOverflow = tabDefs.length > MAX_VISIBLE_TABS;
-  const primaryDefs = needsOverflow ? tabDefs.slice(0, MAX_VISIBLE_TABS - 1) : tabDefs;
-  const overflowDefs = needsOverflow ? tabDefs.slice(MAX_VISIBLE_TABS - 1) : [];
+  // Android: custom tab bar
+  if (Platform.OS !== 'ios') {
+    return (
+      <Tabs
+        tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
+        screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+      >
+        <Tabs.Screen name="home" options={{ title: 'Home' }} />
+        <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
+        <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
+        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
+        {/* Hidden from bar — accessible via More screen */}
+        <Tabs.Screen name="vehicles" options={{ href: null, title: 'Veicoli' }} />
+        <Tabs.Screen name="settings" options={{ href: showMoreTab ? null : '/(tabs)/settings', title: 'Impostazioni' }} />
+        <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
+      </Tabs>
+    );
+  }
 
+  // iOS: NativeTabs with liquid glass
   return (
-    <Tabs
-      tabBar={(props) => <AndroidTabBar {...props} tabDefs={tabDefs} />}
-      screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+    <NativeTabs
+      iconColor={{ default: defaultLabelColor, selected: selectedLabelColor }}
+      labelStyle={{
+        default: { color: defaultLabelColor, fontSize: 11 },
+        selected: { color: selectedLabelColor, fontSize: 11, fontWeight: '600' },
+      }}
+      tintColor={selectedLabelColor}
+      backgroundColor={transparent}
+      blurEffect="none"
+      shadowColor={transparent}
+      disableTransparentOnScrollEdge={false}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home' }} />
-      <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
-      <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
-      <Tabs.Screen name="vehicles" options={{ href: showVehiclesTab ? '/(tabs)/vehicles' : null, title: 'Veicoli' }} />
-      <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
-      <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
-    </Tabs>
+      <NativeTabs.Trigger name="home">
+        <Icon sf={{ default: 'house', selected: 'house.fill' }} drawable="ic_menu_view" />
+        <Label>Home</Label>
+      </NativeTabs.Trigger>
+      {showRoleTab ? (
+        <NativeTabs.Trigger name="role">
+          <Icon
+            sf={{ default: isOwner ? 'speedometer' : 'calendar', selected: isOwner ? 'speedometer' : 'calendar' }}
+            drawable="ic_menu_manage"
+          />
+          <Label>{isOwner ? 'Istruttore' : 'Disponibilità'}</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showNotesTab ? (
+        <NativeTabs.Trigger name="notes">
+          <Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} drawable="ic_menu_view" />
+          <Label>Note</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showMoreTab ? (
+        <NativeTabs.Trigger name="more">
+          <Icon sf={{ default: 'ellipsis.circle', selected: 'ellipsis.circle.fill' }} drawable="ic_menu_view" />
+          <Label>Altro</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showPaymentsTab ? (
+        <NativeTabs.Trigger name="payments">
+          <Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} drawable="ic_menu_view" />
+          <Label>Pagamenti</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {!showMoreTab ? (
+        <NativeTabs.Trigger name="settings">
+          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} drawable="ic_menu_preferences" />
+          <Label>Impostazioni</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+    </NativeTabs>
   );
 }
 
@@ -347,44 +287,5 @@ const styles = StyleSheet.create({
   },
   androidTabLabelActive: {
     color: '#FFFFFF',
-  },
-  overflowBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
-  },
-  overflowSheet: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 12,
-  },
-  overflowItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-  },
-  overflowItemActive: {
-    backgroundColor: '#FCE7F3',
-  },
-  overflowLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  overflowLabelActive: {
-    color: '#EC4899',
-    fontWeight: '700',
   },
 });
