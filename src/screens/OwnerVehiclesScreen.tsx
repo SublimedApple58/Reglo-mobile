@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
@@ -75,6 +76,7 @@ const formatAvailability = (days: number[], start: Date, end: Date): string => {
 // ─── Component ────────────────────────────────────────────────
 
 export const OwnerVehiclesScreen = () => {
+  const router = useRouter();
   const { autoscuolaRole } = useSession();
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
@@ -413,7 +415,14 @@ export const OwnerVehiclesScreen = () => {
       >
         {/* ── Header ─────────────────────────────── */}
         <View style={styles.header}>
-          <Text style={styles.title}>I tuoi veicoli</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {router.canGoBack() ? (
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <Ionicons name="arrow-back" size={22} color="#1E293B" />
+              </Pressable>
+            ) : null}
+            <Text style={styles.title}>I tuoi veicoli</Text>
+          </View>
           <Text style={styles.subtitle}>
             {initialLoading
               ? '...'

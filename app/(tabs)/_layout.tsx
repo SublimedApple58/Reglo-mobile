@@ -94,7 +94,7 @@ const AndroidTabBar = ({
   const insets = useSafeAreaInsets();
 
   // Hide overflow tabs from the bar when "Altro" is shown
-  const hiddenFromBar = showMoreTab ? new Set(['vehicles', 'settings']) : new Set<string>();
+  const hiddenFromBar = showMoreTab ? new Set(['settings']) : new Set<string>();
   const visibleRoutes = state.routes.filter((route) => {
     if (hiddenFromBar.has(route.name)) return false;
     const options = descriptors[route.key]?.options;
@@ -171,8 +171,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
-        {/* Hidden from tab bar but navigable via More screen */}
-        <Tabs.Screen name="vehicles" options={{ title: 'Veicoli' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
         <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
       </Tabs>
@@ -194,13 +192,13 @@ export default function TabsLayout() {
       disableTransparentOnScrollEdge={false}
     >
       <NativeTabs.Trigger name="home">
-        <Icon sf={{ default: 'house', selected: 'house.fill' }} drawable="ic_menu_view" />
+        <Icon sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }} drawable="ic_menu_view" />
         <Label>Home</Label>
       </NativeTabs.Trigger>
       {showRoleTab ? (
         <NativeTabs.Trigger name="role">
           <Icon
-            sf={{ default: isOwner ? 'speedometer' : 'calendar', selected: isOwner ? 'speedometer' : 'calendar' }}
+            sf={{ default: isOwner ? 'person.2' : 'clock', selected: isOwner ? 'person.2.fill' : 'clock' }}
             drawable="ic_menu_manage"
           />
           <Label>{isOwner ? 'Istruttore' : 'Disponibilità'}</Label>
@@ -208,13 +206,13 @@ export default function TabsLayout() {
       ) : null}
       {showNotesTab ? (
         <NativeTabs.Trigger name="notes">
-          <Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} drawable="ic_menu_view" />
+          <Icon sf={{ default: 'text.page', selected: 'text.page' }} drawable="ic_menu_view" />
           <Label>Note</Label>
         </NativeTabs.Trigger>
       ) : null}
       {showMoreTab ? (
         <NativeTabs.Trigger name="more">
-          <Icon sf={{ default: 'ellipsis.circle', selected: 'ellipsis.circle.fill' }} drawable="ic_menu_view" />
+          <Icon sf={{ default: 'line.3.horizontal', selected: 'line.3.horizontal' }} drawable="ic_menu_view" />
           <Label>Altro</Label>
         </NativeTabs.Trigger>
       ) : null}
@@ -226,20 +224,7 @@ export default function TabsLayout() {
       ) : null}
       {!showMoreTab ? (
         <NativeTabs.Trigger name="settings">
-          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} drawable="ic_menu_preferences" />
-          <Label>Impostazioni</Label>
-        </NativeTabs.Trigger>
-      ) : null}
-      {/* Hidden triggers — registered so router.push works, but not shown in tab bar */}
-      {showMoreTab ? (
-        <NativeTabs.Trigger name="vehicles" hidden>
-          <Icon sf={{ default: 'car', selected: 'car.fill' }} drawable="ic_menu_view" />
-          <Label>Veicoli</Label>
-        </NativeTabs.Trigger>
-      ) : null}
-      {showMoreTab ? (
-        <NativeTabs.Trigger name="settings" hidden>
-          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} drawable="ic_menu_preferences" />
+          <Icon sf={{ default: 'slider.horizontal.3', selected: 'slider.horizontal.3' }} drawable="ic_menu_preferences" />
           <Label>Impostazioni</Label>
         </NativeTabs.Trigger>
       ) : null}

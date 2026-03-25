@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { BottomSheet } from '../components/BottomSheet';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
@@ -50,6 +51,7 @@ const formatTime = (iso: string) => {
 };
 
 export const InstructorVehiclesScreen = () => {
+  const router = useRouter();
   const { instructorId } = useSession();
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
@@ -210,7 +212,14 @@ export const InstructorVehiclesScreen = () => {
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
         <View style={styles.header}>
-          <Text style={styles.title}>Veicoli</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {router.canGoBack() ? (
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <Ionicons name="arrow-back" size={22} color="#1E293B" />
+              </Pressable>
+            ) : null}
+            <Text style={styles.title}>Veicoli</Text>
+          </View>
           <Badge label="Istruttore" />
         </View>
 

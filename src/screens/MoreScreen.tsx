@@ -47,7 +47,7 @@ export const MoreScreen = () => {
             <Pressable
               key={item.route}
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-              onPress={() => router.push(`/(tabs)/${item.route}` as never)}
+              onPress={() => router.push(`/(tabs)/more/${item.route}` as never)}
             >
               <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
                 <Ionicons name={item.icon} size={22} color={item.iconColor} />

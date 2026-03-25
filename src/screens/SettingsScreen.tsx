@@ -773,7 +773,14 @@ export const SettingsScreen = () => {
   const renderStudentContent = () => (
     <>
       {/* 1. Title */}
-      <Text style={studentStyles.title}>Impostazioni</Text>
+      {router.canGoBack() ? (
+        <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Text style={studentStyles.title}>Impostazioni</Text>
+        </Pressable>
+      ) : (
+        <Text style={studentStyles.title}>Impostazioni</Text>
+      )}
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -1142,7 +1149,14 @@ export const SettingsScreen = () => {
   const renderNonStudentContent = () => (
     <>
       {/* 1. Title */}
-      <Text style={studentStyles.title}>Impostazioni</Text>
+      {router.canGoBack() ? (
+        <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Text style={studentStyles.title}>Impostazioni</Text>
+        </Pressable>
+      ) : (
+        <Text style={studentStyles.title}>Impostazioni</Text>
+      )}
 
       {error ? (
         <View style={styles.errorBanner}>
