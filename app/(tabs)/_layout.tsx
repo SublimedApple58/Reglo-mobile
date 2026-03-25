@@ -160,8 +160,8 @@ export default function TabsLayout() {
       ? DynamicColorIOS({ light: colors.primary, dark: colors.primary })
       : colors.primary;
 
-  // Instructor/Owner on any platform, or Android: use Tabs with custom bar
-  if (Platform.OS !== 'ios' || showMoreTab) {
+  // Android: custom tab bar
+  if (Platform.OS !== 'ios') {
     return (
       <Tabs
         tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
@@ -179,7 +179,7 @@ export default function TabsLayout() {
     );
   }
 
-  // iOS students: NativeTabs with liquid glass
+  // iOS: NativeTabs with liquid glass
   return (
     <NativeTabs
       iconColor={{ default: defaultLabelColor, selected: selectedLabelColor }}
@@ -226,6 +226,19 @@ export default function TabsLayout() {
       ) : null}
       {!showMoreTab ? (
         <NativeTabs.Trigger name="settings">
+          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} drawable="ic_menu_preferences" />
+          <Label>Impostazioni</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {/* Hidden triggers — registered so router.push works, but not shown in tab bar */}
+      {showMoreTab ? (
+        <NativeTabs.Trigger name="vehicles" hidden>
+          <Icon sf={{ default: 'car', selected: 'car.fill' }} drawable="ic_menu_view" />
+          <Label>Veicoli</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showMoreTab ? (
+        <NativeTabs.Trigger name="settings" hidden>
           <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} drawable="ic_menu_preferences" />
           <Label>Impostazioni</Label>
         </NativeTabs.Trigger>
