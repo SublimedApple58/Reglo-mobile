@@ -93,8 +93,10 @@ const AndroidTabBar = ({
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
 
-  // Only show tabs that have href (not hidden)
+  // Hide overflow tabs from the bar when "Altro" is shown
+  const hiddenFromBar = showMoreTab ? new Set(['vehicles', 'settings']) : new Set<string>();
   const visibleRoutes = state.routes.filter((route) => {
+    if (hiddenFromBar.has(route.name)) return false;
     const options = descriptors[route.key]?.options;
     if ((options as { href?: string | null })?.href === null) return false;
     return true;
@@ -169,9 +171,9 @@ export default function TabsLayout() {
         <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
-        {/* Hidden from bar — accessible via More screen */}
-        <Tabs.Screen name="vehicles" options={{ href: null, title: 'Veicoli' }} />
-        <Tabs.Screen name="settings" options={{ href: showMoreTab ? null : '/(tabs)/settings', title: 'Impostazioni' }} />
+        {/* Hidden from tab bar but navigable via More screen */}
+        <Tabs.Screen name="vehicles" options={{ title: 'Veicoli' }} />
+        <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
         <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
       </Tabs>
     );
