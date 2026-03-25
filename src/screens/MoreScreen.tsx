@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { colors, spacing } from '../theme';
@@ -35,7 +35,7 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export const MoreScreen = () => {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
 
   return (
     <Screen>
@@ -47,7 +47,7 @@ export const MoreScreen = () => {
             <Pressable
               key={item.route}
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate(item.route)}
+              onPress={() => router.push(`/(tabs)/${item.route}` as never)}
             >
               <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
                 <Ionicons name={item.icon} size={22} color={item.iconColor} />

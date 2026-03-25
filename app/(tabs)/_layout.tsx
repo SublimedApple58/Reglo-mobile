@@ -160,8 +160,8 @@ export default function TabsLayout() {
       ? DynamicColorIOS({ light: colors.primary, dark: colors.primary })
       : colors.primary;
 
-  // Android: custom tab bar
-  if (Platform.OS !== 'ios') {
+  // Instructor/Owner on any platform, or Android: use Tabs with custom bar
+  if (Platform.OS !== 'ios' || showMoreTab) {
     return (
       <Tabs
         tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
@@ -179,7 +179,7 @@ export default function TabsLayout() {
     );
   }
 
-  // iOS: NativeTabs with liquid glass
+  // iOS students: NativeTabs with liquid glass
   return (
     <NativeTabs
       iconColor={{ default: defaultLabelColor, selected: selectedLabelColor }}
