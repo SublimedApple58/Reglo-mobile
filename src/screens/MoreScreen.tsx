@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { colors, spacing } from '../theme';
@@ -17,7 +17,7 @@ type MenuItem = {
 
 const MENU_ITEMS: MenuItem[] = [
   {
-    route: '/(tabs)/vehicles',
+    route: 'vehicles',
     label: 'Veicoli',
     description: 'Gestisci i veicoli della scuola',
     icon: 'car-outline',
@@ -25,7 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
     iconBg: '#FEF9C3',
   },
   {
-    route: '/(tabs)/settings',
+    route: 'settings',
     label: 'Impostazioni',
     description: 'Preferenze e configurazione',
     icon: 'settings-outline',
@@ -35,7 +35,7 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export const MoreScreen = () => {
-  const router = useRouter();
+  const navigation = useNavigation<any>();
 
   return (
     <Screen>
@@ -47,7 +47,7 @@ export const MoreScreen = () => {
             <Pressable
               key={item.route}
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-              onPress={() => router.navigate(item.route as never)}
+              onPress={() => navigation.navigate(item.route)}
             >
               <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
                 <Ionicons name={item.icon} size={22} color={item.iconColor} />
