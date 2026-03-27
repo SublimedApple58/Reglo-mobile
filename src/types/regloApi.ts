@@ -330,6 +330,14 @@ export type DeleteDailyAvailabilityOverrideInput = {
   date: string; // YYYY-MM-DD
 };
 
+export type SetRecurringAvailabilityOverrideInput = {
+  ownerType: 'instructor' | 'vehicle';
+  ownerId: Uuid;
+  dayOfWeek: number; // 0=Sun, 6=Sat
+  ranges: TimeRange[]; // empty = absent
+  weeksAhead?: number; // 1-52
+};
+
 export type CreateAvailabilitySlotsInput = {
   ownerType: "student" | "instructor" | "vehicle";
   ownerId: Uuid;

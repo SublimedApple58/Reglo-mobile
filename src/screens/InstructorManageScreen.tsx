@@ -154,23 +154,30 @@ export const AvailabilityEditor = ({
   onToast,
 }: AvailabilityEditorProps) => {
   // ── Tab state ─────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<0 | 1>(0); // 0 = Predefinito, 1 = Calendario
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0); // 0 = Predefinito, 1 = Calendario, 2 = Ricorrente
 
-  // ── Tab 1: Default weekly availability ─────────────────────────
+  // ── Tab 0: Default weekly availability ─────────────────────────
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [ranges, setRanges] = useState<TimeRange[]>([{ startMinutes: 540, endMinutes: 1080 }]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ── Tab 2: Calendar overrides ──────────────────────────────────
+  // ── Tab 1: Calendar overrides ──────────────────────────────────
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [dailyOverrides, setDailyOverrides] = useState<DailyAvailabilityOverride[]>([]);
   const [overrideRanges, setOverrideRanges] = useState<TimeRange[]>([{ startMinutes: 540, endMinutes: 1080 }]);
   const [overrideSaving, setOverrideSaving] = useState(false);
 
+  // ── Tab 2: Recurring overrides ─────────────────────────────────
+  const [recurringDay, setRecurringDay] = useState<number>(1); // Monday default
+  const [recurringAbsent, setRecurringAbsent] = useState(false);
+  const [recurringRanges, setRecurringRanges] = useState<TimeRange[]>([{ startMinutes: 540, endMinutes: 1080 }]);
+  const [recurringWeeks, setRecurringWeeks] = useState(4);
+  const [recurringSaving, setRecurringSaving] = useState(false);
+
   // ── Time picker state (shared across tabs) ─────────────────────
   const [timePickerTarget, setTimePickerTarget] = useState<{
-    tab: 0 | 1;
+    tab: 0 | 1 | 2;
     rangeIndex: number;
     field: 'start' | 'end';
   } | null>(null);
@@ -256,7 +263,7 @@ export const AvailabilityEditor = ({
   );
 
   // ── Tab switch handler ─────────────────────────────────────────
-  const switchTab = (tab: 0 | 1) => {
+  const switchTab = (tab: 0 | 1 | 2) => {
     if (tab === activeTab) return;
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveTab(tab);
@@ -366,19 +373,68 @@ export const AvailabilityEditor = ({
     }
   };
 
+  // ── Mark day as absent (empty ranges) ────────────────────────
+  const handleMarkAbsent = async () => {
+    if (!ownerId || !selectedCalendarDate || ownerType === 'student') return;
+    setOverrideSaving(true);
+    try {
+      await regloApi.setDailyAvailabilityOverride({
+        ownerType: ownerType as 'instructor' | 'vehicle',
+        ownerId,
+        date: selectedCalendarDate,
+        ranges: [],
+      });
+      onToast?.('Giornata segnata come assente', 'success');
+      await loadOverrides();
+    } catch (err) {
+      onToast?.(err instanceof Error ? err.message : 'Errore', 'danger');
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  // ── Save recurring override (Tab 2) ─────────────────────────
+  const handleSaveRecurring = async () => {
+    if (!ownerId || ownerType === 'student') return;
+    if (!recurringAbsent) {
+      for (let i = 0; i < recurringRanges.length; i++) {
+        if (recurringRanges[i].endMinutes <= recurringRanges[i].startMinutes) {
+          onToast?.(`Orario non valido nella fascia ${i + 1}`, 'danger');
+          return;
+        }
+      }
+    }
+    setRecurringSaving(true);
+    try {
+      await regloApi.setRecurringAvailabilityOverride({
+        ownerType: ownerType as 'instructor' | 'vehicle',
+        ownerId,
+        dayOfWeek: recurringDay,
+        ranges: recurringAbsent ? [] : recurringRanges,
+        weeksAhead: recurringWeeks,
+      });
+      onToast?.(`Override ricorrente salvato per ${recurringWeeks} settimane`, 'success');
+      await loadOverrides();
+    } catch (err) {
+      onToast?.(err instanceof Error ? err.message : 'Errore salvando override ricorrente', 'danger');
+    } finally {
+      setRecurringSaving(false);
+    }
+  };
+
   // ── Time picker handlers ───────────────────────────────────────
-  const handleOpenTimePicker = (tab: 0 | 1, rangeIndex: number, field: 'start' | 'end') => {
+  const handleOpenTimePicker = (tab: 0 | 1 | 2, rangeIndex: number, field: 'start' | 'end') => {
     setTimePickerTarget({ tab, rangeIndex, field });
   };
 
   const timePickerSelectedTime = useMemo(() => {
     if (!timePickerTarget) return buildTime(9, 0);
-    const targetRanges = timePickerTarget.tab === 0 ? ranges : overrideRanges;
+    const targetRanges = timePickerTarget.tab === 0 ? ranges : timePickerTarget.tab === 1 ? overrideRanges : recurringRanges;
     const range = targetRanges[timePickerTarget.rangeIndex];
     if (!range) return buildTime(9, 0);
     const mins = timePickerTarget.field === 'start' ? range.startMinutes : range.endMinutes;
     return buildTime(Math.floor(mins / 60), mins % 60);
-  }, [timePickerTarget, ranges, overrideRanges]);
+  }, [timePickerTarget, ranges, overrideRanges, recurringRanges]);
 
   const handleTimePickerSelect = useCallback(
     (date: Date) => {
@@ -390,8 +446,12 @@ export const AvailabilityEditor = ({
         setRanges((prev) =>
           prev.map((r, i) => (i === timePickerTarget.rangeIndex ? { ...r, [key]: minutes } : r)),
         );
-      } else {
+      } else if (timePickerTarget.tab === 1) {
         setOverrideRanges((prev) =>
+          prev.map((r, i) => (i === timePickerTarget.rangeIndex ? { ...r, [key]: minutes } : r)),
+        );
+      } else {
+        setRecurringRanges((prev) =>
           prev.map((r, i) => (i === timePickerTarget.rangeIndex ? { ...r, [key]: minutes } : r)),
         );
       }
@@ -405,6 +465,12 @@ export const AvailabilityEditor = ({
     () => selectedCalendarDate != null && markedDates.has(selectedCalendarDate),
     [selectedCalendarDate, markedDates],
   );
+
+  const selectedDateIsAbsent = useMemo(() => {
+    if (!selectedCalendarDate) return false;
+    const existing = dailyOverrides.find((o) => o.date.slice(0, 10) === selectedCalendarDate);
+    return existing != null && existing.ranges.length === 0;
+  }, [selectedCalendarDate, dailyOverrides]);
 
   return (
     <View style={styles.availabilityCard}>
@@ -435,6 +501,14 @@ export const AvailabilityEditor = ({
             >
               <Text style={[styles.segmentedPillText, activeTab === 1 && styles.segmentedPillTextActive]}>
                 Calendario
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => switchTab(2)}
+              style={[styles.segmentedPill, activeTab === 2 && styles.segmentedPillActive]}
+            >
+              <Text style={[styles.segmentedPillText, activeTab === 2 && styles.segmentedPillTextActive]}>
+                Ricorrente
               </Text>
             </Pressable>
           </View>
@@ -504,6 +578,7 @@ export const AvailabilityEditor = ({
               selectedDate={selectedCalendarDate}
               onSelectDate={handleSelectCalendarDate}
               markedDates={markedDates}
+              maxWeeks={52}
             />
 
             <DayDetailAccordion visible={selectedCalendarDate !== null}>
@@ -513,37 +588,62 @@ export const AvailabilityEditor = ({
                     <Text style={styles.dayDetailLabel}>
                       {formatDateLabel(selectedCalendarDate)}
                     </Text>
-                    {selectedDateHasOverride && (
+                    {selectedDateIsAbsent ? (
+                      <View style={[styles.overrideBadge, { backgroundColor: '#FEE2E2' }]}>
+                        <Text style={[styles.overrideBadgeText, { color: '#DC2626' }]}>Assente</Text>
+                      </View>
+                    ) : selectedDateHasOverride ? (
                       <View style={styles.overrideBadge}>
                         <Text style={styles.overrideBadgeText}>Override attivo</Text>
                       </View>
-                    )}
+                    ) : null}
                   </View>
 
-                  <RangesEditor
-                    ranges={overrideRanges}
-                    onChange={setOverrideRanges}
-                    onPickTime={(index, field) => handleOpenTimePicker(1, index, field)}
-                    onAddRange={() => {
-                      setOverrideRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
-                    }}
-                    disabled={overrideSaving}
-                  />
+                  {!selectedDateIsAbsent && (
+                    <>
+                      <RangesEditor
+                        ranges={overrideRanges}
+                        onChange={setOverrideRanges}
+                        onPickTime={(index, field) => handleOpenTimePicker(1, index, field)}
+                        onAddRange={() => {
+                          setOverrideRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
+                        }}
+                        disabled={overrideSaving}
+                      />
 
-                  <Pressable
-                    onPress={handleSaveOverride}
-                    disabled={overrideSaving}
-                    style={({ pressed }) => [
-                      styles.saveCta,
-                      { marginTop: 4 },
-                      pressed && styles.saveCtaPressed,
-                      overrideSaving && styles.saveCtaDisabled,
-                    ]}
-                  >
-                    <Text style={styles.saveCtaText}>
-                      {overrideSaving ? 'Salvataggio...' : 'Salva'}
-                    </Text>
-                  </Pressable>
+                      <Pressable
+                        onPress={handleSaveOverride}
+                        disabled={overrideSaving}
+                        style={({ pressed }) => [
+                          styles.saveCta,
+                          { marginTop: 4 },
+                          pressed && styles.saveCtaPressed,
+                          overrideSaving && styles.saveCtaDisabled,
+                        ]}
+                      >
+                        <Text style={styles.saveCtaText}>
+                          {overrideSaving ? 'Salvataggio...' : 'Salva orario personalizzato'}
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
+
+                  {!selectedDateIsAbsent && (
+                    <Pressable
+                      onPress={handleMarkAbsent}
+                      disabled={overrideSaving}
+                      style={({ pressed }) => [
+                        styles.absentCta,
+                        pressed && { opacity: 0.7 },
+                        overrideSaving && styles.saveCtaDisabled,
+                      ]}
+                    >
+                      <Ionicons name="close-circle-outline" size={18} color="#DC2626" />
+                      <Text style={styles.absentCtaText}>
+                        {overrideSaving ? 'Salvataggio...' : 'Segna come assente'}
+                      </Text>
+                    </Pressable>
+                  )}
 
                   {selectedDateHasOverride && (
                     <Pressable onPress={handleDeleteOverride} disabled={overrideSaving} style={styles.resetOverrideBtn}>
@@ -553,6 +653,107 @@ export const AvailabilityEditor = ({
                 </View>
               )}
             </DayDetailAccordion>
+          </Animated.View>
+        )}
+
+        {/* ── Tab 2: Ricorrente (recurring overrides) ────────────── */}
+        {activeTab === 2 && (
+          <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)} style={{ gap: 16 }}>
+            <View>
+              <Text style={styles.fieldLabel}>GIORNO DELLA SETTIMANA</Text>
+              <View style={styles.dayCircleRow}>
+                {dayLetters.map((letter, index) => (
+                  <Pressable
+                    key={`rday-${index}`}
+                    onPress={() => setRecurringDay(index)}
+                    style={[
+                      styles.dayCircle,
+                      recurringDay === index ? styles.dayCircleActive : styles.dayCircleInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayCircleText,
+                        recurringDay === index ? styles.dayCircleTextActive : styles.dayCircleTextInactive,
+                      ]}
+                    >
+                      {letter}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setRecurringAbsent((prev) => !prev);
+              }}
+              style={styles.absentToggle}
+            >
+              <View style={[styles.absentToggleCheck, recurringAbsent && styles.absentToggleCheckActive]}>
+                {recurringAbsent && <Ionicons name="checkmark" size={14} color="#FFF" />}
+              </View>
+              <Text style={styles.absentToggleText}>Assente tutto il giorno</Text>
+            </Pressable>
+
+            {!recurringAbsent && (
+              <View>
+                <Text style={styles.fieldLabel}>FASCE ORARIE</Text>
+                <RangesEditor
+                  ranges={recurringRanges}
+                  onChange={setRecurringRanges}
+                  onPickTime={(index, field) => handleOpenTimePicker(2, index, field)}
+                  onAddRange={() => {
+                    setRecurringRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
+                  }}
+                  disabled={recurringSaving}
+                />
+              </View>
+            )}
+
+            <View>
+              <Text style={styles.fieldLabel}>PER QUANTE SETTIMANE</Text>
+              <View style={styles.weeksRow}>
+                {[2, 4, 8, 12].map((w) => (
+                  <Pressable
+                    key={`w-${w}`}
+                    onPress={() => setRecurringWeeks(w)}
+                    style={[
+                      styles.weekPill,
+                      recurringWeeks === w && styles.weekPillActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.weekPillText,
+                        recurringWeeks === w && styles.weekPillTextActive,
+                      ]}
+                    >
+                      {w}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <Pressable
+              onPress={handleSaveRecurring}
+              disabled={recurringSaving}
+              style={({ pressed }) => [
+                styles.saveCta,
+                pressed && styles.saveCtaPressed,
+                recurringSaving && styles.saveCtaDisabled,
+              ]}
+            >
+              <Text style={styles.saveCtaText}>
+                {recurringSaving
+                  ? 'Salvataggio...'
+                  : recurringAbsent
+                    ? `Segna assente ogni ${ITALIAN_DAYS[recurringDay].toLowerCase()}`
+                    : `Salva per ${recurringWeeks} settimane`}
+              </Text>
+            </Pressable>
           </Animated.View>
         )}
       </View>
@@ -1400,6 +1601,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#F59E0B',
+  },
+  absentCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+  },
+  absentCtaText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  absentToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  absentToggleCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  absentToggleCheckActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  absentToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  weeksRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  weekPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  weekPillActive: {
+    backgroundColor: '#EC4899',
+    borderColor: '#EC4899',
+  },
+  weekPillText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  weekPillTextActive: {
+    color: '#FFFFFF',
   },
   saveCtaText: {
     fontSize: 16,

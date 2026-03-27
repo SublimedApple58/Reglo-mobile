@@ -21,6 +21,8 @@ type CalendarDrawerProps = {
   onSelectDate: (date: Date) => void;
   selectedDate: Date;
   maxWeeks?: number;
+  /** When true, navigation is unlimited (ignore maxWeeks for date range). Booking drawers should keep this false. */
+  unlimitedNavigation?: boolean;
   caption?: string | null;
   bookedDates?: Set<string>;
 };
@@ -58,6 +60,7 @@ export const CalendarDrawer = ({
   onSelectDate,
   selectedDate,
   maxWeeks = 4,
+  unlimitedNavigation = false,
   caption = 'Scegli un giorno e prenota la tua guida!',
   bookedDates,
 }: CalendarDrawerProps) => {
@@ -88,17 +91,18 @@ export const CalendarDrawer = ({
 
   // Max date boundary
   const maxDate = useMemo(() => {
+    if (unlimitedNavigation) return null;
     const d = new Date(today);
     d.setDate(d.getDate() + maxWeeks * 7);
     return d;
-  }, [today, maxWeeks]);
+  }, [today, maxWeeks, unlimitedNavigation]);
 
-  // Min month = month of today, max month = month of maxDate
+  // Min month = month of today, max month = month of maxDate (or unlimited)
   const minMonth = useMemo(() => firstOfMonth(today), [today]);
-  const maxMonth = useMemo(() => firstOfMonth(maxDate), [maxDate]);
+  const maxMonth = useMemo(() => (maxDate ? firstOfMonth(maxDate) : null), [maxDate]);
 
   const canGoPrev = currentMonth.getTime() > minMonth.getTime();
-  const canGoNext = currentMonth.getTime() < maxMonth.getTime();
+  const canGoNext = maxMonth ? currentMonth.getTime() < maxMonth.getTime() : true;
 
   const goPrev = () => {
     if (!canGoPrev) return;
@@ -284,7 +288,7 @@ export const CalendarDrawer = ({
               const inMonth = isSameMonth(date, currentMonth);
               const isToday = isSameDay(date, today);
               const isSelected = isSameDay(date, selectedDate) && !isToday;
-              const inRange = date >= today && date <= maxDate;
+              const inRange = date >= today && (maxDate ? date <= maxDate : true);
               const tappable = inMonth && inRange;
               const hasBooking = inMonth && bookedDates?.has(
                 `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
@@ -338,9 +342,11 @@ export const CalendarDrawer = ({
             {caption ? (
               <Text style={styles.mascotText}>{caption}</Text>
             ) : null}
-            <Text style={styles.mascotHint}>
-              Puoi navigare fino a {maxWeeks} settimane
-            </Text>
+            {!unlimitedNavigation ? (
+              <Text style={styles.mascotHint}>
+                Puoi navigare fino a {maxWeeks} settimane
+              </Text>
+            ) : null}
           </View>
         </Animated.View>
       </View>

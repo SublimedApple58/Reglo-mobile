@@ -67,6 +67,7 @@ import {
   DailyAvailabilityOverride,
   SetDailyAvailabilityOverrideInput,
   DeleteDailyAvailabilityOverrideInput,
+  SetRecurringAvailabilityOverrideInput,
   TimeRange,
   OutOfAvailabilityAppointment,
 } from '../types/regloApi';
@@ -282,6 +283,11 @@ export const createRegloApi = (baseUrl?: string) => {
     deleteDailyAvailabilityOverride: async (input: DeleteDailyAvailabilityOverrideInput) =>
       client.request<void>('/api/autoscuole/availability/overrides', {
         method: 'DELETE',
+        body: input,
+      }),
+    setRecurringAvailabilityOverride: async (input: SetRecurringAvailabilityOverrideInput) =>
+      client.request<{ count: number }>('/api/autoscuole/availability/overrides/recurring', {
+        method: 'POST',
         body: input,
       }),
     getDefaultAvailability: async (params: {

@@ -1072,7 +1072,6 @@ export const IstruttoreHomeScreen = () => {
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
   ] as const;
-  const maxWeeks = Number(settings?.availabilityWeeks) || 4;
   const bookedDatesSet = useMemo(() => {
     const set = new Set<string>();
     for (const appt of featuredAppointments) {
@@ -1084,11 +1083,12 @@ export const IstruttoreHomeScreen = () => {
     return set;
   }, [featuredAppointments]);
 
+  const NAV_WEEKS = 52; // navigation: 1 year ahead
   const calendarDays = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const start = addDays(today, -7);
-    const totalDays = 7 + maxWeeks * 7;
+    const totalDays = 7 + NAV_WEEKS * 7;
     const days: { date: Date; dayNum: number; weekday: string }[] = [];
     for (let i = 0; i < totalDays; i++) {
       const d = addDays(start, i);
@@ -1099,7 +1099,7 @@ export const IstruttoreHomeScreen = () => {
       });
     }
     return days;
-  }, [maxWeeks]);
+  }, []);
   const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
   const dayScrollMountedRef = useRef(false);
@@ -1515,12 +1515,20 @@ export const IstruttoreHomeScreen = () => {
         <View style={styles.calendarSection}>
           <View style={styles.calendarMonthRow}>
             <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
-            <Pressable
-              onPress={() => setCalendarDrawerOpen(true)}
-              style={styles.calendarIconBtn}
-            >
-              <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Pressable
+                onPress={() => setSelectedDate(new Date())}
+                style={styles.calendarIconBtn}
+              >
+                <Ionicons name="return-down-back-outline" size={20} color="#94A3B8" />
+              </Pressable>
+              <Pressable
+                onPress={() => setCalendarDrawerOpen(true)}
+                style={styles.calendarIconBtn}
+              >
+                <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
+              </Pressable>
+            </View>
           </View>
           <ScrollView
             ref={dayScrollRef}
@@ -2191,7 +2199,7 @@ export const IstruttoreHomeScreen = () => {
         onClose={() => setCalendarDrawerOpen(false)}
         onSelectDate={(date) => setSelectedDate(date)}
         selectedDate={selectedDate}
-        maxWeeks={Number(settings?.availabilityWeeks) || 4}
+        unlimitedNavigation
         caption={null}
         bookedDates={bookedDatesSet}
       />
