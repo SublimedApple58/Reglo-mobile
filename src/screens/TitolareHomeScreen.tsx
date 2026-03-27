@@ -790,7 +790,6 @@ const oobStyles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginHorizontal: spacing.lg,
     gap: 8,
   },
   bannerText: {
