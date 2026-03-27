@@ -100,7 +100,7 @@ export const TitolareHomeScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
-  const [outOfAvailActionPending, setOutOfAvailActionPending] = useState(false);
+  const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
 
   const dayScrollRef = useRef<ScrollView | null>(null);
   const dayScrollMountedRef = useRef(false);
@@ -204,7 +204,7 @@ export const TitolareHomeScreen = () => {
     appointmentId: string,
     action: 'cancel' | 'reposition' | 'approve',
   ) => {
-    setOutOfAvailActionPending(true);
+    setOutOfAvailActionPending(appointmentId);
     try {
       if (action === 'cancel') {
         await regloApi.cancelAppointment(appointmentId);
@@ -221,7 +221,7 @@ export const TitolareHomeScreen = () => {
     } catch {
       setToast({ text: 'Errore durante l\'operazione.', tone: 'danger' });
     } finally {
-      setOutOfAvailActionPending(false);
+      setOutOfAvailActionPending(null);
     }
   }, [loadData, loadOutOfAvailability, selectedDate]);
 
@@ -491,8 +491,10 @@ export const TitolareHomeScreen = () => {
         showHandle
       >
         <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-          {outOfAvailAppointments.map((apt) => (
-            <View key={apt.id} style={oobStyles.card}>
+          {outOfAvailAppointments.map((apt) => {
+            const isLoading = outOfAvailActionPending === apt.id;
+            return (
+            <View key={apt.id} style={[oobStyles.card, isLoading && { opacity: 0.5 }]}>
               <View style={oobStyles.cardHeader}>
                 <Text style={oobStyles.studentName}>{apt.studentName}</Text>
                 <View style={[
@@ -533,28 +535,29 @@ export const TitolareHomeScreen = () => {
               <View style={oobStyles.actions}>
                 <Pressable
                   style={oobStyles.actionBtn}
-                  disabled={outOfAvailActionPending}
+                  disabled={isLoading}
                   onPress={() => handleOutOfAvailAction(apt.id, 'reposition')}
                 >
                   <Text style={oobStyles.actionBtnText}>Riposiziona</Text>
                 </Pressable>
                 <Pressable
                   style={[oobStyles.actionBtn, oobStyles.actionBtnDanger]}
-                  disabled={outOfAvailActionPending}
+                  disabled={isLoading}
                   onPress={() => handleOutOfAvailAction(apt.id, 'cancel')}
                 >
                   <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnDangerText]}>Cancella</Text>
                 </Pressable>
                 <Pressable
                   style={[oobStyles.actionBtn, oobStyles.actionBtnPrimary]}
-                  disabled={outOfAvailActionPending}
+                  disabled={isLoading}
                   onPress={() => handleOutOfAvailAction(apt.id, 'approve')}
                 >
                   <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnPrimaryText]}>Mantieni</Text>
                 </Pressable>
               </View>
             </View>
-          ))}
+            );
+          })}
           {outOfAvailAppointments.length === 0 && (
             <Text style={oobStyles.emptyText}>Nessuna guida fuori disponibilità.</Text>
           )}
