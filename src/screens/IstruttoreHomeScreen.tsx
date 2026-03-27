@@ -48,6 +48,7 @@ import {
   InstructorBookingSuggestion,
   OutOfAvailabilityAppointment,
 } from '../types/regloApi';
+import { useNavigation } from '@react-navigation/native';
 import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { useSession } from '../context/SessionContext';
@@ -1136,34 +1137,46 @@ export const IstruttoreHomeScreen = () => {
     }
   }, [scrollToDay]);
 
+  const loadAvailability = useCallback(() => {
+    if (!instructorId) return;
+    regloApi.getAvailabilitySlots({
+      ownerType: 'instructor',
+      ownerId: instructorId,
+      date: toDateOnlyString(selectedDate),
+    }).then((slots) => {
+      const hours = new Set<number>();
+      if (slots) {
+        for (const slot of slots) {
+          const startHour = new Date(slot.startsAt).getHours();
+          const endHour = new Date(slot.endsAt).getHours();
+          for (let h = startHour; h < endHour; h++) {
+            hours.add(h);
+          }
+        }
+      }
+      setAvailableHours(hours);
+    }).catch(() => setAvailableHours(new Set()));
+  }, [selectedDate, instructorId]);
+
   useEffect(() => {
     const from = new Date(selectedDate);
     from.setHours(0, 0, 0, 0);
     const to = new Date(selectedDate);
     to.setHours(23, 59, 59, 999);
     setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
+    loadAvailability();
+  }, [selectedDate, instructorId, loadAvailability]);
 
-    // Fetch instructor's availability for this date
-    if (instructorId) {
-      regloApi.getAvailabilitySlots({
-        ownerType: 'instructor',
-        ownerId: instructorId,
-        date: toDateOnlyString(selectedDate),
-      }).then((slots) => {
-        const hours = new Set<number>();
-        if (slots) {
-          for (const slot of slots) {
-            const startHour = new Date(slot.startsAt).getHours();
-            const endHour = new Date(slot.endsAt).getHours();
-            for (let h = startHour; h < endHour; h++) {
-              hours.add(h);
-            }
-          }
-        }
-        setAvailableHours(hours);
-      }).catch(() => setAvailableHours(new Set()));
-    }
-  }, [selectedDate, instructorId]);
+  // Re-fetch data when screen regains focus (e.g. after changing availability)
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+      loadAvailability();
+      loadOutOfAvailability();
+    });
+    return unsubscribe;
+  }, [navigation, loadData, loadAvailability, loadOutOfAvailability]);
 
   const refreshAndSyncDrawer = useCallback(
     async (lessonId: string) => {
@@ -1283,8 +1296,10 @@ export const IstruttoreHomeScreen = () => {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
+    loadAvailability();
+    loadOutOfAvailability();
     setRefreshing(false);
-  }, [loadData]);
+  }, [loadData, loadAvailability, loadOutOfAvailability]);
 
   const handleRepositionLesson = useCallback(
     async (lesson: AutoscuolaAppointmentWithRelations) => {

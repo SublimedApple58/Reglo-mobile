@@ -22,6 +22,7 @@ import {
   AutoscuolaSettings,
   OutOfAvailabilityAppointment,
 } from '../types/regloApi';
+import { useNavigation } from '@react-navigation/native';
 import { colors, radii, spacing } from '../theme';
 import { formatTime } from '../utils/date';
 
@@ -232,8 +233,19 @@ export const TitolareHomeScreen = () => {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData(selectedDate);
+    loadOutOfAvailability();
     setRefreshing(false);
-  }, [loadData, selectedDate]);
+  }, [loadData, loadOutOfAvailability, selectedDate]);
+
+  // Re-fetch data when screen regains focus
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData(selectedDate);
+      loadOutOfAvailability();
+    });
+    return unsubscribe;
+  }, [navigation, loadData, loadOutOfAvailability, selectedDate]);
 
   // ── Group appointments by hour ──
   const appointmentsByHour = useMemo(() => {
