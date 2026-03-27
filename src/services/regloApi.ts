@@ -68,6 +68,7 @@ import {
   SetDailyAvailabilityOverrideInput,
   DeleteDailyAvailabilityOverrideInput,
   TimeRange,
+  OutOfAvailabilityAppointment,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -209,6 +210,20 @@ export const createRegloApi = (baseUrl?: string) => {
         {
           method: 'POST',
           body: reason ? { reason } : {},
+        }
+      ),
+    getOutOfAvailabilityAppointments: async (instructorId?: string) =>
+      client.request<OutOfAvailabilityAppointment[]>(
+        '/api/autoscuole/appointments/out-of-availability',
+        {
+          params: instructorId ? { instructorId } : {},
+        }
+      ),
+    approveAvailabilityOverride: async (appointmentId: string) =>
+      client.request<{ success: boolean }>(
+        `/api/autoscuole/appointments/${appointmentId}/approve-override`,
+        {
+          method: 'POST',
         }
       ),
     getInstructors: async () =>

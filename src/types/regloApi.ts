@@ -607,3 +607,15 @@ export type RegisterPushTokenInput = {
 export type UnregisterPushTokenInput = {
   token?: string;
 };
+
+export type OutOfAvailabilityAppointment = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  type: string;
+  status: string;
+  studentName: string;
+  instructorName: string | null;
+  vehicleName: string | null;
+  outOfAvailabilityFor: ('instructor' | 'vehicle')[];
+};

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
+import { BottomSheet } from '../components/BottomSheet';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -19,8 +20,9 @@ import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaSettings,
+  OutOfAvailabilityAppointment,
 } from '../types/regloApi';
-import { colors, spacing } from '../theme';
+import { colors, radii, spacing } from '../theme';
 import { formatTime } from '../utils/date';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -94,6 +96,9 @@ export const TitolareHomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
+  const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
+  const [outOfAvailActionPending, setOutOfAvailActionPending] = useState(false);
 
   const dayScrollRef = useRef<ScrollView | null>(null);
   const dayScrollMountedRef = useRef(false);
@@ -184,10 +189,44 @@ export const TitolareHomeScreen = () => {
     }
   }, []);
 
+  const loadOutOfAvailability = useCallback(async () => {
+    try {
+      const data = await regloApi.getOutOfAvailabilityAppointments();
+      setOutOfAvailAppointments(Array.isArray(data) ? data : []);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const handleOutOfAvailAction = useCallback(async (
+    appointmentId: string,
+    action: 'cancel' | 'reposition' | 'approve',
+  ) => {
+    setOutOfAvailActionPending(true);
+    try {
+      if (action === 'cancel') {
+        await regloApi.cancelAppointment(appointmentId);
+        setToast({ text: 'Guida cancellata.', tone: 'success' });
+      } else if (action === 'reposition') {
+        await regloApi.repositionAppointment(appointmentId);
+        setToast({ text: 'Riposizionamento avviato.', tone: 'success' });
+      } else {
+        await regloApi.approveAvailabilityOverride(appointmentId);
+        setToast({ text: 'Guida mantenuta.', tone: 'success' });
+      }
+      loadOutOfAvailability();
+      loadData(selectedDate);
+    } catch {
+      setToast({ text: 'Errore durante l\'operazione.', tone: 'danger' });
+    } finally {
+      setOutOfAvailActionPending(false);
+    }
+  }, [loadData, loadOutOfAvailability, selectedDate]);
+
   useEffect(() => {
     setLoading(true);
-    loadData(selectedDate);
-  }, [loadData, selectedDate]);
+    loadData(selectedDate).then(() => loadOutOfAvailability());
+  }, [loadData, loadOutOfAvailability, selectedDate]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -242,6 +281,20 @@ export const TitolareHomeScreen = () => {
             <Text style={styles.subtitle}>{formatSubtitleDate(selectedDate)}</Text>
           </View>
         </View>
+
+        {outOfAvailAppointments.length > 0 && (
+          <Pressable
+            onPress={() => setOutOfAvailSheetOpen(true)}
+            style={oobStyles.banner}
+          >
+            <Ionicons name="alert-circle" size={18} color="#92400E" />
+            <Text style={oobStyles.bannerText}>
+              <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
+              {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+            </Text>
+            <Text style={oobStyles.bannerAction}>Gestisci</Text>
+          </Pressable>
+        )}
 
         {/* ── Horizontal Day Picker ── */}
         <View style={styles.calendarSection}>
@@ -405,6 +458,83 @@ export const TitolareHomeScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Out of Availability BottomSheet ── */}
+      <BottomSheet
+        visible={outOfAvailSheetOpen}
+        onClose={() => setOutOfAvailSheetOpen(false)}
+        title="Guide fuori disponibilità"
+      >
+        <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+          {outOfAvailAppointments.map((apt) => (
+            <View key={apt.id} style={oobStyles.card}>
+              <View style={oobStyles.cardHeader}>
+                <Text style={oobStyles.studentName}>{apt.studentName}</Text>
+                <View style={[
+                  oobStyles.badge,
+                  apt.outOfAvailabilityFor.length > 1
+                    ? oobStyles.badgeBoth
+                    : apt.outOfAvailabilityFor.includes('instructor')
+                      ? oobStyles.badgeInstructor
+                      : oobStyles.badgeVehicle,
+                ]}>
+                  <Text style={[
+                    oobStyles.badgeText,
+                    apt.outOfAvailabilityFor.length > 1
+                      ? oobStyles.badgeTextBoth
+                      : apt.outOfAvailabilityFor.includes('instructor')
+                        ? oobStyles.badgeTextInstructor
+                        : oobStyles.badgeTextVehicle,
+                  ]}>
+                    {apt.outOfAvailabilityFor.length > 1
+                      ? 'Entrambi'
+                      : apt.outOfAvailabilityFor.includes('instructor')
+                        ? 'Istruttore'
+                        : 'Veicolo'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={oobStyles.cardTime}>
+                {new Date(apt.startsAt).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
+                {' \u00B7 '}
+                {formatTime(apt.startsAt)} – {formatTime(apt.endsAt)}
+              </Text>
+              {apt.instructorName && (
+                <Text style={oobStyles.cardMeta}>{apt.instructorName}</Text>
+              )}
+              {apt.vehicleName && (
+                <Text style={oobStyles.cardMeta}>{apt.vehicleName}</Text>
+              )}
+              <View style={oobStyles.actions}>
+                <Pressable
+                  style={oobStyles.actionBtn}
+                  disabled={outOfAvailActionPending}
+                  onPress={() => handleOutOfAvailAction(apt.id, 'reposition')}
+                >
+                  <Text style={oobStyles.actionBtnText}>Riposiziona</Text>
+                </Pressable>
+                <Pressable
+                  style={[oobStyles.actionBtn, oobStyles.actionBtnDanger]}
+                  disabled={outOfAvailActionPending}
+                  onPress={() => handleOutOfAvailAction(apt.id, 'cancel')}
+                >
+                  <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnDangerText]}>Cancella</Text>
+                </Pressable>
+                <Pressable
+                  style={[oobStyles.actionBtn, oobStyles.actionBtnPrimary]}
+                  disabled={outOfAvailActionPending}
+                  onPress={() => handleOutOfAvailAction(apt.id, 'approve')}
+                >
+                  <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnPrimaryText]}>Mantieni</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+          {outOfAvailAppointments.length === 0 && (
+            <Text style={oobStyles.emptyText}>Nessuna guida fuori disponibilità.</Text>
+          )}
+        </ScrollView>
+      </BottomSheet>
 
       {/* ── Calendar Drawer ── */}
       <CalendarDrawer
@@ -646,5 +776,127 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontStyle: 'italic',
     color: '#94A3B8',
+  },
+});
+
+const oobStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    gap: 8,
+  },
+  bannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+  },
+  bannerCount: {
+    fontWeight: '700',
+  },
+  bannerAction: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: radii.sm,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  studentName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  badgeInstructor: {
+    backgroundColor: '#FEF3C7',
+  },
+  badgeVehicle: {
+    backgroundColor: '#DBEAFE',
+  },
+  badgeBoth: {
+    backgroundColor: '#FCE7F3',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  badgeTextInstructor: {
+    color: '#92400E',
+  },
+  badgeTextVehicle: {
+    color: '#1E40AF',
+  },
+  badgeTextBoth: {
+    color: '#9D174D',
+  },
+  cardTime: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  cardMeta: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  actionBtnDanger: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+  },
+  actionBtnDangerText: {
+    color: '#DC2626',
+  },
+  actionBtnPrimary: {
+    borderColor: '#EC4899',
+    backgroundColor: '#EC4899',
+  },
+  actionBtnPrimaryText: {
+    color: '#FFFFFF',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: 14,
+    paddingVertical: 32,
   },
 });
