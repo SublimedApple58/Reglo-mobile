@@ -464,6 +464,7 @@ export const TitolareHomeScreen = () => {
         visible={outOfAvailSheetOpen}
         onClose={() => setOutOfAvailSheetOpen(false)}
         title="Guide fuori disponibilità"
+        showHandle
       >
         <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
           {outOfAvailAppointments.map((apt) => (
@@ -790,7 +791,6 @@ const oobStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
     gap: 8,
   },
   bannerText: {
