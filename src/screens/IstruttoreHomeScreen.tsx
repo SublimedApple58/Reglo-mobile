@@ -871,7 +871,21 @@ export const IstruttoreHomeScreen = () => {
     () => pickFeaturedLesson(featuredAppointments, now),
     [featuredAppointments, now],
   );
-  const HOUR_SLOTS = useMemo(() => Array.from({ length: 15 }, (_, i) => i + 7), []); // 7-21
+  const HOUR_SLOTS = useMemo(() => {
+    const DEFAULT_START = 7;
+    const END = 21;
+    let earliest = DEFAULT_START;
+    // Check availability
+    for (const h of availableHours) {
+      if (h < earliest) earliest = h;
+    }
+    // Check appointments
+    for (const appt of appointments) {
+      const h = new Date(appt.startsAt).getHours();
+      if (normalizeStatus(appt.status) !== 'cancelled' && h < earliest) earliest = h;
+    }
+    return Array.from({ length: END - earliest + 1 }, (_, i) => i + earliest);
+  }, [availableHours, appointments]);
 
   const timelineAppointments = useMemo(() => {
     return [...appointments]

@@ -45,7 +45,8 @@ const ITALIAN_MONTHS_SHORT = [
 ] as const;
 const ITALIAN_WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'] as const;
 
-const HOUR_SLOTS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 to 21:00
+const DEFAULT_HOUR_START = 7;
+const HOUR_END = 21;
 
 type StatusColorConfig = {
   border: string;
@@ -249,6 +250,17 @@ export const TitolareHomeScreen = () => {
       list.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
     }
     return map;
+  }, [appointments]);
+
+  const HOUR_SLOTS = useMemo(() => {
+    let earliest = DEFAULT_HOUR_START;
+    for (const appt of appointments) {
+      const s = (appt.status ?? '').trim().toLowerCase();
+      if (s === 'cancelled' || s === 'proposal') continue;
+      const h = new Date(appt.startsAt).getHours();
+      if (h < earliest) earliest = h;
+    }
+    return Array.from({ length: HOUR_END - earliest + 1 }, (_, i) => i + earliest);
   }, [appointments]);
 
   const hasAppointments = appointmentsByHour.size > 0;
