@@ -41,6 +41,7 @@ import {
   AutoscuolaSettings,
   StudentAppointmentPaymentHistoryItem,
   AutoscuolaWaitlistOfferWithSlot,
+  AutoscuolaSwapOfferWithDetails,
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
@@ -197,6 +198,12 @@ export const AllievoHomeScreen = () => {
   const [waitlistOffer, setWaitlistOffer] = useState<AutoscuolaWaitlistOfferWithSlot | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [creatingSwap, setCreatingSwap] = useState(false);
+  const [swapOffer, setSwapOffer] = useState<AutoscuolaSwapOfferWithDetails | null>(null);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapCelebrationVisible, setSwapCelebrationVisible] = useState(false);
+  const [ignoredSwapIds] = useState(() => new Set<string>());
   const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
   const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
@@ -434,6 +441,18 @@ export const AllievoHomeScreen = () => {
     }
   }, []);
 
+  const loadSwapOffers = useCallback(async (studentId: string) => {
+    try {
+      const offers = await regloApi.getSwapOffers(studentId, 1);
+      setSwapOffer(offers[0] ?? null);
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore caricando le proposte di scambio',
+        tone: 'danger',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -452,27 +471,48 @@ export const AllievoHomeScreen = () => {
     if (!selectedStudentId) {
       setWaitlistOffer(null);
       setWaitlistOpen(false);
+      setSwapOffer(null);
+      setSwapOpen(false);
       return;
     }
     loadData(selectedStudentId);
     loadWaitlistOffers(selectedStudentId);
-  }, [loadData, loadWaitlistOffers, selectedStudentId]);
+    loadSwapOffers(selectedStudentId);
+  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
 
   useEffect(() => {
     if (!waitlistOffer) {
       setWaitlistOpen(false);
       return;
     }
-    if (!prefsOpen && !sheetOpen) {
+    if (!prefsOpen && !sheetOpen && !swapOpen) {
       setWaitlistOpen(true);
     }
-  }, [prefsOpen, sheetOpen, waitlistOffer]);
+  }, [prefsOpen, sheetOpen, swapOpen, waitlistOffer]);
+
+  useEffect(() => {
+    if (!swapOffer || ignoredSwapIds.has(swapOffer.id)) {
+      setSwapOpen(false);
+      return;
+    }
+    if (!prefsOpen && !sheetOpen && !waitlistOpen) {
+      setSwapOpen(true);
+    }
+  }, [prefsOpen, sheetOpen, waitlistOpen, swapOffer, ignoredSwapIds]);
 
   useEffect(() => {
     if (!selectedStudentId) return;
     const unsubscribe = subscribePushIntent((intent) => {
       if (intent === 'slot_fill_offer') {
         loadWaitlistOffers(selectedStudentId);
+        return;
+      }
+      if (intent === 'swap_offer') {
+        loadSwapOffers(selectedStudentId);
+        return;
+      }
+      if (intent === 'swap_accepted') {
+        loadData(selectedStudentId);
         return;
       }
       if (intent === 'appointment_cancelled') {
@@ -489,7 +529,7 @@ export const AllievoHomeScreen = () => {
       }
     });
     return unsubscribe;
-  }, [loadData, loadWaitlistOffers, selectedStudentId]);
+  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
 
   useEffect(() => {
     if (!selectedStudentId) return;
@@ -497,11 +537,14 @@ export const AllievoHomeScreen = () => {
       if (nextState !== 'active') return;
       loadData(selectedStudentId);
       loadWaitlistOffers(selectedStudentId);
+      loadSwapOffers(selectedStudentId);
     });
     return () => {
       subscription.remove();
     };
-  }, [loadData, loadWaitlistOffers, selectedStudentId]);
+  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
+
+  // Swap polling + drawer handled by global SwapOfferOverlay in _layout.tsx
 
   const upcoming = useMemo(() => {
     const now = new Date();
@@ -1013,6 +1056,51 @@ export const AllievoHomeScreen = () => {
     }
   };
 
+  const handleCreateSwap = async (appointmentId: string) => {
+    if (creatingSwap) return;
+    setCreatingSwap(true);
+    setToast(null);
+    try {
+      await regloApi.createSwapOffer(appointmentId);
+      setToast({ text: 'Richiesta di sostituzione inviata!', tone: 'success' });
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore durante la richiesta di scambio',
+        tone: 'danger',
+      });
+    } finally {
+      setCreatingSwap(false);
+    }
+  };
+
+  const handleAcceptSwapOffer = async () => {
+    if (!selectedStudentId || !swapOffer) return;
+    setSwapLoading(true);
+    setToast(null);
+    try {
+      const response = await regloApi.respondSwapOffer(swapOffer.id, {
+        studentId: selectedStudentId,
+        response: 'accept',
+      });
+      if (response.accepted) {
+        setToast({ text: 'Scambio confermato!', tone: 'success' });
+        setSwapCelebrationVisible(false);
+        setTimeout(() => setSwapCelebrationVisible(true), 0);
+        setSwapOpen(false);
+        await loadData(selectedStudentId);
+      } else {
+        setToast({ text: 'Offerta non più disponibile', tone: 'info' });
+      }
+      await loadSwapOffers(selectedStudentId);
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore durante accettazione scambio',
+        tone: 'danger',
+      });
+    } finally {
+      setSwapLoading(false);
+    }
+  };
 
   const executeCancel = async (appointmentId: string) => {
     setToast(null);
@@ -1021,7 +1109,7 @@ export const AllievoHomeScreen = () => {
       await regloApi.cancelAppointment(appointmentId);
       setToast({ text: 'Guida annullata', tone: 'success' });
       if (selectedStudentId) {
-        await Promise.all([loadData(selectedStudentId), loadWaitlistOffers(selectedStudentId)]);
+        await Promise.all([loadData(selectedStudentId), loadWaitlistOffers(selectedStudentId), loadSwapOffers(selectedStudentId)]);
       }
     } catch (err) {
       setToast({
@@ -1285,6 +1373,11 @@ export const AllievoHomeScreen = () => {
         visible={bookingCelebrationVisible}
         onHidden={() => setBookingCelebrationVisible(false)}
       />
+      <BookingCelebration
+        visible={swapCelebrationVisible}
+        variant="swap"
+        onHidden={() => setSwapCelebrationVisible(false)}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -1409,16 +1502,33 @@ export const AllievoHomeScreen = () => {
                     {nextLesson.vehicle?.name ?? 'Da assegnare'}
                   </Text>
                   {!isLessonInProgress ? (
-                    <Pressable
-                      onPress={() => handleCancel(nextLesson.id)}
-                      disabled={cancellingAppointmentId === nextLesson.id}
-                    >
-                      <Text style={styles.nextLessonCancelText}>
-                        {cancellingAppointmentId === nextLesson.id
-                          ? 'Annullamento...'
-                          : 'Annulla prenotazione'}
-                      </Text>
-                    </Pressable>
+                    <View style={styles.nextLessonActions}>
+                      {settings?.swapEnabled &&
+                        ['scheduled', 'confirmed'].includes(nextLesson.status) ? (
+                        <Pressable
+                          style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
+                          onPress={() => handleCreateSwap(nextLesson.id)}
+                          disabled={creatingSwap}
+                        >
+                          <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
+                          <Text style={styles.nextLessonSwapText}>
+                            {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      <Pressable
+                        style={[styles.nextLessonCancelPill, cancellingAppointmentId === nextLesson.id && { opacity: 0.5 }]}
+                        onPress={() => handleCancel(nextLesson.id)}
+                        disabled={cancellingAppointmentId === nextLesson.id}
+                      >
+                        <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
+                        <Text style={styles.nextLessonCancelText}>
+                          {cancellingAppointmentId === nextLesson.id
+                            ? 'Annullo...'
+                            : 'Annulla'}
+                        </Text>
+                      </Pressable>
+                    </View>
                   ) : null}
                 </LinearGradient>
               </View>
@@ -1688,27 +1798,48 @@ export const AllievoHomeScreen = () => {
               </View>
             </View>
 
-            {/* Cancel button — only for upcoming confirmed lessons */}
+            {/* Swap + Cancel buttons — only for upcoming confirmed lessons */}
             {upcomingConfirmedStatuses.has(
               (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
             ) &&
             new Date(selectedHistoryLesson.startsAt).getTime() > Date.now() ? (
-              <Pressable
-                style={styles.detailCancelBtn}
-                onPress={() => {
-                  const id = selectedHistoryLesson.id;
-                  setHistoryDetailsOpen(false);
-                  setTimeout(() => handleCancel(id), 350);
-                }}
-                disabled={cancellingAppointmentId === selectedHistoryLesson.id}
-              >
-                <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
-                <Text style={styles.detailCancelText}>
-                  {cancellingAppointmentId === selectedHistoryLesson.id
-                    ? 'Annullamento...'
-                    : 'Annulla guida'}
-                </Text>
-              </Pressable>
+              <>
+                {settings?.swapEnabled &&
+                  ['scheduled', 'confirmed'].includes(
+                    (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
+                  ) ? (
+                  <Pressable
+                    style={[styles.detailSwapBtn, creatingSwap && { opacity: 0.5 }]}
+                    onPress={() => {
+                      const id = selectedHistoryLesson.id;
+                      setHistoryDetailsOpen(false);
+                      setTimeout(() => handleCreateSwap(id), 350);
+                    }}
+                    disabled={creatingSwap}
+                  >
+                    <Text style={{ fontSize: 16 }}>🤝</Text>
+                    <Text style={styles.detailSwapText}>
+                      {creatingSwap ? 'Invio richiesta...' : 'Cerca sostituto'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={[styles.detailCancelBtn, cancellingAppointmentId === selectedHistoryLesson.id && { opacity: 0.5 }]}
+                  onPress={() => {
+                    const id = selectedHistoryLesson.id;
+                    setHistoryDetailsOpen(false);
+                    setTimeout(() => handleCancel(id), 350);
+                  }}
+                  disabled={cancellingAppointmentId === selectedHistoryLesson.id}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                  <Text style={styles.detailCancelText}>
+                    {cancellingAppointmentId === selectedHistoryLesson.id
+                      ? 'Annullamento...'
+                      : 'Annulla guida'}
+                  </Text>
+                </Pressable>
+              </>
             ) : null}
           </>
         ) : null}
@@ -2177,11 +2308,45 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  nextLessonCancelText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#EF4444',
+  nextLessonActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 4,
+  },
+  nextLessonSwapPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  nextLessonSwapEmoji: {
+    fontSize: 13,
+  },
+  nextLessonSwapText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(120, 53, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  nextLessonCancelPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  nextLessonCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
   },
   emptyLessonCard: {
     borderRadius: radii.lg,
@@ -2339,14 +2504,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 20,
+    gap: 7,
+    marginTop: 8,
     paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(220, 38, 38, 0.2)',
+    backgroundColor: 'rgba(220, 38, 38, 0.04)',
   },
   detailCancelText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#DC2626',
+  },
+  detailSwapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    marginTop: 20,
+    marginBottom: 0,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(146, 64, 14, 0.25)',
+    backgroundColor: 'rgba(146, 64, 14, 0.06)',
+  },
+  detailSwapText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  swapDetailsCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
+  swapDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  swapDetailIcon: {
+    fontSize: 16,
+    width: 24,
+    textAlign: 'center',
+  },
+  swapDetailText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  swapIgnoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  swapIgnoreBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 
   /* ── Agenda Section ── */

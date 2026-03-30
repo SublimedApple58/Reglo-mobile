@@ -5,6 +5,7 @@ import { colors, pink, spacing, typography } from '../theme';
 
 type BookingCelebrationProps = {
   visible: boolean;
+  variant?: 'booking' | 'swap';
   onHidden?: () => void;
 };
 
@@ -16,7 +17,7 @@ const BURST_POINTS = [
   { angle: 56, distance: 54 },
 ];
 
-export const BookingCelebration = ({ visible, onHidden }: BookingCelebrationProps) => {
+export const BookingCelebration = ({ visible, variant = 'booking', onHidden }: BookingCelebrationProps) => {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -123,10 +124,18 @@ export const BookingCelebration = ({ visible, onHidden }: BookingCelebrationProp
           },
         ]}
       >
-        <View style={styles.iconCircle}>
-          <Ionicons name="checkmark-circle" size={46} color={colors.positive} />
-        </View>
-        <Text style={styles.title}>Prenotazione confermata</Text>
+        {variant === 'swap' ? (
+          <View style={styles.swapIconCircle}>
+            <Text style={styles.swapEmoji}>🤝</Text>
+          </View>
+        ) : (
+          <View style={styles.iconCircle}>
+            <Ionicons name="checkmark-circle" size={46} color={colors.positive} />
+          </View>
+        )}
+        <Text style={styles.title}>
+          {variant === 'swap' ? 'Affare fatto!' : 'Prenotazione confermata'}
+        </Text>
       </Animated.View>
     </View>
   );
@@ -180,6 +189,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34, 197, 94, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.35)',
+  },
+  swapIconCircle: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(250, 204, 21, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(250, 204, 21, 0.4)',
+  },
+  swapEmoji: {
+    fontSize: 36,
   },
   title: {
     ...typography.subtitle,

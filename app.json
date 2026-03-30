@@ -3,7 +3,7 @@
     "name": "Reglo",
     "slug": "reglo-mobile",
     "scheme": "com.tiziano.developer.reglo-mobile",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +29,8 @@
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.tiziano.developer.reglomobile"
+      "package": "com.tiziano.developer.reglomobile",
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -11,7 +11,7 @@ const PUSH_INTENT_KEY = 'reglo_push_intent';
 
 let listenersBound = false;
 let androidChannelReady = false;
-const intentListeners = new Set<(intent: string) => void>();
+const intentListeners = new Set<(intent: string, data?: Record<string, unknown>) => void>();
 
 type PushRegistrationSkippedReason = 'web' | 'simulator' | 'permission_denied';
 
@@ -49,11 +49,11 @@ const extractIntent = (data: unknown): string | null => {
   return typeof value === 'string' ? value : null;
 };
 
-const emitIntent = (intent: string | null) => {
+const emitIntent = (intent: string | null, data?: Record<string, unknown>) => {
   if (!intent) return;
   intentListeners.forEach((listener) => {
     try {
-      listener(intent);
+      listener(intent, data);
     } catch (error) {
       console.warn('[Push] Intent listener error', error);
     }
@@ -73,16 +73,18 @@ const ensureListeners = () => {
   });
 
   Notifications.addNotificationReceivedListener((notification) => {
-    const intent = extractIntent(notification.request.content.data);
-    emitIntent(intent);
+    const data = notification.request.content.data as Record<string, unknown> | undefined;
+    const intent = extractIntent(data);
+    emitIntent(intent, data ?? undefined);
   });
 
   Notifications.addNotificationResponseReceivedListener((response) => {
-    const intent = extractIntent(response.notification.request.content.data);
+    const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+    const intent = extractIntent(data);
     if (intent) {
       savePushIntent(intent).catch(() => undefined);
     }
-    emitIntent(intent);
+    emitIntent(intent, data ?? undefined);
   });
 
   listenersBound = true;
@@ -190,7 +192,7 @@ export const consumePendingOrLaunchPushIntent = async () => {
   return intent;
 };
 
-export const subscribePushIntent = (listener: (intent: string) => void) => {
+export const subscribePushIntent = (listener: (intent: string, data?: Record<string, unknown>) => void) => {
   ensureListeners();
   intentListeners.add(listener);
   return () => {

@@ -8,6 +8,8 @@ import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
 import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
+import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
+import { SwapOfferOverlay } from '../../src/components/SwapOfferOverlay';
 import { colors } from '../../src/theme';
 
 /* ── Android Tab Item ── */
@@ -80,6 +82,7 @@ const ANDROID_TAB_META: Record<string, { label: string; icon: keyof typeof Ionic
   role: { label: 'Ruolo', icon: 'calendar-outline', iconFocused: 'calendar' },
   notes: { label: 'Note', icon: 'document-text-outline', iconFocused: 'document-text' },
   payments: { label: 'Pagamenti', icon: 'card-outline', iconFocused: 'card' },
+  swaps: { label: 'Scambi', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
   more: { label: 'Altro', icon: 'ellipsis-horizontal-circle-outline', iconFocused: 'ellipsis-horizontal-circle' },
   settings: { label: 'Impostazioni', icon: 'settings-outline', iconFocused: 'settings' },
 };
@@ -141,8 +144,10 @@ const AndroidTabBar = ({
 export default function TabsLayout() {
   const { autoscuolaRole } = useSession();
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
+  const { enabled: swapEnabled } = useSwapEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
+  const showSwapsTab = !showRoleTab && swapEnabled;
   const showNotesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
   const isOwner = autoscuolaRole === 'OWNER';
@@ -163,22 +168,27 @@ export default function TabsLayout() {
   // Android: custom tab bar
   if (Platform.OS !== 'ios') {
     return (
-      <Tabs
-        tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
-        screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
-      >
-        <Tabs.Screen name="home" options={{ title: 'Home' }} />
-        <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
-        <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
-        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
-        <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
-        <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
-      </Tabs>
+      <>
+        <Tabs
+          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
+          screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+        >
+          <Tabs.Screen name="home" options={{ title: 'Home' }} />
+          <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
+          <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
+          <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
+          <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
+          <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
+          <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
+        </Tabs>
+        <SwapOfferOverlay enabled={showSwapsTab} />
+      </>
     );
   }
 
   // iOS: NativeTabs with liquid glass
   return (
+    <>
     <NativeTabs
       iconColor={{ default: defaultLabelColor, selected: selectedLabelColor }}
       labelStyle={{
@@ -216,6 +226,12 @@ export default function TabsLayout() {
           <Label>Altro</Label>
         </NativeTabs.Trigger>
       ) : null}
+      {showSwapsTab ? (
+        <NativeTabs.Trigger name="swaps">
+          <Icon sf={{ default: 'arrow.left.arrow.right', selected: 'arrow.left.arrow.right' }} drawable="ic_menu_view" />
+          <Label>Scambi</Label>
+        </NativeTabs.Trigger>
+      ) : null}
       {showPaymentsTab ? (
         <NativeTabs.Trigger name="payments">
           <Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} drawable="ic_menu_view" />
@@ -229,6 +245,8 @@ export default function TabsLayout() {
         </NativeTabs.Trigger>
       ) : null}
     </NativeTabs>
+    <SwapOfferOverlay enabled={showSwapsTab} />
+    </>
   );
 }
 

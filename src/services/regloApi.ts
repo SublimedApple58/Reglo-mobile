@@ -34,6 +34,9 @@ import {
   UpdateProfileInput,
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
+  AutoscuolaSwapOfferWithDetails,
+  RespondSwapOfferInput,
+  RespondSwapOfferResult,
   RegisterPushTokenInput,
   RepositionAppointmentResult,
   MobileStudentPaymentProfile,
@@ -355,6 +358,36 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaWaitlistOfferWithSlot[]>('/api/autoscuole/waitlist/offers', {
         params: { studentId, limit },
       }),
+    createSwapOffer: async (appointmentId: string) =>
+      client.request<{ id: string }>('/api/autoscuole/swap/create', {
+        method: 'POST',
+        body: { appointmentId },
+      }),
+    getSwapOffers: async (studentId: string, limit?: number) =>
+      client.request<AutoscuolaSwapOfferWithDetails[]>('/api/autoscuole/swap/offers', {
+        params: { studentId, limit },
+      }),
+    getMyAcceptedSwaps: async (studentId: string) =>
+      client.request<Array<{
+        id: string;
+        acceptedByName: string;
+        appointmentDate: string;
+        appointmentTime: string;
+        instructorName: string;
+        vehicleName: string;
+        appointmentType: string;
+        acceptedAt: string;
+      }>>('/api/autoscuole/swap/my-accepted', {
+        params: { studentId },
+      }),
+    respondSwapOffer: async (offerId: string, input: RespondSwapOfferInput) =>
+      client.request<RespondSwapOfferResult>(
+        `/api/autoscuole/swap/offers/${offerId}/respond`,
+        {
+          method: 'POST',
+          body: input,
+        },
+      ),
     registerPushToken: async (input: RegisterPushTokenInput) =>
       client.request<{ id: string }>('/api/mobile/push/register', {
         method: 'POST',

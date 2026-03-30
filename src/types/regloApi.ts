@@ -247,6 +247,33 @@ export type AutoscuolaWaitlistResponse = {
   updatedAt: IsoDate;
 };
 
+export type AutoscuolaSwapOfferWithDetails = {
+  id: Uuid;
+  companyId: Uuid;
+  appointmentId: Uuid;
+  requestingStudentId: Uuid;
+  requestingStudentName: string;
+  status: string;
+  sentAt: IsoDate;
+  expiresAt: IsoDate;
+  appointment: {
+    startsAt: IsoDate;
+    endsAt: IsoDate | null;
+    type: string;
+    instructorName: string | null;
+    vehicleName: string | null;
+  };
+};
+
+export type RespondSwapOfferInput = {
+  studentId: Uuid;
+  response: "accept" | "decline";
+};
+
+export type RespondSwapOfferResult =
+  | { accepted: true; appointment: AutoscuolaAppointment }
+  | { accepted: false };
+
 export type CreateStudentInput = {
   firstName: string;
   lastName: string;
@@ -453,6 +480,7 @@ export type AutoscuolaSettings = {
   bookingSlotDurations?: number[];
   appBookingActors?: 'students' | 'instructors' | 'both';
   instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
+  swapEnabled?: boolean;
 };
 
 export type MobileBookingOptions = {
