@@ -66,6 +66,7 @@ export const SwapOfferOverlay = ({ enabled }: Props) => {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const ignoredIds = useRef(new Set<string>());
   const ignoredLoaded = useRef(false);
+  const seenLoaded = useRef(false);
 
   // Load ignored IDs from storage on mount
   useEffect(() => {
@@ -111,6 +112,10 @@ export const SwapOfferOverlay = ({ enabled }: Props) => {
       const unseen = accepted.find((a) => !seenAcceptedIds.current.has(a.id));
       if (unseen) {
         seenAcceptedIds.current.add(unseen.id);
+        SecureStore.setItemAsync(
+          'reglo_seen_accepted_swap_ids',
+          JSON.stringify([...seenAcceptedIds.current]),
+        ).catch(() => {});
         setConfirmationData({
           acceptedByName: unseen.acceptedByName,
           appointmentDate: unseen.appointmentDate,
@@ -135,14 +140,15 @@ export const SwapOfferOverlay = ({ enabled }: Props) => {
           for (const id of ids) seenAcceptedIds.current.add(id);
         } catch {}
       }
-    }).catch(() => {});
+      seenLoaded.current = true;
+    }).catch(() => { seenLoaded.current = true; });
   }, []);
 
   // Initial load + poll every 15s (wait for ignored IDs to load first)
   useEffect(() => {
     if (!studentId || !enabled) return;
     const start = () => {
-      if (!ignoredLoaded.current) {
+      if (!ignoredLoaded.current || !seenLoaded.current) {
         setTimeout(start, 200);
         return;
       }

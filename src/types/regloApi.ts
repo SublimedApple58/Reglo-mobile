@@ -388,6 +388,7 @@ export type CreateBookingRequestInput = {
   selectedStartsAt?: IsoDate;
   excludeStartsAt?: IsoDate;
   requestId?: Uuid;
+  instructorId?: Uuid;
 };
 
 export type RespondWaitlistOfferInput = {
@@ -490,6 +491,7 @@ export type MobileBookingOptions = {
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
   studentBookingMode?: 'engine' | 'free_choice';
+  instructorPreferenceEnabled?: boolean;
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };

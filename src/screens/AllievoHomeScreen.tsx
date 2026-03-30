@@ -42,6 +42,7 @@ import {
   StudentAppointmentPaymentHistoryItem,
   AutoscuolaWaitlistOfferWithSlot,
   AutoscuolaSwapOfferWithDetails,
+  AutoscuolaInstructor,
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
@@ -179,6 +180,8 @@ export const AllievoHomeScreen = () => {
     DEFAULT_BOOKING_LESSON_TYPES[0],
   );
   const [bookingOptions, setBookingOptions] = useState<MobileBookingOptions | null>(null);
+  const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
+  const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{ startsAt: string; endsAt: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [proposalLoading, setProposalLoading] = useState(false);
@@ -304,6 +307,7 @@ export const AllievoHomeScreen = () => {
       Boolean(settings?.lessonPolicyEnabled),
     [bookingOptions?.lessonTypeSelectionEnabled, settings?.lessonPolicyEnabled],
   );
+  const canSelectInstructor = bookingOptions?.instructorPreferenceEnabled ?? false;
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
@@ -392,6 +396,12 @@ export const AllievoHomeScreen = () => {
             : [],
         };
         setBookingOptions(resolvedBookingOptions);
+        if (resolvedBookingOptions.instructorPreferenceEnabled) {
+          regloApi.getInstructors().then((list) => {
+            const active = list.filter((i) => i.status !== 'inactive');
+            setInstructors(active);
+          }).catch(() => {});
+        }
         const sortedDurations = (resolvedBookingOptions.bookingSlotDurations ?? [30, 60])
           .slice()
           .sort((a, b) => a - b);
@@ -793,6 +803,7 @@ export const AllievoHomeScreen = () => {
           date: toDateString(preferredDate),
           durationMinutes,
           ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         });
         if (!slots.length) {
           setToast({ text: 'Nessuna disponibilità per il giorno scelto', tone: 'info' });
@@ -810,6 +821,7 @@ export const AllievoHomeScreen = () => {
         preferredDate: toDateString(preferredDate),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         maxDays: 4,
         requestId: bookingRequestId ?? undefined,
       });
@@ -855,6 +867,7 @@ export const AllievoHomeScreen = () => {
         preferredDate: toDateString(preferredDate),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         selectedStartsAt: suggestion.startsAt,
         requestId: bookingRequestId ?? undefined,
       });
@@ -896,6 +909,7 @@ export const AllievoHomeScreen = () => {
         preferredDate: toDateString(preferredDate),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         selectedStartsAt: freeChoiceSelected.startsAt,
       });
       if (response.matched) {
@@ -915,6 +929,7 @@ export const AllievoHomeScreen = () => {
           date: toDateString(preferredDate),
           durationMinutes,
           ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         });
         setFreeChoiceSlots(refreshed);
         setFreeChoiceSelected(null);
@@ -983,6 +998,7 @@ export const AllievoHomeScreen = () => {
         preferredDate: toDateString(preferredDate),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         maxDays: 4,
         excludeStartsAt: suggestion.startsAt,
         requestId: bookingRequestId ?? undefined,
@@ -2063,6 +2079,40 @@ export const AllievoHomeScreen = () => {
             </View>
           </View>
         ) : null}
+
+        {/* ISTRUTTORE */}
+        {canSelectInstructor && instructors.length > 0 ? (
+          <View style={styles.bookingSection}>
+            <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
+            <View style={styles.bookingChipRow}>
+              <Pressable
+                style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
+                onPress={() => setSelectedInstructorId(null)}
+              >
+                <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                  Tutti
+                </Text>
+              </Pressable>
+              {instructors.map((instructor) => {
+                const isActive = selectedInstructorId === instructor.id;
+                return (
+                  <Pressable
+                    key={`instr-${instructor.id}`}
+                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
+                    onPress={() => setSelectedInstructorId(instructor.id)}
+                  >
+                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                      {instructor.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.bookingInstructorCaption}>
+              Se non scegli, vedrai proposte con tutti gli istruttori.
+            </Text>
+          </View>
+        ) : null}
       </BottomSheet>
       {/* ── Booking Suggestion BottomSheet ── */}
       <BottomSheet
@@ -2115,7 +2165,7 @@ export const AllievoHomeScreen = () => {
               {formatDay(suggestion.startsAt)} {'\u2022'} {formatTime(suggestion.startsAt)}
             </Text>
             <Text style={styles.chunkyYellowSub}>
-              {durationMinutes} min {'\u2022'} Istruttore da assegnare
+              {durationMinutes} min {'\u2022'} {selectedInstructorId ? instructors.find((i) => i.id === selectedInstructorId)?.name ?? 'Istruttore da assegnare' : 'Istruttore da assegnare'}
             </Text>
           </View>
         ) : null}
@@ -3200,6 +3250,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#92400E',
+  },
+  bookingInstructorCaption: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    lineHeight: 16,
   },
   timelineSubtitle: {
     fontSize: 14,

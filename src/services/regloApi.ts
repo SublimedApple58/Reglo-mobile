@@ -323,6 +323,7 @@ export const createRegloApi = (baseUrl?: string) => {
       date: string;
       durationMinutes: number;
       lessonType?: string;
+      instructorId?: string;
     }) =>
       client.request<AvailableSlot[]>('/api/autoscuole/available-slots', {
         params,
