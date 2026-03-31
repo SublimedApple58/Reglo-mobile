@@ -177,6 +177,17 @@ export const unregisterPushToken = async () => {
   }
 };
 
+/**
+ * Peek at the pending push intent without consuming it.
+ * Used by _layout.tsx for routing only — the overlay consumes it later.
+ */
+export const peekLaunchPushIntent = async (): Promise<string | null> => {
+  const stored = await SecureStore.getItemAsync(PUSH_INTENT_KEY);
+  if (stored) return stored;
+  const response = await Notifications.getLastNotificationResponseAsync();
+  return extractIntent(response?.notification.request.content.data);
+};
+
 export const consumePendingPushIntent = async (): Promise<{ intent: string; data?: Record<string, unknown> } | null> => {
   const intent = await SecureStore.getItemAsync(PUSH_INTENT_KEY);
   if (!intent) return null;

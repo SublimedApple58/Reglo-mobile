@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
-import { consumePendingOrLaunchPushIntent } from '../src/services/pushNotifications';
+import { peekLaunchPushIntent } from '../src/services/pushNotifications';
 import { colors } from '../src/theme';
 
 const AuthGate = () => {
@@ -58,10 +58,10 @@ const AuthGate = () => {
   useEffect(() => {
     if (status !== 'ready' || !autoscuolaRole) return;
     const [root, leaf] = segments as unknown as string[];
-    consumePendingOrLaunchPushIntent()
-      .then((result) => {
-        if (!result) return;
-        if (result.intent !== 'slot_fill_offer' && result.intent !== 'available_slots') return;
+    peekLaunchPushIntent()
+      .then((intent) => {
+        if (!intent) return;
+        if (intent !== 'slot_fill_offer' && intent !== 'available_slots') return;
         if (root !== '(tabs)' || leaf !== 'home') {
           router.replace('/(tabs)/home');
         }
