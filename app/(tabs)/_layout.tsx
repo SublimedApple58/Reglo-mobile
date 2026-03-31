@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
 import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
-import { SwapOfferOverlay } from '../../src/components/SwapOfferOverlay';
+import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
 
 /* ── Android Tab Item ── */
@@ -147,7 +147,8 @@ export default function TabsLayout() {
   const { enabled: swapEnabled } = useSwapEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
-  const showSwapsTab = !showRoleTab && swapEnabled;
+  const isStudent = !showRoleTab;
+  const showSwapsTab = isStudent && swapEnabled;
   const showNotesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
   const isOwner = autoscuolaRole === 'OWNER';
@@ -181,7 +182,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
           <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
         </Tabs>
-        <SwapOfferOverlay enabled={showSwapsTab} />
+        <NotificationOverlay isStudent={isStudent} swapEnabled={swapEnabled} />
       </>
     );
   }
@@ -245,7 +246,7 @@ export default function TabsLayout() {
         </NativeTabs.Trigger>
       ) : null}
     </NativeTabs>
-    <SwapOfferOverlay enabled={showSwapsTab} />
+    <NotificationOverlay isStudent={isStudent} swapEnabled={swapEnabled} />
     </>
   );
 }

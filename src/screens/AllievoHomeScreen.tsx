@@ -31,6 +31,7 @@ import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
+import { notificationEvents } from '../services/notificationEvents';
 import {
   AutoscuolaAppointmentWithRelations,
   MobileAppointmentPaymentDocument,
@@ -40,8 +41,6 @@ import {
   AutoscuolaStudent,
   AutoscuolaSettings,
   StudentAppointmentPaymentHistoryItem,
-  AutoscuolaWaitlistOfferWithSlot,
-  AutoscuolaSwapOfferWithDetails,
   AutoscuolaInstructor,
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
@@ -56,7 +55,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
-const proposalStatuses = new Set(['proposal']);
 const DEFAULT_BOOKING_LESSON_TYPES = [
   'manovre',
   'urbano',
@@ -198,17 +196,7 @@ export const AllievoHomeScreen = () => {
   const [payNowLoading, setPayNowLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pendingSuggestionOpen, setPendingSuggestionOpen] = useState(false);
-  const [waitlistOffer, setWaitlistOffer] = useState<AutoscuolaWaitlistOfferWithSlot | null>(null);
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [creatingSwap, setCreatingSwap] = useState(false);
-  const [swapOffer, setSwapOffer] = useState<AutoscuolaSwapOfferWithDetails | null>(null);
-  const [swapOpen, setSwapOpen] = useState(false);
-  const [swapLoading, setSwapLoading] = useState(false);
-  const [swapCelebrationVisible, setSwapCelebrationVisible] = useState(false);
-  const [ignoredSwapIds] = useState(() => new Set<string>());
-  const [proposalAppointmentOpen, setProposalAppointmentOpen] = useState(false);
-  const [proposalAppointmentLoading, setProposalAppointmentLoading] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
@@ -279,6 +267,7 @@ export const AllievoHomeScreen = () => {
       });
       return;
     }
+    setPreferredDate(selectedDate);
     setPrefsOpen(true);
   };
 
@@ -439,30 +428,6 @@ export const AllievoHomeScreen = () => {
     [calendarRange]
   );
 
-  const loadWaitlistOffers = useCallback(async (studentId: string) => {
-    try {
-      const offers = await regloApi.getWaitlistOffers(studentId, 1);
-      setWaitlistOffer(offers[0] ?? null);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore caricando le proposte disponibili',
-        tone: 'danger',
-      });
-    }
-  }, []);
-
-  const loadSwapOffers = useCallback(async (studentId: string) => {
-    try {
-      const offers = await regloApi.getSwapOffers(studentId, 1);
-      setSwapOffer(offers[0] ?? null);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore caricando le proposte di scambio',
-        tone: 'danger',
-      });
-    }
-  }, []);
-
   useEffect(() => {
     const init = async () => {
       try {
@@ -478,83 +443,42 @@ export const AllievoHomeScreen = () => {
   }, [loadStudents]);
 
   useEffect(() => {
-    if (!selectedStudentId) {
-      setWaitlistOffer(null);
-      setWaitlistOpen(false);
-      setSwapOffer(null);
-      setSwapOpen(false);
-      return;
-    }
+    if (!selectedStudentId) return;
     loadData(selectedStudentId);
-    loadWaitlistOffers(selectedStudentId);
-    loadSwapOffers(selectedStudentId);
-  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
+  }, [loadData, selectedStudentId]);
 
-  useEffect(() => {
-    if (!waitlistOffer) {
-      setWaitlistOpen(false);
-      return;
-    }
-    if (!prefsOpen && !sheetOpen && !swapOpen) {
-      setWaitlistOpen(true);
-    }
-  }, [prefsOpen, sheetOpen, swapOpen, waitlistOffer]);
-
-  useEffect(() => {
-    if (!swapOffer || ignoredSwapIds.has(swapOffer.id)) {
-      setSwapOpen(false);
-      return;
-    }
-    if (!prefsOpen && !sheetOpen && !waitlistOpen) {
-      setSwapOpen(true);
-    }
-  }, [prefsOpen, sheetOpen, waitlistOpen, swapOffer, ignoredSwapIds]);
-
+  // Push intents kept in screen: appointment_cancelled (toast only)
   useEffect(() => {
     if (!selectedStudentId) return;
     const unsubscribe = subscribePushIntent((intent) => {
-      if (intent === 'slot_fill_offer') {
-        loadWaitlistOffers(selectedStudentId);
-        return;
-      }
-      if (intent === 'swap_offer') {
-        loadSwapOffers(selectedStudentId);
-        return;
-      }
-      if (intent === 'swap_accepted') {
-        loadData(selectedStudentId);
-        return;
-      }
       if (intent === 'appointment_cancelled') {
         loadData(selectedStudentId);
         setToast({
           text: "Una guida e' stata annullata dall'autoscuola.",
           tone: 'info',
         });
-        return;
-      }
-      if (intent === 'appointment_proposal') {
-        setProposalAppointmentOpen(true);
-        loadData(selectedStudentId);
       }
     });
     return unsubscribe;
-  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
+  }, [loadData, selectedStudentId]);
 
+  // AppState: reload screen data on foreground
   useEffect(() => {
     if (!selectedStudentId) return;
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active') return;
       loadData(selectedStudentId);
-      loadWaitlistOffers(selectedStudentId);
-      loadSwapOffers(selectedStudentId);
     });
-    return () => {
-      subscription.remove();
-    };
-  }, [loadData, loadWaitlistOffers, loadSwapOffers, selectedStudentId]);
+    return () => subscription.remove();
+  }, [loadData, selectedStudentId]);
 
-  // Swap polling + drawer handled by global SwapOfferOverlay in _layout.tsx
+  // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    return notificationEvents.onDataChanged(() => {
+      loadData(selectedStudentId);
+    });
+  }, [loadData, selectedStudentId]);
 
   const upcoming = useMemo(() => {
     const now = new Date();
@@ -728,26 +652,6 @@ export const AllievoHomeScreen = () => {
       scrollToDay(true);
     }
   }, [scrollToDay]);
-
-  const pendingProposal = useMemo(() => {
-    const now = new Date();
-    return [...appointments]
-      .filter((item) => {
-        const status = (item.status ?? '').trim().toLowerCase();
-        return proposalStatuses.has(status) && new Date(item.startsAt) >= now;
-      })
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ?? null;
-  }, [appointments]);
-
-  useEffect(() => {
-    if (!pendingProposal) {
-      setProposalAppointmentOpen(false);
-      return;
-    }
-    if (!prefsOpen && !sheetOpen && !waitlistOpen) {
-      setProposalAppointmentOpen(true);
-    }
-  }, [pendingProposal, prefsOpen, sheetOpen, waitlistOpen]);
 
   const handleBookingRequest = async () => {
     if (!selectedStudentId) return;
@@ -946,45 +850,6 @@ export const AllievoHomeScreen = () => {
     }
   };
 
-  const handleAcceptAppointmentProposal = async () => {
-    if (!pendingProposal || !selectedStudentId) return;
-    setProposalAppointmentLoading(true);
-    setToast(null);
-    try {
-      await regloApi.updateAppointmentStatus(pendingProposal.id, { status: 'scheduled' });
-      setToast({ text: 'Proposta accettata', tone: 'success' });
-      triggerBookingCelebration();
-      setProposalAppointmentOpen(false);
-      await loadData(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante accettazione proposta',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalAppointmentLoading(false);
-    }
-  };
-
-  const handleDeclineAppointmentProposal = async () => {
-    if (!pendingProposal || !selectedStudentId || proposalAppointmentLoading) return;
-    setProposalAppointmentLoading(true);
-    setToast(null);
-    try {
-      await regloApi.cancelAppointment(pendingProposal.id);
-      setToast({ text: 'Proposta rifiutata', tone: 'info' });
-      setProposalAppointmentOpen(false);
-      await loadData(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante rifiuto proposta',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalAppointmentLoading(false);
-    }
-  };
-
   const handleClosePreferences = () => {
     setPrefsOpen(false);
   };
@@ -1022,56 +887,6 @@ export const AllievoHomeScreen = () => {
     }
   };
 
-  const handleAcceptWaitlistOffer = async () => {
-    if (!selectedStudentId || !waitlistOffer) return;
-    setWaitlistLoading(true);
-    setToast(null);
-    try {
-      const response = await regloApi.respondWaitlistOffer(waitlistOffer.id, {
-        studentId: selectedStudentId,
-        response: 'accept',
-      });
-      if (response.accepted) {
-        setToast({ text: 'Slot accettato e guida prenotata', tone: 'success' });
-        triggerBookingCelebration();
-        setWaitlistOpen(false);
-        await loadData(selectedStudentId);
-      } else {
-        setToast({ text: 'Slot non più disponibile', tone: 'info' });
-      }
-      await loadWaitlistOffers(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante accettazione slot',
-        tone: 'danger',
-      });
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-
-  const handleDeclineWaitlistOffer = async () => {
-    if (!selectedStudentId || !waitlistOffer || waitlistLoading) return;
-    setWaitlistLoading(true);
-    setToast(null);
-    try {
-      await regloApi.respondWaitlistOffer(waitlistOffer.id, {
-        studentId: selectedStudentId,
-        response: 'decline',
-      });
-      setToast({ text: 'Proposta rifiutata', tone: 'info' });
-      setWaitlistOpen(false);
-      await loadWaitlistOffers(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante rifiuto slot',
-        tone: 'danger',
-      });
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-
   const handleCreateSwap = async (appointmentId: string) => {
     if (creatingSwap) return;
     setCreatingSwap(true);
@@ -1089,35 +904,6 @@ export const AllievoHomeScreen = () => {
     }
   };
 
-  const handleAcceptSwapOffer = async () => {
-    if (!selectedStudentId || !swapOffer) return;
-    setSwapLoading(true);
-    setToast(null);
-    try {
-      const response = await regloApi.respondSwapOffer(swapOffer.id, {
-        studentId: selectedStudentId,
-        response: 'accept',
-      });
-      if (response.accepted) {
-        setToast({ text: 'Scambio confermato!', tone: 'success' });
-        setSwapCelebrationVisible(false);
-        setTimeout(() => setSwapCelebrationVisible(true), 0);
-        setSwapOpen(false);
-        await loadData(selectedStudentId);
-      } else {
-        setToast({ text: 'Offerta non più disponibile', tone: 'info' });
-      }
-      await loadSwapOffers(selectedStudentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante accettazione scambio',
-        tone: 'danger',
-      });
-    } finally {
-      setSwapLoading(false);
-    }
-  };
-
   const executeCancel = async (appointmentId: string) => {
     setToast(null);
     setCancellingAppointmentId(appointmentId);
@@ -1125,7 +911,8 @@ export const AllievoHomeScreen = () => {
       await regloApi.cancelAppointment(appointmentId);
       setToast({ text: 'Guida annullata', tone: 'success' });
       if (selectedStudentId) {
-        await Promise.all([loadData(selectedStudentId), loadWaitlistOffers(selectedStudentId), loadSwapOffers(selectedStudentId)]);
+        await loadData(selectedStudentId);
+        notificationEvents.requestRefresh();
       }
     } catch (err) {
       setToast({
@@ -1356,8 +1143,9 @@ export const AllievoHomeScreen = () => {
       const list = await loadStudents();
       const linkedStudent = findLinkedStudent(list, user);
       if (linkedStudent?.id) {
-        await Promise.all([loadData(linkedStudent.id), loadWaitlistOffers(linkedStudent.id)]);
+        await loadData(linkedStudent.id);
       }
+      notificationEvents.requestRefresh();
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel refresh',
@@ -1366,7 +1154,7 @@ export const AllievoHomeScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [loadData, loadStudents, loadWaitlistOffers, user]);
+  }, [loadData, loadStudents, user]);
 
   const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
 
@@ -1388,11 +1176,6 @@ export const AllievoHomeScreen = () => {
       <BookingCelebration
         visible={bookingCelebrationVisible}
         onHidden={() => setBookingCelebrationVisible(false)}
-      />
-      <BookingCelebration
-        visible={swapCelebrationVisible}
-        variant="swap"
-        onHidden={() => setSwapCelebrationVisible(false)}
       />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -1860,114 +1643,6 @@ export const AllievoHomeScreen = () => {
           </>
         ) : null}
       </BottomSheet>
-      {/* ── Proposal BottomSheet ── */}
-      <BottomSheet
-        visible={proposalAppointmentOpen && !!pendingProposal}
-        onClose={() => { if (!proposalAppointmentLoading) setProposalAppointmentOpen(false); }}
-        title="Nuova proposta"
-        closeDisabled={proposalAppointmentLoading}
-        showHandle
-        footer={
-          pendingProposal ? (
-            <View style={{ gap: 12 }}>
-              <Pressable
-                onPress={proposalAppointmentLoading ? undefined : handleAcceptAppointmentProposal}
-                disabled={proposalAppointmentLoading}
-                style={[styles.chunkyPinkCta, proposalAppointmentLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyPinkCtaText}>
-                  {proposalAppointmentLoading ? 'Attendi...' : 'Accetta guida'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={proposalAppointmentLoading ? undefined : handleDeclineAppointmentProposal}
-                disabled={proposalAppointmentLoading}
-                style={[styles.chunkyOutlineBtn, proposalAppointmentLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyOutlineBtnText}>
-                  {proposalAppointmentLoading ? 'Attendi...' : 'Chiedi cambio orario'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  if (!proposalAppointmentLoading) {
-                    handleDeclineAppointmentProposal();
-                  }
-                }}
-                disabled={proposalAppointmentLoading}
-                style={styles.chunkyRedLink}
-              >
-                <Text style={styles.chunkyRedLinkText}>Rifiuta proposta</Text>
-              </Pressable>
-            </View>
-          ) : undefined
-        }
-      >
-        {pendingProposal ? (
-          <View style={styles.chunkyYellowCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={styles.chunkyYellowDot} />
-              <Text style={styles.chunkyYellowLabel}>HAI UNA PROPOSTA!</Text>
-            </View>
-            <Text style={styles.chunkyYellowTitle}>
-              {formatDay(pendingProposal.startsAt)} {'\u2022'} {formatTime(pendingProposal.startsAt)}
-            </Text>
-            <Text style={styles.chunkyYellowSub}>
-              {Math.max(
-                30,
-                Math.round(
-                  ((pendingProposal.endsAt
-                    ? new Date(pendingProposal.endsAt).getTime()
-                    : new Date(pendingProposal.startsAt).getTime() + 30 * 60 * 1000) -
-                    new Date(pendingProposal.startsAt).getTime()) /
-                    60000
-                )
-              )}{' '}
-              min {'\u2022'} {pendingProposal.instructor?.name ?? 'Istruttore da assegnare'}
-            </Text>
-          </View>
-        ) : null}
-      </BottomSheet>
-      <BottomSheet
-        visible={waitlistOpen && !!waitlistOffer}
-        title="Slot liberato"
-        onClose={waitlistLoading ? () => {} : handleDeclineWaitlistOffer}
-        closeDisabled={waitlistLoading}
-        footer={
-          <View style={styles.sheetActionsDock}>
-            <View style={styles.fullWidthButtonWrap}>
-              <Button
-                label={waitlistLoading ? 'Attendi...' : 'Accetta'}
-                tone="primary"
-                onPress={waitlistLoading ? undefined : handleAcceptWaitlistOffer}
-                disabled={waitlistLoading}
-                fullWidth
-              />
-            </View>
-            <View style={styles.fullWidthButtonWrap}>
-              <Button
-                label={waitlistLoading ? 'Attendi...' : 'Rifiuta'}
-                tone="danger"
-                onPress={waitlistLoading ? undefined : handleDeclineWaitlistOffer}
-                disabled={waitlistLoading}
-                fullWidth
-              />
-            </View>
-          </View>
-        }
-      >
-        {waitlistOffer ? (
-          <View style={styles.sheetContent}>
-            <Text style={styles.sheetText}>
-              {formatDay(waitlistOffer.slot.startsAt)} · {formatTime(waitlistOffer.slot.startsAt)}
-            </Text>
-            <Text style={styles.sheetMeta}>Durata: 30 min</Text>
-            <Text style={styles.sheetMeta}>
-              Conferma entro: {formatTime(waitlistOffer.expiresAt)}
-            </Text>
-          </View>
-        ) : null}
-      </BottomSheet>
       {/* ── Booking Preferences BottomSheet ── */}
       <BottomSheet
         visible={prefsOpen}
@@ -2271,6 +1946,7 @@ const styles = StyleSheet.create({
   /* ── Header ── */
   header: {
     gap: 4,
+    paddingRight: 56,
   },
   title: {
     ...typography.title,

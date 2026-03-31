@@ -1,0 +1,30 @@
+import {
+  AutoscuolaSwapOfferWithDetails,
+  AutoscuolaWaitlistOfferWithSlot,
+  AutoscuolaAppointmentWithRelations,
+} from './regloApi';
+
+export type ConfirmationData = {
+  id: string;
+  acceptedByName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  instructorName: string;
+  vehicleName: string;
+  appointmentType: string;
+};
+
+export type NotificationItem =
+  | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
+  | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
+  | { kind: 'confirmation'; id: string; data: ConfirmationData }
+  | { kind: 'proposal'; id: string; data: AutoscuolaAppointmentWithRelations };
+
+export type PersistedNotification = {
+  kind: NotificationItem['kind'];
+  id: string;
+  data: any;
+  receivedAt: string;
+  read: boolean;
+  dismissed: boolean;
+};
