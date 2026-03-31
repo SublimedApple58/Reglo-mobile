@@ -72,11 +72,12 @@ type CardProps = {
 const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: () => void }) => {
   const animStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, -drag.value / 80),
+    transform: [{ scale: Math.min(1, Math.max(0.8, -drag.value / 100)) }],
   }));
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} style={styles.swipeActionPressable}>
       <Reanimated.View style={[styles.swipeAction, animStyle]}>
-        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
         <Text style={styles.swipeActionText}>Elimina</Text>
       </Reanimated.View>
     </Pressable>
@@ -343,18 +344,27 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EC4899',
   },
+  swipeActionPressable: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 76,
+    marginLeft: 8,
+  },
   swipeAction: {
+    flex: 1,
     backgroundColor: '#EF4444',
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 80,
-    gap: 4,
+    width: '100%',
+    gap: 3,
   },
   swipeActionText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   emptyContainer: {
     alignItems: 'center',
