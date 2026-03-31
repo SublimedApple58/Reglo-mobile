@@ -10,7 +10,7 @@ import { BookingCelebration } from './BookingCelebration';
 import { ToastNotice, ToastTone } from './ToastNotice';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
-import { subscribePushIntent } from '../services/pushNotifications';
+import { subscribePushIntent, consumePendingOrLaunchPushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
 import {
   loadInbox,
@@ -516,6 +516,42 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
     });
     return unsub;
   }, [loadSwapOffers, loadWaitlistOffers, loadProposals, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
+
+  // ── Cold start: consume pending push intent ──
+  useEffect(() => {
+    if (!studentId || !isStudent) return;
+    consumePendingOrLaunchPushIntent().then((result) => {
+      if (!result) return;
+      const { intent, data } = result;
+      if (intent === 'available_slots') {
+        const date = String(data?.date ?? '');
+        if (date) {
+          const notifId = `available_slots_${date}_${Date.now()}`;
+          const persisted: PersistedNotification = {
+            kind: 'available_slots',
+            id: notifId,
+            data: { date },
+            receivedAt: new Date().toISOString(),
+            read: false,
+            dismissed: false,
+          };
+          const merged = mergeFromApi(inboxRef.current, [persisted]);
+          inboxRef.current = merged;
+          setInboxItems(merged);
+          saveInbox(merged);
+          notificationEvents.emitInboxUpdated();
+          handleAvailableSlotsNotification(date);
+        }
+      } else if (intent === 'slot_fill_offer') {
+        loadWaitlistOffers(studentId);
+      } else if (intent === 'appointment_proposal') {
+        loadProposals(studentId);
+        notificationEvents.emitDataChanged();
+      } else if (intent === 'swap_offer' && swapEnabled) {
+        loadSwapOffers(studentId);
+      }
+    }).catch(() => undefined);
+  }, [studentId, isStudent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── AppState: reload on foreground ──
   useEffect(() => {

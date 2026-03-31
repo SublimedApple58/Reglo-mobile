@@ -8,6 +8,7 @@ import { regloApi } from './regloApi';
 
 const PUSH_TOKEN_KEY = 'reglo_push_token';
 const PUSH_INTENT_KEY = 'reglo_push_intent';
+const PUSH_INTENT_DATA_KEY = 'reglo_push_intent_data';
 
 let listenersBound = false;
 let androidChannelReady = false;
@@ -38,8 +39,11 @@ const requestPushPermission = async () => {
   return next.granted || next.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
 };
 
-const savePushIntent = async (value: string) => {
+const savePushIntent = async (value: string, data?: Record<string, unknown>) => {
   await SecureStore.setItemAsync(PUSH_INTENT_KEY, value);
+  if (data) {
+    await SecureStore.setItemAsync(PUSH_INTENT_DATA_KEY, JSON.stringify(data));
+  }
 };
 
 const extractIntent = (data: unknown): string | null => {
@@ -82,7 +86,7 @@ const ensureListeners = () => {
     const data = response.notification.request.content.data as Record<string, unknown> | undefined;
     const intent = extractIntent(data);
     if (intent) {
-      savePushIntent(intent).catch(() => undefined);
+      savePushIntent(intent, data ?? undefined).catch(() => undefined);
     }
     emitIntent(intent, data ?? undefined);
   });
@@ -173,23 +177,30 @@ export const unregisterPushToken = async () => {
   }
 };
 
-export const consumePendingPushIntent = async () => {
+export const consumePendingPushIntent = async (): Promise<{ intent: string; data?: Record<string, unknown> } | null> => {
   const intent = await SecureStore.getItemAsync(PUSH_INTENT_KEY);
-  if (intent) {
-    await SecureStore.deleteItemAsync(PUSH_INTENT_KEY);
-  }
-  return intent;
+  if (!intent) return null;
+  let data: Record<string, unknown> | undefined;
+  try {
+    const raw = await SecureStore.getItemAsync(PUSH_INTENT_DATA_KEY);
+    if (raw) data = JSON.parse(raw) as Record<string, unknown>;
+  } catch {}
+  await SecureStore.deleteItemAsync(PUSH_INTENT_KEY);
+  await SecureStore.deleteItemAsync(PUSH_INTENT_DATA_KEY).catch(() => undefined);
+  return { intent, data };
 };
 
-export const consumePendingOrLaunchPushIntent = async () => {
+export const consumePendingOrLaunchPushIntent = async (): Promise<{ intent: string; data?: Record<string, unknown> } | null> => {
   const pending = await consumePendingPushIntent();
   if (pending) return pending;
   const response = await Notifications.getLastNotificationResponseAsync();
-  const intent = extractIntent(response?.notification.request.content.data);
+  const data = response?.notification.request.content.data as Record<string, unknown> | undefined;
+  const intent = extractIntent(data);
   if (intent) {
     await Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
+    return { intent, data };
   }
-  return intent;
+  return null;
 };
 
 export const subscribePushIntent = (listener: (intent: string, data?: Record<string, unknown>) => void) => {

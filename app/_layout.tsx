@@ -59,8 +59,9 @@ const AuthGate = () => {
     if (status !== 'ready' || !autoscuolaRole) return;
     const [root, leaf] = segments as unknown as string[];
     consumePendingOrLaunchPushIntent()
-      .then((intent) => {
-        if (intent !== 'slot_fill_offer') return;
+      .then((result) => {
+        if (!result) return;
+        if (result.intent !== 'slot_fill_offer' && result.intent !== 'available_slots') return;
         if (root !== '(tabs)' || leaf !== 'home') {
           router.replace('/(tabs)/home');
         }
