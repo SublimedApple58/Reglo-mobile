@@ -68,27 +68,34 @@ type CardProps = {
   onDismiss: () => void;
 };
 
-const RightAction = ({ drag }: { drag: SharedValue<number> }) => {
+const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: () => void }) => {
   const animStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, -drag.value / 80),
   }));
   return (
-    <Reanimated.View style={[styles.swipeAction, animStyle]}>
-      <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-      <Text style={styles.swipeActionText}>Elimina</Text>
-    </Reanimated.View>
+    <Pressable onPress={onPress}>
+      <Reanimated.View style={[styles.swipeAction, animStyle]}>
+        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.swipeActionText}>Elimina</Text>
+      </Reanimated.View>
+    </Pressable>
   );
 };
 
 const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
   const swipeableRef = useRef<any>(null);
 
+  const handleDelete = useCallback(() => {
+    swipeableRef.current?.close();
+    onDismiss();
+  }, [onDismiss]);
+
   return (
     <ReanimatedSwipeable
       ref={swipeableRef}
       friction={2}
       rightThreshold={80}
-      renderRightActions={(_, drag) => <RightAction drag={drag} />}
+      renderRightActions={(_, drag) => <RightAction drag={drag} onPress={handleDelete} />}
       onSwipeableOpen={(direction) => {
         if (direction === 'right') onDismiss();
       }}
