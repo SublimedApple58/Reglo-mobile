@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   FlatList,
-  PanResponder,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -11,6 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Reanimated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
 import { notificationEvents } from '../services/notificationEvents';
 import {
@@ -68,76 +68,53 @@ type CardProps = {
   onDismiss: () => void;
 };
 
-const SWIPE_THRESHOLD = -80;
+const RightAction = ({ drag }: { drag: SharedValue<number> }) => {
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, -drag.value / 80),
+  }));
+  return (
+    <Reanimated.View style={[styles.swipeAction, animStyle]}>
+      <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+      <Text style={styles.swipeActionText}>Elimina</Text>
+    </Reanimated.View>
+  );
+};
 
 const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const rowHeight = useRef(new Animated.Value(1)).current;
-  const isSwiping = useRef(false);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => {
-        if (Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy)) {
-          isSwiping.current = true;
-          return true;
-        }
-        return false;
-      },
-      onPanResponderMove: (_, g) => {
-        if (g.dx < 0) translateX.setValue(g.dx);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < SWIPE_THRESHOLD) {
-          Animated.parallel([
-            Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }),
-            Animated.timing(rowHeight, { toValue: 0, duration: 200, useNativeDriver: false }),
-          ]).start(() => onDismiss());
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, stiffness: 200, damping: 20 }).start();
-        }
-        // Reset after a short delay so the tap doesn't fire
-        setTimeout(() => { isSwiping.current = false; }, 50);
-      },
-    }),
-  ).current;
-
-  const handlePress = useCallback(() => {
-    if (!isSwiping.current) onTap();
-  }, [onTap]);
+  const swipeableRef = useRef<any>(null);
 
   return (
-    <Animated.View style={{ opacity: rowHeight, transform: [{ scaleY: rowHeight }] }}>
-      {/* Delete background */}
-      <View style={styles.swipeBackground}>
-        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-      </View>
-      <Animated.View
-        style={[{ transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      friction={2}
+      rightThreshold={80}
+      renderRightActions={(_, drag) => <RightAction drag={drag} />}
+      onSwipeableOpen={(direction) => {
+        if (direction === 'right') onDismiss();
+      }}
+      overshootRight={false}
+    >
+      <Pressable
+        onPress={onTap}
+        style={[styles.card, !item.read && styles.cardUnread]}
       >
-        <Pressable
-          onPress={handlePress}
-          style={[styles.card, !item.read && styles.cardUnread]}
-        >
-          <View style={[styles.iconCircle, !item.read && styles.iconCircleUnread]}>
-            <Ionicons name={ICON_MAP[item.kind]} size={18} color={!item.read ? '#EC4899' : '#94A3B8'} />
-          </View>
-          <View style={styles.cardCenter}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {getTitle(item)}
-            </Text>
-            <Text style={styles.cardSubtitle} numberOfLines={1}>
-              {getSubtitle(item)}
-            </Text>
-            <Text style={styles.cardTimestamp}>
-              {formatRelativeTime(item.receivedAt)}
-            </Text>
-          </View>
-          {!item.read ? <View style={styles.unreadDot} /> : null}
-        </Pressable>
-      </Animated.View>
-    </Animated.View>
+        <View style={[styles.iconCircle, !item.read && styles.iconCircleUnread]}>
+          <Ionicons name={ICON_MAP[item.kind]} size={18} color={!item.read ? '#EC4899' : '#94A3B8'} />
+        </View>
+        <View style={styles.cardCenter}>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {getTitle(item)}
+          </Text>
+          <Text style={styles.cardSubtitle} numberOfLines={1}>
+            {getSubtitle(item)}
+          </Text>
+          <Text style={styles.cardTimestamp}>
+            {formatRelativeTime(item.receivedAt)}
+          </Text>
+        </View>
+        {!item.read ? <View style={styles.unreadDot} /> : null}
+      </Pressable>
+    </ReanimatedSwipeable>
   );
 });
 
@@ -356,13 +333,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EC4899',
   },
-  swipeBackground: {
-    ...StyleSheet.absoluteFillObject,
+  swipeAction: {
     backgroundColor: '#EF4444',
     borderRadius: 14,
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: 20,
+    width: 80,
+    gap: 4,
+  },
+  swipeActionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   emptyContainer: {
     alignItems: 'center',
