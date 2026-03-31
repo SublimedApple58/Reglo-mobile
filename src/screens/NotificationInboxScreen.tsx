@@ -30,6 +30,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   swap: 'hand-left-outline',
   confirmation: 'checkmark-done-outline',
   proposal: 'document-text-outline',
+  available_slots: 'calendar-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -42,6 +43,8 @@ const getTitle = (item: PersistedNotification): string => {
       return `${item.data.acceptedByName} ti sostituisce`;
     case 'proposal':
       return 'Nuova proposta di guida';
+    case 'available_slots':
+      return 'Guide disponibili';
   }
 };
 
@@ -55,11 +58,13 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `${item.data.appointmentDate} alle ${item.data.appointmentTime}`;
     case 'proposal':
       return `${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
+    case 'available_slots':
+      return formatDay(`${item.data.date}T00:00:00Z`);
   }
 };
 
 const isInteractive = (kind: PersistedNotification['kind']): boolean =>
-  kind === 'swap' || kind === 'waitlist' || kind === 'proposal' || kind === 'confirmation';
+  kind === 'swap' || kind === 'waitlist' || kind === 'proposal' || kind === 'confirmation' || kind === 'available_slots';
 
 /* ── Swipeable Card ── */
 

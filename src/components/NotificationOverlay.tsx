@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -23,8 +23,9 @@ import {
   AutoscuolaWaitlistOfferWithSlot,
   AutoscuolaAppointmentWithRelations,
   AutoscuolaStudent,
+  AvailableSlot,
 } from '../types/regloApi';
-import { NotificationItem, ConfirmationData, PersistedNotification } from '../types/notifications';
+import { NotificationItem, ConfirmationData, AvailableSlotsData, PersistedNotification } from '../types/notifications';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 
@@ -105,6 +106,16 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposalLoading, setProposalLoading] = useState(false);
   const dismissedProposalId = useRef<string | null>(null);
+
+  // ── Available slots (from push notification) ──
+  const [availableSlotsDate, setAvailableSlotsDate] = useState<string | null>(null);
+  const [availableSlotsList, setAvailableSlotsList] = useState<AvailableSlot[]>([]);
+  const [availableSlotsOpen, setAvailableSlotsOpen] = useState(false);
+  const [availableSlotsSelected, setAvailableSlotsSelected] = useState<AvailableSlot | null>(null);
+  const [availableSlotsBooking, setAvailableSlotsBooking] = useState(false);
+  const [availableSlotsDurations, setAvailableSlotsDurations] = useState<number[]>([60]);
+  const [availableSlotsDuration, setAvailableSlotsDuration] = useState(60);
+  const [availableSlotsLoading, setAvailableSlotsLoading] = useState(false);
 
   // ── UI ──
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
@@ -356,6 +367,95 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
     return () => clearInterval(interval);
   }, [loadSwapOffers, checkMyAcceptedSwaps, studentId, isStudent, swapEnabled]);
 
+  // ── Handlers: Available Slots ──
+
+  const handleAvailableSlotsNotification = useCallback(async (date: string) => {
+    if (!studentId) return;
+    setAvailableSlotsLoading(true);
+    setAvailableSlotsDate(date);
+    try {
+      const optionsRes = await regloApi.getBookingOptions(studentId);
+      const durations = optionsRes.bookingSlotDurations ?? [60];
+      setAvailableSlotsDurations(durations);
+      const duration = durations[0] ?? 60;
+      setAvailableSlotsDuration(duration);
+
+      const slotsRes = await regloApi.getAvailableSlots({
+        studentId,
+        date,
+        durationMinutes: duration,
+      });
+      if (!slotsRes.length) {
+        setToast({ text: 'Posti gi\u00E0 esauriti per questo giorno', tone: 'info' });
+        setAvailableSlotsLoading(false);
+        return;
+      }
+      setAvailableSlotsList(slotsRes);
+      setAvailableSlotsSelected(null);
+      setAvailableSlotsOpen(true);
+    } catch {
+      setToast({ text: 'Errore nel caricamento degli slot', tone: 'danger' });
+    } finally {
+      setAvailableSlotsLoading(false);
+    }
+  }, [studentId]);
+
+  const handleAvailableSlotsDurationChange = useCallback(async (duration: number) => {
+    if (!studentId || !availableSlotsDate) return;
+    setAvailableSlotsDuration(duration);
+    setAvailableSlotsSelected(null);
+    setAvailableSlotsLoading(true);
+    try {
+      const slotsRes = await regloApi.getAvailableSlots({
+        studentId,
+        date: availableSlotsDate,
+        durationMinutes: duration,
+      });
+      setAvailableSlotsList(slotsRes);
+      if (!slotsRes.length) {
+        setToast({ text: 'Nessuno slot disponibile per questa durata', tone: 'info' });
+      }
+    } catch {
+      setToast({ text: 'Errore nel caricamento degli slot', tone: 'danger' });
+    } finally {
+      setAvailableSlotsLoading(false);
+    }
+  }, [studentId, availableSlotsDate]);
+
+  const handleConfirmAvailableSlot = useCallback(async () => {
+    if (!studentId || !availableSlotsSelected || !availableSlotsDate || availableSlotsBooking) return;
+    setAvailableSlotsBooking(true);
+    setToast(null);
+    try {
+      const response = await regloApi.createBookingRequest({
+        studentId,
+        preferredDate: availableSlotsDate,
+        durationMinutes: availableSlotsDuration,
+        selectedStartsAt: availableSlotsSelected.startsAt,
+      });
+      if (response.matched) {
+        setToast({ text: 'Guida prenotata', tone: 'success' });
+        setCelebrationVariant('booking');
+        setCelebrationVisible(false);
+        setTimeout(() => setCelebrationVisible(true), 0);
+        setAvailableSlotsOpen(false);
+        setAvailableSlotsSelected(null);
+        setAvailableSlotsList([]);
+        notificationEvents.emitDataChanged();
+      } else {
+        setToast({ text: 'Richiesta inviata', tone: 'success' });
+        setAvailableSlotsOpen(false);
+      }
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
+        tone: 'danger',
+      });
+    } finally {
+      setAvailableSlotsBooking(false);
+    }
+  }, [studentId, availableSlotsSelected, availableSlotsDate, availableSlotsBooking, availableSlotsDuration]);
+
   // ── Push intents ──
   useEffect(() => {
     if (!studentId || !isStudent) return;
@@ -388,10 +488,34 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
           setConfirmations((prev) => [...prev, conf]);
         }
         notificationEvents.emitDataChanged();
+        return;
+      }
+      if (intent === 'available_slots') {
+        const date = String(data?.date ?? '');
+        if (date) {
+          // Persist into inbox
+          const notifId = `available_slots_${date}_${Date.now()}`;
+          const persisted: PersistedNotification = {
+            kind: 'available_slots',
+            id: notifId,
+            data: { date },
+            receivedAt: new Date().toISOString(),
+            read: false,
+            dismissed: false,
+          };
+          const merged = mergeFromApi(inboxRef.current, [persisted]);
+          inboxRef.current = merged;
+          setInboxItems(merged);
+          saveInbox(merged);
+          notificationEvents.emitInboxUpdated();
+
+          handleAvailableSlotsNotification(date);
+        }
+        return;
       }
     });
     return unsub;
-  }, [loadSwapOffers, loadWaitlistOffers, loadProposals, studentId, isStudent, swapEnabled]);
+  }, [loadSwapOffers, loadWaitlistOffers, loadProposals, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
 
   // ── AppState: reload on foreground ──
   useEffect(() => {
@@ -431,6 +555,11 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
 
   // ── Open drawer for a specific notification item ──
   const openDrawerForItem = useCallback((item: NotificationItem) => {
+    // Available slots: loads fresh from API, no stale check needed
+    if (item.kind === 'available_slots') {
+      handleAvailableSlotsNotification(item.data.date);
+      return;
+    }
     // Check if already accepted by the user
     if (acceptedIds.current.has(item.id)) {
       setStaleDrawerKind('accepted');
@@ -478,7 +607,7 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
         setProposalOpen(true);
         break;
     }
-  }, [swapOffers, waitlistOffers, proposals, checkBusy]);
+  }, [swapOffers, waitlistOffers, proposals, checkBusy, handleAvailableSlotsNotification]);
 
   // ── Listen for openDrawer events from inbox screen ──
   useEffect(() => {
@@ -1006,6 +1135,96 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
         ) : null}
       </BottomSheet>
 
+      {/* ── Available Slots ── */}
+      <BottomSheet
+        visible={availableSlotsOpen && availableSlotsList.length > 0}
+        onClose={() => {
+          if (!availableSlotsBooking) {
+            setAvailableSlotsOpen(false);
+            setAvailableSlotsSelected(null);
+          }
+        }}
+        title="Scegli un orario"
+        closeDisabled={availableSlotsBooking}
+        showHandle
+        footer={
+          <Pressable
+            onPress={availableSlotsBooking || !availableSlotsSelected ? undefined : handleConfirmAvailableSlot}
+            disabled={availableSlotsBooking || !availableSlotsSelected}
+            style={[
+              styles.chunkyPinkCta,
+              (availableSlotsBooking || !availableSlotsSelected) && { opacity: 0.5 },
+            ]}
+          >
+            <Text style={styles.chunkyPinkCtaText}>
+              {availableSlotsBooking ? 'Attendi...' : 'Prenota'}
+            </Text>
+          </Pressable>
+        }
+      >
+        <Text style={styles.availableSlotsSubtitle}>
+          {availableSlotsDate ? formatDay(`${availableSlotsDate}T00:00:00Z`) : ''} {'\u2022'} {availableSlotsDuration} min
+        </Text>
+
+        {availableSlotsDurations.length > 1 ? (
+          <View style={styles.availableSlotsDurationRow}>
+            {availableSlotsDurations.map((d) => {
+              const isActive = d === availableSlotsDuration;
+              return (
+                <Pressable
+                  key={`asd-${d}`}
+                  style={[styles.availableSlotsDurationChip, isActive && styles.availableSlotsDurationChipActive]}
+                  onPress={() => handleAvailableSlotsDurationChange(d)}
+                >
+                  <Text style={isActive ? styles.availableSlotsDurationTextActive : styles.availableSlotsDurationText}>
+                    {d} min
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {availableSlotsLoading ? (
+          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+            <Text style={{ fontSize: 14, color: '#94A3B8' }}>Caricamento...</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={{ maxHeight: 380 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.availableSlotsTimeline}>
+              {availableSlotsList.map((slot, index) => {
+                const isActive = availableSlotsSelected?.startsAt === slot.startsAt;
+                const isLast = index === availableSlotsList.length - 1;
+                return (
+                  <View key={slot.startsAt} style={styles.availableSlotsTimelineRow}>
+                    <View style={styles.availableSlotsTimelineLeft}>
+                      <Text style={styles.availableSlotsTimelineHour}>{formatTime(slot.startsAt)}</Text>
+                      {!isLast ? <View style={styles.availableSlotsTimelineLine} /> : null}
+                    </View>
+                    <Pressable
+                      style={[styles.availableSlotsTimelineCard, isActive && styles.availableSlotsTimelineCardActive]}
+                      onPress={() => setAvailableSlotsSelected(slot)}
+                    >
+                      <Text style={isActive ? styles.availableSlotsTimelineCardTextActive : styles.availableSlotsTimelineCardText}>
+                        {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+                      </Text>
+                      {isActive ? (
+                        <View style={styles.availableSlotsTimelineCheck}>
+                          <Text style={styles.availableSlotsTimelineCheckText}>{'\u2713'}</Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        )}
+      </BottomSheet>
+
       {/* ── Already Accepted ── */}
       <BottomSheet
         visible={staleDrawerKind === 'accepted'}
@@ -1441,5 +1660,116 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
+  },
+
+  // ── Available Slots ──
+  availableSlotsSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  availableSlotsDurationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  availableSlotsDurationChip: {
+    height: 46,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availableSlotsDurationChipActive: {
+    backgroundColor: '#FACC15',
+    borderColor: '#FACC15',
+  },
+  availableSlotsDurationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  availableSlotsDurationTextActive: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  availableSlotsTimeline: {
+    gap: 0,
+  },
+  availableSlotsTimelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    minHeight: 56,
+  },
+  availableSlotsTimelineLeft: {
+    width: 50,
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  availableSlotsTimelineHour: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: 6,
+  },
+  availableSlotsTimelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 1,
+    minHeight: 20,
+  },
+  availableSlotsTimelineCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  availableSlotsTimelineCardActive: {
+    backgroundColor: '#FDF2F8',
+    borderColor: '#EC4899',
+    shadowColor: '#EC4899',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  availableSlotsTimelineCardText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#475569',
+    flex: 1,
+  },
+  availableSlotsTimelineCardTextActive: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#EC4899',
+    flex: 1,
+  },
+  availableSlotsTimelineCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#EC4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availableSlotsTimelineCheckText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });
