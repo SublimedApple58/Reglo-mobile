@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Reanimated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
@@ -218,6 +219,7 @@ export const NotificationInboxScreen = () => {
   );
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <Screen>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
@@ -256,6 +258,7 @@ export const NotificationInboxScreen = () => {
         }
       />
     </Screen>
+    </GestureHandlerRootView>
   );
 };
 
