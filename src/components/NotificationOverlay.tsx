@@ -1119,7 +1119,7 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
                 style={[styles.chunkyPinkCta, proposalLoading && { opacity: 0.5 }]}
               >
                 <Text style={styles.chunkyPinkCtaText}>
-                  {proposalLoading ? 'Attendi...' : 'Accetta guida'}
+                  {proposalLoading ? 'Attendi...' : `${'\u2705'} Accetta guida`}
                 </Text>
               </Pressable>
               <Pressable
@@ -1128,7 +1128,7 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
                 style={[styles.chunkyOutlineBtn, proposalLoading && { opacity: 0.5 }]}
               >
                 <Text style={styles.chunkyOutlineBtnText}>
-                  {proposalLoading ? 'Attendi...' : 'Chiedi cambio orario'}
+                  {proposalLoading ? 'Attendi...' : `${'\u{1F504}'} Chiedi cambio orario`}
                 </Text>
               </Pressable>
               <Pressable
@@ -1146,27 +1146,56 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
         }
       >
         {pendingProposal ? (
-          <View style={styles.chunkyYellowCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={styles.chunkyYellowDot} />
-              <Text style={styles.chunkyYellowLabel}>HAI UNA PROPOSTA!</Text>
+          <View style={{ gap: 16 }}>
+            <View style={styles.hero}>
+              <Text style={styles.heroEmoji}>{'\u{1F4E9}'}</Text>
+              <Text style={styles.heroName}>Nuova proposta!</Text>
+              <Text style={styles.heroHint}>La tua autoscuola ti ha proposto una guida</Text>
             </View>
-            <Text style={styles.chunkyYellowTitle}>
-              {formatDay(pendingProposal.startsAt)} {'\u2022'} {formatTime(pendingProposal.startsAt)}
-            </Text>
-            <Text style={styles.chunkyYellowSub}>
-              {Math.max(
-                30,
-                Math.round(
-                  ((pendingProposal.endsAt
-                    ? new Date(pendingProposal.endsAt).getTime()
-                    : new Date(pendingProposal.startsAt).getTime() + 30 * 60 * 1000) -
-                    new Date(pendingProposal.startsAt).getTime()) /
-                    60000,
-                ),
-              )}{' '}
-              min {'\u2022'} {pendingProposal.instructor?.name ?? 'Istruttore da assegnare'}
-            </Text>
+            <View style={styles.detailsCard}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailIcon}>{'\u{1F4C5}'}</Text>
+                <Text style={styles.detailText}>
+                  {formatDay(pendingProposal.startsAt)} {'\u00B7'} {formatTime(pendingProposal.startsAt)}
+                  {pendingProposal.endsAt ? ` - ${formatTime(pendingProposal.endsAt)}` : ''}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailIcon}>{'\u23F1'}</Text>
+                <Text style={styles.detailText}>
+                  {Math.max(
+                    30,
+                    Math.round(
+                      ((pendingProposal.endsAt
+                        ? new Date(pendingProposal.endsAt).getTime()
+                        : new Date(pendingProposal.startsAt).getTime() + 30 * 60 * 1000) -
+                        new Date(pendingProposal.startsAt).getTime()) /
+                        60000,
+                    ),
+                  )} min
+                </Text>
+              </View>
+              {pendingProposal.instructor?.name ? (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailIcon}>{'\u{1F468}\u200D\u{1F3EB}'}</Text>
+                  <Text style={styles.detailText}>{pendingProposal.instructor.name}</Text>
+                </View>
+              ) : null}
+              {pendingProposal.vehicle?.name ? (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailIcon}>{'\u{1F697}'}</Text>
+                  <Text style={styles.detailText}>{pendingProposal.vehicle.name}</Text>
+                </View>
+              ) : null}
+              {pendingProposal.type ? (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailIcon}>{'\u{1F4CB}'}</Text>
+                  <Text style={styles.detailText}>
+                    {lessonTypeLabelMap[pendingProposal.type] ?? pendingProposal.type}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         ) : null}
       </BottomSheet>
