@@ -65,7 +65,7 @@ const statusConfig = (status: string): StatusColorConfig => {
   if (s === 'completed')
     return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata' };
   if (s === 'cancelled' || s === 'no_show')
-    return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'cancelled' ? 'Annullata' : 'No-show' };
+    return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'cancelled' ? 'Annullata' : 'Assente' };
   // scheduled / confirmed / default
   return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata' };
 };

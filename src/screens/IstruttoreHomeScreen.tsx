@@ -99,7 +99,7 @@ const smartDayLabel = (isoDate: string, now: Date): string => {
 
 const ALLOWED_ACTION_STATUSES = new Set(['scheduled', 'confirmed', 'pending_review']);
 const CLOSED_ACTION_STATUSES = new Set(['cancelled', 'completed', 'no_show']);
-const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
+const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review', 'proposal']);
 const DETAILS_EDITABLE_STATUSES = new Set([
   'scheduled',
   'confirmed',
@@ -254,6 +254,9 @@ const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Dat
   }
   if (status === 'checked_in') {
     return { label: 'Confermata', tone: 'confirmed' as const };
+  }
+  if (status === 'proposal') {
+    return { label: 'Proposta', tone: 'pending_review' as const };
   }
   return { label: 'Programmata', tone: 'scheduled' as const };
 };
@@ -943,7 +946,9 @@ export const IstruttoreHomeScreen = () => {
     if (s === 'completed')
       return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata' };
     if (s === 'no_show' || s === 'cancelled')
-      return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'No-show' : 'Annullata' };
+      return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata' };
+    if (s === 'proposal')
+      return { border: '#A78BFA', badgeBg: '#F5F3FF', badgeText: '#7C3AED', label: 'Proposta' };
     return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata' };
   };
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
@@ -1750,7 +1755,7 @@ export const IstruttoreHomeScreen = () => {
                                       ]}
                                     >
                                       <Text style={styles.timelineCheckInText}>
-                                        {pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Check-in'}
+                                        {pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Presente'}
                                       </Text>
                                     </Pressable>
                                     <Pressable
@@ -1767,7 +1772,7 @@ export const IstruttoreHomeScreen = () => {
                                       ]}
                                     >
                                       <Text style={styles.timelineNoShowText}>
-                                        {pendingAction === 'no_show' ? 'Attendi...' : '\u2717 No-show'}
+                                        {pendingAction === 'no_show' ? 'Attendi...' : '\u2717 Assente'}
                                       </Text>
                                     </Pressable>
                                   </View>
@@ -1856,14 +1861,14 @@ export const IstruttoreHomeScreen = () => {
             {canRunStatusAction ? (
               <>
                 <Button
-                  label={pendingAction === 'checked_in' ? 'Attendi...' : 'Check-in'}
+                  label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
                   tone="primary"
                   onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
                   disabled={isPending}
                   fullWidth
                 />
                 <Button
-                  label={pendingAction === 'no_show' ? 'Attendi...' : 'No-show'}
+                  label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
                   tone="danger"
                   onPress={isPending ? undefined : () => handleStatusAction('no_show')}
                   disabled={isPending}

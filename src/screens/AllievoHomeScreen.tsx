@@ -94,7 +94,7 @@ const addDays = (date: Date, amount: number) => {
 
 const statusLabel = (status: string) => {
   if (status === 'completed') return { label: 'Completata', tone: 'success' as const };
-  if (status === 'no_show') return { label: 'No-show', tone: 'danger' as const };
+  if (status === 'no_show') return { label: 'Assente', tone: 'danger' as const };
   if (status === 'cancelled') return { label: 'Annullata', tone: 'warning' as const };
   if (status === 'proposal') return { label: 'Proposta', tone: 'default' as const };
   if (status === 'pending_review') return { label: 'Da confermare', tone: 'warning' as const };
@@ -180,13 +180,9 @@ export const AllievoHomeScreen = () => {
   const [bookingOptions, setBookingOptions] = useState<MobileBookingOptions | null>(null);
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
-  const [suggestion, setSuggestion] = useState<{ startsAt: string; endsAt: string } | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [proposalLoading, setProposalLoading] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [bookingRequestId, setBookingRequestId] = useState<string | null>(null);
   const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<StudentAppointmentPaymentHistoryItem[]>([]);
   const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
@@ -195,7 +191,6 @@ export const AllievoHomeScreen = () => {
   const [historyDocumentBusy, setHistoryDocumentBusy] = useState<'view' | 'share' | null>(null);
   const [payNowLoading, setPayNowLoading] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
-  const [pendingSuggestionOpen, setPendingSuggestionOpen] = useState(false);
   const [creatingSwap, setCreatingSwap] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -684,7 +679,6 @@ export const AllievoHomeScreen = () => {
       return;
     }
     setToast(null);
-    setSuggestion(null);
     setBookingLoading(true);
     if (!availableDurations.includes(durationMinutes)) {
       setToast({ text: 'Durata non disponibile', tone: 'danger' });
@@ -699,58 +693,22 @@ export const AllievoHomeScreen = () => {
       setBookingLoading(false);
       return;
     }
-    const mode = bookingOptions?.studentBookingMode ?? 'engine';
     try {
-      if (mode === 'free_choice') {
-        const slots = await regloApi.getAvailableSlots({
-          studentId: selectedStudentId,
-          date: toDateString(preferredDate),
-          durationMinutes,
-          ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
-          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        });
-        if (!slots.length) {
-          setToast({ text: 'Nessuna disponibilità per il giorno scelto', tone: 'info' });
-          return;
-        }
-        setFreeChoiceSlots(slots);
-        setFreeChoiceSelected(null);
-        setPendingFreeChoiceOpen(true);
-        setPrefsOpen(false);
-        return;
-      }
-
-      const response = await regloApi.createBookingRequest({
+      const slots = await regloApi.getAvailableSlots({
         studentId: selectedStudentId,
-        preferredDate: toDateString(preferredDate),
+        date: toDateString(preferredDate),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        maxDays: 4,
-        requestId: bookingRequestId ?? undefined,
       });
-
-      if (response.matched) {
-        setToast({ text: 'Guida prenotata', tone: 'success' });
-        triggerBookingCelebration();
-        setPrefsOpen(false);
-        await loadData(selectedStudentId);
+      if (!slots.length) {
+        setToast({ text: 'Nessuna disponibilità per il giorno scelto. Prova con un altro giorno.', tone: 'info' });
         return;
       }
-
-      if (response.suggestion) {
-        setSuggestion(response.suggestion);
-        setBookingRequestId(response.request.id);
-        if (prefsOpen) {
-          setPendingSuggestionOpen(true);
-          setPrefsOpen(false);
-        } else {
-          setSheetOpen(true);
-        }
-        return;
-      }
-
-      setToast({ text: 'Nessuna disponibilita per il giorno scelto', tone: 'info' });
+      setFreeChoiceSlots(slots);
+      setFreeChoiceSelected(null);
+      setPendingFreeChoiceOpen(true);
+      setPrefsOpen(false);
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nella richiesta',
@@ -759,48 +717,6 @@ export const AllievoHomeScreen = () => {
     } finally {
       setBookingLoading(false);
     }
-  };
-
-  const handleAcceptSuggestion = async () => {
-    if (!selectedStudentId || !suggestion) return;
-    setToast(null);
-    setProposalLoading(true);
-    try {
-      const response = await regloApi.createBookingRequest({
-        studentId: selectedStudentId,
-        preferredDate: toDateString(preferredDate),
-        durationMinutes,
-        ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
-        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        selectedStartsAt: suggestion.startsAt,
-        requestId: bookingRequestId ?? undefined,
-      });
-      if (response.matched) {
-        setToast({ text: 'Guida prenotata', tone: 'success' });
-        triggerBookingCelebration();
-        setSuggestion(null);
-        setBookingRequestId(null);
-        setSheetOpen(false);
-        setPrefsOpen(false);
-        await loadData(selectedStudentId);
-        return;
-      }
-      setToast({ text: 'Slot non disponibile', tone: 'danger' });
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore prenotando slot',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalLoading(false);
-    }
-  };
-
-  const handleRejectSuggestion = () => {
-    if (proposalLoading) return;
-    setSheetOpen(false);
-    setSuggestion(null);
-    setBookingRequestId(null);
   };
 
   const handleConfirmFreeChoiceSlot = async () => {
@@ -852,39 +768,6 @@ export const AllievoHomeScreen = () => {
 
   const handleClosePreferences = () => {
     setPrefsOpen(false);
-  };
-
-  const handleAlternativeSuggestion = async () => {
-    if (!selectedStudentId || !suggestion) return;
-    setProposalLoading(true);
-    try {
-      const response = await regloApi.createBookingRequest({
-        studentId: selectedStudentId,
-        preferredDate: toDateString(preferredDate),
-        durationMinutes,
-        ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
-        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        maxDays: 4,
-        excludeStartsAt: suggestion.startsAt,
-        requestId: bookingRequestId ?? undefined,
-      });
-      if (!response.matched && response.suggestion) {
-        setSuggestion(response.suggestion);
-        setBookingRequestId(response.request.id);
-        return;
-      }
-      setToast({ text: 'Nessuna alternativa disponibile', tone: 'info' });
-      setSheetOpen(false);
-      setSuggestion(null);
-      setBookingRequestId(null);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella ricerca alternativa',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalLoading(false);
-    }
   };
 
   const handleCreateSwap = async (appointmentId: string) => {
@@ -1648,10 +1531,6 @@ export const AllievoHomeScreen = () => {
         visible={prefsOpen}
         onClose={handleClosePreferences}
         onClosed={() => {
-          if (pendingSuggestionOpen) {
-            setSheetOpen(true);
-            setPendingSuggestionOpen(false);
-          }
           if (pendingFreeChoiceOpen) {
             setFreeChoiceOpen(true);
             setPendingFreeChoiceOpen(false);
@@ -1789,63 +1668,6 @@ export const AllievoHomeScreen = () => {
           </View>
         ) : null}
       </BottomSheet>
-      {/* ── Booking Suggestion BottomSheet ── */}
-      <BottomSheet
-        visible={sheetOpen}
-        onClose={handleRejectSuggestion}
-        title="Nuova proposta"
-        closeDisabled={proposalLoading}
-        showHandle
-        footer={
-          suggestion ? (
-            <View style={{ gap: 12 }}>
-              <Pressable
-                onPress={proposalLoading ? undefined : handleAcceptSuggestion}
-                disabled={proposalLoading}
-                style={[styles.chunkyPinkCta, proposalLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyPinkCtaText}>
-                  {proposalLoading ? 'Attendi...' : 'Accetta guida'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={proposalLoading ? undefined : handleAlternativeSuggestion}
-                disabled={proposalLoading}
-                style={[styles.chunkyOutlineBtn, proposalLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyOutlineBtnText}>
-                  {proposalLoading ? 'Attendi...' : 'Chiedi cambio orario'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  if (!proposalLoading) handleRejectSuggestion();
-                }}
-                disabled={proposalLoading}
-                style={styles.chunkyRedLink}
-              >
-                <Text style={styles.chunkyRedLinkText}>Rifiuta proposta</Text>
-              </Pressable>
-            </View>
-          ) : undefined
-        }
-      >
-        {suggestion ? (
-          <View style={styles.chunkyYellowCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={styles.chunkyYellowDot} />
-              <Text style={styles.chunkyYellowLabel}>HAI UNA PROPOSTA!</Text>
-            </View>
-            <Text style={styles.chunkyYellowTitle}>
-              {formatDay(suggestion.startsAt)} {'\u2022'} {formatTime(suggestion.startsAt)}
-            </Text>
-            <Text style={styles.chunkyYellowSub}>
-              {durationMinutes} min {'\u2022'} {selectedInstructorId ? instructors.find((i) => i.id === selectedInstructorId)?.name ?? 'Istruttore da assegnare' : 'Istruttore da assegnare'}
-            </Text>
-          </View>
-        ) : null}
-      </BottomSheet>
-
       <CalendarDrawer
         visible={bookingCalendarOpen}
         onClose={() => {
@@ -2411,14 +2233,6 @@ const styles = StyleSheet.create({
   durationTextActive: {
     ...typography.body,
     color: '#FFFFFF',
-  },
-  suggestionBox: {
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  suggestionText: {
-    ...typography.body,
-    color: colors.textSecondary,
   },
   _oldBookingCreditsInline: {
     display: 'none',
