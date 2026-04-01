@@ -223,6 +223,9 @@ const getActionAvailability = (
   if (CLOSED_ACTION_STATUSES.has(status)) {
     return { enabled: false, reason: null as string | null };
   }
+  if (status === 'proposal') {
+    return { enabled: false, reason: null as string | null };
+  }
   if (!ALLOWED_ACTION_STATUSES.has(status)) {
     return { enabled: false, reason: null as string | null };
   }
@@ -1738,8 +1741,8 @@ export const IstruttoreHomeScreen = () => {
                                   </View>
                                 ) : null}
 
-                                {/* Inline actions for active lesson */}
-                                {isActive && !isCheckedIn && actionAvail.enabled ? (
+                                {/* Inline actions for active lesson (hidden for proposals) */}
+                                {isActive && !isCheckedIn && actionAvail.enabled && normalizeStatus(appt.status) !== 'proposal' ? (
                                   <View style={styles.timelineActions}>
                                     <Pressable
                                       onPress={(e) => {
@@ -1858,7 +1861,7 @@ export const IstruttoreHomeScreen = () => {
               disabled={isPending || !canRepositionSheetLesson}
               fullWidth
             />
-            {canRunStatusAction ? (
+            {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
               <>
                 <Button
                   label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
