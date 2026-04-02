@@ -484,6 +484,7 @@ export const IstruttoreHomeScreen = () => {
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const dayScrollRef = useRef<ScrollView | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
@@ -545,6 +546,13 @@ export const IstruttoreHomeScreen = () => {
           (b) => b.instructorId === instructorId,
         ),
       );
+      // Extract holidays from bootstrap
+      const holidayDates = new Set<string>();
+      for (const h of (agendaBootstrap as any).holidays ?? []) {
+        const d = new Date(h.date);
+        holidayDates.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      }
+      setHolidays(holidayDates);
       const nextAppointments = dedupeAppointments(
         agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
       );
@@ -1110,6 +1118,14 @@ export const IstruttoreHomeScreen = () => {
   }, []);
   const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
+  const toDateStr = useCallback((d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, []);
+
+  const isSelectedDateHoliday = useMemo(
+    () => holidays.has(toDateStr(selectedDate)),
+    [holidays, selectedDate, toDateStr],
+  );
+
   const dayScrollMountedRef = useRef(false);
 
   const scrollToDay = useCallback(
@@ -1557,27 +1573,32 @@ export const IstruttoreHomeScreen = () => {
               const hasBooking = bookedDatesSet.has(
                 `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
               );
+              const isDayHoliday = holidays.has(toDateStr(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
                   style={[
                     styles.dayPill,
-                    isDaySelected
-                      ? styles.dayPillSelected
-                      : isDayToday
-                        ? styles.dayPillToday
-                        : styles.dayPillUnselected,
+                    isDayHoliday && !isDaySelected && !isDayToday
+                      ? styles.dayPillHoliday
+                      : isDaySelected
+                        ? styles.dayPillSelected
+                        : isDayToday
+                          ? styles.dayPillToday
+                          : styles.dayPillUnselected,
                   ]}
                   onPress={() => setSelectedDate(day.date)}
                 >
                   <Text
                     style={[
                       styles.dayPillWeekday,
-                      isDaySelected
-                        ? styles.dayPillWeekdaySelected
-                        : isDayToday
-                          ? styles.dayPillWeekdayToday
-                          : styles.dayPillWeekdayUnselected,
+                      isDayHoliday && !isDaySelected && !isDayToday
+                        ? styles.dayPillWeekdayHoliday
+                        : isDaySelected
+                          ? styles.dayPillWeekdaySelected
+                          : isDayToday
+                            ? styles.dayPillWeekdayToday
+                            : styles.dayPillWeekdayUnselected,
                     ]}
                   >
                     {day.weekday}
@@ -1585,16 +1606,20 @@ export const IstruttoreHomeScreen = () => {
                   <Text
                     style={[
                       styles.dayPillNumber,
-                      isDaySelected
-                        ? styles.dayPillNumberSelected
-                        : isDayToday
-                          ? styles.dayPillNumberToday
-                          : styles.dayPillNumberUnselected,
+                      isDayHoliday && !isDaySelected && !isDayToday
+                        ? styles.dayPillNumberHoliday
+                        : isDaySelected
+                          ? styles.dayPillNumberSelected
+                          : isDayToday
+                            ? styles.dayPillNumberToday
+                            : styles.dayPillNumberUnselected,
                     ]}
                   >
                     {day.dayNum}
                   </Text>
-                  {hasBooking ? (
+                  {isDayHoliday ? (
+                    <View style={styles.dayPillHolidayDot} />
+                  ) : hasBooking ? (
                     <View
                       style={[
                         styles.dayPillDot,
@@ -1628,19 +1653,29 @@ export const IstruttoreHomeScreen = () => {
           <View style={styles.timelineGridWrapper}>
             {/* Empty day hint — inline above the grid */}
             {!hasTimelineAppointments && (
-              <View style={styles.emptyDayBanner}>
-                <View style={styles.emptyDayDuckClip}>
-                  <Image
-                    source={require('../../assets/duck-zen.png')}
-                    style={styles.emptyDayDuck}
-                    resizeMode="contain"
-                  />
+              isSelectedDateHoliday ? (
+                <View style={styles.holidayBanner}>
+                  <Ionicons name="ban-outline" size={28} color="#DC2626" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.holidayBannerTitle}>Giorno festivo</Text>
+                    <Text style={styles.holidayBannerSubtitle}>L'autoscuola è chiusa</Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
-                  <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
+              ) : (
+                <View style={styles.emptyDayBanner}>
+                  <View style={styles.emptyDayDuckClip}>
+                    <Image
+                      source={require('../../assets/duck-zen.png')}
+                      style={styles.emptyDayDuck}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
+                    <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
+                  </View>
                 </View>
-              </View>
+              )
             )}
             <View style={styles.timelineSection}>
               {HOUR_SLOTS.map((hour) => {
@@ -3006,6 +3041,47 @@ const styles = StyleSheet.create({
   },
   dayPillDotHighlight: {
     backgroundColor: '#FFFFFF',
+  },
+  dayPillHoliday: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+  },
+  dayPillWeekdayHoliday: {
+    color: '#DC2626',
+  },
+  dayPillNumberHoliday: {
+    color: '#DC2626',
+  },
+  dayPillHolidayDot: {
+    position: 'absolute',
+    bottom: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#DC2626',
+  },
+  holidayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  holidayBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  holidayBannerSubtitle: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 2,
   },
 
   /* ── Agenda Section ── */
