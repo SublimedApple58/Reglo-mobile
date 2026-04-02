@@ -25,6 +25,8 @@ type CalendarDrawerProps = {
   unlimitedNavigation?: boolean;
   caption?: string | null;
   bookedDates?: Set<string>;
+  /** Dates without availability — rendered greyed-out and non-tappable. Key format: `${year}-${month0indexed}-${day}`. */
+  unavailableDates?: Set<string>;
 };
 
 const ITALIAN_MONTHS = [
@@ -63,6 +65,7 @@ export const CalendarDrawer = ({
   unlimitedNavigation = false,
   caption = 'Scegli un giorno e prenota la tua guida!',
   bookedDates,
+  unavailableDates,
 }: CalendarDrawerProps) => {
   const insets = useSafeAreaInsets();
   const screenHeight = Dimensions.get('window').height;
@@ -289,7 +292,10 @@ export const CalendarDrawer = ({
               const isToday = isSameDay(date, today);
               const isSelected = isSameDay(date, selectedDate) && !isToday;
               const inRange = date >= today && (maxDate ? date <= maxDate : true);
-              const tappable = inMonth && inRange;
+              const isUnavailable = inMonth && inRange && unavailableDates?.has(
+                `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+              ) === true;
+              const tappable = inMonth && inRange && !isUnavailable;
               const hasBooking = inMonth && bookedDates?.has(
                 `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
               );
@@ -305,7 +311,7 @@ export const CalendarDrawer = ({
               } else if (isSelected) {
                 cellStyle = styles.dayCellSelected;
                 textStyle = styles.dayTextSelected;
-              } else if (!inRange) {
+              } else if (!inRange || isUnavailable) {
                 textStyle = styles.dayTextUnavailable;
               }
 

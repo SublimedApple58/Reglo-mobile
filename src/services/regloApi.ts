@@ -73,6 +73,7 @@ import {
   SetRecurringAvailabilityOverrideInput,
   TimeRange,
   OutOfAvailabilityAppointment,
+  DateAvailabilityMap,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -326,6 +327,14 @@ export const createRegloApi = (baseUrl?: string) => {
       instructorId?: string;
     }) =>
       client.request<AvailableSlot[]>('/api/autoscuole/available-slots', {
+        params,
+      }),
+    getDateAvailability: async (params: {
+      studentId: string;
+      from: string;
+      to: string;
+    }) =>
+      client.request<DateAvailabilityMap>('/api/autoscuole/date-availability', {
         params,
       }),
     suggestInstructorBooking: async (input: SuggestInstructorBookingInput) =>

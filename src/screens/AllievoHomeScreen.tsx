@@ -196,6 +196,7 @@ export const AllievoHomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
+  const [dateAvailability, setDateAvailability] = useState<Record<string, boolean>>({});
   const [freeChoiceSlots, setFreeChoiceSlots] = useState<AvailableSlot[]>([]);
   const [freeChoiceOpen, setFreeChoiceOpen] = useState(false);
   const [freeChoiceSelected, setFreeChoiceSelected] = useState<AvailableSlot | null>(null);
@@ -577,6 +578,16 @@ export const AllievoHomeScreen = () => {
   }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
+  const sameDayLessons = useMemo(() => {
+    if (!nextLesson) return [];
+    const d = new Date(nextLesson.startsAt);
+    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    return upcoming.filter((item) => {
+      const id = new Date(item.startsAt);
+      return `${id.getFullYear()}-${id.getMonth()}-${id.getDate()}` === dayKey;
+    });
+  }, [upcoming, nextLesson]);
+  const hasMultipleLessons = sameDayLessons.length > 1;
   const isLessonInProgress = useMemo(() => {
     if (!nextLesson) return false;
     const now = new Date();
@@ -611,6 +622,36 @@ export const AllievoHomeScreen = () => {
     return days;
   }, [maxWeeks]);
   const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+  // Fetch date availability when booking drawer opens
+  useEffect(() => {
+    if (!prefsOpen || !selectedStudentId) return;
+    const today = new Date();
+    const from = toDateString(today);
+    const toDate = addDays(today, maxWeeks * 7);
+    const to = toDateString(toDate);
+    regloApi.getDateAvailability({ studentId: selectedStudentId, from, to })
+      .then((data) => setDateAvailability(data))
+      .catch(() => { /* silent — non-critical */ });
+  }, [prefsOpen, selectedStudentId, maxWeeks]);
+
+  const preferredDateAvailable = dateAvailability[toDateString(preferredDate)] !== false;
+
+  const unavailableDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const [dateStr, avail] of Object.entries(dateAvailability)) {
+      if (avail) continue;
+      // Convert YYYY-MM-DD (1-indexed) → year-month0indexed-day for CalendarDrawer
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = Number(parts[0]);
+        const month = Number(parts[1]) - 1; // 0-indexed
+        const day = Number(parts[2]);
+        set.add(`${year}-${month}-${day}`);
+      }
+    }
+    return set;
+  }, [dateAvailability]);
 
   const dayScrollMountedRef = useRef(false);
 
@@ -1168,50 +1209,120 @@ export const AllievoHomeScreen = () => {
                   end={{ x: 0.8, y: 1 }}
                   style={styles.nextLessonCard}
                 >
-                  {isLessonInProgress ? (
-                    <View style={styles.inProgressBadge}>
-                      <View style={styles.inProgressDot} />
-                      <Text style={styles.inProgressBadgeText}>GUIDA IN CORSO</Text>
-                    </View>
+                  {hasMultipleLessons ? (
+                    <>
+                      <Text style={styles.nextLessonLabel}>PROSSIME GUIDE</Text>
+                      <Text style={styles.nextLessonDateTime}>
+                        {formatDay(nextLesson.startsAt)}
+                      </Text>
+                      {sameDayLessons.map((lesson) => {
+                        const inProgress = (() => {
+                          const now = new Date();
+                          const start = new Date(lesson.startsAt);
+                          const end = lesson.endsAt
+                            ? new Date(lesson.endsAt)
+                            : new Date(start.getTime() + 60 * 60 * 1000);
+                          return start <= now && now < end;
+                        })();
+                        return (
+                          <View key={lesson.id} style={styles.nextLessonSlot}>
+                            {inProgress ? (
+                              <View style={styles.inProgressBadge}>
+                                <View style={styles.inProgressDot} />
+                                <Text style={styles.inProgressBadgeText}>IN CORSO</Text>
+                              </View>
+                            ) : null}
+                            <View style={styles.nextLessonSlotHeader}>
+                              <Text style={styles.nextLessonSlotTime}>
+                                {formatTime(lesson.startsAt)}
+                                {lesson.endsAt ? ` – ${formatTime(lesson.endsAt)}` : ''}
+                              </Text>
+                              <Text style={styles.nextLessonSlotDetails}>
+                                {formatInstructorInitials(lesson.instructor?.name)} {'\u2022'}{' '}
+                                {lesson.vehicle?.name ?? 'Da assegnare'}
+                              </Text>
+                            </View>
+                            {!inProgress ? (
+                              <View style={styles.nextLessonActions}>
+                                {settings?.swapEnabled &&
+                                  ['scheduled', 'confirmed'].includes(lesson.status) ? (
+                                  <Pressable
+                                    style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
+                                    onPress={() => handleCreateSwap(lesson.id)}
+                                    disabled={creatingSwap}
+                                  >
+                                    <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
+                                    <Text style={styles.nextLessonSwapText}>
+                                      {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
+                                    </Text>
+                                  </Pressable>
+                                ) : null}
+                                <Pressable
+                                  style={[styles.nextLessonCancelPill, cancellingAppointmentId === lesson.id && { opacity: 0.5 }]}
+                                  onPress={() => handleCancel(lesson.id)}
+                                  disabled={cancellingAppointmentId === lesson.id}
+                                >
+                                  <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
+                                  <Text style={styles.nextLessonCancelText}>
+                                    {cancellingAppointmentId === lesson.id
+                                      ? 'Annullo...'
+                                      : 'Annulla'}
+                                  </Text>
+                                </Pressable>
+                              </View>
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                    </>
                   ) : (
-                    <Text style={styles.nextLessonLabel}>PROSSIMA GUIDA</Text>
-                  )}
-                  <Text style={styles.nextLessonDateTime}>
-                    {formatDay(nextLesson.startsAt)} {'\u2022'} {formatTime(nextLesson.startsAt)}
-                  </Text>
-                  <Text style={styles.nextLessonDetails}>
-                    {formatInstructorInitials(nextLesson.instructor?.name)} {'\u2022'}{' '}
-                    {nextLesson.vehicle?.name ?? 'Da assegnare'}
-                  </Text>
-                  {!isLessonInProgress ? (
-                    <View style={styles.nextLessonActions}>
-                      {settings?.swapEnabled &&
-                        ['scheduled', 'confirmed'].includes(nextLesson.status) ? (
-                        <Pressable
-                          style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
-                          onPress={() => handleCreateSwap(nextLesson.id)}
-                          disabled={creatingSwap}
-                        >
-                          <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
-                          <Text style={styles.nextLessonSwapText}>
-                            {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
-                          </Text>
-                        </Pressable>
+                    <>
+                      {isLessonInProgress ? (
+                        <View style={styles.inProgressBadge}>
+                          <View style={styles.inProgressDot} />
+                          <Text style={styles.inProgressBadgeText}>GUIDA IN CORSO</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.nextLessonLabel}>PROSSIMA GUIDA</Text>
+                      )}
+                      <Text style={styles.nextLessonDateTime}>
+                        {formatDay(nextLesson.startsAt)} {'\u2022'} {formatTime(nextLesson.startsAt)}
+                      </Text>
+                      <Text style={styles.nextLessonDetails}>
+                        {formatInstructorInitials(nextLesson.instructor?.name)} {'\u2022'}{' '}
+                        {nextLesson.vehicle?.name ?? 'Da assegnare'}
+                      </Text>
+                      {!isLessonInProgress ? (
+                        <View style={styles.nextLessonActions}>
+                          {settings?.swapEnabled &&
+                            ['scheduled', 'confirmed'].includes(nextLesson.status) ? (
+                            <Pressable
+                              style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
+                              onPress={() => handleCreateSwap(nextLesson.id)}
+                              disabled={creatingSwap}
+                            >
+                              <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
+                              <Text style={styles.nextLessonSwapText}>
+                                {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
+                              </Text>
+                            </Pressable>
+                          ) : null}
+                          <Pressable
+                            style={[styles.nextLessonCancelPill, cancellingAppointmentId === nextLesson.id && { opacity: 0.5 }]}
+                            onPress={() => handleCancel(nextLesson.id)}
+                            disabled={cancellingAppointmentId === nextLesson.id}
+                          >
+                            <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
+                            <Text style={styles.nextLessonCancelText}>
+                              {cancellingAppointmentId === nextLesson.id
+                                ? 'Annullo...'
+                                : 'Annulla'}
+                            </Text>
+                          </Pressable>
+                        </View>
                       ) : null}
-                      <Pressable
-                        style={[styles.nextLessonCancelPill, cancellingAppointmentId === nextLesson.id && { opacity: 0.5 }]}
-                        onPress={() => handleCancel(nextLesson.id)}
-                        disabled={cancellingAppointmentId === nextLesson.id}
-                      >
-                        <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
-                        <Text style={styles.nextLessonCancelText}>
-                          {cancellingAppointmentId === nextLesson.id
-                            ? 'Annullo...'
-                            : 'Annulla'}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
+                    </>
+                  )}
                 </LinearGradient>
               </View>
             ) : (
@@ -1549,15 +1660,22 @@ export const AllievoHomeScreen = () => {
           ) : undefined
         }
         footer={
-          <Pressable
-            onPress={bookingLoading ? undefined : handleBookingRequest}
-            disabled={bookingLoading}
-            style={[styles.chunkyPinkCta, bookingLoading && { opacity: 0.5 }]}
-          >
-            <Text style={styles.chunkyPinkCtaText}>
-              {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
-            </Text>
-          </Pressable>
+          <>
+            {!preferredDateAvailable ? (
+              <Text style={styles.bookingUnavailableCaption}>
+                Nessuna disponibilità per il giorno selezionato
+              </Text>
+            ) : null}
+            <Pressable
+              onPress={bookingLoading || !preferredDateAvailable ? undefined : handleBookingRequest}
+              disabled={bookingLoading || !preferredDateAvailable}
+              style={[styles.chunkyPinkCta, (bookingLoading || !preferredDateAvailable) && { opacity: 0.5 }]}
+            >
+              <Text style={styles.chunkyPinkCtaText}>
+                {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
+              </Text>
+            </Pressable>
+          </>
         }
       >
         {/* GIORNO */}
@@ -1675,6 +1793,7 @@ export const AllievoHomeScreen = () => {
           setTimeout(() => setPrefsOpen(true), 350);
         }}
         bookedDates={bookedDatesSet}
+        unavailableDates={unavailableDatesSet}
         onSelectDate={(date) => {
           setPreferredDate(date);
           setBookingCalendarOpen(false);
@@ -1895,6 +2014,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.7)',
+  },
+  nextLessonSlot: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 16,
+    padding: 14,
+    gap: 8,
+  },
+  nextLessonSlotHeader: {
+    gap: 2,
+  },
+  nextLessonSlotTime: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(120, 53, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  nextLessonSlotDetails: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+    textShadowColor: 'rgba(120, 53, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   emptyLessonCard: {
     borderRadius: radii.lg,
@@ -2746,6 +2890,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     lineHeight: 16,
+  },
+  bookingUnavailableCaption: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   timelineSubtitle: {
     fontSize: 14,
