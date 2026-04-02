@@ -626,9 +626,9 @@ export const AllievoHomeScreen = () => {
   }, [maxWeeks]);
   const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
-  // Fetch date availability when booking drawer opens
+  // Prefetch date availability as soon as student data is ready
   useEffect(() => {
-    if (!prefsOpen || !selectedStudentId) return;
+    if (!selectedStudentId || !maxWeeks) return;
     const today = new Date();
     const from = toDateString(today);
     const toDate = addDays(today, maxWeeks * 7);
@@ -636,7 +636,7 @@ export const AllievoHomeScreen = () => {
     regloApi.getDateAvailability({ studentId: selectedStudentId, from, to })
       .then((data) => setDateAvailability(data))
       .catch(() => { /* silent — non-critical */ });
-  }, [prefsOpen, selectedStudentId, maxWeeks]);
+  }, [selectedStudentId, maxWeeks]);
 
   const preferredDateAvailable = dateAvailability.dates[toDateString(preferredDate)] !== false;
 
