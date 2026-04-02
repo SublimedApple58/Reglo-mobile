@@ -646,7 +646,10 @@ export type UnregisterPushTokenInput = {
   token?: string;
 };
 
-export type DateAvailabilityMap = Record<string, boolean>;
+export type DateAvailabilityMap = {
+  dates: Record<string, boolean>;
+  instructorsByDate: Record<string, string[]>;
+};
 
 export type OutOfAvailabilityAppointment = {
   id: string;

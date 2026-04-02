@@ -196,7 +196,10 @@ export const AllievoHomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
-  const [dateAvailability, setDateAvailability] = useState<Record<string, boolean>>({});
+  const [dateAvailability, setDateAvailability] = useState<{
+    dates: Record<string, boolean>;
+    instructorsByDate: Record<string, string[]>;
+  }>({ dates: {}, instructorsByDate: {} });
   const [freeChoiceSlots, setFreeChoiceSlots] = useState<AvailableSlot[]>([]);
   const [freeChoiceOpen, setFreeChoiceOpen] = useState(false);
   const [freeChoiceSelected, setFreeChoiceSelected] = useState<AvailableSlot | null>(null);
@@ -635,11 +638,11 @@ export const AllievoHomeScreen = () => {
       .catch(() => { /* silent — non-critical */ });
   }, [prefsOpen, selectedStudentId, maxWeeks]);
 
-  const preferredDateAvailable = dateAvailability[toDateString(preferredDate)] !== false;
+  const preferredDateAvailable = dateAvailability.dates[toDateString(preferredDate)] !== false;
 
   const unavailableDatesSet = useMemo(() => {
     const set = new Set<string>();
-    for (const [dateStr, avail] of Object.entries(dateAvailability)) {
+    for (const [dateStr, avail] of Object.entries(dateAvailability.dates)) {
       if (avail) continue;
       // Convert YYYY-MM-DD (1-indexed) → year-month0indexed-day for CalendarDrawer
       const parts = dateStr.split('-');
@@ -652,6 +655,27 @@ export const AllievoHomeScreen = () => {
     }
     return set;
   }, [dateAvailability]);
+
+  // Filter instructor chips by availability on selected date
+  const visibleInstructors = useMemo(() => {
+    if (!canSelectInstructor || !instructors.length) return instructors;
+    const dateKey = toDateString(preferredDate);
+    const availableIds = dateAvailability.instructorsByDate[dateKey];
+    if (!availableIds) return instructors; // data not loaded yet → show all
+    return instructors.filter((i) => availableIds.includes(i.id));
+  }, [canSelectInstructor, instructors, preferredDate, dateAvailability]);
+
+  // Reset selected instructor if no longer visible
+  useEffect(() => {
+    if (
+      selectedInstructorId &&
+      canSelectInstructor &&
+      visibleInstructors.length > 0 &&
+      !visibleInstructors.some((i) => i.id === selectedInstructorId)
+    ) {
+      setSelectedInstructorId(null);
+    }
+  }, [visibleInstructors, selectedInstructorId, canSelectInstructor]);
 
   const dayScrollMountedRef = useRef(false);
 
@@ -1753,19 +1777,21 @@ export const AllievoHomeScreen = () => {
         ) : null}
 
         {/* ISTRUTTORE */}
-        {canSelectInstructor && instructors.length > 0 ? (
+        {canSelectInstructor && visibleInstructors.length > 0 ? (
           <View style={styles.bookingSection}>
             <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
             <View style={styles.bookingChipRow}>
-              <Pressable
-                style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
-                onPress={() => setSelectedInstructorId(null)}
-              >
-                <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                  Tutti
-                </Text>
-              </Pressable>
-              {instructors.map((instructor) => {
+              {visibleInstructors.length > 1 ? (
+                <Pressable
+                  style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
+                  onPress={() => setSelectedInstructorId(null)}
+                >
+                  <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                    Tutti
+                  </Text>
+                </Pressable>
+              ) : null}
+              {visibleInstructors.map((instructor) => {
                 const isActive = selectedInstructorId === instructor.id;
                 return (
                   <Pressable
@@ -1781,7 +1807,9 @@ export const AllievoHomeScreen = () => {
               })}
             </View>
             <Text style={styles.bookingInstructorCaption}>
-              Se non scegli, vedrai proposte con tutti gli istruttori.
+              {visibleInstructors.length < instructors.length
+                ? 'Solo gli istruttori disponibili per questo giorno.'
+                : 'Se non scegli, vedrai proposte con tutti gli istruttori.'}
             </Text>
           </View>
         ) : null}
