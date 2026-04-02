@@ -251,7 +251,8 @@ export const TitolareHomeScreen = () => {
   const appointmentsByHour = useMemo(() => {
     const map = new Map<number, AutoscuolaAppointmentWithRelations[]>();
     for (const appt of appointments) {
-      if ((appt.status ?? '').trim().toLowerCase() === 'proposal') continue;
+      const st = (appt.status ?? '').trim().toLowerCase();
+      if (st === 'proposal' || st === 'cancelled') continue;
       const hour = new Date(appt.startsAt).getHours();
       const list = map.get(hour) ?? [];
       list.push(appt);
