@@ -307,6 +307,7 @@ export const AllievoHomeScreen = () => {
   );
   const requiresCreditsForBooking = Boolean(
     creditFlowEnabled &&
+      paymentProfile?.lessonCreditsRequired !== false &&
       !paymentProfile?.autoPaymentsEnabled &&
       !hasLessonCredits
   );

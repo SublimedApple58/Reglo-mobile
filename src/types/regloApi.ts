@@ -570,6 +570,7 @@ export type StudentAppointmentPaymentHistoryItem = {
 export type MobileStudentPaymentProfile = {
   autoPaymentsEnabled: boolean;
   lessonCreditFlowEnabled: boolean;
+  lessonCreditsRequired?: boolean;
   hasPaymentMethod: boolean;
   paymentMethod: PaymentMethodSummary | null;
   blockedByInsoluti: boolean;
