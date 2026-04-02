@@ -640,6 +640,19 @@ export const AllievoHomeScreen = () => {
 
   const preferredDateAvailable = dateAvailability.dates[toDateString(preferredDate)] !== false;
 
+  const holidaySet = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of (dateAvailability as any).holidays ?? []) {
+      set.add(h);
+    }
+    return set;
+  }, [dateAvailability]);
+
+  const isSelectedDateHoliday = useMemo(
+    () => holidaySet.has(toDateString(selectedDate)),
+    [holidaySet, selectedDate],
+  );
+
   const unavailableDatesSet = useMemo(() => {
     const set = new Set<string>();
     for (const [dateStr, avail] of Object.entries(dateAvailability.dates)) {
@@ -1351,12 +1364,22 @@ export const AllievoHomeScreen = () => {
               </View>
             ) : (
               <View style={styles.emptyLessonCard}>
-                <Image
-                  source={require('../../assets/duck-zen.png')}
-                  style={styles.emptyLessonImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.emptyLessonText}>Nessuna guida prenotata</Text>
+                {isSelectedDateHoliday ? (
+                  <>
+                    <Ionicons name="ban-outline" size={36} color="#DC2626" style={{ marginBottom: 4 }} />
+                    <Text style={[styles.emptyLessonText, { color: '#DC2626' }]}>Giorno festivo</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 2 }}>L'autoscuola è chiusa</Text>
+                  </>
+                ) : (
+                  <>
+                    <Image
+                      source={require('../../assets/duck-zen.png')}
+                      style={styles.emptyLessonImage}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.emptyLessonText}>Nessuna guida prenotata</Text>
+                  </>
+                )}
               </View>
             )}
 
@@ -1413,27 +1436,32 @@ export const AllievoHomeScreen = () => {
                   const hasBooking = bookedDatesSet.has(
                     `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
                   );
+                  const isDayHoliday = holidaySet.has(toDateString(dayNorm));
                   return (
                     <Pressable
                       key={`day-${index}`}
                       style={[
                         styles.dayPill,
-                        isSelected
-                          ? styles.dayPillSelected
-                          : isToday
-                            ? styles.dayPillToday
-                            : styles.dayPillUnselected,
+                        isDayHoliday && !isSelected && !isToday
+                          ? styles.dayPillHoliday
+                          : isSelected
+                            ? styles.dayPillSelected
+                            : isToday
+                              ? styles.dayPillToday
+                              : styles.dayPillUnselected,
                       ]}
                       onPress={() => setSelectedDate(day.date)}
                     >
                       <Text
                         style={[
                           styles.dayPillWeekday,
-                          isSelected
-                            ? styles.dayPillWeekdaySelected
-                            : isToday
-                              ? styles.dayPillWeekdayToday
-                              : styles.dayPillWeekdayUnselected,
+                          isDayHoliday && !isSelected && !isToday
+                            ? styles.dayPillWeekdayHoliday
+                            : isSelected
+                              ? styles.dayPillWeekdaySelected
+                              : isToday
+                                ? styles.dayPillWeekdayToday
+                                : styles.dayPillWeekdayUnselected,
                         ]}
                       >
                         {day.weekday}
@@ -1441,16 +1469,20 @@ export const AllievoHomeScreen = () => {
                       <Text
                         style={[
                           styles.dayPillNumber,
-                          isSelected
-                            ? styles.dayPillNumberSelected
-                            : isToday
-                              ? styles.dayPillNumberToday
-                              : styles.dayPillNumberUnselected,
+                          isDayHoliday && !isSelected && !isToday
+                            ? styles.dayPillNumberHoliday
+                            : isSelected
+                              ? styles.dayPillNumberSelected
+                              : isToday
+                                ? styles.dayPillNumberToday
+                                : styles.dayPillNumberUnselected,
                         ]}
                       >
                         {day.dayNum}
                       </Text>
-                      {hasBooking ? (
+                      {isDayHoliday ? (
+                        <View style={styles.dayPillHolidayDot} />
+                      ) : hasBooking ? (
                         <View
                           style={[
                             styles.dayPillDot,
@@ -2219,6 +2251,25 @@ const styles = StyleSheet.create({
   },
   dayPillDotHighlight: {
     backgroundColor: '#FFFFFF',
+  },
+  dayPillHoliday: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+  },
+  dayPillWeekdayHoliday: {
+    color: '#DC2626',
+  },
+  dayPillNumberHoliday: {
+    color: '#DC2626',
+  },
+  dayPillHolidayDot: {
+    position: 'absolute' as const,
+    bottom: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#DC2626',
   },
   detailCancelBtn: {
     flexDirection: 'row',
