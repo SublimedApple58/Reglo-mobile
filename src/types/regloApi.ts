@@ -649,6 +649,16 @@ export type UnregisterPushTokenInput = {
 export type DateAvailabilityMap = {
   dates: Record<string, boolean>;
   instructorsByDate: Record<string, string[]>;
+  holidays?: string[];
+};
+
+export type AutoscuolaHoliday = {
+  id: string;
+  companyId: string;
+  date: string;
+  label: string | null;
+  createdBy: string | null;
+  createdAt: string;
 };
 
 export type OutOfAvailabilityAppointment = {

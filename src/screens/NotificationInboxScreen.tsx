@@ -31,6 +31,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   confirmation: 'checkmark-done-outline',
   proposal: 'document-text-outline',
   available_slots: 'calendar-outline',
+  holiday_declared: 'calendar-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -45,6 +46,8 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Nuova proposta di guida';
     case 'available_slots':
       return 'Guide disponibili';
+    case 'holiday_declared':
+      return 'Giorno festivo';
   }
 };
 
@@ -60,11 +63,17 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
     case 'available_slots':
       return formatDay(`${item.data.date}T00:00:00Z`);
+    case 'holiday_declared':
+      return formatDay(`${item.data.date}T00:00:00Z`);
   }
 };
 
 const isInteractive = (kind: PersistedNotification['kind']): boolean =>
   kind === 'swap' || kind === 'waitlist' || kind === 'proposal' || kind === 'confirmation' || kind === 'available_slots';
+
+const ICON_COLOR_MAP: Partial<Record<NotificationItem['kind'], string>> = {
+  holiday_declared: '#DC2626',
+};
 
 /* ── Swipeable Card ── */
 
@@ -113,7 +122,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
         style={[styles.card, !item.read && styles.cardUnread]}
       >
         <View style={[styles.iconCircle, !item.read && styles.iconCircleUnread]}>
-          <Ionicons name={ICON_MAP[item.kind]} size={18} color={!item.read ? '#EC4899' : '#94A3B8'} />
+          <Ionicons name={ICON_MAP[item.kind]} size={18} color={ICON_COLOR_MAP[item.kind] ?? (!item.read ? '#EC4899' : '#94A3B8')} />
         </View>
         <View style={styles.cardCenter}>
           <Text style={styles.cardTitle} numberOfLines={1}>

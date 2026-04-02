@@ -67,6 +67,7 @@ import {
   AutoscuolaSettings,
   CreateInstructorBlockInput,
   InstructorBlock,
+  AutoscuolaHoliday,
   DailyAvailabilityOverride,
   SetDailyAvailabilityOverrideInput,
   DeleteDailyAvailabilityOverrideInput,
@@ -355,6 +356,20 @@ export const createRegloApi = (baseUrl?: string) => {
     deleteInstructorBlock: async (blockId: string) =>
       client.request<{ deleted: boolean }>(`/api/autoscuole/instructor-blocks/${blockId}`, {
         method: 'DELETE',
+      }),
+    getHolidays: async (params: { from: string; to: string }) =>
+      client.request<AutoscuolaHoliday[]>('/api/autoscuole/holidays', {
+        params,
+      }),
+    createHoliday: async (input: { date: string; label?: string; cancelAppointments: boolean }) =>
+      client.request<{ holiday: AutoscuolaHoliday; cancelledCount: number }>('/api/autoscuole/holidays', {
+        method: 'POST',
+        body: input,
+      }),
+    deleteHoliday: async (input: { date: string }) =>
+      client.request<{ success: boolean }>('/api/autoscuole/holidays', {
+        method: 'DELETE',
+        body: input,
       }),
     respondWaitlistOffer: async (offerId: string, input: RespondWaitlistOfferInput) =>
       client.request<RespondWaitlistOfferResult>(

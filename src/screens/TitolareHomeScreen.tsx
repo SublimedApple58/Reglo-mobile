@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -45,6 +47,9 @@ const ITALIAN_MONTHS_SHORT = [
   'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic',
 ] as const;
 const ITALIAN_WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'] as const;
+
+const toDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 const DEFAULT_HOUR_START = 7;
 const HOUR_END = 21;
@@ -101,6 +106,11 @@ export const TitolareHomeScreen = () => {
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [holidaySheetOpen, setHolidaySheetOpen] = useState(false);
+  const [holidaySheetDate, setHolidaySheetDate] = useState<Date | null>(null);
+  const [holidayLabel, setHolidayLabel] = useState('');
+  const [holidayPending, setHolidayPending] = useState(false);
 
   const dayScrollRef = useRef<ScrollView | null>(null);
   const dayScrollMountedRef = useRef(false);
@@ -170,17 +180,33 @@ export const TitolareHomeScreen = () => {
       const to = new Date(date);
       to.setHours(23, 59, 59, 999);
 
-      const [appointmentsResponse, settingsResponse] = await Promise.all([
+      // Also fetch holidays for a broad range (current month ±1)
+      const holidayFrom = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+      const holidayTo = new Date(date.getFullYear(), date.getMonth() + 2, 0);
+
+      const [appointmentsResponse, settingsResponse, holidaysResponse] = await Promise.all([
         regloApi.getAppointments({
           from: from.toISOString(),
           to: to.toISOString(),
           limit: 50,
         }),
         regloApi.getAutoscuolaSettings(),
+        regloApi.getHolidays({
+          from: holidayFrom.toISOString(),
+          to: holidayTo.toISOString(),
+        }).catch(() => [] as { date: string }[]),
       ]);
 
       setAppointments(appointmentsResponse);
       setSettings(settingsResponse);
+
+      const holidayDates = new Set<string>();
+      const hList = Array.isArray(holidaysResponse) ? holidaysResponse : [];
+      for (const h of hList) {
+        const d = new Date(h.date);
+        holidayDates.add(toDateStr(d));
+      }
+      setHolidays(holidayDates);
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -264,6 +290,11 @@ export const TitolareHomeScreen = () => {
     }
     return map;
   }, [appointments]);
+
+  const isSelectedDateHoliday = useMemo(
+    () => holidays.has(toDateStr(selectedDate)),
+    [holidays, selectedDate],
+  );
 
   const HOUR_SLOTS = useMemo(() => {
     let earliest = DEFAULT_HOUR_START;
@@ -356,27 +387,60 @@ export const TitolareHomeScreen = () => {
               todayNorm.setHours(0, 0, 0, 0);
               const isToday = dayNorm.getTime() === todayNorm.getTime();
               const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
+              const isDayHoliday = holidays.has(toDateStr(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
                   style={[
                     styles.dayPill,
-                    isSelected
-                      ? styles.dayPillSelected
-                      : isToday
-                        ? styles.dayPillToday
-                        : styles.dayPillUnselected,
+                    isDayHoliday && !isSelected && !isToday
+                      ? styles.dayPillHoliday
+                      : isSelected
+                        ? styles.dayPillSelected
+                        : isToday
+                          ? styles.dayPillToday
+                          : styles.dayPillUnselected,
                   ]}
                   onPress={() => setSelectedDate(day.date)}
+                  onLongPress={() => {
+                    if (isDayHoliday) {
+                      Alert.alert(
+                        'Rimuovere festivo?',
+                        'La disponibilità normale verrà ripristinata.',
+                        [
+                          { text: 'Annulla', style: 'cancel' },
+                          {
+                            text: 'Rimuovi',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await regloApi.deleteHoliday({ date: toDateStr(dayNorm) });
+                                setToast({ text: 'Festivo rimosso.', tone: 'success' });
+                                loadData(selectedDate);
+                              } catch {
+                                setToast({ text: 'Errore.', tone: 'danger' });
+                              }
+                            },
+                          },
+                        ],
+                      );
+                    } else {
+                      setHolidaySheetDate(dayNorm);
+                      setHolidayLabel('');
+                      setHolidaySheetOpen(true);
+                    }
+                  }}
                 >
                   <Text
                     style={[
                       styles.dayPillWeekday,
-                      isSelected
-                        ? styles.dayPillWeekdaySelected
-                        : isToday
-                          ? styles.dayPillWeekdayToday
-                          : styles.dayPillWeekdayUnselected,
+                      isDayHoliday && !isSelected && !isToday
+                        ? styles.dayPillWeekdayHoliday
+                        : isSelected
+                          ? styles.dayPillWeekdaySelected
+                          : isToday
+                            ? styles.dayPillWeekdayToday
+                            : styles.dayPillWeekdayUnselected,
                     ]}
                   >
                     {day.weekday}
@@ -384,15 +448,20 @@ export const TitolareHomeScreen = () => {
                   <Text
                     style={[
                       styles.dayPillNumber,
-                      isSelected
-                        ? styles.dayPillNumberSelected
-                        : isToday
-                          ? styles.dayPillNumberToday
-                          : styles.dayPillNumberUnselected,
+                      isDayHoliday && !isSelected && !isToday
+                        ? styles.dayPillNumberHoliday
+                        : isSelected
+                          ? styles.dayPillNumberSelected
+                          : isToday
+                            ? styles.dayPillNumberToday
+                            : styles.dayPillNumberUnselected,
                     ]}
                   >
                     {day.dayNum}
                   </Text>
+                  {isDayHoliday && (
+                    <View style={styles.holidayDot} />
+                  )}
                 </Pressable>
               );
             })}
@@ -414,6 +483,41 @@ export const TitolareHomeScreen = () => {
                 </View>
               </View>
             ))}
+          </View>
+        ) : isSelectedDateHoliday ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="ban-outline" size={48} color="#DC2626" style={{ marginBottom: 8 }} />
+            <Text style={[styles.emptyText, { color: '#DC2626' }]}>Giorno festivo</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>
+              L'autoscuola è chiusa
+            </Text>
+            <Pressable
+              style={styles.removeHolidayBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Rimuovere festivo?',
+                  'La disponibilità normale verrà ripristinata.',
+                  [
+                    { text: 'Annulla', style: 'cancel' },
+                    {
+                      text: 'Rimuovi',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await regloApi.deleteHoliday({ date: toDateStr(selectedDate) });
+                          setToast({ text: 'Festivo rimosso.', tone: 'success' });
+                          loadData(selectedDate);
+                        } catch {
+                          setToast({ text: 'Errore.', tone: 'danger' });
+                        }
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={styles.removeHolidayBtnText}>Rimuovi festivo</Text>
+            </Pressable>
           </View>
         ) : hasAppointments ? (
           <View style={styles.timelineSection}>
@@ -583,6 +687,87 @@ export const TitolareHomeScreen = () => {
         caption="Seleziona un giorno per vedere le guide programmate"
       />
 
+      {/* ── Holiday Creation BottomSheet ── */}
+      <BottomSheet
+        visible={holidaySheetOpen}
+        onClose={() => { if (!holidayPending) setHolidaySheetOpen(false); }}
+        title="Segna come festivo"
+        showHandle
+      >
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: 16 }}>
+          <Text style={{ fontSize: 14, color: '#64748B' }}>
+            {holidaySheetDate?.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </Text>
+          <View>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: '#94A3B8', marginBottom: 6 }}>
+              Nome festività (opzionale)
+            </Text>
+            <TextInput
+              style={styles.holidayInput}
+              placeholder="es. Ferragosto, Ferie estive..."
+              placeholderTextColor="#CBD5E1"
+              value={holidayLabel}
+              onChangeText={setHolidayLabel}
+              editable={!holidayPending}
+            />
+          </View>
+          <Pressable
+            style={[styles.holidayBtn, styles.holidayBtnOutline]}
+            disabled={holidayPending}
+            onPress={async () => {
+              if (!holidaySheetDate) return;
+              setHolidayPending(true);
+              try {
+                await regloApi.createHoliday({
+                  date: toDateStr(holidaySheetDate),
+                  label: holidayLabel || undefined,
+                  cancelAppointments: false,
+                });
+                setToast({ text: 'Giorno festivo aggiunto.', tone: 'success' });
+                setHolidaySheetOpen(false);
+                loadData(selectedDate);
+              } catch {
+                setToast({ text: 'Errore.', tone: 'danger' });
+              } finally {
+                setHolidayPending(false);
+              }
+            }}
+          >
+            <Text style={[styles.holidayBtnText, { color: '#64748B' }]}>Chiudi e mantieni guide</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.holidayBtn, styles.holidayBtnDestructive]}
+            disabled={holidayPending}
+            onPress={async () => {
+              if (!holidaySheetDate) return;
+              setHolidayPending(true);
+              try {
+                const result = await regloApi.createHoliday({
+                  date: toDateStr(holidaySheetDate),
+                  label: holidayLabel || undefined,
+                  cancelAppointments: true,
+                });
+                const count = (result as any)?.cancelledCount ?? 0;
+                setToast({
+                  text: count > 0
+                    ? `Festivo aggiunto. ${count} ${count === 1 ? 'guida cancellata' : 'guide cancellate'}.`
+                    : 'Giorno festivo aggiunto.',
+                  tone: 'success',
+                });
+                setHolidaySheetOpen(false);
+                loadData(selectedDate);
+              } catch {
+                setToast({ text: 'Errore.', tone: 'danger' });
+              } finally {
+                setHolidayPending(false);
+              }
+            }}
+          >
+            <Text style={[styles.holidayBtnText, { color: '#FFFFFF' }]}>Chiudi e cancella guide</Text>
+          </Pressable>
+        </View>
+      </BottomSheet>
+
       {/* ── Toast ── */}
       {toast ? (
         <ToastNotice
@@ -710,6 +895,67 @@ const styles = StyleSheet.create({
   },
   dayPillNumberToday: {
     color: '#CA8A04',
+  },
+  dayPillHoliday: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+  },
+  dayPillWeekdayHoliday: {
+    color: '#DC2626',
+  },
+  dayPillNumberHoliday: {
+    color: '#DC2626',
+  },
+  holidayDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#DC2626',
+    position: 'absolute',
+    bottom: 6,
+  },
+  removeHolidayBtn: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+  },
+  removeHolidayBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+    textAlign: 'center',
+  },
+  holidayInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1E293B',
+    backgroundColor: '#F8FAFC',
+  },
+  holidayBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  holidayBtnOutline: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  holidayBtnDestructive: {
+    backgroundColor: '#DC2626',
+  },
+  holidayBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   /* ── Timeline ── */
