@@ -172,6 +172,27 @@ export const TitolareHomeScreen = () => {
   }, [scrollToDay]);
 
   // ── Data fetching ──
+  const loadHolidays = useCallback(async () => {
+    try {
+      const today = new Date();
+      const from = addDays(today, -14);
+      const to = addDays(today, 52 * 7);
+      const response = await regloApi.getHolidays({
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
+      const set = new Set<string>();
+      const list = Array.isArray(response) ? response : [];
+      for (const h of list) {
+        const d = new Date(h.date);
+        set.add(toDateStr(d));
+      }
+      setHolidays(set);
+    } catch {
+      // silent
+    }
+  }, []);
+
   const loadData = useCallback(async (date: Date) => {
     setToast(null);
     try {
@@ -180,33 +201,17 @@ export const TitolareHomeScreen = () => {
       const to = new Date(date);
       to.setHours(23, 59, 59, 999);
 
-      // Also fetch holidays for a broad range (current month ±1)
-      const holidayFrom = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-      const holidayTo = new Date(date.getFullYear(), date.getMonth() + 2, 0);
-
-      const [appointmentsResponse, settingsResponse, holidaysResponse] = await Promise.all([
+      const [appointmentsResponse, settingsResponse] = await Promise.all([
         regloApi.getAppointments({
           from: from.toISOString(),
           to: to.toISOString(),
           limit: 50,
         }),
         regloApi.getAutoscuolaSettings(),
-        regloApi.getHolidays({
-          from: holidayFrom.toISOString(),
-          to: holidayTo.toISOString(),
-        }).catch(() => [] as { date: string }[]),
       ]);
 
       setAppointments(appointmentsResponse);
       setSettings(settingsResponse);
-
-      const holidayDates = new Set<string>();
-      const hList = Array.isArray(holidaysResponse) ? holidaysResponse : [];
-      for (const h of hList) {
-        const d = new Date(h.date);
-        holidayDates.add(toDateStr(d));
-      }
-      setHolidays(holidayDates);
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -255,6 +260,9 @@ export const TitolareHomeScreen = () => {
     setLoading(true);
     loadData(selectedDate).then(() => loadOutOfAvailability());
   }, [loadData, loadOutOfAvailability, selectedDate]);
+
+  // Load holidays once on mount (full pill range)
+  useEffect(() => { loadHolidays(); }, [loadHolidays]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -416,7 +424,7 @@ export const TitolareHomeScreen = () => {
                               try {
                                 await regloApi.deleteHoliday({ date: toDateStr(dayNorm) });
                                 setToast({ text: 'Festivo rimosso.', tone: 'success' });
-                                loadData(selectedDate);
+                                loadData(selectedDate); loadHolidays();
                               } catch {
                                 setToast({ text: 'Errore.', tone: 'danger' });
                               }
@@ -725,7 +733,7 @@ export const TitolareHomeScreen = () => {
                 });
                 setToast({ text: 'Giorno festivo aggiunto.', tone: 'success' });
                 setHolidaySheetOpen(false);
-                loadData(selectedDate);
+                loadData(selectedDate); loadHolidays();
               } catch {
                 setToast({ text: 'Errore.', tone: 'danger' });
               } finally {
@@ -755,7 +763,7 @@ export const TitolareHomeScreen = () => {
                   tone: 'success',
                 });
                 setHolidaySheetOpen(false);
-                loadData(selectedDate);
+                loadData(selectedDate); loadHolidays();
               } catch {
                 setToast({ text: 'Errore.', tone: 'danger' });
               } finally {

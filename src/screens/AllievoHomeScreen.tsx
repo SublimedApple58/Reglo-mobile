@@ -640,13 +640,26 @@ export const AllievoHomeScreen = () => {
 
   const preferredDateAvailable = dateAvailability.dates[toDateString(preferredDate)] !== false;
 
-  const holidaySet = useMemo(() => {
-    const set = new Set<string>();
-    for (const h of (dateAvailability as any).holidays ?? []) {
-      set.add(h);
-    }
-    return set;
-  }, [dateAvailability]);
+  const [holidaySet, setHolidaySet] = useState<Set<string>>(new Set());
+
+  // Load holidays for full pill range (separate from date availability)
+  useEffect(() => {
+    const today = new Date();
+    const from = toDateString(today);
+    const toDate = addDays(today, 52 * 7);
+    const to = toDateString(toDate);
+    regloApi.getHolidays({ from, to })
+      .then((response) => {
+        const set = new Set<string>();
+        const list = Array.isArray(response) ? response : [];
+        for (const h of list) {
+          const d = new Date(h.date);
+          set.add(toDateString(d));
+        }
+        setHolidaySet(set);
+      })
+      .catch(() => { /* silent */ });
+  }, []);
 
   const isSelectedDateHoliday = useMemo(
     () => holidaySet.has(toDateString(selectedDate)),

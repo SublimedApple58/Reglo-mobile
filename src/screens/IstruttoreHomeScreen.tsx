@@ -546,13 +546,6 @@ export const IstruttoreHomeScreen = () => {
           (b) => b.instructorId === instructorId,
         ),
       );
-      // Extract holidays from bootstrap
-      const holidayDates = new Set<string>();
-      for (const h of (agendaBootstrap as any).holidays ?? []) {
-        const d = new Date(h.date);
-        holidayDates.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-      }
-      setHolidays(holidayDates);
       const nextAppointments = dedupeAppointments(
         agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
       );
@@ -587,6 +580,27 @@ export const IstruttoreHomeScreen = () => {
       // silent
     }
   }, [instructorId]);
+
+  const loadHolidays = useCallback(async () => {
+    try {
+      const today = new Date();
+      const from = addDays(today, -14);
+      const to = addDays(today, 52 * 7);
+      const response = await regloApi.getHolidays({
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
+      const set = new Set<string>();
+      const list = Array.isArray(response) ? response : [];
+      for (const h of list) {
+        const d = new Date(h.date);
+        set.add(toDateOnlyString(d));
+      }
+      setHolidays(set);
+    } catch {
+      // silent
+    }
+  }, []);
 
   const handleOutOfAvailAction = useCallback(async (
     appointmentId: string,
@@ -1118,12 +1132,9 @@ export const IstruttoreHomeScreen = () => {
   }, []);
   const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
-  const toDateStr = useCallback((d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, []);
-
   const isSelectedDateHoliday = useMemo(
-    () => holidays.has(toDateStr(selectedDate)),
-    [holidays, selectedDate, toDateStr],
+    () => holidays.has(toDateOnlyString(selectedDate)),
+    [holidays, selectedDate],
   );
 
   const dayScrollMountedRef = useRef(false);
@@ -1198,6 +1209,7 @@ export const IstruttoreHomeScreen = () => {
       loadData();
       loadAvailability();
       loadOutOfAvailability();
+      loadHolidays();
     });
     return unsubscribe;
   }, [navigation, loadData, loadAvailability, loadOutOfAvailability]);
@@ -1573,7 +1585,7 @@ export const IstruttoreHomeScreen = () => {
               const hasBooking = bookedDatesSet.has(
                 `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
               );
-              const isDayHoliday = holidays.has(toDateStr(dayNorm));
+              const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
