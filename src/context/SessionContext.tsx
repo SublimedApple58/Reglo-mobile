@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { authStorage } from '../services/apiClient';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { authStorage, RegloApiError, onAuthInvalidated } from '../services/apiClient';
 import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
@@ -140,14 +140,47 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     try {
       await refreshMe();
     } catch (error) {
-      console.warn('[Session] Failed to restore session', error);
-      await clearSessionAndUnauthenticate();
+      const isAuthError = error instanceof RegloApiError && error.status === 401;
+      if (isAuthError) {
+        console.warn('[Session] Token rejected (401), clearing session');
+        await clearSessionAndUnauthenticate();
+        return;
+      }
+
+      // Transient error (network, timeout, 500) — retry once after a short delay
+      console.warn('[Session] Transient error restoring session, retrying...', error);
+      await new Promise((r) => setTimeout(r, 2000));
+
+      try {
+        await refreshMe();
+      } catch (retryError) {
+        const isRetryAuthError = retryError instanceof RegloApiError && retryError.status === 401;
+        if (isRetryAuthError) {
+          console.warn('[Session] Token rejected on retry (401), clearing session');
+          await clearSessionAndUnauthenticate();
+        } else {
+          // Still failing but token is valid — keep it stored, show unauthenticated
+          // so the user can pull-to-refresh or reopen the app later without re-login
+          console.warn('[Session] Retry failed, keeping token for next launch');
+          setState(unauthenticatedState);
+        }
+      }
     }
   }, [clearSessionAndUnauthenticate, refreshMe]);
 
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  // Listen for 401 responses during normal app usage (not just bootstrap).
+  // Any API call returning 401 means the token is invalid — clean up the session.
+  const clearRef = useRef(clearSessionAndUnauthenticate);
+  clearRef.current = clearSessionAndUnauthenticate;
+  useEffect(() => {
+    return onAuthInvalidated(() => {
+      clearRef.current();
+    });
+  }, []);
 
   useEffect(() => {
     if (state.status !== 'ready' || !state.user?.id) return;

@@ -69,6 +69,21 @@ export class RegloApiError extends Error {
   }
 }
 
+/* ── Global 401 listener ── */
+
+type AuthEventListener = () => void;
+const authInvalidationListeners = new Set<AuthEventListener>();
+
+/** Subscribe to auth invalidation (401) events. Returns unsubscribe function. */
+export const onAuthInvalidated = (listener: AuthEventListener) => {
+  authInvalidationListeners.add(listener);
+  return () => { authInvalidationListeners.delete(listener); };
+};
+
+const notifyAuthInvalidated = () => {
+  authInvalidationListeners.forEach((fn) => fn());
+};
+
 const buildUrl = (baseUrl: string, path: string) => {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
   const withSlash = path.startsWith('/') ? path : `/${path}`;
@@ -153,6 +168,9 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
 
     if (!response.ok) {
       console.error('[Reglo API] HTTP error', response.status, json);
+      if (response.status === 401) {
+        notifyAuthInvalidated();
+      }
       throw toError(response.status, json as ApiError | null, response.statusText);
     }
 

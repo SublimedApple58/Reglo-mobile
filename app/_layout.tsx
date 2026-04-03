@@ -10,10 +10,10 @@ import { peekLaunchPushIntent } from '../src/services/pushNotifications';
 import { colors } from '../src/theme';
 
 const AuthGate = () => {
-  const { status, autoscuolaRole, signOut } = useSession();
+  const { status, autoscuolaRole, signOut, refreshMe } = useSession();
   const segments = useSegments();
   const router = useRouter();
-  const forcedLogoutRef = useRef(false);
+  const roleRetryRef = useRef(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -37,23 +37,28 @@ const AuthGate = () => {
     }
 
     if (!autoscuolaRole) {
-      if (forcedLogoutRef.current) {
+      // Role is null — could be a transient data issue. Retry refreshMe once
+      // before giving up and forcing logout.
+      if (roleRetryRef.current) {
+        // Already retried — force logout
+        roleRetryRef.current = false;
+        signOut()
+          .catch(() => undefined)
+          .finally(() => {
+            router.replace('/(auth)/login');
+          });
         return;
       }
-      forcedLogoutRef.current = true;
-      signOut()
-        .catch(() => undefined)
-        .finally(() => {
-          router.replace('/(auth)/login');
-        });
+      roleRetryRef.current = true;
+      refreshMe().catch(() => undefined);
       return;
     }
 
-    forcedLogoutRef.current = false;
+    roleRetryRef.current = false;
     if (!inTabs) {
       router.replace('/(tabs)/home');
     }
-  }, [status, autoscuolaRole, router, segments, signOut]);
+  }, [status, autoscuolaRole, router, segments, signOut, refreshMe]);
 
   useEffect(() => {
     if (status !== 'ready' || !autoscuolaRole) return;
