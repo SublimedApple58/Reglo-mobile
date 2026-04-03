@@ -75,6 +75,7 @@ const AndroidTabItem = ({ routeKey, tabLabel, label, iconName, isFocused, onPres
 type AndroidTabBarExtraProps = {
   isOwner: boolean;
   showMoreTab: boolean;
+  hiddenTabs: Set<string>;
 };
 
 const ANDROID_TAB_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconFocused: keyof typeof Ionicons.glyphMap }> = {
@@ -93,16 +94,14 @@ const AndroidTabBar = ({
   navigation,
   isOwner,
   showMoreTab,
+  hiddenTabs,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
 
-  // Hide overflow tabs from the bar when "Altro" is shown
-  const hiddenFromBar = showMoreTab ? new Set(['settings']) : new Set<string>();
+  // Filter using the explicit hiddenTabs set instead of relying on
+  // descriptor options which may not update reactively on Android.
   const visibleRoutes = state.routes.filter((route) => {
-    if (hiddenFromBar.has(route.name)) return false;
-    const options = descriptors[route.key]?.options;
-    if ((options as { href?: string | null })?.href === null) return false;
-    return true;
+    return !hiddenTabs.has(route.name);
   });
 
   return (
@@ -153,6 +152,20 @@ export default function TabsLayout() {
   const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
   const isOwner = autoscuolaRole === 'OWNER';
 
+  // Compute hidden tabs explicitly so the Android custom tab bar can
+  // filter reliably (expo-router descriptors don't update reactively).
+  const hiddenTabs = React.useMemo(() => {
+    const set = new Set<string>();
+    if (!showRoleTab) set.add('role');
+    if (!showNotesTab) set.add('notes');
+    if (!showMoreTab) set.add('more');
+    if (!showSwapsTab) set.add('swaps');
+    if (!showPaymentsTab) set.add('payments');
+    // Settings hidden when "Altro" is shown (accessed from More screen)
+    if (showMoreTab) set.add('settings');
+    return set;
+  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab]);
+
   const transparent =
     Platform.OS === 'ios'
       ? DynamicColorIOS({ light: 'transparent', dark: 'transparent' })
@@ -171,7 +184,7 @@ export default function TabsLayout() {
     return (
       <>
         <Tabs
-          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} />}
+          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} hiddenTabs={hiddenTabs} />}
           screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
         >
           <Tabs.Screen name="home" options={{ title: 'Home' }} />
