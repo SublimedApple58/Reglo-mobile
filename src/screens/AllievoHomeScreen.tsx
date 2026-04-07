@@ -311,6 +311,13 @@ export const AllievoHomeScreen = () => {
       !paymentProfile?.autoPaymentsEnabled &&
       !hasLessonCredits
   );
+  const weeklyLimitReached = Boolean(
+    bookingOptions?.weeklyBookingLimit?.enabled &&
+      bookingOptions.weeklyBookingLimit.reached
+  );
+  const weeklyLimitLabel = bookingOptions?.weeklyBookingLimit?.enabled
+    ? `Limite di ${bookingOptions.weeklyBookingLimit.limit ?? 0} guide settimanali raggiunto`
+    : '';
 
   const loadStudents = useCallback(async () => {
     const list = await regloApi.getStudents();
@@ -1401,11 +1408,11 @@ export const AllievoHomeScreen = () => {
             {!studentBookingDisabledByPolicy ? (
               <Pressable
                 onPress={blockedByInsoluti ? handlePayNow : openPreferences}
-                disabled={blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking)}
+                disabled={blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking || weeklyLimitReached)}
                 style={({ pressed }) => [
                   styles.ctaButton,
                   pressed && styles.ctaButtonPressed,
-                  (blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking)) && styles.ctaButtonDisabled,
+                  (blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking || weeklyLimitReached)) && styles.ctaButtonDisabled,
                 ]}
               >
                 <Text style={styles.ctaButtonLabel}>
@@ -1413,9 +1420,11 @@ export const AllievoHomeScreen = () => {
                     ? payNowLoading
                       ? 'Attendi...'
                       : 'Salda ora'
-                    : requiresCreditsForBooking
-                      ? 'Crediti guida esauriti'
-                      : 'Prenota nuova guida'}
+                    : weeklyLimitReached
+                      ? weeklyLimitLabel
+                      : requiresCreditsForBooking
+                        ? 'Crediti guida esauriti'
+                        : 'Prenota nuova guida'}
                 </Text>
               </Pressable>
             ) : null}

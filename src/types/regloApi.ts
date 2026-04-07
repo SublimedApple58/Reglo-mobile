@@ -492,6 +492,12 @@ export type MobileBookingOptions = {
   >;
   studentBookingMode?: 'engine' | 'free_choice';
   instructorPreferenceEnabled?: boolean;
+  weeklyBookingLimit?: {
+    enabled: boolean;
+    limit?: number;
+    current?: number;
+    reached?: boolean;
+  };
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
