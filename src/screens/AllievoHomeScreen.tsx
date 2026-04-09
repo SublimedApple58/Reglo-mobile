@@ -1268,7 +1268,7 @@ export const AllievoHomeScreen = () => {
                   <Text style={styles.examBannerIcon}>📋</Text>
                   <View style={styles.examBannerContent}>
                     <Text style={styles.examBannerTitle}>Esame di guida</Text>
-                    {examPriority.examDate && (
+                    {examPriority.examDate ? (
                       <>
                         <Text style={styles.examBannerDate}>
                           {new Date(examPriority.examDate).toLocaleDateString('it-IT', {
@@ -1278,18 +1278,24 @@ export const AllievoHomeScreen = () => {
                             year: 'numeric',
                           })}
                         </Text>
-                        <View style={styles.examBannerPill}>
-                          <Text style={styles.examBannerPillText}>
-                            tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                        <View style={styles.examBannerPillRow}>
+                          <View style={styles.examBannerPill}>
+                            <Text style={styles.examBannerPillText}>
+                              tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                            </Text>
+                          </View>
+                          <Text style={styles.examBannerSubtext}>
+                            Hai la priorità per prenotare più guide
                           </Text>
                         </View>
                       </>
+                    ) : (
+                      <Text style={styles.examBannerSubtext}>
+                        Hai la priorità per prenotare più guide
+                      </Text>
                     )}
                   </View>
                 </View>
-                <Text style={styles.examBannerSubtext}>
-                  Hai la priorità per prenotare più guide
-                </Text>
               </LinearGradient>
             )}
 
@@ -2057,13 +2063,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
   },
+  examBannerPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
   examBannerPill: {
-    alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    marginTop: 4,
   },
   examBannerPillText: {
     fontSize: 12,
@@ -2074,7 +2084,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 8,
   },
 
   /* ── Next Lesson Card (yellow) ── */
