@@ -1269,24 +1269,24 @@ export const AllievoHomeScreen = () => {
                   <View style={styles.examBannerContent}>
                     <Text style={styles.examBannerTitle}>Esame di guida</Text>
                     {examPriority.examDate ? (
-                      <>
-                        <Text style={styles.examBannerDate}>
-                          {new Date(examPriority.examDate).toLocaleDateString('it-IT', {
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </Text>
-                        <View style={styles.examBannerPill}>
-                          <Text style={styles.examBannerPillText}>
-                            tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
-                          </Text>
-                        </View>
-                      </>
+                      <Text style={styles.examBannerDate}>
+                        {new Date(examPriority.examDate).toLocaleDateString('it-IT', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </Text>
                     ) : null}
                   </View>
                 </View>
+                {examPriority.examDate && (
+                  <View style={styles.examBannerPill}>
+                    <Text style={styles.examBannerPillText}>
+                      tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                    </Text>
+                  </View>
+                )}
                 <Text style={styles.examBannerSubtext}>
                   Hai la priorità per prenotare più guide
                 </Text>
@@ -2064,7 +2064,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    marginTop: 4,
+    marginTop: 8,
   },
   examBannerPillText: {
     fontSize: 12,
@@ -2075,8 +2075,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 8,
-    marginLeft: 34,
+    marginTop: 6,
   },
 
   /* ── Next Lesson Card (yellow) ── */
