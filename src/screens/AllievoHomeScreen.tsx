@@ -1278,18 +1278,18 @@ export const AllievoHomeScreen = () => {
                         })}
                       </Text>
                     ) : null}
-                  </View>
-                </View>
-                {examPriority.examDate && (
-                  <View style={styles.examBannerPill}>
-                    <Text style={styles.examBannerPillText}>
-                      tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                    {examPriority.examDate && (
+                      <View style={styles.examBannerPill}>
+                        <Text style={styles.examBannerPillText}>
+                          tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.examBannerSubtext}>
+                      Hai la priorità per prenotare più guide
                     </Text>
                   </View>
-                )}
-                <Text style={styles.examBannerSubtext}>
-                  Hai la priorità per prenotare più guide
-                </Text>
+                </View>
               </LinearGradient>
             )}
 
@@ -2064,8 +2064,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    marginTop: 8,
-    marginLeft: 34,
+    marginTop: 4,
   },
   examBannerPillText: {
     fontSize: 12,
@@ -2077,7 +2076,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
     marginTop: 6,
-    marginLeft: 34,
   },
 
   /* ── Next Lesson Card (yellow) ── */
