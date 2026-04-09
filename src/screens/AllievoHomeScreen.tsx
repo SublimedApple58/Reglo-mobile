@@ -2065,6 +2065,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     marginTop: 8,
+    marginLeft: 34,
   },
   examBannerPillText: {
     fontSize: 12,
@@ -2076,6 +2077,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
     marginTop: 6,
+    marginLeft: 34,
   },
 
   /* ── Next Lesson Card (yellow) ── */
