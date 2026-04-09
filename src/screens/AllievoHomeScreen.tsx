@@ -2032,6 +2032,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
+    zIndex: 1,
   },
   examBannerRow: {
     flexDirection: 'row',
