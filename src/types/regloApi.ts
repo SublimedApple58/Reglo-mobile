@@ -497,6 +497,10 @@ export type MobileBookingOptions = {
     limit?: number;
     current?: number;
     reached?: boolean;
+    examPriority?: {
+      active: boolean;
+      examDate: string | null;
+    } | null;
   };
 };
 

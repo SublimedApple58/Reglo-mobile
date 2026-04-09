@@ -315,8 +315,11 @@ export const AllievoHomeScreen = () => {
     bookingOptions?.weeklyBookingLimit?.enabled &&
       bookingOptions.weeklyBookingLimit.reached
   );
+  const examPriority = bookingOptions?.weeklyBookingLimit?.examPriority ?? null;
   const weeklyLimitLabel = bookingOptions?.weeklyBookingLimit?.enabled
-    ? `Limite di ${bookingOptions.weeklyBookingLimit.limit ?? 0} guide settimanali raggiunto`
+    ? examPriority?.active
+      ? `Limite priorità esame raggiunto (${bookingOptions.weeklyBookingLimit.current ?? 0}/${bookingOptions.weeklyBookingLimit.limit ?? 0} guide)`
+      : `Limite di ${bookingOptions.weeklyBookingLimit.limit ?? 0} guide settimanali raggiunto`
     : '';
 
   const loadStudents = useCallback(async () => {
@@ -1253,6 +1256,43 @@ export const AllievoHomeScreen = () => {
           </>
         ) : (
           <>
+            {/* ── Exam Priority Banner ── */}
+            {examPriority?.active && (
+              <LinearGradient
+                colors={['#8B5CF6', '#A78BFA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.examBanner}
+              >
+                <View style={styles.examBannerRow}>
+                  <Text style={styles.examBannerIcon}>📋</Text>
+                  <View style={styles.examBannerContent}>
+                    <Text style={styles.examBannerTitle}>Esame di guida</Text>
+                    {examPriority.examDate && (
+                      <>
+                        <Text style={styles.examBannerDate}>
+                          {new Date(examPriority.examDate).toLocaleDateString('it-IT', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </Text>
+                        <View style={styles.examBannerPill}>
+                          <Text style={styles.examBannerPillText}>
+                            tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.examBannerSubtext}>
+                  Hai la priorità per prenotare più guide
+                </Text>
+              </LinearGradient>
+            )}
+
             {/* ── Prossima Guida Card ── */}
             {nextLesson ? (
               <View style={styles.nextLessonShadow}>
@@ -1980,6 +2020,60 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: '#64748B',
     marginTop: 2,
+  },
+
+  /* ── Exam Priority Banner ── */
+  examBanner: {
+    borderRadius: radii.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  examBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  examBannerIcon: {
+    fontSize: 24,
+    marginTop: 2,
+  },
+  examBannerContent: {
+    flex: 1,
+    gap: 2,
+  },
+  examBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  examBannerDate: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  examBannerPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  examBannerPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  examBannerSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 8,
   },
 
   /* ── Next Lesson Card (yellow) ── */
