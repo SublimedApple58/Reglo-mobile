@@ -1278,35 +1278,31 @@ export const AllievoHomeScreen = () => {
                             year: 'numeric',
                           })}
                         </Text>
-                        <View style={styles.examBannerPillRow}>
-                          <View style={styles.examBannerPill}>
-                            <Text style={styles.examBannerPillText}>
-                              tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
-                            </Text>
-                          </View>
-                          <Text style={styles.examBannerSubtext}>
-                            Hai la priorità per prenotare più guide
+                        <View style={styles.examBannerPill}>
+                          <Text style={styles.examBannerPillText}>
+                            tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
                           </Text>
                         </View>
                       </>
-                    ) : (
-                      <Text style={styles.examBannerSubtext}>
-                        Hai la priorità per prenotare più guide
-                      </Text>
-                    )}
+                    ) : null}
                   </View>
                 </View>
+                <Text style={styles.examBannerSubtext}>
+                  Hai la priorità per prenotare più guide
+                </Text>
               </LinearGradient>
             )}
 
             {/* ── Prossima Guida Card ── */}
             {nextLesson ? (
               <View style={styles.nextLessonShadow}>
-                <Image
-                  source={require('../../assets/duck-peek.png')}
-                  style={styles.nextLessonDuck}
-                  resizeMode="contain"
-                />
+                {!examPriority?.active && (
+                  <Image
+                    source={require('../../assets/duck-peek.png')}
+                    style={styles.nextLessonDuck}
+                    resizeMode="contain"
+                  />
+                )}
                 <LinearGradient
                   colors={['#FACC15', '#FDE68A']}
                   start={{ x: 0, y: 0 }}
@@ -2042,12 +2038,11 @@ const styles = StyleSheet.create({
   },
   examBannerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
   },
   examBannerIcon: {
     fontSize: 24,
-    marginTop: 2,
   },
   examBannerContent: {
     flex: 1,
@@ -2063,17 +2058,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
   },
-  examBannerPillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
   examBannerPill: {
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
+    marginTop: 4,
   },
   examBannerPillText: {
     fontSize: 12,
@@ -2084,6 +2075,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
+    marginTop: 8,
+    marginLeft: 34,
   },
 
   /* ── Next Lesson Card (yellow) ── */
