@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
 import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
+import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
 
@@ -144,11 +145,12 @@ export default function TabsLayout() {
   const { autoscuolaRole } = useSession();
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const { enabled: swapEnabled } = useSwapEnabled();
+  const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isStudent = !showRoleTab;
   const showSwapsTab = isStudent && swapEnabled;
-  const showNotesTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const showNotesTab = showRoleTab || studentNotesEnabled;
   const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
   const isOwner = autoscuolaRole === 'OWNER';
 

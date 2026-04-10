@@ -1,17 +1,14 @@
-import React, { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import React from 'react';
 import { useSession } from '../../../src/context/SessionContext';
 import { InstructorNotesScreen } from '../../../src/screens/InstructorNotesScreen';
+import { StudentMyNotesScreen } from '../../../src/screens/StudentMyNotesScreen';
 
 export default function NotesRoute() {
   const { autoscuolaRole } = useSession();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (autoscuolaRole && autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR') {
-      router.replace('/(tabs)/home');
-    }
-  }, [autoscuolaRole, router]);
+  if (autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR') {
+    return <InstructorNotesScreen />;
+  }
 
-  return <InstructorNotesScreen />;
+  return <StudentMyNotesScreen />;
 }

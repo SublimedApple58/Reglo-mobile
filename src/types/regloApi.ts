@@ -482,6 +482,7 @@ export type AutoscuolaSettings = {
   appBookingActors?: 'students' | 'instructors' | 'both';
   instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
   swapEnabled?: boolean;
+  studentNotesEnabled?: boolean;
 };
 
 export type MobileBookingOptions = {
