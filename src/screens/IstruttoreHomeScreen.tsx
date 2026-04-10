@@ -1948,9 +1948,25 @@ export const IstruttoreHomeScreen = () => {
                 {sheetLesson.student?.firstName} {sheetLesson.student?.lastName}
               </Text>
               {sheetLesson.student?.phone ? (
-                <Pressable onPress={() => Linking.openURL(`tel:${sheetLesson.student!.phone}`)}>
-                  <Text style={styles.modalInfoPhone}>{sheetLesson.student.phone}</Text>
-                </Pressable>
+                <View style={styles.studentContactRow}>
+                  <Pressable
+                    style={styles.studentContactButton}
+                    onPress={() => Linking.openURL(`tel:${sheetLesson.student!.phone}`)}
+                  >
+                    <Text style={styles.studentContactIcon}>📞</Text>
+                    <Text style={styles.studentContactLabel}>Chiama</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.studentContactButton, styles.studentContactWhatsapp]}
+                    onPress={() => {
+                      const num = sheetLesson.student!.phone!.replace(/[^0-9]/g, "");
+                      Linking.openURL(`https://wa.me/${num}`);
+                    }}
+                  >
+                    <Text style={styles.studentContactIcon}>💬</Text>
+                    <Text style={styles.studentContactLabel}>WhatsApp</Text>
+                  </Pressable>
+                </View>
               ) : null}
               <Text style={styles.modalInfoSub}>
                 {durationLabel(sheetLesson)} {'\u00B7'} {sheetLesson.vehicle?.name ?? 'Da assegnare'}
@@ -3227,6 +3243,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3B82F6',
     marginTop: 2,
+  },
+  studentContactRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  studentContactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  studentContactWhatsapp: {
+    backgroundColor: '#F0FDF4',
+  },
+  studentContactIcon: {
+    fontSize: 16,
+  },
+  studentContactLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
   },
   modalInfoSub: {
     fontSize: 13,
