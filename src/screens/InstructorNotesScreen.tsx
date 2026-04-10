@@ -42,7 +42,6 @@ export const InstructorNotesScreen = () => {
           limit: 1,
         }),
         regloApi.getAppointments({
-          instructorId,
           limit: 500,
         }),
       ]);

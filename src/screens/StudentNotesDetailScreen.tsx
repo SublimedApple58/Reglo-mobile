@@ -13,7 +13,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
-import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing } from '../theme';
@@ -22,18 +21,17 @@ import { formatDay, formatTime } from '../utils/date';
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
-  const { instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!instructorId || !studentId) return;
+    if (!studentId) return;
     try {
-      const appts = await regloApi.getAppointments({ instructorId, limit: 500 });
+      const appts = await regloApi.getAppointments({ studentId, limit: 500 });
       const filtered = appts
-        .filter((a) => a.studentId === studentId && (a.status ?? '').trim().toLowerCase() !== 'cancelled')
+        .filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled')
         .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
       setAppointments(filtered);
     } catch {
@@ -41,7 +39,7 @@ export const StudentNotesDetailScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [instructorId, studentId]);
+  }, [studentId]);
 
   useEffect(() => {
     loadData();
@@ -116,7 +114,7 @@ export const StudentNotesDetailScreen = () => {
                       ) : null}
                     </View>
                     <Text style={styles.timelineMeta}>
-                      {appt.vehicle?.name ?? 'Veicolo n/d'}
+                      {appt.instructor?.name ?? 'Istruttore'} · {appt.vehicle?.name ?? 'Veicolo n/d'}
                     </Text>
                     <Text
                       style={[
