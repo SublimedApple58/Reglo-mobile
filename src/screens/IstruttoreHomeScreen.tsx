@@ -1797,11 +1797,10 @@ export const IstruttoreHomeScreen = () => {
 
                 return (
                   <View key={`hour-${hour}`}>
-                    <View style={[styles.timelineRow, { height: ROW_H }, isNowHour && { zIndex: 10 }]}>
+                    <View style={[styles.timelineRow, isNowHour && { zIndex: 10 }]}>
                       <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
                       <View style={[
                         styles.timelineSlotArea,
-                        { height: ROW_H },
                         !coverage && styles.timelineSlotUnavailable,
                       ]}>
                         {/* Pink availability bar — pixel precise */}
@@ -3766,6 +3765,7 @@ const styles = StyleSheet.create({
   },
   timelineRow: {
     flexDirection: 'row',
+    minHeight: 52,
     alignItems: 'flex-start',
   },
   timelineGridWrapper: {
@@ -3822,6 +3822,7 @@ const styles = StyleSheet.create({
   timelineSlotArea: {
     flex: 1,
     paddingLeft: 14,
+    minHeight: 52,
     position: 'relative' as const,
     overflow: 'visible',
   },
