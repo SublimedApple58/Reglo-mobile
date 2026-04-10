@@ -436,6 +436,7 @@ export const IstruttoreHomeScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
+  const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
   const [selectedLessonType, setSelectedLessonType] = useState('');
   const [lessonNotes, setLessonNotes] = useState('');
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
@@ -1021,6 +1022,7 @@ export const IstruttoreHomeScreen = () => {
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
     setSheetLesson(lesson);
     setSheetScrollAtBottom(false);
+    setSheetScrollAtTop(true);
     setSelectedLessonType(resolveInitialLessonType(lesson.type));
     setLessonNotes(lesson.notes ?? '');
   };
@@ -1982,7 +1984,9 @@ export const IstruttoreHomeScreen = () => {
               onScroll={({ nativeEvent }) => {
                 const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
                 const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
+                const atTop = contentOffset.y <= 10;
                 setSheetScrollAtBottom(atBottom);
+                setSheetScrollAtTop(atTop);
               }}
               scrollEventThrottle={16}
             >
@@ -2063,10 +2067,17 @@ export const IstruttoreHomeScreen = () => {
               />
             </View>
             </ScrollView>
+            {!sheetScrollAtTop && (
+              <LinearGradient
+                colors={['rgba(255,255,255,1)', 'rgba(255,255,255,0)']}
+                style={styles.scrollFadeHintTop}
+                pointerEvents="none"
+              />
+            )}
             {!sheetScrollAtBottom && (
               <LinearGradient
                 colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
-                style={styles.scrollFadeHint}
+                style={styles.scrollFadeHintBottom}
                 pointerEvents="none"
               />
             )}
@@ -3366,7 +3377,15 @@ const styles = StyleSheet.create({
   sheetScroll: {
     width: '100%',
   },
-  scrollFadeHint: {
+  scrollFadeHintTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 32,
+    zIndex: 1,
+  },
+  scrollFadeHintBottom: {
     position: 'absolute',
     bottom: 0,
     left: 0,
