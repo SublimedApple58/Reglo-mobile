@@ -786,32 +786,43 @@ export const TitolareHomeScreen = () => {
         showHandle
       >
         {selectedAppt ? (
-          <View style={{ gap: 16 }}>
-            {/* ── Info card ── */}
-            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 14, gap: 6 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>
-                  {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''}
+          <View style={{ gap: 18 }}>
+            {/* ── Student header ── */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#EC4899' }}>
+                  {selectedAppt.student
+                    ? `${selectedAppt.student.firstName.charAt(0)}${selectedAppt.student.lastName.charAt(0)}`.toUpperCase()
+                    : '?'}
                 </Text>
-                <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
-                  <Text style={[styles.statusBadgeText, { color: statusConfig(selectedAppt.status).badgeText }]}>
-                    {statusConfig(selectedAppt.status).label}
-                  </Text>
-                </View>
               </View>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-                {selectedAppt.student
-                  ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
-                  : 'Studente'}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '700', color: '#1E293B' }}>
+                  {selectedAppt.student
+                    ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
+                    : 'Studente'}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#94A3B8' }}>
+                  {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''} · {selectedAppt.instructor?.name ?? 'Istruttore'}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
+                <Text style={[styles.statusBadgeText, { color: statusConfig(selectedAppt.status).badgeText }]}>
+                  {statusConfig(selectedAppt.status).label}
+                </Text>
+              </View>
+            </View>
+
+            {/* ── Contact + info chips ── */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {selectedAppt.student?.phone ? (
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <>
                   <Pressable
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
                     onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
                   >
-                    <Text style={{ fontSize: 16 }}>📞</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B' }}>Chiama</Text>
+                    <Ionicons name="call-outline" size={16} color="#3B82F6" />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#3B82F6' }}>Chiama</Text>
                   </Pressable>
                   <Pressable
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0FDF4', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
@@ -820,45 +831,32 @@ export const TitolareHomeScreen = () => {
                       Linking.openURL(`https://wa.me/${num}`);
                     }}
                   >
-                    <Text style={{ fontSize: 16 }}>💬</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B' }}>WhatsApp</Text>
+                    <Ionicons name="logo-whatsapp" size={16} color="#22C55E" />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#16A34A' }}>WhatsApp</Text>
                   </Pressable>
+                </>
+              ) : null}
+              {selectedAppt.vehicle?.name ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Ionicons name="car-outline" size={16} color="#64748B" />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle.name}</Text>
                 </View>
               ) : null}
-              <Text style={{ fontSize: 13, color: '#94A3B8' }}>
-                {[selectedAppt.instructor?.name, selectedAppt.vehicle?.name].filter(Boolean).join(' · ') || 'Nessun dettaglio'}
-              </Text>
-            </View>
-
-            {/* ── Details ── */}
-            <View style={{ gap: 6 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>DETTAGLI</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontSize: 14 }}>👤</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
+              {selectedAppt.type && selectedAppt.type !== 'guida' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FDF2F8', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Ionicons name="flag-outline" size={14} color="#EC4899" />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#EC4899' }}>
+                    {selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)}
+                  </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <Text style={{ fontSize: 14 }}>🚗</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
-                </View>
-                {selectedAppt.type && selectedAppt.type !== 'guida' ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#3B82F6' }}>
-                      {selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+              ) : null}
             </View>
 
             {/* ── Notes ── */}
             {selectedAppt.notes?.trim() ? (
-              <View style={{ gap: 6 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>NOTE</Text>
-                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', padding: 12 }}>
-                  <Text style={{ fontSize: 14, color: '#475569', lineHeight: 20 }}>{selectedAppt.notes.trim()}</Text>
-                </View>
+              <View style={{ backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', padding: 14, gap: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#B45309', letterSpacing: 0.3 }}>NOTE</Text>
+                <Text style={{ fontSize: 14, color: '#78350F', lineHeight: 20 }}>{selectedAppt.notes.trim()}</Text>
               </View>
             ) : null}
           </View>
