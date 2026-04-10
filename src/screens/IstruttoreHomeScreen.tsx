@@ -11,6 +11,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -450,6 +451,8 @@ export const IstruttoreHomeScreen = () => {
     return d;
   });
   const [blockReason, setBlockReason] = useState('');
+  const [blockRecurring, setBlockRecurring] = useState(false);
+  const [blockRecurringWeeks, setBlockRecurringWeeks] = useState(4);
   const [blockPending, setBlockPending] = useState(false);
   const [blockCalendarOpen, setBlockCalendarOpen] = useState(false);
   const [blockStartTimePickerOpen, setBlockStartTimePickerOpen] = useState(false);
@@ -727,6 +730,8 @@ export const IstruttoreHomeScreen = () => {
     setBlockStartTime(roundedNow);
     setBlockEndTime(endTime);
     setBlockReason('');
+    setBlockRecurring(false);
+    setBlockRecurringWeeks(4);
     setBlockSheetOpen(true);
   }, [normalizeToHalfHour, selectedDate]);
 
@@ -747,6 +752,7 @@ export const IstruttoreHomeScreen = () => {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
         ...(blockReason.trim() ? { reason: blockReason.trim() } : {}),
+        ...(blockRecurring ? { recurring: true, recurringWeeks: blockRecurringWeeks } : {}),
       });
       setBlockSheetOpen(false);
       setToast({ text: 'Slot bloccato.', tone: 'success' });
@@ -2477,6 +2483,36 @@ export const IstruttoreHomeScreen = () => {
               onChangeText={setBlockReason}
             />
           </View>
+          <View style={styles.blockRecurringRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockRecurringLabel}>Ripeti ogni settimana</Text>
+              <Text style={styles.blockRecurringDesc}>Stesso giorno e orario</Text>
+            </View>
+            <Switch
+              value={blockRecurring}
+              onValueChange={setBlockRecurring}
+              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+          {blockRecurring && (
+            <View>
+              <Text style={styles.bookingSectionLabel}>Per quante settimane</Text>
+              <View style={styles.blockWeeksRow}>
+                {[2, 4, 8, 12].map((w) => (
+                  <Pressable
+                    key={w}
+                    style={[styles.blockWeekChip, blockRecurringWeeks === w && styles.blockWeekChipActive]}
+                    onPress={() => setBlockRecurringWeeks(w)}
+                  >
+                    <Text style={[styles.blockWeekChipText, blockRecurringWeeks === w && styles.blockWeekChipTextActive]}>
+                      {w} sett.
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
       </BottomSheet>
 
@@ -3376,6 +3412,44 @@ const styles = StyleSheet.create({
   },
   sheetScroll: {
     width: '100%',
+  },
+  blockRecurringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  blockRecurringLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  blockRecurringDesc: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  blockWeeksRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  blockWeekChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  blockWeekChipActive: {
+    backgroundColor: '#FACC15',
+  },
+  blockWeekChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  blockWeekChipTextActive: {
+    color: '#1E293B',
   },
   scrollFadeHintTop: {
     position: 'absolute',

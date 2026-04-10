@@ -645,6 +645,8 @@ export type CreateInstructorBlockInput = {
   startsAt: IsoDate;
   endsAt: IsoDate;
   reason?: string;
+  recurring?: boolean;
+  recurringWeeks?: number;
 };
 
 export type RegisterPushTokenInput = {
