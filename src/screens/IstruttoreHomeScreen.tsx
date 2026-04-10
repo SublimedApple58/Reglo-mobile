@@ -1970,7 +1970,7 @@ export const IstruttoreHomeScreen = () => {
         {sheetLesson ? (
           <ScrollView
             ref={lessonSheetScrollRef}
-            style={styles.sheetScroll}
+            style={[styles.sheetScroll, { maxHeight: windowHeight * 0.4 }]}
             contentContainerStyle={styles.sheetContentScroll}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}

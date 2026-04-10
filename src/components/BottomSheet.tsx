@@ -51,8 +51,6 @@ export const BottomSheet = ({
   const cardBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const footerBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const hasFooter = Boolean(footer);
-  const windowHeight = Dimensions.get('window').height;
-  const maxSheetHeight = windowHeight * 0.75;
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -250,7 +248,7 @@ export const BottomSheet = ({
             styles.sheetCard,
             hasFooter ? styles.sheetCardWithFooter : null,
             { paddingBottom: hasFooter ? 0 : cardBottomPadding },
-            hasFooter ? { minHeight: minHeight ?? 320, maxHeight: maxSheetHeight } : { maxHeight: maxSheetHeight },
+            hasFooter ? { minHeight: minHeight ?? 320 } : null,
             { transform: [{ translateY: animatedSheetTranslate }] },
           ]}
         >
@@ -306,18 +304,23 @@ const styles = StyleSheet.create({
   sheetCard: {
     backgroundColor: '#FFFFFF',
     width: '100%',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: spacing.lg,
     gap: spacing.sm,
-    overflow: 'hidden',
     shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: -6 },
     elevation: 6,
   },
-  sheetCardWithFooter: {},
+  sheetCardWithFooter: {
+    justifyContent: 'space-between',
+  },
   dragZone: {
     position: 'absolute',
     top: 0,
@@ -337,8 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
   },
   body: {
-    flex: 1,
-    flexShrink: 1,
+    gap: spacing.sm,
   },
   header: {
     flexDirection: 'row',
@@ -354,7 +356,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   content: {
-    flex: 1,
     gap: spacing.sm,
   },
   footer: {
