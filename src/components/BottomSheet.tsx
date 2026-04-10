@@ -52,7 +52,7 @@ export const BottomSheet = ({
   const footerBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const hasFooter = Boolean(footer);
   const windowHeight = Dimensions.get('window').height;
-  const maxSheetHeight = windowHeight - 40;
+  const maxSheetHeight = windowHeight * 0.85;
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
