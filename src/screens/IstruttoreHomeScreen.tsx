@@ -1803,20 +1803,15 @@ export const IstruttoreHomeScreen = () => {
                         styles.timelineSlotArea,
                         !coverage && styles.timelineSlotUnavailable,
                       ]}>
-                        {/* Pink availability bar — pixel precise */}
+                        {/* Pink availability bar — pixel precise for partial hours, full-stretch for full hours */}
                         {coverage ? (
                           <View
                             pointerEvents="none"
-                            style={{
-                              position: 'absolute',
-                              left: 0,
-                              width: 3,
-                              top: coverage.top * ROW_H,
-                              height: (coverage.bottom - coverage.top) * ROW_H,
-                              backgroundColor: '#EC4899',
-                              borderRadius: 1.5,
-                              zIndex: 2,
-                            }}
+                            style={
+                              coverage.top === 0 && coverage.bottom >= 1
+                                ? { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: '#EC4899', borderRadius: 1.5, zIndex: 2 }
+                                : { position: 'absolute', left: 0, width: 3, top: coverage.top * ROW_H, height: (coverage.bottom - coverage.top) * ROW_H, backgroundColor: '#EC4899', borderRadius: 1.5, zIndex: 2 }
+                            }
                           />
                         ) : null}
                         {/* Unavailable label — centered across the full block */}
