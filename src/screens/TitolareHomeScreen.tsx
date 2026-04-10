@@ -785,88 +785,84 @@ export const TitolareHomeScreen = () => {
         onClose={() => setSelectedAppt(null)}
         title="Dettaglio guida"
       >
-        {selectedAppt ? (() => {
-          const config = statusConfig(selectedAppt.status);
-          const lessonType = selectedAppt.type && selectedAppt.type !== 'guida'
-            ? selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)
-            : null;
-          return (
-            <View style={styles.apptDetailContent}>
-              {/* ── Info card ── */}
-              <View style={styles.apptDetailCard}>
-                <View style={styles.apptDetailCardHeader}>
-                  <Text style={styles.apptDetailDate}>
-                    {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''}
+        {selectedAppt ? (
+          <View style={{ gap: 16 }}>
+            {/* ── Info card ── */}
+            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 14, gap: 6 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>
+                  {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''}
+                </Text>
+                <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
+                  <Text style={[styles.statusBadgeText, { color: statusConfig(selectedAppt.status).badgeText }]}>
+                    {statusConfig(selectedAppt.status).label}
                   </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: config.badgeBg }]}>
-                    <Text style={[styles.statusBadgeText, { color: config.badgeText }]}>
-                      {config.label}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.apptDetailName}>
-                  {selectedAppt.student
-                    ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
-                    : 'Studente'}
-                </Text>
-                {selectedAppt.student?.phone ? (
-                  <View style={styles.apptDetailContactRow}>
-                    <Pressable
-                      style={styles.apptDetailContactBtn}
-                      onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
-                    >
-                      <Text style={styles.apptDetailContactIcon}>📞</Text>
-                      <Text style={styles.apptDetailContactLabel}>Chiama</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.apptDetailContactBtn, styles.apptDetailContactWhatsapp]}
-                      onPress={() => {
-                        const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
-                        Linking.openURL(`https://wa.me/${num}`);
-                      }}
-                    >
-                      <Text style={styles.apptDetailContactIcon}>💬</Text>
-                      <Text style={styles.apptDetailContactLabel}>WhatsApp</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-                <Text style={styles.apptDetailSub}>
-                  {[selectedAppt.instructor?.name, selectedAppt.vehicle?.name].filter(Boolean).join(' · ') || 'Nessun dettaglio'}
-                </Text>
-              </View>
-
-              {/* ── Details ── */}
-              <View style={styles.apptDetailSection}>
-                <Text style={styles.apptDetailSectionLabel}>DETTAGLI</Text>
-                <View style={styles.apptDetailChips}>
-                  <View style={styles.apptDetailChip}>
-                    <Text style={styles.apptDetailChipIcon}>👤</Text>
-                    <Text style={styles.apptDetailChipText}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
-                  </View>
-                  <View style={styles.apptDetailChip}>
-                    <Text style={styles.apptDetailChipIcon}>🚗</Text>
-                    <Text style={styles.apptDetailChipText}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
-                  </View>
-                  {lessonType ? (
-                    <View style={[styles.apptDetailChip, { backgroundColor: '#EFF6FF' }]}>
-                      <Text style={[styles.apptDetailChipText, { color: '#3B82F6' }]}>{lessonType}</Text>
-                    </View>
-                  ) : null}
                 </View>
               </View>
-
-              {/* ── Notes ── */}
-              {selectedAppt.notes?.trim() ? (
-                <View style={styles.apptDetailSection}>
-                  <Text style={styles.apptDetailSectionLabel}>NOTE</Text>
-                  <View style={styles.apptDetailNotesBox}>
-                    <Text style={styles.apptDetailNotesText}>{selectedAppt.notes.trim()}</Text>
-                  </View>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+                {selectedAppt.student
+                  ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
+                  : 'Studente'}
+              </Text>
+              {selectedAppt.student?.phone ? (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                  <Pressable
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
+                    onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
+                  >
+                    <Text style={{ fontSize: 16 }}>📞</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B' }}>Chiama</Text>
+                  </Pressable>
+                  <Pressable
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0FDF4', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
+                    onPress={() => {
+                      const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
+                      Linking.openURL(`https://wa.me/${num}`);
+                    }}
+                  >
+                    <Text style={{ fontSize: 16 }}>💬</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B' }}>WhatsApp</Text>
+                  </Pressable>
                 </View>
               ) : null}
+              <Text style={{ fontSize: 13, color: '#94A3B8' }}>
+                {[selectedAppt.instructor?.name, selectedAppt.vehicle?.name].filter(Boolean).join(' · ') || 'Nessun dettaglio'}
+              </Text>
             </View>
-          );
-        })() : null}
+
+            {/* ── Details ── */}
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>DETTAGLI</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  <Text style={{ fontSize: 14 }}>👤</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  <Text style={{ fontSize: 14 }}>🚗</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
+                </View>
+                {selectedAppt.type && selectedAppt.type !== 'guida' ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#3B82F6' }}>
+                      {selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* ── Notes ── */}
+            {selectedAppt.notes?.trim() ? (
+              <View style={{ gap: 6 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>NOTE</Text>
+                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', padding: 12 }}>
+                  <Text style={{ fontSize: 14, color: '#475569', lineHeight: 20 }}>{selectedAppt.notes.trim()}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </BottomSheet>
 
       {/* ── Toast ── */}
@@ -1280,109 +1276,5 @@ const oobStyles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 14,
     paddingVertical: 32,
-  },
-
-  /* ── Appointment Detail ── */
-  apptDetailContent: {
-    gap: 16,
-  },
-  apptDetailCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 14,
-    gap: 4,
-  },
-  apptDetailCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  apptDetailDate: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  apptDetailName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E293B',
-  },
-  apptDetailSub: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  apptDetailContactRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  apptDetailContactBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  apptDetailContactWhatsapp: {
-    backgroundColor: '#F0FDF4',
-  },
-  apptDetailContactIcon: {
-    fontSize: 16,
-  },
-  apptDetailContactLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  apptDetailSection: {
-    gap: 4,
-  },
-  apptDetailSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  apptDetailChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  apptDetailChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  apptDetailChipIcon: {
-    fontSize: 14,
-  },
-  apptDetailChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  apptDetailNotesBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 12,
-    marginTop: 4,
-  },
-  apptDetailNotesText: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
   },
 });
