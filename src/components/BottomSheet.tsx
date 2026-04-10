@@ -8,7 +8,6 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -53,7 +52,7 @@ export const BottomSheet = ({
   const footerBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const hasFooter = Boolean(footer);
   const windowHeight = Dimensions.get('window').height;
-  const maxSheetHeight = windowHeight - insets.top - 20;
+  const maxSheetHeight = windowHeight - 40;
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -261,7 +260,7 @@ export const BottomSheet = ({
               <View style={styles.handle} />
             </View>
           ) : null}
-          <ScrollView style={styles.body} bounces={false} showsVerticalScrollIndicator={false}>
+          <View style={styles.body}>
             {!showHandle ? (
               <View style={styles.header}>
                 <Pressable
@@ -283,7 +282,7 @@ export const BottomSheet = ({
               ) : null}
               {children}
             </View>
-          </ScrollView>
+          </View>
           {hasFooter ? (
             <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
               {footer}
@@ -346,6 +345,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
   },
   body: {
+    flex: 1,
     flexShrink: 1,
   },
   header: {

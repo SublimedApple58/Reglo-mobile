@@ -1920,6 +1920,52 @@ export const IstruttoreHomeScreen = () => {
         title="Gestisci guida"
         closeDisabled={isPending}
         showHandle
+        footer={
+          <View style={styles.sheetFooterActions}>
+            <Button
+              label={pendingAction === 'save_details' ? 'Salvataggio...' : 'Salva dettagli'}
+              tone="standard"
+              onPress={!isPending && isSheetDetailsEditable ? handleSaveDetails : undefined}
+              disabled={isPending || !isSheetDetailsEditable}
+              fullWidth
+            />
+            <Button
+              label={
+                pendingAction === 'reposition'
+                  ? 'Attendi...'
+                  : instructorBookingMode === 'manual_full'
+                    ? 'Annulla guida'
+                    : 'Cancella e riposiziona'
+              }
+              tone="danger"
+              onPress={
+                !isPending && sheetLesson && canRepositionSheetLesson
+                  ? () => handleCancelByMode(sheetLesson)
+                  : undefined
+              }
+              disabled={isPending || !canRepositionSheetLesson}
+              fullWidth
+            />
+            {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
+              <>
+                <Button
+                  label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
+                  tone="primary"
+                  onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
+                  disabled={isPending}
+                  fullWidth
+                />
+                <Button
+                  label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
+                  tone="danger"
+                  onPress={isPending ? undefined : () => handleStatusAction('no_show')}
+                  disabled={isPending}
+                  fullWidth
+                />
+              </>
+            ) : null}
+          </View>
+        }
       >
         {sheetLesson ? (
           <ScrollView
@@ -2006,50 +2052,6 @@ export const IstruttoreHomeScreen = () => {
                   }, 60);
                 }}
               />
-            </View>
-            <View style={styles.sheetFooterActions}>
-              <Button
-                label={pendingAction === 'save_details' ? 'Salvataggio...' : 'Salva dettagli'}
-                tone="standard"
-                onPress={!isPending && isSheetDetailsEditable ? handleSaveDetails : undefined}
-                disabled={isPending || !isSheetDetailsEditable}
-                fullWidth
-              />
-              <Button
-                label={
-                  pendingAction === 'reposition'
-                    ? 'Attendi...'
-                    : instructorBookingMode === 'manual_full'
-                      ? 'Annulla guida'
-                      : 'Cancella e riposiziona'
-                }
-                tone="danger"
-                onPress={
-                  !isPending && sheetLesson && canRepositionSheetLesson
-                    ? () => handleCancelByMode(sheetLesson)
-                    : undefined
-                }
-                disabled={isPending || !canRepositionSheetLesson}
-                fullWidth
-              />
-              {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
-                <>
-                  <Button
-                    label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
-                    tone="primary"
-                    onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
-                    disabled={isPending}
-                    fullWidth
-                  />
-                  <Button
-                    label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
-                    tone="danger"
-                    onPress={isPending ? undefined : () => handleStatusAction('no_show')}
-                    disabled={isPending}
-                    fullWidth
-                  />
-                </>
-              ) : null}
             </View>
           </ScrollView>
         ) : null}
