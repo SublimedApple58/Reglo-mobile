@@ -1823,13 +1823,11 @@ export const IstruttoreHomeScreen = () => {
                         {hasAppts ? (
                           <>
                           {hourBlocks?.map((block) => {
-                            const blockStartMin = new Date(block.startsAt).getMinutes();
-                            const offsetPx = (blockStartMin / 60) * ROW_H;
                             return (
                             <Pressable
                               key={`block-${block.id}`}
                               onPress={() => handleDeleteBlock(block.id)}
-                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', marginTop: offsetPx }]}
+                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC' }]}
                             >
                               <View style={styles.timelineBlockHeader}>
                                 <Text style={styles.timelineBlockTime}>
@@ -1852,8 +1850,6 @@ export const IstruttoreHomeScreen = () => {
                             const isActive = isLessonInProgressWindow(appt, now);
                             const actionAvail = getActionAvailability(appt, now);
                             const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
-                            const apptStartMin = new Date(appt.startsAt).getMinutes();
-                            const apptOffsetPx = (apptStartMin / 60) * ROW_H;
 
                             return (
                               <Pressable
@@ -1861,7 +1857,7 @@ export const IstruttoreHomeScreen = () => {
                                 onPress={() => openLessonDrawer(appt)}
                                 style={[
                                   styles.timelineBlock,
-                                  { borderLeftColor: config.border, marginTop: apptOffsetPx },
+                                  { borderLeftColor: config.border },
                                   isActive && styles.timelineBlockActive,
                                 ]}
                               >
