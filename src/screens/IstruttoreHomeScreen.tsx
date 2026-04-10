@@ -3812,7 +3812,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#94A3B8',
-    paddingTop: 2,
+    marginTop: -7,
   },
   timelineSlotArea: {
     flex: 1,
