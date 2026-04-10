@@ -783,7 +783,7 @@ export const TitolareHomeScreen = () => {
       <BottomSheet
         visible={!!selectedAppt}
         onClose={() => setSelectedAppt(null)}
-        title="Dettaglio guida"
+        showHandle
       >
         {selectedAppt ? (
           <View style={{ gap: 16 }}>
