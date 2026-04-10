@@ -8,6 +8,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -51,6 +52,8 @@ export const BottomSheet = ({
   const cardBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const footerBottomPadding = bottomInsetMode === 'none' ? 0 : spacing.lg + bottomInset;
   const hasFooter = Boolean(footer);
+  const windowHeight = Dimensions.get('window').height;
+  const maxSheetHeight = windowHeight - insets.top - 20;
   const [mounted, setMounted] = useState(visible);
   const [dismissEnabled, setDismissEnabled] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -248,7 +251,7 @@ export const BottomSheet = ({
             styles.sheetCard,
             hasFooter ? styles.sheetCardWithFooter : null,
             { paddingBottom: hasFooter ? 0 : cardBottomPadding },
-            hasFooter ? { minHeight: minHeight ?? 320 } : null,
+            hasFooter ? { minHeight: minHeight ?? 320, maxHeight: maxSheetHeight } : { maxHeight: maxSheetHeight },
             { transform: [{ translateY: animatedSheetTranslate }] },
           ]}
         >
@@ -258,7 +261,7 @@ export const BottomSheet = ({
               <View style={styles.handle} />
             </View>
           ) : null}
-          <View style={styles.body}>
+          <ScrollView style={styles.body} bounces={false} showsVerticalScrollIndicator={false}>
             {!showHandle ? (
               <View style={styles.header}>
                 <Pressable
@@ -280,7 +283,7 @@ export const BottomSheet = ({
               ) : null}
               {children}
             </View>
-          </View>
+          </ScrollView>
           {hasFooter ? (
             <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
               {footer}
@@ -343,7 +346,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
   },
   body: {
-    gap: spacing.sm,
+    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',
