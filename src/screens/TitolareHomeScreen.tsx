@@ -785,62 +785,88 @@ export const TitolareHomeScreen = () => {
         onClose={() => setSelectedAppt(null)}
         title="Dettaglio guida"
       >
-        {selectedAppt ? (
-          <View style={styles.apptDetailContent}>
-            <Text style={styles.apptDetailName}>
-              {selectedAppt.student
-                ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
-                : 'Studente'}
-            </Text>
-            {selectedAppt.student?.phone ? (
-              <View style={styles.apptDetailContactRow}>
-                <Pressable
-                  style={styles.apptDetailContactBtn}
-                  onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
-                >
-                  <Text style={styles.apptDetailContactIcon}>📞</Text>
-                  <Text style={styles.apptDetailContactLabel}>Chiama</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.apptDetailContactBtn, styles.apptDetailContactWhatsapp]}
-                  onPress={() => {
-                    const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
-                    Linking.openURL(`https://wa.me/${num}`);
-                  }}
-                >
-                  <Text style={styles.apptDetailContactIcon}>💬</Text>
-                  <Text style={styles.apptDetailContactLabel}>WhatsApp</Text>
-                </Pressable>
-              </View>
-            ) : null}
-            <View style={styles.apptDetailInfoRow}>
-              <Text style={styles.apptDetailInfoLabel}>Orario</Text>
-              <Text style={styles.apptDetailInfoValue}>{getAppointmentTimeRange(selectedAppt)}</Text>
-            </View>
-            <View style={styles.apptDetailInfoRow}>
-              <Text style={styles.apptDetailInfoLabel}>Istruttore</Text>
-              <Text style={styles.apptDetailInfoValue}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
-            </View>
-            <View style={styles.apptDetailInfoRow}>
-              <Text style={styles.apptDetailInfoLabel}>Veicolo</Text>
-              <Text style={styles.apptDetailInfoValue}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
-            </View>
-            <View style={styles.apptDetailInfoRow}>
-              <Text style={styles.apptDetailInfoLabel}>Stato</Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
-                <Text style={[styles.statusBadgeText, { color: statusConfig(selectedAppt.status).badgeText }]}>
-                  {statusConfig(selectedAppt.status).label}
+        {selectedAppt ? (() => {
+          const config = statusConfig(selectedAppt.status);
+          const lessonType = selectedAppt.type && selectedAppt.type !== 'guida'
+            ? selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)
+            : null;
+          return (
+            <View style={styles.apptDetailContent}>
+              {/* ── Info card ── */}
+              <View style={styles.apptDetailCard}>
+                <View style={styles.apptDetailCardHeader}>
+                  <Text style={styles.apptDetailDate}>
+                    {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''}
+                  </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: config.badgeBg }]}>
+                    <Text style={[styles.statusBadgeText, { color: config.badgeText }]}>
+                      {config.label}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.apptDetailName}>
+                  {selectedAppt.student
+                    ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
+                    : 'Studente'}
+                </Text>
+                {selectedAppt.student?.phone ? (
+                  <View style={styles.apptDetailContactRow}>
+                    <Pressable
+                      style={styles.apptDetailContactBtn}
+                      onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
+                    >
+                      <Text style={styles.apptDetailContactIcon}>📞</Text>
+                      <Text style={styles.apptDetailContactLabel}>Chiama</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.apptDetailContactBtn, styles.apptDetailContactWhatsapp]}
+                      onPress={() => {
+                        const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
+                        Linking.openURL(`https://wa.me/${num}`);
+                      }}
+                    >
+                      <Text style={styles.apptDetailContactIcon}>💬</Text>
+                      <Text style={styles.apptDetailContactLabel}>WhatsApp</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                <Text style={styles.apptDetailSub}>
+                  {[selectedAppt.instructor?.name, selectedAppt.vehicle?.name].filter(Boolean).join(' · ') || 'Nessun dettaglio'}
                 </Text>
               </View>
-            </View>
-            {selectedAppt.notes?.trim() ? (
-              <View style={styles.apptDetailNotesBox}>
-                <Text style={styles.apptDetailNotesLabel}>Note</Text>
-                <Text style={styles.apptDetailNotesText}>{selectedAppt.notes.trim()}</Text>
+
+              {/* ── Details ── */}
+              <View style={styles.apptDetailSection}>
+                <Text style={styles.apptDetailSectionLabel}>DETTAGLI</Text>
+                <View style={styles.apptDetailChips}>
+                  <View style={styles.apptDetailChip}>
+                    <Text style={styles.apptDetailChipIcon}>👤</Text>
+                    <Text style={styles.apptDetailChipText}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
+                  </View>
+                  <View style={styles.apptDetailChip}>
+                    <Text style={styles.apptDetailChipIcon}>🚗</Text>
+                    <Text style={styles.apptDetailChipText}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
+                  </View>
+                  {lessonType ? (
+                    <View style={[styles.apptDetailChip, { backgroundColor: '#EFF6FF' }]}>
+                      <Text style={[styles.apptDetailChipText, { color: '#3B82F6' }]}>{lessonType}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-            ) : null}
-          </View>
-        ) : null}
+
+              {/* ── Notes ── */}
+              {selectedAppt.notes?.trim() ? (
+                <View style={styles.apptDetailSection}>
+                  <Text style={styles.apptDetailSectionLabel}>NOTE</Text>
+                  <View style={styles.apptDetailNotesBox}>
+                    <Text style={styles.apptDetailNotesText}>{selectedAppt.notes.trim()}</Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })() : null}
       </BottomSheet>
 
       {/* ── Toast ── */}
@@ -1258,17 +1284,40 @@ const oobStyles = StyleSheet.create({
 
   /* ── Appointment Detail ── */
   apptDetailContent: {
-    gap: 12,
-    paddingHorizontal: 4,
+    gap: 16,
   },
-  apptDetailName: {
-    fontSize: 20,
+  apptDetailCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 4,
+  },
+  apptDetailCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  apptDetailDate: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
+  },
+  apptDetailName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1E293B',
+  },
+  apptDetailSub: {
+    fontSize: 13,
+    color: '#94A3B8',
   },
   apptDetailContactRow: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 6,
   },
   apptDetailContactBtn: {
     flexDirection: 'row',
@@ -1290,34 +1339,46 @@ const oobStyles = StyleSheet.create({
     fontWeight: '600',
     color: '#1E293B',
   },
-  apptDetailInfoRow: {
+  apptDetailSection: {
+    gap: 4,
+  },
+  apptDetailSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  apptDetailChips: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  apptDetailChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  apptDetailInfoLabel: {
+  apptDetailChipIcon: {
     fontSize: 14,
-    color: '#64748B',
   },
-  apptDetailInfoValue: {
-    fontSize: 14,
+  apptDetailChipText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#475569',
   },
   apptDetailNotesBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     padding: 12,
-    gap: 4,
     marginTop: 4,
-  },
-  apptDetailNotesLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#94A3B8',
   },
   apptDetailNotesText: {
     fontSize: 14,
