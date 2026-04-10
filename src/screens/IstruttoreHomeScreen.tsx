@@ -876,12 +876,23 @@ export const IstruttoreHomeScreen = () => {
     };
 
     try {
-      const res = await doBook();
-
-      // Handle weekly limit confirmation
-      if (res && typeof res === 'object' && 'code' in res && (res as Record<string, unknown>).code === 'WEEKLY_LIMIT_CONFIRM') {
+      await doBook();
+      setBookingSheetOpen(false);
+      setGuidedSuggestion(null);
+      setToast({
+        text: instructorBookingMode === 'guided_proposal'
+          ? "Proposta inviata all'allievo."
+          : 'Guida prenotata.',
+        tone: 'success',
+      });
+      await loadData();
+    } catch (err: unknown) {
+      const payload = (err as { payload?: Record<string, unknown> })?.payload;
+      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
         setBookingPendingAction(null);
-        const msg = (res as Record<string, unknown>).message as string || "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
+        const msg = typeof payload.message === 'string'
+          ? payload.message
+          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
         Alert.alert('Limite settimanale', msg, [
           { text: 'Annulla', style: 'cancel' },
           {
@@ -907,17 +918,6 @@ export const IstruttoreHomeScreen = () => {
         ]);
         return;
       }
-
-      setBookingSheetOpen(false);
-      setGuidedSuggestion(null);
-      setToast({
-        text: instructorBookingMode === 'guided_proposal'
-          ? "Proposta inviata all'allievo."
-          : 'Guida prenotata.',
-        tone: 'success',
-      });
-      await loadData();
-    } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nella prenotazione',
         tone: 'danger',
