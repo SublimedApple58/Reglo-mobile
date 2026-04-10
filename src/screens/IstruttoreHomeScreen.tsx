@@ -1000,7 +1000,7 @@ export const IstruttoreHomeScreen = () => {
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
-  const ROW_H = 52;
+  const ROW_H = 80;
 
   // Per-hour availability coverage: { topFraction, bottomFraction } where 0=start of hour, 1=end
   const hourAvailCoverage = useMemo(() => {
@@ -1775,91 +1775,65 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               )
             )}
-            <View style={styles.timelineSection}>
-              {HOUR_SLOTS.map((hour) => {
-                const hourAppts = appointmentsByHour.get(hour);
-                const hourBlocks = blocksByHour.get(hour);
-                const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
+            <View style={[styles.timelineSection, { position: 'relative', height: HOUR_SLOTS.length * ROW_H }]}>
+              {/* ── Grid layer: hour labels + lines + availability ── */}
+              {HOUR_SLOTS.map((hour, idx) => {
                 const coverage = hourAvailCoverage.get(hour);
-                const isAvailable = !!coverage;
-                const prevAvailable = !!hourAvailCoverage.get(hour - 1);
-                const isUnavailableBlockStart = !isAvailable && (hour === HOUR_SLOTS[0] || prevAvailable);
-                // Count consecutive unavailable hours from this one
-                let unavailableBlockSize = 0;
-                if (isUnavailableBlockStart) {
-                  for (let h = hour; h <= HOUR_SLOTS[HOUR_SLOTS.length - 1]; h++) {
-                    if (!hourAvailCoverage.has(h)) unavailableBlockSize++;
-                    else break;
-                  }
+                return (
+                  <View key={`grid-${hour}`} style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H, flexDirection: 'row' }} pointerEvents="none">
+                    <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
+                    <View style={{ flex: 1, borderTopWidth: 1, borderTopColor: '#F1F5F9', position: 'relative' }}>
+                      {coverage ? (
+                        <View style={{ position: 'absolute', left: 0, width: 3, top: coverage.top * ROW_H, height: (coverage.bottom - coverage.top) * ROW_H, backgroundColor: '#EC4899', borderRadius: 1.5 }} />
+                      ) : (
+                        <View style={{ position: 'absolute', left: 0, width: 1, top: 0, bottom: 0, borderLeftWidth: 1, borderLeftColor: '#E5E7EB', borderStyle: 'dashed' }} />
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+              {/* ── Unavailable labels ── */}
+              {HOUR_SLOTS.map((hour, idx) => {
+                const coverage = hourAvailCoverage.get(hour);
+                if (coverage) return null;
+                const prevHasCoverage = idx > 0 && hourAvailCoverage.has(HOUR_SLOTS[idx - 1]);
+                const isFirst = idx === 0 || prevHasCoverage;
+                if (!isFirst) return null;
+                let blockSize = 0;
+                for (let i = idx; i < HOUR_SLOTS.length; i++) {
+                  if (!hourAvailCoverage.has(HOUR_SLOTS[i])) blockSize++;
+                  else break;
                 }
-                const isNowHour = nowHourFraction !== null &&
-                  nowHourFraction >= hour && nowHourFraction < hour + 1;
+                const hasContent = Array.from({ length: blockSize }, (_, i) => HOUR_SLOTS[idx + i]).some(
+                  (h) => (appointmentsByHour.get(h)?.length ?? 0) > 0 || (blocksByHour.get(h)?.length ?? 0) > 0
+                );
+                if (hasContent) return null;
+                return (
+                  <View key={`unavail-${hour}`} style={{ position: 'absolute', top: idx * ROW_H, left: 46 + 14, right: 0, height: blockSize * ROW_H, justifyContent: 'center', alignItems: 'center' }} pointerEvents="none">
+                    <Text style={styles.unavailableLabel}>Non disponibile</Text>
+                  </View>
+                );
+              })}
+              {/* ── Blocks layer: appointments + instructor blocks ── */}
+              {timelineAppointments.map((appt) => {
+                const startDate = new Date(appt.startsAt);
+                const startMin = startDate.getHours() * 60 + startDate.getMinutes();
+                const firstHourMin = HOUR_SLOTS[0] * 60;
+                const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
+                const config = timelineStatusConfig(appt.status);
+                const isActive = isLessonInProgressWindow(appt, now);
+                const actionAvail = getActionAvailability(appt, now);
+                const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
 
                 return (
-                  <View key={`hour-${hour}`}>
-                    <View style={[styles.timelineRow, isNowHour && { zIndex: 10 }]}>
-                      <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
-                      <View style={[
-                        styles.timelineSlotArea,
-                        !coverage && styles.timelineSlotUnavailable,
-                      ]}>
-                        {/* Pink availability bar — pixel precise for partial hours, full-stretch for full hours */}
-                        {coverage ? (
-                          <View
-                            pointerEvents="none"
-                            style={
-                              coverage.top === 0 && coverage.bottom >= 1
-                                ? { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: '#EC4899', borderRadius: 1.5, zIndex: 2 }
-                                : { position: 'absolute', left: 0, width: 3, top: coverage.top * ROW_H, height: (coverage.bottom - coverage.top) * ROW_H, backgroundColor: '#EC4899', borderRadius: 1.5, zIndex: 2 }
-                            }
-                          />
-                        ) : null}
-                        {/* Unavailable label — centered across the full block */}
-                        {isUnavailableBlockStart && !hasAppts && (
-                          <View style={[styles.unavailableLabelWrap, { height: unavailableBlockSize * ROW_H }]} pointerEvents="none">
-                            <Text style={styles.unavailableLabel}>Non disponibile</Text>
-                          </View>
-                        )}
-                        {hasAppts ? (
-                          <>
-                          {hourBlocks?.map((block) => {
-                            return (
-                            <Pressable
-                              key={`block-${block.id}`}
-                              onPress={() => handleDeleteBlock(block.id)}
-                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC' }]}
-                            >
-                              <View style={styles.timelineBlockHeader}>
-                                <Text style={styles.timelineBlockTime}>
-                                  {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
-                                </Text>
-                                <View style={[styles.timelineStatusBadge, { backgroundColor: '#F1F5F9' }]}>
-                                  <Text style={[styles.timelineStatusText, { color: '#64748B' }]}>
-                                    Bloccato
-                                  </Text>
-                                </View>
-                              </View>
-                              <Text style={[styles.timelineBlockStudent, { color: '#94A3B8' }]}>
-                                {block.reason || 'Slot bloccato'}
-                              </Text>
-                            </Pressable>
-                            );
-                          })}
-                          {hourAppts?.map((appt) => {
-                            const config = timelineStatusConfig(appt.status);
-                            const isActive = isLessonInProgressWindow(appt, now);
-                            const actionAvail = getActionAvailability(appt, now);
-                            const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
-
-                            return (
-                              <Pressable
-                                key={appt.id}
-                                onPress={() => openLessonDrawer(appt)}
-                                style={[
-                                  styles.timelineBlock,
-                                  { borderLeftColor: config.border },
-                                  isActive && styles.timelineBlockActive,
-                                ]}
+                  <Pressable
+                    key={appt.id}
+                    onPress={() => openLessonDrawer(appt)}
+                    style={[
+                      styles.timelineBlock,
+                      { borderLeftColor: config.border, position: 'absolute', top: topPx, left: 46 + 14, right: 0, zIndex: 5 },
+                      isActive && styles.timelineBlockActive,
+                    ]}
                               >
                                 <View style={styles.timelineBlockHeader}>
                                   <Text style={styles.timelineBlockTime}>
@@ -1938,26 +1912,42 @@ export const IstruttoreHomeScreen = () => {
                               </Pressable>
                             );
                           })}
-                          </>
-                        ) : (
-                          <View style={styles.emptyHourLine} />
-                        )}
-                        {/* NOW line overlay */}
-                        {isNowHour && nowHourFraction !== null ? (
-                          <View style={[styles.nowLineOverlay, { top: (nowHourFraction - hour) * ROW_H }]} pointerEvents="none">
-                            <View style={styles.nowDot} />
-                            <View style={styles.nowLine} />
-                            <Text style={styles.nowLabel}>
-                              {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
-                            </Text>
-                          </View>
-                        ) : null}
+              {/* ── Instructor blocks layer ── */}
+              {Array.from(blocksByHour.values()).flat().map((block) => {
+                const startDate = new Date(block.startsAt);
+                const startMin = startDate.getHours() * 60 + startDate.getMinutes();
+                const firstHourMin = HOUR_SLOTS[0] * 60;
+                const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
+                return (
+                  <Pressable
+                    key={`block-${block.id}`}
+                    onPress={() => handleDeleteBlock(block.id)}
+                    style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', position: 'absolute', top: topPx, left: 46 + 14, right: 0, zIndex: 4 }]}
+                  >
+                    <View style={styles.timelineBlockHeader}>
+                      <Text style={styles.timelineBlockTime}>
+                        {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
+                      </Text>
+                      <View style={[styles.timelineStatusBadge, { backgroundColor: '#F1F5F9' }]}>
+                        <Text style={[styles.timelineStatusText, { color: '#64748B' }]}>Bloccato</Text>
                       </View>
                     </View>
-                  </View>
+                    <Text style={[styles.timelineBlockStudent, { color: '#94A3B8' }]}>
+                      {block.reason || 'Slot bloccato'}
+                    </Text>
+                  </Pressable>
                 );
               })}
-              {/* (no trailing NOW line needed — it overlays the current hour row) */}
+              {/* ── NOW line ── */}
+              {nowHourFraction !== null && nowHourFraction >= HOUR_SLOTS[0] && nowHourFraction <= HOUR_SLOTS[HOUR_SLOTS.length - 1] + 1 ? (
+                <View style={[styles.nowLineOverlay, { top: (nowHourFraction - HOUR_SLOTS[0]) * ROW_H, left: 40, zIndex: 20 }]} pointerEvents="none">
+                  <View style={styles.nowDot} />
+                  <View style={styles.nowLine} />
+                  <Text style={styles.nowLabel}>
+                    {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         )}
@@ -3756,7 +3746,6 @@ const styles = StyleSheet.create({
   },
   timelineRow: {
     flexDirection: 'row',
-    minHeight: 52,
     alignItems: 'flex-start',
   },
   timelineGridWrapper: {
@@ -3813,7 +3802,6 @@ const styles = StyleSheet.create({
   timelineSlotArea: {
     flex: 1,
     paddingLeft: 14,
-    minHeight: 52,
     position: 'relative' as const,
     overflow: 'visible',
   },
