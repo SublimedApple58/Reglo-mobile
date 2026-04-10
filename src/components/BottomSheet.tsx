@@ -317,6 +317,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderWidth: 0,
     borderColor: 'transparent',
+    overflow: 'hidden',
     shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOpacity: 0.12,
     shadowRadius: 18,
