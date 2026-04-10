@@ -1844,7 +1844,6 @@ export const IstruttoreHomeScreen = () => {
                         right: 0,
                         height: blockH,
                         zIndex: 5,
-                        overflow: 'hidden',
                         padding: isCompact ? 6 : 14,
                       },
                       isActive && styles.timelineBlockActive,
@@ -1938,7 +1937,7 @@ export const IstruttoreHomeScreen = () => {
                   <Pressable
                     key={`block-${block.id}`}
                     onPress={() => handleDeleteBlock(block.id)}
-                    style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, overflow: 'hidden', padding: bCompact ? 6 : 14 }]}
+                    style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, padding: bCompact ? 6 : 14 }]}
                   >
                     {bCompact ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
