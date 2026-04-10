@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   Keyboard,
   KeyboardEvent,
@@ -858,8 +859,9 @@ export const IstruttoreHomeScreen = () => {
 
     setBookingPendingAction(guidedSuggestion ? 'confirm' : 'create');
     setToast(null);
-    try {
-      await regloApi.confirmInstructorBooking({
+
+    const doBook = async (skipWeeklyLimitCheck = false) => {
+      const res = await regloApi.confirmInstructorBooking({
         studentId: bookingStudentId,
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
@@ -868,7 +870,44 @@ export const IstruttoreHomeScreen = () => {
         ...(bookingLessonType && bookingLessonType !== 'guida'
           ? { lessonType: bookingLessonType }
           : {}),
+        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
       });
+      return res;
+    };
+
+    try {
+      const res = await doBook();
+
+      // Handle weekly limit confirmation
+      if (res && typeof res === 'object' && 'code' in res && (res as Record<string, unknown>).code === 'WEEKLY_LIMIT_CONFIRM') {
+        setBookingPendingAction(null);
+        const msg = (res as Record<string, unknown>).message as string || "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
+        Alert.alert('Limite settimanale', msg, [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Procedi',
+            onPress: async () => {
+              setBookingPendingAction(guidedSuggestion ? 'confirm' : 'create');
+              try {
+                await doBook(true);
+                setBookingSheetOpen(false);
+                setGuidedSuggestion(null);
+                setToast({ text: 'Guida prenotata.', tone: 'success' });
+                await loadData();
+              } catch (retryErr) {
+                setToast({
+                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
+                  tone: 'danger',
+                });
+              } finally {
+                setBookingPendingAction(null);
+              }
+            },
+          },
+        ]);
+        return;
+      }
+
       setBookingSheetOpen(false);
       setGuidedSuggestion(null);
       setToast({

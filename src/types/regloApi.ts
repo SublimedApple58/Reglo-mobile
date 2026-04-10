@@ -529,6 +529,7 @@ export type ConfirmInstructorBookingInput = {
   instructorId: Uuid;
   vehicleId: Uuid;
   lessonType?: string;
+  skipWeeklyLimitCheck?: boolean;
 };
 
 export type PaymentMethodSummary = {
