@@ -435,6 +435,7 @@ export const IstruttoreHomeScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [selectedLessonType, setSelectedLessonType] = useState('');
   const [lessonNotes, setLessonNotes] = useState('');
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
@@ -1019,6 +1020,7 @@ export const IstruttoreHomeScreen = () => {
 
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
     setSheetLesson(lesson);
+    setSheetScrollAtBottom(false);
     setSelectedLessonType(resolveInitialLessonType(lesson.type));
     setLessonNotes(lesson.notes ?? '');
   };
@@ -1968,15 +1970,22 @@ export const IstruttoreHomeScreen = () => {
         }
       >
         {sheetLesson ? (
-          <ScrollView
-            ref={lessonSheetScrollRef}
-            style={[styles.sheetScroll, { maxHeight: windowHeight * 0.35 }]}
-            contentContainerStyle={styles.sheetContentScroll}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={{ maxHeight: windowHeight * 0.45 }}>
+            <ScrollView
+              ref={lessonSheetScrollRef}
+              style={styles.sheetScroll}
+              contentContainerStyle={styles.sheetContentScroll}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+              showsVerticalScrollIndicator={false}
+              onScroll={({ nativeEvent }) => {
+                const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
+                setSheetScrollAtBottom(atBottom);
+              }}
+              scrollEventThrottle={16}
+            >
             {/* Info card */}
             <View style={styles.modalInfoCard}>
               <Text style={styles.modalInfoBold}>
@@ -2053,7 +2062,15 @@ export const IstruttoreHomeScreen = () => {
                 }}
               />
             </View>
-          </ScrollView>
+            </ScrollView>
+            {!sheetScrollAtBottom && (
+              <LinearGradient
+                colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+                style={styles.scrollFadeHint}
+                pointerEvents="none"
+              />
+            )}
+          </View>
         ) : null}
       </BottomSheet>
 
@@ -3347,8 +3364,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sheetScroll: {
-    flex: 1,
     width: '100%',
+  },
+  scrollFadeHint: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 32,
   },
   sheetContentScroll: {
     gap: spacing.sm,
