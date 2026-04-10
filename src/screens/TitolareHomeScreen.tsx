@@ -803,7 +803,7 @@ export const TitolareHomeScreen = () => {
                     : 'Studente'}
                 </Text>
                 <Text style={{ fontSize: 13, color: '#94A3B8' }}>
-                  {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''} · {selectedAppt.instructor?.name ?? 'Istruttore'}
+                  {formatTime(selectedAppt.startsAt)} – {selectedAppt.endsAt ? formatTime(selectedAppt.endsAt) : ''}
                 </Text>
               </View>
               <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
@@ -813,32 +813,15 @@ export const TitolareHomeScreen = () => {
               </View>
             </View>
 
-            {/* ── Contact + info chips ── */}
+            {/* ── Info chips ── */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {selectedAppt.student?.phone ? (
-                <>
-                  <Pressable
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
-                    onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
-                  >
-                    <Ionicons name="call-outline" size={16} color="#3B82F6" />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#3B82F6' }}>Chiama</Text>
-                  </Pressable>
-                  <Pressable
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0FDF4', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
-                    onPress={() => {
-                      const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
-                      Linking.openURL(`https://wa.me/${num}`);
-                    }}
-                  >
-                    <Ionicons name="logo-whatsapp" size={16} color="#22C55E" />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#16A34A' }}>WhatsApp</Text>
-                  </Pressable>
-                </>
-              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Ionicons name="person-outline" size={15} color="#64748B" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
+              </View>
               {selectedAppt.vehicle?.name ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
-                  <Ionicons name="car-outline" size={16} color="#64748B" />
+                  <Ionicons name="car-outline" size={15} color="#64748B" />
                   <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle.name}</Text>
                 </View>
               ) : null}
@@ -851,6 +834,29 @@ export const TitolareHomeScreen = () => {
                 </View>
               ) : null}
             </View>
+
+            {/* ── CTA ── */}
+            {selectedAppt.student?.phone ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Pressable
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 14, paddingVertical: 12 }}
+                  onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
+                >
+                  <Ionicons name="call-outline" size={18} color="#3B82F6" />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#3B82F6' }}>Chiama</Text>
+                </Pressable>
+                <Pressable
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F0FDF4', borderRadius: 14, paddingVertical: 12 }}
+                  onPress={() => {
+                    const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
+                    Linking.openURL(`https://wa.me/${num}`);
+                  }}
+                >
+                  <Ionicons name="logo-whatsapp" size={18} color="#22C55E" />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#16A34A' }}>WhatsApp</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             {/* ── Notes ── */}
             {selectedAppt.notes?.trim() ? (
