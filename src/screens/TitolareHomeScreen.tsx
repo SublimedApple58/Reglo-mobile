@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -111,6 +112,7 @@ export const TitolareHomeScreen = () => {
   const [holidaySheetDate, setHolidaySheetDate] = useState<Date | null>(null);
   const [holidayLabel, setHolidayLabel] = useState('');
   const [holidayPending, setHolidayPending] = useState(false);
+  const [selectedAppt, setSelectedAppt] = useState<AutoscuolaAppointmentWithRelations | null>(null);
 
   const dayScrollRef = useRef<ScrollView | null>(null);
   const dayScrollMountedRef = useRef(false);
@@ -540,12 +542,13 @@ export const TitolareHomeScreen = () => {
                       hourAppts.map((appt) => {
                         const config = statusConfig(appt.status);
                         return (
-                          <View
+                          <Pressable
                             key={appt.id}
                             style={[
                               styles.appointmentBlock,
                               { borderLeftColor: config.border },
                             ]}
+                            onPress={() => setSelectedAppt(appt)}
                           >
                             <View style={styles.appointmentHeader}>
                               <Text style={styles.appointmentTime}>
@@ -580,7 +583,7 @@ export const TitolareHomeScreen = () => {
                                 .filter(Boolean)
                                 .join(' \u00B7 ') || 'Nessun dettaglio'}
                             </Text>
-                          </View>
+                          </Pressable>
                         );
                       })
                     ) : (
@@ -774,6 +777,70 @@ export const TitolareHomeScreen = () => {
             <Text style={[styles.holidayBtnText, { color: '#FFFFFF' }]}>Chiudi e cancella guide</Text>
           </Pressable>
         </View>
+      </BottomSheet>
+
+      {/* ── Appointment Detail BottomSheet ── */}
+      <BottomSheet
+        visible={!!selectedAppt}
+        onClose={() => setSelectedAppt(null)}
+        title="Dettaglio guida"
+      >
+        {selectedAppt ? (
+          <View style={styles.apptDetailContent}>
+            <Text style={styles.apptDetailName}>
+              {selectedAppt.student
+                ? `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`
+                : 'Studente'}
+            </Text>
+            {selectedAppt.student?.phone ? (
+              <View style={styles.apptDetailContactRow}>
+                <Pressable
+                  style={styles.apptDetailContactBtn}
+                  onPress={() => Linking.openURL(`tel:${selectedAppt.student!.phone}`)}
+                >
+                  <Text style={styles.apptDetailContactIcon}>📞</Text>
+                  <Text style={styles.apptDetailContactLabel}>Chiama</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.apptDetailContactBtn, styles.apptDetailContactWhatsapp]}
+                  onPress={() => {
+                    const num = selectedAppt.student!.phone!.replace(/[^0-9]/g, '');
+                    Linking.openURL(`https://wa.me/${num}`);
+                  }}
+                >
+                  <Text style={styles.apptDetailContactIcon}>💬</Text>
+                  <Text style={styles.apptDetailContactLabel}>WhatsApp</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <View style={styles.apptDetailInfoRow}>
+              <Text style={styles.apptDetailInfoLabel}>Orario</Text>
+              <Text style={styles.apptDetailInfoValue}>{getAppointmentTimeRange(selectedAppt)}</Text>
+            </View>
+            <View style={styles.apptDetailInfoRow}>
+              <Text style={styles.apptDetailInfoLabel}>Istruttore</Text>
+              <Text style={styles.apptDetailInfoValue}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
+            </View>
+            <View style={styles.apptDetailInfoRow}>
+              <Text style={styles.apptDetailInfoLabel}>Veicolo</Text>
+              <Text style={styles.apptDetailInfoValue}>{selectedAppt.vehicle?.name ?? 'N/D'}</Text>
+            </View>
+            <View style={styles.apptDetailInfoRow}>
+              <Text style={styles.apptDetailInfoLabel}>Stato</Text>
+              <View style={[styles.statusBadge, { backgroundColor: statusConfig(selectedAppt.status).badgeBg }]}>
+                <Text style={[styles.statusBadgeText, { color: statusConfig(selectedAppt.status).badgeText }]}>
+                  {statusConfig(selectedAppt.status).label}
+                </Text>
+              </View>
+            </View>
+            {selectedAppt.notes?.trim() ? (
+              <View style={styles.apptDetailNotesBox}>
+                <Text style={styles.apptDetailNotesLabel}>Note</Text>
+                <Text style={styles.apptDetailNotesText}>{selectedAppt.notes.trim()}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </BottomSheet>
 
       {/* ── Toast ── */}
@@ -1187,5 +1254,74 @@ const oobStyles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 14,
     paddingVertical: 32,
+  },
+
+  /* ── Appointment Detail ── */
+  apptDetailContent: {
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  apptDetailName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  apptDetailContactRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  apptDetailContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  apptDetailContactWhatsapp: {
+    backgroundColor: '#F0FDF4',
+  },
+  apptDetailContactIcon: {
+    fontSize: 16,
+  },
+  apptDetailContactLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  apptDetailInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  apptDetailInfoLabel: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  apptDetailInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  apptDetailNotesBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+    marginTop: 4,
+  },
+  apptDetailNotesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  apptDetailNotesText: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
   },
 });
