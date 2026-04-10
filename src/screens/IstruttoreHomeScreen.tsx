@@ -3347,6 +3347,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sheetScroll: {
+    flex: 1,
     width: '100%',
   },
   sheetContentScroll: {
