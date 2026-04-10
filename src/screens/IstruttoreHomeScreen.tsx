@@ -487,6 +487,7 @@ export const IstruttoreHomeScreen = () => {
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
+  const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
@@ -999,6 +1000,33 @@ export const IstruttoreHomeScreen = () => {
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
+  const ROW_H = 52;
+
+  // Per-hour availability coverage: { topFraction, bottomFraction } where 0=start of hour, 1=end
+  const hourAvailCoverage = useMemo(() => {
+    const map = new Map<number, { top: number; bottom: number }>();
+    for (const slot of availabilitySlots) {
+      const startHour = Math.floor(slot.startMinutes / 60);
+      const endHour = Math.floor(slot.endMinutes / 60);
+      const endMinute = slot.endMinutes % 60;
+      const lastHour = endMinute > 0 ? endHour : endHour - 1;
+      for (let h = startHour; h <= lastHour; h++) {
+        const hourStart = h * 60;
+        const coverStart = Math.max(slot.startMinutes, hourStart);
+        const coverEnd = Math.min(slot.endMinutes, hourStart + 60);
+        const topFrac = (coverStart - hourStart) / 60;
+        const bottomFrac = (coverEnd - hourStart) / 60;
+        const existing = map.get(h);
+        if (existing) {
+          map.set(h, { top: Math.min(existing.top, topFrac), bottom: Math.max(existing.bottom, bottomFrac) });
+        } else {
+          map.set(h, { top: topFrac, bottom: bottomFrac });
+        }
+      }
+    }
+    return map;
+  }, [availabilitySlots]);
+
   // NOW line position — fractional hour offset for today only
   const nowHourFraction = useMemo(() => {
     const todayNorm = new Date();
@@ -1229,17 +1257,26 @@ export const IstruttoreHomeScreen = () => {
       date: toDateOnlyString(selectedDate),
     }).then((slots) => {
       const hours = new Set<number>();
+      const precise: Array<{ startMinutes: number; endMinutes: number }> = [];
       if (slots) {
         for (const slot of slots) {
-          const startHour = new Date(slot.startsAt).getHours();
-          const endHour = new Date(slot.endsAt).getHours();
+          const s = new Date(slot.startsAt);
+          const e = new Date(slot.endsAt);
+          const startMin = s.getHours() * 60 + s.getMinutes();
+          const endMin = e.getHours() * 60 + e.getMinutes();
+          precise.push({ startMinutes: startMin, endMinutes: endMin });
+          const startHour = s.getHours();
+          const endHour = e.getHours();
+          const endMinute = e.getMinutes();
           for (let h = startHour; h < endHour; h++) {
             hours.add(h);
           }
+          if (endMinute > 0) hours.add(endHour);
         }
       }
       setAvailableHours(hours);
-    }).catch(() => setAvailableHours(new Set()));
+      setAvailabilitySlots(precise);
+    }).catch(() => { setAvailableHours(new Set()); setAvailabilitySlots([]); });
   }, [selectedDate, instructorId]);
 
   useEffect(() => {
@@ -1743,14 +1780,15 @@ export const IstruttoreHomeScreen = () => {
                 const hourAppts = appointmentsByHour.get(hour);
                 const hourBlocks = blocksByHour.get(hour);
                 const hasAppts = (hourAppts && hourAppts.length > 0) || (hourBlocks && hourBlocks.length > 0);
-                const isAvailable = availableHours.has(hour);
-                const prevAvailable = availableHours.has(hour - 1);
+                const coverage = hourAvailCoverage.get(hour);
+                const isAvailable = !!coverage;
+                const prevAvailable = !!hourAvailCoverage.get(hour - 1);
                 const isUnavailableBlockStart = !isAvailable && (hour === HOUR_SLOTS[0] || prevAvailable);
                 // Count consecutive unavailable hours from this one
                 let unavailableBlockSize = 0;
                 if (isUnavailableBlockStart) {
                   for (let h = hour; h <= HOUR_SLOTS[HOUR_SLOTS.length - 1]; h++) {
-                    if (!availableHours.has(h)) unavailableBlockSize++;
+                    if (!hourAvailCoverage.has(h)) unavailableBlockSize++;
                     else break;
                   }
                 }
@@ -1759,25 +1797,45 @@ export const IstruttoreHomeScreen = () => {
 
                 return (
                   <View key={`hour-${hour}`}>
-                    <View style={[styles.timelineRow, isNowHour && { zIndex: 10 }]}>
+                    <View style={[styles.timelineRow, { height: ROW_H }, isNowHour && { zIndex: 10 }]}>
                       <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
                       <View style={[
                         styles.timelineSlotArea,
-                        isAvailable ? styles.timelineSlotAvailable : styles.timelineSlotUnavailable,
+                        { height: ROW_H },
+                        !coverage && styles.timelineSlotUnavailable,
                       ]}>
+                        {/* Pink availability bar — pixel precise */}
+                        {coverage ? (
+                          <View
+                            pointerEvents="none"
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              width: 3,
+                              top: coverage.top * ROW_H,
+                              height: (coverage.bottom - coverage.top) * ROW_H,
+                              backgroundColor: '#EC4899',
+                              borderRadius: 1.5,
+                              zIndex: 2,
+                            }}
+                          />
+                        ) : null}
                         {/* Unavailable label — centered across the full block */}
                         {isUnavailableBlockStart && !hasAppts && (
-                          <View style={[styles.unavailableLabelWrap, { height: unavailableBlockSize * 52 }]} pointerEvents="none">
+                          <View style={[styles.unavailableLabelWrap, { height: unavailableBlockSize * ROW_H }]} pointerEvents="none">
                             <Text style={styles.unavailableLabel}>Non disponibile</Text>
                           </View>
                         )}
                         {hasAppts ? (
                           <>
-                          {hourBlocks?.map((block) => (
+                          {hourBlocks?.map((block) => {
+                            const blockStartMin = new Date(block.startsAt).getMinutes();
+                            const offsetPx = (blockStartMin / 60) * ROW_H;
+                            return (
                             <Pressable
                               key={`block-${block.id}`}
                               onPress={() => handleDeleteBlock(block.id)}
-                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC' }]}
+                              style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', marginTop: offsetPx }]}
                             >
                               <View style={styles.timelineBlockHeader}>
                                 <Text style={styles.timelineBlockTime}>
@@ -1793,12 +1851,15 @@ export const IstruttoreHomeScreen = () => {
                                 {block.reason || 'Slot bloccato'}
                               </Text>
                             </Pressable>
-                          ))}
+                            );
+                          })}
                           {hourAppts?.map((appt) => {
                             const config = timelineStatusConfig(appt.status);
                             const isActive = isLessonInProgressWindow(appt, now);
                             const actionAvail = getActionAvailability(appt, now);
                             const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
+                            const apptStartMin = new Date(appt.startsAt).getMinutes();
+                            const apptOffsetPx = (apptStartMin / 60) * ROW_H;
 
                             return (
                               <Pressable
@@ -1806,7 +1867,7 @@ export const IstruttoreHomeScreen = () => {
                                 onPress={() => openLessonDrawer(appt)}
                                 style={[
                                   styles.timelineBlock,
-                                  { borderLeftColor: config.border },
+                                  { borderLeftColor: config.border, marginTop: apptOffsetPx },
                                   isActive && styles.timelineBlockActive,
                                 ]}
                               >
@@ -1893,7 +1954,7 @@ export const IstruttoreHomeScreen = () => {
                         )}
                         {/* NOW line overlay */}
                         {isNowHour && nowHourFraction !== null ? (
-                          <View style={[styles.nowLineOverlay, { top: `${(nowHourFraction - hour) * 100}%` }]} pointerEvents="none">
+                          <View style={[styles.nowLineOverlay, { top: (nowHourFraction - hour) * ROW_H }]} pointerEvents="none">
                             <View style={styles.nowDot} />
                             <View style={styles.nowLine} />
                             <Text style={styles.nowLabel}>
@@ -3705,7 +3766,6 @@ const styles = StyleSheet.create({
   },
   timelineRow: {
     flexDirection: 'row',
-    minHeight: 52,
     alignItems: 'flex-start',
   },
   timelineGridWrapper: {
@@ -3762,14 +3822,8 @@ const styles = StyleSheet.create({
   timelineSlotArea: {
     flex: 1,
     paddingLeft: 14,
-    paddingBottom: 8,
-    minHeight: 52,
-    position: 'relative',
+    position: 'relative' as const,
     overflow: 'visible',
-  },
-  timelineSlotAvailable: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#EC4899',
   },
   timelineSlotUnavailable: {
     borderLeftWidth: 1,
