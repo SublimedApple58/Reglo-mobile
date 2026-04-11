@@ -129,47 +129,59 @@ export const StudentMyNotesScreen = () => {
                     <Text style={styles.timelineDate}>{formatDay(appt.startsAt)}</Text>
                     {!isLast ? <View style={styles.timelineLine} /> : null}
                   </View>
-                  <View style={[styles.timelineCard, isExam && styles.examCard]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {isExam ? (
-                        <>
-                          <Ionicons name="school-outline" size={15} color="#7C3AED" />
+                  {isExam ? (
+                    <View style={styles.examCard}>
+                      <View style={styles.examAccent} />
+                      <View style={styles.examContent}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <View style={styles.examIconCircle}>
+                            <Ionicons name="school" size={14} color="#FFFFFF" />
+                          </View>
                           <Text style={styles.examLabel}>ESAME</Text>
-                        </>
-                      ) : (
+                          <Text style={styles.examTime}>
+                            {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                          </Text>
+                        </View>
+                        <View style={styles.instructorRow}>
+                          <Ionicons name="person-outline" size={13} color="#8B5CF6" />
+                          <Text style={[styles.instructorName, { color: '#8B5CF6' }]}>{instructorName}</Text>
+                        </View>
+                        {appt.notes?.trim() ? (
+                          <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.timelineCard}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Text style={styles.timelineTime}>
                           {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
                         </Text>
+                        {allTypes.map((t: string, i: number) => (
+                          <View key={i} style={styles.lessonBadge}>
+                            <Text style={styles.lessonBadgeText}>
+                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </Text>
+                          </View>
+                        ))}
+                        {appt.rating != null ? (
+                          <StarRating value={appt.rating} readOnly size={14} />
+                        ) : null}
+                      </View>
+                      <View style={styles.instructorRow}>
+                        <Ionicons name="person-outline" size={13} color="#64748B" />
+                        <Text style={styles.instructorName}>{instructorName}</Text>
+                        {appt.vehicle?.name ? (
+                          <Text style={styles.vehicleName}> · {appt.vehicle.name}</Text>
+                        ) : null}
+                      </View>
+                      {appt.notes?.trim() ? (
+                        <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
+                      ) : (
+                        <Text style={[styles.timelineNote, { color: '#94A3B8' }]}>Nessuna nota</Text>
                       )}
-                      {!isExam && allTypes.map((t: string, i: number) => (
-                        <View key={i} style={styles.lessonBadge}>
-                          <Text style={styles.lessonBadgeText}>
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
-                          </Text>
-                        </View>
-                      ))}
-                      {appt.rating != null ? (
-                        <StarRating value={appt.rating} readOnly size={14} />
-                      ) : null}
                     </View>
-                    {isExam ? (
-                      <Text style={styles.examTime}>
-                        {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
-                      </Text>
-                    ) : null}
-                    <View style={styles.instructorRow}>
-                      <Ionicons name={isExam ? 'person-outline' : 'person-outline'} size={13} color={isExam ? '#8B5CF6' : '#64748B'} />
-                      <Text style={[styles.instructorName, isExam && { color: '#8B5CF6' }]}>{instructorName}</Text>
-                      {appt.vehicle?.name ? (
-                        <Text style={[styles.vehicleName, isExam && { color: '#A78BFA' }]}> · {appt.vehicle.name}</Text>
-                      ) : null}
-                    </View>
-                    {appt.notes?.trim() ? (
-                      <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
-                    ) : !isExam ? (
-                      <Text style={[styles.timelineNote, { color: '#94A3B8' }]}>Nessuna nota</Text>
-                    ) : null}
-                  </View>
+                  )}
                 </View>
               );
             })}
@@ -273,9 +285,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   examCard: {
+    flex: 1,
+    flexDirection: 'row' as const,
     backgroundColor: '#F5F3FF',
-    borderColor: '#A78BFA',
-    borderWidth: 1.5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    marginBottom: 10,
+    overflow: 'hidden' as const,
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  examAccent: {
+    width: 4,
+    backgroundColor: '#8B5CF6',
+  },
+  examContent: {
+    flex: 1,
+    padding: 14,
+    gap: 4,
+  },
+  examIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   examLabel: {
     fontSize: 12,
@@ -286,7 +325,7 @@ const styles = StyleSheet.create({
   examTime: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8B5CF6',
+    color: '#A78BFA',
   },
   lessonBadge: {
     backgroundColor: '#EFF6FF',
