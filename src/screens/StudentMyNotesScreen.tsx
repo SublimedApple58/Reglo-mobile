@@ -120,6 +120,7 @@ export const StudentMyNotesScreen = () => {
           <View style={{ gap: 0 }}>
             {appointments.map((appt, idx) => {
               const isLast = idx === appointments.length - 1;
+              const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
               const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
               const instructorName = appt.instructor?.name ?? 'Istruttore';
               return (
@@ -128,12 +129,19 @@ export const StudentMyNotesScreen = () => {
                     <Text style={styles.timelineDate}>{formatDay(appt.startsAt)}</Text>
                     {!isLast ? <View style={styles.timelineLine} /> : null}
                   </View>
-                  <View style={styles.timelineCard}>
+                  <View style={[styles.timelineCard, isExam && styles.examCard]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Text style={styles.timelineTime}>
-                        {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
-                      </Text>
-                      {allTypes.map((t: string, i: number) => (
+                      {isExam ? (
+                        <>
+                          <Ionicons name="school-outline" size={15} color="#7C3AED" />
+                          <Text style={styles.examLabel}>ESAME</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.timelineTime}>
+                          {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                        </Text>
+                      )}
+                      {!isExam && allTypes.map((t: string, i: number) => (
                         <View key={i} style={styles.lessonBadge}>
                           <Text style={styles.lessonBadgeText}>
                             {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -144,14 +152,23 @@ export const StudentMyNotesScreen = () => {
                         <StarRating value={appt.rating} readOnly size={14} />
                       ) : null}
                     </View>
+                    {isExam ? (
+                      <Text style={styles.examTime}>
+                        {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                      </Text>
+                    ) : null}
                     <View style={styles.instructorRow}>
-                      <Ionicons name="person-outline" size={13} color="#64748B" />
-                      <Text style={styles.instructorName}>{instructorName}</Text>
+                      <Ionicons name={isExam ? 'person-outline' : 'person-outline'} size={13} color={isExam ? '#8B5CF6' : '#64748B'} />
+                      <Text style={[styles.instructorName, isExam && { color: '#8B5CF6' }]}>{instructorName}</Text>
                       {appt.vehicle?.name ? (
-                        <Text style={styles.vehicleName}> · {appt.vehicle.name}</Text>
+                        <Text style={[styles.vehicleName, isExam && { color: '#A78BFA' }]}> · {appt.vehicle.name}</Text>
                       ) : null}
                     </View>
-                    <Text style={styles.timelineNote}>{appt.notes?.trim()}</Text>
+                    {appt.notes?.trim() ? (
+                      <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
+                    ) : !isExam ? (
+                      <Text style={[styles.timelineNote, { color: '#94A3B8' }]}>Nessuna nota</Text>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -254,6 +271,22 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
     lineHeight: 20,
+  },
+  examCard: {
+    backgroundColor: '#F5F3FF',
+    borderColor: '#A78BFA',
+    borderWidth: 1.5,
+  },
+  examLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#7C3AED',
+    letterSpacing: 0.8,
+  },
+  examTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8B5CF6',
   },
   lessonBadge: {
     backgroundColor: '#EFF6FF',

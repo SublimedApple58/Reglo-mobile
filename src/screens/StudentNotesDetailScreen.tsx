@@ -94,6 +94,7 @@ export const StudentNotesDetailScreen = () => {
           <View style={{ gap: 0 }}>
             {appointments.map((appt, idx) => {
               const isLast = idx === appointments.length - 1;
+              const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
               const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
               return (
                 <View key={appt.id} style={styles.timelineRow}>
@@ -101,12 +102,23 @@ export const StudentNotesDetailScreen = () => {
                     <Text style={styles.timelineDate}>{formatDay(appt.startsAt)}</Text>
                     {!isLast ? <View style={styles.timelineLine} /> : null}
                   </View>
-                  <View style={[styles.timelineCard, !appt.notes?.trim() && { opacity: 0.6 }]}>
+                  <View style={[
+                    styles.timelineCard,
+                    !appt.notes?.trim() && !isExam && { opacity: 0.6 },
+                    isExam && styles.examCard,
+                  ]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Text style={styles.timelineTime}>
-                        {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
-                      </Text>
-                      {allTypes.map((t: string, i: number) => (
+                      {isExam ? (
+                        <>
+                          <Ionicons name="school-outline" size={15} color="#7C3AED" />
+                          <Text style={styles.examLabel}>ESAME</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.timelineTime}>
+                          {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                        </Text>
+                      )}
+                      {!isExam && allTypes.map((t: string, i: number) => (
                         <View key={i} style={styles.lessonBadge}>
                           <Text style={styles.lessonBadgeText}>
                             {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -117,17 +129,26 @@ export const StudentNotesDetailScreen = () => {
                         <StarRating value={appt.rating} readOnly size={14} />
                       ) : null}
                     </View>
-                    <Text style={styles.timelineMeta}>
+                    {isExam ? (
+                      <Text style={styles.examTime}>
+                        {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                      </Text>
+                    ) : null}
+                    <Text style={isExam ? styles.examMeta : styles.timelineMeta}>
                       {appt.instructor?.name ?? 'Istruttore'} · {appt.vehicle?.name ?? 'Veicolo n/d'}
                     </Text>
-                    <Text
-                      style={[
-                        styles.timelineNote,
-                        !appt.notes?.trim() && { color: '#94A3B8' },
-                      ]}
-                    >
-                      {appt.notes?.trim() || 'Nessuna nota'}
-                    </Text>
+                    {!isExam ? (
+                      <Text
+                        style={[
+                          styles.timelineNote,
+                          !appt.notes?.trim() && { color: '#94A3B8' },
+                        ]}
+                      >
+                        {appt.notes?.trim() || 'Nessuna nota'}
+                      </Text>
+                    ) : appt.notes?.trim() ? (
+                      <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -229,6 +250,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#3B82F6',
+  },
+  examCard: {
+    backgroundColor: '#F5F3FF',
+    borderColor: '#A78BFA',
+    borderWidth: 1.5,
+  },
+  examLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#7C3AED',
+    letterSpacing: 0.8,
+  },
+  examTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  examMeta: {
+    fontSize: 13,
+    color: '#8B5CF6',
   },
   emptyText: {
     textAlign: 'center',
