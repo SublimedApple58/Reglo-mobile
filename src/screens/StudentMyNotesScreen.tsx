@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
+import { StarRating } from '../components/StarRating';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { useSession } from '../context/SessionContext';
@@ -119,7 +120,7 @@ export const StudentMyNotesScreen = () => {
           <View style={{ gap: 0 }}>
             {appointments.map((appt, idx) => {
               const isLast = idx === appointments.length - 1;
-              const lessonType = appt.type && appt.type !== 'guida' ? appt.type : null;
+              const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
               const instructorName = appt.instructor?.name ?? 'Istruttore';
               return (
                 <View key={appt.id} style={styles.timelineRow}>
@@ -128,16 +129,19 @@ export const StudentMyNotesScreen = () => {
                     {!isLast ? <View style={styles.timelineLine} /> : null}
                   </View>
                   <View style={styles.timelineCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <Text style={styles.timelineTime}>
                         {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
                       </Text>
-                      {lessonType ? (
-                        <View style={styles.lessonBadge}>
+                      {allTypes.map((t: string, i: number) => (
+                        <View key={i} style={styles.lessonBadge}>
                           <Text style={styles.lessonBadgeText}>
-                            {lessonType.charAt(0).toUpperCase() + lessonType.slice(1)}
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
                           </Text>
                         </View>
+                      ))}
+                      {appt.rating != null ? (
+                        <StarRating value={appt.rating} readOnly size={14} />
                       ) : null}
                     </View>
                     <View style={styles.instructorRow}>

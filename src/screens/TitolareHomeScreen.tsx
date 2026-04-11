@@ -825,12 +825,23 @@ export const TitolareHomeScreen = () => {
                   <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle.name}</Text>
                 </View>
               ) : null}
-              {selectedAppt.type && selectedAppt.type !== 'guida' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FDF2F8', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
-                  <Ionicons name="flag-outline" size={14} color="#EC4899" />
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#EC4899' }}>
-                    {selectedAppt.type.charAt(0).toUpperCase() + selectedAppt.type.slice(1)}
-                  </Text>
+              {(() => {
+                const types = selectedAppt.types?.length ? selectedAppt.types : (selectedAppt.type ? [selectedAppt.type] : []);
+                const displayTypes = types.filter((t: string) => t !== 'guida');
+                return displayTypes.map((t: string, i: number) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FDF2F8', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Ionicons name="flag-outline" size={14} color="#EC4899" />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#EC4899' }}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </Text>
+                  </View>
+                ));
+              })()}
+              {selectedAppt.rating != null ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Ionicons key={s} name={s <= selectedAppt.rating! ? 'star' : 'star-outline'} size={14} color={s <= selectedAppt.rating! ? '#FACC15' : '#E2E8F0'} />
+                  ))}
                 </View>
               ) : null}
             </View>

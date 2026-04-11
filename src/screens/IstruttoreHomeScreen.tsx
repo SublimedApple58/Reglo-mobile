@@ -40,6 +40,7 @@ import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
+import { StarRating } from '../components/StarRating';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
@@ -438,7 +439,8 @@ export const IstruttoreHomeScreen = () => {
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
-  const [selectedLessonType, setSelectedLessonType] = useState('');
+  const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([]);
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [lessonNotes, setLessonNotes] = useState('');
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
   const [instructorBlocks, setInstructorBlocks] = useState<InstructorBlock[]>([]);
@@ -461,7 +463,7 @@ export const IstruttoreHomeScreen = () => {
   const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
   const [bookingStudentId, setBookingStudentId] = useState<string>('');
   const [bookingVehicleId, setBookingVehicleId] = useState<string>('');
-  const [bookingLessonType, setBookingLessonType] = useState<string>('guida');
+  const [bookingLessonTypes, setBookingLessonTypes] = useState<string[]>(['guida']);
   const [bookingDate, setBookingDate] = useState<Date>(() => new Date());
   const [bookingStartTime, setBookingStartTime] = useState<Date>(() => {
     const now = new Date();
@@ -796,7 +798,7 @@ export const IstruttoreHomeScreen = () => {
     const roundedNow = normalizeToHalfHour(nowDate);
     setBookingStudentId('');
     setBookingVehicleId((current) => current || vehicles[0]?.id || '');
-    setBookingLessonType('guida');
+    setBookingLessonTypes(['guida']);
     setBookingDuration((current) =>
       allowedDurations.includes(current) ? current : allowedDurations[0] ?? 60,
     );
@@ -823,7 +825,7 @@ export const IstruttoreHomeScreen = () => {
       setGuidedSuggestion(suggestion);
       setBookingVehicleId(suggestion.vehicleId);
       setBookingDuration(suggestion.durationMinutes);
-      setBookingLessonType(suggestion.suggestedLessonType || 'guida');
+      setBookingLessonTypes([suggestion.suggestedLessonType || 'guida']);
       const suggestedDate = toDateOnlyString(new Date(suggestion.startsAt));
       const usedFallbackDate = Boolean(requestedDate && requestedDate !== suggestedDate);
       setToast({
@@ -876,8 +878,8 @@ export const IstruttoreHomeScreen = () => {
         endsAt: end.toISOString(),
         instructorId,
         vehicleId: guidedSuggestion?.vehicleId ?? bookingVehicleId,
-        ...(bookingLessonType && bookingLessonType !== 'guida'
-          ? { lessonType: bookingLessonType }
+        ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
+          ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
           : {}),
         ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
       });
@@ -936,7 +938,7 @@ export const IstruttoreHomeScreen = () => {
     }
   }, [
     bookingDuration,
-    bookingLessonType,
+    bookingLessonTypes,
     bookingStudentId,
     bookingVehicleId,
     guidedSuggestion,
@@ -1053,11 +1055,20 @@ export const IstruttoreHomeScreen = () => {
   };
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
 
+  const resolveInitialLessonTypes = (lesson: AutoscuolaAppointmentWithRelations): string[] => {
+    if (lesson.types && lesson.types.length > 0) {
+      return lesson.types.map((t) => normalizeLessonType(t)).filter(Boolean);
+    }
+    const single = resolveInitialLessonType(lesson.type);
+    return single ? [single] : [];
+  };
+
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
     setSheetLesson(lesson);
     setSheetScrollAtBottom(false);
     setSheetScrollAtTop(true);
-    setSelectedLessonType(resolveInitialLessonType(lesson.type));
+    setSelectedLessonTypes(resolveInitialLessonTypes(lesson));
+    setSelectedRating(lesson.rating ?? null);
     setLessonNotes(lesson.notes ?? '');
   };
 
@@ -1309,7 +1320,8 @@ export const IstruttoreHomeScreen = () => {
         return;
       }
       setSheetLesson(refreshedLesson);
-      setSelectedLessonType(resolveInitialLessonType(refreshedLesson.type));
+      setSelectedLessonTypes(resolveInitialLessonTypes(refreshedLesson));
+      setSelectedRating(refreshedLesson.rating ?? null);
       setLessonNotes(refreshedLesson.notes ?? '');
     },
     [loadData],
@@ -1319,7 +1331,7 @@ export const IstruttoreHomeScreen = () => {
     async (
       lesson: AutoscuolaAppointmentWithRelations,
       action: InstructorActionStatus,
-      options?: { lessonType?: string; closeDrawerOnSuccess?: boolean },
+      options?: { lessonTypes?: string[]; closeDrawerOnSuccess?: boolean },
     ) => {
       setToast(null);
       const availability = getActionAvailability(lesson, new Date());
@@ -1330,8 +1342,8 @@ export const IstruttoreHomeScreen = () => {
         return;
       }
 
-      const normalizedType = normalizeLessonType(options?.lessonType);
-      if (action === 'checked_in' && !normalizedType && !normalizeLessonType(lesson.type)) {
+      const types = (options?.lessonTypes ?? []).map(normalizeLessonType).filter(Boolean);
+      if (action === 'checked_in' && !types.length && !normalizeLessonType(lesson.type)) {
         setToast({
           text: 'Seleziona prima il tipo guida dal dettaglio.',
           tone: 'info',
@@ -1345,7 +1357,8 @@ export const IstruttoreHomeScreen = () => {
       try {
         await regloApi.updateAppointmentStatus(lesson.id, {
           status: action,
-          lessonType: normalizedType || undefined,
+          lessonType: types[0] || undefined,
+          lessonTypes: types.length ? types : undefined,
         });
         setToast({ text: 'Stato aggiornato', tone: 'success' });
         if (options?.closeDrawerOnSuccess) {
@@ -1373,10 +1386,17 @@ export const IstruttoreHomeScreen = () => {
       return;
     }
 
-    const payload: { lessonType?: string; notes?: string | null } = {};
-    const initialLessonType = resolveInitialLessonType(sheetLesson.type);
-    if (selectedLessonType && selectedLessonType !== initialLessonType) {
-      payload.lessonType = selectedLessonType;
+    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null } = {};
+    const initialTypes = resolveInitialLessonTypes(sheetLesson);
+    const typesChanged = JSON.stringify(selectedLessonTypes.sort()) !== JSON.stringify([...initialTypes].sort());
+    if (selectedLessonTypes.length && typesChanged) {
+      payload.lessonTypes = selectedLessonTypes;
+      payload.lessonType = selectedLessonTypes[0];
+    }
+
+    const initialRating = sheetLesson.rating ?? null;
+    if (selectedRating !== initialRating) {
+      payload.rating = selectedRating;
     }
 
     const currentNotes = normalizeNotes(lessonNotes);
@@ -1410,7 +1430,7 @@ export const IstruttoreHomeScreen = () => {
   const handleStatusAction = async (action: InstructorActionStatus) => {
     if (!sheetLesson) return;
     await executeStatusAction(sheetLesson, action, {
-      lessonType: selectedLessonType,
+      lessonTypes: selectedLessonTypes,
       closeDrawerOnSuccess: true,
     });
   };
@@ -2114,13 +2134,29 @@ export const IstruttoreHomeScreen = () => {
                   <SelectableChip
                     key={option.value}
                     label={option.label}
-                    active={selectedLessonType === option.value}
-                    onPress={() => setSelectedLessonType(option.value)}
+                    active={selectedLessonTypes.includes(option.value)}
+                    onPress={() => {
+                      setSelectedLessonTypes((prev) => {
+                        if (prev.includes(option.value)) {
+                          const next = prev.filter((t) => t !== option.value);
+                          return next.length ? next : [option.value];
+                        }
+                        return [...prev, option.value];
+                      });
+                    }}
                     style={styles.lessonTypeChip}
                   />
                 ))}
               </View>
             </View>
+
+            {/* VALUTAZIONE */}
+            {sheetLesson && ['checked_in', 'completed', 'no_show'].includes(normalizeStatus(sheetLesson.status)) ? (
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionLabel}>VALUTAZIONE</Text>
+                <StarRating value={selectedRating} onChange={setSelectedRating} />
+              </View>
+            ) : null}
 
             {/* NOTE */}
             <View style={styles.modalSection}>
@@ -2395,8 +2431,16 @@ export const IstruttoreHomeScreen = () => {
                   <SelectableChip
                     key={option.value}
                     label={option.label}
-                    active={bookingLessonType === option.value}
-                    onPress={() => setBookingLessonType(option.value)}
+                    active={bookingLessonTypes.includes(option.value)}
+                    onPress={() => {
+                      setBookingLessonTypes((prev) => {
+                        if (prev.includes(option.value)) {
+                          const next = prev.filter((t) => t !== option.value);
+                          return next.length ? next : [option.value];
+                        }
+                        return [...prev, option.value];
+                      });
+                    }}
                     style={styles.lessonTypeChip}
                   />
                 ))}

@@ -174,9 +174,9 @@ export const AllievoHomeScreen = () => {
 
   const [preferredDate, setPreferredDate] = useState(new Date());
   const [durationMinutes, setDurationMinutes] = useState(60);
-  const [selectedLessonType, setSelectedLessonType] = useState<string>(
+  const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([
     DEFAULT_BOOKING_LESSON_TYPES[0],
-  );
+  ]);
   const [bookingOptions, setBookingOptions] = useState<MobileBookingOptions | null>(null);
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
@@ -409,14 +409,11 @@ export const AllievoHomeScreen = () => {
         );
         const availableTypes = (resolvedBookingOptions.availableLessonTypes ??
           [...DEFAULT_BOOKING_LESSON_TYPES]) as string[];
-        setSelectedLessonType((current) =>
-          !resolvedBookingOptions.lessonTypeSelectionEnabled
-            ? 'guida'
-            :
-          availableTypes.includes(current)
-            ? current
-            : availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0],
-        );
+        setSelectedLessonTypes((current) => {
+          if (!resolvedBookingOptions.lessonTypeSelectionEnabled) return ['guida'];
+          const valid = current.filter((t) => availableTypes.includes(t));
+          return valid.length ? valid : [availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0]];
+        });
       } catch (err) {
         if (requestId !== loadRequestRef.current) {
           return;
@@ -789,7 +786,7 @@ export const AllievoHomeScreen = () => {
     }
     if (
       canSelectLessonType &&
-      (!selectedLessonType || !availableLessonTypes.includes(selectedLessonType))
+      (!selectedLessonTypes.length || !selectedLessonTypes.every((t) => availableLessonTypes.includes(t)))
     ) {
       setToast({ text: 'Tipo guida non disponibile', tone: 'danger' });
       setBookingLoading(false);
@@ -800,7 +797,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         date: toDateString(preferredDate),
         durationMinutes,
-        ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
       });
       if (!slots.length) {
@@ -830,7 +827,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         durationMinutes,
-        ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+        ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         selectedStartsAt: freeChoiceSelected.startsAt,
       });
@@ -850,7 +847,7 @@ export const AllievoHomeScreen = () => {
           studentId: selectedStudentId,
           date: toDateString(preferredDate),
           durationMinutes,
-          ...(canSelectLessonType ? { lessonType: selectedLessonType } : {}),
+          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
           ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         });
         setFreeChoiceSlots(refreshed);
@@ -1856,12 +1853,20 @@ export const AllievoHomeScreen = () => {
             <Text style={styles.bookingSectionLabel}>TIPO GUIDA</Text>
             <View style={styles.bookingChipRow}>
               {availableLessonTypes.map((lessonType) => {
-                const isActive = selectedLessonType === lessonType;
+                const isActive = selectedLessonTypes.includes(lessonType);
                 return (
                   <Pressable
                     key={`type-${lessonType}`}
                     style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                    onPress={() => setSelectedLessonType(lessonType)}
+                    onPress={() => {
+                      setSelectedLessonTypes((prev) => {
+                        if (prev.includes(lessonType)) {
+                          const next = prev.filter((t) => t !== lessonType);
+                          return next.length ? next : [lessonType];
+                        }
+                        return [...prev, lessonType];
+                      });
+                    }}
                   >
                     <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
                       {formatLessonType(lessonType)}

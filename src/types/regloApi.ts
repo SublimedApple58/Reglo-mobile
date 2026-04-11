@@ -120,6 +120,8 @@ export type AutoscuolaAppointment = {
   caseId: Uuid | null;
   slotId: Uuid | null;
   type: string;
+  types?: string[];
+  rating?: number | null;
   startsAt: IsoDate;
   endsAt: IsoDate | null;
   status: string;
@@ -309,10 +311,13 @@ export type CreateAppointmentInput = {
 export type UpdateAppointmentStatusInput = {
   status: string;
   lessonType?: string;
+  lessonTypes?: string[];
 };
 
 export type UpdateAppointmentDetailsInput = {
   lessonType?: string;
+  lessonTypes?: string[];
+  rating?: number | null;
   notes?: string | null;
 };
 
