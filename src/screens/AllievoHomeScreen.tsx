@@ -1451,7 +1451,7 @@ export const AllievoHomeScreen = () => {
             )}
 
             {/* ── Assigned Instructor Card ── */}
-            {isLockedToInstructor && assignedInstructorName && assignedInstructorPhone ? (
+            {isLockedToInstructor && assignedInstructorName ? (
               <LinearGradient
                 colors={['#EC4899', '#F472B6']}
                 start={{ x: 0, y: 0 }}
@@ -1463,22 +1463,24 @@ export const AllievoHomeScreen = () => {
                   <Text style={styles.assignedInstructorLabel}>Il tuo istruttore</Text>
                 </View>
                 <Text style={styles.assignedInstructorName}>{assignedInstructorName}</Text>
-                <View style={styles.assignedInstructorActions}>
-                  <Pressable
-                    style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.85 }]}
-                    onPress={() => Linking.openURL(`https://wa.me/39${assignedInstructorPhone}`)}
-                  >
-                    <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
-                    <Text style={styles.assignedInstructorBtnText}>WhatsApp</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.85 }]}
-                    onPress={() => Linking.openURL(`tel:${assignedInstructorPhone}`)}
-                  >
-                    <Ionicons name="call" size={16} color="#FFFFFF" />
-                    <Text style={styles.assignedInstructorBtnText}>Chiama</Text>
-                  </Pressable>
-                </View>
+                {assignedInstructorPhone ? (
+                  <View style={styles.assignedInstructorActions}>
+                    <Pressable
+                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.85 }]}
+                      onPress={() => Linking.openURL(`https://wa.me/39${assignedInstructorPhone}`)}
+                    >
+                      <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+                      <Text style={styles.assignedInstructorBtnText}>WhatsApp</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.85 }]}
+                      onPress={() => Linking.openURL(`tel:${assignedInstructorPhone}`)}
+                    >
+                      <Ionicons name="call" size={16} color="#FFFFFF" />
+                      <Text style={styles.assignedInstructorBtnText}>Chiama</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
               </LinearGradient>
             ) : null}
 
