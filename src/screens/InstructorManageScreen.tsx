@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   UIManager,
   View,
@@ -30,6 +31,7 @@ import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
+import { SelectableChip } from '../components/SelectableChip';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaVehicle, AutoscuolaSettings, DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
@@ -792,14 +794,30 @@ export const InstructorManageScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
+  // ── Instructor booking settings (autonomous mode) ──────────
+  const [autonomousMode, setAutonomousMode] = useState(false);
+  const [bookingSlotDurations, setBookingSlotDurations] = useState<number[]>([]);
+  const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
-      const [vehicleResponse, settingsResponse] = await Promise.all([
+      const [vehicleResponse, settingsResponse, instrSettings] = await Promise.all([
         regloApi.getVehicles(),
         regloApi.getAutoscuolaSettings(),
+        regloApi.getInstructorSettings(),
       ]);
       setVehicles(vehicleResponse);
       setSettings(settingsResponse);
+      setAutonomousMode(instrSettings.autonomousMode);
+      if (instrSettings.autonomousMode) {
+        setBookingSlotDurations(
+          instrSettings.settings.bookingSlotDurations ?? instrSettings.companyDefaults.bookingSlotDurations,
+        );
+        setRoundedHoursOnly(
+          instrSettings.settings.roundedHoursOnly ?? instrSettings.companyDefaults.roundedHoursOnly,
+        );
+      }
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -1011,6 +1029,34 @@ export const InstructorManageScreen = () => {
     }
   };
 
+  // ── Instructor booking settings handlers ─────────────────────
+  const DURATION_OPTIONS = [30, 60, 90, 120] as const;
+
+  const toggleDuration = (duration: number) => {
+    setBookingSlotDurations((prev) =>
+      prev.includes(duration) ? prev.filter((d) => d !== duration) : [...prev, duration].sort((a, b) => a - b),
+    );
+  };
+
+  const handleSaveInstructorSettings = async () => {
+    if (!bookingSlotDurations.length) {
+      setToast({ text: 'Seleziona almeno una durata', tone: 'danger' });
+      return;
+    }
+    setSettingsSaving(true);
+    try {
+      await regloApi.updateInstructorSettings({ bookingSlotDurations, roundedHoursOnly });
+      setToast({ text: 'Impostazioni salvate', tone: 'success' });
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore salvando impostazioni',
+        tone: 'danger',
+      });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
@@ -1132,13 +1178,69 @@ export const InstructorManageScreen = () => {
         ) : (
           <>
             {mainTab === 'availability' && (
-              <AvailabilityEditor
-                title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
-                ownerType="instructor"
-                ownerId={instructorId}
-                weeks={settings?.availabilityWeeks ?? 4}
-                onToast={(text, tone = 'success') => setToast({ text, tone })}
-              />
+              <>
+                <AvailabilityEditor
+                  title={`Disponibilita istruttore · ${settings?.availabilityWeeks ?? 4} sett.`}
+                  ownerType="instructor"
+                  ownerId={instructorId}
+                  weeks={settings?.availabilityWeeks ?? 4}
+                  onToast={(text, tone = 'success') => setToast({ text, tone })}
+                />
+
+                {autonomousMode && (
+                  <Animated.View entering={FadeIn.duration(300)} style={styles.bookingSettingsCard}>
+                    <Text style={styles.sectionLabel}>Impostazioni prenotazione</Text>
+
+                    {/* Durata guide */}
+                    <View style={styles.bookingSettingsField}>
+                      <Text style={styles.fieldLabel}>Durata guide</Text>
+                      <View style={styles.durationChipsRow}>
+                        {DURATION_OPTIONS.map((dur) => (
+                          <SelectableChip
+                            key={dur}
+                            label={`${dur} min`}
+                            active={bookingSlotDurations.includes(dur)}
+                            onPress={() => toggleDuration(dur)}
+                          />
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Solo orari tondi */}
+                    <View style={styles.bookingSettingsToggleRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.bookingSettingsToggleLabel}>Solo orari tondi</Text>
+                        <Text style={styles.bookingSettingsToggleDesc}>
+                          Prenotazioni solo a inizio ora (es. 9:00, 10:00)
+                        </Text>
+                      </View>
+                      <Switch
+                        value={roundedHoursOnly}
+                        onValueChange={setRoundedHoursOnly}
+                        trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                        thumbColor="#FFFFFF"
+                      />
+                    </View>
+
+                    {/* Save CTA */}
+                    <Pressable
+                      onPress={settingsSaving ? undefined : handleSaveInstructorSettings}
+                      disabled={settingsSaving}
+                      style={({ pressed }) => [
+                        styles.saveCta,
+                        pressed && styles.saveCtaPressed,
+                        settingsSaving && styles.saveCtaDisabled,
+                      ]}
+                    >
+                      {settingsSaving ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.saveCtaText}>Salva impostazioni</Text>
+                      )}
+                    </Pressable>
+                  </Animated.View>
+                )}
+              </>
             )}
 
             {mainTab === 'vehicles' && (
@@ -1671,6 +1773,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  /* ─── Booking Settings (Autonomous) ──────────────── */
+  bookingSettingsCard: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  bookingSettingsField: {
+    gap: spacing.xs,
+  },
+  durationChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  bookingSettingsToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  bookingSettingsToggleLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  bookingSettingsToggleDesc: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+    marginTop: 2,
   },
 
   /* ─── Vehicles Section ────────────────────────────── */

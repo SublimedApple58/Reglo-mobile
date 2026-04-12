@@ -296,6 +296,9 @@ export const AllievoHomeScreen = () => {
     [bookingOptions?.lessonTypeSelectionEnabled, settings?.lessonPolicyEnabled],
   );
   const canSelectInstructor = bookingOptions?.instructorPreferenceEnabled ?? false;
+  const isLockedToInstructor = bookingOptions?.isLockedToInstructor === true;
+  const assignedInstructorName = bookingOptions?.assignedInstructorName ?? null;
+  const assignedInstructorPhone = bookingOptions?.assignedInstructorPhone ?? null;
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
@@ -395,6 +398,9 @@ export const AllievoHomeScreen = () => {
             : [],
         };
         setBookingOptions(resolvedBookingOptions);
+        if (resolvedBookingOptions.isLockedToInstructor && resolvedBookingOptions.assignedInstructorId) {
+          setSelectedInstructorId(resolvedBookingOptions.assignedInstructorId);
+        }
         if (resolvedBookingOptions.instructorPreferenceEnabled) {
           regloApi.getInstructors().then((list) => {
             const active = list.filter((i) => i.status !== 'inactive');
@@ -699,17 +705,18 @@ export const AllievoHomeScreen = () => {
     return instructors.filter((i) => availableIds.includes(i.id));
   }, [canSelectInstructor, instructors, preferredDate, dateAvailability]);
 
-  // Reset selected instructor if no longer visible
+  // Reset selected instructor if no longer visible (but never reset if locked)
   useEffect(() => {
     if (
       selectedInstructorId &&
       canSelectInstructor &&
+      !isLockedToInstructor &&
       visibleInstructors.length > 0 &&
       !visibleInstructors.some((i) => i.id === selectedInstructorId)
     ) {
       setSelectedInstructorId(null);
     }
-  }, [visibleInstructors, selectedInstructorId, canSelectInstructor]);
+  }, [visibleInstructors, selectedInstructorId, canSelectInstructor, isLockedToInstructor]);
 
   const dayScrollMountedRef = useRef(false);
 
@@ -1443,6 +1450,38 @@ export const AllievoHomeScreen = () => {
               </View>
             )}
 
+            {/* ── Assigned Instructor Card ── */}
+            {isLockedToInstructor && assignedInstructorName && assignedInstructorPhone ? (
+              <LinearGradient
+                colors={['#EC4899', '#F472B6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.assignedInstructorCard}
+              >
+                <View style={styles.assignedInstructorHeader}>
+                  <Ionicons name="person" size={14} color="#FFFFFF" />
+                  <Text style={styles.assignedInstructorLabel}>Il tuo istruttore</Text>
+                </View>
+                <Text style={styles.assignedInstructorName}>{assignedInstructorName}</Text>
+                <View style={styles.assignedInstructorActions}>
+                  <Pressable
+                    style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.85 }]}
+                    onPress={() => Linking.openURL(`https://wa.me/39${assignedInstructorPhone}`)}
+                  >
+                    <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+                    <Text style={styles.assignedInstructorBtnText}>WhatsApp</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.85 }]}
+                    onPress={() => Linking.openURL(`tel:${assignedInstructorPhone}`)}
+                  >
+                    <Ionicons name="call" size={16} color="#FFFFFF" />
+                    <Text style={styles.assignedInstructorBtnText}>Chiama</Text>
+                  </Pressable>
+                </View>
+              </LinearGradient>
+            ) : null}
+
             {/* ── CTA Button (standalone) ── */}
             {!studentBookingDisabledByPolicy ? (
               <Pressable
@@ -1879,7 +1918,21 @@ export const AllievoHomeScreen = () => {
         ) : null}
 
         {/* ISTRUTTORE */}
-        {canSelectInstructor && visibleInstructors.length > 0 ? (
+        {isLockedToInstructor && assignedInstructorName ? (
+          <View style={styles.bookingSection}>
+            <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
+            <View style={styles.bookingChipRow}>
+              <View style={[styles.bookingChipChunky, styles.bookingChipChunkyActive, { opacity: 1 }]}>
+                <Text style={styles.bookingChipChunkyTextActive}>
+                  {assignedInstructorName}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.bookingInstructorCaption}>
+              Istruttore assegnato dal tuo cluster.
+            </Text>
+          </View>
+        ) : canSelectInstructor && visibleInstructors.length > 0 ? (
           <View style={styles.bookingSection}>
             <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
             <View style={styles.bookingChipRow}>
@@ -3181,6 +3234,53 @@ const styles = StyleSheet.create({
   timelineCheckText: {
     fontSize: 14,
     fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* ── Assigned Instructor Card ── */
+  assignedInstructorCard: {
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+  },
+  assignedInstructorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  assignedInstructorLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  assignedInstructorName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  assignedInstructorActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  assignedInstructorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 100,
+  },
+  assignedInstructorBtnWhatsApp: {
+    backgroundColor: '#25D366',
+  },
+  assignedInstructorBtnCall: {
+    backgroundColor: '#3B82F6',
+  },
+  assignedInstructorBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

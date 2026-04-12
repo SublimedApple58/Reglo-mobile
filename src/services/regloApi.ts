@@ -149,6 +149,19 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
 
+    getInstructorSettings: async () =>
+      client.request<{
+        autonomousMode: boolean;
+        settings: { bookingSlotDurations?: number[]; roundedHoursOnly?: boolean };
+        companyDefaults: { bookingSlotDurations: number[]; roundedHoursOnly: boolean };
+      }>('/api/autoscuole/instructor-settings'),
+
+    updateInstructorSettings: async (input: { bookingSlotDurations?: number[]; roundedHoursOnly?: boolean }) =>
+      client.request<{ bookingSlotDurations?: number[]; roundedHoursOnly?: boolean }>('/api/autoscuole/instructor-settings', {
+        method: 'PATCH',
+        body: input,
+      }),
+
     getOverview: async () => client.request<AutoscuolaOverview>('/api/autoscuole/overview'),
     getStudents: async (search?: string) =>
       client.request<AutoscuolaStudent[]>('/api/autoscuole/students', {

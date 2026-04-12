@@ -426,7 +426,7 @@ export const IstruttoreHomeScreen = () => {
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
-  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
@@ -494,6 +494,9 @@ export const IstruttoreHomeScreen = () => {
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [instructorAutonomousMode, setInstructorAutonomousMode] = useState(false);
+  const [emergencyAllStudents, setEmergencyAllStudents] = useState(false);
+  const [myStudentsExpanded, setMyStudentsExpanded] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
@@ -550,6 +553,10 @@ export const IstruttoreHomeScreen = () => {
       setSettings(settingsResponse);
       setStudents(agendaBootstrap.students);
       setVehicles(agendaBootstrap.vehicles);
+      const currentInstructor = agendaBootstrap.instructors?.find(
+        (inst) => inst.id === instructorId,
+      );
+      setInstructorAutonomousMode(currentInstructor?.autonomousMode ?? false);
       setInstructorBlocks(
         (agendaBootstrap.instructorBlocks ?? []).filter(
           (b) => b.instructorId === instructorId,
@@ -690,15 +697,41 @@ export const IstruttoreHomeScreen = () => {
       (settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
     [settings?.bookingSlotDurations],
   );
-  const bookingStudentOptions = useMemo(
-    () =>
-      students.map((student) => ({
-        value: student.id,
-        label: `${student.firstName} ${student.lastName}`.trim(),
-        subtitle: null,
-      })),
-    [students],
+  const clustersActive = Boolean(instructorAutonomousMode);
+  const assignedStudents = useMemo(
+    () => students.filter((s) => s.assignedInstructorId === instructorId),
+    [students, instructorId],
   );
+  const unassignedStudents = useMemo(
+    () => students.filter((s) => s.assignedInstructorId !== instructorId),
+    [students, instructorId],
+  );
+  const bookingStudentOptions = useMemo(() => {
+    const toOption = (student: typeof students[number]) => ({
+      value: student.id,
+      label: `${student.firstName} ${student.lastName}`.trim(),
+      subtitle: null as string | null,
+    });
+    // Clusters not active: show all students unchanged
+    if (!clustersActive) {
+      return students.map(toOption);
+    }
+    // Clusters active + emergency mode: assigned first, separator, then others
+    if (emergencyAllStudents) {
+      const assigned = assignedStudents.map(toOption);
+      if (unassignedStudents.length > 0) {
+        const separator = {
+          value: '__separator__',
+          label: '\u2500 Altri allievi \u2500',
+          subtitle: null as string | null,
+        };
+        return [...assigned, separator, ...unassignedStudents.map(toOption)];
+      }
+      return assigned;
+    }
+    // Clusters active, normal mode: only assigned students
+    return assignedStudents.map(toOption);
+  }, [students, assignedStudents, unassignedStudents, clustersActive, emergencyAllStudents]);
   const selectedBookingStudent = useMemo(
     () => students.find((student) => student.id === bookingStudentId) ?? null,
     [bookingStudentId, students],
@@ -1521,6 +1554,7 @@ export const IstruttoreHomeScreen = () => {
   );
 
   const resetGuidedSuggestionForStudent = useCallback((nextStudentId: string) => {
+    if (nextStudentId === '__separator__') return;
     setBookingStudentId(nextStudentId);
     setGuidedSuggestion(null);
   }, []);
@@ -1750,6 +1784,95 @@ export const IstruttoreHomeScreen = () => {
             })}
           </ScrollView>
         </View>
+
+        {/* ── I miei allievi card ── */}
+        {clustersActive && assignedStudents.length > 0 ? (
+          <Pressable
+            onPress={() => setMyStudentsExpanded((prev) => !prev)}
+            style={{
+              backgroundColor: '#FFF',
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              padding: 16,
+              marginBottom: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="people" size={18} color="#64748B" />
+                <Text style={{ fontWeight: '600', fontSize: 14, color: '#1E293B' }}>
+                  {assignedStudents.length} alliev{assignedStudents.length === 1 ? 'o' : 'i'} assegnat{assignedStudents.length === 1 ? 'o' : 'i'}
+                </Text>
+              </View>
+              <Ionicons
+                name={myStudentsExpanded ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#94A3B8"
+              />
+            </View>
+            {myStudentsExpanded ? (
+              <View style={{ marginTop: 12, gap: 10 }}>
+                {assignedStudents.map((student) => (
+                  <View
+                    key={student.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 6,
+                      borderTopWidth: 1,
+                      borderTopColor: '#F1F5F9',
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#1E293B' }}>
+                        {student.firstName} {student.lastName}
+                      </Text>
+                      {student.phone ? (
+                        <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                          {student.phone}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {student.phone ? (
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Pressable
+                          onPress={() => Linking.openURL(`https://wa.me/39${student.phone!.replace(/\s+/g, '')}`)}
+                          hitSlop={6}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            backgroundColor: '#25D366',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => Linking.openURL(`tel:${student.phone}`)}
+                          hitSlop={6}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            backgroundColor: '#3B82F6',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="call" size={16} color="#FFF" />
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
 
         {/* ── Timeline ── */}
         {appointmentsLoading ? (
@@ -2199,7 +2322,7 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Booking BottomSheet ── */}
       <BottomSheet
         visible={bookingSheetOpen}
-        onClose={() => { if (!bookingPendingAction) setBookingSheetOpen(false); }}
+        onClose={() => { if (!bookingPendingAction) { setBookingSheetOpen(false); setEmergencyAllStudents(false); } }}
         title="Nuova prenotazione"
         closeDisabled={Boolean(bookingPendingAction)}
         minHeight={bookingSheetMinHeight}
@@ -2254,6 +2377,25 @@ export const IstruttoreHomeScreen = () => {
             )}
             {!students.length ? (
               <Text style={styles.actionHint}>Nessun allievo disponibile.</Text>
+            ) : null}
+            {clustersActive && !emergencyAllStudents && unassignedStudents.length > 0 ? (
+              <Pressable
+                onPress={() => {
+                  Alert.alert(
+                    'Accesso allievi non assegnati',
+                    'Stai accedendo ad allievi non assegnati a te',
+                    [
+                      { text: 'Annulla', style: 'cancel' },
+                      { text: 'OK', onPress: () => setEmergencyAllStudents(true) },
+                    ],
+                  );
+                }}
+                hitSlop={8}
+              >
+                <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10, textAlign: 'center' }}>
+                  Vedi tutti gli allievi
+                </Text>
+              </Pressable>
             ) : null}
           </View>
 

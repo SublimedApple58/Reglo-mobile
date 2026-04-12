@@ -70,6 +70,7 @@ export type AutoscuolaStudent = {
   phone: string | null;
   status: string;
   notes: string | null;
+  assignedInstructorId?: Uuid | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -99,6 +100,7 @@ export type AutoscuolaInstructor = {
   name: string;
   phone: string | null;
   status: string;
+  autonomousMode?: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -488,6 +490,7 @@ export type AutoscuolaSettings = {
   instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
   swapEnabled?: boolean;
   studentNotesEnabled?: boolean;
+  instructorClustersEnabled?: boolean;
 };
 
 export type MobileBookingOptions = {
@@ -508,6 +511,10 @@ export type MobileBookingOptions = {
       examDate: string | null;
     } | null;
   };
+  assignedInstructorId?: string | null;
+  assignedInstructorName?: string | null;
+  assignedInstructorPhone?: string | null;
+  isLockedToInstructor?: boolean;
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
