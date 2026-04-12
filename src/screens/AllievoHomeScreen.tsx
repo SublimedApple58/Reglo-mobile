@@ -1450,38 +1450,35 @@ export const AllievoHomeScreen = () => {
               </View>
             )}
 
-            {/* ── Assigned Instructor Card ── */}
+            {/* ── Assigned Instructor Row ── */}
             {isLockedToInstructor && assignedInstructorName ? (
-              <LinearGradient
-                colors={['#EC4899', '#F472B6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.assignedInstructorCard}
-              >
-                <View style={styles.assignedInstructorHeader}>
-                  <Ionicons name="person" size={14} color="#FFFFFF" />
-                  <Text style={styles.assignedInstructorLabel}>Il tuo istruttore</Text>
+              <View style={styles.assignedInstructorRow}>
+                <View style={styles.assignedInstructorAvatar}>
+                  <Ionicons name="person" size={16} color="#EC4899" />
                 </View>
-                <Text style={styles.assignedInstructorName}>{assignedInstructorName}</Text>
+                <View style={styles.assignedInstructorInfo}>
+                  <Text style={styles.assignedInstructorLabel}>Il tuo istruttore</Text>
+                  <Text style={styles.assignedInstructorName}>{assignedInstructorName}</Text>
+                </View>
                 {assignedInstructorPhone ? (
                   <View style={styles.assignedInstructorActions}>
                     <Pressable
-                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.85 }]}
+                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.7 }]}
                       onPress={() => Linking.openURL(`https://wa.me/39${assignedInstructorPhone}`)}
+                      hitSlop={8}
                     >
-                      <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
-                      <Text style={styles.assignedInstructorBtnText}>WhatsApp</Text>
+                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                     </Pressable>
                     <Pressable
-                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.85 }]}
+                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.7 }]}
                       onPress={() => Linking.openURL(`tel:${assignedInstructorPhone}`)}
+                      hitSlop={8}
                     >
-                      <Ionicons name="call" size={16} color="#FFFFFF" />
-                      <Text style={styles.assignedInstructorBtnText}>Chiama</Text>
+                      <Ionicons name="call" size={18} color="#3B82F6" />
                     </Pressable>
                   </View>
                 ) : null}
-              </LinearGradient>
+              </View>
             ) : null}
 
             {/* ── CTA Button (standalone) ── */}
@@ -3239,50 +3236,57 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* ── Assigned Instructor Card ── */
-  assignedInstructorCard: {
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-  },
-  assignedInstructorHeader: {
+  /* ── Assigned Instructor Row ── */
+  assignedInstructorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 12,
+    gap: 12,
+  },
+  assignedInstructorAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FCE7F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignedInstructorInfo: {
+    flex: 1,
+    gap: 1,
   },
   assignedInstructorLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   assignedInstructorName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
   },
   assignedInstructorActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 4,
   },
   assignedInstructorBtn: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 100,
+    justifyContent: 'center',
   },
   assignedInstructorBtnWhatsApp: {
-    backgroundColor: '#25D366',
+    backgroundColor: '#F0FDF4',
   },
   assignedInstructorBtnCall: {
-    backgroundColor: '#3B82F6',
-  },
-  assignedInstructorBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    backgroundColor: '#EFF6FF',
   },
 });
