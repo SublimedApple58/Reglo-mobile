@@ -3245,7 +3245,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     padding: 12,
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
     gap: 12,
   },
   assignedInstructorAvatar: {
