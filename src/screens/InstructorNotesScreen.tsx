@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Dimensions,
   FlatList,
+  Keyboard,
   Pressable,
   RefreshControl,
   SectionList,
@@ -10,11 +12,16 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  FadeOutUp,
+  SlideInUp,
+  SlideOutUp,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +33,8 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing } from '../theme';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type StudentEntry = {
   id: string;
@@ -43,31 +52,23 @@ export const InstructorNotesScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
-  const [search, setSearch] = useState('');
   const [autonomousMode, setAutonomousMode] = useState(false);
+
+  // Search overlay
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
-  const searchWidth = useSharedValue(48); // starts as pill (48px)
-
-  const searchBarAnimatedStyle = useAnimatedStyle(() => ({
-    width: searchWidth.value,
-  }));
-
-  const searchInputOpacity = useAnimatedStyle(() => ({
-    opacity: withTiming(searchWidth.value > 100 ? 1 : 0, { duration: 150 }),
-  }));
 
   const openSearch = () => {
     setSearchOpen(true);
-    searchWidth.value = withSpring(999, { damping: 18, stiffness: 160 }); // 999 = will be clamped by maxWidth: '100%'
-    setTimeout(() => searchInputRef.current?.focus(), 200);
+    setSearchQuery('');
+    setTimeout(() => searchInputRef.current?.focus(), 100);
   };
 
   const closeSearch = () => {
-    searchInputRef.current?.blur();
-    setSearch('');
-    searchWidth.value = withSpring(48, { damping: 20, stiffness: 200 });
-    setTimeout(() => setSearchOpen(false), 300);
+    Keyboard.dismiss();
+    setSearchOpen(false);
+    setSearchQuery('');
   };
 
   const loadData = useCallback(async () => {
@@ -113,24 +114,14 @@ export const InstructorNotesScreen = () => {
     return map;
   }, [allAppointments]);
 
-  const filteredStudents = useMemo(() => {
-    if (!search.trim()) return students;
-    const q = search.trim().toLowerCase();
-    return students.filter(
-      (s) =>
-        s.firstName.toLowerCase().includes(q) ||
-        s.lastName.toLowerCase().includes(q) ||
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
-    );
-  }, [students, search]);
-
   const useClusters = autonomousMode && !!instructorId;
 
+  // Main list (no search filter — search is in overlay)
   const sections = useMemo(() => {
     if (!useClusters) return [];
     const mine: StudentEntry[] = [];
     const others: StudentEntry[] = [];
-    for (const s of filteredStudents) {
+    for (const s of students) {
       if (s.assignedInstructorId === instructorId) {
         mine.push(s);
       } else {
@@ -141,7 +132,27 @@ export const InstructorNotesScreen = () => {
       ...(mine.length ? [{ key: 'mine', title: 'I miei allievi', count: mine.length, data: mine }] : []),
       ...(others.length ? [{ key: 'others', title: 'Altri allievi', count: others.length, data: others }] : []),
     ];
-  }, [useClusters, filteredStudents, instructorId]);
+  }, [useClusters, students, instructorId]);
+
+  // Search results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return students.filter(
+      (s) =>
+        s.firstName.toLowerCase().includes(q) ||
+        s.lastName.toLowerCase().includes(q) ||
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
+    );
+  }, [students, searchQuery]);
+
+  const navigateToStudent = (student: StudentEntry) => {
+    closeSearch();
+    router.push({
+      pathname: '/(tabs)/notes/[studentId]',
+      params: { studentId: student.id, name: `${student.firstName} ${student.lastName}` },
+    } as never);
+  };
 
   const renderStudentCard = useCallback(
     (student: StudentEntry) => {
@@ -151,12 +162,7 @@ export const InstructorNotesScreen = () => {
         <Pressable
           key={student.id}
           style={({ pressed }) => [styles.studentCard, pressed && { backgroundColor: '#F8FAFC' }]}
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/notes/[studentId]',
-              params: { studentId: student.id, name: `${student.firstName} ${student.lastName}` },
-            } as never)
-          }
+          onPress={() => navigateToStudent(student)}
         >
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
@@ -187,34 +193,12 @@ export const InstructorNotesScreen = () => {
   );
 
   const headerContent = (
-    <>
-      <View style={styles.titleRow}>
-        {!searchOpen ? (
-          <>
-            <Text style={styles.title}>Allievi</Text>
-            <Pressable onPress={openSearch} style={styles.searchPillClosed} hitSlop={4}>
-              <Ionicons name="search" size={20} color="#64748B" />
-            </Pressable>
-          </>
-        ) : (
-          <Animated.View style={[styles.searchBarOpen, searchBarAnimatedStyle]}>
-            <Ionicons name="search" size={18} color="#EC4899" />
-            <TextInput
-              ref={searchInputRef}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Cerca allievo..."
-              placeholderTextColor="#94A3B8"
-              style={styles.searchInput}
-              autoCorrect={false}
-            />
-            <Pressable onPress={closeSearch} hitSlop={8}>
-              <Ionicons name="close" size={20} color="#94A3B8" />
-            </Pressable>
-          </Animated.View>
-        )}
-      </View>
-    </>
+    <View style={styles.titleRow}>
+      <Text style={styles.title}>Allievi</Text>
+      <Pressable onPress={openSearch} style={styles.searchPill} hitSlop={4}>
+        <Ionicons name="search" size={20} color="#64748B" />
+      </Pressable>
+    </View>
   );
 
   const skeletonContent = (
@@ -232,12 +216,13 @@ export const InstructorNotesScreen = () => {
     <Text style={styles.emptyText}>Nessun allievo trovato.</Text>
   );
 
-  // Sections mode (autonomous instructor)
-  if (useClusters && !loading) {
-    return (
-      <Screen>
-        <StatusBar style="dark" />
-        <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
+  return (
+    <Screen>
+      <StatusBar style={searchOpen ? 'light' : 'dark'} />
+      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
+
+      {/* Main list */}
+      {useClusters && !loading ? (
         <SectionList
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -259,26 +244,96 @@ export const InstructorNotesScreen = () => {
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
         />
-      </Screen>
-    );
-  }
+      ) : (
+        <FlatList
+          data={loading ? [] : students}
+          renderItem={({ item }) => renderStudentCard(item)}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
+          ListHeaderComponent={headerContent}
+          ListEmptyComponent={emptyComponent}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        />
+      )}
 
-  // Flat mode (non-autonomous or loading)
-  return (
-    <Screen>
-      <StatusBar style="dark" />
-      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <FlatList
-        data={loading ? [] : filteredStudents}
-        renderItem={({ item }) => renderStudentCard(item)}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
-        ListHeaderComponent={headerContent}
-        ListEmptyComponent={emptyComponent}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-      />
+      {/* Search overlay */}
+      {searchOpen ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {/* Backdrop */}
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+            style={styles.searchBackdrop}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} />
+          </Animated.View>
+
+          {/* Search bar + results */}
+          <Animated.View
+            entering={SlideInUp.springify().damping(20).stiffness(180)}
+            exiting={SlideOutUp.duration(200)}
+            style={styles.searchOverlay}
+          >
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color="#EC4899" />
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Cerca allievo..."
+                placeholderTextColor="#94A3B8"
+                style={styles.searchBarInput}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              <Pressable onPress={closeSearch} hitSlop={8}>
+                <Ionicons name="close-circle" size={22} color="#CBD5E1" />
+              </Pressable>
+            </View>
+
+            {/* Results */}
+            {searchQuery.trim().length > 0 ? (
+              <View style={styles.searchResults}>
+                {searchResults.length > 0 ? (
+                  searchResults.slice(0, 8).map((student, idx) => {
+                    const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
+                    const guideCount = studentStats.get(student.id) ?? 0;
+                    return (
+                      <Animated.View
+                        key={student.id}
+                        entering={FadeInDown.duration(200).delay(idx * 30).springify().damping(20)}
+                      >
+                        <Pressable
+                          style={({ pressed }) => [styles.searchResultRow, pressed && { backgroundColor: '#F8FAFC' }]}
+                          onPress={() => navigateToStudent(student)}
+                        >
+                          <View style={styles.searchResultAvatar}>
+                            <Text style={styles.searchResultAvatarText}>{initials}</Text>
+                          </View>
+                          <View style={{ flex: 1, gap: 1 }}>
+                            <Text style={styles.searchResultName}>
+                              {student.firstName} {student.lastName}
+                            </Text>
+                            <Text style={styles.searchResultMeta}>
+                              {guideCount} guid{guideCount === 1 ? 'a' : 'e'}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      </Animated.View>
+                    );
+                  })
+                ) : (
+                  <Animated.View entering={FadeIn.duration(200)}>
+                    <Text style={styles.searchNoResults}>Nessun risultato</Text>
+                  </Animated.View>
+                )}
+              </View>
+            ) : null}
+          </Animated.View>
+        </View>
+      ) : null}
     </Screen>
   );
 };
@@ -299,7 +354,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1E293B',
   },
-  searchPillClosed: {
+  searchPill: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -309,23 +364,85 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchBarOpen: {
-    flex: 1,
-    height: 48,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#F9A8D4',
+
+  /* Search overlay */
+  searchBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+  },
+  searchOverlay: {
+    marginTop: 60,
+    marginHorizontal: spacing.lg,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     paddingHorizontal: 16,
-    gap: 10,
+    height: 54,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
-  searchInput: {
+  searchBarInput: {
     flex: 1,
+    fontSize: 16,
+    color: '#1E293B',
+    fontWeight: '500',
+  },
+  searchResults: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginTop: 8,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    maxHeight: SCREEN_HEIGHT * 0.5,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  searchResultAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FCE7F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchResultAvatarText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EC4899',
+  },
+  searchResultName: {
     fontSize: 15,
+    fontWeight: '600',
     color: '#1E293B',
   },
+  searchResultMeta: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  searchNoResults: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    paddingVertical: 20,
+    fontSize: 14,
+  },
+
+  /* Student cards */
   studentCard: {
     flexDirection: 'row',
     alignItems: 'center',
