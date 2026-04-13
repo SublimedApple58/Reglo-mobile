@@ -62,8 +62,8 @@ export const InstructorNotesScreen = () => {
   const closeTiming = { duration: 200, easing: Easing.out(Easing.quad) };
 
   // The pill morphs: right→left, 48→full width, circle→rounded rect, drops down
-  const PILL_TOP = 68;
-  const BAR_TOP = 100;
+  const PILL_TOP = 83;
+  const BAR_TOP = 110;
   const morphStyle = useAnimatedStyle(() => ({
     top: PILL_TOP + p.value * (BAR_TOP - PILL_TOP),
     right: SEARCH_BAR_MARGIN,
