@@ -75,6 +75,7 @@ const AndroidTabItem = ({ routeKey, tabLabel, label, iconName, isFocused, onPres
 
 type AndroidTabBarExtraProps = {
   isOwner: boolean;
+  isStudent: boolean;
   showMoreTab: boolean;
   hiddenTabs: Set<string>;
 };
@@ -82,7 +83,7 @@ type AndroidTabBarExtraProps = {
 const ANDROID_TAB_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconFocused: keyof typeof Ionicons.glyphMap }> = {
   home: { label: 'Home', icon: 'home-outline', iconFocused: 'home' },
   role: { label: 'Ruolo', icon: 'calendar-outline', iconFocused: 'calendar' },
-  notes: { label: 'Note', icon: 'document-text-outline', iconFocused: 'document-text' },
+  notes: { label: 'Allievi', icon: 'people-outline', iconFocused: 'people' },
   payments: { label: 'Pagamenti', icon: 'card-outline', iconFocused: 'card' },
   swaps: { label: 'Scambi', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
   more: { label: 'Altro', icon: 'ellipsis-horizontal-circle-outline', iconFocused: 'ellipsis-horizontal-circle' },
@@ -94,6 +95,7 @@ const AndroidTabBar = ({
   descriptors,
   navigation,
   isOwner,
+  isStudent,
   showMoreTab,
   hiddenTabs,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
@@ -114,6 +116,9 @@ const AndroidTabBar = ({
           let label = meta?.label ?? route.name;
           if (route.name === 'role') {
             label = isOwner ? 'Istruttore' : 'Disponibilità';
+          }
+          if (route.name === 'notes' && isStudent) {
+            label = 'Note';
           }
           const iconName = meta
             ? isFocused ? meta.iconFocused : meta.icon
@@ -186,12 +191,12 @@ export default function TabsLayout() {
     return (
       <>
         <Tabs
-          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} showMoreTab={showMoreTab} hiddenTabs={hiddenTabs} />}
+          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} isStudent={isStudent} showMoreTab={showMoreTab} hiddenTabs={hiddenTabs} />}
           screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
         >
           <Tabs.Screen name="home" options={{ title: 'Home' }} />
           <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
-          <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: 'Note' }} />
+          <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
           <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
           <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
           <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
@@ -232,8 +237,8 @@ export default function TabsLayout() {
       ) : null}
       {showNotesTab ? (
         <NativeTabs.Trigger name="notes">
-          <Icon sf={{ default: 'text.page', selected: 'text.page' }} drawable="ic_menu_view" />
-          <Label>Note</Label>
+          <Icon sf={{ default: isStudent ? 'text.page' : 'person.2', selected: isStudent ? 'text.page' : 'person.2.fill' }} drawable="ic_menu_view" />
+          <Label>{isStudent ? 'Note' : 'Allievi'}</Label>
         </NativeTabs.Trigger>
       ) : null}
       {showMoreTab ? (
