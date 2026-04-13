@@ -53,47 +53,47 @@ export const InstructorNotesScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [autonomousMode, setAutonomousMode] = useState(false);
 
-  // Search overlay
-  const [searchOpen, setSearchOpen] = useState(false);
+  // Search — single morphing element
+  const [searchVisible, setSearchVisible] = useState(false); // true = overlay mounted
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
-  const searchProgress = useSharedValue(0); // 0 = pill, 1 = full bar
-  const openEasing = { duration: 320, easing: Easing.bezier(0.22, 1.3, 0.36, 1) };
-  const closeEasing = { duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
+  const p = useSharedValue(0); // 0 = pill, 1 = expanded
+  const openTiming = { duration: 300, easing: Easing.bezier(0.25, 1, 0.5, 1) };
+  const closeTiming = { duration: 200, easing: Easing.out(Easing.quad) };
 
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: searchProgress.value * 0.45,
+  // The pill morphs: right→left, 48→full width, circle→rounded rect
+  const morphStyle = useAnimatedStyle(() => ({
+    right: SEARCH_BAR_MARGIN,
+    width: 48 + p.value * (SEARCH_BAR_FULL_WIDTH - 48),
+    height: 48 + p.value * 6,
+    borderRadius: 24 - p.value * 4,
   }));
 
-  // Morphs from 48px pill (right-aligned) to full-width bar
-  const morphBarStyle = useAnimatedStyle(() => {
-    const p = searchProgress.value;
-    return {
-      width: 48 + p * (SEARCH_BAR_FULL_WIDTH - 48),
-      height: 48 + p * 6, // 48 → 54
-      borderRadius: 24 - p * 4, // 24 → 20
-      alignSelf: 'flex-end' as const,
-    };
-  });
-
-  const searchContentOpacity = useAnimatedStyle(() => ({
-    opacity: searchProgress.value,
+  const backdropOpacity = useAnimatedStyle(() => ({
+    opacity: p.value * 0.45,
   }));
+
+  const inputOpacity = useAnimatedStyle(() => ({
+    opacity: p.value,
+  }));
+
+  // Icon color interpolation: gray → pink
+  const searchOpen = p.value === 1;
 
   const openSearch = () => {
-    setSearchOpen(true);
+    setSearchVisible(true);
     setSearchQuery('');
-    searchProgress.value = withTiming(1, openEasing);
-    setTimeout(() => searchInputRef.current?.focus(), 200);
+    p.value = withTiming(1, openTiming);
+    setTimeout(() => searchInputRef.current?.focus(), 180);
   };
 
   const closeSearch = () => {
     Keyboard.dismiss();
-    searchProgress.value = withTiming(0, closeEasing);
+    p.value = withTiming(0, closeTiming);
     setTimeout(() => {
-      setSearchOpen(false);
+      setSearchVisible(false);
       setSearchQuery('');
-    }, 220);
+    }, 200);
   };
 
   const loadData = useCallback(async () => {
@@ -220,9 +220,8 @@ export const InstructorNotesScreen = () => {
   const headerContent = (
     <View style={styles.titleRow}>
       <Text style={styles.title}>Allievi</Text>
-      <Pressable onPress={openSearch} style={[styles.searchPill, searchOpen && { opacity: 0 }]} hitSlop={4}>
-        <Ionicons name="search" size={20} color="#64748B" />
-      </Pressable>
+      {/* Spacer matching pill size so title doesn't shift */}
+      <View style={{ width: 48, height: 48 }} />
     </View>
   );
 
@@ -283,38 +282,45 @@ export const InstructorNotesScreen = () => {
         />
       )}
 
-      {/* Search overlay */}
-      {searchOpen ? (
+      {/* Morphing search pill/bar — always absolute, IS the pill */}
+      <Animated.View style={[styles.morphPill, morphStyle]} pointerEvents="box-none">
+        <Pressable
+          onPress={searchVisible ? undefined : openSearch}
+          style={styles.morphPillInner}
+          pointerEvents="auto"
+        >
+          <Ionicons name="search" size={20} color={searchVisible ? '#EC4899' : '#64748B'} />
+          {searchVisible ? (
+            <Animated.View style={[styles.morphInputRow, inputOpacity]}>
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Cerca allievo..."
+                placeholderTextColor="#94A3B8"
+                style={styles.searchBarInput}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              <Pressable onPress={closeSearch} hitSlop={8}>
+                <Ionicons name="close-circle" size={22} color="#CBD5E1" />
+              </Pressable>
+            </Animated.View>
+          ) : null}
+        </Pressable>
+      </Animated.View>
+
+      {/* Backdrop + results overlay */}
+      {searchVisible ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          {/* Backdrop */}
-          <Animated.View style={[styles.searchBackdrop, backdropStyle]}>
+          <Animated.View style={[styles.searchBackdrop, backdropOpacity]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} />
           </Animated.View>
 
-          {/* Morphing search bar + results */}
-          <View style={styles.searchOverlay}>
-            <Animated.View style={[styles.searchBarMorph, morphBarStyle]}>
-              <Ionicons name="search" size={20} color="#EC4899" />
-              <Animated.View style={[{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }, searchContentOpacity]}>
-                <TextInput
-                  ref={searchInputRef}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Cerca allievo..."
-                  placeholderTextColor="#94A3B8"
-                  style={styles.searchBarInput}
-                  autoCorrect={false}
-                  returnKeyType="search"
-                />
-                <Pressable onPress={closeSearch} hitSlop={8}>
-                  <Ionicons name="close-circle" size={22} color="#CBD5E1" />
-                </Pressable>
-              </Animated.View>
-            </Animated.View>
-
-            {/* Results */}
-            {searchQuery.trim().length > 0 ? (
-              <Animated.View entering={FadeIn.duration(150)} style={styles.searchResults}>
+          {/* Results card */}
+          {searchQuery.trim().length > 0 ? (
+            <Animated.View entering={FadeIn.duration(120)} style={styles.searchResultsContainer}>
+              <View style={styles.searchResults}>
                 {searchResults.length > 0 ? (
                   searchResults.slice(0, 8).map((student, idx) => {
                     const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
@@ -346,9 +352,9 @@ export const InstructorNotesScreen = () => {
                 ) : (
                   <Text style={styles.searchNoResults}>Nessun risultato</Text>
                 )}
-              </Animated.View>
-            ) : null}
-          </View>
+              </View>
+            </Animated.View>
+          ) : null}
         </View>
       ) : null}
     </Screen>
@@ -371,38 +377,32 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1E293B',
   },
-  searchPill: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F8FAFC',
+  /* Morphing pill/bar */
+  morphPill: {
+    position: 'absolute',
+    top: 60, // aligns with title row
+    zIndex: 10,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-
-  /* Search overlay */
-  searchBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-  },
-  searchOverlay: {
-    marginTop: 60,
-    marginHorizontal: spacing.lg,
-  },
-  searchBarMorph: {
+  morphPillInner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-    overflow: 'hidden',
+  },
+  morphInputRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   searchBarInput: {
     flex: 1,
@@ -410,10 +410,19 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     fontWeight: '500',
   },
+
+  /* Backdrop + results */
+  searchBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 1)',
+  },
+  searchResultsContainer: {
+    marginTop: 120,
+    marginHorizontal: SEARCH_BAR_MARGIN,
+  },
   searchResults: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    marginTop: 8,
     paddingVertical: 6,
     shadowColor: '#000',
     shadowOpacity: 0.1,
