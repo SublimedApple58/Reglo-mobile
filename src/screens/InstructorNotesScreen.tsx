@@ -31,7 +31,9 @@ import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing } from '../theme';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SEARCH_BAR_MARGIN = 22; // spacing.lg
+const SEARCH_BAR_FULL_WIDTH = SCREEN_WIDTH - SEARCH_BAR_MARGIN * 2;
 
 type StudentEntry = {
   id: string;
@@ -55,35 +57,43 @@ export const InstructorNotesScreen = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
-  const searchProgress = useSharedValue(0); // 0 = closed, 1 = open
-  const timing = { duration: 250, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
+  const searchProgress = useSharedValue(0); // 0 = pill, 1 = full bar
+  const openEasing = { duration: 320, easing: Easing.bezier(0.22, 1.3, 0.36, 1) };
+  const closeEasing = { duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: searchProgress.value * 0.45,
   }));
 
-  const searchBarStyle = useAnimatedStyle(() => ({
+  // Morphs from 48px pill (right-aligned) to full-width bar
+  const morphBarStyle = useAnimatedStyle(() => {
+    const p = searchProgress.value;
+    return {
+      width: 48 + p * (SEARCH_BAR_FULL_WIDTH - 48),
+      height: 48 + p * 6, // 48 → 54
+      borderRadius: 24 - p * 4, // 24 → 20
+      alignSelf: 'flex-end' as const,
+    };
+  });
+
+  const searchContentOpacity = useAnimatedStyle(() => ({
     opacity: searchProgress.value,
-    transform: [
-      { translateY: (1 - searchProgress.value) * -40 },
-      { scale: 0.92 + searchProgress.value * 0.08 },
-    ],
   }));
 
   const openSearch = () => {
     setSearchOpen(true);
     setSearchQuery('');
-    searchProgress.value = withTiming(1, { duration: 350, easing: Easing.bezier(0.22, 1.6, 0.36, 1) });
-    setTimeout(() => searchInputRef.current?.focus(), 150);
+    searchProgress.value = withTiming(1, openEasing);
+    setTimeout(() => searchInputRef.current?.focus(), 200);
   };
 
   const closeSearch = () => {
     Keyboard.dismiss();
-    searchProgress.value = withTiming(0, timing);
+    searchProgress.value = withTiming(0, closeEasing);
     setTimeout(() => {
       setSearchOpen(false);
       setSearchQuery('');
-    }, 250);
+    }, 220);
   };
 
   const loadData = useCallback(async () => {
@@ -210,7 +220,7 @@ export const InstructorNotesScreen = () => {
   const headerContent = (
     <View style={styles.titleRow}>
       <Text style={styles.title}>Allievi</Text>
-      <Pressable onPress={openSearch} style={styles.searchPill} hitSlop={4}>
+      <Pressable onPress={openSearch} style={[styles.searchPill, searchOpen && { opacity: 0 }]} hitSlop={4}>
         <Ionicons name="search" size={20} color="#64748B" />
       </Pressable>
     </View>
@@ -281,24 +291,26 @@ export const InstructorNotesScreen = () => {
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} />
           </Animated.View>
 
-          {/* Search bar + results */}
-          <Animated.View style={[styles.searchOverlay, searchBarStyle]}>
-            <View style={styles.searchBar}>
+          {/* Morphing search bar + results */}
+          <View style={styles.searchOverlay}>
+            <Animated.View style={[styles.searchBarMorph, morphBarStyle]}>
               <Ionicons name="search" size={20} color="#EC4899" />
-              <TextInput
-                ref={searchInputRef}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Cerca allievo..."
-                placeholderTextColor="#94A3B8"
-                style={styles.searchBarInput}
-                autoCorrect={false}
-                returnKeyType="search"
-              />
-              <Pressable onPress={closeSearch} hitSlop={8}>
-                <Ionicons name="close-circle" size={22} color="#CBD5E1" />
-              </Pressable>
-            </View>
+              <Animated.View style={[{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }, searchContentOpacity]}>
+                <TextInput
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Cerca allievo..."
+                  placeholderTextColor="#94A3B8"
+                  style={styles.searchBarInput}
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+                <Pressable onPress={closeSearch} hitSlop={8}>
+                  <Ionicons name="close-circle" size={22} color="#CBD5E1" />
+                </Pressable>
+              </Animated.View>
+            </Animated.View>
 
             {/* Results */}
             {searchQuery.trim().length > 0 ? (
@@ -336,7 +348,7 @@ export const InstructorNotesScreen = () => {
                 )}
               </Animated.View>
             ) : null}
-          </Animated.View>
+          </View>
         </View>
       ) : null}
     </Screen>
@@ -379,19 +391,18 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginHorizontal: spacing.lg,
   },
-  searchBar: {
+  searchBarMorph: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    height: 54,
-    gap: 12,
+    paddingHorizontal: 14,
+    gap: 10,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
+    overflow: 'hidden',
   },
   searchBarInput: {
     flex: 1,
