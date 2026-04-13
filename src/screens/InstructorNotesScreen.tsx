@@ -61,8 +61,11 @@ export const InstructorNotesScreen = () => {
   const openTiming = { duration: 300, easing: Easing.bezier(0.25, 1, 0.5, 1) };
   const closeTiming = { duration: 200, easing: Easing.out(Easing.quad) };
 
-  // The pill morphs: right→left, 48→full width, circle→rounded rect
+  // The pill morphs: right→left, 48→full width, circle→rounded rect, drops down
+  const PILL_TOP = 68;
+  const BAR_TOP = 100;
   const morphStyle = useAnimatedStyle(() => ({
+    top: PILL_TOP + p.value * (BAR_TOP - PILL_TOP),
     right: SEARCH_BAR_MARGIN,
     width: 48 + p.value * (SEARCH_BAR_FULL_WIDTH - 48),
     height: 48 + p.value * 6,
@@ -380,7 +383,7 @@ const styles = StyleSheet.create({
   /* Morphing pill/bar */
   morphPill: {
     position: 'absolute',
-    top: 60, // aligns with title row
+    // top is animated via morphStyle
     zIndex: 10,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -417,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 1)',
   },
   searchResultsContainer: {
-    marginTop: 120,
+    marginTop: 160,
     marginHorizontal: SEARCH_BAR_MARGIN,
   },
   searchResults: {
