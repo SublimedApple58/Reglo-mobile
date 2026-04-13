@@ -53,7 +53,7 @@ export const StudentNotesDetailScreen = () => {
   const handleCtaPress = () => {
     setShowLessons((prev) => {
       const next = !prev;
-      ctaChevron.value = withSpring(next ? 1 : 0, { damping: 15, stiffness: 200 });
+      ctaChevron.value = withTiming(next ? 1 : 0, { duration: 200 });
       return next;
     });
   };
