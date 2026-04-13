@@ -189,30 +189,30 @@ export const InstructorNotesScreen = () => {
   const headerContent = (
     <>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>Allievi</Text>
-        <Animated.View style={[styles.searchPill, searchBarAnimatedStyle, { maxWidth: '100%' }]}>
-          {searchOpen ? (
-            <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }, searchInputOpacity]}>
-              <Ionicons name="search" size={18} color="#EC4899" />
-              <TextInput
-                ref={searchInputRef}
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Cerca allievo..."
-                placeholderTextColor="#94A3B8"
-                style={styles.searchInput}
-                autoCorrect={false}
-              />
-              <Pressable onPress={closeSearch} hitSlop={8}>
-                <Ionicons name="close" size={18} color="#94A3B8" />
-              </Pressable>
-            </Animated.View>
-          ) : (
-            <Pressable onPress={openSearch} style={styles.searchPillButton} hitSlop={4}>
+        {!searchOpen ? (
+          <>
+            <Text style={styles.title}>Allievi</Text>
+            <Pressable onPress={openSearch} style={styles.searchPillClosed} hitSlop={4}>
               <Ionicons name="search" size={20} color="#64748B" />
             </Pressable>
-          )}
-        </Animated.View>
+          </>
+        ) : (
+          <Animated.View style={[styles.searchBarOpen, searchBarAnimatedStyle]}>
+            <Ionicons name="search" size={18} color="#EC4899" />
+            <TextInput
+              ref={searchInputRef}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Cerca allievo..."
+              placeholderTextColor="#94A3B8"
+              style={styles.searchInput}
+              autoCorrect={false}
+            />
+            <Pressable onPress={closeSearch} hitSlop={8}>
+              <Ionicons name="close" size={20} color="#94A3B8" />
+            </Pressable>
+          </Animated.View>
+        )}
       </View>
     </>
   );
@@ -299,22 +299,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1E293B',
   },
-  searchPill: {
+  searchPillClosed: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBarOpen: {
+    flex: 1,
     height: 48,
     backgroundColor: '#F8FAFC',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#F9A8D4',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    overflow: 'hidden',
-  },
-  searchPillButton: {
-    width: 20,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 16,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
