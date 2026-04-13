@@ -255,7 +255,7 @@ export const StudentNotesDetailScreen = () => {
 
             {/* Lessons timeline */}
             {showLessons ? (
-              <View style={{ gap: 0 }}>
+              <View style={{ gap: 0, marginTop: 8 }}>
                 {appointments.map((appt, idx) => {
                   const isLast = idx === appointments.length - 1;
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
