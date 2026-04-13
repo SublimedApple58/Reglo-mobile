@@ -265,7 +265,7 @@ export const StudentNotesDetailScreen = () => {
                   const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
                   const delay = Math.min(idx * 40, 400); // stagger up to 400ms
                   return (
-                    <Animated.View key={appt.id} entering={FadeInDown.duration(80).delay(Math.min(idx * 8, 200))} style={styles.timelineRow}>
+                    <Animated.View key={appt.id} entering={FadeInDown.duration(80).delay(Math.min(idx * 8, 200)).springify().damping(22).stiffness(400)} style={styles.timelineRow}>
                       <View style={styles.timelineLeft}>
                         <Text style={styles.timelineDate}>{formatDay(appt.startsAt)}</Text>
                         {!isLast ? <View style={styles.timelineLine} /> : null}
