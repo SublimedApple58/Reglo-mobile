@@ -263,8 +263,9 @@ export const StudentNotesDetailScreen = () => {
                   const isLast = idx === appointments.length - 1;
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
                   const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
+                  const delay = Math.min(idx * 40, 400); // stagger up to 400ms
                   return (
-                    <View key={appt.id} style={styles.timelineRow}>
+                    <Animated.View key={appt.id} entering={FadeInDown.duration(250).delay(delay).springify().damping(18)} style={styles.timelineRow}>
                       <View style={styles.timelineLeft}>
                         <Text style={styles.timelineDate}>{formatDay(appt.startsAt)}</Text>
                         {!isLast ? <View style={styles.timelineLine} /> : null}
@@ -317,7 +318,7 @@ export const StudentNotesDetailScreen = () => {
                           </Text>
                         </View>
                       )}
-                    </View>
+                    </Animated.View>
                   );
                 })}
                 {!appointments.length ? (

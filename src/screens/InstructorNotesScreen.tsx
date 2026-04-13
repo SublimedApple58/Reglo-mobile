@@ -45,14 +45,30 @@ export const InstructorNotesScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [search, setSearch] = useState('');
   const [autonomousMode, setAutonomousMode] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
-  const searchFocus = useSharedValue(0);
+  const searchWidth = useSharedValue(48); // starts as pill (48px)
 
   const searchBarAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(searchFocus.value === 1 ? 1.02 : 1, { damping: 20, stiffness: 300 }) }],
-    borderColor: interpolateColor(searchFocus.value, [0, 1], ['#E2E8F0', '#F9A8D4']),
-    shadowOpacity: withTiming(searchFocus.value === 1 ? 0.12 : 0, { duration: 200 }),
+    width: searchWidth.value,
   }));
+
+  const searchInputOpacity = useAnimatedStyle(() => ({
+    opacity: withTiming(searchWidth.value > 100 ? 1 : 0, { duration: 150 }),
+  }));
+
+  const openSearch = () => {
+    setSearchOpen(true);
+    searchWidth.value = withSpring(999, { damping: 18, stiffness: 160 }); // 999 = will be clamped by maxWidth: '100%'
+    setTimeout(() => searchInputRef.current?.focus(), 200);
+  };
+
+  const closeSearch = () => {
+    searchInputRef.current?.blur();
+    setSearch('');
+    searchWidth.value = withSpring(48, { damping: 20, stiffness: 200 });
+    setTimeout(() => setSearchOpen(false), 300);
+  };
 
   const loadData = useCallback(async () => {
     if (!instructorId) return;
@@ -172,28 +188,32 @@ export const InstructorNotesScreen = () => {
 
   const headerContent = (
     <>
-      <Text style={styles.title}>Allievi</Text>
-      <Pressable onPress={() => searchInputRef.current?.focus()}>
-        <Animated.View style={[styles.searchBar, searchBarAnimatedStyle, { shadowColor: '#EC4899', shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }]}>
-          <Ionicons name="search" size={18} color={search ? '#EC4899' : '#94A3B8'} />
-          <TextInput
-            ref={searchInputRef}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Cerca allievo..."
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
-            autoCorrect={false}
-            onFocus={() => { searchFocus.value = withTiming(1, { duration: 200 }); }}
-            onBlur={() => { searchFocus.value = withTiming(0, { duration: 250 }); }}
-          />
-          {search.length > 0 ? (
-            <Pressable onPress={() => { setSearch(''); searchInputRef.current?.blur(); }} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Allievi</Text>
+        <Animated.View style={[styles.searchPill, searchBarAnimatedStyle, { maxWidth: '100%' }]}>
+          {searchOpen ? (
+            <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }, searchInputOpacity]}>
+              <Ionicons name="search" size={18} color="#EC4899" />
+              <TextInput
+                ref={searchInputRef}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Cerca allievo..."
+                placeholderTextColor="#94A3B8"
+                style={styles.searchInput}
+                autoCorrect={false}
+              />
+              <Pressable onPress={closeSearch} hitSlop={8}>
+                <Ionicons name="close" size={18} color="#94A3B8" />
+              </Pressable>
+            </Animated.View>
+          ) : (
+            <Pressable onPress={openSearch} style={styles.searchPillButton} hitSlop={4}>
+              <Ionicons name="search" size={20} color="#64748B" />
             </Pressable>
-          ) : null}
+          )}
         </Animated.View>
-      </Pressable>
+      </View>
     </>
   );
 
@@ -268,23 +288,33 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 120,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: '#1E293B',
-    marginBottom: 16,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  searchPill: {
+    height: 48,
     backgroundColor: '#F8FAFC',
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 14,
+    overflow: 'hidden',
+  },
+  searchPillButton: {
+    width: 20,
     height: 48,
-    gap: 10,
-    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
