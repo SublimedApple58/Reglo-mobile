@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -9,6 +9,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -38,6 +45,14 @@ export const InstructorNotesScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [search, setSearch] = useState('');
   const [autonomousMode, setAutonomousMode] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+  const searchFocus = useSharedValue(0);
+
+  const searchBarAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(searchFocus.value === 1 ? 1.02 : 1, { damping: 20, stiffness: 300 }) }],
+    borderColor: interpolateColor(searchFocus.value, [0, 1], ['#E2E8F0', '#F9A8D4']),
+    shadowOpacity: withTiming(searchFocus.value === 1 ? 0.12 : 0, { duration: 200 }),
+  }));
 
   const loadData = useCallback(async () => {
     if (!instructorId) return;
@@ -158,22 +173,27 @@ export const InstructorNotesScreen = () => {
   const headerContent = (
     <>
       <Text style={styles.title}>Allievi</Text>
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#94A3B8" />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Cerca allievo..."
-          placeholderTextColor="#94A3B8"
-          style={styles.searchInput}
-          autoCorrect={false}
-        />
-        {search.length > 0 ? (
-          <Pressable onPress={() => setSearch('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color="#CBD5E1" />
-          </Pressable>
-        ) : null}
-      </View>
+      <Pressable onPress={() => searchInputRef.current?.focus()}>
+        <Animated.View style={[styles.searchBar, searchBarAnimatedStyle, { shadowColor: '#EC4899', shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }]}>
+          <Ionicons name="search" size={18} color={search ? '#EC4899' : '#94A3B8'} />
+          <TextInput
+            ref={searchInputRef}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Cerca allievo..."
+            placeholderTextColor="#94A3B8"
+            style={styles.searchInput}
+            autoCorrect={false}
+            onFocus={() => { searchFocus.value = withTiming(1, { duration: 200 }); }}
+            onBlur={() => { searchFocus.value = withTiming(0, { duration: 250 }); }}
+          />
+          {search.length > 0 ? (
+            <Pressable onPress={() => { setSearch(''); searchInputRef.current?.blur(); }} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+            </Pressable>
+          ) : null}
+        </Animated.View>
+      </Pressable>
     </>
   );
 

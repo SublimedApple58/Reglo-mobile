@@ -8,6 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  FadeInDown,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -31,6 +38,25 @@ export const StudentNotesDetailScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [showLessons, setShowLessons] = useState(false);
+
+  const ctaScale = useSharedValue(1);
+  const ctaChevron = useSharedValue(0); // 0 = down, 1 = up
+
+  const ctaAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ctaScale.value }],
+  }));
+
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${ctaChevron.value * 180}deg` }],
+  }));
+
+  const handleCtaPress = () => {
+    setShowLessons((prev) => {
+      const next = !prev;
+      ctaChevron.value = withSpring(next ? 1 : 0, { damping: 15, stiffness: 200 });
+      return next;
+    });
+  };
 
   const loadData = useCallback(async () => {
     if (!studentId) return;
@@ -141,7 +167,7 @@ export const StudentNotesDetailScreen = () => {
           <>
             {/* Contact */}
             {phone ? (
-              <View style={styles.contactRow}>
+              <Animated.View entering={FadeInDown.duration(300).delay(50)} style={styles.contactRow}>
                 <View style={styles.contactInfo}>
                   <Ionicons name="call-outline" size={16} color="#64748B" />
                   <Text style={styles.contactPhone}>{phone}</Text>
@@ -162,11 +188,11 @@ export const StudentNotesDetailScreen = () => {
                     <Ionicons name="call" size={18} color="#3B82F6" />
                   </Pressable>
                 </View>
-              </View>
+              </Animated.View>
             ) : null}
 
             {/* Lesson progress */}
-            <View style={styles.progressCard}>
+            <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.progressCard}>
               <Text style={styles.progressLabel}>OBBLIGO GUIDE</Text>
               <View style={styles.progressRow}>
                 <View style={styles.progressNumbers}>
@@ -180,7 +206,7 @@ export const StudentNotesDetailScreen = () => {
               <Text style={styles.progressStatus}>
                 {isCompleted ? 'Obbligo completato' : `Mancano ${REQUIRED_LESSONS - completedCount} guide`}
               </Text>
-            </View>
+            </Animated.View>
 
             {/* Upcoming exam */}
             {upcomingExam ? (
@@ -215,18 +241,19 @@ export const StudentNotesDetailScreen = () => {
 
             {/* CTA to lessons */}
             <Pressable
-              style={({ pressed }) => [styles.lessonsCta, pressed && { opacity: 0.85 }]}
-              onPress={() => setShowLessons((prev) => !prev)}
+              onPressIn={() => { ctaScale.value = withSpring(0.96, { damping: 15, stiffness: 400 }); }}
+              onPressOut={() => { ctaScale.value = withSpring(1, { damping: 12, stiffness: 200 }); }}
+              onPress={handleCtaPress}
             >
-              <Ionicons name="list" size={18} color="#EC4899" />
-              <Text style={styles.lessonsCtaText}>
-                {showLessons ? 'Nascondi storico guide' : 'Vedi storico guide'}
-              </Text>
-              <Ionicons
-                name={showLessons ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color="#EC4899"
-              />
+              <Animated.View style={[styles.lessonsCta, ctaAnimatedStyle]}>
+                <Ionicons name="list" size={18} color="#EC4899" />
+                <Text style={styles.lessonsCtaText}>
+                  {showLessons ? 'Nascondi storico guide' : 'Vedi storico guide'}
+                </Text>
+                <Animated.View style={chevronAnimatedStyle}>
+                  <Ionicons name="chevron-down" size={18} color="#EC4899" />
+                </Animated.View>
+              </Animated.View>
             </Pressable>
 
             {/* Lessons timeline */}
