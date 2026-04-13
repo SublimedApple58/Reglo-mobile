@@ -805,18 +805,20 @@ export const InstructorManageScreen = () => {
       const [vehicleResponse, settingsResponse, instrSettings] = await Promise.all([
         regloApi.getVehicles(),
         regloApi.getAutoscuolaSettings(),
-        regloApi.getInstructorSettings(),
+        regloApi.getInstructorSettings().catch(() => null),
       ]);
       setVehicles(vehicleResponse);
       setSettings(settingsResponse);
-      setAutonomousMode(instrSettings.autonomousMode);
-      if (instrSettings.autonomousMode) {
-        setBookingSlotDurations(
-          instrSettings.settings.bookingSlotDurations ?? instrSettings.companyDefaults.bookingSlotDurations,
-        );
-        setRoundedHoursOnly(
-          instrSettings.settings.roundedHoursOnly ?? instrSettings.companyDefaults.roundedHoursOnly,
-        );
+      if (instrSettings) {
+        setAutonomousMode(instrSettings.autonomousMode);
+        if (instrSettings.autonomousMode) {
+          setBookingSlotDurations(
+            instrSettings.settings.bookingSlotDurations ?? instrSettings.companyDefaults.bookingSlotDurations,
+          );
+          setRoundedHoursOnly(
+            instrSettings.settings.roundedHoursOnly ?? instrSettings.companyDefaults.roundedHoursOnly,
+          );
+        }
       }
     } catch (err) {
       setToast({
