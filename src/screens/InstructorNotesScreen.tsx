@@ -15,13 +15,10 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeOut,
-  FadeOutUp,
-  SlideInUp,
-  SlideOutUp,
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -58,17 +55,32 @@ export const InstructorNotesScreen = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<TextInput>(null);
+  const searchProgress = useSharedValue(0); // 0 = closed, 1 = open
+  const timing = { duration: 250, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
+
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: searchProgress.value * 0.45,
+  }));
+
+  const searchBarStyle = useAnimatedStyle(() => ({
+    opacity: searchProgress.value,
+    transform: [{ translateY: (1 - searchProgress.value) * -20 }],
+  }));
 
   const openSearch = () => {
     setSearchOpen(true);
     setSearchQuery('');
-    setTimeout(() => searchInputRef.current?.focus(), 100);
+    searchProgress.value = withTiming(1, timing);
+    setTimeout(() => searchInputRef.current?.focus(), 150);
   };
 
   const closeSearch = () => {
     Keyboard.dismiss();
-    setSearchOpen(false);
-    setSearchQuery('');
+    searchProgress.value = withTiming(0, timing);
+    setTimeout(() => {
+      setSearchOpen(false);
+      setSearchQuery('');
+    }, 250);
   };
 
   const loadData = useCallback(async () => {
@@ -262,20 +274,12 @@ export const InstructorNotesScreen = () => {
       {searchOpen ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           {/* Backdrop */}
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
-            style={styles.searchBackdrop}
-          >
+          <Animated.View style={[styles.searchBackdrop, backdropStyle]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} />
           </Animated.View>
 
           {/* Search bar + results */}
-          <Animated.View
-            entering={SlideInUp.springify().damping(20).stiffness(180)}
-            exiting={SlideOutUp.duration(200)}
-            style={styles.searchOverlay}
-          >
+          <Animated.View style={[styles.searchOverlay, searchBarStyle]}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color="#EC4899" />
               <TextInput
@@ -295,7 +299,7 @@ export const InstructorNotesScreen = () => {
 
             {/* Results */}
             {searchQuery.trim().length > 0 ? (
-              <View style={styles.searchResults}>
+              <Animated.View entering={FadeIn.duration(150)} style={styles.searchResults}>
                 {searchResults.length > 0 ? (
                   searchResults.slice(0, 8).map((student, idx) => {
                     const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
@@ -303,7 +307,7 @@ export const InstructorNotesScreen = () => {
                     return (
                       <Animated.View
                         key={student.id}
-                        entering={FadeInDown.duration(200).delay(idx * 30).springify().damping(20)}
+                        entering={FadeInDown.duration(180).delay(idx * 25)}
                       >
                         <Pressable
                           style={({ pressed }) => [styles.searchResultRow, pressed && { backgroundColor: '#F8FAFC' }]}
@@ -325,11 +329,9 @@ export const InstructorNotesScreen = () => {
                     );
                   })
                 ) : (
-                  <Animated.View entering={FadeIn.duration(200)}>
-                    <Text style={styles.searchNoResults}>Nessun risultato</Text>
-                  </Animated.View>
+                  <Text style={styles.searchNoResults}>Nessun risultato</Text>
                 )}
-              </View>
+              </Animated.View>
             ) : null}
           </Animated.View>
         </View>
