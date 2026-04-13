@@ -241,18 +241,15 @@ export const StudentNotesDetailScreen = () => {
 
             {/* CTA to lessons */}
             <Pressable
-              onPressIn={() => { ctaScale.value = withSpring(0.96, { damping: 15, stiffness: 400 }); }}
-              onPressOut={() => { ctaScale.value = withSpring(1, { damping: 12, stiffness: 200 }); }}
               onPress={handleCtaPress}
+              style={({ pressed }) => [styles.lessonsCta, pressed && { opacity: 0.85 }]}
             >
-              <Animated.View style={[styles.lessonsCta, ctaAnimatedStyle]}>
-                <Ionicons name="list" size={18} color="#EC4899" />
-                <Text style={styles.lessonsCtaText}>
-                  {showLessons ? 'Nascondi storico guide' : 'Vedi storico guide'}
-                </Text>
-                <Animated.View style={chevronAnimatedStyle}>
-                  <Ionicons name="chevron-down" size={18} color="#EC4899" />
-                </Animated.View>
+              <Ionicons name="list" size={18} color="#EC4899" />
+              <Text style={styles.lessonsCtaText}>
+                {showLessons ? 'Nascondi storico guide' : 'Vedi storico guide'}
+              </Text>
+              <Animated.View style={chevronAnimatedStyle}>
+                <Ionicons name="chevron-down" size={18} color="#EC4899" />
               </Animated.View>
             </Pressable>
 
