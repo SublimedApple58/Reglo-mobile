@@ -773,7 +773,7 @@ export const AvailabilityEditor = ({
 
 export const InstructorManageScreen = () => {
   const { instructorId } = useSession();
-  const [mainTab, setMainTab] = useState<'availability' | 'vehicles'>('availability');
+  const [mainTab, setMainTab] = useState<'availability' | 'vehicles' | 'booking'>('availability');
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [vehicleName, setVehicleName] = useState('');
@@ -1149,6 +1149,29 @@ export const InstructorManageScreen = () => {
               Veicoli
             </Text>
           </Pressable>
+          {autonomousMode ? (
+            <Pressable
+              onPress={() => {
+                if (mainTab !== 'booking') {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setMainTab('booking');
+                }
+              }}
+              style={[
+                styles.mainTab,
+                mainTab === 'booking' && styles.mainTabActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.mainTabText,
+                  mainTab === 'booking' ? styles.mainTabTextActive : styles.mainTabTextInactive,
+                ]}
+              >
+                Prenotazioni
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {initialLoading ? (
@@ -1187,59 +1210,6 @@ export const InstructorManageScreen = () => {
                   onToast={(text, tone = 'success') => setToast({ text, tone })}
                 />
 
-                {autonomousMode && (
-                  <Animated.View entering={FadeIn.duration(300)} style={styles.bookingSettingsCard}>
-                    <Text style={styles.sectionLabel}>Impostazioni prenotazione</Text>
-
-                    {/* Durata guide */}
-                    <View style={styles.bookingSettingsField}>
-                      <Text style={styles.fieldLabel}>Durata guide</Text>
-                      <View style={styles.durationChipsRow}>
-                        {DURATION_OPTIONS.map((dur) => (
-                          <SelectableChip
-                            key={dur}
-                            label={`${dur} min`}
-                            active={bookingSlotDurations.includes(dur)}
-                            onPress={() => toggleDuration(dur)}
-                          />
-                        ))}
-                      </View>
-                    </View>
-
-                    {/* Solo orari tondi */}
-                    <View style={styles.bookingSettingsToggleRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.bookingSettingsToggleLabel}>Solo orari tondi</Text>
-                        <Text style={styles.bookingSettingsToggleDesc}>
-                          Prenotazioni solo a inizio ora (es. 9:00, 10:00)
-                        </Text>
-                      </View>
-                      <Switch
-                        value={roundedHoursOnly}
-                        onValueChange={setRoundedHoursOnly}
-                        trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-                        thumbColor="#FFFFFF"
-                      />
-                    </View>
-
-                    {/* Save CTA */}
-                    <Pressable
-                      onPress={settingsSaving ? undefined : handleSaveInstructorSettings}
-                      disabled={settingsSaving}
-                      style={({ pressed }) => [
-                        styles.saveCta,
-                        pressed && styles.saveCtaPressed,
-                        settingsSaving && styles.saveCtaDisabled,
-                      ]}
-                    >
-                      {settingsSaving ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.saveCtaText}>Salva impostazioni</Text>
-                      )}
-                    </Pressable>
-                  </Animated.View>
-                )}
               </>
             )}
 
@@ -1281,6 +1251,63 @@ export const InstructorManageScreen = () => {
                 ))}
                 {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
               </View>
+            )}
+
+            {mainTab === 'booking' && autonomousMode && (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.bookingSettingsCard}>
+                <Text style={styles.sectionLabel}>Impostazioni prenotazione</Text>
+                <Text style={{ fontSize: 13, color: '#64748B', marginTop: -8 }}>
+                  Configura come i tuoi allievi possono prenotare le guide.
+                </Text>
+
+                {/* Durata guide */}
+                <View style={styles.bookingSettingsField}>
+                  <Text style={styles.fieldLabel}>Durata guide</Text>
+                  <View style={styles.durationChipsRow}>
+                    {DURATION_OPTIONS.map((dur) => (
+                      <SelectableChip
+                        key={dur}
+                        label={`${dur} min`}
+                        active={bookingSlotDurations.includes(dur)}
+                        onPress={() => toggleDuration(dur)}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Solo orari tondi */}
+                <View style={styles.bookingSettingsToggleRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.bookingSettingsToggleLabel}>Solo orari tondi</Text>
+                    <Text style={styles.bookingSettingsToggleDesc}>
+                      Prenotazioni solo a inizio ora (es. 9:00, 10:00)
+                    </Text>
+                  </View>
+                  <Switch
+                    value={roundedHoursOnly}
+                    onValueChange={setRoundedHoursOnly}
+                    trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                {/* Save CTA */}
+                <Pressable
+                  onPress={settingsSaving ? undefined : handleSaveInstructorSettings}
+                  disabled={settingsSaving}
+                  style={({ pressed }) => [
+                    styles.saveCta,
+                    pressed && styles.saveCtaPressed,
+                    settingsSaving && styles.saveCtaDisabled,
+                  ]}
+                >
+                  {settingsSaving ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.saveCtaText}>Salva impostazioni</Text>
+                  )}
+                </Pressable>
+              </Animated.View>
             )}
           </>
         )}
