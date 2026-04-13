@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 1)',
   },
   searchResultsContainer: {
-    marginTop: 160,
+    marginTop: 175,
     marginHorizontal: SEARCH_BAR_MARGIN,
   },
   searchResults: {
