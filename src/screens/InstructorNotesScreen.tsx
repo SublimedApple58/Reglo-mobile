@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   FlatList,
   Keyboard,
@@ -8,7 +7,6 @@ import {
   RefreshControl,
   SectionList,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -26,16 +24,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
-import { BottomSheet } from '../components/BottomSheet';
-import { SelectableChip } from '../components/SelectableChip';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { colors, spacing } from '../theme';
-
-const DURATION_OPTIONS = [30, 60, 90, 120] as const;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SEARCH_BAR_MARGIN = 22; // spacing.lg
@@ -58,35 +52,6 @@ export const InstructorNotesScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [autonomousMode, setAutonomousMode] = useState(false);
-
-  // Booking settings (autonomous mode)
-  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
-  const [bookingSlotDurations, setBookingSlotDurations] = useState<number[]>([30, 60]);
-  const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
-  const [settingsSaving, setSettingsSaving] = useState(false);
-
-  const toggleDuration = (dur: number) => {
-    setBookingSlotDurations((prev) =>
-      prev.includes(dur) ? prev.filter((d) => d !== dur) : [...prev, dur].sort((a, b) => a - b),
-    );
-  };
-
-  const handleSaveBookingSettings = async () => {
-    if (!bookingSlotDurations.length) {
-      setToast({ text: 'Seleziona almeno una durata', tone: 'danger' });
-      return;
-    }
-    setSettingsSaving(true);
-    try {
-      await regloApi.updateInstructorSettings({ bookingSlotDurations, roundedHoursOnly });
-      setToast({ text: 'Impostazioni salvate', tone: 'success' });
-      setSettingsSheetOpen(false);
-    } catch {
-      setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
 
   // Search — single morphing element
   const [searchVisible, setSearchVisible] = useState(false); // true = overlay mounted
@@ -153,14 +118,6 @@ export const InstructorNotesScreen = () => {
       );
       if (instrSettings) {
         setAutonomousMode(instrSettings.autonomousMode);
-        if (instrSettings.autonomousMode) {
-          setBookingSlotDurations(
-            instrSettings.settings.bookingSlotDurations ?? instrSettings.companyDefaults.bookingSlotDurations,
-          );
-          setRoundedHoursOnly(
-            instrSettings.settings.roundedHoursOnly ?? instrSettings.companyDefaults.roundedHoursOnly,
-          );
-        }
       }
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
@@ -268,7 +225,7 @@ export const InstructorNotesScreen = () => {
   const headerContent = (
     <View style={styles.titleRow}>
       {autonomousMode ? (
-        <Pressable onPress={() => setSettingsSheetOpen(true)} style={styles.gearPill} hitSlop={4}>
+        <Pressable onPress={() => router.push('/(tabs)/notes/cluster-settings' as never)} style={styles.gearPill} hitSlop={4}>
           <Ionicons name="settings-outline" size={20} color="#64748B" />
         </Pressable>
       ) : null}
@@ -411,65 +368,6 @@ export const InstructorNotesScreen = () => {
         </View>
       ) : null}
 
-      {/* Booking settings BottomSheet */}
-      <BottomSheet
-        visible={settingsSheetOpen}
-        title="Impostazioni prenotazione"
-        onClose={() => setSettingsSheetOpen(false)}
-        showHandle
-        footer={
-          <Pressable
-            onPress={settingsSaving ? undefined : handleSaveBookingSettings}
-            disabled={settingsSaving}
-            style={({ pressed }) => [
-              styles.saveBtn,
-              pressed && { opacity: 0.85 },
-              settingsSaving && { opacity: 0.6 },
-            ]}
-          >
-            {settingsSaving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.saveBtnText}>Salva impostazioni</Text>
-            )}
-          </Pressable>
-        }
-      >
-        <View style={styles.sheetContent}>
-          <Text style={styles.sheetDesc}>
-            Configura come i tuoi allievi possono prenotare le guide.
-          </Text>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Durata guide</Text>
-            <View style={styles.chipsRow}>
-              {DURATION_OPTIONS.map((dur) => (
-                <SelectableChip
-                  key={dur}
-                  label={`${dur} min`}
-                  active={bookingSlotDurations.includes(dur)}
-                  onPress={() => toggleDuration(dur)}
-                />
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleLabel}>Solo orari tondi</Text>
-              <Text style={styles.toggleDesc}>
-                Prenotazioni solo a inizio ora (es. 9:00, 10:00)
-              </Text>
-            </View>
-            <Switch
-              value={roundedHoursOnly}
-              onValueChange={setRoundedHoursOnly}
-              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-      </BottomSheet>
     </Screen>
   );
 };
@@ -500,59 +398,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-  },
-
-  /* Settings BottomSheet */
-  sheetContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-    gap: 20,
-  },
-  sheetDesc: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  fieldGroup: {
-    gap: 8,
-  },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  toggleLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  toggleDesc: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  saveBtn: {
-    height: 50,
-    borderRadius: 999,
-    backgroundColor: '#EC4899',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 
   /* Morphing pill/bar */
