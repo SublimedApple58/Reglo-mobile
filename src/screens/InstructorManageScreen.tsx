@@ -805,7 +805,7 @@ export const InstructorManageScreen = () => {
       const [vehicleResponse, settingsResponse, instrSettings] = await Promise.all([
         regloApi.getVehicles(),
         regloApi.getAutoscuolaSettings(),
-        regloApi.getInstructorSettings().catch(() => null),
+        regloApi.getInstructorSettings().catch((e) => { console.warn('[InstructorManage] getInstructorSettings failed:', e); return null; }),
       ]);
       setVehicles(vehicleResponse);
       setSettings(settingsResponse);
