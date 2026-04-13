@@ -64,13 +64,16 @@ export const InstructorNotesScreen = () => {
 
   const searchBarStyle = useAnimatedStyle(() => ({
     opacity: searchProgress.value,
-    transform: [{ translateY: (1 - searchProgress.value) * -20 }],
+    transform: [
+      { translateY: (1 - searchProgress.value) * -30 },
+      { scale: 0.95 + searchProgress.value * 0.05 },
+    ],
   }));
 
   const openSearch = () => {
     setSearchOpen(true);
     setSearchQuery('');
-    searchProgress.value = withTiming(1, timing);
+    searchProgress.value = withTiming(1, { duration: 300, easing: Easing.bezier(0.34, 1.4, 0.64, 1) });
     setTimeout(() => searchInputRef.current?.focus(), 150);
   };
 
