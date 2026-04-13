@@ -310,7 +310,7 @@ export const InstructorNotesScreen = () => {
                     return (
                       <Animated.View
                         key={student.id}
-                        entering={FadeInDown.duration(180).delay(idx * 25)}
+                        entering={FadeInDown.duration(300).delay(idx * 50).springify().damping(16).stiffness(140)}
                       >
                         <Pressable
                           style={({ pressed }) => [styles.searchResultRow, pressed && { backgroundColor: '#F8FAFC' }]}
