@@ -1101,10 +1101,12 @@ export const IstruttoreHomeScreen = () => {
     const dates = new Set<string>();
     for (const block of instructorBlocks) {
       if (block.reason !== 'sick_leave') continue;
-      // Use local date from Date object to handle UTC offset
       const d = new Date(block.startsAt);
-      dates.add(dateToKey(d));
+      const key = dateToKey(d);
+      console.log('[SICK] block.startsAt:', block.startsAt, '→ local Date:', d.toString(), '→ key:', key);
+      dates.add(key);
     }
+    if (dates.size > 0) console.log('[SICK] all keys:', [...dates]);
     return dates;
   }, [instructorBlocks]);
 
