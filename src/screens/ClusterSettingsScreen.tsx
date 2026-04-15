@@ -14,12 +14,24 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { SelectableChip } from '../components/SelectableChip';
+import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { colors, spacing } from '../theme';
 
-const DURATION_OPTIONS = [30, 60, 90, 120] as const;
+const DURATION_OPTIONS = [30, 45, 60, 90, 120] as const;
+
+const timeStringToDate = (hhmm: string | undefined | null): Date => {
+  const safe = hhmm ?? '08:00';
+  const [h, m] = safe.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h ?? 8, m ?? 0, 0, 0);
+  return d;
+};
+
+const dateToTimeString = (d: Date): string =>
+  `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export const ClusterSettingsScreen = () => {
   const router = useRouter();
@@ -27,11 +39,34 @@ export const ClusterSettingsScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [bookingSlotDurations, setBookingSlotDurations] = useState<number[]>([30, 60]);
   const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
-  const [companyDefaults, setCompanyDefaults] = useState<{ bookingSlotDurations: number[]; roundedHoursOnly: boolean }>({
+  const [companyDefaults, setCompanyDefaults] = useState<{ bookingSlotDurations: number[]; roundedHoursOnly: boolean; swapEnabled: boolean; bookingCutoffEnabled: boolean; bookingCutoffTime: string; weeklyBookingLimitEnabled: boolean; weeklyBookingLimit: number; weeklyAbsenceEnabled: boolean; restrictedTimeRangeEnabled: boolean; restrictedTimeRangeStart: string; restrictedTimeRangeEnd: string }>({
     bookingSlotDurations: [30, 60],
     roundedHoursOnly: false,
+    swapEnabled: false,
+    bookingCutoffEnabled: false,
+    bookingCutoffTime: '18:00',
+    weeklyBookingLimitEnabled: false,
+    weeklyBookingLimit: 3,
+    weeklyAbsenceEnabled: false,
+    restrictedTimeRangeEnabled: false,
+    restrictedTimeRangeStart: '08:00',
+    restrictedTimeRangeEnd: '13:00',
   });
   const [saving, setSaving] = useState(false);
+  // New cluster booking settings
+  const [swapEnabled, setSwapEnabled] = useState<boolean | undefined>(undefined);
+  const [bookingCutoffEnabled, setBookingCutoffEnabled] = useState<boolean | undefined>(undefined);
+  const [bookingCutoffTime, setBookingCutoffTime] = useState<string | undefined>(undefined);
+  const [weeklyLimitEnabled, setWeeklyLimitEnabled] = useState<boolean | undefined>(undefined);
+  const [weeklyLimit, setWeeklyLimit] = useState<number | undefined>(undefined);
+  const [weeklyAbsenceEnabled, setWeeklyAbsenceEnabled] = useState<boolean | undefined>(undefined);
+  const [restrictedTimeEnabled, setRestrictedTimeEnabled] = useState<boolean | undefined>(undefined);
+  const [restrictedTimeStart, setRestrictedTimeStart] = useState<string | undefined>(undefined);
+  const [restrictedTimeEnd, setRestrictedTimeEnd] = useState<string | undefined>(undefined);
+  // Drawer visibility
+  const [cutoffDrawerOpen, setCutoffDrawerOpen] = useState(false);
+  const [restrictedStartDrawerOpen, setRestrictedStartDrawerOpen] = useState(false);
+  const [restrictedEndDrawerOpen, setRestrictedEndDrawerOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -43,6 +78,15 @@ export const ClusterSettingsScreen = () => {
       setRoundedHoursOnly(
         res.settings.roundedHoursOnly ?? res.companyDefaults.roundedHoursOnly,
       );
+      setSwapEnabled(res.settings.swapEnabled);
+      setBookingCutoffEnabled(res.settings.bookingCutoffEnabled);
+      setBookingCutoffTime(res.settings.bookingCutoffTime);
+      setWeeklyLimitEnabled(res.settings.weeklyBookingLimitEnabled);
+      setWeeklyLimit(res.settings.weeklyBookingLimit);
+      setWeeklyAbsenceEnabled(res.settings.weeklyAbsenceEnabled);
+      setRestrictedTimeEnabled(res.settings.restrictedTimeRangeEnabled);
+      setRestrictedTimeStart(res.settings.restrictedTimeRangeStart);
+      setRestrictedTimeEnd(res.settings.restrictedTimeRangeEnd);
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
     } finally {
@@ -67,7 +111,19 @@ export const ClusterSettingsScreen = () => {
     }
     setSaving(true);
     try {
-      await regloApi.updateInstructorSettings({ bookingSlotDurations, roundedHoursOnly });
+      await regloApi.updateInstructorSettings({
+        bookingSlotDurations,
+        roundedHoursOnly,
+        swapEnabled,
+        bookingCutoffEnabled,
+        bookingCutoffTime,
+        weeklyBookingLimitEnabled: weeklyLimitEnabled,
+        weeklyBookingLimit: weeklyLimit,
+        weeklyAbsenceEnabled,
+        restrictedTimeRangeEnabled: restrictedTimeEnabled,
+        restrictedTimeRangeStart: restrictedTimeStart,
+        restrictedTimeRangeEnd: restrictedTimeEnd,
+      });
       setToast({ text: 'Impostazioni salvate', tone: 'success' });
     } catch {
       setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
@@ -140,6 +196,127 @@ export const ClusterSettingsScreen = () => {
               />
             </View>
 
+            {/* Scambio guide */}
+            <View style={styles.toggleCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleLabel}>Scambio guide</Text>
+                <Text style={styles.toggleDesc}>
+                  {swapEnabled === undefined ? `Default azienda: ${companyDefaults.swapEnabled ? 'Attivo' : 'Disattivo'}` : swapEnabled ? 'Attivo' : 'Disattivo'}
+                </Text>
+              </View>
+              <Switch
+                value={swapEnabled ?? companyDefaults.swapEnabled}
+                onValueChange={(v) => setSwapEnabled(v)}
+                trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {/* Cutoff prenotazione */}
+            <View style={styles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Cutoff prenotazione</Text>
+                  <Text style={styles.sectionDesc}>
+                    {bookingCutoffEnabled === undefined ? `Default azienda: ${companyDefaults.bookingCutoffEnabled ? companyDefaults.bookingCutoffTime : 'Disattivo'}` : bookingCutoffEnabled ? 'Attivo' : 'Disattivo'}
+                  </Text>
+                </View>
+                <Switch
+                  value={bookingCutoffEnabled ?? companyDefaults.bookingCutoffEnabled}
+                  onValueChange={(v) => setBookingCutoffEnabled(v)}
+                  trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              {(bookingCutoffEnabled ?? companyDefaults.bookingCutoffEnabled) && (
+                <Pressable style={styles.timeRow} onPress={() => setCutoffDrawerOpen(true)}>
+                  <Ionicons name="time-outline" size={18} color="#64748B" />
+                  <Text style={styles.timeRowText}>Orario limite: {bookingCutoffTime ?? companyDefaults.bookingCutoffTime}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                </Pressable>
+              )}
+            </View>
+
+            {/* Limite settimanale */}
+            <View style={styles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Limite settimanale</Text>
+                  <Text style={styles.sectionDesc}>
+                    {weeklyLimitEnabled === undefined ? `Default azienda: ${companyDefaults.weeklyBookingLimitEnabled ? `${companyDefaults.weeklyBookingLimit} guide` : 'Disattivo'}` : weeklyLimitEnabled ? 'Attivo' : 'Disattivo'}
+                  </Text>
+                </View>
+                <Switch
+                  value={weeklyLimitEnabled ?? companyDefaults.weeklyBookingLimitEnabled}
+                  onValueChange={(v) => setWeeklyLimitEnabled(v)}
+                  trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              {(weeklyLimitEnabled ?? companyDefaults.weeklyBookingLimitEnabled) && (
+                <View style={styles.chipsRow}>
+                  {[1,2,3,4,5,7,10].map((n) => (
+                    <SelectableChip
+                      key={n}
+                      label={`${n}`}
+                      active={(weeklyLimit ?? companyDefaults.weeklyBookingLimit) === n}
+                      onPress={() => setWeeklyLimit(n)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Assenza settimanale */}
+            <View style={styles.toggleCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleLabel}>Assenza settimanale</Text>
+                <Text style={styles.toggleDesc}>
+                  {weeklyAbsenceEnabled === undefined ? `Default azienda: ${companyDefaults.weeklyAbsenceEnabled ? 'Attivo' : 'Disattivo'}` : weeklyAbsenceEnabled ? 'Attivo' : 'Disattivo'}
+                </Text>
+              </View>
+              <Switch
+                value={weeklyAbsenceEnabled ?? companyDefaults.weeklyAbsenceEnabled}
+                onValueChange={(v) => setWeeklyAbsenceEnabled(v)}
+                trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {/* Fascia oraria ristretta */}
+            <View style={styles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Fascia oraria ristretta</Text>
+                  <Text style={styles.sectionDesc}>
+                    {restrictedTimeEnabled === undefined
+                      ? `Default azienda: ${companyDefaults.restrictedTimeRangeEnabled ? `${companyDefaults.restrictedTimeRangeStart}-${companyDefaults.restrictedTimeRangeEnd}` : 'Disattivo'}`
+                      : restrictedTimeEnabled ? 'Attivo' : 'Disattivo'}
+                  </Text>
+                </View>
+                <Switch
+                  value={restrictedTimeEnabled ?? companyDefaults.restrictedTimeRangeEnabled}
+                  onValueChange={(v) => setRestrictedTimeEnabled(v)}
+                  trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              {(restrictedTimeEnabled ?? companyDefaults.restrictedTimeRangeEnabled) && (
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  <Pressable style={styles.timeRow} onPress={() => setRestrictedStartDrawerOpen(true)}>
+                    <Ionicons name="time-outline" size={18} color="#64748B" />
+                    <Text style={styles.timeRowText}>Inizio: {restrictedTimeStart ?? companyDefaults.restrictedTimeRangeStart}</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                  </Pressable>
+                  <Pressable style={styles.timeRow} onPress={() => setRestrictedEndDrawerOpen(true)}>
+                    <Ionicons name="time-outline" size={18} color="#64748B" />
+                    <Text style={styles.timeRowText}>Fine: {restrictedTimeEnd ?? companyDefaults.restrictedTimeRangeEnd}</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
             {/* Save */}
             <Pressable
               onPress={saving ? undefined : handleSave}
@@ -159,6 +336,26 @@ export const ClusterSettingsScreen = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Time picker drawers */}
+      <TimePickerDrawer
+        visible={cutoffDrawerOpen}
+        onClose={() => setCutoffDrawerOpen(false)}
+        selectedTime={timeStringToDate(bookingCutoffTime ?? companyDefaults.bookingCutoffTime)}
+        onSelectTime={(d) => setBookingCutoffTime(dateToTimeString(d))}
+      />
+      <TimePickerDrawer
+        visible={restrictedStartDrawerOpen}
+        onClose={() => setRestrictedStartDrawerOpen(false)}
+        selectedTime={timeStringToDate(restrictedTimeStart ?? companyDefaults.restrictedTimeRangeStart)}
+        onSelectTime={(d) => setRestrictedTimeStart(dateToTimeString(d))}
+      />
+      <TimePickerDrawer
+        visible={restrictedEndDrawerOpen}
+        onClose={() => setRestrictedEndDrawerOpen(false)}
+        selectedTime={timeStringToDate(restrictedTimeEnd ?? companyDefaults.restrictedTimeRangeEnd)}
+        onSelectTime={(d) => setRestrictedTimeEnd(dateToTimeString(d))}
+      />
     </Screen>
   );
 };
@@ -229,6 +426,24 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     lineHeight: 18,
     marginTop: 2,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 4,
+  },
+  timeRowText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
   },
   saveBtn: {
     height: 52,

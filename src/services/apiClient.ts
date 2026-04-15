@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { ApiError, ApiResponse, ApiSuccess } from '../types/regloApi';
 
-const DEFAULT_BASE_URL = 'https://app.reglo.it/api';
+const DEFAULT_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://app.reglo.it/api';
 const TOKEN_KEY = 'reglo_token';
 const COMPANY_KEY = 'reglo_active_company_id';
 const IS_WEB = Platform.OS === 'web';

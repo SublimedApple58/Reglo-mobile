@@ -154,6 +154,7 @@ export default function TabsLayout() {
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isStudent = !showRoleTab;
+  const isInstructor = autoscuolaRole === 'INSTRUCTOR';
   const showSwapsTab = isStudent && swapEnabled;
   const showNotesTab = showRoleTab || studentNotesEnabled;
   const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
@@ -202,7 +203,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
           <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
         </Tabs>
-        <NotificationOverlay isStudent={isStudent} swapEnabled={swapEnabled} />
+        <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
       </>
     );
   }
@@ -266,7 +267,7 @@ export default function TabsLayout() {
         </NativeTabs.Trigger>
       ) : null}
     </NativeTabs>
-    <NotificationOverlay isStudent={isStudent} swapEnabled={swapEnabled} />
+    <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
     </>
   );
 }

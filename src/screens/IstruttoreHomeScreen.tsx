@@ -1646,7 +1646,6 @@ export const IstruttoreHomeScreen = () => {
             </Text>
             <Text style={styles.subtitle}>Gestisci le tue guide</Text>
           </View>
-          <Badge label="Istruttore" />
         </View>
 
         {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
@@ -2959,6 +2958,20 @@ const FabMenu = ({
                 <Ionicons name="ban-outline" size={20} color="#64748B" />
               </View>
               <Text style={styles.fabPillLabel}>Blocca slot</Text>
+            </Pressable>
+          </Animated.View>
+          <Animated.View style={pill0Style}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/home/create-exam')}
+              style={({ pressed }) => [
+                styles.fabPill,
+                pressed && styles.fabPillPressed,
+              ]}
+            >
+              <View style={[styles.fabPillIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="school-outline" size={20} color="#D97706" />
+              </View>
+              <Text style={styles.fabPillLabel}>Crea esame</Text>
             </Pressable>
           </Animated.View>
         </View>

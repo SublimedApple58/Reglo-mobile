@@ -1,15 +1,24 @@
 import * as SecureStore from 'expo-secure-store';
 import { NotificationItem, PersistedNotification } from '../types/notifications';
 
-const STORE_KEY = 'reglo_notifications_inbox';
+const STORE_KEY_PREFIX = 'reglo_notifications_inbox';
 const LEGACY_READ_KEY = 'reglo_read_notification_ids';
 const LEGACY_SEEN_KEY = 'reglo_seen_accepted_swap_ids';
 const MAX_AGE_DAYS = 30;
 
+let _activeUserId: string | null = null;
+
+/** Set the current user ID — call on login/switch. Scopes the inbox per-user. */
+export const setInboxUserId = (userId: string | null) => {
+  _activeUserId = userId;
+};
+
+const getStoreKey = () =>
+  _activeUserId ? `${STORE_KEY_PREFIX}_${_activeUserId}` : STORE_KEY_PREFIX;
+
 const isExpired = (item: PersistedNotification): boolean => {
   const age = Date.now() - new Date(item.receivedAt).getTime();
   if (age > MAX_AGE_DAYS * 86_400_000) return true;
-  // Check expiresAt on data if present (swap, waitlist)
   const expiresAt = item.data?.expiresAt;
   if (expiresAt && new Date(expiresAt).getTime() < Date.now()) return true;
   return false;
@@ -17,10 +26,9 @@ const isExpired = (item: PersistedNotification): boolean => {
 
 export const loadInbox = async (): Promise<PersistedNotification[]> => {
   try {
-    const raw = await SecureStore.getItemAsync(STORE_KEY);
+    const raw = await SecureStore.getItemAsync(getStoreKey());
     if (!raw) return [];
     const items = JSON.parse(raw) as PersistedNotification[];
-    // Only filter expired — dismissed items stay so merge can see them
     return items.filter((i) => !isExpired(i));
   } catch {
     return [];
@@ -29,7 +37,7 @@ export const loadInbox = async (): Promise<PersistedNotification[]> => {
 
 export const saveInbox = async (items: PersistedNotification[]): Promise<void> => {
   try {
-    await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(items));
+    await SecureStore.setItemAsync(getStoreKey(), JSON.stringify(items));
   } catch {
     // silent
   }

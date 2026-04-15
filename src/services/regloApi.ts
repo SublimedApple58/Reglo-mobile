@@ -75,6 +75,8 @@ import {
   TimeRange,
   OutOfAvailabilityAppointment,
   DateAvailabilityMap,
+  InstructorClusterSettings,
+  CompanyBookingDefaults,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -152,13 +154,41 @@ export const createRegloApi = (baseUrl?: string) => {
     getInstructorSettings: async () =>
       client.request<{
         autonomousMode: boolean;
-        settings: { bookingSlotDurations?: number[]; roundedHoursOnly?: boolean };
-        companyDefaults: { bookingSlotDurations: number[]; roundedHoursOnly: boolean };
+        settings: InstructorClusterSettings;
+        companyDefaults: CompanyBookingDefaults;
       }>('/api/autoscuole/instructor-settings'),
 
-    updateInstructorSettings: async (input: { bookingSlotDurations?: number[]; roundedHoursOnly?: boolean }) =>
-      client.request<{ bookingSlotDurations?: number[]; roundedHoursOnly?: boolean }>('/api/autoscuole/instructor-settings', {
+    updateInstructorSettings: async (input: Partial<InstructorClusterSettings>) =>
+      client.request<InstructorClusterSettings>('/api/autoscuole/instructor-settings', {
         method: 'PATCH',
+        body: input,
+      }),
+
+    createExam: async (input: { studentIds: string[]; startsAt: string; endsAt: string; instructorId?: string; notes?: string }) =>
+      client.request<{ count: number }>('/api/autoscuole/exam', {
+        method: 'POST',
+        body: input,
+      }),
+
+    declareWeeklyAbsence: async (input: { weekStart: string }) =>
+      client.request<unknown>('/api/autoscuole/weekly-absence', {
+        method: 'POST',
+        body: input,
+      }),
+
+    getWeeklyAbsences: async (weekStart: string) =>
+      client.request<Array<{ id: string; weekStart: string }>>('/api/autoscuole/weekly-absence', {
+        params: { weekStart },
+      }),
+
+    cancelWeeklyAbsence: async (weekStart: string) =>
+      client.request<unknown>(`/api/autoscuole/weekly-absence?weekStart=${weekStart}`, {
+        method: 'DELETE',
+      }),
+
+    createInstructorSickLeave: async (input: { instructorId?: string; startDate: string; startTime?: string; endDate: string }) =>
+      client.request<{ blocksCreated: number; appointmentsCancelled: number }>('/api/autoscuole/instructor-sick-leave', {
+        method: 'POST',
         body: input,
       }),
 

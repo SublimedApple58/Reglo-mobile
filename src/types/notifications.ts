@@ -25,13 +25,26 @@ export type HolidayDeclaredData = {
   cancelledCount?: number;
 };
 
+export type WeeklyAbsenceData = {
+  studentId: string;
+  studentName: string;
+  weekStart: string;
+};
+
+export type SickLeaveCancelledData = {
+  appointmentId: string;
+  instructorName: string;
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
   | { kind: 'confirmation'; id: string; data: ConfirmationData }
   | { kind: 'proposal'; id: string; data: AutoscuolaAppointmentWithRelations }
   | { kind: 'available_slots'; id: string; data: AvailableSlotsData }
-  | { kind: 'holiday_declared'; id: string; data: HolidayDeclaredData };
+  | { kind: 'holiday_declared'; id: string; data: HolidayDeclaredData }
+  | { kind: 'weekly_absence'; id: string; data: WeeklyAbsenceData }
+  | { kind: 'sick_leave_cancelled'; id: string; data: SickLeaveCancelledData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

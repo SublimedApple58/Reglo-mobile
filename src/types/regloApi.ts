@@ -515,6 +515,7 @@ export type MobileBookingOptions = {
   assignedInstructorName?: string | null;
   assignedInstructorPhone?: string | null;
   isLockedToInstructor?: boolean;
+  weeklyAbsenceEnabled?: boolean;
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
@@ -698,4 +699,46 @@ export type OutOfAvailabilityAppointment = {
   instructorName: string | null;
   vehicleName: string | null;
   outOfAvailabilityFor: ('instructor' | 'vehicle')[];
+};
+
+export type InstructorClusterSettings = {
+  bookingSlotDurations?: number[];
+  roundedHoursOnly?: boolean;
+  appBookingActors?: 'students' | 'instructors' | 'both';
+  instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
+  studentBookingMode?: 'engine' | 'free_choice';
+  swapEnabled?: boolean;
+  swapNotifyMode?: 'all' | 'available_only';
+  bookingCutoffEnabled?: boolean;
+  bookingCutoffTime?: string;
+  weeklyBookingLimitEnabled?: boolean;
+  weeklyBookingLimit?: number;
+  emptySlotNotificationEnabled?: boolean;
+  emptySlotNotificationTarget?: 'all' | 'availability_matching';
+  emptySlotNotificationTimes?: string[];
+  restrictedTimeRangeEnabled?: boolean;
+  restrictedTimeRangeStart?: string;
+  restrictedTimeRangeEnd?: string;
+  weeklyAbsenceEnabled?: boolean;
+};
+
+export type CompanyBookingDefaults = {
+  bookingSlotDurations: number[];
+  roundedHoursOnly: boolean;
+  appBookingActors: 'students' | 'instructors' | 'both';
+  instructorBookingMode: 'manual_full' | 'manual_engine' | 'guided_proposal';
+  studentBookingMode: 'engine' | 'free_choice';
+  swapEnabled: boolean;
+  swapNotifyMode: 'all' | 'available_only';
+  bookingCutoffEnabled: boolean;
+  bookingCutoffTime: string;
+  weeklyBookingLimitEnabled: boolean;
+  weeklyBookingLimit: number;
+  emptySlotNotificationEnabled: boolean;
+  emptySlotNotificationTarget: 'all' | 'availability_matching';
+  emptySlotNotificationTimes: string[];
+  restrictedTimeRangeEnabled: boolean;
+  restrictedTimeRangeStart: string;
+  restrictedTimeRangeEnd: string;
+  weeklyAbsenceEnabled: boolean;
 };

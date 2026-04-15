@@ -299,6 +299,9 @@ export const AllievoHomeScreen = () => {
   const isLockedToInstructor = bookingOptions?.isLockedToInstructor === true;
   const assignedInstructorName = bookingOptions?.assignedInstructorName ?? null;
   const assignedInstructorPhone = bookingOptions?.assignedInstructorPhone ?? null;
+  const weeklyAbsenceEnabled = bookingOptions?.weeklyAbsenceEnabled === true;
+  const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
+  const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
@@ -400,6 +403,18 @@ export const AllievoHomeScreen = () => {
         setBookingOptions(resolvedBookingOptions);
         if (resolvedBookingOptions.isLockedToInstructor && resolvedBookingOptions.assignedInstructorId) {
           setSelectedInstructorId(resolvedBookingOptions.assignedInstructorId);
+        }
+        // Check if weekly absence already declared for current week
+        if (resolvedBookingOptions.weeklyAbsenceEnabled && resolvedBookingOptions.isLockedToInstructor) {
+          const now = new Date();
+          const dow = now.getDay();
+          const mondayOff = dow === 0 ? -6 : 1 - dow;
+          const ws = new Date(now);
+          ws.setDate(ws.getDate() + mondayOff);
+          const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+          regloApi.getWeeklyAbsences(wsStr).then((absences) => {
+            if (absences.length > 0) setWeeklyAbsenceDeclared(true);
+          }).catch(() => {});
         }
         if (resolvedBookingOptions.instructorPreferenceEnabled) {
           regloApi.getInstructors().then((list) => {
@@ -1480,6 +1495,64 @@ export const AllievoHomeScreen = () => {
                 ) : null}
               </View>
             ) : null}
+
+            {/* ── Weekly absence CTA ── */}
+            {isLockedToInstructor && weeklyAbsenceEnabled && (
+              <Pressable
+                disabled={weeklyAbsenceLoading}
+                onPress={async () => {
+                  const now = new Date();
+                  const dayOfWeek = now.getDay();
+                  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                  const weekStart = new Date(now);
+                  weekStart.setDate(weekStart.getDate() + mondayOffset);
+                  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+
+                  setWeeklyAbsenceLoading(true);
+                  try {
+                    if (weeklyAbsenceDeclared) {
+                      await regloApi.cancelWeeklyAbsence(weekStartStr);
+                      setWeeklyAbsenceDeclared(false);
+                    } else {
+                      await regloApi.declareWeeklyAbsence({ weekStart: weekStartStr });
+                      setWeeklyAbsenceDeclared(true);
+                    }
+                  } catch {
+                    Alert.alert('Errore', 'Non è stato possibile completare l\'operazione.');
+                  } finally {
+                    setWeeklyAbsenceLoading(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    backgroundColor: weeklyAbsenceDeclared ? '#FEF2F2' : '#FFFBEB',
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: weeklyAbsenceDeclared ? '#FECACA' : '#FDE68A',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                  },
+                  pressed && { opacity: 0.7 },
+                  weeklyAbsenceLoading && { opacity: 0.5 },
+                ]}
+              >
+                <Ionicons
+                  name={weeklyAbsenceDeclared ? 'close-circle-outline' : 'calendar-clear-outline'}
+                  size={20}
+                  color={weeklyAbsenceDeclared ? '#DC2626' : '#D97706'}
+                />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: weeklyAbsenceDeclared ? '#991B1B' : '#92400E' }}>
+                  {weeklyAbsenceLoading
+                    ? 'Attendi...'
+                    : weeklyAbsenceDeclared
+                      ? 'Annulla assenza settimanale'
+                      : 'Assente questa settimana'}
+                </Text>
+              </Pressable>
+            )}
 
             {/* ── CTA Button (standalone) ── */}
             {!studentBookingDisabledByPolicy ? (

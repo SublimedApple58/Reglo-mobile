@@ -17,6 +17,7 @@ import {
   saveInbox,
   mergeFromApi,
   migrateLegacyKeys,
+  setInboxUserId,
 } from '../services/notificationStore';
 import {
   AutoscuolaSwapOfferWithDetails,
@@ -62,10 +63,11 @@ const findLinkedStudent = (
 
 type Props = {
   isStudent: boolean;
+  isInstructor?: boolean;
   swapEnabled: boolean;
 };
 
-export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
+export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabled }: Props) => {
   const { user } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -234,8 +236,15 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
       });
   }, []);
 
+  // ── Scope inbox per user ──
+  useEffect(() => {
+    setInboxUserId(user?.id ?? null);
+  }, [user?.id]);
+
   // ── Load persistent inbox + migrate legacy keys ──
   useEffect(() => {
+    if (!user?.id) return;
+    setInboxUserId(user.id);
     loadInbox()
       .then((items) => migrateLegacyKeys(items))
       .then((items) => {
@@ -246,7 +255,7 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
       .catch(() => {
         inboxLoaded.current = true;
       });
-  }, []);
+  }, [user?.id]);
 
   // ── Load students ──
   useEffect(() => {
@@ -493,7 +502,6 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
       if (intent === 'available_slots') {
         const date = String(data?.date ?? '');
         if (date) {
-          // Persist into inbox
           const notifId = `available_slots_${date}_${Date.now()}`;
           const persisted: PersistedNotification = {
             kind: 'available_slots',
@@ -511,6 +519,27 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
 
           handleAvailableSlotsNotification(date);
         }
+        return;
+      }
+      if (intent === 'sick_leave_cancelled') {
+        const notifId = `sick_leave_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'sick_leave_cancelled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            instructorName: String(data?.instructorName ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
         return;
       }
     });
@@ -570,6 +599,53 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
       loadAll(studentId);
     });
   }, [loadAll, studentId, isStudent]);
+
+  // ── Instructor push intents (weekly_absence, sick_leave_cancelled) ──
+  useEffect(() => {
+    if (!isInstructor) return;
+    const unsub = subscribePushIntent((intent, data) => {
+      if (intent === 'weekly_absence') {
+        const notifId = `weekly_absence_${data?.studentId ?? ''}_${data?.weekStart ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'weekly_absence',
+          id: notifId,
+          data: {
+            studentId: String(data?.studentId ?? ''),
+            studentName: String(data?.studentName ?? 'Un allievo'),
+            weekStart: String(data?.weekStart ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+      }
+      if (intent === 'sick_leave_cancelled') {
+        const notifId = `sick_leave_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'sick_leave_cancelled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            instructorName: String(data?.instructorName ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+      }
+    });
+    return unsub;
+  }, [isInstructor]);
 
   // ── Check slot overlap ──
   const checkBusy = useCallback((startsAt: string, endsAt: string | null): string | null => {
@@ -873,7 +949,7 @@ export const NotificationOverlay = ({ isStudent, swapEnabled }: Props) => {
     router.push('/(tabs)/home/notifications');
   };
 
-  if (!isStudent) return null;
+  if (!isStudent && !isInstructor) return null;
 
   return (
     <>

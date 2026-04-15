@@ -1032,7 +1032,7 @@ export const InstructorManageScreen = () => {
   };
 
   // ── Instructor booking settings handlers ─────────────────────
-  const DURATION_OPTIONS = [30, 60, 90, 120] as const;
+  const DURATION_OPTIONS = [30, 45, 60, 90, 120] as const;
 
   const toggleDuration = (duration: number) => {
     setBookingSlotDurations((prev) =>
