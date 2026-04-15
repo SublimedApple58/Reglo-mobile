@@ -1088,7 +1088,7 @@ export const IstruttoreHomeScreen = () => {
     const [y, m, d] = key.split('-').map(Number);
     return new Date(y, m - 1, d);
   };
-  const addDays = (key: string, n: number) => {
+  const addDaysToKey = (key: string, n: number) => {
     const d = dateKeyToDate(key);
     d.setDate(d.getDate() + n);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1121,8 +1121,8 @@ export const IstruttoreHomeScreen = () => {
     // Walk backward/forward to find contiguous range
     let rangeStartKey = selKey;
     let rangeEndKey = selKey;
-    for (let k = addDays(selKey, -1); sickLeaveDateKeys.has(k); k = addDays(k, -1)) rangeStartKey = k;
-    for (let k = addDays(selKey, 1); sickLeaveDateKeys.has(k); k = addDays(k, 1)) rangeEndKey = k;
+    for (let k = addDaysToKey(selKey, -1); sickLeaveDateKeys.has(k); k = addDaysToKey(k, -1)) rangeStartKey = k;
+    for (let k = addDaysToKey(selKey, 1); sickLeaveDateKeys.has(k); k = addDaysToKey(k, 1)) rangeEndKey = k;
 
     return {
       block,
