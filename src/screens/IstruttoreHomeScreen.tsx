@@ -471,6 +471,7 @@ export const IstruttoreHomeScreen = () => {
   const [sickStartCalendarOpen, setSickStartCalendarOpen] = useState(false);
   const [sickEndCalendarOpen, setSickEndCalendarOpen] = useState(false);
   const [sickTimePickerOpen, setSickTimePickerOpen] = useState(false);
+  const sickNavigatingToPicker = useRef(false);
   const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
   const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
   const [bookingStudentId, setBookingStudentId] = useState<string>('');
@@ -2086,7 +2087,7 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Sick Leave BottomSheet ── */}
       <BottomSheet
         visible={sickSheetOpen}
-        onClose={() => { if (!sickPending) setSickSheetOpen(false); }}
+        onClose={() => { if (!sickPending && !sickNavigatingToPicker.current) setSickSheetOpen(false); }}
         title="🤒 Malattia"
         closeDisabled={sickPending}
         showHandle
@@ -2104,7 +2105,7 @@ export const IstruttoreHomeScreen = () => {
           {/* Start date */}
           <Pressable
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { setSickSheetOpen(false); setTimeout(() => setSickStartCalendarOpen(true), 500); }}
+            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickStartCalendarOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
           >
             <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="calendar" size={16} color="#CA8A04" />
@@ -2120,7 +2121,7 @@ export const IstruttoreHomeScreen = () => {
           {/* End date */}
           <Pressable
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { setSickSheetOpen(false); setTimeout(() => setSickEndCalendarOpen(true), 500); }}
+            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickEndCalendarOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
           >
             <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="calendar" size={16} color="#CA8A04" />
@@ -2151,7 +2152,7 @@ export const IstruttoreHomeScreen = () => {
           {sickHalfDay && (
             <Pressable
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-              onPress={() => { setSickSheetOpen(false); setTimeout(() => setSickTimePickerOpen(true), 500); }}
+              onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickTimePickerOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
             >
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="time" size={16} color="#CA8A04" />
