@@ -192,6 +192,11 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
 
+    getNotifications: async (limit = 20) =>
+      client.request<Array<{ id: string; kind: string; data: Record<string, unknown>; createdAt: string }>>('/api/autoscuole/notifications', {
+        params: { limit: String(limit) },
+      }),
+
     getOverview: async () => client.request<AutoscuolaOverview>('/api/autoscuole/overview'),
     getStudents: async (search?: string) =>
       client.request<AutoscuolaStudent[]>('/api/autoscuole/students', {

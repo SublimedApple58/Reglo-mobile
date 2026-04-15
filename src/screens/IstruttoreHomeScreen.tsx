@@ -26,6 +26,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -420,6 +421,7 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 };
 
 export const IstruttoreHomeScreen = () => {
+  const router = useRouter();
   const { instructorId, user } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
@@ -2041,6 +2043,7 @@ export const IstruttoreHomeScreen = () => {
         disabled={isPending || Boolean(bookingPendingAction)}
         onBookLesson={openBookingDrawer}
         onBlockSlot={openBlockDrawer}
+        onCreateExam={() => router.push('/(tabs)/home/create-exam')}
       />
 
       {/* ── Placeholder to keep old refs working ── */}
@@ -2847,11 +2850,13 @@ const FabMenu = ({
   disabled,
   onBookLesson,
   onBlockSlot,
+  onCreateExam,
 }: {
   canBook: boolean;
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
+  onCreateExam: () => void;
 }) => {
   const progress = useSharedValue(0);
   const [open, setOpen] = useState(false);
@@ -2962,7 +2967,7 @@ const FabMenu = ({
           </Animated.View>
           <Animated.View style={pill0Style}>
             <Pressable
-              onPress={() => router.push('/(tabs)/home/create-exam')}
+              onPress={onCreateExam}
               style={({ pressed }) => [
                 styles.fabPill,
                 pressed && styles.fabPillPressed,

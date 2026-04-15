@@ -241,21 +241,47 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     setInboxUserId(user?.id ?? null);
   }, [user?.id]);
 
-  // ── Load persistent inbox + migrate legacy keys ──
+  // ── Sync server-side notifications into local inbox ──
+  const syncServerNotifications = useCallback(async () => {
+    try {
+      const serverItems = await regloApi.getNotifications(30);
+      if (!serverItems?.length) return;
+      const asPersistedItems: PersistedNotification[] = serverItems.map((n) => ({
+        kind: n.kind as PersistedNotification['kind'],
+        id: n.id,
+        data: n.data,
+        receivedAt: n.createdAt,
+        read: false,
+        dismissed: false,
+      }));
+      const merged = mergeFromApi(inboxRef.current, asPersistedItems);
+      inboxRef.current = merged;
+      setInboxItems(merged);
+      saveInbox(merged);
+      notificationEvents.emitInboxUpdated();
+    } catch {
+      // silent — server unreachable
+    }
+  }, []);
+
+  // ── Load persistent inbox + migrate legacy keys + sync server ──
   useEffect(() => {
     if (!user?.id) return;
     setInboxUserId(user.id);
     loadInbox()
       .then((items) => migrateLegacyKeys(items))
       .then((items) => {
+        inboxRef.current = items;
         setInboxItems(items);
         saveInbox(items);
         inboxLoaded.current = true;
+        // After local load, sync from server to catch missed notifications
+        syncServerNotifications();
       })
       .catch(() => {
         inboxLoaded.current = true;
       });
-  }, [user?.id]);
+  }, [user?.id, syncServerNotifications]);
 
   // ── Load students ──
   useEffect(() => {
@@ -591,6 +617,16 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     });
     return () => subscription.remove();
   }, [loadAll, studentId, isStudent]);
+
+  // ── AppState: sync server notifications on foreground (all roles) ──
+  useEffect(() => {
+    if (!user?.id) return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      syncServerNotifications();
+    });
+    return () => subscription.remove();
+  }, [user?.id, syncServerNotifications]);
 
   // ── Refresh request from screens ──
   useEffect(() => {
