@@ -1082,58 +1082,54 @@ export const IstruttoreHomeScreen = () => {
     return map;
   }, [instructorBlocks, calendarRange]);
 
-  // Collect all sick leave dates and find contiguous range for display
-  const sickLeaveDates = useMemo(() => {
+  // Helper: extract YYYY-MM-DD from ISO string without timezone issues
+  const toDateKey = (isoStr: string) => isoStr.slice(0, 10);
+  const dateKeyToDate = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const addDays = (key: string, n: number) => {
+    const d = dateKeyToDate(key);
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const dateToKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // Collect all sick leave dates (using local date, timezone-safe)
+  const sickLeaveDateKeys = useMemo(() => {
     const dates = new Set<string>();
     for (const block of instructorBlocks) {
       if (block.reason !== 'sick_leave') continue;
-      const bStart = new Date(block.startsAt);
-      const key = `${bStart.getFullYear()}-${bStart.getMonth()}-${bStart.getDate()}`;
-      dates.add(key);
+      // Use local date from Date object to handle UTC offset
+      const d = new Date(block.startsAt);
+      dates.add(dateToKey(d));
     }
     return dates;
   }, [instructorBlocks]);
 
-  // Detect if selected day has a sick leave block + find full range
+  // Detect if selected day has a sick leave block + find full contiguous range
   const sickLeaveInfo = useMemo(() => {
-    const selNorm = new Date(selectedDate);
-    selNorm.setHours(0, 0, 0, 0);
-    const selKey = `${selNorm.getFullYear()}-${selNorm.getMonth()}-${selNorm.getDate()}`;
-    if (!sickLeaveDates.has(selKey)) return null;
+    const selKey = dateToKey(selectedDate);
+    if (!sickLeaveDateKeys.has(selKey)) return null;
 
-    // Find the block for this day (for the delete action)
-    const block = instructorBlocks.find((b) => {
-      if (b.reason !== 'sick_leave') return false;
-      const bStart = new Date(b.startsAt);
-      return bStart.getFullYear() === selNorm.getFullYear() &&
-             bStart.getMonth() === selNorm.getMonth() &&
-             bStart.getDate() === selNorm.getDate();
-    });
+    const block = instructorBlocks.find((b) =>
+      b.reason === 'sick_leave' && dateToKey(new Date(b.startsAt)) === selKey,
+    );
     if (!block) return null;
 
-    // Find contiguous range by walking backwards and forwards
-    const allSickBlocks = instructorBlocks
-      .filter((b) => b.reason === 'sick_leave')
-      .map((b) => { const d = new Date(b.startsAt); d.setHours(0, 0, 0, 0); return { date: d, block: b }; })
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    // Walk backward/forward to find contiguous range
+    let rangeStartKey = selKey;
+    let rangeEndKey = selKey;
+    for (let k = addDays(selKey, -1); sickLeaveDateKeys.has(k); k = addDays(k, -1)) rangeStartKey = k;
+    for (let k = addDays(selKey, 1); sickLeaveDateKeys.has(k); k = addDays(k, 1)) rangeEndKey = k;
 
-    let rangeStart = selNorm;
-    let rangeEnd = selNorm;
-    const ONE_DAY = 86400000;
-
-    // Walk backward
-    for (let d = new Date(selNorm.getTime() - ONE_DAY); ; d = new Date(d.getTime() - ONE_DAY)) {
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      if (sickLeaveDates.has(key)) { rangeStart = new Date(d); } else break;
-    }
-    // Walk forward
-    for (let d = new Date(selNorm.getTime() + ONE_DAY); ; d = new Date(d.getTime() + ONE_DAY)) {
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      if (sickLeaveDates.has(key)) { rangeEnd = new Date(d); } else break;
-    }
-
-    return { block, rangeStart, rangeEnd };
-  }, [instructorBlocks, selectedDate, sickLeaveDates]);
+    return {
+      block,
+      rangeStart: dateKeyToDate(rangeStartKey),
+      rangeEnd: dateKeyToDate(rangeEndKey),
+    };
+  }, [instructorBlocks, selectedDate, sickLeaveDateKeys]);
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
@@ -1827,13 +1823,13 @@ export const IstruttoreHomeScreen = () => {
                 `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
               );
               const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
-              const isDaySick = sickLeaveDates.has(`${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`);
+              const isDaySick = sickLeaveDateKeys.has(dateToKey(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
                   style={[
                     styles.dayPill,
-                    isDaySick && !isDaySelected && !isDayToday
+                    isDaySick && !isDaySelected
                       ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1.5 }
                       : isDayHoliday && !isDaySelected && !isDayToday
                         ? styles.dayPillHoliday
@@ -1874,7 +1870,7 @@ export const IstruttoreHomeScreen = () => {
                     {day.dayNum}
                   </Text>
                   {isDaySick ? (
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EA580C' }} />
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isDaySelected || isDayToday ? '#EA580C' : '#EA580C' }} />
                   ) : isDayHoliday ? (
                     <View style={styles.dayPillHolidayDot} />
                   ) : hasBooking ? (
