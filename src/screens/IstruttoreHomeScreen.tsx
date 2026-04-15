@@ -1082,6 +1082,27 @@ export const IstruttoreHomeScreen = () => {
     return map;
   }, [instructorBlocks, calendarRange]);
 
+  // Detect if selected day has a full-day sick leave block
+  const sickLeaveBlock = useMemo(() => {
+    for (const block of instructorBlocks) {
+      if (block.reason !== 'sick_leave') continue;
+      const bStart = new Date(block.startsAt);
+      const bEnd = new Date(block.endsAt);
+      const selNorm = new Date(selectedDate);
+      selNorm.setHours(0, 0, 0, 0);
+      const selEnd = new Date(selNorm);
+      selEnd.setDate(selEnd.getDate() + 1);
+      // Block overlaps selected day
+      if (bStart < selEnd && bEnd > selNorm) {
+        // Full day if block covers at least from early morning to late evening
+        const startH = bStart <= selNorm ? 0 : bStart.getHours();
+        const endH = bEnd >= selEnd ? 24 : bEnd.getHours();
+        if (endH - startH >= 10) return block; // at least 10 hours → treat as sick day
+      }
+    }
+    return null;
+  }, [instructorBlocks, selectedDate]);
+
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
   const ROW_H = 80;
@@ -1850,6 +1871,82 @@ export const IstruttoreHomeScreen = () => {
               </View>
             ))}
           </View>
+        ) : sickLeaveBlock ? (
+          /* ── Sick Leave Day Overlay ── */
+          <View style={{
+            backgroundColor: '#FFF7ED',
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: '#FED7AA',
+            padding: 24,
+            alignItems: 'center',
+            gap: 16,
+          }}>
+            <View style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#FFEDD5',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Ionicons name="medkit" size={32} color="#EA580C" />
+            </View>
+            <View style={{ alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#9A3412' }}>
+                In malattia
+              </Text>
+              <Text style={{ fontSize: 14, color: '#C2410C', textAlign: 'center', lineHeight: 20 }}>
+                Le guide di oggi sono state cancellate{'\n'}e gli allievi sono stati avvisati.
+              </Text>
+            </View>
+            <View style={{
+              backgroundColor: '#FFEDD5',
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <Ionicons name="calendar-outline" size={16} color="#EA580C" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#C2410C' }}>
+                {new Date(sickLeaveBlock.startsAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                {' \u2013 '}
+                {new Date(sickLeaveBlock.endsAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  'Rimuovi malattia',
+                  'Vuoi rimuovere la segnalazione di malattia per questo giorno? Le guide già cancellate non verranno ripristinate.',
+                  [
+                    { text: 'Annulla', style: 'cancel' },
+                    {
+                      text: 'Rimuovi',
+                      style: 'destructive',
+                      onPress: () => handleDeleteBlock(sickLeaveBlock.id),
+                    },
+                  ],
+                );
+              }}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#FED7AA',
+                  backgroundColor: pressed ? '#FFF7ED' : '#FFFFFF',
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#EA580C' }}>
+                Rimuovi malattia
+              </Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={styles.timelineGridWrapper}>
             {/* Empty day hint — inline above the grid */}
@@ -2027,7 +2124,7 @@ export const IstruttoreHomeScreen = () => {
                 );
               })}
               {/* ── Instructor blocks layer ── */}
-              {Array.from(new Map(Array.from(blocksByHour.values()).flat().map((b) => [b.id, b])).values()).map((block) => {
+              {Array.from(new Map(Array.from(blocksByHour.values()).flat().filter((b) => b.reason !== 'sick_leave').map((b) => [b.id, b])).values()).map((block) => {
                 const bStart = new Date(block.startsAt);
                 const bEnd = new Date(block.endsAt);
                 const bStartMin = bStart.getHours() * 60 + bStart.getMinutes();
