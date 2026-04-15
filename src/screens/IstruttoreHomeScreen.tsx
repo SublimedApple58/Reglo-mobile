@@ -2105,7 +2105,7 @@ export const IstruttoreHomeScreen = () => {
           {/* Start date */}
           <Pressable
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickStartCalendarOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
+            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickStartCalendarOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
           >
             <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="calendar" size={16} color="#CA8A04" />
@@ -2121,7 +2121,7 @@ export const IstruttoreHomeScreen = () => {
           {/* End date */}
           <Pressable
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickEndCalendarOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
+            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickEndCalendarOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
           >
             <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="calendar" size={16} color="#CA8A04" />
@@ -2152,7 +2152,7 @@ export const IstruttoreHomeScreen = () => {
           {sickHalfDay && (
             <Pressable
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-              onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickTimePickerOpen(true); sickNavigatingToPicker.current = false; }, 500); }}
+              onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickTimePickerOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
             >
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="time" size={16} color="#CA8A04" />
@@ -2170,7 +2170,7 @@ export const IstruttoreHomeScreen = () => {
 
       <CalendarDrawer
         visible={sickStartCalendarOpen}
-        onClose={() => { setSickStartCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 500); }}
+        onClose={() => { setSickStartCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
         selectedDate={sickStartDate}
         onSelectDate={(d) => {
           setSickStartDate(d);
@@ -2179,13 +2179,13 @@ export const IstruttoreHomeScreen = () => {
       />
       <CalendarDrawer
         visible={sickEndCalendarOpen}
-        onClose={() => { setSickEndCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 500); }}
+        onClose={() => { setSickEndCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
         selectedDate={sickEndDate}
         onSelectDate={(d) => setSickEndDate(d)}
       />
       <TimePickerDrawer
         visible={sickTimePickerOpen}
-        onClose={() => { setSickTimePickerOpen(false); setTimeout(() => setSickSheetOpen(true), 500); }}
+        onClose={() => { setSickTimePickerOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
         selectedTime={sickStartTime}
         onSelectTime={setSickStartTime}
       />
