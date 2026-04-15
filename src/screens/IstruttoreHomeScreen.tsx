@@ -461,6 +461,16 @@ export const IstruttoreHomeScreen = () => {
   const [blockCalendarOpen, setBlockCalendarOpen] = useState(false);
   const [blockStartTimePickerOpen, setBlockStartTimePickerOpen] = useState(false);
   const [blockEndTimePickerOpen, setBlockEndTimePickerOpen] = useState(false);
+  // Sick leave state
+  const [sickSheetOpen, setSickSheetOpen] = useState(false);
+  const [sickStartDate, setSickStartDate] = useState<Date>(() => new Date());
+  const [sickEndDate, setSickEndDate] = useState<Date>(() => new Date());
+  const [sickHalfDay, setSickHalfDay] = useState(false);
+  const [sickStartTime, setSickStartTime] = useState<Date>(() => { const d = new Date(); d.setHours(14, 0, 0, 0); return d; });
+  const [sickPending, setSickPending] = useState(false);
+  const [sickStartCalendarOpen, setSickStartCalendarOpen] = useState(false);
+  const [sickEndCalendarOpen, setSickEndCalendarOpen] = useState(false);
+  const [sickTimePickerOpen, setSickTimePickerOpen] = useState(false);
   const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
   const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
   const [bookingStudentId, setBookingStudentId] = useState<string>('');
@@ -804,6 +814,42 @@ export const IstruttoreHomeScreen = () => {
       setBlockPending(false);
     }
   }, [blockDate, blockStartTime, blockEndTime, blockReason, loadData]);
+
+  const openSickLeaveDrawer = useCallback(() => {
+    setSickStartDate(new Date());
+    setSickEndDate(new Date());
+    setSickHalfDay(false);
+    const defaultTime = new Date();
+    defaultTime.setHours(14, 0, 0, 0);
+    setSickStartTime(defaultTime);
+    setSickSheetOpen(true);
+  }, []);
+
+  const handleCreateSickLeave = useCallback(async () => {
+    setSickPending(true);
+    try {
+      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const startDate = fmt(sickStartDate);
+      const endDate = fmt(sickEndDate);
+      const startTime = sickHalfDay
+        ? `${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`
+        : undefined;
+      const result = await regloApi.createInstructorSickLeave({ startDate, endDate, startTime });
+      setSickSheetOpen(false);
+      setToast({
+        text: `Malattia registrata. ${result.appointmentsCancelled} guide cancellate.`,
+        tone: 'success',
+      });
+      await loadData();
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nella registrazione malattia',
+        tone: 'danger',
+      });
+    } finally {
+      setSickPending(false);
+    }
+  }, [sickStartDate, sickEndDate, sickHalfDay, sickStartTime, loadData]);
 
   const handleDeleteBlock = useCallback(async (blockId: string) => {
     try {
@@ -2037,6 +2083,112 @@ export const IstruttoreHomeScreen = () => {
         )}
       </ScrollView>
 
+      {/* ── Sick Leave BottomSheet ── */}
+      <BottomSheet
+        visible={sickSheetOpen}
+        onClose={() => { if (!sickPending) setSickSheetOpen(false); }}
+        title="🤒 Malattia"
+        closeDisabled={sickPending}
+        showHandle
+        footer={
+          <Pressable
+            onPress={sickPending ? undefined : handleCreateSickLeave}
+            disabled={sickPending}
+            style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaButtonPressed, sickPending && styles.ctaButtonDisabled]}
+          >
+            <Text style={styles.ctaButtonLabel}>{sickPending ? 'Registrazione...' : 'Conferma malattia'}</Text>
+          </Pressable>
+        }
+      >
+        <View style={{ gap: 16 }}>
+          {/* Start date */}
+          <Pressable
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
+            onPress={() => setSickStartCalendarOpen(true)}
+          >
+            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="calendar" size={16} color="#CA8A04" />
+            </View>
+            <View>
+              <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>DATA INIZIO</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+                {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* End date */}
+          <Pressable
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
+            onPress={() => setSickEndCalendarOpen(true)}
+          >
+            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="calendar" size={16} color="#CA8A04" />
+            </View>
+            <View>
+              <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>DATA FINE</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+                {sickEndDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* Half day toggle */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <View>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Mezza giornata</Text>
+              <Text style={{ fontSize: 12, color: '#94A3B8' }}>La malattia inizia a un orario specifico</Text>
+            </View>
+            <Switch
+              value={sickHalfDay}
+              onValueChange={setSickHalfDay}
+              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Half day time picker */}
+          {sickHalfDay && (
+            <Pressable
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
+              onPress={() => setSickTimePickerOpen(true)}
+            >
+              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="time" size={16} color="#CA8A04" />
+              </View>
+              <View>
+                <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>INIZIO MALATTIA</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+                  {`${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
+      </BottomSheet>
+
+      <CalendarDrawer
+        visible={sickStartCalendarOpen}
+        onClose={() => setSickStartCalendarOpen(false)}
+        selectedDate={sickStartDate}
+        onSelectDate={(d) => {
+          setSickStartDate(d);
+          if (d > sickEndDate) setSickEndDate(d);
+        }}
+      />
+      <CalendarDrawer
+        visible={sickEndCalendarOpen}
+        onClose={() => setSickEndCalendarOpen(false)}
+        selectedDate={sickEndDate}
+        onSelectDate={(d) => setSickEndDate(d)}
+      />
+      <TimePickerDrawer
+        visible={sickTimePickerOpen}
+        onClose={() => setSickTimePickerOpen(false)}
+        selectedTime={sickStartTime}
+        onSelectTime={setSickStartTime}
+      />
+
       {/* ── FAB Menu ── */}
       <FabMenu
         canBook={canInstructorBook}
@@ -2044,6 +2196,7 @@ export const IstruttoreHomeScreen = () => {
         onBookLesson={openBookingDrawer}
         onBlockSlot={openBlockDrawer}
         onCreateExam={() => router.push('/(tabs)/home/create-exam')}
+        onSickLeave={openSickLeaveDrawer}
       />
 
       {/* ── Placeholder to keep old refs working ── */}
@@ -2851,12 +3004,14 @@ const FabMenu = ({
   onBookLesson,
   onBlockSlot,
   onCreateExam,
+  onSickLeave,
 }: {
   canBook: boolean;
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
   onCreateExam: () => void;
+  onSickLeave: () => void;
 }) => {
   const progress = useSharedValue(0);
   const [open, setOpen] = useState(false);
@@ -2977,6 +3132,20 @@ const FabMenu = ({
                 <Ionicons name="school-outline" size={20} color="#D97706" />
               </View>
               <Text style={styles.fabPillLabel}>Crea esame</Text>
+            </Pressable>
+          </Animated.View>
+          <Animated.View style={pill0Style}>
+            <Pressable
+              onPress={onSickLeave}
+              style={({ pressed }) => [
+                styles.fabPill,
+                pressed && styles.fabPillPressed,
+              ]}
+            >
+              <View style={[styles.fabPillIcon, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="medkit-outline" size={20} color="#DC2626" />
+              </View>
+              <Text style={styles.fabPillLabel}>Malattia</Text>
             </Pressable>
           </Animated.View>
         </View>
