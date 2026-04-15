@@ -570,11 +570,14 @@ export const IstruttoreHomeScreen = () => {
         (inst) => inst.id === instructorId,
       );
       setInstructorAutonomousMode(currentInstructor?.autonomousMode ?? false);
-      setInstructorBlocks(
-        (agendaBootstrap.instructorBlocks ?? []).filter(
-          (b) => b.instructorId === instructorId,
-        ),
+      const freshBlocks = (agendaBootstrap.instructorBlocks ?? []).filter(
+        (b) => b.instructorId === instructorId,
       );
+      // Accumulate sick_leave blocks across range changes so calendar shows them all
+      setInstructorBlocks((prev) => {
+        const sickFromPrev = prev.filter((b) => b.reason === 'sick_leave' && !freshBlocks.some((f) => f.id === b.id));
+        return [...freshBlocks, ...sickFromPrev];
+      });
       const nextAppointments = dedupeAppointments(
         agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
       );
@@ -1102,11 +1105,8 @@ export const IstruttoreHomeScreen = () => {
     for (const block of instructorBlocks) {
       if (block.reason !== 'sick_leave') continue;
       const d = new Date(block.startsAt);
-      const key = dateToKey(d);
-      console.log('[SICK] block.startsAt:', block.startsAt, '→ local Date:', d.toString(), '→ key:', key);
-      dates.add(key);
+      dates.add(dateToKey(d));
     }
-    if (dates.size > 0) console.log('[SICK] all keys:', [...dates]);
     return dates;
   }, [instructorBlocks]);
 
