@@ -995,7 +995,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         onHide={() => setToast(null)}
       />
       <BookingCelebration
-        visible={celebrationVisible}
+        visible={isStudent && celebrationVisible}
         variant={celebrationVariant}
         onHidden={() => setCelebrationVisible(false)}
       />
@@ -1032,7 +1032,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Swap Offer ── */}
       <BottomSheet
-        visible={swapOpen && !!swapOffer}
+        visible={isStudent && swapOpen && !!swapOffer}
         title="Richiesta sostituzione"
         showHandle
         onClose={swapLoading ? () => {} : handleCloseSwap}
@@ -1099,7 +1099,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Swap Accepted Confirmation ── */}
       <BottomSheet
-        visible={confirmationOpen && !!confirmationData}
+        visible={isStudent && confirmationOpen && !!confirmationData}
         title="Affare fatto!"
         showHandle
         onClose={handleCloseConfirmation}
@@ -1159,7 +1159,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Waitlist Offer ── */}
       <BottomSheet
-        visible={waitlistOpen && !!waitlistOffer}
+        visible={isStudent && waitlistOpen && !!waitlistOffer}
         onClose={waitlistLoading ? () => {} : () => { setWaitlistOpen(false); setWaitlistOffer(null); }}
         closeDisabled={waitlistLoading}
         showHandle
@@ -1210,7 +1210,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Proposal ── */}
       <BottomSheet
-        visible={proposalOpen && !!pendingProposal}
+        visible={isStudent && proposalOpen && !!pendingProposal}
         onClose={handleDismissProposal}
         title="Nuova proposta"
         closeDisabled={proposalLoading}
@@ -1314,7 +1314,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Available Slots ── */}
       <BottomSheet
-        visible={availableSlotsOpen && availableSlotsList.length > 0}
+        visible={isStudent && availableSlotsOpen && availableSlotsList.length > 0}
         onClose={() => {
           if (!availableSlotsBooking) {
             setAvailableSlotsOpen(false);
@@ -1404,7 +1404,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Already Accepted ── */}
       <BottomSheet
-        visible={staleDrawerKind === 'accepted'}
+        visible={isStudent && staleDrawerKind === 'accepted'}
         onClose={() => setStaleDrawerKind(null)}
         showHandle
         footer={
@@ -1434,7 +1434,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
       {/* ── Too Late / Expired ── */}
       <BottomSheet
-        visible={staleDrawerKind === 'expired'}
+        visible={isStudent && staleDrawerKind === 'expired'}
         onClose={() => setStaleDrawerKind(null)}
         showHandle
         footer={
