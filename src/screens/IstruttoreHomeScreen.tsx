@@ -1082,26 +1082,58 @@ export const IstruttoreHomeScreen = () => {
     return map;
   }, [instructorBlocks, calendarRange]);
 
-  // Detect if selected day has a full-day sick leave block
-  const sickLeaveBlock = useMemo(() => {
+  // Collect all sick leave dates and find contiguous range for display
+  const sickLeaveDates = useMemo(() => {
+    const dates = new Set<string>();
     for (const block of instructorBlocks) {
       if (block.reason !== 'sick_leave') continue;
       const bStart = new Date(block.startsAt);
-      const bEnd = new Date(block.endsAt);
-      const selNorm = new Date(selectedDate);
-      selNorm.setHours(0, 0, 0, 0);
-      const selEnd = new Date(selNorm);
-      selEnd.setDate(selEnd.getDate() + 1);
-      // Block overlaps selected day
-      if (bStart < selEnd && bEnd > selNorm) {
-        // Full day if block covers at least from early morning to late evening
-        const startH = bStart <= selNorm ? 0 : bStart.getHours();
-        const endH = bEnd >= selEnd ? 24 : bEnd.getHours();
-        if (endH - startH >= 10) return block; // at least 10 hours → treat as sick day
-      }
+      const key = `${bStart.getFullYear()}-${bStart.getMonth()}-${bStart.getDate()}`;
+      dates.add(key);
     }
-    return null;
-  }, [instructorBlocks, selectedDate]);
+    return dates;
+  }, [instructorBlocks]);
+
+  // Detect if selected day has a sick leave block + find full range
+  const sickLeaveInfo = useMemo(() => {
+    const selNorm = new Date(selectedDate);
+    selNorm.setHours(0, 0, 0, 0);
+    const selKey = `${selNorm.getFullYear()}-${selNorm.getMonth()}-${selNorm.getDate()}`;
+    if (!sickLeaveDates.has(selKey)) return null;
+
+    // Find the block for this day (for the delete action)
+    const block = instructorBlocks.find((b) => {
+      if (b.reason !== 'sick_leave') return false;
+      const bStart = new Date(b.startsAt);
+      return bStart.getFullYear() === selNorm.getFullYear() &&
+             bStart.getMonth() === selNorm.getMonth() &&
+             bStart.getDate() === selNorm.getDate();
+    });
+    if (!block) return null;
+
+    // Find contiguous range by walking backwards and forwards
+    const allSickBlocks = instructorBlocks
+      .filter((b) => b.reason === 'sick_leave')
+      .map((b) => { const d = new Date(b.startsAt); d.setHours(0, 0, 0, 0); return { date: d, block: b }; })
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let rangeStart = selNorm;
+    let rangeEnd = selNorm;
+    const ONE_DAY = 86400000;
+
+    // Walk backward
+    for (let d = new Date(selNorm.getTime() - ONE_DAY); ; d = new Date(d.getTime() - ONE_DAY)) {
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (sickLeaveDates.has(key)) { rangeStart = new Date(d); } else break;
+    }
+    // Walk forward
+    for (let d = new Date(selNorm.getTime() + ONE_DAY); ; d = new Date(d.getTime() + ONE_DAY)) {
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (sickLeaveDates.has(key)) { rangeEnd = new Date(d); } else break;
+    }
+
+    return { block, rangeStart, rangeEnd };
+  }, [instructorBlocks, selectedDate, sickLeaveDates]);
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
@@ -1795,18 +1827,21 @@ export const IstruttoreHomeScreen = () => {
                 `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
               );
               const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
+              const isDaySick = sickLeaveDates.has(`${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`);
               return (
                 <Pressable
                   key={`day-${index}`}
                   style={[
                     styles.dayPill,
-                    isDayHoliday && !isDaySelected && !isDayToday
-                      ? styles.dayPillHoliday
-                      : isDaySelected
-                        ? styles.dayPillSelected
-                        : isDayToday
-                          ? styles.dayPillToday
-                          : styles.dayPillUnselected,
+                    isDaySick && !isDaySelected && !isDayToday
+                      ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1.5 }
+                      : isDayHoliday && !isDaySelected && !isDayToday
+                        ? styles.dayPillHoliday
+                        : isDaySelected
+                          ? styles.dayPillSelected
+                          : isDayToday
+                            ? styles.dayPillToday
+                            : styles.dayPillUnselected,
                   ]}
                   onPress={() => setSelectedDate(day.date)}
                 >
@@ -1838,7 +1873,9 @@ export const IstruttoreHomeScreen = () => {
                   >
                     {day.dayNum}
                   </Text>
-                  {isDayHoliday ? (
+                  {isDaySick ? (
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EA580C' }} />
+                  ) : isDayHoliday ? (
                     <View style={styles.dayPillHolidayDot} />
                   ) : hasBooking ? (
                     <View
@@ -1871,7 +1908,7 @@ export const IstruttoreHomeScreen = () => {
               </View>
             ))}
           </View>
-        ) : sickLeaveBlock ? (
+        ) : sickLeaveInfo ? (
           /* ── Sick Leave Day Overlay ── */
           <View style={{
             backgroundColor: '#FFF7ED',
@@ -1911,9 +1948,9 @@ export const IstruttoreHomeScreen = () => {
             }}>
               <Ionicons name="calendar-outline" size={16} color="#EA580C" />
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#C2410C' }}>
-                {new Date(sickLeaveBlock.startsAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                {sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
                 {' \u2013 '}
-                {new Date(sickLeaveBlock.endsAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                {sickLeaveInfo.rangeEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
               </Text>
             </View>
             <Pressable
@@ -1926,7 +1963,7 @@ export const IstruttoreHomeScreen = () => {
                     {
                       text: 'Rimuovi',
                       style: 'destructive',
-                      onPress: () => handleDeleteBlock(sickLeaveBlock.id),
+                      onPress: () => handleDeleteBlock(sickLeaveInfo.block.id),
                     },
                   ],
                 );
