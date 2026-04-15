@@ -543,6 +543,7 @@ export const IstruttoreHomeScreen = () => {
         agendaBootstrap,
         featuredAppointmentsResponse,
         settingsResponse,
+        wideSickBlocks,
       ] =
         await Promise.all([
           regloApi.getAgendaBootstrap({
@@ -559,6 +560,13 @@ export const IstruttoreHomeScreen = () => {
             light: true,
           }),
           regloApi.getAutoscuolaSettings(),
+          // Lightweight fetch of sick_leave blocks over wide range for calendar dots
+          regloApi.getInstructorBlocks({
+            instructorId,
+            from: featuredFrom.toISOString(),
+            to: featuredTo.toISOString(),
+            reason: 'sick_leave',
+          }),
         ]);
       if (requestId !== loadRequestRef.current) {
         return [];
@@ -573,11 +581,14 @@ export const IstruttoreHomeScreen = () => {
       const freshBlocks = (agendaBootstrap.instructorBlocks ?? []).filter(
         (b) => b.instructorId === instructorId,
       );
-      // Accumulate sick_leave blocks across range changes so calendar shows them all
-      setInstructorBlocks((prev) => {
-        const sickFromPrev = prev.filter((b) => b.reason === 'sick_leave' && !freshBlocks.some((f) => f.id === b.id));
-        return [...freshBlocks, ...sickFromPrev];
-      });
+      // Merge wide-range sick_leave blocks with current-range blocks
+      const mergedBlocks = [...freshBlocks];
+      for (const sb of wideSickBlocks) {
+        if (!mergedBlocks.some((b) => b.id === sb.id)) {
+          mergedBlocks.push(sb);
+        }
+      }
+      setInstructorBlocks(mergedBlocks);
       const nextAppointments = dedupeAppointments(
         agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
       );

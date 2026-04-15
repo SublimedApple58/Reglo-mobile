@@ -396,6 +396,10 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+    getInstructorBlocks: async (params: { instructorId?: string; from?: string; to?: string; reason?: string }) =>
+      client.request<InstructorBlock[]>('/api/autoscuole/instructor-blocks', {
+        params,
+      }),
     createInstructorBlock: async (input: CreateInstructorBlockInput) =>
       client.request<InstructorBlock>('/api/autoscuole/instructor-blocks', {
         method: 'POST',
