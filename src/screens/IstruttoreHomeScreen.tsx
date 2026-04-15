@@ -2027,14 +2027,20 @@ export const IstruttoreHomeScreen = () => {
                 );
               })}
               {/* ── Instructor blocks layer ── */}
-              {Array.from(blocksByHour.values()).flat().map((block) => {
+              {Array.from(new Map(Array.from(blocksByHour.values()).flat().map((b) => [b.id, b])).values()).map((block) => {
                 const bStart = new Date(block.startsAt);
                 const bEnd = new Date(block.endsAt);
                 const bStartMin = bStart.getHours() * 60 + bStart.getMinutes();
-                const bDurMin = (bEnd.getTime() - bStart.getTime()) / (60 * 1000);
+                const bEndMin = bEnd.getHours() * 60 + bEnd.getMinutes() + (bEnd.getSeconds() > 0 ? 1 : 0);
                 const firstHourMin = HOUR_SLOTS[0] * 60;
-                const topPx = ((bStartMin - firstHourMin) / 60) * ROW_H;
-                const blockH = Math.max(36, (bDurMin / 60) * ROW_H);
+                const lastHourMin = (HOUR_SLOTS[HOUR_SLOTS.length - 1] + 1) * 60;
+                // Clamp to visible timeline range
+                const clampedStart = Math.max(bStartMin, firstHourMin);
+                const clampedEnd = Math.min(bEndMin, lastHourMin);
+                if (clampedEnd <= clampedStart) return null;
+                const clampedDurMin = clampedEnd - clampedStart;
+                const topPx = ((clampedStart - firstHourMin) / 60) * ROW_H;
+                const blockH = Math.max(36, (clampedDurMin / 60) * ROW_H);
                 const bCompact = blockH < 55;
                 return (
                   <Pressable
