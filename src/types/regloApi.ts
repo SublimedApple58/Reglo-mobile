@@ -428,6 +428,13 @@ export type RepositionAppointmentResult = {
   taskId?: Uuid;
 };
 
+export type RescheduleAppointmentInput = {
+  startsAt: IsoDate;
+  endsAt?: IsoDate | null;
+};
+
+export type RescheduleAppointmentResult = AutoscuolaAppointment;
+
 export type LoginInput = { email: string; password: string };
 export type StudentRegisterInput = {
   name: string;
@@ -487,7 +494,7 @@ export type AutoscuolaSettings = {
   >;
   bookingSlotDurations?: number[];
   appBookingActors?: 'students' | 'instructors' | 'both';
-  instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
+  instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
   studentNotesEnabled?: boolean;
   instructorClustersEnabled?: boolean;
@@ -499,7 +506,6 @@ export type MobileBookingOptions = {
   availableLessonTypes: Array<
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
-  studentBookingMode?: 'engine' | 'free_choice';
   instructorPreferenceEnabled?: boolean;
   weeklyBookingLimit?: {
     enabled: boolean;
@@ -516,11 +522,15 @@ export type MobileBookingOptions = {
   assignedInstructorPhone?: string | null;
   isLockedToInstructor?: boolean;
   weeklyAbsenceEnabled?: boolean;
+  appBookingActors?: 'students' | 'instructors' | 'both';
+  swapEnabled?: boolean;
+  examPriority?: { active: boolean; examDate: string | null };
+  blockedByExamPriority?: boolean;
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
 
-export type InstructorBookingMode = 'manual_full' | 'manual_engine' | 'guided_proposal';
+export type InstructorBookingMode = 'manual_full' | 'manual_engine';
 
 export type InstructorBookingSuggestion = {
   startsAt: IsoDate;
@@ -705,8 +715,7 @@ export type InstructorClusterSettings = {
   bookingSlotDurations?: number[];
   roundedHoursOnly?: boolean;
   appBookingActors?: 'students' | 'instructors' | 'both';
-  instructorBookingMode?: 'manual_full' | 'manual_engine' | 'guided_proposal';
-  studentBookingMode?: 'engine' | 'free_choice';
+  instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
   swapNotifyMode?: 'all' | 'available_only';
   bookingCutoffEnabled?: boolean;
@@ -726,8 +735,7 @@ export type CompanyBookingDefaults = {
   bookingSlotDurations: number[];
   roundedHoursOnly: boolean;
   appBookingActors: 'students' | 'instructors' | 'both';
-  instructorBookingMode: 'manual_full' | 'manual_engine' | 'guided_proposal';
-  studentBookingMode: 'engine' | 'free_choice';
+  instructorBookingMode: 'manual_full' | 'manual_engine';
   swapEnabled: boolean;
   swapNotifyMode: 'all' | 'available_only';
   bookingCutoffEnabled: boolean;

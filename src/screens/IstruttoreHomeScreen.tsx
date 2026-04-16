@@ -37,6 +37,7 @@ import { Button } from '../components/Button';
 import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
+import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -75,10 +76,9 @@ const LESSON_TYPE_OPTIONS: LessonTypeOption[] = [
   { value: 'altro', label: 'Altro' },
 ];
 
-const INSTRUCTOR_MODE_LABEL: Record<'manual_full' | 'manual_engine' | 'guided_proposal', string> = {
+const INSTRUCTOR_MODE_LABEL: Record<'manual_full' | 'manual_engine', string> = {
   manual_full: 'Manuale totale',
   manual_engine: 'Manuale + motore',
-  guided_proposal: 'Guidata con proposta',
 };
 
 const normalizeStatus = (value: string | null | undefined) =>
@@ -439,6 +439,18 @@ export const IstruttoreHomeScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [rescheduleLesson, setRescheduleLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const pendingRescheduleRef = useRef<AutoscuolaAppointmentWithRelations | null>(null);
+  const [examDrawerGroup, setExamDrawerGroup] = useState<{
+    id: string;
+    startsAt: string;
+    endsAt: string | null;
+    instructorId: string | null;
+    instructorName: string | null;
+    notes: string | null;
+    appointments: AutoscuolaAppointmentWithRelations[];
+  } | null>(null);
+  const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
   const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([]);
@@ -508,6 +520,7 @@ export const IstruttoreHomeScreen = () => {
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [instructorAutonomousMode, setInstructorAutonomousMode] = useState(false);
+  const [clusterDurations, setClusterDurations] = useState<number[] | null>(null);
   const [emergencyAllStudents, setEmergencyAllStudents] = useState(false);
   const [myStudentsExpanded, setMyStudentsExpanded] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
@@ -544,6 +557,7 @@ export const IstruttoreHomeScreen = () => {
         featuredAppointmentsResponse,
         settingsResponse,
         wideSickBlocks,
+        clusterSettingsResponse,
       ] =
         await Promise.all([
           regloApi.getAgendaBootstrap({
@@ -567,6 +581,7 @@ export const IstruttoreHomeScreen = () => {
             to: featuredTo.toISOString(),
             reason: 'sick_leave',
           }),
+          regloApi.getInstructorSettings().catch(() => null),
         ]);
       if (requestId !== loadRequestRef.current) {
         return [];
@@ -578,6 +593,12 @@ export const IstruttoreHomeScreen = () => {
         (inst) => inst.id === instructorId,
       );
       setInstructorAutonomousMode(currentInstructor?.autonomousMode ?? false);
+      // Use cluster durations if instructor has them configured
+      if (clusterSettingsResponse?.settings?.bookingSlotDurations?.length) {
+        setClusterDurations(clusterSettingsResponse.settings.bookingSlotDurations);
+      } else {
+        setClusterDurations(null);
+      }
       const freshBlocks = (agendaBootstrap.instructorBlocks ?? []).filter(
         (b) => b.instructorId === instructorId,
       );
@@ -721,8 +742,8 @@ export const IstruttoreHomeScreen = () => {
     bookingActors === 'instructors' || bookingActors === 'both';
   const bookingDurations = useMemo(
     () =>
-      (settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
-    [settings?.bookingSlotDurations],
+      (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
+    [clusterDurations, settings?.bookingSlotDurations],
   );
   const clustersActive = Boolean(instructorAutonomousMode);
   const assignedStudents = useMemo(
@@ -879,6 +900,49 @@ export const IstruttoreHomeScreen = () => {
     }
   }, [loadData]);
 
+  // Exam actions
+  const handleRemoveExamStudent = useCallback(
+    async (appointmentId: string) => {
+      setExamActionPending(appointmentId);
+      try {
+        await regloApi.cancelAppointment(appointmentId);
+        setToast({ text: 'Allievo rimosso dall\u2019esame.', tone: 'success' });
+        await loadData();
+        // Refresh the drawer with updated group
+        setExamDrawerGroup((prev) =>
+          prev
+            ? {
+                ...prev,
+                appointments: prev.appointments.filter((a) => a.id !== appointmentId),
+              }
+            : null,
+        );
+      } catch (err) {
+        setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
+      } finally {
+        setExamActionPending(null);
+      }
+    },
+    [loadData],
+  );
+
+  const handleCancelExam = useCallback(async () => {
+    if (!examDrawerGroup) return;
+    setExamActionPending('all');
+    try {
+      await Promise.all(
+        examDrawerGroup.appointments.map((a) => regloApi.cancelAppointment(a.id)),
+      );
+      setToast({ text: 'Esame annullato.', tone: 'success' });
+      setExamDrawerGroup(null);
+      await loadData();
+    } catch (err) {
+      setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
+    } finally {
+      setExamActionPending(null);
+    }
+  }, [examDrawerGroup, loadData]);
+
   const openBookingDrawer = useCallback(() => {
     if (!canInstructorBook) {
       setToast({
@@ -887,7 +951,7 @@ export const IstruttoreHomeScreen = () => {
       });
       return;
     }
-    const allowedDurations = (settings?.bookingSlotDurations ?? [30, 60])
+    const allowedDurations = (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60])
       .slice()
       .sort((a, b) => a - b);
     const nowDate = new Date();
@@ -987,9 +1051,7 @@ export const IstruttoreHomeScreen = () => {
       setBookingSheetOpen(false);
       setGuidedSuggestion(null);
       setToast({
-        text: instructorBookingMode === 'guided_proposal'
-          ? "Proposta inviata all'allievo."
-          : 'Guida prenotata.',
+        text: 'Guida prenotata.',
         tone: 'success',
       });
       await loadData();
@@ -1062,11 +1124,51 @@ export const IstruttoreHomeScreen = () => {
     return Array.from({ length: END - earliest + 1 }, (_, i) => i + earliest);
   }, [availableHours, appointments]);
 
+  // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {
     return [...appointments]
       .filter((item) => normalizeStatus(item.status) !== 'cancelled')
       .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
   }, [appointments]);
+
+  // Timeline items: exams grouped by time; other appointments as-is
+  const timelineItems = useMemo(() => {
+    const exams: AutoscuolaAppointmentWithRelations[] = [];
+    const others: AutoscuolaAppointmentWithRelations[] = [];
+    for (const appt of timelineAppointments) {
+      if (appt.type === 'esame') exams.push(appt);
+      else others.push(appt);
+    }
+    const groupMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
+    for (const e of exams) {
+      const key = `${e.startsAt}|${e.endsAt ?? ''}|${e.instructorId ?? ''}`;
+      const list = groupMap.get(key) ?? [];
+      list.push(e);
+      groupMap.set(key, list);
+    }
+    type Item =
+      | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
+      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+    const items: Item[] = [];
+    for (const appt of others) {
+      items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
+    }
+    for (const [key, appts] of groupMap) {
+      const first = appts[0];
+      items.push({
+        kind: 'examGroup',
+        id: key,
+        startsAt: first.startsAt,
+        endsAt: first.endsAt,
+        instructorId: first.instructorId,
+        instructorName: first.instructor?.name ?? null,
+        notes: first.notes ?? null,
+        appointments: appts,
+        sortKey: getStartsAtTs(first),
+      });
+    }
+    return items.sort((a, b) => a.sortKey - b.sortKey);
+  }, [timelineAppointments]);
 
   const appointmentsByHour = useMemo(() => {
     const map = new Map<number, AutoscuolaAppointmentWithRelations[]>();
@@ -1137,10 +1239,17 @@ export const IstruttoreHomeScreen = () => {
     for (let k = addDaysToKey(selKey, -1); sickLeaveDateKeys.has(k); k = addDaysToKey(k, -1)) rangeStartKey = k;
     for (let k = addDaysToKey(selKey, 1); sickLeaveDateKeys.has(k); k = addDaysToKey(k, 1)) rangeEndKey = k;
 
+    // Detect half-day: block starts after midnight on this day
+    const blockStart = new Date(block.startsAt);
+    const isHalfDay = blockStart.getHours() > 0 || blockStart.getMinutes() > 0;
+    const sickStartHour = blockStart.getHours() + blockStart.getMinutes() / 60;
+
     return {
       block,
       rangeStart: dateKeyToDate(rangeStartKey),
       rangeEnd: dateKeyToDate(rangeEndKey),
+      isHalfDay,
+      sickStartHour,
     };
   }, [instructorBlocks, selectedDate, sickLeaveDateKeys]);
 
@@ -1183,19 +1292,23 @@ export const IstruttoreHomeScreen = () => {
     return now.getHours() + now.getMinutes() / 60;
   }, [now, selectedDate]);
 
-  const timelineStatusConfig = (status: string) => {
+  const timelineStatusConfig = (status: string, type?: string | null) => {
     const s = normalizeStatus(status);
+    // Exam: distinctive purple/indigo theme, overrides normal status visuals
+    if (type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
+      return { border: '#6366F1', badgeBg: '#EEF2FF', badgeText: '#4338CA', label: 'ESAME', isExam: true as const };
+    }
     if (s === 'pending_review')
-      return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare' };
+      return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare', isExam: false as const };
     if (s === 'checked_in')
-      return { border: '#EC4899', badgeBg: '#FDF2F8', badgeText: '#EC4899', label: 'In corso' };
+      return { border: '#EC4899', badgeBg: '#FDF2F8', badgeText: '#EC4899', label: 'In corso', isExam: false as const };
     if (s === 'completed')
-      return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata' };
+      return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata', isExam: false as const };
     if (s === 'no_show' || s === 'cancelled')
-      return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata' };
+      return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata', isExam: false as const };
     if (s === 'proposal')
-      return { border: '#A78BFA', badgeBg: '#F5F3FF', badgeText: '#7C3AED', label: 'Proposta' };
-    return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata' };
+      return { border: '#A78BFA', badgeBg: '#F5F3FF', badgeText: '#7C3AED', label: 'Proposta', isExam: false as const };
+    return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata', isExam: false as const };
   };
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
 
@@ -1300,6 +1413,12 @@ export const IstruttoreHomeScreen = () => {
   const canRepositionSheetLesson = sheetLesson
     ? canOperationalReposition(sheetLesson, now)
     : false;
+  const canRescheduleSheetLesson = useMemo(() => {
+    if (!sheetLesson) return false;
+    const status = normalizeStatus(sheetLesson.status);
+    if (!['scheduled', 'confirmed', 'proposal'].includes(status)) return false;
+    return new Date(sheetLesson.startsAt).getTime() > Date.now();
+  }, [sheetLesson]);
   const lessonSheetMaxHeight = useMemo(() => {
     const base = Math.max(300, Math.min(windowHeight * 0.52, windowHeight - 350));
     if (!keyboardHeight) return base;
@@ -1337,6 +1456,18 @@ export const IstruttoreHomeScreen = () => {
   const bookedDatesSet = useMemo(() => {
     const set = new Set<string>();
     for (const appt of featuredAppointments) {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled') continue;
+      const d = new Date(appt.startsAt);
+      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    }
+    return set;
+  }, [featuredAppointments]);
+
+  const examDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const appt of featuredAppointments) {
+      if (appt.type !== 'esame') continue;
       const status = (appt.status ?? '').trim().toLowerCase();
       if (status === 'cancelled') continue;
       const d = new Date(appt.startsAt);
@@ -1673,29 +1804,6 @@ export const IstruttoreHomeScreen = () => {
   const bookingSheetFooter = useMemo(() => {
     if (!canInstructorBook) return null;
 
-    if (instructorBookingMode === 'guided_proposal') {
-      if (guidedSuggestion) {
-        return (
-          <Button
-            label={bookingPendingAction === 'confirm' ? 'Invio proposta...' : 'Invia proposta'}
-            tone="primary"
-            onPress={!bookingPendingAction ? handleConfirmInstructorBooking : undefined}
-            disabled={Boolean(bookingPendingAction)}
-            fullWidth
-          />
-        );
-      }
-      return (
-        <Button
-          label={bookingPendingAction === 'suggest' ? 'Ricerca slot...' : 'Trova slot'}
-          tone="primary"
-          onPress={!bookingPendingAction ? handleSuggestGuidedBooking : undefined}
-          disabled={Boolean(bookingPendingAction) || !bookingStudentId}
-          fullWidth
-        />
-      );
-    }
-
     return (
       <Button
         label={bookingPendingAction ? 'Prenotazione...' : 'Prenota guida'}
@@ -1832,9 +1940,9 @@ export const IstruttoreHomeScreen = () => {
               todayNorm.setHours(0, 0, 0, 0);
               const isDayToday = dayNorm.getTime() === todayNorm.getTime();
               const isDaySelected = dayNorm.getTime() === selNorm.getTime() && !isDayToday;
-              const hasBooking = bookedDatesSet.has(
-                `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
-              );
+              const dayKey = `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`;
+              const hasBooking = bookedDatesSet.has(dayKey);
+              const hasExam = examDatesSet.has(dayKey);
               const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
               const isDaySick = sickLeaveDateKeys.has(dateToKey(dayNorm));
               return (
@@ -1844,13 +1952,15 @@ export const IstruttoreHomeScreen = () => {
                     styles.dayPill,
                     isDaySick && !isDaySelected
                       ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1.5 }
-                      : isDayHoliday && !isDaySelected && !isDayToday
-                        ? styles.dayPillHoliday
-                        : isDaySelected
-                          ? styles.dayPillSelected
-                          : isDayToday
-                            ? styles.dayPillToday
-                            : styles.dayPillUnselected,
+                      : hasExam && !isDaySelected
+                        ? { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1.5 }
+                        : isDayHoliday && !isDaySelected && !isDayToday
+                          ? styles.dayPillHoliday
+                          : isDaySelected
+                            ? styles.dayPillSelected
+                            : isDayToday
+                              ? styles.dayPillToday
+                              : styles.dayPillUnselected,
                   ]}
                   onPress={() => setSelectedDate(day.date)}
                 >
@@ -1883,7 +1993,9 @@ export const IstruttoreHomeScreen = () => {
                     {day.dayNum}
                   </Text>
                   {isDaySick ? (
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isDaySelected || isDayToday ? '#EA580C' : '#EA580C' }} />
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EA580C' }} />
+                  ) : hasExam ? (
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
                   ) : isDayHoliday ? (
                     <View style={styles.dayPillHolidayDot} />
                   ) : hasBooking ? (
@@ -1917,11 +2029,11 @@ export const IstruttoreHomeScreen = () => {
               </View>
             ))}
           </View>
-        ) : sickLeaveInfo ? (
-          /* ── Sick Leave Day Overlay ── */
+        ) : sickLeaveInfo && !sickLeaveInfo.isHalfDay ? (
+          /* ── Full-Day Sick Leave Overlay ── */
           <View style={{
             backgroundColor: '#FFF7ED',
-            borderRadius: 24,
+            borderRadius: 35,
             borderWidth: 1,
             borderColor: '#FED7AA',
             padding: 24,
@@ -1995,6 +2107,59 @@ export const IstruttoreHomeScreen = () => {
           </View>
         ) : (
           <View style={styles.timelineGridWrapper}>
+            {/* ── Half-day sick leave banner ── */}
+            {sickLeaveInfo?.isHalfDay && (
+              <Pressable
+                onPress={() => {
+                  Alert.alert(
+                    'Rimuovi malattia',
+                    'Vuoi rimuovere la segnalazione di malattia per questo giorno? Le guide già cancellate non verranno ripristinate.',
+                    [
+                      { text: 'Annulla', style: 'cancel' },
+                      {
+                        text: 'Rimuovi',
+                        style: 'destructive',
+                        onPress: () => handleDeleteBlock(sickLeaveInfo.block.id),
+                      },
+                    ],
+                  );
+                }}
+                style={({ pressed }) => [{
+                  backgroundColor: pressed ? '#FFEDD5' : '#FFF7ED',
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: '#FED7AA',
+                  padding: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  marginBottom: 12,
+                }]}
+              >
+                <View style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: '#FFEDD5',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="medkit" size={18} color="#EA580C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#9A3412' }}>
+                    In malattia dalle {String(Math.floor(sickLeaveInfo.sickStartHour)).padStart(2, '0')}:{String(Math.round((sickLeaveInfo.sickStartHour % 1) * 60)).padStart(2, '0')}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#C2410C', marginTop: 2 }}>
+                    {sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                    {' \u2013 '}
+                    {sickLeaveInfo.rangeEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                    {'  \u00B7  Tocca per rimuovere'}
+                  </Text>
+                </View>
+                <Ionicons name="close-circle-outline" size={20} color="#EA580C" />
+              </Pressable>
+            )}
             {/* Empty day hint — inline above the grid */}
             {!hasTimelineAppointments && (
               isSelectedDateHoliday ? (
@@ -2060,8 +2225,92 @@ export const IstruttoreHomeScreen = () => {
                   </View>
                 );
               })}
-              {/* ── Blocks layer: appointments + instructor blocks ── */}
-              {timelineAppointments.map((appt) => {
+              {/* ── Blocks layer: appointments + exam groups + instructor blocks ── */}
+              {timelineItems.map((item) => {
+                if (item.kind === 'examGroup') {
+                  const startDate = new Date(item.startsAt);
+                  const startMin = startDate.getHours() * 60 + startDate.getMinutes();
+                  const endTs = item.endsAt ? new Date(item.endsAt).getTime() : startDate.getTime() + 60 * 60 * 1000;
+                  const durationMin = (endTs - startDate.getTime()) / (60 * 1000);
+                  const firstHourMin = HOUR_SLOTS[0] * 60;
+                  const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
+                  const blockH = Math.max(36, (durationMin / 60) * ROW_H);
+                  const isCompact = blockH < 55;
+                  const studentsCount = item.appointments.length;
+                  const studentsPreview = item.appointments
+                    .slice(0, 2)
+                    .map((a) => a.student?.name ?? '')
+                    .filter(Boolean)
+                    .join(', ');
+                  const moreCount = studentsCount - 2;
+                  return (
+                    <Pressable
+                      key={`exam-${item.id}`}
+                      onPress={() =>
+                        setExamDrawerGroup({
+                          id: item.id,
+                          startsAt: item.startsAt,
+                          endsAt: item.endsAt,
+                          instructorId: item.instructorId,
+                          instructorName: item.instructorName,
+                          notes: item.notes,
+                          appointments: item.appointments,
+                        })
+                      }
+                      style={[
+                        styles.timelineBlock,
+                        {
+                          borderLeftColor: '#6366F1',
+                          borderLeftWidth: 4,
+                          backgroundColor: '#EEF2FF',
+                          position: 'absolute',
+                          top: topPx,
+                          left: 46 + 14,
+                          right: 0,
+                          height: blockH,
+                          zIndex: 6,
+                          padding: isCompact ? 6 : 14,
+                        },
+                      ]}
+                    >
+                      {isCompact ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <Ionicons name="school" size={14} color="#4338CA" />
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }} numberOfLines={1}>
+                            {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt ?? new Date(endTs).toISOString())}
+                          </Text>
+                          <Text style={{ fontSize: 13, color: '#4338CA', flex: 1 }} numberOfLines={1}>
+                            Esame · {studentsCount} {studentsCount === 1 ? 'allievo' : 'allievi'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <>
+                          <View style={styles.timelineBlockHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="school" size={16} color="#4338CA" />
+                              <Text style={[styles.timelineBlockTime, { color: '#4338CA' }]}>
+                                {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt ?? new Date(endTs).toISOString())}
+                              </Text>
+                            </View>
+                            <View style={[styles.timelineStatusBadge, { backgroundColor: '#E0E7FF' }]}>
+                              <Text style={[styles.timelineStatusText, { color: '#4338CA' }]}>
+                                ESAME
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.timelineBlockStudent, { color: '#1E293B' }]} numberOfLines={1}>
+                            {studentsCount} {studentsCount === 1 ? 'allievo all\u2019esame' : 'allievi all\u2019esame'}
+                          </Text>
+                          <Text style={[styles.timelineBlockMeta, { color: '#4C1D95' }]} numberOfLines={1}>
+                            {studentsPreview}
+                            {moreCount > 0 ? ` +${moreCount}` : ''}
+                          </Text>
+                        </>
+                      )}
+                    </Pressable>
+                  );
+                }
+                const appt = item.appointment;
                 const startDate = new Date(appt.startsAt);
                 const startMin = startDate.getHours() * 60 + startDate.getMinutes();
                 const endTs = appt.endsAt ? new Date(appt.endsAt).getTime() : startDate.getTime() + 60 * 60 * 1000;
@@ -2069,7 +2318,7 @@ export const IstruttoreHomeScreen = () => {
                 const firstHourMin = HOUR_SLOTS[0] * 60;
                 const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
                 const blockH = Math.max(36, (durationMin / 60) * ROW_H);
-                const config = timelineStatusConfig(appt.status);
+                const config = timelineStatusConfig(appt.status, appt.type);
                 const isActive = isLessonInProgressWindow(appt, now);
                 const actionAvail = getActionAvailability(appt, now);
                 const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
@@ -2093,11 +2342,15 @@ export const IstruttoreHomeScreen = () => {
                         padding: isCompact ? 6 : 14,
                       },
                       isActive && styles.timelineBlockActive,
+                      config.isExam && { backgroundColor: '#F5F3FF', borderLeftWidth: 4 },
                     ]}
                   >
                     {isCompact ? (
                       /* ── Compact: single row ── */
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        {config.isExam ? (
+                          <Ionicons name="school" size={14} color="#4338CA" />
+                        ) : null}
                         <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>
                           {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(endTs).toISOString())}
                         </Text>
@@ -2114,9 +2367,14 @@ export const IstruttoreHomeScreen = () => {
                       /* ── Normal / Full ── */
                       <>
                         <View style={styles.timelineBlockHeader}>
-                          <Text style={styles.timelineBlockTime}>
-                            {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(endTs).toISOString())}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {config.isExam ? (
+                              <Ionicons name="school" size={15} color="#4338CA" />
+                            ) : null}
+                            <Text style={[styles.timelineBlockTime, config.isExam && { color: '#4338CA' }]}>
+                              {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(endTs).toISOString())}
+                            </Text>
+                          </View>
                           <View style={[styles.timelineStatusBadge, { backgroundColor: config.badgeBg }]}>
                             <Text style={[styles.timelineStatusText, { color: config.badgeText }]}>
                               {config.label}
@@ -2127,7 +2385,9 @@ export const IstruttoreHomeScreen = () => {
                           {appt.student?.firstName} {appt.student?.lastName}
                         </Text>
                         <Text style={styles.timelineBlockMeta} numberOfLines={1}>
-                          {[appt.vehicle?.name, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
+                          {config.isExam
+                            ? `Esame di guida \u00B7 ${durationLabel(appt)}`
+                            : [appt.vehicle?.name, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
                         </Text>
 
                         {isFull && appt.studentId && studentNotesMap[appt.studentId] ? (
@@ -2170,7 +2430,12 @@ export const IstruttoreHomeScreen = () => {
                 );
               })}
               {/* ── Instructor blocks layer ── */}
-              {Array.from(new Map(Array.from(blocksByHour.values()).flat().filter((b) => b.reason !== 'sick_leave').map((b) => [b.id, b])).values()).map((block) => {
+              {Array.from(new Map(Array.from(blocksByHour.values()).flat().filter((b) => {
+                // Hide sick_leave blocks from timeline only when full-day overlay is shown
+                if (b.reason === 'sick_leave') return sickLeaveInfo?.isHalfDay === true;
+                return true;
+              }).map((b) => [b.id, b])).values()).map((block) => {
+                const isSickBlock = block.reason === 'sick_leave';
                 const bStart = new Date(block.startsAt);
                 const bEnd = new Date(block.endsAt);
                 const bStartMin = bStart.getHours() * 60 + bStart.getMinutes();
@@ -2185,33 +2450,54 @@ export const IstruttoreHomeScreen = () => {
                 const topPx = ((clampedStart - firstHourMin) / 60) * ROW_H;
                 const blockH = Math.max(36, (clampedDurMin / 60) * ROW_H);
                 const bCompact = blockH < 55;
+                // Sick leave blocks: orange theme
+                const blockBorderColor = isSickBlock ? '#FB923C' : '#94A3B8';
+                const blockBgColor = isSickBlock ? '#FFF7ED' : '#F8FAFC';
+                const blockTextColor = isSickBlock ? '#EA580C' : '#94A3B8';
+                const blockBadgeBg = isSickBlock ? '#FFEDD5' : '#F1F5F9';
+                const blockBadgeText = isSickBlock ? '#C2410C' : '#64748B';
+                const blockLabel = isSickBlock ? 'In malattia' : (block.reason || 'Bloccato');
                 return (
                   <Pressable
                     key={`block-${block.id}`}
-                    onPress={() => handleDeleteBlock(block.id)}
-                    style={[styles.timelineBlock, { borderLeftColor: '#94A3B8', backgroundColor: '#F8FAFC', position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, padding: bCompact ? 6 : 14 }]}
+                    onPress={() => isSickBlock
+                      ? Alert.alert(
+                          'Rimuovi malattia',
+                          'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.',
+                          [
+                            { text: 'Annulla', style: 'cancel' },
+                            { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
+                          ],
+                        )
+                      : handleDeleteBlock(block.id)
+                    }
+                    style={[styles.timelineBlock, { borderLeftColor: blockBorderColor, backgroundColor: blockBgColor, position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, padding: bCompact ? 6 : 14 }]}
                   >
                     {bCompact ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#94A3B8' }} numberOfLines={1}>
+                        {isSickBlock && <Ionicons name="medkit" size={14} color="#EA580C" />}
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: blockTextColor }} numberOfLines={1}>
                           {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
                         </Text>
-                        <Text style={{ fontSize: 13, color: '#94A3B8', flex: 1 }} numberOfLines={1}>
-                          {block.reason || 'Bloccato'}
+                        <Text style={{ fontSize: 13, color: blockTextColor, flex: 1 }} numberOfLines={1}>
+                          {blockLabel}
                         </Text>
                       </View>
                     ) : (
                       <>
                         <View style={styles.timelineBlockHeader}>
-                          <Text style={styles.timelineBlockTime}>
-                            {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
-                          </Text>
-                          <View style={[styles.timelineStatusBadge, { backgroundColor: '#F1F5F9' }]}>
-                            <Text style={[styles.timelineStatusText, { color: '#64748B' }]}>Bloccato</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {isSickBlock && <Ionicons name="medkit" size={14} color="#EA580C" />}
+                            <Text style={[styles.timelineBlockTime, isSickBlock && { color: '#EA580C' }]}>
+                              {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
+                            </Text>
+                          </View>
+                          <View style={[styles.timelineStatusBadge, { backgroundColor: blockBadgeBg }]}>
+                            <Text style={[styles.timelineStatusText, { color: blockBadgeText }]}>{blockLabel}</Text>
                           </View>
                         </View>
-                        <Text style={[styles.timelineBlockStudent, { color: '#94A3B8' }]}>
-                          {block.reason || 'Slot bloccato'}
+                        <Text style={[styles.timelineBlockStudent, { color: blockTextColor }]}>
+                          {isSickBlock ? 'Guide cancellate e allievi avvisati' : (block.reason || 'Slot bloccato')}
                         </Text>
                       </>
                     )}
@@ -2356,6 +2642,12 @@ export const IstruttoreHomeScreen = () => {
       <BottomSheet
         visible={Boolean(sheetLesson)}
         onClose={() => { if (!isPending) setSheetLesson(null); }}
+        onClosed={() => {
+          if (pendingRescheduleRef.current) {
+            setRescheduleLesson(pendingRescheduleRef.current);
+            pendingRescheduleRef.current = null;
+          }
+        }}
         title="Gestisci guida"
         closeDisabled={isPending}
         showHandle
@@ -2368,6 +2660,22 @@ export const IstruttoreHomeScreen = () => {
               disabled={isPending || !isSheetDetailsEditable}
               fullWidth
             />
+            {canRescheduleSheetLesson ? (
+              <Button
+                label="Sposta"
+                tone="secondary"
+                onPress={
+                  !isPending && sheetLesson
+                    ? () => {
+                        pendingRescheduleRef.current = sheetLesson;
+                        setSheetLesson(null);
+                      }
+                    : undefined
+                }
+                disabled={isPending}
+                fullWidth
+              />
+            ) : null}
             <Button
               label={
                 pendingAction === 'reposition'
@@ -2616,72 +2924,7 @@ export const IstruttoreHomeScreen = () => {
             ) : null}
           </View>
 
-          {instructorBookingMode === 'guided_proposal' ? (
-            <>
-              {/* ── GIORNO (guided) ── */}
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Giorno</Text>
-                <Pressable
-                  onPress={() => {
-                    setBookingSheetOpen(false);
-                    setTimeout(() => setGuidedCalendarOpen(true), 350);
-                  }}
-                  style={styles.bookingFieldCard}
-                >
-                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                    <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                      <Ionicons name="calendar-outline" size={18} color="#CA8A04" />
-                    </View>
-                    <Text style={styles.bookingFieldText}>
-                      {guidedPreferredDate
-                        ? guidedPreferredDate.toLocaleDateString('it-IT', {
-                            weekday: 'short',
-                            day: '2-digit',
-                            month: 'short',
-                          })
-                        : 'Seleziona data'}
-                    </Text>
-                  </View>
-                  <Text style={styles.bookingFieldChevron}>›</Text>
-                </Pressable>
-              </View>
-
-              <Button
-                label={
-                  guidedPreferredDate
-                    ? 'Rimuovi data preferita'
-                    : 'Lascia scegliere al motore'
-                }
-                tone="standard"
-                onPress={() => {
-                  setGuidedPreferredDate(null);
-                  setGuidedSuggestion(null);
-                }}
-                disabled={Boolean(bookingPendingAction)}
-                fullWidth
-              />
-              {guidedSuggestion ? (
-                <View style={styles.guidedSuggestionCard}>
-                  <Text style={styles.guidedSuggestionTitle}>Slot suggerito dal motore</Text>
-                  <Text style={styles.sheetMeta}>
-                    {formatDay(guidedSuggestion.startsAt)} · {formatTime(guidedSuggestion.startsAt)}
-                  </Text>
-                  <Text style={styles.sheetMeta}>
-                    Durata: {guidedSuggestion.durationMinutes} min
-                  </Text>
-                  <Text style={styles.sheetMeta}>
-                    Tipo guida: {guidedSuggestion.suggestedLessonType || 'guida'}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.actionHint}>
-                  Seleziona l'allievo e premi "Trova slot" per ricevere una proposta ottimizzata.
-                </Text>
-              )}
-            </>
-          ) : (
-            <>
-              {/* ── GIORNO ── */}
+          {/* ── GIORNO ── */}
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Giorno</Text>
                 <Pressable
@@ -2774,11 +3017,8 @@ export const IstruttoreHomeScreen = () => {
                   <Text style={styles.actionHint}>Nessun veicolo disponibile.</Text>
                 ) : null}
               </View>
-            </>
-          )}
 
           {/* ── TIPO GUIDA ── */}
-          {instructorBookingMode !== 'guided_proposal' ? (
             <View style={{ marginTop: spacing.sm }}>
               <Text style={styles.bookingSectionLabel}>Tipo guida</Text>
               <ScrollView
@@ -2805,7 +3045,6 @@ export const IstruttoreHomeScreen = () => {
                 ))}
               </ScrollView>
             </View>
-          ) : null}
         </ScrollView>
       </BottomSheet>
 
@@ -3069,6 +3308,140 @@ export const IstruttoreHomeScreen = () => {
         </ScrollView>
       </BottomSheet>
 
+      {/* ── Exam details drawer ── */}
+      <BottomSheet
+        visible={Boolean(examDrawerGroup)}
+        onClose={() => setExamDrawerGroup(null)}
+        showHandle
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="school" size={20} color="#4338CA" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>Esame di guida</Text>
+              {examDrawerGroup ? (
+                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                  {formatDay(examDrawerGroup.startsAt)} · {formatTime(examDrawerGroup.startsAt)}
+                  {examDrawerGroup.endsAt ? ` – ${formatTime(examDrawerGroup.endsAt)}` : ''}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          {examDrawerGroup?.instructorName ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 12 }}>
+              <Ionicons name="person-outline" size={16} color="#64748B" />
+              <Text style={{ fontSize: 13, color: '#475569' }}>Accompagnatore:</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', flex: 1 }}>
+                {examDrawerGroup.instructorName}
+              </Text>
+            </View>
+          ) : null}
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 8 }}>
+            ALLIEVI ({examDrawerGroup?.appointments.length ?? 0})
+          </Text>
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden', marginBottom: 12 }}>
+            {examDrawerGroup?.appointments.map((a, idx) => {
+              const isLast = idx === examDrawerGroup.appointments.length - 1;
+              const canRemove = examDrawerGroup.appointments.length > 1;
+              const pending = examActionPending === a.id;
+              const name = a.student?.name ?? 'Allievo';
+              return (
+                <View
+                  key={a.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: '#F1F5F9',
+                  }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="person" size={14} color="#4338CA" />
+                  </View>
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#1E293B' }} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      canRemove && !pending
+                        ? Alert.alert(
+                            'Rimuovi allievo',
+                            `Rimuovere ${name} dall\u2019esame?`,
+                            [
+                              { text: 'Annulla', style: 'cancel' },
+                              { text: 'Rimuovi', style: 'destructive', onPress: () => handleRemoveExamStudent(a.id) },
+                            ],
+                          )
+                        : undefined
+                    }
+                    disabled={!canRemove || pending}
+                    style={({ pressed }) => [
+                      {
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        backgroundColor: !canRemove ? '#F1F5F9' : pressed ? '#FEE2E2' : '#FEF2F2',
+                        borderWidth: 1,
+                        borderColor: !canRemove ? '#E2E8F0' : '#FECACA',
+                      },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: !canRemove ? '#94A3B8' : '#DC2626' }}>
+                      {pending ? '...' : 'Rimuovi'}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+
+          {examDrawerGroup?.notes ? (
+            <>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 8 }}>NOTE</Text>
+              <View style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, color: '#475569', lineHeight: 18 }}>{examDrawerGroup.notes}</Text>
+              </View>
+            </>
+          ) : null}
+
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                'Annulla esame',
+                'Vuoi annullare l\u2019esame per tutti gli allievi?',
+                [
+                  { text: 'Chiudi', style: 'cancel' },
+                  { text: 'Annulla esame', style: 'destructive', onPress: handleCancelExam },
+                ],
+              )
+            }
+            disabled={examActionPending === 'all'}
+            style={({ pressed }) => [
+              {
+                paddingVertical: 14,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: '#FECACA',
+                backgroundColor: pressed ? '#FEE2E2' : '#FFFFFF',
+                alignItems: 'center',
+                marginTop: 4,
+              },
+              examActionPending === 'all' && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#DC2626' }}>
+              {examActionPending === 'all' ? 'Annullamento...' : 'Annulla esame'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </BottomSheet>
+
       {/* Block slot calendar/time drawers */}
       <CalendarDrawer
         visible={blockCalendarOpen}
@@ -3108,6 +3481,22 @@ export const IstruttoreHomeScreen = () => {
           setTimeout(() => setBlockSheetOpen(true), 350);
         }}
         selectedTime={blockEndTime}
+      />
+
+      <RescheduleAppointmentSheet
+        visible={rescheduleLesson !== null}
+        onClose={() => setRescheduleLesson(null)}
+        lesson={rescheduleLesson}
+        onSuccess={(newStartsAt) => {
+          setToast({
+            text: `Guida spostata al ${formatDay(newStartsAt)} · ${formatTime(newStartsAt)}.`,
+            tone: 'success',
+          });
+          loadData();
+        }}
+        onError={(message) => {
+          setToast({ text: message, tone: 'danger' });
+        }}
       />
     </Screen>
   );

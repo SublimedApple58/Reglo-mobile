@@ -59,6 +59,8 @@ import {
   SelectCompanyPayload,
   StudentRegisterInput,
   UnregisterPushTokenInput,
+  RescheduleAppointmentInput,
+  RescheduleAppointmentResult,
   UpdateAppointmentDetailsInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
@@ -156,9 +158,13 @@ export const createRegloApi = (baseUrl?: string) => {
         autonomousMode: boolean;
         settings: InstructorClusterSettings;
         companyDefaults: CompanyBookingDefaults;
+        students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null }>;
+        assignedStudentIds: string[];
+        instructorId?: string;
+        autonomousInstructors?: Array<{ id: string; name: string }>;
       }>('/api/autoscuole/instructor-settings'),
 
-    updateInstructorSettings: async (input: Partial<InstructorClusterSettings>) =>
+    updateInstructorSettings: async (input: Partial<InstructorClusterSettings> & { assignStudentIds?: string[] }) =>
       client.request<InstructorClusterSettings>('/api/autoscuole/instructor-settings', {
         method: 'PATCH',
         body: input,
@@ -265,6 +271,17 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'POST',
           body: reason ? { reason } : {},
         }
+      ),
+    rescheduleAppointment: async (
+      appointmentId: string,
+      input: RescheduleAppointmentInput,
+    ) =>
+      client.request<RescheduleAppointmentResult>(
+        `/api/autoscuole/appointments/${appointmentId}/reschedule`,
+        {
+          method: 'PATCH',
+          body: input,
+        },
       ),
     getOutOfAvailabilityAppointments: async (instructorId?: string) =>
       client.request<OutOfAvailabilityAppointment[]>(

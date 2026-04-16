@@ -34,6 +34,8 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   holiday_declared: 'calendar-outline',
   weekly_absence: 'calendar-clear-outline',
   sick_leave_cancelled: 'medkit-outline',
+  appointment_rescheduled: 'swap-horizontal-outline',
+  appointment_cancelled: 'close-circle-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -54,6 +56,10 @@ const getTitle = (item: PersistedNotification): string => {
       return `${item.data.studentName ?? 'Un allievo'} assente`;
     case 'sick_leave_cancelled':
       return '🤒 Guida cancellata';
+    case 'appointment_rescheduled':
+      return 'Guida spostata';
+    case 'appointment_cancelled':
+      return 'Guida annullata';
   }
 };
 
@@ -75,6 +81,10 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
     case 'sick_leave_cancelled':
       return `Istruttore ${item.data.instructorName ?? ''} in malattia`;
+    case 'appointment_rescheduled':
+      return `Spostata al ${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
+    case 'appointment_cancelled':
+      return `${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
   }
 };
 
@@ -85,6 +95,7 @@ const ICON_COLOR_MAP: Partial<Record<NotificationItem['kind'], string>> = {
   holiday_declared: '#DC2626',
   weekly_absence: '#D97706',
   sick_leave_cancelled: '#DC2626',
+  appointment_cancelled: '#DC2626',
 };
 
 /* ── Swipeable Card ── */

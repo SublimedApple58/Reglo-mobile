@@ -568,6 +568,72 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         notificationEvents.emitDataChanged();
         return;
       }
+      if (intent === 'appointment_rescheduled') {
+        const notifId = `reschedule_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'appointment_rescheduled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+            oldStartsAt: String(data?.oldStartsAt ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
+      if (intent === 'appointment_cancelled') {
+        const notifId = `cancelled_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'appointment_cancelled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
+      if (intent === 'holiday_declared') {
+        const notifId = `holiday_${data?.date ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'holiday_declared',
+          id: notifId,
+          data: {
+            date: String(data?.date ?? ''),
+            label: data?.label ? String(data.label) : undefined,
+            appointmentsCancelled: Boolean(data?.appointmentsCancelled),
+            cancelledCount: data?.cancelledCount ? Number(data.cancelledCount) : undefined,
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
     });
     return unsub;
   }, [loadSwapOffers, loadWaitlistOffers, loadProposals, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
@@ -679,6 +745,26 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         saveInbox(merged);
         notificationEvents.emitInboxUpdated();
       }
+      if (intent === 'appointment_rescheduled') {
+        const notifId = `reschedule_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'appointment_rescheduled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+            oldStartsAt: String(data?.oldStartsAt ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+      }
     });
     return unsub;
   }, [isInstructor]);
@@ -765,26 +851,49 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   }, [openDrawerForItem]);
 
   // ── Auto-open: 1 unread → open drawer directly + mark read ──
+  // IMPORTANT: skip auto-open for offers that are no longer in the live arrays
+  // (swap/waitlist/proposal). Otherwise the user would randomly see "Troppo tardi!"
+  // on app open just because an old, stale notification is still in the local inbox.
+  // The "Troppo tardi!" drawer should appear ONLY when the user explicitly taps
+  // the item in the inbox screen.
   useEffect(() => {
     if (!inboxLoaded.current) return;
     const unread = inboxItems.filter((n) => !n.read && !n.dismissed);
     if (unread.length === 1) {
       const item = unread[0];
-      if (!autoOpenedIds.current.has(item.id)) {
-        autoOpenedIds.current.add(item.id);
-        // Mark as read immediately so badge doesn't show
-        const updated = inboxItems.map((n) => n.id === item.id ? { ...n, read: true } : n);
-        inboxRef.current = updated;
-        setInboxItems(updated);
-        saveInbox(updated);
-        openDrawerForItem({
-          kind: item.kind,
-          id: item.id,
-          data: item.data,
-        } as NotificationItem);
+      if (autoOpenedIds.current.has(item.id)) return;
+
+      // For offer-type items, verify they are still live before auto-opening.
+      const isOfferKind = item.kind === 'swap' || item.kind === 'waitlist' || item.kind === 'proposal';
+      if (isOfferKind) {
+        const stillAvailable =
+          (item.kind === 'swap' && swapOffers.some((s) => s.id === item.id)) ||
+          (item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id)) ||
+          (item.kind === 'proposal' && proposals.some((p) => p.id === item.id));
+        if (!stillAvailable) {
+          // Silently mark as read without opening any drawer.
+          autoOpenedIds.current.add(item.id);
+          const updated = inboxItems.map((n) => n.id === item.id ? { ...n, read: true } : n);
+          inboxRef.current = updated;
+          setInboxItems(updated);
+          saveInbox(updated);
+          return;
+        }
       }
+
+      autoOpenedIds.current.add(item.id);
+      // Mark as read immediately so badge doesn't show
+      const updated = inboxItems.map((n) => n.id === item.id ? { ...n, read: true } : n);
+      inboxRef.current = updated;
+      setInboxItems(updated);
+      saveInbox(updated);
+      openDrawerForItem({
+        kind: item.kind,
+        id: item.id,
+        data: item.data,
+      } as NotificationItem);
     }
-  }, [inboxItems, openDrawerForItem]);
+  }, [inboxItems, openDrawerForItem, swapOffers, waitlistOffers, proposals]);
 
   // ── Bubble animation: >1 unread → show "Hai N novità!" ──
   useEffect(() => {
@@ -1001,7 +1110,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       />
 
       {/* ── Bell + Badge + Bubble ── */}
-      {pathname === '/home/notifications' ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
+      {!pathname.startsWith('/home') || pathname === '/home/notifications' ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
           {/* Bubble */}
           {unreadCount > 1 ? (
             <Animated.View

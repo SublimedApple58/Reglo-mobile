@@ -36,6 +36,19 @@ export type SickLeaveCancelledData = {
   instructorName: string;
 };
 
+export type AppointmentRescheduledData = {
+  appointmentId: string;
+  startsAt: string;
+  oldStartsAt: string;
+};
+
+export type AppointmentCancelledData = {
+  appointmentId: string;
+  startsAt: string;
+  instructorName?: string;
+  cancellationKind?: string;
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
@@ -44,7 +57,9 @@ export type NotificationItem =
   | { kind: 'available_slots'; id: string; data: AvailableSlotsData }
   | { kind: 'holiday_declared'; id: string; data: HolidayDeclaredData }
   | { kind: 'weekly_absence'; id: string; data: WeeklyAbsenceData }
-  | { kind: 'sick_leave_cancelled'; id: string; data: SickLeaveCancelledData };
+  | { kind: 'sick_leave_cancelled'; id: string; data: SickLeaveCancelledData }
+  | { kind: 'appointment_rescheduled'; id: string; data: AppointmentRescheduledData }
+  | { kind: 'appointment_cancelled'; id: string; data: AppointmentCancelledData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];
