@@ -498,6 +498,7 @@ export type AutoscuolaSettings = {
   swapEnabled?: boolean;
   studentNotesEnabled?: boolean;
   instructorClustersEnabled?: boolean;
+  autoCheckinEnabled?: boolean;
 };
 
 export type MobileBookingOptions = {
@@ -554,6 +555,21 @@ export type ConfirmInstructorBookingInput = {
   vehicleId: Uuid;
   lessonType?: string;
   skipWeeklyLimitCheck?: boolean;
+};
+
+export type ConfirmInstructorBookingBatchInput = {
+  studentId: Uuid;
+  instructorId: Uuid;
+  vehicleId: Uuid;
+  lessonType?: string;
+  types?: string[];
+  skipWeeklyLimitCheck?: boolean;
+  entries: Array<{ startsAt: IsoDate; endsAt: IsoDate }>;
+};
+
+export type ConfirmInstructorBookingBatchResult = {
+  created: number;
+  appointments: AutoscuolaAppointment[];
 };
 
 export type PaymentMethodSummary = {

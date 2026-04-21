@@ -51,6 +51,8 @@ import {
   SuggestInstructorBookingInput,
   InstructorBookingSuggestion,
   ConfirmInstructorBookingInput,
+  ConfirmInstructorBookingBatchInput,
+  ConfirmInstructorBookingBatchResult,
   LatestStudentAppointmentNote,
   DeleteAccountInput,
   DeleteAccountPayload,
@@ -410,6 +412,11 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     confirmInstructorBooking: async (input: ConfirmInstructorBookingInput) =>
       client.request<AutoscuolaAppointment>('/api/autoscuole/instructor-bookings/confirm', {
+        method: 'POST',
+        body: input,
+      }),
+    confirmInstructorBookingBatch: async (input: ConfirmInstructorBookingBatchInput) =>
+      client.request<ConfirmInstructorBookingBatchResult>('/api/autoscuole/instructor-bookings/confirm-batch', {
         method: 'POST',
         body: input,
       }),

@@ -219,10 +219,18 @@ const toDateOnlyString = (value: Date) => {
 const getActionAvailability = (
   lesson: AutoscuolaAppointmentWithRelations,
   now: Date,
+  autoCheckinEnabled = false,
 ) => {
   const status = normalizeStatus(lesson.status);
-  if (status === 'checked_in') {
+  if (status === 'checked_in' && !autoCheckinEnabled) {
     return { enabled: false, reason: null as string | null };
+  }
+  if (status === 'checked_in' && autoCheckinEnabled) {
+    const { closesAt } = computeStatusWindow(lesson);
+    if (now > closesAt) {
+      return { enabled: false, reason: null as string | null };
+    }
+    return { enabled: true, reason: '' };
   }
   if (CLOSED_ACTION_STATUSES.has(status)) {
     return { enabled: false, reason: null as string | null };
@@ -498,6 +506,12 @@ export const IstruttoreHomeScreen = () => {
   const [bookingDuration, setBookingDuration] = useState<number>(60);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
   const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
+  // ── Multi-booking state ──
+  type MultiBookingEntry = { id: string; date: Date; startTime: Date; duration: number };
+  const [multiBookingMode, setMultiBookingMode] = useState(false);
+  const [multiBookingEntries, setMultiBookingEntries] = useState<MultiBookingEntry[]>([]);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingEntryField, setEditingEntryField] = useState<'date' | 'time' | null>(null);
   const [latestStudentLessonNote, setLatestStudentLessonNote] = useState<{
     startsAt: string;
     note: string;
@@ -966,6 +980,10 @@ export const IstruttoreHomeScreen = () => {
     setBookingStartTime(roundedNow);
     setGuidedSuggestion(null);
     setGuidedPreferredDate(null);
+    setMultiBookingMode(false);
+    setMultiBookingEntries([]);
+    setEditingEntryId(null);
+    setEditingEntryField(null);
     setBookingSheetOpen(true);
   }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
 
@@ -1104,6 +1122,108 @@ export const IstruttoreHomeScreen = () => {
     loadData,
     resolveBookingStartDate,
   ]);
+
+  const handleConfirmMultiBooking = useCallback(async () => {
+    if (!bookingStudentId) {
+      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
+      return;
+    }
+    if (!bookingVehicleId) {
+      setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
+      return;
+    }
+    if (!instructorId) {
+      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
+      return;
+    }
+    if (!multiBookingEntries.length) {
+      setToast({ text: 'Aggiungi almeno una guida.', tone: 'danger' });
+      return;
+    }
+
+    const entries = multiBookingEntries.map((entry) => {
+      const start = new Date(entry.date);
+      start.setHours(entry.startTime.getHours(), entry.startTime.getMinutes(), 0, 0);
+      const end = new Date(start.getTime() + entry.duration * 60 * 1000);
+      return { startsAt: start.toISOString(), endsAt: end.toISOString() };
+    });
+
+    setBookingPendingAction('create');
+    setToast(null);
+
+    const doBook = async (skipWeeklyLimitCheck = false) => {
+      return regloApi.confirmInstructorBookingBatch({
+        studentId: bookingStudentId,
+        instructorId,
+        vehicleId: bookingVehicleId,
+        ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
+          ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
+          : {}),
+        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
+        entries,
+      });
+    };
+
+    try {
+      const result = await doBook();
+      setBookingSheetOpen(false);
+      setMultiBookingMode(false);
+      setMultiBookingEntries([]);
+      setToast({
+        text: `${result.created} guide prenotate.`,
+        tone: 'success',
+      });
+      await loadData();
+    } catch (err: unknown) {
+      const payload = (err as { payload?: Record<string, unknown> })?.payload;
+      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
+        setBookingPendingAction(null);
+        const msg = typeof payload.message === 'string'
+          ? payload.message
+          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
+        Alert.alert('Limite settimanale', msg, [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Procedi',
+            onPress: async () => {
+              setBookingPendingAction('create');
+              try {
+                const result = await doBook(true);
+                setBookingSheetOpen(false);
+                setMultiBookingMode(false);
+                setMultiBookingEntries([]);
+                setToast({ text: `${result.created} guide prenotate.`, tone: 'success' });
+                await loadData();
+              } catch (retryErr) {
+                setToast({
+                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
+                  tone: 'danger',
+                });
+              } finally {
+                setBookingPendingAction(null);
+              }
+            },
+          },
+        ]);
+        return;
+      }
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
+        tone: 'danger',
+      });
+    } finally {
+      setBookingPendingAction(null);
+    }
+  }, [
+    bookingDuration,
+    bookingLessonTypes,
+    bookingStudentId,
+    bookingVehicleId,
+    instructorId,
+    loadData,
+    multiBookingEntries,
+  ]);
+
   const featuredLesson = useMemo(
     () => pickFeaturedLesson(featuredAppointments, now),
     [featuredAppointments, now],
@@ -1332,12 +1452,12 @@ export const IstruttoreHomeScreen = () => {
   const isPending = pendingAction !== null;
   const sheetActionAvailability = useMemo(() => {
     if (!sheetLesson) return null;
-    return getActionAvailability(sheetLesson, now);
-  }, [sheetLesson, now]);
+    return getActionAvailability(sheetLesson, now, settings?.autoCheckinEnabled);
+  }, [sheetLesson, now, settings?.autoCheckinEnabled]);
   const featuredActionAvailability = useMemo(() => {
     if (!featuredLesson) return null;
-    return getActionAvailability(featuredLesson, now);
-  }, [featuredLesson, now]);
+    return getActionAvailability(featuredLesson, now, settings?.autoCheckinEnabled);
+  }, [featuredLesson, now, settings?.autoCheckinEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -1609,7 +1729,7 @@ export const IstruttoreHomeScreen = () => {
       options?: { lessonTypes?: string[]; closeDrawerOnSuccess?: boolean },
     ) => {
       setToast(null);
-      const availability = getActionAvailability(lesson, new Date());
+      const availability = getActionAvailability(lesson, new Date(), settings?.autoCheckinEnabled);
       if (!availability.enabled) {
         if (availability.reason) {
           setToast({ text: availability.reason, tone: 'info' });
@@ -1804,6 +1924,19 @@ export const IstruttoreHomeScreen = () => {
   const bookingSheetFooter = useMemo(() => {
     if (!canInstructorBook) return null;
 
+    if (multiBookingMode) {
+      const n = multiBookingEntries.length;
+      return (
+        <Button
+          label={bookingPendingAction ? 'Prenotazione...' : `Prenota ${n} guid${n === 1 ? 'a' : 'e'}`}
+          tone="primary"
+          onPress={!bookingPendingAction ? handleConfirmMultiBooking : undefined}
+          disabled={Boolean(bookingPendingAction) || !bookingStudentId || !bookingVehicleId || n === 0}
+          fullWidth
+        />
+      );
+    }
+
     return (
       <Button
         label={bookingPendingAction ? 'Prenotazione...' : 'Prenota guida'}
@@ -1820,8 +1953,11 @@ export const IstruttoreHomeScreen = () => {
     canInstructorBook,
     guidedSuggestion,
     handleConfirmInstructorBooking,
+    handleConfirmMultiBooking,
     handleSuggestGuidedBooking,
     instructorBookingMode,
+    multiBookingMode,
+    multiBookingEntries.length,
   ]);
 
   const userName = user?.name?.split(' ')[0] ?? 'Istruttore';
@@ -2320,7 +2456,7 @@ export const IstruttoreHomeScreen = () => {
                 const blockH = Math.max(36, (durationMin / 60) * ROW_H);
                 const config = timelineStatusConfig(appt.status, appt.type);
                 const isActive = isLessonInProgressWindow(appt, now);
-                const actionAvail = getActionAvailability(appt, now);
+                const actionAvail = getActionAvailability(appt, now, settings?.autoCheckinEnabled);
                 const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
                 const isCompact = blockH < 55;
                 const isFull = blockH >= 110;
@@ -2399,15 +2535,17 @@ export const IstruttoreHomeScreen = () => {
                           </View>
                         ) : null}
 
-                        {isFull && isActive && !isCheckedIn && actionAvail.enabled && normalizeStatus(appt.status) !== 'proposal' ? (
+                        {isFull && isActive && (!isCheckedIn || settings?.autoCheckinEnabled) && actionAvail.enabled && normalizeStatus(appt.status) !== 'proposal' ? (
                           <View style={styles.timelineActions}>
-                            <Pressable
-                              onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(appt, 'checked_in'); }}
-                              disabled={isPending}
-                              style={({ pressed }) => [styles.timelineActionBtn, styles.timelineCheckIn, pressed && { opacity: 0.8 }, isPending && { opacity: 0.5 }]}
-                            >
-                              <Text style={styles.timelineCheckInText}>{pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Presente'}</Text>
-                            </Pressable>
+                            {!isCheckedIn ? (
+                              <Pressable
+                                onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(appt, 'checked_in'); }}
+                                disabled={isPending}
+                                style={({ pressed }) => [styles.timelineActionBtn, styles.timelineCheckIn, pressed && { opacity: 0.8 }, isPending && { opacity: 0.5 }]}
+                              >
+                                <Text style={styles.timelineCheckInText}>{pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Presente'}</Text>
+                              </Pressable>
+                            ) : null}
                             <Pressable
                               onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(appt, 'no_show'); }}
                               disabled={isPending}
@@ -2695,13 +2833,15 @@ export const IstruttoreHomeScreen = () => {
             />
             {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
               <>
-                <Button
-                  label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
-                  tone="primary"
-                  onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
-                  disabled={isPending}
-                  fullWidth
-                />
+                {normalizeStatus(sheetLesson?.status) !== 'checked_in' ? (
+                  <Button
+                    label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
+                    tone="primary"
+                    onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
+                    disabled={isPending}
+                    fullWidth
+                  />
+                ) : null}
                 <Button
                   label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
                   tone="danger"
@@ -2924,7 +3064,175 @@ export const IstruttoreHomeScreen = () => {
             ) : null}
           </View>
 
-          {/* ── GIORNO ── */}
+          {/* ── PRENOTAZIONE MULTIPLA TOGGLE ── */}
+          <View style={{ marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={[typography.body, { color: '#1E293B' }]}>Prenotazione multipla</Text>
+            <Switch
+              value={multiBookingMode}
+              onValueChange={(val) => {
+                setMultiBookingMode(val);
+                if (val) {
+                  const now = new Date();
+                  const rounded = normalizeToHalfHour(now);
+                  setMultiBookingEntries([{
+                    id: String(Date.now()),
+                    date: new Date(bookingDate),
+                    startTime: rounded,
+                    duration: bookingDuration,
+                  }]);
+                } else {
+                  setMultiBookingEntries([]);
+                  setEditingEntryId(null);
+                  setEditingEntryField(null);
+                }
+              }}
+              trackColor={{ false: '#E2E8F0', true: colors.primary }}
+              thumbColor="#fff"
+              disabled={Boolean(bookingPendingAction)}
+            />
+          </View>
+
+          {multiBookingMode ? (
+            <>
+              {/* ── MULTI ENTRIES LIST ── */}
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={styles.bookingSectionLabel}>Guide</Text>
+                {multiBookingEntries.map((entry, index) => (
+                  <View
+                    key={entry.id}
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 14,
+                      padding: 12,
+                      marginBottom: 8,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 2 },
+                      elevation: 2,
+                    }}
+                  >
+                    {/* Row 1: date + time + trash */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                        <Ionicons name="calendar-outline" size={18} color="#CA8A04" />
+                      </View>
+                      <Pressable
+                        style={{ flex: 1, marginLeft: 10 }}
+                        onPress={() => {
+                          setEditingEntryId(entry.id);
+                          setEditingEntryField('date');
+                          setBookingSheetOpen(false);
+                          setTimeout(() => setBookingCalendarOpen(true), 350);
+                        }}
+                      >
+                        <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
+                          {entry.date.toLocaleDateString('it-IT', {
+                            weekday: 'short',
+                            day: '2-digit',
+                            month: 'short',
+                          })}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          setEditingEntryId(entry.id);
+                          setEditingEntryField('time');
+                          setBookingSheetOpen(false);
+                          setTimeout(() => setTimePickerOpen(true), 350);
+                        }}
+                      >
+                        <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
+                          {String(entry.startTime.getHours()).padStart(2, '0')}:{String(entry.startTime.getMinutes()).padStart(2, '0')}
+                        </Text>
+                      </Pressable>
+                      {multiBookingEntries.length > 1 ? (
+                        <Pressable
+                          hitSlop={8}
+                          style={{ marginLeft: 12 }}
+                          onPress={() => {
+                            setMultiBookingEntries((prev) => prev.filter((e) => e.id !== entry.id));
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        </Pressable>
+                      ) : (
+                        <View style={{ width: 18, marginLeft: 12 }} />
+                      )}
+                    </View>
+                    {/* Row 2: duration chips */}
+                    <View style={{ flexDirection: 'row', marginTop: 8, marginLeft: 42, gap: 6 }}>
+                      {bookingDurations.map((dur) => {
+                        const isActive = entry.duration === dur;
+                        return (
+                          <Pressable
+                            key={dur}
+                            onPress={() => {
+                              setMultiBookingEntries((prev) =>
+                                prev.map((e) => (e.id === entry.id ? { ...e, duration: dur } : e)),
+                              );
+                            }}
+                            style={{
+                              paddingVertical: 4,
+                              paddingHorizontal: 10,
+                              borderRadius: 999,
+                              borderWidth: 1,
+                              backgroundColor: isActive ? '#FEF9C3' : '#F8FAFC',
+                              borderColor: isActive ? '#FDE047' : '#E2E8F0',
+                            }}
+                          >
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: '600',
+                              color: isActive ? '#A16207' : '#64748B',
+                            }}>
+                              {dur} min
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+
+                {/* ── ADD ENTRY BUTTON ── */}
+                {multiBookingEntries.length < 20 ? (
+                  <Pressable
+                    onPress={() => {
+                      const last = multiBookingEntries[multiBookingEntries.length - 1];
+                      const lastDuration = last?.duration ?? bookingDuration;
+                      const newDate = last ? new Date(last.date) : new Date(bookingDate);
+                      const newTime = last
+                        ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000)
+                        : normalizeToHalfHour(new Date());
+                      setMultiBookingEntries((prev) => [
+                        ...prev,
+                        { id: String(Date.now()), date: newDate, startTime: newTime, duration: lastDuration },
+                      ]);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 1.5,
+                      borderStyle: 'dashed',
+                      borderColor: '#CBD5E1',
+                      borderRadius: 14,
+                      paddingVertical: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600', marginLeft: 6 }}>
+                      Aggiungi guida
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </>
+          ) : (
+            <>
+              {/* ── GIORNO (single mode) ── */}
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Giorno</Text>
                 <Pressable
@@ -2950,7 +3258,7 @@ export const IstruttoreHomeScreen = () => {
                 </Pressable>
               </View>
 
-              {/* ── ORA INIZIO ── */}
+              {/* ── ORA INIZIO (single mode) ── */}
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
                 <Pressable
@@ -2971,8 +3279,11 @@ export const IstruttoreHomeScreen = () => {
                   <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
                 </Pressable>
               </View>
+            </>
+          )}
 
-              {/* ── DURATA ── */}
+              {/* ── DURATA (single mode only — multi mode has per-entry duration) ── */}
+              {!multiBookingMode ? (
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Durata</Text>
                 <ScrollView
@@ -2994,6 +3305,7 @@ export const IstruttoreHomeScreen = () => {
                   ))}
                 </ScrollView>
               </View>
+              ) : null}
 
               {/* ── VEICOLO ── */}
               <View style={{ marginTop: spacing.sm }}>
@@ -3062,15 +3374,29 @@ export const IstruttoreHomeScreen = () => {
         visible={bookingCalendarOpen}
         onClose={() => {
           setBookingCalendarOpen(false);
+          setEditingEntryId(null);
+          setEditingEntryField(null);
           setTimeout(() => setBookingSheetOpen(true), 350);
         }}
         onSelectDate={(date) => {
-          setBookingDate(date);
-          setGuidedSuggestion(null);
+          if (editingEntryId && editingEntryField === 'date') {
+            setMultiBookingEntries((prev) =>
+              prev.map((e) => (e.id === editingEntryId ? { ...e, date } : e)),
+            );
+            setEditingEntryId(null);
+            setEditingEntryField(null);
+          } else {
+            setBookingDate(date);
+            setGuidedSuggestion(null);
+          }
           setBookingCalendarOpen(false);
           setTimeout(() => setBookingSheetOpen(true), 350);
         }}
-        selectedDate={bookingDate}
+        selectedDate={
+          editingEntryId
+            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.date ?? bookingDate)
+            : bookingDate
+        }
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
         caption={null}
       />
@@ -3096,13 +3422,27 @@ export const IstruttoreHomeScreen = () => {
         visible={timePickerOpen}
         onClose={() => {
           setTimePickerOpen(false);
+          setEditingEntryId(null);
+          setEditingEntryField(null);
           setTimeout(() => setBookingSheetOpen(true), 350);
         }}
         onSelectTime={(date) => {
-          setBookingStartTime(date);
-          setGuidedSuggestion(null);
+          if (editingEntryId && editingEntryField === 'time') {
+            setMultiBookingEntries((prev) =>
+              prev.map((e) => (e.id === editingEntryId ? { ...e, startTime: date } : e)),
+            );
+            setEditingEntryId(null);
+            setEditingEntryField(null);
+          } else {
+            setBookingStartTime(date);
+            setGuidedSuggestion(null);
+          }
         }}
-        selectedTime={bookingStartTime}
+        selectedTime={
+          editingEntryId
+            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.startTime ?? bookingStartTime)
+            : bookingStartTime
+        }
       />
 
       {/* ── Block Slot BottomSheet ── */}
