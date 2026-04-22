@@ -10,8 +10,8 @@ type SelectableChipProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-const ACTIVE_BG = '#FACC15';
-const ACTIVE_BORDER = '#FACC15';
+const ACTIVE_BG = '#FEF9C3';
+const ACTIVE_BORDER = '#FDE047';
 const INACTIVE_BG = '#F8FAFC';
 const INACTIVE_BORDER = '#E2E8F0';
 
@@ -48,7 +48,7 @@ export const SelectableChip = ({
 
   const animatedTextColor = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#64748B', '#92400E'],
+    outputRange: ['#64748B', '#A16207'],
   });
 
   return (
