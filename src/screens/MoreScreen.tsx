@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
-import { colors, spacing } from '../theme';
+import { spacing } from '../theme';
 
 type MenuItem = {
   route: string;

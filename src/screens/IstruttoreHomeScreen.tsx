@@ -544,6 +544,7 @@ export const IstruttoreHomeScreen = () => {
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const bookingSheetNextRef = useRef<'calendar' | 'timepicker' | null>(null);
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
   const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
@@ -1051,7 +1052,7 @@ export const IstruttoreHomeScreen = () => {
       setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
       return;
     }
-    if (!bookingVehicleId) {
+    if (settings?.vehiclesEnabled !== false && !bookingVehicleId) {
       setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
       return;
     }
@@ -1078,7 +1079,7 @@ export const IstruttoreHomeScreen = () => {
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
         instructorId,
-        vehicleId: guidedSuggestion?.vehicleId ?? bookingVehicleId,
+        vehicleId: settings?.vehiclesEnabled !== false ? (guidedSuggestion?.vehicleId ?? bookingVehicleId) : null,
         ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
           ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
           : {}),
@@ -1151,7 +1152,7 @@ export const IstruttoreHomeScreen = () => {
       setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
       return;
     }
-    if (!bookingVehicleId) {
+    if (settings?.vehiclesEnabled !== false && !bookingVehicleId) {
       setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
       return;
     }
@@ -1178,7 +1179,7 @@ export const IstruttoreHomeScreen = () => {
       return regloApi.confirmInstructorBookingBatch({
         studentId: bookingStudentId,
         instructorId,
-        vehicleId: bookingVehicleId,
+        vehicleId: settings?.vehiclesEnabled !== false ? bookingVehicleId : null,
         ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
           ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
           : {}),
@@ -2098,7 +2099,7 @@ export const IstruttoreHomeScreen = () => {
           label={bookingPendingAction ? 'Prenotazione...' : `Prenota ${n} guid${n === 1 ? 'a' : 'e'}`}
           tone="primary"
           onPress={!bookingPendingAction ? handleConfirmMultiBooking : undefined}
-          disabled={Boolean(bookingPendingAction) || !bookingStudentId || !bookingVehicleId || n === 0}
+          disabled={Boolean(bookingPendingAction) || !bookingStudentId || (settings?.vehiclesEnabled !== false && !bookingVehicleId) || n === 0}
           fullWidth
         />
       );
@@ -2109,7 +2110,7 @@ export const IstruttoreHomeScreen = () => {
         label={bookingPendingAction ? 'Prenotazione...' : 'Prenota guida'}
         tone="primary"
         onPress={!bookingPendingAction ? handleConfirmInstructorBooking : undefined}
-        disabled={Boolean(bookingPendingAction) || !bookingStudentId || !bookingVehicleId}
+        disabled={Boolean(bookingPendingAction) || !bookingStudentId || (settings?.vehiclesEnabled !== false && !bookingVehicleId)}
         fullWidth
       />
     );
@@ -2728,7 +2729,7 @@ export const IstruttoreHomeScreen = () => {
                         <Text style={styles.timelineBlockMeta} numberOfLines={1}>
                           {config.isExam
                             ? `Esame di guida \u00B7 ${durationLabel(appt)}`
-                            : [appt.vehicle?.name, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
+                            : [settings?.vehiclesEnabled !== false ? appt.vehicle?.name : null, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
                         </Text>
 
                         {isFull && appt.studentId && studentNotesMap[appt.studentId] ? (
@@ -3174,7 +3175,7 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               ) : null}
               <Text style={styles.modalInfoSub}>
-                {durationLabel(sheetLesson)} {'\u00B7'} {sheetLesson.vehicle?.name ?? 'Da assegnare'}
+                {durationLabel(sheetLesson)}{settings?.vehiclesEnabled !== false ? ` \u00B7 ${sheetLesson.vehicle?.name ?? 'Da assegnare'}` : ''}
               </Text>
               <View style={styles.sheetStatusRow}>
                 {sheetStateMeta ? (
@@ -3259,6 +3260,12 @@ export const IstruttoreHomeScreen = () => {
       <BottomSheet
         visible={bookingSheetOpen}
         onClose={() => { if (!bookingPendingAction) { setBookingSheetOpen(false); setEmergencyAllStudents(false); } }}
+        onClosed={() => {
+          const next = bookingSheetNextRef.current;
+          bookingSheetNextRef.current = null;
+          if (next === 'calendar') setBookingCalendarOpen(true);
+          else if (next === 'timepicker') setTimePickerOpen(true);
+        }}
         title="Nuova prenotazione"
         closeDisabled={Boolean(bookingPendingAction)}
         minHeight={bookingSheetMinHeight}
@@ -3393,8 +3400,8 @@ export const IstruttoreHomeScreen = () => {
                         onPress={() => {
                           setEditingEntryId(entry.id);
                           setEditingEntryField('date');
+                          bookingSheetNextRef.current = 'calendar';
                           setBookingSheetOpen(false);
-                          setTimeout(() => setBookingCalendarOpen(true), 350);
                         }}
                       >
                         <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
@@ -3534,8 +3541,8 @@ export const IstruttoreHomeScreen = () => {
                 <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
                 <Pressable
                   onPress={() => {
+                    bookingSheetNextRef.current = 'timepicker';
                     setBookingSheetOpen(false);
-                    setTimeout(() => setTimePickerOpen(true), 350);
                   }}
                   style={styles.bookingFieldCard}
                 >
@@ -3579,6 +3586,7 @@ export const IstruttoreHomeScreen = () => {
               ) : null}
 
               {/* ── VEICOLO ── */}
+              {settings?.vehiclesEnabled !== false && (
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Veicolo</Text>
                 <ScrollView
@@ -3600,6 +3608,7 @@ export const IstruttoreHomeScreen = () => {
                   <Text style={styles.actionHint}>Nessun veicolo disponibile.</Text>
                 ) : null}
               </View>
+              )}
 
           {/* ── TIPO GUIDA ── */}
             <View style={{ marginTop: spacing.sm }}>
@@ -3647,8 +3656,8 @@ export const IstruttoreHomeScreen = () => {
           setBookingCalendarOpen(false);
           setEditingEntryId(null);
           setEditingEntryField(null);
-          setTimeout(() => setBookingSheetOpen(true), 350);
         }}
+        onClosed={() => setBookingSheetOpen(true)}
         onSelectDate={(date) => {
           if (editingEntryId && editingEntryField === 'date') {
             setMultiBookingEntries((prev) =>
@@ -3661,7 +3670,6 @@ export const IstruttoreHomeScreen = () => {
             setGuidedSuggestion(null);
           }
           setBookingCalendarOpen(false);
-          setTimeout(() => setBookingSheetOpen(true), 350);
         }}
         selectedDate={
           editingEntryId
@@ -3676,13 +3684,12 @@ export const IstruttoreHomeScreen = () => {
         visible={guidedCalendarOpen}
         onClose={() => {
           setGuidedCalendarOpen(false);
-          setTimeout(() => setBookingSheetOpen(true), 350);
         }}
+        onClosed={() => setBookingSheetOpen(true)}
         onSelectDate={(date) => {
           setGuidedPreferredDate(date);
           setGuidedSuggestion(null);
           setGuidedCalendarOpen(false);
-          setTimeout(() => setBookingSheetOpen(true), 350);
         }}
         selectedDate={guidedPreferredDate ?? new Date()}
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
@@ -3695,8 +3702,8 @@ export const IstruttoreHomeScreen = () => {
           setTimePickerOpen(false);
           setEditingEntryId(null);
           setEditingEntryField(null);
-          setTimeout(() => setBookingSheetOpen(true), 350);
         }}
+        onClosed={() => setBookingSheetOpen(true)}
         onSelectTime={(date) => {
           if (editingEntryId && editingEntryField === 'time') {
             setMultiBookingEntries((prev) =>
@@ -4192,9 +4199,11 @@ export const IstruttoreHomeScreen = () => {
                             <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
                               {appt.student?.firstName ?? ''} {appt.student?.lastName ?? ''}
                             </Text>
-                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 1 }}>
-                              {appt.vehicle?.name ?? ''}
-                            </Text>
+                            {settings?.vehiclesEnabled !== false && appt.vehicle?.name ? (
+                              <Text style={{ fontSize: 13, color: '#64748B', marginTop: 1 }}>
+                                {appt.vehicle.name}
+                              </Text>
+                            ) : null}
                           </View>
                           <Text style={{ fontSize: 14, fontWeight: '600', color: '#475569' }}>
                             {timeStr} – {endStr}

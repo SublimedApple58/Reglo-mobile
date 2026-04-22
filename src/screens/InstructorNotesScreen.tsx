@@ -100,17 +100,16 @@ export const InstructorNotesScreen = () => {
   };
 
   const loadData = useCallback(async () => {
-    if (!instructorId) return;
     try {
       const [bootstrap, appts, instrSettings] = await Promise.all([
         regloApi.getAgendaBootstrap({
-          instructorId,
+          ...(instructorId ? { instructorId } : {}),
           from: new Date(0).toISOString(),
           to: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
           limit: 1,
         }),
         regloApi.getAppointments({ limit: 500 }),
-        regloApi.getInstructorSettings().catch(() => null),
+        instructorId ? regloApi.getInstructorSettings().catch(() => null) : Promise.resolve(null),
       ]);
       setStudents(bootstrap.students);
       setAllAppointments(

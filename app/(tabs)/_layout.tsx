@@ -10,6 +10,7 @@ import { useSession } from '../../src/context/SessionContext';
 import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
+import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
 
@@ -151,13 +152,15 @@ export default function TabsLayout() {
   const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
+  const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isStudent = !showRoleTab;
   const isInstructor = autoscuolaRole === 'INSTRUCTOR';
   const showSwapsTab = isStudent && swapEnabled;
   const showNotesTab = showRoleTab || studentNotesEnabled;
-  const showMoreTab = showRoleTab; // instructors/owners have >3 tabs, need "Altro"
+  // "Altro" tab only if there are multiple items (vehicles + settings); otherwise show settings directly
+  const showMoreTab = showRoleTab && vehiclesEnabled;
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can

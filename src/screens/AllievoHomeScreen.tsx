@@ -259,7 +259,7 @@ export const AllievoHomeScreen = () => {
   }, [historyDetailsOpen]);
 
   const openPreferences = () => {
-    if (settings?.appBookingActors === 'instructors') {
+    if (studentBookingDisabledByPolicy) {
       setToast({
         text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.',
         tone: 'info',
@@ -304,7 +304,9 @@ export const AllievoHomeScreen = () => {
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
-  const studentBookingDisabledByPolicy = settings?.appBookingActors === 'instructors';
+  // Prefer cluster-resolved setting over company default
+  const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
+  const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
   const requiresPaymentMethodForBooking = Boolean(
     paymentProfile?.autoPaymentsEnabled &&
       !creditFlowEnabled &&
@@ -321,11 +323,10 @@ export const AllievoHomeScreen = () => {
     bookingOptions?.weeklyBookingLimit?.enabled &&
       bookingOptions.weeklyBookingLimit.reached
   );
-  const examPriority = bookingOptions?.weeklyBookingLimit?.examPriority ?? null;
-  const weeklyLimitLabel = bookingOptions?.weeklyBookingLimit?.enabled
-    ? examPriority?.active
-      ? `Limite priorità esame raggiunto (${bookingOptions.weeklyBookingLimit.current ?? 0}/${bookingOptions.weeklyBookingLimit.limit ?? 0} guide)`
-      : `Limite di ${bookingOptions.weeklyBookingLimit.limit ?? 0} guide settimanali raggiunto`
+  const examPriority = bookingOptions?.examPriority ?? bookingOptions?.weeklyBookingLimit?.examPriority ?? null;
+  const blockedByExamPriority = bookingOptions?.blockedByExamPriority === true;
+  const weeklyLimitLabel = bookingOptions?.weeklyBookingLimit?.enabled && !examPriority?.active
+    ? `Limite di ${bookingOptions.weeklyBookingLimit.limit ?? 0} guide settimanali raggiunto`
     : '';
 
   const loadStudents = useCallback(async () => {
@@ -380,23 +381,21 @@ export const AllievoHomeScreen = () => {
           return;
         }
 
-        const studentCanBookFromApp = settingsResponse.appBookingActors !== 'instructors';
-        let bookingOptionsResponse: MobileBookingOptions | null = null;
-        if (studentCanBookFromApp) {
-          bookingOptionsResponse = await regloApi.getBookingOptions(studentId).catch(() => null);
-          if (requestId !== loadRequestRef.current) {
-            return;
-          }
+        // Always fetch booking options — cluster-resolved appBookingActors may differ from company default
+        const bookingOptionsResponse = await regloApi.getBookingOptions(studentId).catch(() => null);
+        if (requestId !== loadRequestRef.current) {
+          return;
         }
 
         setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
         setSettings(settingsResponse);
         setPaymentProfile(paymentResponse);
         setPaymentHistory(paymentHistoryResponse);
+        const canBook = settingsResponse.appBookingActors !== 'instructors';
         const resolvedBookingOptions: MobileBookingOptions = bookingOptionsResponse ?? {
           bookingSlotDurations: settingsResponse.bookingSlotDurations ?? [30, 60],
-          lessonTypeSelectionEnabled: studentCanBookFromApp && Boolean(settingsResponse.lessonPolicyEnabled),
-          availableLessonTypes: studentCanBookFromApp && settingsResponse.lessonPolicyEnabled
+          lessonTypeSelectionEnabled: canBook && Boolean(settingsResponse.lessonPolicyEnabled),
+          availableLessonTypes: canBook && settingsResponse.lessonPolicyEnabled
             ? [...DEFAULT_BOOKING_LESSON_TYPES]
             : [],
         };
@@ -542,6 +541,18 @@ export const AllievoHomeScreen = () => {
   const bookedDatesSet = useMemo(() => {
     const set = new Set<string>();
     for (const appt of appointments) {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled') continue;
+      const d = new Date(appt.startsAt);
+      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    }
+    return set;
+  }, [appointments]);
+
+  const examDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const appt of appointments) {
+      if (appt.type !== 'esame') continue;
       const status = (appt.status ?? '').trim().toLowerCase();
       if (status === 'cancelled') continue;
       const d = new Date(appt.startsAt);
@@ -1275,8 +1286,24 @@ export const AllievoHomeScreen = () => {
           </>
         ) : (
           <>
+            {/* ── Blocked by others' Exam Priority ── */}
+            {blockedByExamPriority && !examPriority?.active && (
+              <View style={styles.blockedByExamBanner}>
+                <View style={styles.blockedByExamIconCircle}>
+                  <Ionicons name="lock-closed" size={18} color="#7C3AED" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.blockedByExamTitle}>Prenotazioni temporaneamente bloccate</Text>
+                  <Text style={styles.blockedByExamDesc}>
+                    Altri allievi hanno la priorità esame. Potrai prenotare di nuovo quando avranno completato le loro prenotazioni.
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* ── Exam Priority Banner ── */}
-            {examPriority?.active && (
+            {/* Skip when the next lesson is already the exam (card below covers it) */}
+            {examPriority?.active && nextLesson?.type !== 'esame' && (
               <LinearGradient
                 colors={['#8B5CF6', '#A78BFA']}
                 start={{ x: 0, y: 0 }}
@@ -1313,9 +1340,12 @@ export const AllievoHomeScreen = () => {
             )}
 
             {/* ── Prossima Guida Card ── */}
-            {nextLesson ? (
-              <View style={styles.nextLessonShadow}>
-                {!examPriority?.active && (
+            {nextLesson ? (() => {
+              const isExam = nextLesson.type === 'esame';
+              const gradientColors: [string, string] = isExam ? ['#6366F1', '#A5B4FC'] : ['#FACC15', '#FDE68A'];
+              return (
+              <View style={[styles.nextLessonShadow, isExam && { shadowColor: '#4338CA' }]}>
+                {!examPriority?.active && !isExam && (
                   <Image
                     source={require('../../assets/duck-peek.png')}
                     style={styles.nextLessonDuck}
@@ -1323,7 +1353,7 @@ export const AllievoHomeScreen = () => {
                   />
                 )}
                 <LinearGradient
-                  colors={['#FACC15', '#FDE68A']}
+                  colors={gradientColors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 0.8, y: 1 }}
                   style={styles.nextLessonCard}
@@ -1357,8 +1387,7 @@ export const AllievoHomeScreen = () => {
                                 {lesson.endsAt ? ` – ${formatTime(lesson.endsAt)}` : ''}
                               </Text>
                               <Text style={styles.nextLessonSlotDetails}>
-                                {formatInstructorInitials(lesson.instructor?.name)} {'\u2022'}{' '}
-                                {lesson.vehicle?.name ?? 'Da assegnare'}
+                                {formatInstructorInitials(lesson.instructor?.name)}{settings?.vehiclesEnabled !== false ? ` \u2022 ${lesson.vehicle?.name ?? 'Da assegnare'}` : ''}
                               </Text>
                             </View>
                             {!inProgress ? (
@@ -1399,19 +1428,29 @@ export const AllievoHomeScreen = () => {
                       {isLessonInProgress ? (
                         <View style={styles.inProgressBadge}>
                           <View style={styles.inProgressDot} />
-                          <Text style={styles.inProgressBadgeText}>GUIDA IN CORSO</Text>
+                          <Text style={styles.inProgressBadgeText}>
+                            {isExam ? 'ESAME IN CORSO' : 'GUIDA IN CORSO'}
+                          </Text>
                         </View>
                       ) : (
-                        <Text style={styles.nextLessonLabel}>PROSSIMA GUIDA</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {isExam ? (
+                            <Ionicons name="school" size={18} color="#FFFFFF" />
+                          ) : null}
+                          <Text style={styles.nextLessonLabel}>
+                            {isExam ? 'ESAME DI GUIDA' : 'PROSSIMA GUIDA'}
+                          </Text>
+                        </View>
                       )}
                       <Text style={styles.nextLessonDateTime}>
                         {formatDay(nextLesson.startsAt)} {'\u2022'} {formatTime(nextLesson.startsAt)}
                       </Text>
                       <Text style={styles.nextLessonDetails}>
-                        {formatInstructorInitials(nextLesson.instructor?.name)} {'\u2022'}{' '}
-                        {nextLesson.vehicle?.name ?? 'Da assegnare'}
+                        {isExam
+                          ? `Con ${formatInstructorInitials(nextLesson.instructor?.name) || 'accompagnatore da assegnare'}`
+                          : `${formatInstructorInitials(nextLesson.instructor?.name)}${settings?.vehiclesEnabled !== false ? ` \u2022 ${nextLesson.vehicle?.name ?? 'Da assegnare'}` : ''}`}
                       </Text>
-                      {!isLessonInProgress ? (
+                      {!isLessonInProgress && !isExam ? (
                         <View style={styles.nextLessonActions}>
                           {settings?.swapEnabled &&
                             ['scheduled', 'confirmed'].includes(nextLesson.status) ? (
@@ -1444,7 +1483,8 @@ export const AllievoHomeScreen = () => {
                   )}
                 </LinearGradient>
               </View>
-            ) : (
+              );
+            })() : (
               <View style={styles.emptyLessonCard}>
                 {isSelectedDateHoliday ? (
                   <>
@@ -1606,22 +1646,24 @@ export const AllievoHomeScreen = () => {
                   todayNorm.setHours(0, 0, 0, 0);
                   const isToday = dayNorm.getTime() === todayNorm.getTime();
                   const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
-                  const hasBooking = bookedDatesSet.has(
-                    `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`
-                  );
+                  const dayKey = `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`;
+                  const hasBooking = bookedDatesSet.has(dayKey);
+                  const hasExam = examDatesSet.has(dayKey);
                   const isDayHoliday = holidaySet.has(toDateString(dayNorm));
                   return (
                     <Pressable
                       key={`day-${index}`}
                       style={[
                         styles.dayPill,
-                        isDayHoliday && !isSelected && !isToday
-                          ? styles.dayPillHoliday
-                          : isSelected
-                            ? styles.dayPillSelected
-                            : isToday
-                              ? styles.dayPillToday
-                              : styles.dayPillUnselected,
+                        hasExam && !isSelected
+                          ? { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1.5 }
+                          : isDayHoliday && !isSelected && !isToday
+                            ? styles.dayPillHoliday
+                            : isSelected
+                              ? styles.dayPillSelected
+                              : isToday
+                                ? styles.dayPillToday
+                                : styles.dayPillUnselected,
                       ]}
                       onPress={() => setSelectedDate(day.date)}
                     >
@@ -1653,7 +1695,9 @@ export const AllievoHomeScreen = () => {
                       >
                         {day.dayNum}
                       </Text>
-                      {isDayHoliday ? (
+                      {hasExam ? (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
+                      ) : isDayHoliday ? (
                         <View style={styles.dayPillHolidayDot} />
                       ) : hasBooking ? (
                         <View
@@ -1685,6 +1729,28 @@ export const AllievoHomeScreen = () => {
                   : visibleAgendaLessons.map((lesson) => {
                       const status = statusLabel(lesson.status);
                       const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
+                      const isExam = lesson.type === 'esame';
+                      if (isExam) {
+                        return (
+                          <View key={lesson.id} style={styles.agendaExamRow}>
+                            <View style={styles.agendaExamHeader}>
+                              <View style={styles.agendaExamIconBox}>
+                                <Ionicons name="school" size={14} color="#6366F1" />
+                              </View>
+                              <Text style={styles.agendaExamTime}>
+                                {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}
+                              </Text>
+                              <Text style={styles.agendaExamBadge}>ESAME</Text>
+                            </View>
+                            <Text style={styles.agendaExamTitle}>Esame di guida</Text>
+                            <Text style={styles.agendaExamMeta}>
+                              {lesson.instructor?.name
+                                ? `Con ${lesson.instructor.name}`
+                                : 'Accompagnatore da assegnare'}
+                            </Text>
+                          </View>
+                        );
+                      }
                       return (
                         <View key={lesson.id} style={styles.agendaRow}>
                           <View style={styles.agendaTop}>
@@ -1696,9 +1762,11 @@ export const AllievoHomeScreen = () => {
                           <Text style={styles.agendaInstructor}>
                             Istruttore: {lesson.instructor?.name ?? 'Da assegnare'}
                           </Text>
-                          <Text style={styles.agendaMeta}>
-                            Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                          </Text>
+                          {settings?.vehiclesEnabled !== false && (
+                            <Text style={styles.agendaMeta}>
+                              Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
+                            </Text>
+                          )}
                           {lessonPayment ? (
                             <Text style={styles.historyPaymentMeta}>
                               Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} {'\u2022'} Residuo{' '}
@@ -1785,17 +1853,19 @@ export const AllievoHomeScreen = () => {
               </View>
 
               {/* Vehicle */}
-              <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                  <Ionicons name="car-outline" size={18} color="#CA8A04" />
+              {settings?.vehiclesEnabled !== false && (
+                <View style={styles.chunkyIconRow}>
+                  <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                    <Ionicons name="car-outline" size={18} color="#CA8A04" />
+                  </View>
+                  <View>
+                    <Text style={styles.chunkyRowLabel}>VEICOLO</Text>
+                    <Text style={styles.chunkyRowValue}>
+                      {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}
+                    </Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.chunkyRowLabel}>VEICOLO</Text>
-                  <Text style={styles.chunkyRowValue}>
-                    {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}
-                  </Text>
-                </View>
-              </View>
+              )}
 
               {/* Payment */}
               <View style={styles.chunkyIconRow}>
@@ -2206,6 +2276,37 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: 'rgba(255,255,255,0.85)',
     marginTop: 6,
+  },
+
+  /* ── Blocked by exam priority ── */
+  blockedByExamBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+  },
+  blockedByExamIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedByExamTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4C1D95',
+  },
+  blockedByExamDesc: {
+    fontSize: 13,
+    color: '#5B21B6',
+    marginTop: 2,
+    lineHeight: 18,
   },
 
   /* ── Next Lesson Card (yellow) ── */
@@ -2623,6 +2724,56 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  agendaExamRow: {
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  agendaExamHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  agendaExamIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agendaExamTime: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  agendaExamBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#6366F1',
+  },
+  agendaExamTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  agendaExamMeta: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
   },
   agendaTop: {
     flexDirection: 'row',

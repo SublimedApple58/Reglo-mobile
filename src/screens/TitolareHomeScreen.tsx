@@ -609,7 +609,7 @@ export const TitolareHomeScreen = () => {
                                 <Text style={styles.appointmentMeta} numberOfLines={1}>
                                   {[
                                     appt.instructor?.name,
-                                    appt.vehicle?.name,
+                                    settings?.vehiclesEnabled !== false ? appt.vehicle?.name : null,
                                   ]
                                     .filter(Boolean)
                                     .join(' \u00B7 ') || 'Nessun dettaglio'}
@@ -692,7 +692,7 @@ export const TitolareHomeScreen = () => {
               {apt.instructorName && (
                 <Text style={oobStyles.cardMeta}>{apt.instructorName}</Text>
               )}
-              {apt.vehicleName && (
+              {settings?.vehiclesEnabled !== false && apt.vehicleName && (
                 <Text style={oobStyles.cardMeta}>{apt.vehicleName}</Text>
               )}
               <View style={oobStyles.actions}>
@@ -858,7 +858,7 @@ export const TitolareHomeScreen = () => {
                 <Ionicons name="person-outline" size={15} color="#64748B" />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.instructor?.name ?? 'N/D'}</Text>
               </View>
-              {selectedAppt.vehicle?.name ? (
+              {settings?.vehiclesEnabled !== false && selectedAppt.vehicle?.name ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
                   <Ionicons name="car-outline" size={15} color="#64748B" />
                   <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>{selectedAppt.vehicle.name}</Text>

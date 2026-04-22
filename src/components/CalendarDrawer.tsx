@@ -18,6 +18,7 @@ import { colors, radii, spacing } from '../theme';
 type CalendarDrawerProps = {
   visible: boolean;
   onClose: () => void;
+  onClosed?: () => void;
   onSelectDate: (date: Date) => void;
   selectedDate: Date;
   maxWeeks?: number;
@@ -59,6 +60,7 @@ const isSameMonth = (a: Date, b: Date) =>
 export const CalendarDrawer = ({
   visible,
   onClose,
+  onClosed,
   onSelectDate,
   selectedDate,
   maxWeeks = 4,
@@ -188,8 +190,9 @@ export const CalendarDrawer = ({
       setMounted(false);
       resetDrag();
       translateY.setValue(screenHeight);
+      onClosed?.();
     });
-  }, [visible, mounted, screenHeight, backdropOpacity, translateY]);
+  }, [visible, mounted, screenHeight, backdropOpacity, translateY, onClosed]);
 
   const animatedTranslate = useMemo(
     () => Animated.add(translateY, dragY),

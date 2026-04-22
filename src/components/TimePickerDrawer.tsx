@@ -6,6 +6,7 @@ import { radii, spacing } from '../theme';
 type TimePickerDrawerProps = {
   visible: boolean;
   onClose: () => void;
+  onClosed?: () => void;
   onSelectTime: (date: Date) => void;
   selectedTime: Date;
 };
@@ -21,6 +22,7 @@ const padTwo = (n: number) => String(n).padStart(2, '0');
 export const TimePickerDrawer = ({
   visible,
   onClose,
+  onClosed,
   onSelectTime,
   selectedTime,
 }: TimePickerDrawerProps) => {
@@ -74,6 +76,7 @@ export const TimePickerDrawer = ({
     <BottomSheet
       visible={visible}
       onClose={handleClose}
+      onClosed={onClosed}
       title="Seleziona orario"
       showHandle
       footer={
