@@ -823,11 +823,11 @@ export const IstruttoreHomeScreen = () => {
   );
   const appointmentsLoading = initialLoading || rangeLoading;
 
-  const normalizeToHalfHour = useCallback((value: Date) => {
+  const normalizeToQuarter = useCallback((value: Date) => {
     const next = new Date(value);
     next.setSeconds(0, 0);
     const minutes = next.getMinutes();
-    const rounded = Math.ceil(minutes / 30) * 30;
+    const rounded = Math.ceil(minutes / 15) * 15;
     if (rounded === 60) {
       next.setHours(next.getHours() + 1, 0, 0, 0);
     } else {
@@ -840,11 +840,11 @@ export const IstruttoreHomeScreen = () => {
     const date = new Date(bookingDate);
     const time = new Date(bookingStartTime);
     date.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    return normalizeToHalfHour(date);
-  }, [bookingDate, bookingStartTime, normalizeToHalfHour]);
+    return normalizeToQuarter(date);
+  }, [bookingDate, bookingStartTime, normalizeToQuarter]);
 
   const openBlockDrawer = useCallback(() => {
-    const roundedNow = normalizeToHalfHour(new Date());
+    const roundedNow = normalizeToQuarter(new Date());
     const endTime = new Date(roundedNow);
     endTime.setMinutes(endTime.getMinutes() + 60);
     setBlockDate(selectedDate);
@@ -854,7 +854,7 @@ export const IstruttoreHomeScreen = () => {
     setBlockRecurring(false);
     setBlockRecurringWeeks(4);
     setBlockSheetOpen(true);
-  }, [normalizeToHalfHour, selectedDate]);
+  }, [normalizeToQuarter, selectedDate]);
 
   const handleCreateBlock = useCallback(async () => {
     setBlockPending(true);
@@ -992,7 +992,7 @@ export const IstruttoreHomeScreen = () => {
       .slice()
       .sort((a, b) => a - b);
     const nowDate = new Date();
-    const roundedNow = normalizeToHalfHour(nowDate);
+    const roundedNow = normalizeToQuarter(nowDate);
     setBookingStudentId('');
     setBookingVehicleId((current) => current || vehicles[0]?.id || '');
     setBookingLessonTypes(['guida']);
@@ -1008,7 +1008,7 @@ export const IstruttoreHomeScreen = () => {
     setEditingEntryId(null);
     setEditingEntryField(null);
     setBookingSheetOpen(true);
-  }, [canInstructorBook, normalizeToHalfHour, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
+  }, [canInstructorBook, normalizeToQuarter, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
 
   const handleSuggestGuidedBooking = useCallback(async () => {
     if (!bookingStudentId) {
@@ -3344,7 +3344,7 @@ export const IstruttoreHomeScreen = () => {
                 setMultiBookingMode(val);
                 if (val) {
                   const now = new Date();
-                  const rounded = normalizeToHalfHour(now);
+                  const rounded = normalizeToQuarter(now);
                   setMultiBookingEntries([{
                     id: String(Date.now()),
                     date: new Date(bookingDate),
@@ -3475,7 +3475,7 @@ export const IstruttoreHomeScreen = () => {
                       const newDate = last ? new Date(last.date) : new Date(bookingDate);
                       const newTime = last
                         ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000)
-                        : normalizeToHalfHour(new Date());
+                        : normalizeToQuarter(new Date());
                       setMultiBookingEntries((prev) => [
                         ...prev,
                         { id: String(Date.now()), date: newDate, startTime: newTime, duration: lastDuration },
