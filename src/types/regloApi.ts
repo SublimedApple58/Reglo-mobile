@@ -278,6 +278,11 @@ export type RespondSwapOfferResult =
   | { accepted: true; appointment: AutoscuolaAppointment }
   | { accepted: false };
 
+export type InstructorSwapInput = {
+  appointmentIdA: Uuid;
+  appointmentIdB: Uuid;
+};
+
 export type CreateStudentInput = {
   firstName: string;
   lastName: string;

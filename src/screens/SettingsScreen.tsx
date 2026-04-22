@@ -38,6 +38,7 @@ import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent, MobileStudentPaymentProfile } from '../types/regloApi';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import * as Notifications from 'expo-notifications';
+import { sessionStorage } from '../services/sessionStorage';
 
 type AnimatedChevronProps = { expanded: boolean };
 const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
@@ -116,7 +117,6 @@ const bookingActorLabelMap = {
 const instructorModeLabelMap = {
   manual_full: 'Manuale totale',
   manual_engine: 'Manuale + motore annullamenti',
-  guided_proposal: 'Guidata con proposta',
 } as const;
 
 const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
@@ -241,7 +241,7 @@ export const SettingsScreen = () => {
   const [instructorReminderMinutes, setInstructorReminderMinutes] = useState('60');
   const [appBookingActors, setAppBookingActors] = useState<'students' | 'instructors' | 'both'>('students');
   const [instructorBookingMode, setInstructorBookingMode] =
-    useState<'manual_full' | 'manual_engine' | 'guided_proposal'>('manual_engine');
+    useState<'manual_full' | 'manual_engine'>('manual_engine');
   const [refreshing, setRefreshing] = useState(false);
   const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
   const [studentProfile, setStudentProfile] = useState<AutoscuolaStudent | null>(null);
@@ -263,6 +263,7 @@ export const SettingsScreen = () => {
   >(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -403,6 +404,8 @@ export const SettingsScreen = () => {
 
   const loadSettings = useCallback(async () => {
     try {
+      const savedViewMode = await sessionStorage.getAgendaViewMode();
+      setAgendaViewMode(savedViewMode);
       if (autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR') {
         try {
           const settings = await regloApi.getAutoscuolaSettings();
@@ -1233,6 +1236,63 @@ export const SettingsScreen = () => {
 
           {/* 3. Settings Menu Card */}
           <View style={studentStyles.menuCard}>
+            {/* Agenda View Mode */}
+            {(autoscuolaRole === 'INSTRUCTOR' || autoscuolaRole === 'OWNER') ? (
+              <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                  <View style={[studentStyles.menuIcon, { backgroundColor: '#FCE7F3' }]}>
+                    <Ionicons name="grid-outline" size={20} color="#EC4899" />
+                  </View>
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={studentStyles.menuTitle}>Vista agenda</Text>
+                    <Text style={studentStyles.menuSubtitle}>Come visualizzare le guide in home</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable
+                    onPress={async () => {
+                      setAgendaViewMode('day');
+                      await sessionStorage.setAgendaViewMode('day');
+                    }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      alignItems: 'center',
+                      backgroundColor: agendaViewMode === 'day' ? '#FEF9C3' : '#F8FAFC',
+                      borderColor: agendaViewMode === 'day' ? '#FDE047' : '#E2E8F0',
+                    }}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={agendaViewMode === 'day' ? '#A16207' : '#64748B'} />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: agendaViewMode === 'day' ? '#A16207' : '#64748B', marginTop: 4 }}>
+                      Giornaliera
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={async () => {
+                      setAgendaViewMode('week');
+                      await sessionStorage.setAgendaViewMode('week');
+                    }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      alignItems: 'center',
+                      backgroundColor: agendaViewMode === 'week' ? '#FEF9C3' : '#F8FAFC',
+                      borderColor: agendaViewMode === 'week' ? '#FDE047' : '#E2E8F0',
+                    }}
+                  >
+                    <Ionicons name="grid-outline" size={18} color={agendaViewMode === 'week' ? '#A16207' : '#64748B'} />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: agendaViewMode === 'week' ? '#A16207' : '#64748B', marginTop: 4 }}>
+                      Settimanale
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
             {/* a. Role-specific settings row */}
             {autoscuolaRole === 'INSTRUCTOR' ? (
               <>

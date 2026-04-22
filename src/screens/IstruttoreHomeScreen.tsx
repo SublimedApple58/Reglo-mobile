@@ -42,6 +42,8 @@ import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
+import WeeklyAgendaView from '../components/WeeklyAgendaView';
+import { sessionStorage } from '../services/sessionStorage';
 import { StarRating } from '../components/StarRating';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -103,7 +105,7 @@ const smartDayLabel = (isoDate: string, now: Date): string => {
 
 const ALLOWED_ACTION_STATUSES = new Set(['scheduled', 'confirmed', 'pending_review']);
 const CLOSED_ACTION_STATUSES = new Set(['cancelled', 'completed', 'no_show']);
-const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review', 'proposal']);
+const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review', 'proposal', 'completed', 'no_show', 'cancelled']);
 const DETAILS_EDITABLE_STATUSES = new Set([
   'scheduled',
   'confirmed',
@@ -273,6 +275,15 @@ const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Dat
   if (status === 'proposal') {
     return { label: 'Proposta', tone: 'pending_review' as const };
   }
+  if (status === 'completed') {
+    return { label: 'Completata', tone: 'confirmed' as const };
+  }
+  if (status === 'no_show') {
+    return { label: 'Assente', tone: 'pending_review' as const };
+  }
+  if (status === 'cancelled') {
+    return { label: 'Annullata', tone: 'pending_review' as const };
+  }
   return { label: 'Programmata', tone: 'scheduled' as const };
 };
 
@@ -439,6 +450,7 @@ export const IstruttoreHomeScreen = () => {
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
+  const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
@@ -447,6 +459,10 @@ export const IstruttoreHomeScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [swapModalOpen, setSwapModalOpen] = useState(false);
+  const [swapPending, setSwapPending] = useState(false);
+  const [swapSearch, setSwapSearch] = useState('');
+  const [swapSourceLesson, setSwapSourceLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [rescheduleLesson, setRescheduleLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const pendingRescheduleRef = useRef<AutoscuolaAppointmentWithRelations | null>(null);
   const [examDrawerGroup, setExamDrawerGroup] = useState<{
@@ -523,12 +539,14 @@ export const IstruttoreHomeScreen = () => {
   const lessonSheetScrollRef = useRef<ScrollView | null>(null);
   const bookingSheetScrollRef = useRef<ScrollView | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
+  const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
   const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
   const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
@@ -708,6 +726,11 @@ export const IstruttoreHomeScreen = () => {
   useEffect(() => {
     loadData().then(() => loadOutOfAvailability());
   }, [loadData, loadOutOfAvailability]);
+
+  useEffect(() => {
+    sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
+    regloApi.getStudentsCompletedHours().then(setStudentCompletedMinutes).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1247,7 +1270,12 @@ export const IstruttoreHomeScreen = () => {
   // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {
     return [...appointments]
-      .filter((item) => normalizeStatus(item.status) !== 'cancelled')
+      .filter((item) => {
+        const status = normalizeStatus(item.status);
+        // Hide cancelled appointments that have been replaced by another
+        if (status === 'cancelled' && item.replacedByAppointmentId) return false;
+        return true;
+      })
       .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
   }, [appointments]);
 
@@ -1412,7 +1440,9 @@ export const IstruttoreHomeScreen = () => {
     return now.getHours() + now.getMinutes() / 60;
   }, [now, selectedDate]);
 
-  const timelineStatusConfig = (status: string, type?: string | null) => {
+  const MANDATORY_MINUTES_THRESHOLD = 480; // 8 hours
+
+  const timelineStatusConfig = (status: string, type?: string | null, opts?: { durationMin?: number; studentId?: string }) => {
     const s = normalizeStatus(status);
     // Exam: distinctive purple/indigo theme, overrides normal status visuals
     if (type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
@@ -1428,6 +1458,12 @@ export const IstruttoreHomeScreen = () => {
       return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata', isExam: false as const };
     if (s === 'proposal')
       return { border: '#A78BFA', badgeBg: '#F5F3FF', badgeText: '#7C3AED', label: 'Proposta', isExam: false as const };
+    // Scheduled/confirmed: mandatory if student has < 8h completed AND lesson is ≥ 60 min
+    const completedMins = opts?.studentId ? (studentCompletedMinutes[opts.studentId] ?? 0) : 0;
+    const isMandatory = completedMins < MANDATORY_MINUTES_THRESHOLD && (opts?.durationMin ?? 0) >= 60;
+    if (isMandatory) {
+      return { border: '#0EA5E9', badgeBg: '#F0F9FF', badgeText: '#0369A1', label: 'Obbligatoria', isExam: false as const };
+    }
     return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata', isExam: false as const };
   };
   const isSheetDetailsEditable = sheetLesson ? isDetailsEditable(sheetLesson, now) : false;
@@ -1539,6 +1575,51 @@ export const IstruttoreHomeScreen = () => {
     if (!['scheduled', 'confirmed', 'proposal'].includes(status)) return false;
     return new Date(sheetLesson.startsAt).getTime() > Date.now();
   }, [sheetLesson]);
+
+  const swapCandidates = useMemo(() => {
+    if (!swapSourceLesson || !swapModalOpen) return [];
+    const now = new Date();
+    return featuredAppointments
+      .filter((a) => {
+        if (a.id === swapSourceLesson.id) return false;
+        if (a.studentId === swapSourceLesson.studentId) return false;
+        if (a.instructorId !== swapSourceLesson.instructorId) return false;
+        if (a.status !== 'scheduled' && a.status !== 'confirmed') return false;
+        if (new Date(a.startsAt) <= now) return false;
+        if (a.type === 'esame') return false;
+        return true;
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [featuredAppointments, swapSourceLesson, swapModalOpen]);
+
+  const filteredSwapCandidates = useMemo(() => {
+    if (!swapSearch.trim()) return swapCandidates;
+    const q = swapSearch.toLowerCase().trim();
+    return swapCandidates.filter((a) =>
+      (a.student?.name ?? '').toLowerCase().includes(q),
+    );
+  }, [swapCandidates, swapSearch]);
+
+  // Group by day for section headers
+  const swapCandidatesByDay = useMemo(() => {
+    const groups: Array<{ title: string; data: typeof filteredSwapCandidates }> = [];
+    let currentKey = '';
+    let currentGroup: typeof filteredSwapCandidates = [];
+    for (const appt of filteredSwapCandidates) {
+      const d = new Date(appt.startsAt);
+      const key = d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
+      if (key !== currentKey) {
+        if (currentGroup.length) groups.push({ title: currentKey, data: currentGroup });
+        currentKey = key;
+        currentGroup = [appt];
+      } else {
+        currentGroup.push(appt);
+      }
+    }
+    if (currentGroup.length) groups.push({ title: currentKey, data: currentGroup });
+    return groups;
+  }, [filteredSwapCandidates]);
+
   const lessonSheetMaxHeight = useMemo(() => {
     const base = Math.max(300, Math.min(windowHeight * 0.52, windowHeight - 350));
     if (!keyboardHeight) return base;
@@ -1686,13 +1767,61 @@ export const IstruttoreHomeScreen = () => {
   }, [selectedDate, instructorId]);
 
   useEffect(() => {
-    const from = new Date(selectedDate);
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(selectedDate);
-    to.setHours(23, 59, 59, 999);
-    setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
+    if (agendaViewMode === 'week') {
+      // Fetch full week (Mon–Sat) for weekly view
+      const day = selectedDate.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const from = new Date(selectedDate);
+      from.setDate(from.getDate() + mondayOffset);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(from);
+      to.setDate(to.getDate() + 5); // Saturday
+      to.setHours(23, 59, 59, 999);
+      setCalendarRange({ mode: 'week', from, to, label: '', anchor: selectedDate });
+    } else {
+      const from = new Date(selectedDate);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(selectedDate);
+      to.setHours(23, 59, 59, 999);
+      setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
+    }
     loadAvailability();
-  }, [selectedDate, instructorId, loadAvailability]);
+
+    // Load availability for all 6 days when in weekly mode
+    if (agendaViewMode === 'week' && instructorId) {
+      const day = selectedDate.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const monday = new Date(selectedDate);
+      monday.setDate(monday.getDate() + mondayOffset);
+      monday.setHours(0, 0, 0, 0);
+
+      Promise.all(
+        Array.from({ length: 6 }, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(d.getDate() + i);
+          return regloApi.getAvailabilitySlots({
+            ownerType: 'instructor',
+            ownerId: instructorId,
+            date: toDateOnlyString(d),
+          }).then((slots) => {
+            const precise: Array<{ startMinutes: number; endMinutes: number }> = [];
+            if (slots) {
+              for (const slot of slots) {
+                const s = new Date(slot.startsAt);
+                const e = new Date(slot.endsAt);
+                precise.push({ startMinutes: s.getHours() * 60 + s.getMinutes(), endMinutes: e.getHours() * 60 + e.getMinutes() });
+              }
+            }
+            return { colIdx: i, slots: precise };
+          });
+        }),
+      ).then((results) => {
+        const map: Record<number, Array<{ startMinutes: number; endMinutes: number }>> = {};
+        for (const r of results) map[r.colIdx] = r.slots;
+        setWeekAvailability(map);
+      }).catch(() => setWeekAvailability({}));
+    }
+  }, [selectedDate, instructorId, loadAvailability, agendaViewMode]);
 
   // Re-fetch data when screen regains focus (e.g. after changing availability)
   const navigation = useNavigation();
@@ -1702,6 +1831,7 @@ export const IstruttoreHomeScreen = () => {
       loadAvailability();
       loadOutOfAvailability();
       loadHolidays();
+      sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
     });
     return unsubscribe;
   }, [navigation, loadData, loadAvailability, loadOutOfAvailability]);
@@ -1915,6 +2045,43 @@ export const IstruttoreHomeScreen = () => {
     [handleManualCancelLesson, handleRepositionLesson, instructorBookingMode],
   );
 
+  const handleInstructorSwap = useCallback(async (targetAppt: AutoscuolaAppointmentWithRelations) => {
+    if (!swapSourceLesson || swapPending) return;
+    const studentA = `${swapSourceLesson.student?.firstName ?? ''} ${swapSourceLesson.student?.lastName ?? ''}`.trim() || 'Allievo';
+    const studentB = `${targetAppt.student?.firstName ?? ''} ${targetAppt.student?.lastName ?? ''}`.trim() || 'Allievo';
+    Alert.alert(
+      'Conferma scambio',
+      `Scambiare ${studentA} con ${studentB}?`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Scambia',
+          onPress: async () => {
+            setSwapPending(true);
+            try {
+              await regloApi.instructorSwapAppointments({
+                appointmentIdA: swapSourceLesson.id,
+                appointmentIdB: targetAppt.id,
+              });
+              setSwapModalOpen(false);
+              setSwapSourceLesson(null);
+              setSheetLesson(null);
+              setToast({ text: 'Guide scambiate.', tone: 'success' });
+              await loadData();
+            } catch (err) {
+              setToast({
+                text: err instanceof Error ? err.message : 'Errore nello scambio',
+                tone: 'danger',
+              });
+            } finally {
+              setSwapPending(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [swapSourceLesson, swapPending, loadData]);
+
   const resetGuidedSuggestionForStudent = useCallback((nextStudentId: string) => {
     if (nextStudentId === '__separator__') return;
     setBookingStudentId(nextStudentId);
@@ -1981,9 +2148,47 @@ export const IstruttoreHomeScreen = () => {
     <Screen>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
+      {agendaViewMode === 'week' ? (
+        <>
+          {/* ── Fixed header for weekly mode ── */}
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.md }}>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.title}>
+                  Ciao, {userName} {'\uD83D\uDC4B'}
+                </Text>
+                <Text style={styles.subtitle}>Gestisci le tue guide</Text>
+              </View>
+            </View>
+            {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+            {featuredLesson ? (() => {
+              const isLive = isLessonInProgressWindow(featuredLesson, now);
+              return (
+                <View style={[styles.nextBanner, isLive && styles.nextBannerLive]}>
+                  <View style={styles.nextBannerLeft}>
+                    {isLive ? (
+                      <View style={styles.nextBannerDot} />
+                    ) : (
+                      <Ionicons name="time-outline" size={14} color="#CA8A04" />
+                    )}
+                    <Text style={styles.nextBannerLabel}>
+                      {isLive ? 'In corso' : 'Prossima'}
+                    </Text>
+                  </View>
+                  <Text style={styles.nextBannerInfo} numberOfLines={1}>
+                    {smartDayLabel(featuredLesson.startsAt, now)} {formatTime(featuredLesson.startsAt)} {'\u00B7'} {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
+                  </Text>
+                </View>
+              );
+            })() : null}
+          </View>
+        </>
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        style={agendaViewMode === 'week' ? { display: 'none' } : undefined}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -2454,7 +2659,7 @@ export const IstruttoreHomeScreen = () => {
                 const firstHourMin = HOUR_SLOTS[0] * 60;
                 const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
                 const blockH = Math.max(36, (durationMin / 60) * ROW_H);
-                const config = timelineStatusConfig(appt.status, appt.type);
+                const config = timelineStatusConfig(appt.status, appt.type, { durationMin, studentId: appt.studentId });
                 const isActive = isLessonInProgressWindow(appt, now);
                 const actionAvail = getActionAvailability(appt, now, settings?.autoCheckinEnabled);
                 const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
@@ -2657,6 +2862,35 @@ export const IstruttoreHomeScreen = () => {
         )}
       </ScrollView>
 
+      {agendaViewMode === 'week' ? (
+          <WeeklyAgendaView
+            appointments={appointments}
+            loading={appointmentsLoading}
+            studentCompletedMinutes={studentCompletedMinutes}
+            weekAvailability={weekAvailability}
+            onPressAppointment={(appt: AutoscuolaAppointmentWithRelations) => {
+              if (appt.type === 'esame') return;
+              setSheetLesson(appt);
+            }}
+            onPressExam={(examAppts) => {
+              if (!examAppts.length) return;
+              const first = examAppts[0];
+              setExamDrawerGroup({
+                id: `exam-${first.startsAt}`,
+                startsAt: first.startsAt,
+                endsAt: first.endsAt,
+                instructorId: first.instructorId,
+                instructorName: first.instructor?.name ?? null,
+                notes: first.notes,
+                appointments: examAppts,
+              });
+            }}
+            onDateChange={(weekStart: Date) => {
+              setSelectedDate(weekStart);
+            }}
+          />
+      ) : null}
+
       {/* ── Sick Leave BottomSheet ── */}
       <BottomSheet
         visible={sickSheetOpen}
@@ -2785,12 +3019,41 @@ export const IstruttoreHomeScreen = () => {
             setRescheduleLesson(pendingRescheduleRef.current);
             pendingRescheduleRef.current = null;
           }
+          if (swapSourceLesson) {
+            setSwapModalOpen(true);
+          }
         }}
         title="Gestisci guida"
         closeDisabled={isPending}
         showHandle
         footer={
           <View style={styles.sheetFooterActions}>
+            {/* Row 1: Presente + Assente (primary actions, side by side) */}
+            {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {normalizeStatus(sheetLesson?.status) !== 'checked_in' ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
+                      tone="primary"
+                      onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
+                      disabled={isPending}
+                      fullWidth
+                    />
+                  </View>
+                ) : null}
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
+                    tone="danger"
+                    onPress={isPending ? undefined : () => handleStatusAction('no_show')}
+                    disabled={isPending}
+                    fullWidth
+                  />
+                </View>
+              </View>
+            ) : null}
+            {/* Row 2: Salva dettagli */}
             <Button
               label={pendingAction === 'save_details' ? 'Salvataggio...' : 'Salva dettagli'}
               tone="standard"
@@ -2798,22 +3061,50 @@ export const IstruttoreHomeScreen = () => {
               disabled={isPending || !isSheetDetailsEditable}
               fullWidth
             />
-            {canRescheduleSheetLesson ? (
-              <Button
-                label="Sposta"
-                tone="secondary"
-                onPress={
-                  !isPending && sheetLesson
-                    ? () => {
-                        pendingRescheduleRef.current = sheetLesson;
-                        setSheetLesson(null);
+            {/* Row 3: Sposta + Scambia (side by side) */}
+            {(canRescheduleSheetLesson || (sheetLesson &&
+              (sheetLesson.status === 'scheduled' || sheetLesson.status === 'confirmed') &&
+              new Date(sheetLesson.startsAt) > new Date() &&
+              sheetLesson.type !== 'esame')) ? (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {canRescheduleSheetLesson ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="Sposta"
+                      tone="secondary"
+                      onPress={
+                        !isPending && sheetLesson
+                          ? () => {
+                              pendingRescheduleRef.current = sheetLesson;
+                              setSheetLesson(null);
+                            }
+                          : undefined
                       }
-                    : undefined
-                }
-                disabled={isPending}
-                fullWidth
-              />
+                      disabled={isPending}
+                      fullWidth
+                    />
+                  </View>
+                ) : null}
+                {sheetLesson &&
+                  (sheetLesson.status === 'scheduled' || sheetLesson.status === 'confirmed') &&
+                  new Date(sheetLesson.startsAt) > new Date() &&
+                  sheetLesson.type !== 'esame' ? (
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="Scambia"
+                      tone="secondary"
+                      onPress={() => {
+                        setSwapSearch('');
+                        setSwapSourceLesson(sheetLesson);
+                        setSheetLesson(null);
+                      }}
+                      fullWidth
+                    />
+                  </View>
+                ) : null}
+              </View>
             ) : null}
+            {/* Row 4: Cancella (danger, full width) */}
             <Button
               label={
                 pendingAction === 'reposition'
@@ -2831,26 +3122,6 @@ export const IstruttoreHomeScreen = () => {
               disabled={isPending || !canRepositionSheetLesson}
               fullWidth
             />
-            {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
-              <>
-                {normalizeStatus(sheetLesson?.status) !== 'checked_in' ? (
-                  <Button
-                    label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
-                    tone="primary"
-                    onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
-                    disabled={isPending}
-                    fullWidth
-                  />
-                ) : null}
-                <Button
-                  label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
-                  tone="danger"
-                  onPress={isPending ? undefined : () => handleStatusAction('no_show')}
-                  disabled={isPending}
-                  fullWidth
-                />
-              </>
-            ) : null}
           </View>
         }
       >
@@ -3838,6 +4109,106 @@ export const IstruttoreHomeScreen = () => {
           setToast({ text: message, tone: 'danger' });
         }}
       />
+
+      <Modal
+        visible={swapModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!swapPending) { setSwapModalOpen(false); setSwapSourceLesson(null); } }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, width: '100%', maxHeight: '70%', overflow: 'hidden' }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A' }}>Scambia con…</Text>
+              <Pressable hitSlop={8} onPress={() => { if (!swapPending) { setSwapModalOpen(false); setSwapSourceLesson(null); } }}>
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </Pressable>
+            </View>
+
+            {/* Search */}
+            <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12, height: 42 }}>
+                <Ionicons name="search" size={18} color="#94A3B8" />
+                <TextInput
+                  placeholder="Cerca allievo..."
+                  placeholderTextColor="#94A3B8"
+                  value={swapSearch}
+                  onChangeText={setSwapSearch}
+                  style={{ flex: 1, marginLeft: 8, fontSize: 15, color: '#1E293B' }}
+                  autoCorrect={false}
+                />
+                {swapSearch ? (
+                  <Pressable hitSlop={8} onPress={() => setSwapSearch('')}>
+                    <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+
+            {/* List */}
+            <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
+              {swapCandidatesByDay.length === 0 ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Ionicons name="swap-horizontal-outline" size={32} color="#CBD5E1" />
+                  <Text style={{ color: '#94A3B8', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+                    Nessuna guida disponibile per lo scambio
+                  </Text>
+                </View>
+              ) : (
+                swapCandidatesByDay.map((section) => (
+                  <View key={section.title}>
+                    <View style={{ paddingHorizontal: 20, paddingVertical: 6, backgroundColor: '#F8FAFC' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' }}>
+                        {section.title}
+                      </Text>
+                    </View>
+                    {section.data.map((appt) => {
+                      const startTime = new Date(appt.startsAt);
+                      const timeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+                      const endTime = appt.endsAt ? new Date(appt.endsAt) : new Date(startTime.getTime() + 60 * 60 * 1000);
+                      const endStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+                      return (
+                        <Pressable
+                          key={appt.id}
+                          onPress={() => handleInstructorSwap(appt)}
+                          disabled={swapPending}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 20,
+                            paddingVertical: 14,
+                            borderBottomWidth: 1,
+                            borderBottomColor: '#F1F5F9',
+                            backgroundColor: pressed ? '#FEF9C3' : '#fff',
+                          })}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#EC4899' }}>
+                              {(appt.student?.firstName ?? '?').slice(0, 1).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+                              {appt.student?.firstName ?? ''} {appt.student?.lastName ?? ''}
+                            </Text>
+                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 1 }}>
+                              {appt.vehicle?.name ?? ''}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#475569' }}>
+                            {timeStr} – {endStr}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };

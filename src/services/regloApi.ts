@@ -37,6 +37,7 @@ import {
   AutoscuolaSwapOfferWithDetails,
   RespondSwapOfferInput,
   RespondSwapOfferResult,
+  InstructorSwapInput,
   RegisterPushTokenInput,
   RepositionAppointmentResult,
   MobileStudentPaymentProfile,
@@ -410,6 +411,8 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+    getStudentsCompletedHours: async () =>
+      client.request<Record<string, number>>('/api/autoscuole/students/completed-hours'),
     confirmInstructorBooking: async (input: ConfirmInstructorBookingInput) =>
       client.request<AutoscuolaAppointment>('/api/autoscuole/instructor-bookings/confirm', {
         method: 'POST',
@@ -489,6 +492,11 @@ export const createRegloApi = (baseUrl?: string) => {
           body: input,
         },
       ),
+    instructorSwapAppointments: async (input: InstructorSwapInput) =>
+      client.request<{ message: string }>('/api/autoscuole/swap/instructor-swap', {
+        method: 'POST',
+        body: input,
+      }),
     registerPushToken: async (input: RegisterPushTokenInput) =>
       client.request<{ id: string }>('/api/mobile/push/register', {
         method: 'POST',

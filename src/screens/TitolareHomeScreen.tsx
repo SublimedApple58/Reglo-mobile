@@ -19,7 +19,9 @@ import { BottomSheet } from '../components/BottomSheet';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
+import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { regloApi } from '../services/regloApi';
+import { sessionStorage } from '../services/sessionStorage';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaSettings,
@@ -113,6 +115,8 @@ export const TitolareHomeScreen = () => {
   const [holidayLabel, setHolidayLabel] = useState('');
   const [holidayPending, setHolidayPending] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
+  const [weekAppointments, setWeekAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
 
   const dayScrollRef = useRef<ScrollView | null>(null);
   const dayScrollMountedRef = useRef(false);
@@ -266,6 +270,30 @@ export const TitolareHomeScreen = () => {
   // Load holidays once on mount (full pill range)
   useEffect(() => { loadHolidays(); }, [loadHolidays]);
 
+  // Load saved agenda view mode on mount
+  useEffect(() => {
+    sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
+  }, []);
+
+  // Load week data for the weekly agenda view
+  const loadWeekData = useCallback(async (weekStart: Date) => {
+    try {
+      const from = new Date(weekStart);
+      from.setHours(0, 0, 0, 0);
+      const to = addDays(from, 6); // Mon through Sat (6 days)
+      to.setHours(23, 59, 59, 999);
+
+      const response = await regloApi.getAppointments({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: 200,
+      });
+      setWeekAppointments(response);
+    } catch {
+      // silent – week view will show empty
+    }
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData(selectedDate);
@@ -279,6 +307,7 @@ export const TitolareHomeScreen = () => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadData(selectedDate);
       loadOutOfAvailability();
+      sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
     });
     return unsubscribe;
   }, [navigation, loadData, loadOutOfAvailability, selectedDate]);
@@ -362,248 +391,258 @@ export const TitolareHomeScreen = () => {
           </Pressable>
         )}
 
-        {/* ── Horizontal Day Picker ── */}
-        <View style={styles.calendarSection}>
-          <View style={styles.calendarMonthRow}>
-            <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Pressable
-                onPress={() => setSelectedDate(new Date())}
-                style={styles.calendarIconBtn}
-              >
-                <Ionicons name="return-down-back-outline" size={20} color="#94A3B8" />
-              </Pressable>
-              <Pressable
-                onPress={() => setCalendarDrawerOpen(true)}
-                style={styles.calendarIconBtn}
-              >
-                <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
-              </Pressable>
-            </View>
-          </View>
-          <ScrollView
-            ref={dayScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dayPillsRow}
-            onLayout={handleDayScrollLayout}
-          >
-            {calendarDays.map((day, index) => {
-              const dayNorm = new Date(day.date);
-              dayNorm.setHours(0, 0, 0, 0);
-              const selNorm = new Date(selectedDate);
-              selNorm.setHours(0, 0, 0, 0);
-              const todayNorm = new Date();
-              todayNorm.setHours(0, 0, 0, 0);
-              const isToday = dayNorm.getTime() === todayNorm.getTime();
-              const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
-              const isDayHoliday = holidays.has(toDateStr(dayNorm));
-              return (
-                <Pressable
-                  key={`day-${index}`}
-                  style={[
-                    styles.dayPill,
-                    isDayHoliday && !isSelected && !isToday
-                      ? styles.dayPillHoliday
-                      : isSelected
-                        ? styles.dayPillSelected
-                        : isToday
-                          ? styles.dayPillToday
-                          : styles.dayPillUnselected,
-                  ]}
-                  onPress={() => setSelectedDate(day.date)}
-                  onLongPress={() => {
-                    if (isDayHoliday) {
-                      Alert.alert(
-                        'Rimuovere festivo?',
-                        'La disponibilità normale verrà ripristinata.',
-                        [
-                          { text: 'Annulla', style: 'cancel' },
-                          {
-                            text: 'Rimuovi',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                await regloApi.deleteHoliday({ date: toDateStr(dayNorm) });
-                                setToast({ text: 'Festivo rimosso.', tone: 'success' });
-                                loadData(selectedDate); loadHolidays();
-                              } catch {
-                                setToast({ text: 'Errore.', tone: 'danger' });
-                              }
-                            },
-                          },
-                        ],
-                      );
-                    } else {
-                      setHolidaySheetDate(dayNorm);
-                      setHolidayLabel('');
-                      setHolidaySheetOpen(true);
-                    }
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.dayPillWeekday,
-                      isDayHoliday && !isSelected && !isToday
-                        ? styles.dayPillWeekdayHoliday
-                        : isSelected
-                          ? styles.dayPillWeekdaySelected
-                          : isToday
-                            ? styles.dayPillWeekdayToday
-                            : styles.dayPillWeekdayUnselected,
-                    ]}
+        {agendaViewMode === 'day' ? (
+          <>
+            {/* ── Horizontal Day Picker ── */}
+            <View style={styles.calendarSection}>
+              <View style={styles.calendarMonthRow}>
+                <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Pressable
+                    onPress={() => setSelectedDate(new Date())}
+                    style={styles.calendarIconBtn}
                   >
-                    {day.weekday}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayPillNumber,
-                      isDayHoliday && !isSelected && !isToday
-                        ? styles.dayPillNumberHoliday
-                        : isSelected
-                          ? styles.dayPillNumberSelected
-                          : isToday
-                            ? styles.dayPillNumberToday
-                            : styles.dayPillNumberUnselected,
-                    ]}
+                    <Ionicons name="return-down-back-outline" size={20} color="#94A3B8" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setCalendarDrawerOpen(true)}
+                    style={styles.calendarIconBtn}
                   >
-                    {day.dayNum}
-                  </Text>
-                  {isDayHoliday && (
-                    <View style={styles.holidayDot} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* ── Timeline ── */}
-        {loading ? (
-          <View style={styles.timelineSection}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <View key={`skeleton-hour-${i}`} style={styles.timelineRow}>
-                <SkeletonBlock width={42} height={14} radius={6} />
-                <View style={styles.timelineSlotArea}>
-                  <SkeletonCard style={styles.skeletonApptCard}>
-                    <SkeletonBlock width="60%" height={14} radius={6} />
-                    <SkeletonBlock width="80%" height={12} radius={6} />
-                    <SkeletonBlock width="40%" height={10} radius={6} />
-                  </SkeletonCard>
+                    <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
+                  </Pressable>
                 </View>
               </View>
-            ))}
-          </View>
-        ) : isSelectedDateHoliday ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="ban-outline" size={48} color="#DC2626" style={{ marginBottom: 8 }} />
-            <Text style={[styles.emptyText, { color: '#DC2626' }]}>Giorno festivo</Text>
-            <Text style={{ fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>
-              L'autoscuola è chiusa
-            </Text>
-            <Pressable
-              style={styles.removeHolidayBtn}
-              onPress={() => {
-                Alert.alert(
-                  'Rimuovere festivo?',
-                  'La disponibilità normale verrà ripristinata.',
-                  [
-                    { text: 'Annulla', style: 'cancel' },
-                    {
-                      text: 'Rimuovi',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await regloApi.deleteHoliday({ date: toDateStr(selectedDate) });
-                          setToast({ text: 'Festivo rimosso.', tone: 'success' });
-                          loadData(selectedDate);
-                        } catch {
-                          setToast({ text: 'Errore.', tone: 'danger' });
+              <ScrollView
+                ref={dayScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dayPillsRow}
+                onLayout={handleDayScrollLayout}
+              >
+                {calendarDays.map((day, index) => {
+                  const dayNorm = new Date(day.date);
+                  dayNorm.setHours(0, 0, 0, 0);
+                  const selNorm = new Date(selectedDate);
+                  selNorm.setHours(0, 0, 0, 0);
+                  const todayNorm = new Date();
+                  todayNorm.setHours(0, 0, 0, 0);
+                  const isToday = dayNorm.getTime() === todayNorm.getTime();
+                  const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
+                  const isDayHoliday = holidays.has(toDateStr(dayNorm));
+                  return (
+                    <Pressable
+                      key={`day-${index}`}
+                      style={[
+                        styles.dayPill,
+                        isDayHoliday && !isSelected && !isToday
+                          ? styles.dayPillHoliday
+                          : isSelected
+                            ? styles.dayPillSelected
+                            : isToday
+                              ? styles.dayPillToday
+                              : styles.dayPillUnselected,
+                      ]}
+                      onPress={() => setSelectedDate(day.date)}
+                      onLongPress={() => {
+                        if (isDayHoliday) {
+                          Alert.alert(
+                            'Rimuovere festivo?',
+                            'La disponibilità normale verrà ripristinata.',
+                            [
+                              { text: 'Annulla', style: 'cancel' },
+                              {
+                                text: 'Rimuovi',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  try {
+                                    await regloApi.deleteHoliday({ date: toDateStr(dayNorm) });
+                                    setToast({ text: 'Festivo rimosso.', tone: 'success' });
+                                    loadData(selectedDate); loadHolidays();
+                                  } catch {
+                                    setToast({ text: 'Errore.', tone: 'danger' });
+                                  }
+                                },
+                              },
+                            ],
+                          );
+                        } else {
+                          setHolidaySheetDate(dayNorm);
+                          setHolidayLabel('');
+                          setHolidaySheetOpen(true);
                         }
-                      },
-                    },
-                  ],
-                );
-              }}
-            >
-              <Text style={styles.removeHolidayBtnText}>Rimuovi festivo</Text>
-            </Pressable>
-          </View>
-        ) : hasAppointments ? (
-          <View style={styles.timelineSection}>
-            {HOUR_SLOTS.map((hour) => {
-              const hourAppts = appointmentsByHour.get(hour);
-              const hasAppts = hourAppts && hourAppts.length > 0;
-              return (
-                <View key={`hour-${hour}`} style={styles.timelineRow}>
-                  <Text style={styles.hourLabel}>{formatHourLabel(hour)}</Text>
-                  <View style={styles.timelineSlotArea}>
-                    {hasAppts ? (
-                      hourAppts.map((appt) => {
-                        const config = statusConfig(appt.status);
-                        return (
-                          <Pressable
-                            key={appt.id}
-                            style={[
-                              styles.appointmentBlock,
-                              { borderLeftColor: config.border },
-                            ]}
-                            onPress={() => setSelectedAppt(appt)}
-                          >
-                            <View style={styles.appointmentHeader}>
-                              <Text style={styles.appointmentTime}>
-                                {getAppointmentTimeRange(appt)}
-                              </Text>
-                              <View
-                                style={[
-                                  styles.statusBadge,
-                                  { backgroundColor: config.badgeBg },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.statusBadgeText,
-                                    { color: config.badgeText },
-                                  ]}
-                                >
-                                  {config.label}
-                                </Text>
-                              </View>
-                            </View>
-                            <Text style={styles.appointmentStudent} numberOfLines={1}>
-                              {appt.student
-                                ? `${appt.student.firstName} ${appt.student.lastName}`
-                                : 'Studente'}
-                            </Text>
-                            <Text style={styles.appointmentMeta} numberOfLines={1}>
-                              {[
-                                appt.instructor?.name,
-                                appt.vehicle?.name,
-                              ]
-                                .filter(Boolean)
-                                .join(' \u00B7 ') || 'Nessun dettaglio'}
-                            </Text>
-                          </Pressable>
-                        );
-                      })
-                    ) : (
-                      <View style={styles.emptyHourLine} />
-                    )}
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dayPillWeekday,
+                          isDayHoliday && !isSelected && !isToday
+                            ? styles.dayPillWeekdayHoliday
+                            : isSelected
+                              ? styles.dayPillWeekdaySelected
+                              : isToday
+                                ? styles.dayPillWeekdayToday
+                                : styles.dayPillWeekdayUnselected,
+                        ]}
+                      >
+                        {day.weekday}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dayPillNumber,
+                          isDayHoliday && !isSelected && !isToday
+                            ? styles.dayPillNumberHoliday
+                            : isSelected
+                              ? styles.dayPillNumberSelected
+                              : isToday
+                                ? styles.dayPillNumberToday
+                                : styles.dayPillNumberUnselected,
+                        ]}
+                      >
+                        {day.dayNum}
+                      </Text>
+                      {isDayHoliday && (
+                        <View style={styles.holidayDot} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* ── Timeline ── */}
+            {loading ? (
+              <View style={styles.timelineSection}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <View key={`skeleton-hour-${i}`} style={styles.timelineRow}>
+                    <SkeletonBlock width={42} height={14} radius={6} />
+                    <View style={styles.timelineSlotArea}>
+                      <SkeletonCard style={styles.skeletonApptCard}>
+                        <SkeletonBlock width="60%" height={14} radius={6} />
+                        <SkeletonBlock width="80%" height={12} radius={6} />
+                        <SkeletonBlock width="40%" height={10} radius={6} />
+                      </SkeletonCard>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </View>
+                ))}
+              </View>
+            ) : isSelectedDateHoliday ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="ban-outline" size={48} color="#DC2626" style={{ marginBottom: 8 }} />
+                <Text style={[styles.emptyText, { color: '#DC2626' }]}>Giorno festivo</Text>
+                <Text style={{ fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>
+                  L'autoscuola è chiusa
+                </Text>
+                <Pressable
+                  style={styles.removeHolidayBtn}
+                  onPress={() => {
+                    Alert.alert(
+                      'Rimuovere festivo?',
+                      'La disponibilità normale verrà ripristinata.',
+                      [
+                        { text: 'Annulla', style: 'cancel' },
+                        {
+                          text: 'Rimuovi',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await regloApi.deleteHoliday({ date: toDateStr(selectedDate) });
+                              setToast({ text: 'Festivo rimosso.', tone: 'success' });
+                              loadData(selectedDate);
+                            } catch {
+                              setToast({ text: 'Errore.', tone: 'danger' });
+                            }
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={styles.removeHolidayBtnText}>Rimuovi festivo</Text>
+                </Pressable>
+              </View>
+            ) : hasAppointments ? (
+              <View style={styles.timelineSection}>
+                {HOUR_SLOTS.map((hour) => {
+                  const hourAppts = appointmentsByHour.get(hour);
+                  const hasAppts = hourAppts && hourAppts.length > 0;
+                  return (
+                    <View key={`hour-${hour}`} style={styles.timelineRow}>
+                      <Text style={styles.hourLabel}>{formatHourLabel(hour)}</Text>
+                      <View style={styles.timelineSlotArea}>
+                        {hasAppts ? (
+                          hourAppts.map((appt) => {
+                            const config = statusConfig(appt.status);
+                            return (
+                              <Pressable
+                                key={appt.id}
+                                style={[
+                                  styles.appointmentBlock,
+                                  { borderLeftColor: config.border },
+                                ]}
+                                onPress={() => setSelectedAppt(appt)}
+                              >
+                                <View style={styles.appointmentHeader}>
+                                  <Text style={styles.appointmentTime}>
+                                    {getAppointmentTimeRange(appt)}
+                                  </Text>
+                                  <View
+                                    style={[
+                                      styles.statusBadge,
+                                      { backgroundColor: config.badgeBg },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.statusBadgeText,
+                                        { color: config.badgeText },
+                                      ]}
+                                    >
+                                      {config.label}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={styles.appointmentStudent} numberOfLines={1}>
+                                  {appt.student
+                                    ? `${appt.student.firstName} ${appt.student.lastName}`
+                                    : 'Studente'}
+                                </Text>
+                                <Text style={styles.appointmentMeta} numberOfLines={1}>
+                                  {[
+                                    appt.instructor?.name,
+                                    appt.vehicle?.name,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' \u00B7 ') || 'Nessun dettaglio'}
+                                </Text>
+                              </Pressable>
+                            );
+                          })
+                        ) : (
+                          <View style={styles.emptyHourLine} />
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              /* ── Empty State ── */
+              <View style={styles.emptyState}>
+                <Image
+                  source={require('../../assets/duck-zen.png')}
+                  style={styles.emptyImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyText}>Nessuna guida oggi</Text>
+              </View>
+            )}
+          </>
         ) : (
-          /* ── Empty State ── */
-          <View style={styles.emptyState}>
-            <Image
-              source={require('../../assets/duck-zen.png')}
-              style={styles.emptyImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.emptyText}>Nessuna guida oggi</Text>
-          </View>
+          <WeeklyAgendaView
+            appointments={weekAppointments}
+            onPressAppointment={(appt) => setSelectedAppt(appt)}
+            onDateChange={loadWeekData}
+          />
         )}
       </ScrollView>
 
