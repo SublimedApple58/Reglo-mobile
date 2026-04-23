@@ -748,11 +748,14 @@ export const IstruttoreHomeScreen = () => {
   const [quickBookDuration, setQuickBookDuration] = useState(60);
   const [quickBookStudentId, setQuickBookStudentId] = useState('');
   const [quickBookPending, setQuickBookPending] = useState(false);
+  const [quickBookType, setQuickBookType] = useState<'lesson' | 'block'>('lesson');
+  const [quickBookReason, setQuickBookReason] = useState('');
   const [qbHandleDragging, setQbHandleDragging] = useState(false);
   // Refs for quick-book drag handles
   const qbCurrentRef = useRef({ hour: 9, min: 0, dur: 60 });
   const qbDragOrigin = useRef({ hour: 9, min: 0, dur: 60 });
   const qbAllowedDurRef = useRef<number[]>([60]);
+  const qbTypeRef = useRef<'lesson' | 'block'>('lesson');
   useEffect(() => {
     qbCurrentRef.current = { hour: quickBookHour, min: quickBookMinutes, dur: quickBookDuration };
   }, [quickBookHour, quickBookMinutes, quickBookDuration]);
@@ -789,15 +792,30 @@ export const IstruttoreHomeScreen = () => {
       const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
       const origEnd = origStart + qbDragOrigin.current.dur;
       const rawDur = origEnd + delta - origStart;
-      const allowed = qbAllowedDurRef.current;
-      const snapped = allowed.reduce((best, d) =>
-        Math.abs(d - rawDur) < Math.abs(best - rawDur) ? d : best,
-      );
-      setQuickBookDuration(snapped);
+      if (qbTypeRef.current === 'block') {
+        // Block: free-form 15-min snapping
+        setQuickBookDuration(Math.max(15, Math.min(21 * 60 - origStart, rawDur)));
+      } else {
+        // Lesson: snap to allowed durations
+        const allowed = qbAllowedDurRef.current;
+        const snapped = allowed.reduce((best, d) =>
+          Math.abs(d - rawDur) < Math.abs(best - rawDur) ? d : best,
+        );
+        setQuickBookDuration(snapped);
+      }
     },
     onPanResponderRelease: () => setQbHandleDragging(false),
     onPanResponderTerminate: () => setQbHandleDragging(false),
   }), []);
+  const qbHeaderCollapse = useSharedValue(1);
+  useEffect(() => {
+    qbHeaderCollapse.value = withTiming(quickBookOpen ? 0 : 1, { duration: 250 });
+  }, [quickBookOpen]);
+  const qbHeaderStyle = useAnimatedStyle(() => ({
+    opacity: qbHeaderCollapse.value,
+    maxHeight: interpolate(qbHeaderCollapse.value, [0, 1], [0, 200]),
+    overflow: 'hidden' as const,
+  }));
   const qbDrawerTranslate = useSharedValue(400);
   useEffect(() => {
     qbDrawerTranslate.value = quickBookOpen
@@ -1056,6 +1074,7 @@ export const IstruttoreHomeScreen = () => {
     [clusterDurations, settings?.bookingSlotDurations],
   );
   qbAllowedDurRef.current = bookingDurations;
+  qbTypeRef.current = quickBookType;
   const clustersActive = Boolean(instructorAutonomousMode);
   const assignedStudents = useMemo(
     () => students.filter((s) => s.assignedInstructorId === instructorId),
@@ -1301,6 +1320,8 @@ export const IstruttoreHomeScreen = () => {
     setQuickBookMinutes(minutes);
     setQuickBookDuration(allowedDurations.includes(60) ? 60 : allowedDurations[0] ?? 60);
     setQuickBookStudentId('');
+    setQuickBookType('lesson');
+    setQuickBookReason('');
     setQuickBookOpen(true);
   }, [canInstructorBook, clusterDurations, settings?.bookingSlotDurations]);
 
@@ -1375,6 +1396,31 @@ export const IstruttoreHomeScreen = () => {
       setQuickBookPending(false);
     }
   }, [quickBookStudentId, quickBookDate, quickBookHour, quickBookMinutes, quickBookDuration, instructorId, settings?.vehiclesEnabled, vehicles, loadData]);
+
+  const handleQuickBlockConfirm = useCallback(async () => {
+    const start = new Date(quickBookDate);
+    start.setHours(quickBookHour, quickBookMinutes, 0, 0);
+    const end = new Date(start.getTime() + quickBookDuration * 60 * 1000);
+
+    setQuickBookPending(true);
+    try {
+      await regloApi.createInstructorBlock({
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        ...(quickBookReason.trim() ? { reason: quickBookReason.trim() } : {}),
+      });
+      setQuickBookOpen(false);
+      setToast({ text: 'Slot bloccato.', tone: 'success' });
+      await loadData();
+    } catch (err) {
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nel blocco slot',
+        tone: 'danger',
+      });
+    } finally {
+      setQuickBookPending(false);
+    }
+  }, [quickBookDate, quickBookHour, quickBookMinutes, quickBookDuration, quickBookReason, loadData]);
 
   const handleSuggestGuidedBooking = useCallback(async () => {
     if (!bookingStudentId) {
@@ -2546,8 +2592,8 @@ export const IstruttoreHomeScreen = () => {
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       {agendaViewMode === 'week' ? (
         <>
-          {/* ── Fixed header for weekly mode ── */}
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.md }}>
+          {/* ── Fixed header for weekly mode (collapses during quick-book) ── */}
+          <Animated.View style={[{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.md }, qbHeaderStyle]}>
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>
@@ -2577,7 +2623,7 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               );
             })() : null}
-          </View>
+          </Animated.View>
         </>
       ) : null}
 
@@ -2595,53 +2641,55 @@ export const IstruttoreHomeScreen = () => {
           />
         }
       >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>
-              Ciao, {userName} {'\uD83D\uDC4B'}
-            </Text>
-            <Text style={styles.subtitle}>Gestisci le tue guide</Text>
+        {/* ── Header (collapses during quick-book) ── */}
+        <Animated.View style={qbHeaderStyle}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>
+                Ciao, {userName} {'\uD83D\uDC4B'}
+              </Text>
+              <Text style={styles.subtitle}>Gestisci le tue guide</Text>
+            </View>
           </View>
-        </View>
 
-        {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+          {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {outOfAvailAppointments.length > 0 && (
-          <Pressable
-            onPress={() => setOutOfAvailSheetOpen(true)}
-            style={oobStyles.banner}
-          >
-            <Ionicons name="alert-circle" size={18} color="#92400E" />
-            <Text style={oobStyles.bannerText}>
-              <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
-              {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
-            </Text>
-            <Text style={oobStyles.bannerAction}>Gestisci</Text>
-          </Pressable>
-        )}
+          {outOfAvailAppointments.length > 0 && (
+            <Pressable
+              onPress={() => setOutOfAvailSheetOpen(true)}
+              style={oobStyles.banner}
+            >
+              <Ionicons name="alert-circle" size={18} color="#92400E" />
+              <Text style={oobStyles.bannerText}>
+                <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
+                {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+              </Text>
+              <Text style={oobStyles.bannerAction}>Gestisci</Text>
+            </Pressable>
+          )}
 
-        {/* ── Next Lesson Compact Banner ── */}
-        {featuredLesson ? (() => {
-          const isLive = isLessonInProgressWindow(featuredLesson, now);
-          return (
-            <View style={[styles.nextBanner, isLive && styles.nextBannerLive]}>
-              <View style={styles.nextBannerLeft}>
-                {isLive ? (
-                  <View style={styles.nextBannerDot} />
-                ) : (
-                  <Ionicons name="time-outline" size={14} color="#CA8A04" />
-                )}
-                <Text style={styles.nextBannerLabel}>
-                  {isLive ? 'In corso' : 'Prossima'}
+          {/* ── Next Lesson Compact Banner ── */}
+          {featuredLesson ? (() => {
+            const isLive = isLessonInProgressWindow(featuredLesson, now);
+            return (
+              <View style={[styles.nextBanner, isLive && styles.nextBannerLive]}>
+                <View style={styles.nextBannerLeft}>
+                  {isLive ? (
+                    <View style={styles.nextBannerDot} />
+                  ) : (
+                    <Ionicons name="time-outline" size={14} color="#CA8A04" />
+                  )}
+                  <Text style={styles.nextBannerLabel}>
+                    {isLive ? 'In corso' : 'Prossima'}
+                  </Text>
+                </View>
+                <Text style={styles.nextBannerInfo} numberOfLines={1}>
+                  {smartDayLabel(featuredLesson.startsAt, now)} {formatTime(featuredLesson.startsAt)} {'\u00B7'} {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
                 </Text>
               </View>
-              <Text style={styles.nextBannerInfo} numberOfLines={1}>
-                {smartDayLabel(featuredLesson.startsAt, now)} {formatTime(featuredLesson.startsAt)} {'\u00B7'} {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
-              </Text>
-            </View>
-          );
-        })() : null}
+            );
+          })() : null}
+        </Animated.View>
 
         {/* ── Day Pill Calendar ── */}
         <View style={styles.calendarSection}>
@@ -3271,18 +3319,24 @@ export const IstruttoreHomeScreen = () => {
                 const endTotal = startMin + quickBookDuration;
                 const endHour = Math.floor(endTotal / 60);
                 const endMin = endTotal % 60;
-                const studentName = quickBookStudentId
-                  ? (students.find((s) => s.id === quickBookStudentId)?.firstName ?? 'Nuova guida')
-                  : 'Nuova guida';
+                const isBlock = quickBookType === 'block';
+                const previewColor = isBlock ? '#94A3B8' : '#EC4899';
+                const previewBg = isBlock ? '#F8FAFC' : '#FDF2F8';
+                const previewLabel = isBlock
+                  ? (quickBookReason.trim() || 'Blocca slot')
+                  : (quickBookStudentId
+                    ? (students.find((s) => s.id === quickBookStudentId)?.firstName ?? 'Nuova guida')
+                    : 'Nuova guida');
+                const showHandles = isBlock || bookingDurations.length > 1;
                 return (
                   <View
                     pointerEvents="box-none"
                     style={{
                       position: 'absolute',
-                      top: topPx - 12,
+                      top: topPx - (showHandles ? 12 : 0),
                       left: 60,
                       right: 0,
-                      height: blockH + 24,
+                      height: blockH + (showHandles ? 24 : 0),
                       zIndex: 15,
                     }}
                   >
@@ -3291,30 +3345,30 @@ export const IstruttoreHomeScreen = () => {
                       pointerEvents="none"
                       style={{
                         position: 'absolute',
-                        top: 12,
+                        top: showHandles ? 12 : 0,
                         left: 0,
                         right: 0,
                         height: blockH,
-                        backgroundColor: '#FDF2F8',
+                        backgroundColor: previewBg,
                         borderWidth: 2,
-                        borderColor: '#EC4899',
+                        borderColor: previewColor,
                         borderRadius: 12,
                         borderStyle: 'dashed',
                         justifyContent: 'center',
                         paddingHorizontal: 14,
                       }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#EC4899' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: previewColor }}>
                         {String(quickBookHour).padStart(2, '0')}:{String(quickBookMinutes).padStart(2, '0')} – {String(endHour).padStart(2, '0')}:{String(endMin).padStart(2, '0')}
                       </Text>
                       {blockH >= 50 && (
-                        <Text style={{ fontSize: 12, color: '#BE185D', opacity: 0.6, marginTop: 2 }}>
-                          {studentName}
+                        <Text style={{ fontSize: 12, color: previewColor, opacity: 0.6, marginTop: 2 }}>
+                          {previewLabel}
                         </Text>
                       )}
                     </View>
-                    {/* Drag handles — only if multiple durations allowed */}
-                    {bookingDurations.length > 1 && (
+                    {/* Drag handles */}
+                    {showHandles && (
                       <>
                         {/* Top drag handle (move start time) */}
                         <View
@@ -3334,10 +3388,10 @@ export const IstruttoreHomeScreen = () => {
                             width: 36,
                             height: 6,
                             borderRadius: 3,
-                            backgroundColor: '#EC4899',
+                            backgroundColor: previewColor,
                           }} />
                         </View>
-                        {/* Bottom drag handle (snap duration) */}
+                        {/* Bottom drag handle */}
                         <View
                           {...qbBottomPan.panHandlers}
                           style={{
@@ -3346,17 +3400,17 @@ export const IstruttoreHomeScreen = () => {
                             left: 0,
                             right: 0,
                             height: 24,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 2,
-                      }}
-                    >
-                      <View style={{
-                        width: 36,
-                        height: 6,
-                        borderRadius: 3,
-                        backgroundColor: '#EC4899',
-                      }} />
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 2,
+                          }}
+                        >
+                          <View style={{
+                            width: 36,
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: previewColor,
+                          }} />
                     </View>
                       </>
                     )}
@@ -3449,14 +3503,40 @@ export const IstruttoreHomeScreen = () => {
           ]}
         >
           {/* Handle */}
-          <View style={{ alignItems: 'center', marginBottom: 14 }}>
+          <View style={{ alignItems: 'center', marginBottom: 10 }}>
             <View style={{ width: 36, height: 5, borderRadius: 2.5, backgroundColor: '#D1D5DB' }} />
+          </View>
+
+          {/* Segmented control: Guida / Blocca slot */}
+          <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 3, marginBottom: 14 }}>
+            <Pressable
+              onPress={() => setQuickBookType('lesson')}
+              style={({ pressed }) => ({
+                flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
+                backgroundColor: quickBookType === 'lesson' ? '#FFFFFF' : 'transparent',
+                ...(quickBookType === 'lesson' ? { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 } : {}),
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: quickBookType === 'lesson' ? '#EC4899' : '#94A3B8' }}>Guida</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setQuickBookType('block')}
+              style={({ pressed }) => ({
+                flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
+                backgroundColor: quickBookType === 'block' ? '#FFFFFF' : 'transparent',
+                ...(quickBookType === 'block' ? { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 } : {}),
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: quickBookType === 'block' ? '#64748B' : '#94A3B8' }}>Blocca slot</Text>
+            </Pressable>
           </View>
 
           {/* Date + time range */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FDF2F8', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="calendar-outline" size={18} color="#EC4899" />
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: quickBookType === 'lesson' ? '#FDF2F8' : '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={quickBookType === 'lesson' ? 'calendar-outline' : 'ban-outline'} size={18} color={quickBookType === 'lesson' ? '#EC4899' : '#64748B'} />
             </View>
             <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
               {quickBookDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })}
@@ -3470,41 +3550,67 @@ export const IstruttoreHomeScreen = () => {
             </Text>
           </View>
 
-          {/* Student selector */}
-          <View style={{ marginBottom: 14 }}>
-            <SearchableSelect
-              placeholder="Seleziona allievo..."
-              value={quickBookStudentId || null}
-              options={bookingStudentOptions}
-              onChange={setQuickBookStudentId}
-            />
-          </View>
+          {quickBookType === 'lesson' ? (
+            <>
+              {/* Student selector */}
+              <View style={{ marginBottom: 14 }}>
+                <SearchableSelect
+                  placeholder="Seleziona allievo..."
+                  value={quickBookStudentId || null}
+                  options={bookingStudentOptions}
+                  onChange={setQuickBookStudentId}
+                />
+              </View>
 
-          {/* Duration chips */}
-          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-            {bookingDurations.map((dur) => {
-              const isActive = quickBookDuration === dur;
-              return (
-                <Pressable
-                  key={dur}
-                  onPress={() => setQuickBookDuration(dur)}
-                  style={({ pressed }) => ({
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: isActive ? '#EC4899' : '#F1F5F9',
+              {/* Duration chips */}
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+                {bookingDurations.map((dur) => {
+                  const isActive = quickBookDuration === dur;
+                  return (
+                    <Pressable
+                      key={dur}
+                      onPress={() => setQuickBookDuration(dur)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        backgroundColor: isActive ? '#EC4899' : '#F1F5F9',
+                        borderWidth: 1,
+                        borderColor: isActive ? '#EC4899' : '#E2E8F0',
+                        opacity: pressed ? 0.8 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? '#FFFFFF' : '#64748B' }}>
+                        {dur} min
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Reason input */}
+              <View style={{ marginBottom: 18 }}>
+                <TextInput
+                  placeholder="Motivo (opzionale)"
+                  placeholderTextColor="#94A3B8"
+                  value={quickBookReason}
+                  onChangeText={setQuickBookReason}
+                  style={{
+                    backgroundColor: '#F8FAFC',
+                    borderRadius: 16,
                     borderWidth: 1,
-                    borderColor: isActive ? '#EC4899' : '#E2E8F0',
-                    opacity: pressed ? 0.8 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? '#FFFFFF' : '#64748B' }}>
-                    {dur} min
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    borderColor: '#E2E8F0',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 15,
+                    color: '#1E293B',
+                  }}
+                />
+              </View>
+            </>
+          )}
 
           {/* Buttons */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -3523,19 +3629,23 @@ export const IstruttoreHomeScreen = () => {
               <Text style={{ fontSize: 15, fontWeight: '600', color: '#64748B' }}>Annulla</Text>
             </Pressable>
             <Pressable
-              onPress={quickBookPending ? undefined : handleQuickBookConfirm}
-              disabled={quickBookPending || !quickBookStudentId}
+              onPress={quickBookPending ? undefined : (quickBookType === 'lesson' ? handleQuickBookConfirm : handleQuickBlockConfirm)}
+              disabled={quickBookPending || (quickBookType === 'lesson' && !quickBookStudentId)}
               style={({ pressed }) => ({
                 flex: 1,
                 paddingVertical: 14,
                 borderRadius: 20,
-                backgroundColor: !quickBookStudentId ? '#FBCFE8' : '#EC4899',
+                backgroundColor: quickBookType === 'lesson'
+                  ? (!quickBookStudentId ? '#FBCFE8' : '#EC4899')
+                  : '#64748B',
                 alignItems: 'center',
                 opacity: pressed ? 0.85 : 1,
               })}
             >
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
-                {quickBookPending ? 'Prenoto...' : 'Prenota'}
+                {quickBookPending
+                  ? (quickBookType === 'lesson' ? 'Prenoto...' : 'Blocco...')
+                  : (quickBookType === 'lesson' ? 'Prenota' : 'Blocca')}
               </Text>
             </Pressable>
           </View>
