@@ -759,6 +759,68 @@ export const IstruttoreHomeScreen = () => {
   useEffect(() => {
     qbCurrentRef.current = { hour: quickBookHour, min: quickBookMinutes, dur: quickBookDuration };
   }, [quickBookHour, quickBookMinutes, quickBookDuration]);
+
+  // Occupied intervals for collision detection (sorted by start)
+  const qbOccupiedRef = useRef<Array<{ start: number; end: number }>>([]);
+  useEffect(() => {
+    const dayKey = `${quickBookDate.getFullYear()}-${String(quickBookDate.getMonth() + 1).padStart(2, '0')}-${String(quickBookDate.getDate()).padStart(2, '0')}`;
+    const intervals: Array<{ start: number; end: number }> = [];
+    for (const appt of appointments) {
+      const s = new Date(appt.startsAt);
+      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
+      if ((appt.status ?? '').toLowerCase() === 'cancelled') continue;
+      const e = appt.endsAt ? new Date(appt.endsAt) : new Date(s.getTime() + 60 * 60 * 1000);
+      intervals.push({ start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() });
+    }
+    for (const block of instructorBlocks) {
+      const s = new Date(block.startsAt);
+      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
+      const e = new Date(block.endsAt);
+      intervals.push({ start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() });
+    }
+    intervals.sort((a, b) => a.start - b.start);
+    qbOccupiedRef.current = intervals;
+  }, [quickBookDate, appointments, instructorBlocks]);
+
+  // Clamp a proposed [start, start+dur) range so it doesn't overlap any occupied interval
+  const clampToFreeSlot = (proposedStart: number, dur: number): number => {
+    const occupied = qbOccupiedRef.current;
+    let start = proposedStart;
+    for (const iv of occupied) {
+      if (start < iv.end && start + dur > iv.start) {
+        // Overlap detected — try to snap before or after
+        const before = iv.start - dur;
+        const after = iv.end;
+        // Pick whichever is closer to the proposed start
+        if (before >= 0 && Math.abs(before - proposedStart) <= Math.abs(after - proposedStart)) {
+          start = before;
+        } else {
+          start = after;
+        }
+      }
+    }
+    // Final check: ensure the new position also doesn't overlap
+    for (const iv of occupied) {
+      if (start < iv.end && start + dur > iv.start) {
+        return qbCurrentRef.current.hour * 60 + qbCurrentRef.current.min; // revert
+      }
+    }
+    return start;
+  };
+
+  // Clamp a proposed duration so the block end doesn't overlap the next occupied interval
+  const clampDuration = (start: number, proposedDur: number): number => {
+    const occupied = qbOccupiedRef.current;
+    let maxEnd = 21 * 60;
+    for (const iv of occupied) {
+      if (iv.start > start) {
+        maxEnd = Math.min(maxEnd, iv.start);
+        break;
+      }
+    }
+    return Math.min(proposedDur, maxEnd - start);
+  };
+
   // Top handle: moves start time in 15-min steps, keeps duration fixed
   const qbTopPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -771,7 +833,9 @@ export const IstruttoreHomeScreen = () => {
     onPanResponderMove: (_, g) => {
       const delta = Math.round((g.dy / ROW_H) * 60 / 15) * 15;
       const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
-      const newStart = Math.max(0, Math.min(21 * 60 - qbDragOrigin.current.dur, origStart + delta));
+      const dur = qbDragOrigin.current.dur;
+      const rawStart = Math.max(0, Math.min(21 * 60 - dur, origStart + delta));
+      const newStart = clampToFreeSlot(rawStart, dur);
       setQuickBookHour(Math.floor(newStart / 60));
       setQuickBookMinutes(newStart % 60);
     },
@@ -793,15 +857,17 @@ export const IstruttoreHomeScreen = () => {
       const origEnd = origStart + qbDragOrigin.current.dur;
       const rawDur = origEnd + delta - origStart;
       if (qbTypeRef.current === 'block') {
-        // Block: free-form 15-min snapping
-        setQuickBookDuration(Math.max(15, Math.min(21 * 60 - origStart, rawDur)));
+        // Block: free-form 15-min snapping, clamped to next occupied slot
+        const clamped = clampDuration(origStart, Math.max(15, Math.min(21 * 60 - origStart, rawDur)));
+        setQuickBookDuration(clamped);
       } else {
-        // Lesson: snap to allowed durations
+        // Lesson: snap to allowed durations, then clamp
         const allowed = qbAllowedDurRef.current;
         const snapped = allowed.reduce((best, d) =>
           Math.abs(d - rawDur) < Math.abs(best - rawDur) ? d : best,
         );
-        setQuickBookDuration(snapped);
+        const clamped = clampDuration(origStart, snapped);
+        setQuickBookDuration(clamped);
       }
     },
     onPanResponderRelease: () => setQbHandleDragging(false),
@@ -1312,18 +1378,43 @@ export const IstruttoreHomeScreen = () => {
       });
       return;
     }
+    // Check if the tapped slot overlaps with any existing appointment or block
+    const tapStart = hour * 60 + minutes;
+    const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const hasCollision = [...appointments, ...instructorBlocks.map((b) => ({ startsAt: b.startsAt, endsAt: b.endsAt, status: 'active' }))].some((item) => {
+      const s = new Date(item.startsAt);
+      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) return false;
+      if ('status' in item && typeof item.status === 'string' && item.status.toLowerCase() === 'cancelled') return false;
+      const e = item.endsAt ? new Date(item.endsAt) : new Date(s.getTime() + 60 * 60 * 1000);
+      const iStart = s.getHours() * 60 + s.getMinutes();
+      const iEnd = e.getHours() * 60 + e.getMinutes();
+      return tapStart >= iStart && tapStart < iEnd;
+    });
+    if (hasCollision) return;
     const allowedDurations = (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60])
       .slice()
       .sort((a, b) => a - b);
+    const dur = allowedDurations.includes(60) ? 60 : allowedDurations[0] ?? 60;
+    // Find max duration before next occupied slot
+    let maxEnd = 21 * 60;
+    for (const item of [...appointments, ...instructorBlocks.map((b) => ({ startsAt: b.startsAt, endsAt: b.endsAt, status: 'active' }))]) {
+      const s = new Date(item.startsAt);
+      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
+      if ('status' in item && typeof item.status === 'string' && item.status.toLowerCase() === 'cancelled') continue;
+      const iStart = s.getHours() * 60 + s.getMinutes();
+      if (iStart > tapStart && iStart < maxEnd) maxEnd = iStart;
+    }
+    const clampedDur = Math.min(dur, maxEnd - tapStart);
+    if (clampedDur < 15) return; // not enough space
     setQuickBookDate(date);
     setQuickBookHour(hour);
     setQuickBookMinutes(minutes);
-    setQuickBookDuration(allowedDurations.includes(60) ? 60 : allowedDurations[0] ?? 60);
+    setQuickBookDuration(clampedDur);
     setQuickBookStudentId('');
     setQuickBookType('lesson');
     setQuickBookReason('');
     setQuickBookOpen(true);
-  }, [canInstructorBook, clusterDurations, settings?.bookingSlotDurations]);
+  }, [canInstructorBook, clusterDurations, settings?.bookingSlotDurations, appointments, instructorBlocks]);
 
   const handleQuickBookConfirm = useCallback(async () => {
     if (!quickBookStudentId) {
@@ -3455,6 +3546,19 @@ export const IstruttoreHomeScreen = () => {
                 notes: first.notes,
                 appointments: examAppts,
               });
+            }}
+            onPressBlock={(block) => {
+              const isSick = block.reason === 'sick_leave';
+              Alert.alert(
+                isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
+                isSick
+                  ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+                  : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                [
+                  { text: 'Annulla', style: 'cancel' },
+                  { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
+                ],
+              );
             }}
             onPressEmptySlot={(date, hour, minutes) => {
               if (quickBookOpen) { setQuickBookOpen(false); return; }

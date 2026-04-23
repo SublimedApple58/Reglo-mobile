@@ -35,6 +35,7 @@ type WeeklyAgendaViewProps = {
   instructorBlocks?: InstructorBlock[];
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
+  onPressBlock?: (block: InstructorBlock) => void;
   onPressEmptySlot?: (date: Date, hour: number, minutes: number) => void;
   onDateChange?: (weekStart: Date) => void;
   loading?: boolean;
@@ -190,6 +191,7 @@ export default function WeeklyAgendaView({
   instructorBlocks = [],
   onPressAppointment,
   onPressExam,
+  onPressBlock,
   onPressEmptySlot,
   onDateChange,
   loading = false,
@@ -558,9 +560,9 @@ export default function WeeklyAgendaView({
             const textColor = isSick ? '#EA580C' : '#94A3B8';
             const label = isSick ? 'Malattia' : (block.reason || 'Bloccato');
             return (
-              <View
+              <Pressable
                 key={`block-${block.id}`}
-                pointerEvents="none"
+                onPress={() => onPressBlock?.(block)}
                 style={{
                   position: 'absolute',
                   top,
@@ -574,7 +576,7 @@ export default function WeeklyAgendaView({
                   paddingHorizontal: 3,
                   paddingVertical: 2,
                   overflow: 'hidden',
-                  zIndex: 3,
+                  zIndex: 5,
                 }}
               >
                 <Text style={{ fontSize: 9, fontWeight: '700', color: textColor, lineHeight: 12 }} numberOfLines={1}>
@@ -585,7 +587,7 @@ export default function WeeklyAgendaView({
                     {String(bStart.getHours()).padStart(2, '0')}:{String(bStart.getMinutes()).padStart(2, '0')}–{String(bEnd.getHours()).padStart(2, '0')}:{String(bEnd.getMinutes()).padStart(2, '0')}
                   </Text>
                 )}
-              </View>
+              </Pressable>
             );
           }),
         )}
