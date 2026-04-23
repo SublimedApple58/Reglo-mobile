@@ -23,14 +23,26 @@ import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+type QuickBookPreview = {
+  date: Date;
+  hour: number;
+  minutes: number;
+  duration: number;
+};
+
 type WeeklyAgendaViewProps = {
   appointments: AutoscuolaAppointmentWithRelations[];
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
+  onPressEmptySlot?: (date: Date, hour: number, minutes: number) => void;
   onDateChange?: (weekStart: Date) => void;
   loading?: boolean;
   studentCompletedMinutes?: Record<string, number>;
   weekAvailability?: Record<number, Array<{ startMinutes: number; endMinutes: number }>>;
+  quickBookPreview?: QuickBookPreview | null;
+  quickBookTopPanHandlers?: ReturnType<typeof PanResponder.create>['panHandlers'];
+  quickBookBottomPanHandlers?: ReturnType<typeof PanResponder.create>['panHandlers'];
+  quickBookDragging?: boolean;
 };
 
 /* ------------------------------------------------------------------ */
@@ -176,10 +188,15 @@ export default function WeeklyAgendaView({
   appointments,
   onPressAppointment,
   onPressExam,
+  onPressEmptySlot,
   onDateChange,
   loading = false,
   studentCompletedMinutes = {},
   weekAvailability = {},
+  quickBookPreview = null,
+  quickBookTopPanHandlers,
+  quickBookBottomPanHandlers,
+  quickBookDragging = false,
 }: WeeklyAgendaViewProps) {
   const { width: screenWidth } = useWindowDimensions();
   const colW = (screenWidth - GUTTER_W) / 6;
@@ -224,10 +241,23 @@ export default function WeeklyAgendaView({
       { length: 6 },
       () => [],
     );
+    const active = appointments.filter(
+      (a) => (a.status ?? '').toLowerCase() !== 'cancelled',
+    );
     for (const appt of appointments) {
       const status = (appt.status ?? '').toLowerCase();
       // Hide cancelled appointments that have been replaced
       if (status === 'cancelled' && appt.replacedByAppointmentId) continue;
+      // Hide cancelled appointments when another active appointment overlaps
+      if (status === 'cancelled') {
+        const cs = new Date(appt.startsAt).getTime();
+        const ce = new Date(appt.endsAt ?? appt.startsAt).getTime();
+        if (active.some((a) => {
+          const as_ = new Date(a.startsAt).getTime();
+          const ae = new Date(a.endsAt ?? a.startsAt).getTime();
+          return as_ < ce && ae > cs;
+        })) continue;
+      }
       const start = new Date(appt.startsAt);
       const dow = start.getDay();
       if (dow === 0) continue;
@@ -321,8 +351,9 @@ export default function WeeklyAgendaView({
       {/* ──── Scrollable time grid ──── */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ height: gridHeight }}
+        contentContainerStyle={{ height: gridHeight + (quickBookPreview ? 500 : 100) }}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!quickBookDragging}
         {...panResponder.panHandlers}
       >
         {/* Today column highlight */}
@@ -337,6 +368,23 @@ export default function WeeklyAgendaView({
               height: gridHeight,
               backgroundColor: '#FDF2F8',
               opacity: 0.35,
+            }}
+          />
+        )}
+
+        {/* Tap-to-book: tap empty area to create lesson */}
+        {onPressEmptySlot && (
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: gridHeight, zIndex: 0 }}
+            onPress={(e) => {
+              const x = e.nativeEvent.locationX;
+              const y = e.nativeEvent.locationY;
+              const col = Math.floor(x / colW);
+              if (col < 0 || col > 5) return;
+              const hourOffset = y / ROW_H;
+              const hour = FIRST_HOUR + Math.floor(hourOffset);
+              const minutes = Math.floor((hourOffset % 1) * 4) * 15;
+              onPressEmptySlot(weekDays[col], hour, minutes);
             }}
           />
         )}
@@ -472,6 +520,78 @@ export default function WeeklyAgendaView({
             );
           }),
         )}
+
+        {/* Quick-book preview block with handles */}
+        {quickBookPreview && (() => {
+          const qbDate = quickBookPreview.date;
+          const qbDow = qbDate.getDay();
+          if (qbDow === 0) return null;
+          const qbColIdx = qbDow - 1;
+          if (qbColIdx > 5) return null;
+          const qbDateNorm = new Date(qbDate); qbDateNorm.setHours(0, 0, 0, 0);
+          const weekDayNorm = new Date(weekDays[qbColIdx]); weekDayNorm.setHours(0, 0, 0, 0);
+          if (qbDateNorm.getTime() !== weekDayNorm.getTime()) return null;
+          const startMin = quickBookPreview.hour * 60 + quickBookPreview.minutes;
+          const topPx = ((startMin - FIRST_HOUR * 60) / 60) * ROW_H;
+          const blockH = Math.max((quickBookPreview.duration / 60) * ROW_H, 20);
+          const endTotal = startMin + quickBookPreview.duration;
+          const endH = Math.floor(endTotal / 60);
+          const endM = endTotal % 60;
+          const hasHandles = Boolean(quickBookTopPanHandlers && quickBookBottomPanHandlers);
+          return (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: 'absolute',
+                top: topPx - (hasHandles ? 10 : 0),
+                left: GUTTER_W + qbColIdx * colW + 2,
+                width: colW - 4,
+                height: blockH + (hasHandles ? 20 : 0),
+                zIndex: 12,
+              }}
+            >
+              {/* Block body */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: hasHandles ? 10 : 0,
+                  left: 0,
+                  right: 0,
+                  height: blockH,
+                  backgroundColor: '#FDF2F8',
+                  borderWidth: 1.5,
+                  borderColor: '#EC4899',
+                  borderStyle: 'dashed',
+                  borderRadius: 4,
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                }}
+              >
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#EC4899', lineHeight: 12 }} numberOfLines={1}>
+                  {String(quickBookPreview.hour).padStart(2, '0')}:{String(quickBookPreview.minutes).padStart(2, '0')}–{String(endH).padStart(2, '0')}:{String(endM).padStart(2, '0')}
+                </Text>
+              </View>
+              {/* Drag handles */}
+              {hasHandles && (
+                <>
+                  <View
+                    {...quickBookTopPanHandlers}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+                  >
+                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#EC4899' }} />
+                  </View>
+                  <View
+                    {...quickBookBottomPanHandlers}
+                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+                  >
+                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#EC4899' }} />
+                  </View>
+                </>
+              )}
+            </View>
+          );
+        })()}
 
         {/* Now line */}
         {nowLineTop !== null && (

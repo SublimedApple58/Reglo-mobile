@@ -6,6 +6,7 @@ import {
   KeyboardEvent,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -24,12 +25,18 @@ import Animated, {
   withDelay,
   interpolate,
   Easing,
+  FadeInLeft,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutRight,
+  Layout,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
@@ -260,6 +267,16 @@ const getActionAvailability = (
 const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Date) => {
   const status = normalizeStatus(lesson.status);
   if (!VISIBLE_LESSON_STATUSES.has(status)) return null;
+  // Terminal statuses take priority over time-window checks
+  if (status === 'completed') {
+    return { label: 'Completata', tone: 'confirmed' as const };
+  }
+  if (status === 'no_show') {
+    return { label: 'Assente', tone: 'pending_review' as const };
+  }
+  if (status === 'cancelled') {
+    return { label: 'Annullata', tone: 'pending_review' as const };
+  }
   if (status === 'pending_review') {
     return { label: 'Da confermare', tone: 'pending_review' as const };
   }
@@ -274,15 +291,6 @@ const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Dat
   }
   if (status === 'proposal') {
     return { label: 'Proposta', tone: 'pending_review' as const };
-  }
-  if (status === 'completed') {
-    return { label: 'Completata', tone: 'confirmed' as const };
-  }
-  if (status === 'no_show') {
-    return { label: 'Assente', tone: 'pending_review' as const };
-  }
-  if (status === 'cancelled') {
-    return { label: 'Annullata', tone: 'pending_review' as const };
   }
   return { label: 'Programmata', tone: 'scheduled' as const };
 };
@@ -337,8 +345,9 @@ const pickFeaturedLesson = (
   now: Date,
 ) => {
   const active = source.filter((item) => VISIBLE_LESSON_STATUSES.has(normalizeStatus(item.status)));
+  const terminalStatuses = new Set(['completed', 'no_show', 'cancelled']);
   const inProgress = [...active]
-    .filter((item) => isLessonInProgressWindow(item, now))
+    .filter((item) => !terminalStatuses.has(normalizeStatus(item.status)) && isLessonInProgressWindow(item, now))
     .sort((a, b) => {
       const aCheckedIn = normalizeStatus(a.status) === 'checked_in' ? 1 : 0;
       const bCheckedIn = normalizeStatus(b.status) === 'checked_in' ? 1 : 0;
@@ -439,10 +448,208 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
   );
 };
 
+/* ── Inline Calendar Picker (no Modal, renders inside BottomSheet) ── */
+const CAL_MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const CAL_WEEKDAYS = ['LUN','MAR','MER','GIO','VEN','SAB','DOM'];
+const CAL_CELL = 44;
+const calFirstOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+const calMondayBefore = (d: Date) => { const r = new Date(d); const day = r.getDay(); r.setDate(r.getDate() - (day === 0 ? 6 : day - 1)); return r; };
+const calSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const calSameMonth = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
+const InlineCalendarPicker = ({ selectedDate, maxWeeks = 4, onSelectDate, bookedDates }: {
+  selectedDate: Date;
+  maxWeeks?: number;
+  onSelectDate: (date: Date) => void;
+  bookedDates?: Set<string>;
+}) => {
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const [month, setMonth] = useState(() => calFirstOfMonth(selectedDate));
+  const maxDate = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() + maxWeeks * 7); return d; }, [today, maxWeeks]);
+  const minMonth = useMemo(() => calFirstOfMonth(today), [today]);
+  const maxMonth = useMemo(() => calFirstOfMonth(maxDate), [maxDate]);
+  const canPrev = month.getTime() > minMonth.getTime();
+  const canNext = month.getTime() < maxMonth.getTime();
+  const cells = useMemo(() => {
+    const start = calMondayBefore(calFirstOfMonth(month));
+    return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); d.setHours(0,0,0,0); return d; });
+  }, [month]);
+
+  return (
+    <View style={{ paddingVertical: 4 }}>
+      {/* Month navigation */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+        <Pressable
+          onPress={() => canPrev && setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+          disabled={!canPrev}
+          style={[{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, !canPrev && { opacity: 0.35 }]}
+        >
+          <Text style={{ fontSize: 22, color: '#1E293B', lineHeight: 26 }}>{'\u2039'}</Text>
+        </Pressable>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1E293B' }}>{CAL_MONTHS[month.getMonth()]} {month.getFullYear()}</Text>
+        <Pressable
+          onPress={() => canNext && setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+          disabled={!canNext}
+          style={[{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, !canNext && { opacity: 0.35 }]}
+        >
+          <Text style={{ fontSize: 22, color: '#1E293B', lineHeight: 26 }}>{'\u203A'}</Text>
+        </Pressable>
+      </View>
+      {/* Weekday headers */}
+      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+        {CAL_WEEKDAYS.map((wd) => (
+          <View key={wd} style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>{wd}</Text>
+          </View>
+        ))}
+      </View>
+      {/* Grid */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {cells.map((date, idx) => {
+          const inMonth = calSameMonth(date, month);
+          const isToday = calSameDay(date, today);
+          const isSelected = calSameDay(date, selectedDate) && !isToday;
+          const inRange = date >= today && date <= maxDate;
+          const tappable = inMonth && inRange;
+          const hasBooking = inMonth && bookedDates?.has(
+            `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+          );
+          return (
+            <Pressable key={idx} onPress={tappable ? () => onSelectDate(date) : undefined} disabled={!tappable}
+              style={{ width: '14.2857%', alignItems: 'center', justifyContent: 'center', paddingVertical: 3 }}>
+              <View style={[
+                { width: CAL_CELL, height: CAL_CELL, borderRadius: CAL_CELL / 2, alignItems: 'center', justifyContent: 'center' },
+                isToday && { borderWidth: 2, borderColor: '#FACC15' },
+                isSelected && { backgroundColor: '#EC4899' },
+              ]}>
+                <Text style={[
+                  { fontSize: 15, fontWeight: '600', color: '#1E293B' },
+                  !inMonth && { color: '#E2E8F0' },
+                  isToday && { fontWeight: '700' },
+                  isSelected && { color: '#FFFFFF', fontWeight: '700' },
+                  (inMonth && !inRange) && { color: '#CBD5E1' },
+                ]}>{date.getDate()}</Text>
+              </View>
+              {hasBooking ? (
+                <View style={[
+                  { position: 'absolute', bottom: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: '#EC4899' },
+                  (isSelected || isToday) && { backgroundColor: '#FACC15' },
+                ]} />
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      {/* Duck mascot */}
+      <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.md, gap: 4 }}>
+        <Image source={require('../../assets/duck-calendar.png')} style={{ width: 120, height: 85, marginBottom: 4 }} resizeMode="contain" />
+        <Text style={{ fontSize: 14, color: '#94A3B8' }}>
+          Puoi navigare fino a {maxWeeks} settimane
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+/* ── Inline Time Picker (no Modal, renders inside BottomSheet) ── */
+const TP_HOURS = Array.from({ length: 24 }, (_, i) => i);
+const TP_MINUTES = [0, 15, 30, 45];
+const TP_ITEM_H = 48;
+const TP_COL_H = 250;
+const tpPad = (n: number) => String(n).padStart(2, '0');
+
+const InlineTimePicker = ({ selectedTime, onSelectTime }: {
+  selectedTime: Date;
+  onSelectTime: (date: Date) => void;
+}) => {
+  const [hour, setHour] = useState(() => selectedTime.getHours());
+  const [minute, setMinute] = useState(() => {
+    const m = selectedTime.getMinutes();
+    return TP_MINUTES.reduce((p, c) => Math.abs(c - m) < Math.abs(p - m) ? c : p);
+  });
+  const hourRef = useRef<ScrollView | null>(null);
+  const minRef = useRef<ScrollView | null>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      hourRef.current?.scrollTo({ y: Math.max(0, TP_HOURS.indexOf(hour) * TP_ITEM_H - TP_COL_H / 2 + TP_ITEM_H / 2), animated: false });
+      minRef.current?.scrollTo({ y: Math.max(0, TP_MINUTES.indexOf(minute) * TP_ITEM_H - TP_COL_H / 2 + TP_ITEM_H / 2), animated: false });
+    }, 50);
+  }, []);
+
+  return (
+    <View style={{ paddingVertical: 4 }}>
+      <View style={{ flexDirection: 'row', gap: spacing.md, justifyContent: 'center' }}>
+        {/* Hours column */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Ore</Text>
+          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F8FAFC', overflow: 'hidden' }}>
+            <ScrollView ref={hourRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, alignItems: 'center' }}>
+              {TP_HOURS.map((h) => {
+                const sel = h === hour;
+                return (
+                  <Pressable key={h} onPress={() => setHour(h)} style={[
+                    { height: TP_ITEM_H, width: '80%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+                    sel && { backgroundColor: '#FACC15' },
+                  ]}>
+                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#64748B' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(h)}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+        {/* Minutes column */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Minuti</Text>
+          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F8FAFC', overflow: 'hidden' }}>
+            <ScrollView ref={minRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, alignItems: 'center' }}>
+              {TP_MINUTES.map((m) => {
+                const sel = m === minute;
+                return (
+                  <Pressable key={m} onPress={() => setMinute(m)} style={[
+                    { height: TP_ITEM_H, width: '80%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+                    sel && { backgroundColor: '#FACC15' },
+                  ]}>
+                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#64748B' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(m)}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </View>
+      {/* Duck mascot */}
+      <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 4 }}>
+        <Image source={require('../../assets/duck-clock.png')} style={{ width: 100, height: 73, marginBottom: 4 }} resizeMode="contain" />
+        <Text style={{ fontSize: 14, color: '#94A3B8' }}>Scegli l'ora della guida</Text>
+      </View>
+      {/* Confirm CTA */}
+      <Pressable
+        onPress={() => {
+          const result = new Date(selectedTime);
+          result.setHours(hour, minute, 0, 0);
+          onSelectTime(result);
+        }}
+        style={({ pressed }) => [
+          { backgroundColor: '#EC4899', borderRadius: radii.sm, minHeight: 52, alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#EC4899', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+          pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+        ]}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+          Conferma {tpPad(hour)}:{tpPad(minute)}
+        </Text>
+      </Pressable>
+    </View>
+  );
+};
+
 export const IstruttoreHomeScreen = () => {
   const router = useRouter();
   const { instructorId, user } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
+  const safeInsets = useSafeAreaInsets();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
@@ -533,6 +740,73 @@ export const IstruttoreHomeScreen = () => {
     note: string;
   } | null>(null);
   const [studentNotesMap, setStudentNotesMap] = useState<Record<string, string | null>>({});
+  // ── Quick-book state (Google Calendar-style tap-to-create) ──
+  const [quickBookOpen, setQuickBookOpen] = useState(false);
+  const [quickBookDate, setQuickBookDate] = useState<Date>(new Date());
+  const [quickBookHour, setQuickBookHour] = useState(9);
+  const [quickBookMinutes, setQuickBookMinutes] = useState(0);
+  const [quickBookDuration, setQuickBookDuration] = useState(60);
+  const [quickBookStudentId, setQuickBookStudentId] = useState('');
+  const [quickBookPending, setQuickBookPending] = useState(false);
+  const [qbHandleDragging, setQbHandleDragging] = useState(false);
+  // Refs for quick-book drag handles
+  const qbCurrentRef = useRef({ hour: 9, min: 0, dur: 60 });
+  const qbDragOrigin = useRef({ hour: 9, min: 0, dur: 60 });
+  const qbAllowedDurRef = useRef<number[]>([60]);
+  useEffect(() => {
+    qbCurrentRef.current = { hour: quickBookHour, min: quickBookMinutes, dur: quickBookDuration };
+  }, [quickBookHour, quickBookMinutes, quickBookDuration]);
+  // Top handle: moves start time in 15-min steps, keeps duration fixed
+  const qbTopPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onShouldBlockNativeResponder: () => true,
+    onPanResponderGrant: () => {
+      qbDragOrigin.current = { ...qbCurrentRef.current };
+      setQbHandleDragging(true);
+    },
+    onPanResponderMove: (_, g) => {
+      const delta = Math.round((g.dy / ROW_H) * 60 / 15) * 15;
+      const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
+      const newStart = Math.max(0, Math.min(21 * 60 - qbDragOrigin.current.dur, origStart + delta));
+      setQuickBookHour(Math.floor(newStart / 60));
+      setQuickBookMinutes(newStart % 60);
+    },
+    onPanResponderRelease: () => setQbHandleDragging(false),
+    onPanResponderTerminate: () => setQbHandleDragging(false),
+  }), []);
+  // Bottom handle: snaps duration to nearest allowed value
+  const qbBottomPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onShouldBlockNativeResponder: () => true,
+    onPanResponderGrant: () => {
+      qbDragOrigin.current = { ...qbCurrentRef.current };
+      setQbHandleDragging(true);
+    },
+    onPanResponderMove: (_, g) => {
+      const delta = Math.round((g.dy / ROW_H) * 60 / 15) * 15;
+      const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
+      const origEnd = origStart + qbDragOrigin.current.dur;
+      const rawDur = origEnd + delta - origStart;
+      const allowed = qbAllowedDurRef.current;
+      const snapped = allowed.reduce((best, d) =>
+        Math.abs(d - rawDur) < Math.abs(best - rawDur) ? d : best,
+      );
+      setQuickBookDuration(snapped);
+    },
+    onPanResponderRelease: () => setQbHandleDragging(false),
+    onPanResponderTerminate: () => setQbHandleDragging(false),
+  }), []);
+  const qbDrawerTranslate = useSharedValue(400);
+  useEffect(() => {
+    qbDrawerTranslate.value = quickBookOpen
+      ? withTiming(0, { duration: 220 })
+      : withTiming(400, { duration: 180 });
+  }, [quickBookOpen]);
+  const qbDrawerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: qbDrawerTranslate.value }],
+  }));
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const rangeKeyRef = useRef<string | null>(null);
   const loadRequestRef = useRef(0);
@@ -541,10 +815,8 @@ export const IstruttoreHomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
-  const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
-  const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const bookingSheetNextRef = useRef<'calendar' | 'timepicker' | null>(null);
+  const [bookingSheetMode, setBookingSheetMode] = useState<'form' | 'calendar' | 'timepicker'>('form');
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
   const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
@@ -783,6 +1055,7 @@ export const IstruttoreHomeScreen = () => {
       (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
     [clusterDurations, settings?.bookingSlotDurations],
   );
+  qbAllowedDurRef.current = bookingDurations;
   const clustersActive = Boolean(instructorAutonomousMode);
   const assignedStudents = useMemo(
     () => students.filter((s) => s.assignedInstructorId === instructorId),
@@ -1008,8 +1281,100 @@ export const IstruttoreHomeScreen = () => {
     setMultiBookingEntries([]);
     setEditingEntryId(null);
     setEditingEntryField(null);
+    setBookingSheetMode('form');
     setBookingSheetOpen(true);
   }, [canInstructorBook, normalizeToQuarter, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
+
+  const openQuickBook = useCallback((date: Date, hour: number, minutes: number) => {
+    if (!canInstructorBook) {
+      setToast({
+        text: 'La prenotazione da app è abilitata solo per allievi.',
+        tone: 'info',
+      });
+      return;
+    }
+    const allowedDurations = (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60])
+      .slice()
+      .sort((a, b) => a - b);
+    setQuickBookDate(date);
+    setQuickBookHour(hour);
+    setQuickBookMinutes(minutes);
+    setQuickBookDuration(allowedDurations.includes(60) ? 60 : allowedDurations[0] ?? 60);
+    setQuickBookStudentId('');
+    setQuickBookOpen(true);
+  }, [canInstructorBook, clusterDurations, settings?.bookingSlotDurations]);
+
+  const handleQuickBookConfirm = useCallback(async () => {
+    if (!quickBookStudentId) {
+      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
+      return;
+    }
+    if (!instructorId) {
+      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
+      return;
+    }
+    const start = new Date(quickBookDate);
+    start.setHours(quickBookHour, quickBookMinutes, 0, 0);
+    const end = new Date(start.getTime() + quickBookDuration * 60 * 1000);
+
+    setQuickBookPending(true);
+    setToast(null);
+
+    const doBook = async (skipWeeklyLimitCheck = false) => {
+      await regloApi.confirmInstructorBooking({
+        studentId: quickBookStudentId,
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        instructorId,
+        vehicleId: settings?.vehiclesEnabled !== false ? (vehicles[0]?.id ?? null) : null,
+        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
+      });
+    };
+
+    try {
+      await doBook();
+      setQuickBookOpen(false);
+      setToast({ text: 'Guida prenotata.', tone: 'success' });
+      await loadData();
+    } catch (err: unknown) {
+      const payload = (err as { payload?: Record<string, unknown> })?.payload;
+      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
+        setQuickBookPending(false);
+        const msg = typeof payload.message === 'string'
+          ? payload.message
+          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
+        Alert.alert('Limite settimanale', msg, [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Procedi',
+            onPress: async () => {
+              setQuickBookPending(true);
+              try {
+                await doBook(true);
+                setQuickBookOpen(false);
+                setToast({ text: 'Guida prenotata.', tone: 'success' });
+                await loadData();
+              } catch (retryErr) {
+                setToast({
+                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
+                  tone: 'danger',
+                });
+              } finally {
+                setQuickBookPending(false);
+              }
+            },
+          },
+        ]);
+        return;
+      }
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
+        tone: 'danger',
+      });
+    } finally {
+      setQuickBookPending(false);
+    }
+  }, [quickBookStudentId, quickBookDate, quickBookHour, quickBookMinutes, quickBookDuration, instructorId, settings?.vehiclesEnabled, vehicles, loadData]);
 
   const handleSuggestGuidedBooking = useCallback(async () => {
     if (!bookingStudentId) {
@@ -1270,11 +1635,24 @@ export const IstruttoreHomeScreen = () => {
 
   // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {
+    const active = appointments.filter(
+      (a) => normalizeStatus(a.status) !== 'cancelled',
+    );
     return [...appointments]
       .filter((item) => {
         const status = normalizeStatus(item.status);
+        if (status !== 'cancelled') return true;
         // Hide cancelled appointments that have been replaced by another
-        if (status === 'cancelled' && item.replacedByAppointmentId) return false;
+        if (item.replacedByAppointmentId) return false;
+        // Hide cancelled appointments when another active appointment overlaps
+        const cancelStart = new Date(item.startsAt).getTime();
+        const cancelEnd = new Date(item.endsAt ?? item.startsAt).getTime();
+        const overlapping = active.some((a) => {
+          const aStart = new Date(a.startsAt).getTime();
+          const aEnd = new Date(a.endsAt ?? a.startsAt).getTime();
+          return aStart < cancelEnd && aEnd > cancelStart;
+        });
+        if (overlapping) return false;
         return true;
       })
       .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
@@ -1597,7 +1975,7 @@ export const IstruttoreHomeScreen = () => {
     if (!swapSearch.trim()) return swapCandidates;
     const q = swapSearch.toLowerCase().trim();
     return swapCandidates.filter((a) =>
-      (a.student?.name ?? '').toLowerCase().includes(q),
+      (`${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`).toLowerCase().includes(q),
     );
   }, [swapCandidates, swapSearch]);
 
@@ -1644,10 +2022,27 @@ export const IstruttoreHomeScreen = () => {
     [windowHeight, keyboardHeight],
   );
   const featuredCheckinHint = featuredLesson ? getCheckinStateText(featuredLesson, now) : null;
-  const sheetStateMeta = useMemo(
-    () => (sheetLesson ? getLessonStateMeta(sheetLesson, now) : null),
-    [sheetLesson, now],
-  );
+  const sheetStateMeta = useMemo(() => {
+    if (!sheetLesson) return null;
+    const endTs = sheetLesson.endsAt
+      ? new Date(sheetLesson.endsAt).getTime()
+      : new Date(sheetLesson.startsAt).getTime() + 60 * 60 * 1000;
+    const durationMin = (endTs - new Date(sheetLesson.startsAt).getTime()) / (60 * 1000);
+    const config = timelineStatusConfig(sheetLesson.status, sheetLesson.type, {
+      durationMin,
+      studentId: sheetLesson.studentId,
+    });
+    // Map timelineStatusConfig colors to LessonStateTag tones
+    const toneMap: Record<string, 'live' | 'confirmed' | 'scheduled' | 'pending_review'> = {
+      '#EC4899': 'live',        // checked_in / in corso
+      '#22C55E': 'confirmed',   // completed
+      '#F97316': 'pending_review', // pending_review
+      '#94A3B8': 'pending_review', // cancelled / no_show
+      '#A78BFA': 'pending_review', // proposal
+    };
+    const tone = toneMap[config.border] ?? 'scheduled';
+    return { label: config.label, tone };
+  }, [sheetLesson, now, timelineStatusConfig]);
 
   // ── Calendar day-pills logic (mirroring AllievoHomeScreen) ──
   const ITALIAN_WEEKDAYS = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'] as const;
@@ -2187,8 +2582,9 @@ export const IstruttoreHomeScreen = () => {
       ) : null}
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, quickBookOpen && { paddingBottom: 500 }]}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!qbHandleDragging}
         style={agendaViewMode === 'week' ? { display: 'none' } : undefined}
         refreshControl={
           <RefreshControl
@@ -2529,6 +2925,23 @@ export const IstruttoreHomeScreen = () => {
               )
             )}
             <View style={[styles.timelineSection, { position: 'relative', height: HOUR_SLOTS.length * ROW_H }]}>
+              {/* ── Tap-to-book / tap-to-dismiss ── */}
+              {canInstructorBook && (
+                <Pressable
+                  style={{ position: 'absolute', top: 0, left: 60, right: 0, bottom: 0, zIndex: 1 }}
+                  onPress={(e) => {
+                    if (quickBookOpen) {
+                      setQuickBookOpen(false);
+                      return;
+                    }
+                    const y = e.nativeEvent.locationY;
+                    const hourOffset = y / ROW_H;
+                    const hour = HOUR_SLOTS[0] + Math.floor(hourOffset);
+                    const minutes = Math.floor((hourOffset % 1) * 4) * 15;
+                    openQuickBook(selectedDate, hour, minutes);
+                  }}
+                />
+              )}
               {/* ── Grid layer: hour labels + lines + availability ── */}
               {HOUR_SLOTS.map((hour, idx) => {
                 const coverage = hourAvailCoverage.get(hour);
@@ -2581,7 +2994,7 @@ export const IstruttoreHomeScreen = () => {
                   const studentsCount = item.appointments.length;
                   const studentsPreview = item.appointments
                     .slice(0, 2)
-                    .map((a) => a.student?.name ?? '')
+                    .map((a) => `${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim())
                     .filter(Boolean)
                     .join(', ');
                   const moreCount = studentsCount - 2;
@@ -2661,9 +3074,11 @@ export const IstruttoreHomeScreen = () => {
                 const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
                 const blockH = Math.max(36, (durationMin / 60) * ROW_H);
                 const config = timelineStatusConfig(appt.status, appt.type, { durationMin, studentId: appt.studentId });
-                const isActive = isLessonInProgressWindow(appt, now);
+                const apptStatus = normalizeStatus(appt.status);
+                const isTerminal = apptStatus === 'completed' || apptStatus === 'no_show' || apptStatus === 'cancelled';
+                const isActive = !isTerminal && isLessonInProgressWindow(appt, now);
                 const actionAvail = getActionAvailability(appt, now, settings?.autoCheckinEnabled);
-                const isCheckedIn = normalizeStatus(appt.status) === 'checked_in';
+                const isCheckedIn = apptStatus === 'checked_in';
                 const isCompact = blockH < 55;
                 const isFull = blockH >= 110;
 
@@ -2762,12 +3177,7 @@ export const IstruttoreHomeScreen = () => {
                           </View>
                         ) : null}
 
-                        {!isFull && !isCheckedIn && !actionAvail.enabled && actionAvail.reason ? (
-                          <View style={styles.timelineWaiting}>
-                            <Ionicons name="time-outline" size={14} color="#94A3B8" />
-                            <Text style={styles.timelineWaitingText}>{actionAvail.reason}</Text>
-                          </View>
-                        ) : null}
+                        {null}
                       </>
                     )}
                   </Pressable>
@@ -2804,17 +3214,16 @@ export const IstruttoreHomeScreen = () => {
                 return (
                   <Pressable
                     key={`block-${block.id}`}
-                    onPress={() => isSickBlock
-                      ? Alert.alert(
-                          'Rimuovi malattia',
-                          'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.',
-                          [
-                            { text: 'Annulla', style: 'cancel' },
-                            { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
-                          ],
-                        )
-                      : handleDeleteBlock(block.id)
-                    }
+                    onPress={() => Alert.alert(
+                      isSickBlock ? 'Rimuovi malattia' : 'Rimuovi blocco',
+                      isSickBlock
+                        ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+                        : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                      [
+                        { text: 'Annulla', style: 'cancel' },
+                        { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
+                      ],
+                    )}
                     style={[styles.timelineBlock, { borderLeftColor: blockBorderColor, backgroundColor: blockBgColor, position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, padding: bCompact ? 6 : 14 }]}
                   >
                     {bCompact ? (
@@ -2836,9 +3245,11 @@ export const IstruttoreHomeScreen = () => {
                               {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
                             </Text>
                           </View>
-                          <View style={[styles.timelineStatusBadge, { backgroundColor: blockBadgeBg }]}>
-                            <Text style={[styles.timelineStatusText, { color: blockBadgeText }]}>{blockLabel}</Text>
-                          </View>
+                          {isSickBlock ? (
+                            <View style={[styles.timelineStatusBadge, { backgroundColor: blockBadgeBg }]}>
+                              <Text style={[styles.timelineStatusText, { color: blockBadgeText }]}>{blockLabel}</Text>
+                            </View>
+                          ) : null}
                         </View>
                         <Text style={[styles.timelineBlockStudent, { color: blockTextColor }]}>
                           {isSickBlock ? 'Guide cancellate e allievi avvisati' : (block.reason || 'Slot bloccato')}
@@ -2848,6 +3259,110 @@ export const IstruttoreHomeScreen = () => {
                   </Pressable>
                 );
               })}
+              {/* ── Quick-book preview block with drag handles ── */}
+              {quickBookOpen && agendaViewMode === 'day' && (() => {
+                const qbDateStr = `${quickBookDate.getFullYear()}-${String(quickBookDate.getMonth() + 1).padStart(2, '0')}-${String(quickBookDate.getDate()).padStart(2, '0')}`;
+                const selDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+                if (qbDateStr !== selDateStr) return null;
+                const startMin = quickBookHour * 60 + quickBookMinutes;
+                const firstHourMin = HOUR_SLOTS[0] * 60;
+                const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
+                const blockH = (quickBookDuration / 60) * ROW_H;
+                const endTotal = startMin + quickBookDuration;
+                const endHour = Math.floor(endTotal / 60);
+                const endMin = endTotal % 60;
+                const studentName = quickBookStudentId
+                  ? (students.find((s) => s.id === quickBookStudentId)?.firstName ?? 'Nuova guida')
+                  : 'Nuova guida';
+                return (
+                  <View
+                    pointerEvents="box-none"
+                    style={{
+                      position: 'absolute',
+                      top: topPx - 12,
+                      left: 60,
+                      right: 0,
+                      height: blockH + 24,
+                      zIndex: 15,
+                    }}
+                  >
+                    {/* Block body */}
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 0,
+                        right: 0,
+                        height: blockH,
+                        backgroundColor: '#FDF2F8',
+                        borderWidth: 2,
+                        borderColor: '#EC4899',
+                        borderRadius: 12,
+                        borderStyle: 'dashed',
+                        justifyContent: 'center',
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#EC4899' }}>
+                        {String(quickBookHour).padStart(2, '0')}:{String(quickBookMinutes).padStart(2, '0')} – {String(endHour).padStart(2, '0')}:{String(endMin).padStart(2, '0')}
+                      </Text>
+                      {blockH >= 50 && (
+                        <Text style={{ fontSize: 12, color: '#BE185D', opacity: 0.6, marginTop: 2 }}>
+                          {studentName}
+                        </Text>
+                      )}
+                    </View>
+                    {/* Drag handles — only if multiple durations allowed */}
+                    {bookingDurations.length > 1 && (
+                      <>
+                        {/* Top drag handle (move start time) */}
+                        <View
+                          {...qbTopPan.panHandlers}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 24,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 2,
+                          }}
+                        >
+                          <View style={{
+                            width: 36,
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: '#EC4899',
+                          }} />
+                        </View>
+                        {/* Bottom drag handle (snap duration) */}
+                        <View
+                          {...qbBottomPan.panHandlers}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 24,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 2,
+                      }}
+                    >
+                      <View style={{
+                        width: 36,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#EC4899',
+                      }} />
+                    </View>
+                      </>
+                    )}
+                  </View>
+                );
+              })()}
               {/* ── NOW line ── */}
               {nowHourFraction !== null && nowHourFraction >= HOUR_SLOTS[0] && nowHourFraction <= HOUR_SLOTS[HOUR_SLOTS.length - 1] + 1 ? (
                 <View style={[styles.nowLineOverlay, { top: (nowHourFraction - HOUR_SLOTS[0]) * ROW_H, left: 40, zIndex: 20 }]} pointerEvents="none">
@@ -2886,11 +3401,146 @@ export const IstruttoreHomeScreen = () => {
                 appointments: examAppts,
               });
             }}
+            onPressEmptySlot={(date, hour, minutes) => {
+              if (quickBookOpen) { setQuickBookOpen(false); return; }
+              openQuickBook(date, hour, minutes);
+            }}
             onDateChange={(weekStart: Date) => {
               setSelectedDate(weekStart);
             }}
+            quickBookPreview={quickBookOpen ? {
+              date: quickBookDate,
+              hour: quickBookHour,
+              minutes: quickBookMinutes,
+              duration: quickBookDuration,
+            } : null}
+            quickBookTopPanHandlers={bookingDurations.length > 1 ? qbTopPan.panHandlers : undefined}
+            quickBookBottomPanHandlers={bookingDurations.length > 1 ? qbBottomPan.panHandlers : undefined}
+            quickBookDragging={qbHandleDragging}
           />
       ) : null}
+
+      {/* ── Quick-book inline drawer (no modal/backdrop) ── */}
+      {quickBookOpen && (
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 62 + safeInsets.bottom,
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderBottomLeftRadius: 24,
+              borderBottomRightRadius: 24,
+              marginHorizontal: 8,
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 16,
+              shadowColor: '#000',
+              shadowOpacity: 0.15,
+              shadowRadius: 24,
+              shadowOffset: { width: 0, height: -10 },
+              elevation: 16,
+              zIndex: 50,
+            },
+            qbDrawerStyle,
+          ]}
+        >
+          {/* Handle */}
+          <View style={{ alignItems: 'center', marginBottom: 14 }}>
+            <View style={{ width: 36, height: 5, borderRadius: 2.5, backgroundColor: '#D1D5DB' }} />
+          </View>
+
+          {/* Date + time range */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FDF2F8', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="calendar-outline" size={18} color="#EC4899" />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
+              {quickBookDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })}
+              {' · '}
+              {String(quickBookHour).padStart(2, '0')}:{String(quickBookMinutes).padStart(2, '0')}
+              {'–'}
+              {(() => {
+                const endMin = quickBookHour * 60 + quickBookMinutes + quickBookDuration;
+                return `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+              })()}
+            </Text>
+          </View>
+
+          {/* Student selector */}
+          <View style={{ marginBottom: 14 }}>
+            <SearchableSelect
+              placeholder="Seleziona allievo..."
+              value={quickBookStudentId || null}
+              options={bookingStudentOptions}
+              onChange={setQuickBookStudentId}
+            />
+          </View>
+
+          {/* Duration chips */}
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+            {bookingDurations.map((dur) => {
+              const isActive = quickBookDuration === dur;
+              return (
+                <Pressable
+                  key={dur}
+                  onPress={() => setQuickBookDuration(dur)}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: isActive ? '#EC4899' : '#F1F5F9',
+                    borderWidth: 1,
+                    borderColor: isActive ? '#EC4899' : '#E2E8F0',
+                    opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? '#FFFFFF' : '#64748B' }}>
+                    {dur} min
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Pressable
+              onPress={() => setQuickBookOpen(false)}
+              disabled={quickBookPending}
+              style={({ pressed }) => ({
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 20,
+                backgroundColor: '#F1F5F9',
+                alignItems: 'center',
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#64748B' }}>Annulla</Text>
+            </Pressable>
+            <Pressable
+              onPress={quickBookPending ? undefined : handleQuickBookConfirm}
+              disabled={quickBookPending || !quickBookStudentId}
+              style={({ pressed }) => ({
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 20,
+                backgroundColor: !quickBookStudentId ? '#FBCFE8' : '#EC4899',
+                alignItems: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+                {quickBookPending ? 'Prenoto...' : 'Prenota'}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      )}
 
       {/* ── Sick Leave BottomSheet ── */}
       <BottomSheet
@@ -2999,14 +3649,16 @@ export const IstruttoreHomeScreen = () => {
       />
 
       {/* ── FAB Menu ── */}
-      <FabMenu
-        canBook={canInstructorBook}
-        disabled={isPending || Boolean(bookingPendingAction)}
-        onBookLesson={openBookingDrawer}
-        onBlockSlot={openBlockDrawer}
-        onCreateExam={() => router.push('/(tabs)/home/create-exam')}
-        onSickLeave={openSickLeaveDrawer}
-      />
+      {!quickBookOpen && (
+        <FabMenu
+          canBook={canInstructorBook}
+          disabled={isPending || Boolean(bookingPendingAction)}
+          onBookLesson={openBookingDrawer}
+          onBlockSlot={openBlockDrawer}
+          onCreateExam={() => router.push('/(tabs)/home/create-exam')}
+          onSickLeave={openSickLeaveDrawer}
+        />
+      )}
 
       {/* ── Placeholder to keep old refs working ── */}
       {/* old content removed — timeline is above */}
@@ -3259,20 +3911,71 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Booking BottomSheet ── */}
       <BottomSheet
         visible={bookingSheetOpen}
-        onClose={() => { if (!bookingPendingAction) { setBookingSheetOpen(false); setEmergencyAllStudents(false); } }}
-        onClosed={() => {
-          const next = bookingSheetNextRef.current;
-          bookingSheetNextRef.current = null;
-          if (next === 'calendar') setBookingCalendarOpen(true);
-          else if (next === 'timepicker') setTimePickerOpen(true);
+        onClose={() => {
+          if (bookingPendingAction) return;
+          if (bookingSheetMode !== 'form') { setBookingSheetMode('form'); return; }
+          setBookingSheetOpen(false);
+          setEmergencyAllStudents(false);
         }}
-        title="Nuova prenotazione"
+        title={bookingSheetMode === 'calendar' ? 'Seleziona data' : bookingSheetMode === 'timepicker' ? 'Seleziona orario' : 'Nuova prenotazione'}
         closeDisabled={Boolean(bookingPendingAction)}
         minHeight={bookingSheetMinHeight}
         showHandle
-        footer={bookingSheetFooter}
+        footer={bookingSheetMode === 'form' ? bookingSheetFooter : undefined}
       >
-        <ScrollView
+        {bookingSheetMode === 'calendar' && (() => {
+          const calSelectedDate = editingEntryId
+            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.date ?? bookingDate)
+            : bookingDate;
+          return (
+            <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+              <InlineCalendarPicker
+                selectedDate={calSelectedDate}
+                maxWeeks={Number(settings?.availabilityWeeks) || 4}
+                bookedDates={bookedDatesSet}
+                onSelectDate={(date) => {
+                  if (editingEntryId && editingEntryField === 'date') {
+                    setMultiBookingEntries((prev) =>
+                      prev.map((e) => (e.id === editingEntryId ? { ...e, date } : e)),
+                    );
+                    setEditingEntryId(null);
+                    setEditingEntryField(null);
+                  } else {
+                    setBookingDate(date);
+                    setGuidedSuggestion(null);
+                  }
+                  setBookingSheetMode('form');
+                }}
+              />
+            </Animated.View>
+          );
+        })()}
+        {bookingSheetMode === 'timepicker' && (() => {
+          const tpSelectedTime = editingEntryId
+            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.startTime ?? bookingStartTime)
+            : bookingStartTime;
+          return (
+            <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+              <InlineTimePicker
+                selectedTime={tpSelectedTime}
+                onSelectTime={(date) => {
+                  if (editingEntryId && editingEntryField === 'time') {
+                    setMultiBookingEntries((prev) =>
+                      prev.map((e) => (e.id === editingEntryId ? { ...e, startTime: date } : e)),
+                    );
+                    setEditingEntryId(null);
+                    setEditingEntryField(null);
+                  } else {
+                    setBookingStartTime(date);
+                    setGuidedSuggestion(null);
+                  }
+                  setBookingSheetMode('form');
+                }}
+              />
+            </Animated.View>
+          );
+        })()}
+        {bookingSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}><ScrollView
           ref={bookingSheetScrollRef}
           style={[styles.sheetScroll, { maxHeight: bookingSheetMaxHeight }]}
           contentContainerStyle={styles.sheetContentScroll}
@@ -3400,8 +4103,7 @@ export const IstruttoreHomeScreen = () => {
                         onPress={() => {
                           setEditingEntryId(entry.id);
                           setEditingEntryField('date');
-                          bookingSheetNextRef.current = 'calendar';
-                          setBookingSheetOpen(false);
+                          setBookingSheetMode('calendar');
                         }}
                       >
                         <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
@@ -3416,8 +4118,7 @@ export const IstruttoreHomeScreen = () => {
                         onPress={() => {
                           setEditingEntryId(entry.id);
                           setEditingEntryField('time');
-                          setBookingSheetOpen(false);
-                          setTimeout(() => setTimePickerOpen(true), 350);
+                          setBookingSheetMode('timepicker');
                         }}
                       >
                         <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
@@ -3514,10 +4215,7 @@ export const IstruttoreHomeScreen = () => {
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Giorno</Text>
                 <Pressable
-                  onPress={() => {
-                    setBookingSheetOpen(false);
-                    setTimeout(() => setBookingCalendarOpen(true), 350);
-                  }}
+                  onPress={() => setBookingSheetMode('calendar')}
                   style={styles.bookingFieldCard}
                 >
                   <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -3540,10 +4238,7 @@ export const IstruttoreHomeScreen = () => {
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
                 <Pressable
-                  onPress={() => {
-                    bookingSheetNextRef.current = 'timepicker';
-                    setBookingSheetOpen(false);
-                  }}
+                  onPress={() => setBookingSheetMode('timepicker')}
                   style={styles.bookingFieldCard}
                 >
                   <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -3637,7 +4332,7 @@ export const IstruttoreHomeScreen = () => {
                 ))}
               </ScrollView>
             </View>
-        </ScrollView>
+        </ScrollView></Animated.View>}
       </BottomSheet>
 
       <CalendarDrawer
@@ -3648,36 +4343,6 @@ export const IstruttoreHomeScreen = () => {
         unlimitedNavigation
         caption={null}
         bookedDates={bookedDatesSet}
-      />
-
-      <CalendarDrawer
-        visible={bookingCalendarOpen}
-        onClose={() => {
-          setBookingCalendarOpen(false);
-          setEditingEntryId(null);
-          setEditingEntryField(null);
-        }}
-        onClosed={() => setBookingSheetOpen(true)}
-        onSelectDate={(date) => {
-          if (editingEntryId && editingEntryField === 'date') {
-            setMultiBookingEntries((prev) =>
-              prev.map((e) => (e.id === editingEntryId ? { ...e, date } : e)),
-            );
-            setEditingEntryId(null);
-            setEditingEntryField(null);
-          } else {
-            setBookingDate(date);
-            setGuidedSuggestion(null);
-          }
-          setBookingCalendarOpen(false);
-        }}
-        selectedDate={
-          editingEntryId
-            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.date ?? bookingDate)
-            : bookingDate
-        }
-        maxWeeks={Number(settings?.availabilityWeeks) || 4}
-        caption={null}
       />
 
       <CalendarDrawer
@@ -3694,33 +4359,6 @@ export const IstruttoreHomeScreen = () => {
         selectedDate={guidedPreferredDate ?? new Date()}
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
         caption={null}
-      />
-
-      <TimePickerDrawer
-        visible={timePickerOpen}
-        onClose={() => {
-          setTimePickerOpen(false);
-          setEditingEntryId(null);
-          setEditingEntryField(null);
-        }}
-        onClosed={() => setBookingSheetOpen(true)}
-        onSelectTime={(date) => {
-          if (editingEntryId && editingEntryField === 'time') {
-            setMultiBookingEntries((prev) =>
-              prev.map((e) => (e.id === editingEntryId ? { ...e, startTime: date } : e)),
-            );
-            setEditingEntryId(null);
-            setEditingEntryField(null);
-          } else {
-            setBookingStartTime(date);
-            setGuidedSuggestion(null);
-          }
-        }}
-        selectedTime={
-          editingEntryId
-            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.startTime ?? bookingStartTime)
-            : bookingStartTime
-        }
       />
 
       {/* ── Block Slot BottomSheet ── */}
@@ -3966,7 +4604,7 @@ export const IstruttoreHomeScreen = () => {
               const isLast = idx === examDrawerGroup.appointments.length - 1;
               const canRemove = examDrawerGroup.appointments.length > 1;
               const pending = examActionPending === a.id;
-              const name = a.student?.name ?? 'Allievo';
+              const name = a.student ? `${a.student.firstName} ${a.student.lastName}`.trim() : 'Allievo';
               return (
                 <View
                   key={a.id}
@@ -5419,6 +6057,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+    overflow: 'hidden' as const,
   },
   timelineBlockActive: {
     backgroundColor: '#FFF1F3',
