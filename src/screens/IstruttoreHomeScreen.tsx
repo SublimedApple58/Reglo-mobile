@@ -3428,7 +3428,7 @@ export const IstruttoreHomeScreen = () => {
               position: 'absolute',
               left: 0,
               right: 0,
-              bottom: 62 + safeInsets.bottom,
+              bottom: 62 + safeInsets.bottom + keyboardHeight,
               backgroundColor: '#FFFFFF',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
