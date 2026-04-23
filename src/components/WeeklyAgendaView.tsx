@@ -33,6 +33,7 @@ type QuickBookPreview = {
 type WeeklyAgendaViewProps = {
   appointments: AutoscuolaAppointmentWithRelations[];
   instructorBlocks?: InstructorBlock[];
+  holidays?: Set<string>;
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressBlock?: (block: InstructorBlock) => void;
@@ -189,6 +190,7 @@ const MANDATORY_MINUTES_THRESHOLD = 480; // 8 hours
 export default function WeeklyAgendaView({
   appointments,
   instructorBlocks = [],
+  holidays = new Set(),
   onPressAppointment,
   onPressExam,
   onPressBlock,
@@ -275,6 +277,14 @@ export default function WeeklyAgendaView({
     return buckets;
   }, [appointments, weekDays]);
 
+  /* ── Holiday columns ── */
+  const toDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const holidayCols = useMemo(
+    () => new Set(weekDays.map((d, i) => (holidays.has(toDateKey(d)) ? i : -1)).filter((i) => i >= 0)),
+    [weekDays, holidays],
+  );
+
   /* ── Bucket instructor blocks by column ── */
   const blocksByCol = useMemo(() => {
     const buckets: InstructorBlock[][] = Array.from({ length: 6 }, () => []);
@@ -339,18 +349,20 @@ export default function WeeklyAgendaView({
         {weekDays.map((day, idx) => {
           const isToday = isSameDay(day, today);
           const isPast = day < today && !isToday;
+          const isHoliday = holidayCols.has(idx);
           return (
-            <View key={idx} style={[styles.dayHeaderCell, { width: colW }]}>
+            <View key={idx} style={[styles.dayHeaderCell, { width: colW }, isHoliday && { backgroundColor: '#FEE2E2' }]}>
               <Text
                 style={[
                   styles.dayLetter,
-                  isPast && { color: '#CBD5E1' },
-                  isToday && { color: '#EC4899' },
+                  isPast && !isHoliday && { color: '#CBD5E1' },
+                  isToday && !isHoliday && { color: '#EC4899' },
+                  isHoliday && { color: '#DC2626' },
                 ]}
               >
                 {DAY_LABELS[idx]}
               </Text>
-              {isToday ? (
+              {isToday && !isHoliday ? (
                 <View style={styles.todayCircle}>
                   <Text style={styles.todayCircleText}>{day.getDate()}</Text>
                 </View>
@@ -358,11 +370,17 @@ export default function WeeklyAgendaView({
                 <Text
                   style={[
                     styles.dayNumber,
-                    isPast && { color: '#CBD5E1' },
+                    isPast && !isHoliday && { color: '#CBD5E1' },
+                    isHoliday && { color: '#DC2626' },
                   ]}
                 >
                   {day.getDate()}
                 </Text>
+              )}
+              {isHoliday && (
+                <View style={{ backgroundColor: '#FECACA', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1, marginTop: 2 }}>
+                  <Text style={{ fontSize: 7, fontWeight: '700', color: '#DC2626' }}>Festivo</Text>
+                </View>
               )}
             </View>
           );
@@ -378,7 +396,7 @@ export default function WeeklyAgendaView({
         {...panResponder.panHandlers}
       >
         {/* Today column highlight */}
-        {todayColIdx >= 0 && (
+        {todayColIdx >= 0 && !holidayCols.has(todayColIdx) && (
           <View
             pointerEvents="none"
             style={{
@@ -392,6 +410,23 @@ export default function WeeklyAgendaView({
             }}
           />
         )}
+
+        {/* Holiday column overlays */}
+        {Array.from(holidayCols).map((colIdx) => (
+          <View
+            key={`holiday-${colIdx}`}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: GUTTER_W + colIdx * colW,
+              width: colW,
+              height: gridHeight,
+              backgroundColor: '#FEE2E2',
+              opacity: 0.35,
+            }}
+          />
+        ))}
 
         {/* Tap-to-book: tap empty area to create lesson */}
         {onPressEmptySlot && (
