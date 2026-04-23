@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
-import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
+import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -32,6 +32,7 @@ type QuickBookPreview = {
 
 type WeeklyAgendaViewProps = {
   appointments: AutoscuolaAppointmentWithRelations[];
+  instructorBlocks?: InstructorBlock[];
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressEmptySlot?: (date: Date, hour: number, minutes: number) => void;
@@ -186,6 +187,7 @@ const MANDATORY_MINUTES_THRESHOLD = 480; // 8 hours
 
 export default function WeeklyAgendaView({
   appointments,
+  instructorBlocks = [],
   onPressAppointment,
   onPressExam,
   onPressEmptySlot,
@@ -270,6 +272,23 @@ export default function WeeklyAgendaView({
     }
     return buckets;
   }, [appointments, weekDays]);
+
+  /* ── Bucket instructor blocks by column ── */
+  const blocksByCol = useMemo(() => {
+    const buckets: InstructorBlock[][] = Array.from({ length: 6 }, () => []);
+    for (const block of instructorBlocks) {
+      const start = new Date(block.startsAt);
+      const dow = start.getDay();
+      if (dow === 0) continue;
+      const colIdx = dow - 1;
+      if (colIdx > 5) continue;
+      const bd = new Date(start); bd.setHours(0, 0, 0, 0);
+      const cd = new Date(weekDays[colIdx]); cd.setHours(0, 0, 0, 0);
+      if (bd.getTime() !== cd.getTime()) continue;
+      buckets[colIdx].push(block);
+    }
+    return buckets;
+  }, [instructorBlocks, weekDays]);
 
   /* ── Now line ── */
   const nowLineTop = useMemo(() => {
@@ -517,6 +536,56 @@ export default function WeeklyAgendaView({
                   </Text>
                 )}
               </Pressable>
+            );
+          }),
+        )}
+
+        {/* Instructor blocks */}
+        {blocksByCol.map((colBlocks, colIdx) =>
+          colBlocks.map((block) => {
+            const bStart = new Date(block.startsAt);
+            const bEnd = new Date(block.endsAt);
+            const sm = bStart.getHours() * 60 + bStart.getMinutes();
+            const em = bEnd.getHours() * 60 + bEnd.getMinutes();
+            const clampedSm = Math.max(sm, FIRST_HOUR * 60);
+            const clampedEm = Math.min(em || LAST_HOUR * 60, LAST_HOUR * 60);
+            if (clampedEm <= clampedSm) return null;
+            const top = ((clampedSm - FIRST_HOUR * 60) / 60) * ROW_H;
+            const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 20);
+            const isSick = block.reason === 'sick_leave';
+            const borderColor = isSick ? '#FB923C' : '#94A3B8';
+            const bgColor = isSick ? '#FFF7ED' : '#F8FAFC';
+            const textColor = isSick ? '#EA580C' : '#94A3B8';
+            const label = isSick ? 'Malattia' : (block.reason || 'Bloccato');
+            return (
+              <View
+                key={`block-${block.id}`}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top,
+                  height,
+                  left: GUTTER_W + colIdx * colW + 2,
+                  width: colW - 4,
+                  backgroundColor: bgColor,
+                  borderLeftWidth: 3,
+                  borderLeftColor: borderColor,
+                  borderRadius: 4,
+                  paddingHorizontal: 3,
+                  paddingVertical: 2,
+                  overflow: 'hidden',
+                  zIndex: 3,
+                }}
+              >
+                <Text style={{ fontSize: 9, fontWeight: '700', color: textColor, lineHeight: 12 }} numberOfLines={1}>
+                  {label}
+                </Text>
+                {height >= 32 && (
+                  <Text style={{ fontSize: 8, fontWeight: '500', color: textColor, opacity: 0.7, lineHeight: 10, marginTop: 1 }} numberOfLines={1}>
+                    {String(bStart.getHours()).padStart(2, '0')}:{String(bStart.getMinutes()).padStart(2, '0')}–{String(bEnd.getHours()).padStart(2, '0')}:{String(bEnd.getMinutes()).padStart(2, '0')}
+                  </Text>
+                )}
+              </View>
             );
           }),
         )}

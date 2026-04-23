@@ -3435,6 +3435,7 @@ export const IstruttoreHomeScreen = () => {
       {agendaViewMode === 'week' ? (
           <WeeklyAgendaView
             appointments={appointments}
+            instructorBlocks={instructorBlocks}
             loading={appointmentsLoading}
             studentCompletedMinutes={studentCompletedMinutes}
             weekAvailability={weekAvailability}
