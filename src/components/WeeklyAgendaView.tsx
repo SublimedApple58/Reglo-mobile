@@ -247,23 +247,7 @@ export default function WeeklyAgendaView({
       { length: 6 },
       () => [],
     );
-    const active = appointments.filter(
-      (a) => (a.status ?? '').toLowerCase() !== 'cancelled',
-    );
     for (const appt of appointments) {
-      const status = (appt.status ?? '').toLowerCase();
-      // Hide cancelled appointments that have been replaced
-      if (status === 'cancelled' && appt.replacedByAppointmentId) continue;
-      // Hide cancelled appointments when another active appointment overlaps
-      if (status === 'cancelled') {
-        const cs = new Date(appt.startsAt).getTime();
-        const ce = new Date(appt.endsAt ?? appt.startsAt).getTime();
-        if (active.some((a) => {
-          const as_ = new Date(a.startsAt).getTime();
-          const ae = new Date(a.endsAt ?? a.startsAt).getTime();
-          return as_ < ce && ae > cs;
-        })) continue;
-      }
       const start = new Date(appt.startsAt);
       const dow = start.getDay();
       if (dow === 0) continue;

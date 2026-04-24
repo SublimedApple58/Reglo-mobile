@@ -112,7 +112,7 @@ const smartDayLabel = (isoDate: string, now: Date): string => {
 
 const ALLOWED_ACTION_STATUSES = new Set(['scheduled', 'confirmed', 'pending_review']);
 const CLOSED_ACTION_STATUSES = new Set(['cancelled', 'completed', 'no_show']);
-const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review', 'proposal', 'completed', 'no_show', 'cancelled']);
+const VISIBLE_LESSON_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review', 'proposal', 'completed', 'no_show']);
 const DETAILS_EDITABLE_STATUSES = new Set([
   'scheduled',
   'confirmed',
@@ -999,11 +999,12 @@ export const IstruttoreHomeScreen = () => {
         }
       }
       setInstructorBlocks(mergedBlocks);
+      const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
       const nextAppointments = dedupeAppointments(
-        agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId),
+        agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId && notCancelled(item)),
       );
       const nextFeaturedAppointments = dedupeAppointments(
-        featuredAppointmentsResponse.filter((item) => item.instructorId === instructorId),
+        featuredAppointmentsResponse.filter((item) => item.instructorId === instructorId && notCancelled(item)),
       );
       setAppointments(nextAppointments);
       setFeaturedAppointments(nextFeaturedAppointments);
@@ -1772,27 +1773,7 @@ export const IstruttoreHomeScreen = () => {
 
   // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {
-    const active = appointments.filter(
-      (a) => normalizeStatus(a.status) !== 'cancelled',
-    );
-    return [...appointments]
-      .filter((item) => {
-        const status = normalizeStatus(item.status);
-        if (status !== 'cancelled') return true;
-        // Hide cancelled appointments that have been replaced by another
-        if (item.replacedByAppointmentId) return false;
-        // Hide cancelled appointments when another active appointment overlaps
-        const cancelStart = new Date(item.startsAt).getTime();
-        const cancelEnd = new Date(item.endsAt ?? item.startsAt).getTime();
-        const overlapping = active.some((a) => {
-          const aStart = new Date(a.startsAt).getTime();
-          const aEnd = new Date(a.endsAt ?? a.startsAt).getTime();
-          return aStart < cancelEnd && aEnd > cancelStart;
-        });
-        if (overlapping) return false;
-        return true;
-      })
-      .sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
+    return [...appointments].sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
   }, [appointments]);
 
   // Timeline items: exams grouped by time; other appointments as-is
