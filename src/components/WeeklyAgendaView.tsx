@@ -536,7 +536,7 @@ export default function WeeklyAgendaView({
             const height = Math.max((dur / 60) * ROW_H, 24);
             const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
             const isExam = appt.type === 'esame';
-            const label = isExam ? 'Esame' : (appt.student?.firstName ?? '');
+            const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
             const showTime = height >= 38;
 
             return (
