@@ -620,21 +620,8 @@ export const AllievoHomeScreen = () => {
     setSelectedHistoryLesson(updated);
   }, [appointments, selectedHistoryLesson]);
 
-  // Prioritize today's lessons; if none, show the next upcoming day's lessons
-  const todayKey = useMemo(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${n.getMonth()}-${n.getDate()}`;
-  }, []);
-  const todayLessons = useMemo(
-    () => upcoming.filter((item) => {
-      const d = new Date(item.startsAt);
-      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === todayKey;
-    }),
-    [upcoming, todayKey],
-  );
-  const nextLesson = todayLessons.length > 0 ? todayLessons[0] : upcoming[0];
+  const nextLesson = upcoming[0];
   const sameDayLessons = useMemo(() => {
-    if (todayLessons.length > 0) return todayLessons;
     if (!nextLesson) return [];
     const d = new Date(nextLesson.startsAt);
     const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -642,7 +629,7 @@ export const AllievoHomeScreen = () => {
       const id = new Date(item.startsAt);
       return `${id.getFullYear()}-${id.getMonth()}-${id.getDate()}` === dayKey;
     });
-  }, [upcoming, nextLesson, todayLessons]);
+  }, [upcoming, nextLesson]);
   const hasMultipleLessons = sameDayLessons.length > 1;
   const isLessonInProgress = useMemo(() => {
     if (!nextLesson) return false;
@@ -1373,7 +1360,7 @@ export const AllievoHomeScreen = () => {
                 >
                   {hasMultipleLessons ? (
                     <>
-                      <Text style={styles.nextLessonLabel}>{todayLessons.length > 0 ? 'GUIDE DI OGGI' : 'PROSSIME GUIDE'}</Text>
+                      <Text style={styles.nextLessonLabel}>PROSSIME GUIDE</Text>
                       <Text style={styles.nextLessonDateTime}>
                         {formatDay(nextLesson.startsAt)}
                       </Text>
@@ -1451,7 +1438,7 @@ export const AllievoHomeScreen = () => {
                             <Ionicons name="school" size={18} color="#FFFFFF" />
                           ) : null}
                           <Text style={styles.nextLessonLabel}>
-                            {isExam ? 'ESAME DI GUIDA' : todayLessons.length > 0 ? 'GUIDA DI OGGI' : 'PROSSIMA GUIDA'}
+                            {isExam ? 'ESAME DI GUIDA' : 'PROSSIMA GUIDA'}
                           </Text>
                         </View>
                       )}
