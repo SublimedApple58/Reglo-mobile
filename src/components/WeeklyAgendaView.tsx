@@ -37,9 +37,11 @@ type WeeklyAgendaViewProps = {
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressBlock?: (block: InstructorBlock) => void;
+  onPressCluster?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressEmptySlot?: (date: Date, hour: number, minutes: number) => void;
   onDateChange?: (weekStart: Date) => void;
   loading?: boolean;
+  clusterMode?: boolean;
   studentCompletedMinutes?: Record<string, number>;
   weekAvailability?: Record<number, Array<{ startMinutes: number; endMinutes: number }>>;
   quickBookPreview?: QuickBookPreview | null;
@@ -194,9 +196,11 @@ export default function WeeklyAgendaView({
   onPressAppointment,
   onPressExam,
   onPressBlock,
+  onPressCluster,
   onPressEmptySlot,
   onDateChange,
   loading = false,
+  clusterMode = false,
   studentCompletedMinutes = {},
   weekAvailability = {},
   quickBookPreview = null,
@@ -260,6 +264,49 @@ export default function WeeklyAgendaView({
     }
     return buckets;
   }, [appointments, weekDays]);
+
+  /* ── Cluster overlapping appointments per column ── */
+  type ClusterItem =
+    | { kind: 'single'; appt: AutoscuolaAppointmentWithRelations }
+    | { kind: 'cluster'; appts: AutoscuolaAppointmentWithRelations[]; startMin: number; endMin: number };
+
+  const clusteredByCol = useMemo(() => {
+    if (!clusterMode) return null;
+    return appointmentsByCol.map((colAppts): ClusterItem[] => {
+      if (colAppts.length <= 1) return colAppts.map((a) => ({ kind: 'single' as const, appt: a }));
+      type Span = { idx: number; startMin: number; endMin: number };
+      const spans: Span[] = colAppts.map((appt, idx) => {
+        const s = new Date(appt.startsAt);
+        const sm = s.getHours() * 60 + s.getMinutes();
+        const em = appt.endsAt ? sm + (new Date(appt.endsAt).getTime() - s.getTime()) / 60000 : sm + 60;
+        return { idx, startMin: sm, endMin: em };
+      });
+      spans.sort((a, b) => a.startMin - b.startMin);
+      const groups: Span[][] = [];
+      let cur: Span[] = [spans[0]];
+      let gEnd = spans[0].endMin;
+      for (let i = 1; i < spans.length; i++) {
+        if (spans[i].startMin < gEnd) {
+          cur.push(spans[i]);
+          gEnd = Math.max(gEnd, spans[i].endMin);
+        } else {
+          groups.push(cur);
+          cur = [spans[i]];
+          gEnd = spans[i].endMin;
+        }
+      }
+      groups.push(cur);
+      return groups.map((g): ClusterItem => {
+        if (g.length === 1) return { kind: 'single', appt: colAppts[g[0].idx] };
+        return {
+          kind: 'cluster',
+          appts: g.map((s) => colAppts[s.idx]),
+          startMin: Math.min(...g.map((s) => s.startMin)),
+          endMin: Math.max(...g.map((s) => s.endMin)),
+        };
+      });
+    });
+  }, [appointmentsByCol, clusterMode]);
 
   /* ── Holiday columns ── */
   const toDateKey = (d: Date) =>
@@ -507,59 +554,133 @@ export default function WeeklyAgendaView({
           />
         ))}
 
-        {/* Appointment blocks */}
-        {appointmentsByCol.map((colAppts, colIdx) =>
-          colAppts.map((appt) => {
-            const start = new Date(appt.startsAt);
-            const sm = start.getHours() * 60 + start.getMinutes();
-            const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
-            let dur = 60;
-            if (appt.endsAt) {
-              dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
-            }
-            const height = Math.max((dur / 60) * ROW_H, 24);
-            const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
-            const isExam = appt.type === 'esame';
-            const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
-            const showTime = height >= 38;
+        {/* Appointment blocks (with optional cluster mode) */}
+        {clusteredByCol
+          ? clusteredByCol.map((items, colIdx) =>
+              items.map((entry, ei) => {
+                if (entry.kind === 'cluster') {
+                  const top = ((entry.startMin - FIRST_HOUR * 60) / 60) * ROW_H;
+                  const height = Math.max(((entry.endMin - entry.startMin) / 60) * ROW_H, 24);
+                  const count = entry.appts.length;
+                  return (
+                    <Pressable
+                      key={`cluster-${colIdx}-${ei}`}
+                      onPress={() => onPressCluster?.(entry.appts)}
+                      style={({ pressed }) => ({
+                        position: 'absolute',
+                        top,
+                        height,
+                        left: GUTTER_W + colIdx * colW + 2,
+                        width: colW - 4,
+                        backgroundColor: pressed ? '#FBCFE830' : '#FDF2F8',
+                        borderLeftWidth: 3,
+                        borderLeftColor: '#EC4899',
+                        borderRadius: 4,
+                        paddingHorizontal: 3,
+                        paddingVertical: 2,
+                        overflow: 'hidden',
+                      })}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#EC4899', lineHeight: 14 }} numberOfLines={1}>
+                        {count} guide
+                      </Text>
+                      {height >= 38 && (
+                        <Text style={{ fontSize: 9, fontWeight: '500', color: '#EC4899', opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
+                          {String(Math.floor(entry.startMin / 60)).padStart(2, '0')}:{String(entry.startMin % 60).padStart(2, '0')}
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                }
+                const appt = entry.appt;
+                const start = new Date(appt.startsAt);
+                const sm = start.getHours() * 60 + start.getMinutes();
+                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+                let dur = 60;
+                if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
+                const height = Math.max((dur / 60) * ROW_H, 24);
+                const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
+                const isExam = appt.type === 'esame';
+                const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
+                const showTime = height >= 38;
+                return (
+                  <Pressable
+                    key={appt.id}
+                    onPress={() => {
+                      if (isExam && onPressExam) onPressExam([appt]);
+                      else onPressAppointment(appt);
+                    }}
+                    style={({ pressed }) => ({
+                      position: 'absolute', top, height,
+                      left: GUTTER_W + colIdx * colW + 2, width: colW - 4,
+                      backgroundColor: pressed ? border + '30' : bg,
+                      borderLeftWidth: 3, borderLeftColor: border, borderRadius: 4,
+                      paddingHorizontal: 3, paddingVertical: 2, overflow: 'hidden',
+                    })}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>{label}</Text>
+                    {showTime && (
+                      <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
+                        {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              }),
+            )
+          : appointmentsByCol.map((colAppts, colIdx) =>
+              colAppts.map((appt) => {
+                const start = new Date(appt.startsAt);
+                const sm = start.getHours() * 60 + start.getMinutes();
+                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+                let dur = 60;
+                if (appt.endsAt) {
+                  dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
+                }
+                const height = Math.max((dur / 60) * ROW_H, 24);
+                const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
+                const isExam = appt.type === 'esame';
+                const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
+                const showTime = height >= 38;
 
-            return (
-              <Pressable
-                key={appt.id}
-                onPress={() => {
-                  if (isExam && onPressExam) {
-                    onPressExam(colAppts.filter((a) => a.type === 'esame' && a.startsAt === appt.startsAt));
-                  } else {
-                    onPressAppointment(appt);
-                  }
-                }}
-                style={({ pressed }) => ({
-                  position: 'absolute',
-                  top,
-                  height,
-                  left: GUTTER_W + colIdx * colW + 2,
-                  width: colW - 4,
-                  backgroundColor: pressed ? border + '30' : bg,
-                  borderLeftWidth: 3,
-                  borderLeftColor: border,
-                  borderRadius: 4,
-                  paddingHorizontal: 3,
-                  paddingVertical: 2,
-                  overflow: 'hidden',
-                })}
-              >
-                <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>
-                  {label}
-                </Text>
-                {showTime && (
-                  <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
-                    {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
-                  </Text>
-                )}
-              </Pressable>
-            );
-          }),
-        )}
+                return (
+                  <Pressable
+                    key={appt.id}
+                    onPress={() => {
+                      if (isExam && onPressExam) {
+                        onPressExam(colAppts.filter((a) => a.type === 'esame' && a.startsAt === appt.startsAt));
+                      } else {
+                        onPressAppointment(appt);
+                      }
+                    }}
+                    style={({ pressed }) => ({
+                      position: 'absolute',
+                      top,
+                      height,
+                      left: GUTTER_W + colIdx * colW + 2,
+                      width: colW - 4,
+                      backgroundColor: pressed ? border + '30' : bg,
+                      borderLeftWidth: 3,
+                      borderLeftColor: border,
+                      borderRadius: 4,
+                      paddingHorizontal: 3,
+                      paddingVertical: 2,
+                      overflow: 'hidden',
+                    })}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>
+                      {label}
+                    </Text>
+                    {showTime && (
+                      <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
+                        {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              }),
+            )
+        }
 
         {/* Instructor blocks */}
         {blocksByCol.map((colBlocks, colIdx) =>

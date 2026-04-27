@@ -39,6 +39,7 @@ import { AutoscuolaStudent, MobileStudentPaymentProfile } from '../types/regloAp
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
+import { isInstructor, isOwner, isStudent } from '../utils/roles';
 
 type AnimatedChevronProps = { expanded: boolean };
 const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
@@ -102,11 +103,12 @@ const toReminderLabel = (minutes: number) => {
   return `${minutes}m`;
 };
 
-const roleLabelMap = {
+const roleLabelMap: Record<string, string> = {
   STUDENT: 'Allievo',
   INSTRUCTOR: 'Istruttore',
   OWNER: 'Titolare',
-} as const;
+  INSTRUCTOR_OWNER: 'Istruttore e Titolare',
+};
 
 const bookingActorLabelMap = {
   students: 'Solo allievi',
@@ -290,7 +292,7 @@ export const SettingsScreen = () => {
     ? 'Metodo di pagamento configurato'
     : 'Nessun metodo configurato';
   const showStudentPaymentCard =
-    autoscuolaRole === 'STUDENT' && paymentProfile?.autoPaymentsEnabled === true;
+    isStudent(autoscuolaRole) && paymentProfile?.autoPaymentsEnabled === true;
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -406,7 +408,7 @@ export const SettingsScreen = () => {
     try {
       const savedViewMode = await sessionStorage.getAgendaViewMode();
       setAgendaViewMode(savedViewMode);
-      if (autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR') {
+      if (isOwner(autoscuolaRole) || isInstructor(autoscuolaRole)) {
         try {
           const settings = await regloApi.getAutoscuolaSettings();
           setAvailabilityWeeks(String(settings.availabilityWeeks));
@@ -415,13 +417,13 @@ export const SettingsScreen = () => {
           setAppBookingActors(settings.appBookingActors ?? 'students');
           setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
         } catch (settingsErr) {
-          if (autoscuolaRole === 'OWNER') {
+          if (isOwner(autoscuolaRole)) {
             throw settingsErr;
           }
         }
       }
 
-      if (autoscuolaRole === 'STUDENT') {
+      if (isStudent(autoscuolaRole)) {
         const [profile, settings, studentsList] = await Promise.all([
           regloApi.getPaymentProfile(),
           regloApi.getAutoscuolaSettings().catch(() => null),
@@ -677,7 +679,7 @@ export const SettingsScreen = () => {
   }, [loadSettings, refreshMe]);
 
   const handleConfigurePaymentMethod = async () => {
-    if (autoscuolaRole !== 'STUDENT') return;
+    if (!isStudent(autoscuolaRole)) return;
 
     setPaymentLoading(true);
     setError(null);
@@ -732,7 +734,7 @@ export const SettingsScreen = () => {
   };
 
   const handleRemovePaymentMethod = () => {
-    if (autoscuolaRole !== 'STUDENT' || !paymentProfile?.hasPaymentMethod) return;
+    if (!isStudent(autoscuolaRole) || !paymentProfile?.hasPaymentMethod) return;
     Alert.alert(
       'Rimuovi metodo',
       'Rimuovendo il metodo di pagamento non potrai prenotare nuove guide finché non ne aggiungi uno nuovo.',
@@ -1237,7 +1239,7 @@ export const SettingsScreen = () => {
           {/* 3. Settings Menu Card */}
           <View style={studentStyles.menuCard}>
             {/* Agenda View Mode */}
-            {(autoscuolaRole === 'INSTRUCTOR' || autoscuolaRole === 'OWNER') ? (
+            {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
               <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                   <View style={[studentStyles.menuIcon, { backgroundColor: '#FCE7F3' }]}>
@@ -1294,7 +1296,7 @@ export const SettingsScreen = () => {
             ) : null}
 
             {/* a. Role-specific settings row */}
-            {autoscuolaRole === 'INSTRUCTOR' ? (
+            {isInstructor(autoscuolaRole) ? (
               <>
                 <Pressable onPress={() => toggleSection('operativity')} style={studentStyles.menuRow}>
                   <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
@@ -1345,7 +1347,7 @@ export const SettingsScreen = () => {
               </>
             ) : null}
 
-            {autoscuolaRole === 'OWNER' ? (
+            {isOwner(autoscuolaRole) ? (
               <>
                 <Pressable onPress={() => toggleSection('agenda')} style={studentStyles.menuRow}>
                   <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
@@ -1519,7 +1521,7 @@ export const SettingsScreen = () => {
           />
         }
       >
-        {autoscuolaRole === 'STUDENT' ? renderStudentContent() : renderNonStudentContent()}
+        {isStudent(autoscuolaRole) ? renderStudentContent() : renderNonStudentContent()}
       </ScrollView>
       <TimePickerDrawer
         visible={slotTimePickerTarget !== null}

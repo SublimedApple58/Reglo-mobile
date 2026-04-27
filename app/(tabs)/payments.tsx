@@ -8,7 +8,7 @@ export default function PaymentsRoute() {
   const { autoscuolaRole } = useSession();
   const { enabled: autoPaymentsEnabled, loading: autoPaymentsLoading } = useAutoPaymentsEnabled();
   const router = useRouter();
-  const isStudent = autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR';
+  const isStudent = autoscuolaRole === 'STUDENT';
   const canAccess = isStudent && autoPaymentsEnabled;
 
   useEffect(() => {

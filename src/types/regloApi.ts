@@ -5,7 +5,7 @@ export type ApiSuccess<T> = { success: true; data: T };
 export type ApiError = { success: false; message: string };
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
-export type AutoscuolaRole = "OWNER" | "INSTRUCTOR" | "STUDENT";
+export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUDENT";
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
 export type CompanyServiceStatus = "ACTIVE" | "DISABLED";

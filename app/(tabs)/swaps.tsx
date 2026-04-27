@@ -8,7 +8,7 @@ export default function SwapsRoute() {
   const { autoscuolaRole } = useSession();
   const { enabled: swapEnabled, loading: swapLoading } = useSwapEnabled();
   const router = useRouter();
-  const isStudent = autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR';
+  const isStudent = autoscuolaRole === 'STUDENT';
   const canAccess = isStudent && swapEnabled;
 
   useEffect(() => {

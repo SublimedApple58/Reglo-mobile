@@ -115,6 +115,7 @@ export const TitolareHomeScreen = () => {
   const [holidayLabel, setHolidayLabel] = useState('');
   const [holidayPending, setHolidayPending] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
   const [weekAppointments, setWeekAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
 
@@ -570,6 +571,33 @@ export const TitolareHomeScreen = () => {
                       <Text style={styles.hourLabel}>{formatHourLabel(hour)}</Text>
                       <View style={styles.timelineSlotArea}>
                         {hasAppts ? (
+                          hourAppts.length >= 2 ? (
+                            /* ── Cluster block: multiple appointments in same hour ── */
+                            <Pressable
+                              style={[styles.appointmentBlock, { borderLeftColor: '#EC4899', backgroundColor: '#FDF2F8' }]}
+                              onPress={() => setClusterDrawerAppts(hourAppts)}
+                            >
+                              <View style={styles.appointmentHeader}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Ionicons name="layers-outline" size={15} color="#EC4899" />
+                                  <Text style={[styles.appointmentTime, { color: '#EC4899' }]}>
+                                    {formatHourLabel(hour)}
+                                  </Text>
+                                </View>
+                                <View style={[styles.statusBadge, { backgroundColor: '#FCE7F3' }]}>
+                                  <Text style={[styles.statusBadgeText, { color: '#EC4899' }]}>
+                                    {hourAppts.length} GUIDE
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={[styles.appointmentStudent, { color: '#1E293B' }]} numberOfLines={1}>
+                                {[...new Set(hourAppts.map((a) => a.instructor?.name).filter(Boolean))].join(', ')}
+                              </Text>
+                              <Text style={[styles.appointmentMeta, { color: '#64748B' }]} numberOfLines={1}>
+                                Tocca per vedere i dettagli
+                              </Text>
+                            </Pressable>
+                          ) : (
                           hourAppts.map((appt) => {
                             const config = statusConfig(appt.status);
                             return (
@@ -617,6 +645,7 @@ export const TitolareHomeScreen = () => {
                               </Pressable>
                             );
                           })
+                          )
                         ) : (
                           <View style={styles.emptyHourLine} />
                         )}
@@ -642,6 +671,8 @@ export const TitolareHomeScreen = () => {
             appointments={weekAppointments}
             onPressAppointment={(appt) => setSelectedAppt(appt)}
             onDateChange={loadWeekData}
+            clusterMode
+            onPressCluster={(appts) => setClusterDrawerAppts(appts)}
           />
         )}
       </ScrollView>
@@ -917,6 +948,78 @@ export const TitolareHomeScreen = () => {
             ) : null}
           </View>
         ) : null}
+      </BottomSheet>
+
+      {/* ── Cluster detail BottomSheet ── */}
+      <BottomSheet
+        visible={Boolean(clusterDrawerAppts)}
+        onClose={() => setClusterDrawerAppts(null)}
+        showHandle
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="layers" size={20} color="#EC4899" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>
+                {clusterDrawerAppts?.length ?? 0} guide contemporanee
+              </Text>
+              {clusterDrawerAppts?.[0] ? (
+                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                  {new Date(clusterDrawerAppts[0].startsAt).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+            {clusterDrawerAppts?.map((a, idx) => {
+              const isLast = idx === (clusterDrawerAppts?.length ?? 0) - 1;
+              const studentName = a.student ? `${a.student.firstName ?? ''} ${a.student.lastName ?? ''}`.trim() : 'Allievo';
+              const instrName = a.instructor?.name ?? '';
+              const cfg = statusConfig(a.status);
+              const timeRange = getAppointmentTimeRange(a);
+              return (
+                <Pressable
+                  key={a.id}
+                  onPress={() => { setClusterDrawerAppts(null); setTimeout(() => setSelectedAppt(a), 300); }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: '#F1F5F9',
+                    backgroundColor: pressed ? '#F8FAFC' : '#FFFFFF',
+                  })}
+                >
+                  <View style={{ width: 4, height: 36, borderRadius: 2, backgroundColor: cfg.border }} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>
+                        {timeRange}
+                      </Text>
+                      <View style={[styles.statusBadge, { backgroundColor: cfg.badgeBg }]}>
+                        <Text style={[styles.statusBadgeText, { color: cfg.badgeText, fontSize: 9 }]}>
+                          {cfg.label}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }} numberOfLines={1}>
+                      {studentName}
+                    </Text>
+                    {instrName ? (
+                      <Text style={{ fontSize: 12, color: '#64748B' }} numberOfLines={1}>
+                        {instrName}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
       </BottomSheet>
 
       {/* ── Toast ── */}

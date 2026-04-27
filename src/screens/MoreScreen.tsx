@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { spacing } from '../theme';
+import { useSession } from '../context/SessionContext';
 
 type MenuItem = {
   route: string;
@@ -15,7 +16,7 @@ type MenuItem = {
   iconBg: string;
 };
 
-const MENU_ITEMS: MenuItem[] = [
+const BASE_MENU_ITEMS: MenuItem[] = [
   {
     route: 'vehicles',
     label: 'Veicoli',
@@ -34,8 +35,25 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
+  route: 'instructors-overview',
+  label: 'Panoramica Istruttori',
+  description: 'Visualizza agenda e gestisci istruttori',
+  icon: 'people-outline',
+  iconColor: '#EC4899',
+  iconBg: '#FCE7F3',
+};
+
 export const MoreScreen = () => {
   const router = useRouter();
+  const { autoscuolaRole } = useSession();
+
+  const menuItems = useMemo(() => {
+    if (autoscuolaRole === 'INSTRUCTOR_OWNER') {
+      return [INSTRUCTORS_OVERVIEW_ITEM, ...BASE_MENU_ITEMS];
+    }
+    return BASE_MENU_ITEMS;
+  }, [autoscuolaRole]);
 
   return (
     <Screen>
@@ -43,7 +61,7 @@ export const MoreScreen = () => {
       <View style={styles.content}>
         <Text style={styles.title}>Altro</Text>
         <View style={styles.list}>
-          {MENU_ITEMS.map((item) => (
+          {menuItems.map((item) => (
             <Pressable
               key={item.route}
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}

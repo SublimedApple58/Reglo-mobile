@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
+import { isStudent as isStudentRole } from '../utils/roles';
 
 const cache = new Map<string, boolean>();
 
@@ -11,7 +12,7 @@ type UseStudentNotesEnabledResult = {
 
 export const useStudentNotesEnabled = (): UseStudentNotesEnabledResult => {
   const { autoscuolaRole, activeCompanyId } = useSession();
-  const isStudent = autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR';
+  const isStudent = isStudentRole(autoscuolaRole);
 
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(false);

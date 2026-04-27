@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
+import { isStudent as isStudentRole } from '../utils/roles';
 
 // Cache keyed by userId (cluster-resolved settings differ per student)
 const studentSwapCache = new Map<string, boolean>();
@@ -13,7 +14,7 @@ type UseSwapEnabledResult = {
 
 export const useSwapEnabled = (): UseSwapEnabledResult => {
   const { autoscuolaRole, activeCompanyId, user } = useSession();
-  const isStudent = autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR';
+  const isStudent = isStudentRole(autoscuolaRole);
   const studentId = user?.id ?? null;
 
   const [enabled, setEnabled] = useState(false);

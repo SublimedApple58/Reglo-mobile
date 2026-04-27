@@ -45,7 +45,6 @@ import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
-import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
@@ -647,9 +646,12 @@ const InlineTimePicker = ({ selectedTime, onSelectTime }: {
 
 export const IstruttoreHomeScreen = () => {
   const router = useRouter();
-  const { instructorId, user } = useSession();
+  const { instructorId, user, autoscuolaRole } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
+  const canSwitchScope = autoscuolaRole === 'INSTRUCTOR_OWNER';
+  const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>('personal');
+  const effectiveInstructorId = calendarScope === 'all' ? undefined : instructorId;
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
@@ -682,6 +684,7 @@ export const IstruttoreHomeScreen = () => {
     appointments: AutoscuolaAppointmentWithRelations[];
   } | null>(null);
   const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
+  const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
   const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([]);
@@ -701,20 +704,16 @@ export const IstruttoreHomeScreen = () => {
   const [blockRecurring, setBlockRecurring] = useState(false);
   const [blockRecurringWeeks, setBlockRecurringWeeks] = useState(4);
   const [blockPending, setBlockPending] = useState(false);
-  const [blockCalendarOpen, setBlockCalendarOpen] = useState(false);
-  const [blockStartTimePickerOpen, setBlockStartTimePickerOpen] = useState(false);
-  const [blockEndTimePickerOpen, setBlockEndTimePickerOpen] = useState(false);
+  const [blockSheetMode, setBlockSheetMode] = useState<'form' | 'calendar' | 'startTime' | 'endTime'>('form');
   // Sick leave state
   const [sickSheetOpen, setSickSheetOpen] = useState(false);
   const [sickStartDate, setSickStartDate] = useState<Date>(() => new Date());
   const [sickEndDate, setSickEndDate] = useState<Date>(() => new Date());
+  const [sickMultiDay, setSickMultiDay] = useState(false);
   const [sickHalfDay, setSickHalfDay] = useState(false);
   const [sickStartTime, setSickStartTime] = useState<Date>(() => { const d = new Date(); d.setHours(14, 0, 0, 0); return d; });
   const [sickPending, setSickPending] = useState(false);
-  const [sickStartCalendarOpen, setSickStartCalendarOpen] = useState(false);
-  const [sickEndCalendarOpen, setSickEndCalendarOpen] = useState(false);
-  const [sickTimePickerOpen, setSickTimePickerOpen] = useState(false);
-  const sickNavigatingToPicker = useRef(false);
+  const [sickSheetMode, setSickSheetMode] = useState<'form' | 'startCalendar' | 'endCalendar' | 'timePicker'>('form');
   const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
   const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
   const [bookingStudentId, setBookingStudentId] = useState<string>('');
@@ -950,13 +949,13 @@ export const IstruttoreHomeScreen = () => {
       ] =
         await Promise.all([
           regloApi.getAgendaBootstrap({
-            instructorId,
+            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
             from: from.toISOString(),
             to: to.toISOString(),
             limit: 280,
           }),
           regloApi.getAppointments({
-            instructorId,
+            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
             from: featuredFrom.toISOString(),
             to: featuredTo.toISOString(),
             limit: 220,
@@ -965,7 +964,7 @@ export const IstruttoreHomeScreen = () => {
           regloApi.getAutoscuolaSettings(),
           // Lightweight fetch of sick_leave blocks over wide range for calendar dots
           regloApi.getInstructorBlocks({
-            instructorId,
+            instructorId: effectiveInstructorId ?? instructorId!,
             from: featuredFrom.toISOString(),
             to: featuredTo.toISOString(),
             reason: 'sick_leave',
@@ -981,15 +980,16 @@ export const IstruttoreHomeScreen = () => {
       const currentInstructor = agendaBootstrap.instructors?.find(
         (inst) => inst.id === instructorId,
       );
-      setInstructorAutonomousMode(currentInstructor?.autonomousMode ?? false);
-      // Use cluster durations if instructor has them configured
-      if (clusterSettingsResponse?.settings?.bookingSlotDurations?.length) {
+      const isAutonomous = currentInstructor?.autonomousMode ?? false;
+      setInstructorAutonomousMode(isAutonomous);
+      // Use cluster durations only if instructor is in autonomous mode
+      if (isAutonomous && clusterSettingsResponse?.settings?.bookingSlotDurations?.length) {
         setClusterDurations(clusterSettingsResponse.settings.bookingSlotDurations);
       } else {
         setClusterDurations(null);
       }
       const freshBlocks = (agendaBootstrap.instructorBlocks ?? []).filter(
-        (b) => b.instructorId === instructorId,
+        (b) => effectiveInstructorId ? b.instructorId === effectiveInstructorId : true,
       );
       // Merge wide-range sick_leave blocks with current-range blocks
       const mergedBlocks = [...freshBlocks];
@@ -1000,11 +1000,13 @@ export const IstruttoreHomeScreen = () => {
       }
       setInstructorBlocks(mergedBlocks);
       const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
+      const matchesScope = (item: { instructorId?: string | null }) =>
+        effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
       const nextAppointments = dedupeAppointments(
-        agendaBootstrap.appointments.filter((item) => item.instructorId === instructorId && notCancelled(item)),
+        agendaBootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item)),
       );
       const nextFeaturedAppointments = dedupeAppointments(
-        featuredAppointmentsResponse.filter((item) => item.instructorId === instructorId && notCancelled(item)),
+        featuredAppointmentsResponse.filter((item) => matchesScope(item) && notCancelled(item)),
       );
       setAppointments(nextAppointments);
       setFeaturedAppointments(nextFeaturedAppointments);
@@ -1023,7 +1025,7 @@ export const IstruttoreHomeScreen = () => {
         }
       }
     }
-  }, [calendarRange, instructorId]);
+  }, [calendarRange, instructorId, effectiveInstructorId]);
 
   const loadOutOfAvailability = useCallback(async () => {
     if (!instructorId) return;
@@ -1213,6 +1215,7 @@ export const IstruttoreHomeScreen = () => {
     setBlockReason('');
     setBlockRecurring(false);
     setBlockRecurringWeeks(4);
+    setBlockSheetMode('form');
     setBlockSheetOpen(true);
   }, [normalizeToQuarter, selectedDate]);
 
@@ -1251,10 +1254,12 @@ export const IstruttoreHomeScreen = () => {
   const openSickLeaveDrawer = useCallback(() => {
     setSickStartDate(new Date());
     setSickEndDate(new Date());
+    setSickMultiDay(false);
     setSickHalfDay(false);
     const defaultTime = new Date();
     defaultTime.setHours(14, 0, 0, 0);
     setSickStartTime(defaultTime);
+    setSickSheetMode('form');
     setSickSheetOpen(true);
   }, []);
 
@@ -1901,6 +1906,57 @@ export const IstruttoreHomeScreen = () => {
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
 
   const ROW_H = 80;
+
+  // Cluster overlapping appointments into groups (for "all instructors" view)
+  type TimelineClusterItem =
+    | { kind: 'single'; item: (typeof timelineItems)[number] }
+    | { kind: 'cluster'; items: (typeof timelineItems)[number][]; startMin: number; endMin: number };
+
+  const timelineClusters = useMemo((): TimelineClusterItem[] => {
+    if (calendarScope !== 'all' || timelineItems.length <= 1) {
+      return timelineItems.map((item) => ({ kind: 'single' as const, item }));
+    }
+
+    // Build spans with start/end in minutes
+    type Span = { idx: number; startMin: number; endMin: number };
+    const spans: Span[] = timelineItems.map((item, idx) => {
+      const start = new Date(item.kind === 'appointment' ? item.appointment.startsAt : item.startsAt);
+      const startMin = start.getHours() * 60 + start.getMinutes();
+      const endIso = item.kind === 'appointment' ? item.appointment.endsAt : item.endsAt;
+      const endTs = endIso ? new Date(endIso).getTime() : start.getTime() + 60 * 60 * 1000;
+      const endMin = startMin + (endTs - start.getTime()) / (60 * 1000);
+      return { idx, startMin, endMin };
+    });
+    spans.sort((a, b) => a.startMin - b.startMin);
+
+    // Merge overlapping spans into groups
+    const groups: Span[][] = [];
+    let current: Span[] = [spans[0]];
+    let groupEnd = spans[0].endMin;
+    for (let i = 1; i < spans.length; i++) {
+      if (spans[i].startMin < groupEnd) {
+        current.push(spans[i]);
+        groupEnd = Math.max(groupEnd, spans[i].endMin);
+      } else {
+        groups.push(current);
+        current = [spans[i]];
+        groupEnd = spans[i].endMin;
+      }
+    }
+    groups.push(current);
+
+    return groups.map((group): TimelineClusterItem => {
+      if (group.length === 1) {
+        return { kind: 'single', item: timelineItems[group[0].idx] };
+      }
+      return {
+        kind: 'cluster',
+        items: group.map((s) => timelineItems[s.idx]),
+        startMin: Math.min(...group.map((s) => s.startMin)),
+        endMin: Math.max(...group.map((s) => s.endMin)),
+      };
+    });
+  }, [timelineItems, calendarScope]);
 
   // Per-hour availability coverage: { topFraction, bottomFraction } where 0=start of hour, 1=end
   const hourAvailCoverage = useMemo(() => {
@@ -2674,6 +2730,24 @@ export const IstruttoreHomeScreen = () => {
                 <Text style={styles.subtitle}>Gestisci le tue guide</Text>
               </View>
             </View>
+
+            {canSwitchScope && (
+              <View style={scopeStyles.bar}>
+                <Pressable
+                  style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
+                  onPress={() => setCalendarScope('personal')}
+                >
+                  <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
+                </Pressable>
+                <Pressable
+                  style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
+                  onPress={() => setCalendarScope('all')}
+                >
+                  <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
+                </Pressable>
+              </View>
+            )}
+
             {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
             {featuredLesson ? (() => {
               const isLive = isLessonInProgressWindow(featuredLesson, now);
@@ -2723,6 +2797,23 @@ export const IstruttoreHomeScreen = () => {
               <Text style={styles.subtitle}>Gestisci le tue guide</Text>
             </View>
           </View>
+
+          {canSwitchScope && (
+            <View style={scopeStyles.bar}>
+              <Pressable
+                style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
+                onPress={() => setCalendarScope('personal')}
+              >
+                <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
+              </Pressable>
+              <Pressable
+                style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
+                onPress={() => setCalendarScope('all')}
+              >
+                <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
+              </Pressable>
+            </View>
+          )}
 
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -3100,8 +3191,84 @@ export const IstruttoreHomeScreen = () => {
                   </View>
                 );
               })}
+              {/* ── Cluster blocks for "all instructors" scope ── */}
+              {calendarScope === 'all' && timelineClusters.map((cluster, ci) => {
+                if (cluster.kind !== 'cluster') return null;
+                const firstHourMin = HOUR_SLOTS[0] * 60;
+                const topPx = ((cluster.startMin - firstHourMin) / 60) * ROW_H;
+                const blockH = Math.max(44, ((cluster.endMin - cluster.startMin) / 60) * ROW_H);
+                const count = cluster.items.length;
+                const startH = Math.floor(cluster.startMin / 60);
+                const startM = cluster.startMin % 60;
+                const endH = Math.floor(cluster.endMin / 60);
+                const endM = Math.round(cluster.endMin % 60);
+                const fmt = (h: number, m: number) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                const allAppts = cluster.items
+                  .filter((it) => it.kind === 'appointment')
+                  .map((it) => (it as { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations }).appointment);
+                const instructorNames = [...new Set(allAppts.map((a) => a.instructor?.name).filter(Boolean))];
+                const isCompact = blockH < 55;
+                return (
+                  <Pressable
+                    key={`cluster-${ci}`}
+                    onPress={() => setClusterDrawerAppts(allAppts)}
+                    style={[
+                      styles.timelineBlock,
+                      {
+                        borderLeftColor: colors.primary,
+                        borderLeftWidth: 4,
+                        backgroundColor: '#FDF2F8',
+                        position: 'absolute',
+                        top: topPx,
+                        left: 60,
+                        right: 0,
+                        height: blockH,
+                        zIndex: 10,
+                        padding: isCompact ? 6 : 14,
+                      },
+                    ]}
+                  >
+                    {isCompact ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <Ionicons name="layers-outline" size={14} color={colors.primary} />
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }} numberOfLines={1}>
+                          {count} guide · {fmt(startH, startM)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#64748B', flex: 1 }} numberOfLines={1}>
+                          {instructorNames.slice(0, 2).join(', ')}{instructorNames.length > 2 ? ` +${instructorNames.length - 2}` : ''}
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.timelineBlockHeader}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="layers-outline" size={16} color={colors.primary} />
+                            <Text style={[styles.timelineBlockTime, { color: colors.primary }]}>
+                              {fmt(startH, startM)} {'\u2013'} {fmt(endH, endM)}
+                            </Text>
+                          </View>
+                          <View style={[styles.timelineStatusBadge, { backgroundColor: '#FCE7F3' }]}>
+                            <Text style={[styles.timelineStatusText, { color: colors.primary }]}>
+                              {count} GUIDE
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.timelineBlockStudent, { color: '#1E293B' }]} numberOfLines={1}>
+                          {instructorNames.join(', ')}
+                        </Text>
+                        <Text style={[styles.timelineBlockMeta, { color: '#64748B' }]} numberOfLines={1}>
+                          Tocca per vedere i dettagli
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                );
+              })}
               {/* ── Blocks layer: appointments + exam groups + instructor blocks ── */}
-              {timelineItems.map((item) => {
+              {(calendarScope === 'all'
+                ? timelineClusters.filter((c) => c.kind === 'single').map((c) => (c as { kind: 'single'; item: (typeof timelineItems)[number] }).item)
+                : timelineItems
+              ).map((item) => {
                 if (item.kind === 'examGroup') {
                   const startDate = new Date(item.startsAt);
                   const startMin = startDate.getHours() * 60 + startDate.getMinutes();
@@ -3140,7 +3307,7 @@ export const IstruttoreHomeScreen = () => {
                           backgroundColor: '#EEF2FF',
                           position: 'absolute',
                           top: topPx,
-                          left: 46 + 14,
+                          left: 60,
                           right: 0,
                           height: blockH,
                           zIndex: 6,
@@ -3212,7 +3379,7 @@ export const IstruttoreHomeScreen = () => {
                         borderLeftColor: config.border,
                         position: 'absolute',
                         top: topPx,
-                        left: 46 + 14,
+                        left: 60,
                         right: 0,
                         height: blockH,
                         zIndex: 5,
@@ -3229,16 +3396,11 @@ export const IstruttoreHomeScreen = () => {
                           <Ionicons name="school" size={14} color="#4338CA" />
                         ) : null}
                         <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>
-                          {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(endTs).toISOString())}
+                          {formatTime(appt.startsAt)}
                         </Text>
                         <Text style={{ fontSize: 13, color: '#475569', flex: 1 }} numberOfLines={1}>
-                          {appt.student?.firstName} {appt.student?.lastName}
+                          {calendarScope === 'all' && appt.instructor?.name ? `${appt.instructor.name} · ` : ''}{appt.student?.firstName} {appt.student?.lastName}
                         </Text>
-                        <View style={[styles.timelineStatusBadge, { backgroundColor: config.badgeBg }]}>
-                          <Text style={[styles.timelineStatusText, { color: config.badgeText, fontSize: 9 }]}>
-                            {config.label}
-                          </Text>
-                        </View>
                       </View>
                     ) : (
                       /* ── Normal / Full ── */
@@ -3259,7 +3421,7 @@ export const IstruttoreHomeScreen = () => {
                           </View>
                         </View>
                         <Text style={styles.timelineBlockStudent} numberOfLines={1}>
-                          {appt.student?.firstName} {appt.student?.lastName}
+                          {calendarScope === 'all' && appt.instructor?.name ? `${appt.instructor.name} \u00B7 ` : ''}{appt.student?.firstName} {appt.student?.lastName}
                         </Text>
                         <Text style={styles.timelineBlockMeta} numberOfLines={1}>
                           {config.isExam
@@ -3510,6 +3672,8 @@ export const IstruttoreHomeScreen = () => {
             instructorBlocks={instructorBlocks}
             holidays={holidays}
             loading={appointmentsLoading}
+            clusterMode={calendarScope === 'all'}
+            onPressCluster={(appts) => setClusterDrawerAppts(appts)}
             studentCompletedMinutes={studentCompletedMinutes}
             weekAvailability={weekAvailability}
             onPressAppointment={(appt: AutoscuolaAppointmentWithRelations) => {
@@ -3742,11 +3906,15 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Sick Leave BottomSheet ── */}
       <BottomSheet
         visible={sickSheetOpen}
-        onClose={() => { if (!sickPending && !sickNavigatingToPicker.current) setSickSheetOpen(false); }}
-        title="🤒 Malattia"
+        onClose={() => {
+          if (sickPending) return;
+          if (sickSheetMode !== 'form') { setSickSheetMode('form'); return; }
+          setSickSheetOpen(false);
+        }}
+        title={sickSheetMode === 'startCalendar' ? 'Seleziona data inizio' : sickSheetMode === 'endCalendar' ? 'Seleziona data fine' : sickSheetMode === 'timePicker' ? 'Seleziona orario' : 'Registra malattia'}
         closeDisabled={sickPending}
         showHandle
-        footer={
+        footer={sickSheetMode === 'form' ? (
           <Pressable
             onPress={sickPending ? undefined : handleCreateSickLeave}
             disabled={sickPending}
@@ -3754,46 +3922,163 @@ export const IstruttoreHomeScreen = () => {
           >
             <Text style={styles.ctaButtonLabel}>{sickPending ? 'Registrazione...' : 'Conferma malattia'}</Text>
           </Pressable>
-        }
+        ) : undefined}
       >
-        <View style={{ gap: 16 }}>
-          {/* Start date */}
-          <Pressable
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickStartCalendarOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
-          >
-            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="calendar" size={16} color="#CA8A04" />
+        {sickSheetMode === 'startCalendar' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineCalendarPicker
+              selectedDate={sickStartDate}
+              maxWeeks={52}
+              onSelectDate={(d) => {
+                setSickStartDate(d);
+                if (!sickMultiDay || d > sickEndDate) setSickEndDate(d);
+                setSickSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {sickSheetMode === 'endCalendar' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineCalendarPicker
+              selectedDate={sickEndDate}
+              maxWeeks={52}
+              onSelectDate={(d) => {
+                setSickEndDate(d);
+                setSickSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {sickSheetMode === 'timePicker' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineTimePicker
+              selectedTime={sickStartTime}
+              onSelectTime={(date) => {
+                setSickStartTime(date);
+                setSickSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {sickSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}>
+        <View style={{ gap: spacing.md }}>
+          {/* Hero illustration */}
+          <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 8 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#F59E0B', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+              <Ionicons name="medkit" size={26} color="#D97706" />
             </View>
-            <View>
-              <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>DATA INIZIO</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-                {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Text>
-            </View>
-          </Pressable>
+            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center' }}>
+              Registra un periodo di malattia.{'\n'}Le guide in conflitto verranno cancellate.
+            </Text>
+          </View>
 
-          {/* End date */}
-          <Pressable
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-            onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickEndCalendarOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
-          >
-            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="calendar" size={16} color="#CA8A04" />
+          {/* Single day picker */}
+          {!sickMultiDay && (
+            <Pressable
+              onPress={() => setSickSheetMode('startCalendar')}
+              style={({ pressed }) => [styles.bookingFieldCard, pressed && { backgroundColor: '#F1F5F9' }]}
+            >
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="calendar-outline" size={18} color="#D97706" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>GIORNO</Text>
+                  <Text style={styles.bookingFieldText}>
+                    {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
+            </Pressable>
+          )}
+
+          {/* Multi-day date range */}
+          {sickMultiDay && (
+            <View style={{ backgroundColor: '#FFFBEB', borderRadius: radii.sm, padding: 4, gap: 4 }}>
+              <Pressable
+                onPress={() => setSickSheetMode('startCalendar')}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: pressed ? '#FEF9C3' : '#FFFFFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="calendar-outline" size={18} color="#D97706" />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>DAL</Text>
+                    <Text style={styles.bookingFieldText}>
+                      {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
+              </Pressable>
+              <View style={{ height: 1, backgroundColor: '#FDE68A', marginHorizontal: 14 }} />
+              <Pressable
+                onPress={() => setSickSheetMode('endCalendar')}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: pressed ? '#FEF9C3' : '#FFFFFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="calendar-outline" size={18} color="#D97706" />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>AL</Text>
+                    <Text style={styles.bookingFieldText}>
+                      {sickEndDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
+              </Pressable>
             </View>
-            <View>
-              <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>DATA FINE</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-                {sickEndDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Text>
+          )}
+
+          {/* Multi-day toggle */}
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            backgroundColor: '#F8FAFC', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 14,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
+                <Ionicons name="calendar-number-outline" size={18} color="#64748B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Più giorni</Text>
+                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Imposta un periodo di malattia</Text>
+              </View>
             </View>
-          </Pressable>
+            <Switch
+              value={sickMultiDay}
+              onValueChange={(val) => {
+                setSickMultiDay(val);
+                if (val) setSickEndDate(new Date(sickStartDate));
+                else setSickEndDate(new Date(sickStartDate));
+              }}
+              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
 
           {/* Half day toggle */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-            <View>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Mezza giornata</Text>
-              <Text style={{ fontSize: 12, color: '#94A3B8' }}>La malattia inizia a un orario specifico</Text>
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            backgroundColor: '#F8FAFC', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 14,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
+                <Ionicons name="time-outline" size={18} color="#64748B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Mezza giornata</Text>
+                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Inizia a un orario specifico</Text>
+              </View>
             </View>
             <Switch
               value={sickHalfDay}
@@ -3806,44 +4091,26 @@ export const IstruttoreHomeScreen = () => {
           {/* Half day time picker */}
           {sickHalfDay && (
             <Pressable
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFBEB', borderRadius: 16, borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 14, paddingVertical: 12 }}
-              onPress={() => { sickNavigatingToPicker.current = true; setSickSheetOpen(false); setTimeout(() => { setSickTimePickerOpen(true); sickNavigatingToPicker.current = false; }, 350); }}
+              onPress={() => setSickSheetMode('timePicker')}
+              style={({ pressed }) => [styles.bookingFieldCard, pressed && { backgroundColor: '#F1F5F9' }]}
             >
-              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="time" size={16} color="#CA8A04" />
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="time-outline" size={18} color="#EC4899" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>ORARIO INIZIO</Text>
+                  <Text style={styles.bookingFieldText}>
+                    {`${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '600' }}>INIZIO MALATTIA</Text>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-                  {`${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`}
-                </Text>
-              </View>
+              <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
             </Pressable>
           )}
         </View>
+        </Animated.View>}
       </BottomSheet>
-
-      <CalendarDrawer
-        visible={sickStartCalendarOpen}
-        onClose={() => { setSickStartCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
-        selectedDate={sickStartDate}
-        onSelectDate={(d) => {
-          setSickStartDate(d);
-          if (d > sickEndDate) setSickEndDate(d);
-        }}
-      />
-      <CalendarDrawer
-        visible={sickEndCalendarOpen}
-        onClose={() => { setSickEndCalendarOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
-        selectedDate={sickEndDate}
-        onSelectDate={(d) => setSickEndDate(d)}
-      />
-      <TimePickerDrawer
-        visible={sickTimePickerOpen}
-        onClose={() => { setSickTimePickerOpen(false); setTimeout(() => setSickSheetOpen(true), 350); }}
-        selectedTime={sickStartTime}
-        onSelectTime={setSickStartTime}
-      />
 
       {/* ── FAB Menu ── */}
       {!quickBookOpen && (
@@ -4561,10 +4828,15 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Block Slot BottomSheet ── */}
       <BottomSheet
         visible={blockSheetOpen}
-        onClose={() => { if (!blockPending) setBlockSheetOpen(false); }}
-        title="Blocca slot"
+        onClose={() => {
+          if (blockPending) return;
+          if (blockSheetMode !== 'form') { setBlockSheetMode('form'); return; }
+          setBlockSheetOpen(false);
+        }}
+        title={blockSheetMode === 'calendar' ? 'Seleziona data' : blockSheetMode === 'startTime' ? 'Seleziona ora inizio' : blockSheetMode === 'endTime' ? 'Seleziona ora fine' : 'Blocca slot'}
         closeDisabled={blockPending}
-        footer={
+        showHandle
+        footer={blockSheetMode === 'form' ? (
           <Button
             label={blockPending ? 'Creazione...' : 'Blocca slot'}
             tone="primary"
@@ -4572,16 +4844,48 @@ export const IstruttoreHomeScreen = () => {
             disabled={blockPending}
             fullWidth
           />
-        }
+        ) : undefined}
       >
+        {blockSheetMode === 'calendar' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineCalendarPicker
+              selectedDate={blockDate}
+              maxWeeks={52}
+              onSelectDate={(date) => {
+                setBlockDate(date);
+                setBlockSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {blockSheetMode === 'startTime' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineTimePicker
+              selectedTime={blockStartTime}
+              onSelectTime={(date) => {
+                setBlockStartTime(date);
+                setBlockSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {blockSheetMode === 'endTime' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineTimePicker
+              selectedTime={blockEndTime}
+              onSelectTime={(date) => {
+                setBlockEndTime(date);
+                setBlockSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+        {blockSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}>
         <View style={{ gap: spacing.md }}>
           <View>
             <Text style={styles.bookingSectionLabel}>Giorno</Text>
             <Pressable
-              onPress={() => {
-                setBlockSheetOpen(false);
-                setTimeout(() => setBlockCalendarOpen(true), 350);
-              }}
+              onPress={() => setBlockSheetMode('calendar')}
               style={styles.bookingFieldCard}
             >
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -4603,10 +4907,7 @@ export const IstruttoreHomeScreen = () => {
             <View style={{ flex: 1 }}>
               <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
               <Pressable
-                onPress={() => {
-                  setBlockSheetOpen(false);
-                  setTimeout(() => setBlockStartTimePickerOpen(true), 350);
-                }}
+                onPress={() => setBlockSheetMode('startTime')}
                 style={styles.bookingFieldCard}
               >
                 <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -4622,10 +4923,7 @@ export const IstruttoreHomeScreen = () => {
             <View style={{ flex: 1 }}>
               <Text style={styles.bookingSectionLabel}>Ora fine</Text>
               <Pressable
-                onPress={() => {
-                  setBlockSheetOpen(false);
-                  setTimeout(() => setBlockEndTimePickerOpen(true), 350);
-                }}
+                onPress={() => setBlockSheetMode('endTime')}
                 style={styles.bookingFieldCard}
               >
                 <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -4678,6 +4976,7 @@ export const IstruttoreHomeScreen = () => {
             </View>
           )}
         </View>
+        </Animated.View>}
       </BottomSheet>
 
       {/* ── Out of Availability BottomSheet ── */}
@@ -4895,46 +5194,77 @@ export const IstruttoreHomeScreen = () => {
         </ScrollView>
       </BottomSheet>
 
-      {/* Block slot calendar/time drawers */}
-      <CalendarDrawer
-        visible={blockCalendarOpen}
-        onClose={() => {
-          setBlockCalendarOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        onSelectDate={(date) => {
-          setBlockDate(date);
-          setBlockCalendarOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        selectedDate={blockDate}
-      />
-      <TimePickerDrawer
-        visible={blockStartTimePickerOpen}
-        onClose={() => {
-          setBlockStartTimePickerOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        onSelectTime={(date) => {
-          setBlockStartTime(date);
-          setBlockStartTimePickerOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        selectedTime={blockStartTime}
-      />
-      <TimePickerDrawer
-        visible={blockEndTimePickerOpen}
-        onClose={() => {
-          setBlockEndTimePickerOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        onSelectTime={(date) => {
-          setBlockEndTime(date);
-          setBlockEndTimePickerOpen(false);
-          setTimeout(() => setBlockSheetOpen(true), 350);
-        }}
-        selectedTime={blockEndTime}
-      />
+      {/* ── Cluster details drawer (all-instructors scope) ── */}
+      <BottomSheet
+        visible={Boolean(clusterDrawerAppts)}
+        onClose={() => setClusterDrawerAppts(null)}
+        showHandle
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="layers" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>
+                {clusterDrawerAppts?.length ?? 0} guide contemporanee
+              </Text>
+              {clusterDrawerAppts?.[0] ? (
+                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                  {formatDay(clusterDrawerAppts[0].startsAt)}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+            {clusterDrawerAppts?.map((a, idx) => {
+              const isLast = idx === (clusterDrawerAppts?.length ?? 0) - 1;
+              const studentName = a.student ? `${a.student.firstName ?? ''} ${a.student.lastName ?? ''}`.trim() : 'Allievo';
+              const instrName = a.instructor?.name ?? '';
+              const cfg = timelineStatusConfig(a.status, a.type, { durationMin: 0, studentId: a.studentId });
+              return (
+                <Pressable
+                  key={a.id}
+                  onPress={() => { setClusterDrawerAppts(null); setTimeout(() => openLessonDrawer(a), 300); }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: '#F1F5F9',
+                    backgroundColor: pressed ? '#F8FAFC' : '#FFFFFF',
+                  })}
+                >
+                  <View style={{ width: 4, height: 36, borderRadius: 2, backgroundColor: cfg.border }} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>
+                        {formatTime(a.startsAt)} {'\u2013'} {formatTime(a.endsAt ?? a.startsAt)}
+                      </Text>
+                      <View style={[styles.timelineStatusBadge, { backgroundColor: cfg.badgeBg }]}>
+                        <Text style={[styles.timelineStatusText, { color: cfg.badgeText, fontSize: 9 }]}>
+                          {cfg.label}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }} numberOfLines={1}>
+                      {studentName}
+                    </Text>
+                    {instrName ? (
+                      <Text style={{ fontSize: 12, color: '#64748B' }} numberOfLines={1}>
+                        {instrName}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </BottomSheet>
 
       <RescheduleAppointmentSheet
         visible={rescheduleLesson !== null}
@@ -5259,6 +5589,38 @@ const FabMenu = ({
     </>
   );
 };
+
+const scopeStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: '#FEFCE8',
+    borderColor: '#FEF08A',
+  },
+  tabActive: {
+    backgroundColor: '#FDF2F8',
+    borderColor: '#FBCFE8',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#A16207',
+  },
+  tabTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+});
 
 const styles = StyleSheet.create({
   content: {

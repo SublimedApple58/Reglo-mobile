@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
+import { isStudent as isStudentRole } from '../utils/roles';
 
 const companyAutoPaymentsCache = new Map<string, boolean>();
 
@@ -12,7 +13,7 @@ type UseAutoPaymentsEnabledResult = {
 
 export const useAutoPaymentsEnabled = (): UseAutoPaymentsEnabledResult => {
   const { autoscuolaRole, activeCompanyId } = useSession();
-  const isStudent = autoscuolaRole !== 'OWNER' && autoscuolaRole !== 'INSTRUCTOR';
+  const isStudent = isStudentRole(autoscuolaRole);
 
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(false);

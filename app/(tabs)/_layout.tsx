@@ -13,6 +13,7 @@ import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
+import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 
 /* ── Android Tab Item ── */
 
@@ -118,7 +119,7 @@ const AndroidTabBar = ({
           if (route.name === 'role') {
             label = isOwner ? 'Istruttore' : 'Disponibilità';
           }
-          if (route.name === 'notes' && isStudent) {
+          if (route.name === 'notes' && !showRoleTab) {
             label = 'Note';
           }
           const iconName = meta
@@ -153,14 +154,15 @@ export default function TabsLayout() {
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
-  const showRoleTab = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR';
+  const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
-  const isStudent = !showRoleTab;
-  const isInstructor = autoscuolaRole === 'INSTRUCTOR';
+  const isStudent = isStudentRole(autoscuolaRole);
+  const isInstructor = isInstructorRole(autoscuolaRole);
   const showSwapsTab = isStudent && swapEnabled;
   const showNotesTab = showRoleTab || studentNotesEnabled;
-  // "Altro" tab only if there are multiple items (vehicles + settings); otherwise show settings directly
-  const showMoreTab = showRoleTab && vehiclesEnabled;
+  const isInstructorOwner = autoscuolaRole === 'INSTRUCTOR_OWNER';
+  // "Altro" tab: vehicles + settings for OWNER/INSTRUCTOR, or INSTRUCTOR_OWNER always (for Panoramica Istruttori)
+  const showMoreTab = (showRoleTab && vehiclesEnabled) || isInstructorOwner;
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
