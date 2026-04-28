@@ -6,6 +6,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { spacing } from '../theme';
 import { useSession } from '../context/SessionContext';
+import { useVehiclesEnabled } from '../hooks/useVehiclesEnabled';
+import { isInstructor } from '../utils/roles';
 
 type MenuItem = {
   route: string;
@@ -16,24 +18,32 @@ type MenuItem = {
   iconBg: string;
 };
 
-const BASE_MENU_ITEMS: MenuItem[] = [
-  {
-    route: 'vehicles',
-    label: 'Veicoli',
-    description: 'Gestisci i veicoli della scuola',
-    icon: 'car-outline',
-    iconColor: '#CA8A04',
-    iconBg: '#FEF9C3',
-  },
-  {
-    route: 'settings',
-    label: 'Impostazioni',
-    description: 'Preferenze e configurazione',
-    icon: 'settings-outline',
-    iconColor: '#64748B',
-    iconBg: '#F1F5F9',
-  },
-];
+const VEHICLES_ITEM: MenuItem = {
+  route: 'vehicles',
+  label: 'Veicoli',
+  description: 'Gestisci i veicoli della scuola',
+  icon: 'car-outline',
+  iconColor: '#CA8A04',
+  iconBg: '#FEF9C3',
+};
+
+const SETTINGS_ITEM: MenuItem = {
+  route: 'settings',
+  label: 'Impostazioni',
+  description: 'Preferenze e configurazione',
+  icon: 'settings-outline',
+  iconColor: '#64748B',
+  iconBg: '#F1F5F9',
+};
+
+const INSTRUCTOR_HOURS_ITEM: MenuItem = {
+  route: 'instructor-hours',
+  label: 'Ore di guida',
+  description: 'Ore settimanali e mensili',
+  icon: 'time-outline',
+  iconColor: '#EC4899',
+  iconBg: '#FCE7F3',
+};
 
 const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
   route: 'instructors-overview',
@@ -47,13 +57,22 @@ const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
 export const MoreScreen = () => {
   const router = useRouter();
   const { autoscuolaRole } = useSession();
+  const { enabled: vehiclesEnabled } = useVehiclesEnabled();
 
   const menuItems = useMemo(() => {
+    const items: MenuItem[] = [];
     if (autoscuolaRole === 'INSTRUCTOR_OWNER') {
-      return [INSTRUCTORS_OVERVIEW_ITEM, ...BASE_MENU_ITEMS];
+      items.push(INSTRUCTORS_OVERVIEW_ITEM);
     }
-    return BASE_MENU_ITEMS;
-  }, [autoscuolaRole]);
+    if (isInstructor(autoscuolaRole)) {
+      items.push(INSTRUCTOR_HOURS_ITEM);
+    }
+    if (vehiclesEnabled) {
+      items.push(VEHICLES_ITEM);
+    }
+    items.push(SETTINGS_ITEM);
+    return items;
+  }, [autoscuolaRole, vehiclesEnabled]);
 
   return (
     <Screen>

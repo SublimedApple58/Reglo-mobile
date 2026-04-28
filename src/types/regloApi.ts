@@ -753,6 +753,34 @@ export type InstructorClusterSettings = {
   weeklyAbsenceEnabled?: boolean;
 };
 
+// ── Instructor Hours ──
+export type InstructorHoursDayBreakdown = {
+  date: string;
+  dayLabel: string;
+  totalMinutes: number;
+  outsideWorkingHoursMinutes: number;
+  appointmentCount: number;
+};
+
+export type InstructorHoursEntry = {
+  instructorId: string;
+  instructorName: string;
+  workingHoursStart: string | null;
+  workingHoursEnd: string | null;
+  weekly: {
+    totalMinutes: number;
+    outsideWorkingHoursMinutes: number;
+    byDay: InstructorHoursDayBreakdown[];
+  };
+  monthly: {
+    monthLabel: string;
+    totalMinutes: number;
+    outsideWorkingHoursMinutes: number;
+  };
+};
+
+export type InstructorHoursResponse = InstructorHoursEntry[];
+
 export type CompanyBookingDefaults = {
   bookingSlotDurations: number[];
   roundedHoursOnly: boolean;

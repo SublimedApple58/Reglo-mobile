@@ -82,6 +82,7 @@ import {
   DateAvailabilityMap,
   InstructorClusterSettings,
   CompanyBookingDefaults,
+  InstructorHoursResponse,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -557,6 +558,13 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<MobileAppointmentPaymentDocument>(
         `/api/mobile/payments/appointments/${appointmentId}/document`
       ),
+    getInstructorHours: async (params: { weekStart: string; monthStart?: string }) => {
+      const qs = new URLSearchParams({ weekStart: params.weekStart });
+      if (params.monthStart) qs.set('monthStart', params.monthStart);
+      return client.request<InstructorHoursResponse>(
+        `/api/autoscuole/instructor-hours?${qs.toString()}`
+      );
+    },
   };
 };
 

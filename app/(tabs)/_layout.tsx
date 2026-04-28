@@ -163,8 +163,8 @@ export default function TabsLayout() {
   const showSwapsTab = isStudent && swapEnabled;
   const showNotesTab = showRoleTab || studentNotesEnabled;
   const isInstructorOwner = autoscuolaRole === 'INSTRUCTOR_OWNER';
-  // "Altro" tab: vehicles + settings for OWNER/INSTRUCTOR, or INSTRUCTOR_OWNER always (for Panoramica Istruttori)
-  const showMoreTab = (showRoleTab && vehiclesEnabled) || isInstructorOwner;
+  // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
+  const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
