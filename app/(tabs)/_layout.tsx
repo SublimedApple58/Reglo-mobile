@@ -79,6 +79,7 @@ type AndroidTabBarExtraProps = {
   isOwner: boolean;
   isStudent: boolean;
   showMoreTab: boolean;
+  showRoleTab: boolean;
   hiddenTabs: Set<string>;
 };
 
@@ -99,6 +100,7 @@ const AndroidTabBar = ({
   isOwner,
   isStudent,
   showMoreTab,
+  showRoleTab,
   hiddenTabs,
 }: BottomTabBarProps & AndroidTabBarExtraProps) => {
   const insets = useSafeAreaInsets();
@@ -197,7 +199,7 @@ export default function TabsLayout() {
     return (
       <>
         <Tabs
-          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} isStudent={isStudent} showMoreTab={showMoreTab} hiddenTabs={hiddenTabs} />}
+          tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} isStudent={isStudent} showMoreTab={showMoreTab} showRoleTab={showRoleTab} hiddenTabs={hiddenTabs} />}
           screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
         >
           <Tabs.Screen name="home" options={{ title: 'Home' }} />
