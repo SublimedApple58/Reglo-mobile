@@ -11,6 +11,7 @@ import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
+import { useQuizEnabled } from '../../src/hooks/useQuizEnabled';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
@@ -91,6 +92,7 @@ const ANDROID_TAB_META: Record<string, { label: string; icon: keyof typeof Ionic
   swaps: { label: 'Scambi', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
   more: { label: 'Altro', icon: 'ellipsis-horizontal-circle-outline', iconFocused: 'ellipsis-horizontal-circle' },
   settings: { label: 'Impostazioni', icon: 'settings-outline', iconFocused: 'settings' },
+  quiz: { label: 'Quiz', icon: 'checkmark-circle-outline', iconFocused: 'checkmark-circle' },
 };
 
 const AndroidTabBar = ({
@@ -156,6 +158,7 @@ export default function TabsLayout() {
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
+  const { enabled: quizEnabled } = useQuizEnabled();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isStudent = isStudentRole(autoscuolaRole);
@@ -165,6 +168,7 @@ export default function TabsLayout() {
   const isInstructorOwner = autoscuolaRole === 'INSTRUCTOR_OWNER';
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
   const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
+  const showQuizTab = isStudent && quizEnabled;
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
@@ -176,10 +180,11 @@ export default function TabsLayout() {
     if (!showMoreTab) set.add('more');
     if (!showSwapsTab) set.add('swaps');
     if (!showPaymentsTab) set.add('payments');
+    if (!showQuizTab) set.add('quiz');
     // Settings hidden when "Altro" is shown (accessed from More screen)
     if (showMoreTab) set.add('settings');
     return set;
-  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab]);
+  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab, showQuizTab]);
 
   const transparent =
     Platform.OS === 'ios'
@@ -209,6 +214,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
           <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
           <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
+          <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         </Tabs>
         <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
       </>
@@ -265,6 +271,12 @@ export default function TabsLayout() {
         <NativeTabs.Trigger name="payments">
           <Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} drawable="ic_menu_view" />
           <Label>Pagamenti</Label>
+        </NativeTabs.Trigger>
+      ) : null}
+      {showQuizTab ? (
+        <NativeTabs.Trigger name="quiz">
+          <Icon sf={{ default: 'checkmark.circle', selected: 'checkmark.circle.fill' }} drawable="ic_menu_view" />
+          <Label>Quiz</Label>
         </NativeTabs.Trigger>
       ) : null}
       {!showMoreTab ? (

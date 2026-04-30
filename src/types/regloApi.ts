@@ -505,6 +505,7 @@ export type AutoscuolaSettings = {
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
   vehiclesEnabled?: boolean;
+  quizEnabled?: boolean;
 };
 
 export type MobileBookingOptions = {
@@ -803,4 +804,95 @@ export type CompanyBookingDefaults = {
   restrictedTimeRangeStart: string;
   restrictedTimeRangeEnd: string;
   weeklyAbsenceEnabled: boolean;
+  quizEnabled: boolean;
+};
+
+// ── Quiz ─────────────────────────────────────────────────────────────────────
+
+export type QuizSessionMode = 'EXAM' | 'CHAPTER' | 'REVIEW';
+
+export type QuizChapterProgress = {
+  id: Uuid;
+  chapterNumber: number;
+  description: string;
+  totalQuestions: number;
+  attemptedCount: number;
+  correctCount: number;
+};
+
+export type QuizQuestion = {
+  id: Uuid;
+  questionText: string;
+  imageUrl: string | null;
+  chapterNumber: number;
+};
+
+export type QuizQuestionWithAnswer = QuizQuestion & {
+  correctAnswer: boolean;
+  hint: { title: string; descriptionHtml: string } | null;
+};
+
+export type StartQuizSessionInput = {
+  mode: QuizSessionMode;
+  chapterId?: Uuid;
+};
+
+export type StartQuizSessionResult = {
+  sessionId: Uuid;
+  questions: QuizQuestion[];
+  timeLimitSec: number | null;
+  totalQuestions: number;
+};
+
+export type SubmitQuizAnswerResult = {
+  isCorrect: boolean;
+  correctAnswer: boolean;
+  hint: { title: string; descriptionHtml: string } | null;
+  sessionStatus: 'in_progress' | 'completed' | 'auto_failed';
+  correctCount: number;
+  wrongCount: number;
+};
+
+export type QuizSessionResult = {
+  id: Uuid;
+  mode: QuizSessionMode;
+  status: string;
+  passed: boolean | null;
+  totalQuestions: number;
+  correctCount: number;
+  wrongCount: number;
+  startedAt: IsoDate;
+  completedAt: IsoDate | null;
+  timeLimitSec: number | null;
+  chaptersBreakdown: Array<{
+    chapterNumber: number;
+    description: string;
+    correct: number;
+    wrong: number;
+    total: number;
+  }>;
+  wrongAnswers: QuizQuestionWithAnswer[];
+};
+
+export type QuizStudentStats = {
+  totalSessions: number;
+  examsPassed: number;
+  examsFailed: number;
+  examPassRate: number;
+  readinessScore: number;
+  chaptersProgress: QuizChapterProgress[];
+  recentSessions: Array<{
+    id: Uuid;
+    mode: QuizSessionMode;
+    completedAt: IsoDate | null;
+    passed: boolean | null;
+    correctCount: number;
+    wrongCount: number;
+    totalQuestions: number;
+  }>;
+  weakChapters: Array<{
+    chapterNumber: number;
+    description: string;
+    correctRate: number;
+  }>;
 };

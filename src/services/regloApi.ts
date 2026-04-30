@@ -83,6 +83,12 @@ import {
   InstructorClusterSettings,
   CompanyBookingDefaults,
   InstructorHoursResponse,
+  QuizChapterProgress,
+  StartQuizSessionInput,
+  StartQuizSessionResult,
+  SubmitQuizAnswerResult,
+  QuizSessionResult,
+  QuizStudentStats,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -583,6 +589,39 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/instructor-hours?${qs.toString()}`
       );
     },
+
+    // ── Quiz ──────────────────────────────────────────────────────
+    getQuizChapters: async () =>
+      client.request<QuizChapterProgress[]>('/api/autoscuole/quiz/chapters'),
+    startQuizSession: async (input: StartQuizSessionInput) =>
+      client.request<StartQuizSessionResult>('/api/autoscuole/quiz/sessions', {
+        method: 'POST',
+        body: input,
+      }),
+    submitQuizAnswer: async (
+      sessionId: string,
+      body: { questionId: string; answer: boolean }
+    ) =>
+      client.request<SubmitQuizAnswerResult>(
+        `/api/autoscuole/quiz/sessions/${sessionId}/answer`,
+        { method: 'POST', body }
+      ),
+    completeQuizSession: async (sessionId: string) =>
+      client.request<{ sessionId: string; passed: boolean | null; correctCount: number; wrongCount: number; totalQuestions: number }>(
+        `/api/autoscuole/quiz/sessions/${sessionId}/complete`,
+        { method: 'POST' }
+      ),
+    abandonQuizSession: async (sessionId: string) =>
+      client.request<{ sessionId: string }>(
+        `/api/autoscuole/quiz/sessions/${sessionId}/abandon`,
+        { method: 'POST' }
+      ),
+    getQuizSessionResult: async (sessionId: string) =>
+      client.request<QuizSessionResult>(
+        `/api/autoscuole/quiz/sessions/${sessionId}`
+      ),
+    getQuizStudentStats: async () =>
+      client.request<QuizStudentStats>('/api/autoscuole/quiz/stats'),
   };
 };
 

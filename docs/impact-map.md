@@ -78,6 +78,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Instructor Manage**: notes are part of appointment detail editing
 - → **Backend**: `getLatestStudentAppointmentNote()`, `updateAppointmentDetails()`
 
+### Quiz Teoria
+- → **Settings**: reads `quizEnabled` from `getAutoscuolaSettings()` via `useQuizEnabled` hook
+- → **Tab Layout**: conditional quiz tab in `_layout.tsx`
+- → **Backend**: 7 API functions (chapters, sessions, answers, stats)
+- → Self-contained: QuizContext holds session state, 3 screens
+
 ## Cross-Repo Impact
 
 When `../reglo/` backend changes:
