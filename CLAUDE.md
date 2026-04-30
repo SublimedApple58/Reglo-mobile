@@ -1,70 +1,68 @@
-# CLAUDE.md
+# CLAUDE.md — Reglo Mobile (iOS + Android)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Development Commands
+## Commands
 
 ```bash
-npm start          # Start Expo dev server
-npm run ios        # Run on iOS simulator
-npm run android    # Run on Android emulator
-npm run web        # Run on web
-npx expo start -c  # Start with cache cleared
+npm start              # Start Expo dev server
+npm run ios            # Run on iOS simulator
+npm run android        # Run on Android emulator
+npx expo start -c      # Start with cache cleared
 ```
 
-EAS builds: `eas build --profile development|preview|production --platform ios|android`
+**EAS:** `eas build --profile development|preview|production --platform ios|android`
+**OTA:** `eas update --platform ios` then `eas update --platform android` (not `--platform all` — Stripe web export breaks it)
 
-No test runner or linter is configured in this project.
+No test runner or linter configured.
 
-## Architecture
+## Conventions
 
-**Expo 54 + React Native 0.81.5 + Expo Router 6 + TypeScript 5.9**
+- TypeScript strict mode (Expo tsconfig base)
+- Screens in `src/screens/`, components in `src/components/`, API in `src/services/`
+- `react-native-reanimated` for animations (shared values, useAnimatedStyle, FadeIn/FadeOut, withSpring)
+- `Screen` component wraps all screens (SafeArea)
+- `BottomSheet` with handle (never X close button). iOS and Android have separate implementations.
+- Centered `Modal` for quick actions; `BottomSheet` for complex scrollable content
+- Theme tokens in `src/theme/`: colors (pink #EC4899, yellow #FACC15), spacing, typography
+- Design system reference: `docs/design-system.md` — read before UI work (also kept at `plans/design-system/DESIGN_SYSTEM.md`)
+- All API responses use `ApiResponse<T> = ApiSuccess<T> | ApiError` — always check `response.success`
+- Three roles: STUDENT (allievo), INSTRUCTOR (istruttore), OWNER (titolare). Tabs conditional by role.
 
-### Auth & Session
+## Documentation
 
-`SessionContext` manages all auth state via React Context (no Redux/Zustand). Auth status flows through: `loading → unauthenticated → company_select → ready`. The root `_layout.tsx` wraps everything in `SessionProvider` and uses `AuthGate` to redirect based on status.
+All feature and architecture docs are in `docs/`. Read `docs/INDEX.md` to find the relevant feature.
 
-Tokens are stored in `expo-secure-store` (native) / `localStorage` (web). The API client (`src/services/apiClient.ts`) attaches JWT via `Authorization` header and company context via `x-reglo-company-id` header.
+### Action Flows
 
-### Routing
+#### CREATE a new feature
+1. Read `docs/INDEX.md` — check if a related feature exists
+2. Read `docs/impact-map.md` — identify connections to existing features
+3. Read connected feature docs in `docs/features/` — understand interfaces
+4. Read `docs/design-system.md` if the feature has UI
+5. Implement following existing patterns
+6. Create `docs/features/<new-feature>.md`
+7. Update `docs/INDEX.md` and `docs/impact-map.md`
+8. If backend changes needed, switch to `../reglo/` and follow its action flow
 
-File-based routing with two groups:
-- `(auth)/` — login, signup, company-select, role-blocked, invite/[token]
-- `(tabs)/` — home, role, payments, settings
+#### MODIFY an existing feature
+1. Read `docs/INDEX.md` — find the feature file
+2. Read `docs/features/<feature>.md` — understand all files and shared components involved
+3. Read `docs/impact-map.md` — find connected features
+4. Read each connected feature doc — understand what might break
+5. Make the change
+6. If a shared component changed: verify ALL screens listed in its "Used by" section
+7. If an API type changed: grep for the type name across all screens
+8. Update `docs/features/<feature>.md` if behavior changed
 
-Tabs are **conditional by role**: `role` tab shows only for OWNER/INSTRUCTOR, `payments` tab shows only for STUDENT (with autoPayments enabled). iOS uses native tabs (`NativeTabs` + native glass tab bar via `GlassTabBar.ios.tsx`), Android uses custom tab bar in `GlassTabBar.tsx`.
+#### DELETE / REMOVE a feature
+1. Read `docs/features/<feature>.md` — list ALL files involved
+2. Read `docs/impact-map.md` — find ALL dependent features
+3. Read connected docs — plan dependency removal
+4. Remove code, update connected features
+5. Delete the feature doc, update INDEX and impact-map
 
-### Role-Based Screens
+## Agent Instructions
 
-Each tab dispatches to role-specific screens in `src/screens/`:
-- **STUDENT (Allievo)**: AllievoHomeScreen, AllievoPaymentsScreen
-- **INSTRUCTOR (Istruttore)**: IstruttoreHomeScreen, InstructorManageScreen
-- **OWNER (Titolare)**: TitolareHomeScreen, OwnerInstructorScreen
-
-### API Layer
-
-- `src/services/apiClient.ts` — HTTP client factory with JWT + company headers
-- `src/services/regloApi.ts` — Typed endpoint functions
-- `src/types/regloApi.ts` — All API types; uses discriminated union `ApiResponse<T>` = `ApiSuccess<T> | ApiError`
-- Base URL: `https://app.reglo.it/api`
-
-### Design System
-
-**Riferimento completo: [`plans/design-system/DESIGN_SYSTEM.md`](plans/design-system/DESIGN_SYSTEM.md)** — leggilo prima di toccare qualsiasi UI.
-
-Rosa Brand (`#EC4899`) + Giallo Accent (`#FACC15`) + sfondo bianco. Regola: 70% neutri / 20% rosa / 10% giallo.
-
-- **Radii**: `radii.sm` (20) per elementi piccoli, `radii.lg` (35) per card grandi
-- **Modali centrate** (non BottomSheet) per azioni rapide
-- **Ombre colorate** (ambra sulle card gialle, rosa sui CTA)
-- Theme tokens in `src/theme/`: `colors.ts`, `typography.ts`, `spacing.ts` (`radii` in spacing)
-
-Core components in `src/components/`: `Card`, `Button`, `Input`, `Badge`, `BottomSheet`, `Screen`, `Skeleton`, `ToastNotice`, `SelectableChip`, `SectionHeader`, `CalendarNavigator`, `BookingCelebration`, `SearchableSelect`, `ScrollHintFab`.
-
-### Key Patterns
-
-- Animations use `react-native-reanimated` (shared values, `useAnimatedStyle`, entering/exiting transitions)
-- `Screen` component wraps all screens with SafeArea handling
-- Centered `<Modal>` for quick actions; `BottomSheet` only for complex scrollable content
-- Stripe integration via `@stripe/stripe-react-native` (initialized in root layout)
-- Push notifications via `expo-notifications` with device token registration
+- Read `docs/design-system.md` before any UI changes.
+- Test both iOS and Android rendering — tab bars and bottom sheets differ per platform.
+- For notification changes, follow the full checklist in `../reglo/docs/features/notifications.md`.
+- **Always follow the Action Flows above. Always consult docs/impact-map.md before completing a change.**
