@@ -184,7 +184,42 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
         }),
       ]);
 
-      setPublished(publishedRes.length > 0);
+      const isPublished = publishedRes.length > 0;
+      setPublished(isPublished);
+
+      const hasAnyOverride = overridesRes.length > 0;
+
+      // Pre-fill from last published week if current week has no overrides
+      let templateOverrides: typeof overridesRes = [];
+      if (!hasAnyOverride && !isPublished) {
+        try {
+          // Find the most recent published week before this one
+          const allPublished = await regloApi.getPublishedWeeks({
+            instructorId,
+            from: '2020-01-01',
+            to: weekStart,
+          });
+          // Sort by weekStart descending, pick the first one that's before current week
+          const previous = allPublished
+            .filter((pw) => pw.weekStart < weekStart)
+            .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+
+          if (previous) {
+            const prevWs = new Date(previous.weekStart + 'T00:00:00Z');
+            const prevWe = new Date(prevWs.getTime() + 6 * 86400000);
+            const prevWeStr = `${prevWe.getUTCFullYear()}-${String(prevWe.getUTCMonth() + 1).padStart(2, '0')}-${String(prevWe.getUTCDate()).padStart(2, '0')}`;
+            const prevOverrides = await regloApi.getDailyAvailabilityOverrides({
+              ownerType: 'instructor',
+              ownerId: instructorId,
+              from: previous.weekStart,
+              to: prevWeStr,
+            });
+            templateOverrides = prevOverrides;
+          }
+        } catch {
+          // Silent fail — just skip pre-fill
+        }
+      }
 
       const newDays: DayState[] = [];
       for (let i = 0; i < 7; i++) {
@@ -193,14 +228,36 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
         const override = overridesRes.find(
           (o: any) => o.date?.slice(0, 10) === dateStr,
         );
-        const ranges: TimeRange[] = override?.ranges?.length
-          ? (override.ranges as TimeRange[])
-          : [];
-        newDays.push({
-          date: dateStr,
-          available: ranges.length > 0,
-          ranges: ranges.length > 0 ? ranges : [...DEFAULT_RANGES],
-        });
+
+        if (override?.ranges?.length) {
+          // This day has its own override — use it
+          newDays.push({
+            date: dateStr,
+            available: true,
+            ranges: override.ranges as TimeRange[],
+          });
+        } else if (templateOverrides.length > 0) {
+          // Pre-fill from template: match by day-of-week (same index)
+          const templateDay = templateOverrides.find((o: any) => {
+            const oDate = new Date(o.date?.slice(0, 10) + 'T00:00:00Z');
+            return oDate.getUTCDay() === d.getUTCDay();
+          });
+          const templateRanges: TimeRange[] = templateDay?.ranges?.length
+            ? (templateDay.ranges as TimeRange[])
+            : [];
+          newDays.push({
+            date: dateStr,
+            available: templateRanges.length > 0,
+            ranges: templateRanges.length > 0 ? templateRanges : [...DEFAULT_RANGES],
+          });
+        } else {
+          // No override, no template — default off
+          newDays.push({
+            date: dateStr,
+            available: false,
+            ranges: [...DEFAULT_RANGES],
+          });
+        }
       }
       setDays(newDays);
     } catch (err) {
