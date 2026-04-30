@@ -634,6 +634,27 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         notificationEvents.emitDataChanged();
         return;
       }
+      if (intent === 'availability_published') {
+        const notifId = `availability_published_${data?.instructorId ?? ''}_${data?.weekStart ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'availability_published',
+          id: notifId,
+          data: {
+            instructorId: String(data?.instructorId ?? ''),
+            instructorName: String(data?.instructorName ?? 'Istruttore'),
+            weekStart: String(data?.weekStart ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        return;
+      }
     });
     return unsub;
   }, [loadSwapOffers, loadWaitlistOffers, loadProposals, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);

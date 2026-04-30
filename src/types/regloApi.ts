@@ -751,7 +751,11 @@ export type InstructorClusterSettings = {
   restrictedTimeRangeStart?: string;
   restrictedTimeRangeEnd?: string;
   weeklyAbsenceEnabled?: boolean;
+  availabilityMode?: AvailabilityMode;
 };
+
+export type AvailabilityMode = 'default' | 'publication';
+export type InstructorPublishedWeek = { id: string; weekStart: string; publishedAt: string };
 
 // ── Instructor Hours ──
 export type InstructorHoursDayBreakdown = {

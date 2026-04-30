@@ -6,22 +6,30 @@ import { Badge } from '../components/Badge';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { AvailabilityEditor } from './InstructorManageScreen';
+import { PublicationModeEditor } from './PublicationModeEditor';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaSettings } from '../types/regloApi';
+import { AutoscuolaSettings, AvailabilityMode } from '../types/regloApi';
 import { colors, radii, spacing } from '../theme';
 import { useSession } from '../context/SessionContext';
 
 export const InstructorAvailabilityScreen = () => {
   const { instructorId } = useSession();
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
+  const [availabilityMode, setAvailabilityMode] = useState<AvailabilityMode>('default');
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const settingsRes = await regloApi.getAutoscuolaSettings();
+      const [settingsRes, instrSettings] = await Promise.all([
+        regloApi.getAutoscuolaSettings(),
+        regloApi.getInstructorSettings().catch(() => null),
+      ]);
       setSettings(settingsRes);
+      if (instrSettings?.settings?.availabilityMode) {
+        setAvailabilityMode(instrSettings.settings.availabilityMode);
+      }
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel caricamento',
@@ -94,6 +102,11 @@ export const InstructorAvailabilityScreen = () => {
             </View>
             <SkeletonBlock width="100%" height={50} radius={radii.sm} style={{ marginTop: 8 }} />
           </SkeletonCard>
+        ) : availabilityMode === 'publication' ? (
+          <PublicationModeEditor
+            instructorId={instructorId}
+            onToast={(text, tone = 'success') => setToast({ text, tone })}
+          />
         ) : (
           <AvailabilityEditor
             title="Disponibilità istruttore"

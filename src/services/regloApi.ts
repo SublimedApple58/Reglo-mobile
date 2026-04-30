@@ -166,6 +166,7 @@ export const createRegloApi = (baseUrl?: string) => {
         assignedStudentIds: string[];
         instructorId?: string;
         autonomousInstructors?: Array<{ id: string; name: string }>;
+        publishedWeeks?: Array<{ id: string; weekStart: string; publishedAt: string }>;
       }>('/api/autoscuole/instructor-settings'),
 
     updateInstructorSettings: async (input: Partial<InstructorClusterSettings> & { assignStudentIds?: string[] }) =>
@@ -194,6 +195,23 @@ export const createRegloApi = (baseUrl?: string) => {
     cancelWeeklyAbsence: async (weekStart: string) =>
       client.request<unknown>(`/api/autoscuole/weekly-absence?weekStart=${weekStart}`, {
         method: 'DELETE',
+      }),
+
+    getPublishedWeeks: async (params: { instructorId?: string; from?: string; to?: string }) =>
+      client.request<Array<{ id: string; weekStart: string; publishedAt: string }>>('/api/autoscuole/availability/published-weeks', {
+        params,
+      }),
+
+    publishWeek: async (input: { weekStart: string; instructorId?: string }) =>
+      client.request<unknown>('/api/autoscuole/availability/published-weeks', {
+        method: 'POST',
+        body: input,
+      }),
+
+    unpublishWeek: async (input: { weekStart: string; instructorId?: string }) =>
+      client.request<unknown>('/api/autoscuole/availability/published-weeks', {
+        method: 'DELETE',
+        body: input,
       }),
 
     createInstructorSickLeave: async (input: { instructorId?: string; startDate: string; startTime?: string; endDate: string }) =>

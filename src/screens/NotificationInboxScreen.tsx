@@ -36,6 +36,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   sick_leave_cancelled: 'medkit-outline',
   appointment_rescheduled: 'swap-horizontal-outline',
   appointment_cancelled: 'close-circle-outline',
+  availability_published: 'megaphone-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -60,6 +61,8 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Guida spostata';
     case 'appointment_cancelled':
       return 'Guida annullata';
+    case 'availability_published':
+      return 'Disponibilità pubblicate';
   }
 };
 
@@ -85,6 +88,8 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `Spostata al ${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
     case 'appointment_cancelled':
       return `${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
+    case 'availability_published':
+      return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
   }
 };
 
@@ -96,6 +101,7 @@ const ICON_COLOR_MAP: Partial<Record<NotificationItem['kind'], string>> = {
   weekly_absence: '#D97706',
   sick_leave_cancelled: '#DC2626',
   appointment_cancelled: '#DC2626',
+  availability_published: '#22C55E',
 };
 
 /* ── Swipeable Card ── */
