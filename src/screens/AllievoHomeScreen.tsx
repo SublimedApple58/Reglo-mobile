@@ -1500,7 +1500,6 @@ export const AllievoHomeScreen = () => {
                       resizeMode="contain"
                     />
                     <Text style={styles.emptyLessonText}>Nessuna guida prenotata</Text>
-                    <Text style={[styles.emptyLessonText, { fontSize: 13, color: '#94A3B8', marginTop: 4 }]}>Clicca su "Prenota nuova guida" per prenotarne una</Text>
                   </>
                 )}
               </View>
@@ -1786,7 +1785,9 @@ export const AllievoHomeScreen = () => {
                 {!agendaLoading && !agendaLessons.length ? (
                   <View style={{ alignItems: 'center', gap: 4, paddingVertical: 16 }}>
                     <Text style={styles.empty}>Nessuna guida nel periodo selezionato.</Text>
-                    <Text style={[styles.empty, { fontSize: 13, color: '#94A3B8' }]}>Clicca su "Prenota nuova guida" per prenotarne una</Text>
+                    {!studentBookingDisabledByPolicy ? (
+                      <Text style={[styles.empty, { fontSize: 13, color: '#94A3B8' }]}>Clicca su "Prenota nuova guida" per prenotarne una</Text>
+                    ) : null}
                   </View>
                 ) : null}
                 {!agendaLoading && agendaLessons.length > 4 ? (
