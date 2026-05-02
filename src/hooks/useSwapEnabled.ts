@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { regloApi } from '../services/regloApi';
+import { useAutoscuolaSettings } from './queries/useAutoscuolaSettings';
+import { useBookingOptions } from './queries/useBookingOptions';
 import { isStudent as isStudentRole } from '../utils/roles';
-
-// Cache keyed by userId (cluster-resolved settings differ per student)
-const studentSwapCache = new Map<string, boolean>();
 
 type UseSwapEnabledResult = {
   enabled: boolean;
@@ -13,60 +10,24 @@ type UseSwapEnabledResult = {
 };
 
 export const useSwapEnabled = (): UseSwapEnabledResult => {
-  const { autoscuolaRole, activeCompanyId, user } = useSession();
+  const { autoscuolaRole, user } = useSession();
   const isStudent = isStudentRole(autoscuolaRole);
   const studentId = user?.id ?? null;
+  const settings = useAutoscuolaSettings();
+  const bookingOpts = useBookingOptions(isStudent ? studentId : null);
 
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const load = useCallback(
-    async (skipCache = false) => {
-      if (!isStudent || !activeCompanyId || !studentId) {
-        setEnabled(false);
-        setLoading(false);
-        return;
-      }
-
-      const cacheKey = `${activeCompanyId}:${studentId}`;
-      if (!skipCache) {
-        const cached = studentSwapCache.get(cacheKey);
-        if (cached !== undefined) {
-          setEnabled(cached);
-          setLoading(false);
-          return;
-        }
-      }
-
-      setLoading(true);
-      try {
-        // Prefer cluster-resolved swapEnabled from booking options
-        const options = await regloApi.getBookingOptions(studentId).catch(() => null);
-        let nextEnabled: boolean;
-        if (options && typeof options.swapEnabled === 'boolean') {
-          nextEnabled = options.swapEnabled;
-        } else {
-          const settings = await regloApi.getAutoscuolaSettings();
-          nextEnabled = Boolean(settings.swapEnabled);
-        }
-        studentSwapCache.set(cacheKey, nextEnabled);
-        setEnabled(nextEnabled);
-      } catch {
-        setEnabled(false);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [activeCompanyId, isStudent, studentId]
+  // Prefer cluster-resolved swapEnabled from booking options
+  const enabled = isStudent && (
+    typeof bookingOpts.data?.swapEnabled === 'boolean'
+      ? bookingOpts.data.swapEnabled
+      : Boolean(settings.data?.swapEnabled)
   );
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const refresh = useCallback(async () => {
-    await load(true);
-  }, [load]);
-
-  return { enabled, loading, refresh };
+  return {
+    enabled,
+    loading: settings.isLoading || bookingOpts.isLoading,
+    refresh: async () => {
+      await Promise.all([settings.refetch(), bookingOpts.refetch()]);
+    },
+  };
 };

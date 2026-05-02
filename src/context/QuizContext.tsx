@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
-import type { QuizQuestion, QuizSessionMode } from '../types/regloApi';
+import type { QuizQuestionWithAnswer, QuizSessionMode } from '../types/regloApi';
 
 type QuizSessionState = {
   sessionId: string;
-  questions: QuizQuestion[];
+  questions: QuizQuestionWithAnswer[];
   mode: QuizSessionMode;
   timeLimitSec: number | null;
   startedAt: number; // Date.now()
@@ -13,7 +13,7 @@ type QuizContextValue = {
   session: QuizSessionState;
   startSession: (data: {
     sessionId: string;
-    questions: QuizQuestion[];
+    questions: QuizQuestionWithAnswer[];
     mode: QuizSessionMode;
     timeLimitSec: number | null;
   }) => void;
@@ -28,7 +28,7 @@ export const QuizProvider = ({ children }: { children: React.ReactNode }) => {
   const startSession = useCallback(
     (data: {
       sessionId: string;
-      questions: QuizQuestion[];
+      questions: QuizQuestionWithAnswer[];
       mode: QuizSessionMode;
       timeLimitSec: number | null;
     }) => {

@@ -8,287 +8,456 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Button } from '../components/Button';
-import { colors, pink, spacing, typography } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, pink, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import { useQuiz } from '../context/QuizContext';
-import type { SubmitQuizAnswerResult } from '../types/regloApi';
+
+const EXAM_MAX_ERRORS = 3;
+
+type AnswerResult = {
+  isCorrect: boolean;
+  correctAnswer: boolean;
+  hint: { title: string; descriptionHtml: string } | null;
+  autoFailed: boolean;
+};
+
+// Dot states: null = not answered, true = correct, false = wrong
+type DotState = null | boolean;
 
 export const QuizSessionScreen = () => {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { session, clearSession } = useQuiz();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [wrongCount, setWrongCount] = useState(0);
-  const [answering, setAnswering] = useState(false);
-  const [feedback, setFeedback] = useState<SubmitQuizAnswerResult | null>(null);
+  const [index, setIndex] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [wrong, setWrong] = useState(0);
+  const [result, setResult] = useState<AnswerResult | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [dots, setDots] = useState<DotState[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
 
-  // Timer for EXAM mode
+  const trueScale = useSharedValue(1);
+  const falseScale = useSharedValue(1);
+
+  const total = session?.questions.length ?? 0;
+
+  useEffect(() => {
+    if (session) setDots(new Array(session.questions.length).fill(null));
+  }, [session]);
+
+  // Timer
   useEffect(() => {
     if (!session?.timeLimitSec) return;
     const elapsed = Math.floor((Date.now() - session.startedAt) / 1000);
-    const remaining = Math.max(0, session.timeLimitSec - elapsed);
-    setTimeLeft(remaining);
-
+    setTimeLeft(Math.max(0, session.timeLimitSec - elapsed));
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === null || prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
+      setTimeLeft((p) => {
+        if (p === null || p <= 1) { if (timerRef.current) clearInterval(timerRef.current); return 0; }
+        return p - 1;
       });
     }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [session]);
 
-  // Time's up: auto-complete
   useEffect(() => {
-    if (timeLeft === 0 && session) {
-      handleComplete();
-    }
+    if (timeLeft === 0 && session) completeSession();
   }, [timeLeft]);
 
-  const handleComplete = useCallback(async () => {
+  const completeSession = useCallback(async () => {
     if (!session) return;
-    try {
-      await regloApi.completeQuizSession(session.sessionId);
-    } catch {
-      // ignore
-    }
+    try { await regloApi.completeQuizSession(session.sessionId); } catch {}
     if (timerRef.current) clearInterval(timerRef.current);
     router.replace({ pathname: '/(tabs)/quiz/results', params: { sessionId: session.sessionId } });
   }, [session, router]);
 
   const handleAbandon = useCallback(() => {
-    Alert.alert('Esci dal quiz?', 'Il progresso di questa sessione verrà perso.', [
+    Alert.alert('Esci dal quiz?', 'Il progresso non verra salvato.', [
       { text: 'Continua', style: 'cancel' },
-      {
-        text: 'Esci',
-        style: 'destructive',
-        onPress: async () => {
-          if (session) {
-            try {
-              await regloApi.abandonQuizSession(session.sessionId);
-            } catch {
-              // ignore
-            }
-          }
-          if (timerRef.current) clearInterval(timerRef.current);
-          clearSession();
-          router.back();
-        },
-      },
+      { text: 'Esci', style: 'destructive', onPress: async () => {
+        if (session) { try { await regloApi.abandonQuizSession(session.sessionId); } catch {} }
+        if (timerRef.current) clearInterval(timerRef.current);
+        clearSession(); router.back();
+      }},
     ]);
   }, [session, clearSession, router]);
 
-  const handleAnswer = async (answer: boolean) => {
-    if (!session || answering) return;
-    setAnswering(true);
-    try {
-      const result = await regloApi.submitQuizAnswer(session.sessionId, {
-        questionId: session.questions[currentIndex].id,
-        answer,
-      });
-      setFeedback(result);
-      setCorrectCount(result.correctCount);
-      setWrongCount(result.wrongCount);
+  const handleTap = (chosen: boolean) => {
+    if (!session || result) return;
+    const q = session.questions[index];
+    const isCorrect = chosen === q.correctAnswer;
+    const newCorrect = correct + (isCorrect ? 1 : 0);
+    const newWrong = wrong + (isCorrect ? 0 : 1);
+    setCorrect(newCorrect);
+    setWrong(newWrong);
 
-      if (result.sessionStatus === 'auto_failed') {
-        setTimeout(() => {
-          if (timerRef.current) clearInterval(timerRef.current);
-          router.replace({ pathname: '/(tabs)/quiz/results', params: { sessionId: session.sessionId } });
-        }, 1500);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setAnswering(false);
+    // Update dots
+    setDots((prev) => { const n = [...prev]; n[index] = isCorrect; return n; });
+
+    // Animate button
+    const scaleTarget = chosen ? trueScale : falseScale;
+    scaleTarget.value = withSequence(
+      withSpring(0.88, { damping: 6, stiffness: 300 }),
+      withSpring(1, { damping: 12 }),
+    );
+
+    const autoFailed = session.mode === 'EXAM' && newWrong > EXAM_MAX_ERRORS;
+    setResult({ isCorrect, correctAnswer: q.correctAnswer, hint: q.hint, autoFailed });
+
+    if (autoFailed) {
+      setTimeout(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        router.replace({ pathname: '/(tabs)/quiz/results', params: { sessionId: session.sessionId } });
+      }, 2500);
     }
+
+    // Fire-and-forget
+    regloApi.submitQuizAnswer(session.sessionId, { questionId: q.id, answer: chosen }).catch(() => {});
+
+    // Scroll to show feedback
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
   };
 
   const handleNext = () => {
-    setFeedback(null);
-    if (currentIndex >= (session?.questions.length ?? 0) - 1) {
-      handleComplete();
+    setResult(null);
+    if (index >= total - 1) {
+      completeSession();
     } else {
-      setCurrentIndex((prev) => prev + 1);
+      setIndex((i) => i + 1);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
 
+  const trueAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: trueScale.value }] }));
+  const falseAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: falseScale.value }] }));
+
   if (!session) {
     return (
-      <Screen>
-        <View style={styles.center}>
-          <Text style={styles.errorText}>Sessione non trovata</Text>
-          <Button label="Torna indietro" onPress={() => router.back()} />
+      <View style={[st.root, { paddingTop: insets.top }]}>
+        <View style={st.emptyCenter}>
+          <Ionicons name="help-circle-outline" size={48} color={colors.textMuted} />
+          <Text style={st.emptyText}>Sessione non trovata</Text>
+          <Pressable style={st.emptyBtn} onPress={() => router.back()}>
+            <Text style={st.emptyBtnText}>Indietro</Text>
+          </Pressable>
         </View>
-      </Screen>
+      </View>
     );
   }
 
-  const question = session.questions[currentIndex];
-  const isLast = currentIndex >= session.questions.length - 1;
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const q = session.questions[index];
+  const isLast = index >= total - 1;
+  const urgent = timeLeft !== null && timeLeft <= 60;
 
   return (
-    <Screen>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <Pressable onPress={handleAbandon} style={styles.exitButton}>
-          <Text style={styles.exitButtonText}>Esci</Text>
+    <View style={[st.root, { paddingTop: insets.top, paddingBottom: insets.bottom || 12 }]}>
+      {/* ── Header ── */}
+      <View style={st.header}>
+        <Pressable onPress={handleAbandon} hitSlop={14} style={st.headerBtn}>
+          <Ionicons name="close" size={20} color={colors.textSecondary} />
         </Pressable>
-        <Text style={styles.progress}>
-          {currentIndex + 1}/{session.questions.length}
-        </Text>
+
         {timeLeft !== null && (
-          <Text style={[styles.timer, timeLeft <= 60 && styles.timerUrgent]}>
-            {formatTime(timeLeft)}
-          </Text>
+          <View style={[st.timerPill, urgent && st.timerPillUrgent]}>
+            <Ionicons name="time-outline" size={14} color={urgent ? '#FFF' : colors.textSecondary} />
+            <Text style={[st.timerText, urgent && st.timerTextUrgent]}>
+              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            </Text>
+          </View>
         )}
-        <View style={styles.counters}>
-          <Text style={styles.correctCounter}>{correctCount}</Text>
-          <Text style={styles.wrongCounter}>{wrongCount}</Text>
+
+        <View style={st.headerBadge}>
+          <Text style={st.headerBadgeText}>In corso</Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
+      {/* ── Question label ── */}
+      <View style={st.questionLabel}>
+        <Text style={st.questionLabelText}>DOMANDA {index + 1} DI {total}</Text>
+        <View style={st.scoreChip}>
+          <Text style={st.scoreChipText}>
+            {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Scrollable content ── */}
+      <ScrollView
+        ref={scrollRef}
+        style={st.scrollArea}
+        contentContainerStyle={st.scrollContent}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Question card */}
-        <View style={styles.questionCard}>
-          {question.imageUrl && (
-            <Image
-              source={{ uri: question.imageUrl }}
-              style={styles.questionImage}
-              resizeMode="contain"
-            />
+        <View style={st.questionCard}>
+          {q.imageUrl && (
+            <View style={st.imageWrap}>
+              <Image source={{ uri: q.imageUrl }} style={st.questionImage} resizeMode="contain" />
+            </View>
           )}
-          <Text style={styles.questionText}>{question.questionText}</Text>
+          <Text style={st.questionText}>{q.questionText}</Text>
         </View>
 
-        {/* Answer buttons or feedback */}
-        {!feedback ? (
-          <View style={styles.answerButtons}>
-            <Pressable
-              style={({ pressed }) => [styles.answerButton, styles.trueButton, pressed && styles.answerButtonPressed]}
-              onPress={() => handleAnswer(true)}
-              disabled={answering}
-            >
-              <Text style={styles.trueButtonText}>VERO</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.answerButton, styles.falseButton, pressed && styles.answerButtonPressed]}
-              onPress={() => handleAnswer(false)}
-              disabled={answering}
-            >
-              <Text style={styles.falseButtonText}>FALSO</Text>
-            </Pressable>
+        {/* Answer buttons */}
+        {!result ? (
+          <View style={st.answerRow}>
+            <Animated.View style={[st.answerBtnWrap, trueAnimStyle]}>
+              <Pressable
+                style={({ pressed }) => [st.answerBtn, st.answerBtnTrue, pressed && st.answerBtnPressed]}
+                onPress={() => handleTap(true)}
+              >
+                <Ionicons name="checkmark-circle-outline" size={28} color="#16A34A" />
+                <Text style={st.answerBtnTrueText}>VERO</Text>
+              </Pressable>
+            </Animated.View>
+            <Animated.View style={[st.answerBtnWrap, falseAnimStyle]}>
+              <Pressable
+                style={({ pressed }) => [st.answerBtn, st.answerBtnFalse, pressed && st.answerBtnPressed]}
+                onPress={() => handleTap(false)}
+              >
+                <Ionicons name="close-circle-outline" size={28} color={colors.destructive} />
+                <Text style={st.answerBtnFalseText}>FALSO</Text>
+              </Pressable>
+            </Animated.View>
           </View>
         ) : (
-          <View style={styles.feedbackContainer}>
-            <View style={[styles.feedbackBanner, feedback.isCorrect ? styles.feedbackCorrect : styles.feedbackWrong]}>
-              <Text style={styles.feedbackText}>
-                {feedback.isCorrect ? 'Corretto!' : `Sbagliato — la risposta era ${feedback.correctAnswer ? 'VERO' : 'FALSO'}`}
+          <Animated.View entering={FadeInDown.duration(280).springify()}>
+            {/* Result banner */}
+            <View style={[st.resultBanner, result.isCorrect ? st.resultBannerCorrect : st.resultBannerWrong]}>
+              <Ionicons
+                name={result.isCorrect ? 'checkmark-circle' : 'close-circle'}
+                size={22}
+                color={result.isCorrect ? '#16A34A' : colors.destructive}
+              />
+              <Text style={[st.resultBannerText, result.isCorrect ? st.resultTextCorrect : st.resultTextWrong]}>
+                {result.isCorrect ? 'Corretto!' : `Sbagliato \u2014 la risposta era ${result.correctAnswer ? 'VERO' : 'FALSO'}`}
               </Text>
             </View>
 
-            {feedback.hint && (
-              <View style={styles.hintContainer}>
-                <Text style={styles.hintTitle}>{feedback.hint.title}</Text>
+            {/* Explanation (pink background like reference) */}
+            {result.hint && (
+              <Animated.View entering={FadeIn.delay(100).duration(250)} style={st.explanationCard}>
+                <View style={st.explanationHeader}>
+                  <Ionicons name="bulb-outline" size={16} color={pink[600]} />
+                  <Text style={st.explanationTitle}>{result.hint.title}</Text>
+                </View>
                 <RenderHtml
-                  contentWidth={width - spacing.md * 4}
-                  source={{ html: feedback.hint.descriptionHtml }}
-                  baseStyle={styles.hintHtml as any}
+                  contentWidth={width - spacing.md * 4 - 8}
+                  source={{ html: result.hint.descriptionHtml }}
+                  baseStyle={st.explanationHtml as any}
                 />
-              </View>
+              </Animated.View>
             )}
 
-            <Button
-              label={feedback.sessionStatus === 'auto_failed' ? 'Troppi errori...' : isLast ? 'Completa' : 'Avanti'}
-              tone="primary"
-              fullWidth
+            {/* Next / Complete button */}
+            <Pressable
+              style={({ pressed }) => [
+                st.nextBtn,
+                result.autoFailed && st.nextBtnDisabled,
+                pressed && !result.autoFailed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
               onPress={handleNext}
-              disabled={feedback.sessionStatus === 'auto_failed'}
-            />
-          </View>
+              disabled={result.autoFailed}
+            >
+              <Text style={st.nextBtnText}>
+                {result.autoFailed ? 'Troppi errori' : isLast ? 'Vedi risultati' : 'Avanti'}
+              </Text>
+              {!result.autoFailed && <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+            </Pressable>
+          </Animated.View>
         )}
+
+        {/* ── Progress Monitor (numbered dots) ── */}
+        <View style={st.progressMonitor}>
+          <Text style={st.progressMonitorTitle}>Progresso</Text>
+          <View style={st.dotsGrid}>
+            {dots.map((d, i) => {
+              const isCurrent = i === index && !result;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    st.dot,
+                    d === true && st.dotCorrect,
+                    d === false && st.dotWrong,
+                    isCurrent && st.dotCurrent,
+                    d === null && !isCurrent && st.dotPending,
+                  ]}
+                >
+                  <Text style={[
+                    st.dotText,
+                    d === true && st.dotTextDone,
+                    d === false && st.dotTextDone,
+                    isCurrent && st.dotTextCurrent,
+                  ]}>
+                    {i + 1}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
-    </Screen>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  errorText: { ...typography.body, color: colors.textSecondary },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+const DOT_SIZE = 36;
+
+const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  emptyCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: pink[50] },
+  emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+
+  // Header
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingVertical: 8,
   },
-  exitButton: { padding: spacing.xs },
-  exitButtonText: { ...typography.body, color: colors.primary, fontWeight: '600' },
-  progress: { ...typography.subtitle, color: colors.textPrimary },
-  timer: { ...typography.body, color: colors.textSecondary, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  timerUrgent: { color: colors.destructive },
-  counters: { flexDirection: 'row', gap: spacing.sm },
-  correctCounter: { fontSize: 16, fontWeight: '700', color: '#16A34A' },
-  wrongCounter: { fontSize: 16, fontWeight: '700', color: colors.destructive },
-  scrollContent: { padding: spacing.md, gap: spacing.md, paddingBottom: 100 },
+  headerBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+  },
+  timerPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 20,
+    backgroundColor: pink[50],
+    shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 2,
+  },
+  timerPillUrgent: { backgroundColor: colors.destructive },
+  timerText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  timerTextUrgent: { color: '#FFFFFF' },
+  headerBadge: {
+    paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: '#DCFCE7',
+  },
+  headerBadgeText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
+
+  // Question label
+  questionLabel: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingVertical: 6,
+  },
+  questionLabelText: {
+    fontSize: 12, fontWeight: '700', color: colors.textMuted,
+    letterSpacing: 1, textTransform: 'uppercase',
+  },
+  scoreChip: {
+    paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8,
+    backgroundColor: pink[50],
+  },
+  scoreChipText: { fontSize: 14, fontWeight: '800', color: pink[600] },
+
+  // Scroll
+  scrollArea: { flex: 1 },
+  scrollContent: { padding: spacing.md, gap: 16, paddingBottom: 40 },
+
+  // Question card
   questionCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    gap: spacing.md,
+    borderRadius: 24, overflow: 'hidden',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0F0F5',
+    shadowColor: pink[200], shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18, shadowRadius: 16, elevation: 5,
   },
-  questionImage: { width: '100%', height: 200, borderRadius: 12 },
-  questionText: { fontSize: 18, fontWeight: '600', color: colors.textPrimary, lineHeight: 26 },
-  answerButtons: { flexDirection: 'row', gap: spacing.md },
-  answerButton: {
-    flex: 1,
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
+  imageWrap: {
+    backgroundColor: '#1A1A2E', paddingVertical: 20, alignItems: 'center',
   },
-  answerButtonPressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
-  trueButton: { backgroundColor: '#F0FDF4', borderColor: '#16A34A' },
-  falseButton: { backgroundColor: '#FEF2F2', borderColor: colors.destructive },
-  trueButtonText: { fontSize: 18, fontWeight: '800', color: '#16A34A', letterSpacing: 1 },
-  falseButtonText: { fontSize: 18, fontWeight: '800', color: colors.destructive, letterSpacing: 1 },
-  feedbackContainer: { gap: spacing.md },
-  feedbackBanner: { padding: spacing.md, borderRadius: 12 },
-  feedbackCorrect: { backgroundColor: '#F0FDF4' },
-  feedbackWrong: { backgroundColor: '#FEF2F2' },
-  feedbackText: { ...typography.body, fontWeight: '700', textAlign: 'center' },
-  hintContainer: {
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
+  questionImage: { width: '80%', height: 160 },
+  questionText: {
+    fontSize: 18, fontWeight: '700', color: '#1A1A2E',
+    lineHeight: 26, letterSpacing: -0.2,
+    padding: 20,
   },
-  hintTitle: { ...typography.subtitle, color: colors.textPrimary },
-  hintHtml: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+
+  // Answer buttons (circular border style like reference)
+  answerRow: { flexDirection: 'row', gap: 14 },
+  answerBtnWrap: { flex: 1 },
+  answerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 20, borderRadius: 28, borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  },
+  answerBtnTrue: { borderColor: '#BBF7D0' },
+  answerBtnFalse: { borderColor: '#FECACA' },
+  answerBtnPressed: { opacity: 0.7, transform: [{ scale: 0.96 }] },
+  answerBtnTrueText: { fontSize: 16, fontWeight: '800', color: '#16A34A', letterSpacing: 1 },
+  answerBtnFalseText: { fontSize: 16, fontWeight: '800', color: colors.destructive, letterSpacing: 1 },
+
+  // Result banner
+  resultBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20,
+    marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+  },
+  resultBannerCorrect: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' },
+  resultBannerWrong: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
+  resultBannerText: { fontSize: 15, fontWeight: '700', flex: 1 },
+  resultTextCorrect: { color: '#16A34A' },
+  resultTextWrong: { color: colors.destructive },
+
+  // Explanation (pink tinted card like reference)
+  explanationCard: {
+    padding: 16, borderRadius: 22,
+    backgroundColor: pink[50], gap: 8, marginBottom: 12,
+    borderWidth: 1, borderColor: pink[100],
+    shadowColor: pink[300], shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
+  },
+  explanationHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  explanationTitle: { fontSize: 14, fontWeight: '700', color: pink[700] },
+  explanationHtml: { fontSize: 13, color: '#4A4458', lineHeight: 19 },
+
+  // Next button (pink like reference)
+  nextBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, borderRadius: 22, backgroundColor: colors.primary,
+    shadowColor: pink[400], shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+  },
+  nextBtnDisabled: { backgroundColor: colors.textMuted },
+  nextBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Progress Monitor (numbered dots grid)
+  progressMonitor: { marginTop: 8, gap: 10 },
+  progressMonitorTitle: {
+    fontSize: 13, fontWeight: '700', color: colors.textMuted,
+    letterSpacing: 0.5, textTransform: 'uppercase',
+  },
+  dotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dot: {
+    width: DOT_SIZE, height: DOT_SIZE, borderRadius: DOT_SIZE / 2,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  dotPending: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  dotCurrent: { backgroundColor: pink[50], borderColor: colors.primary },
+  dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
+  dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
+  dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
+  dotTextCurrent: { color: colors.primary },
+  dotTextDone: { color: '#1A1A2E' },
 });

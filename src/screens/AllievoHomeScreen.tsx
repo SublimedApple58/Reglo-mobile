@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
-  AppState,
   Image,
   Linking,
   Pressable,
@@ -32,15 +32,19 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { useBookingOptions } from '../hooks/queries/useBookingOptions';
+import { usePaymentProfile } from '../hooks/queries/usePaymentProfile';
+import { usePaymentHistory } from '../hooks/queries/usePaymentHistory';
+import { useAppointments } from '../hooks/queries/useAppointments';
+import { queryKeys } from '../hooks/queries/queryKeys';
+import { useBookSlot } from '../hooks/mutations/useBookSlot';
+import { useCancelAppointment } from '../hooks/mutations/useCancelAppointment';
 import {
   AutoscuolaAppointmentWithRelations,
   MobileAppointmentPaymentDocument,
   AvailableSlot,
-  MobileBookingOptions,
-  MobileStudentPaymentProfile,
   AutoscuolaStudent,
-  AutoscuolaSettings,
-  StudentAppointmentPaymentHistoryItem,
   AutoscuolaInstructor,
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
@@ -164,12 +168,10 @@ export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { user } = useSession();
+  const { user, activeCompanyId } = useSession();
+  const queryClient = useQueryClient();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
-  const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
-  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const [preferredDate, setPreferredDate] = useState(new Date());
@@ -177,14 +179,11 @@ export const AllievoHomeScreen = () => {
   const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([
     DEFAULT_BOOKING_LESSON_TYPES[0],
   ]);
-  const [bookingOptions, setBookingOptions] = useState<MobileBookingOptions | null>(null);
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
-  const [paymentHistory, setPaymentHistory] = useState<StudentAppointmentPaymentHistoryItem[]>([]);
   const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
   const [selectedHistoryLesson, setSelectedHistoryLesson] =
     useState<AutoscuolaAppointmentWithRelations | null>(null);
@@ -207,11 +206,75 @@ export const AllievoHomeScreen = () => {
   const [pendingFreeChoiceOpen, setPendingFreeChoiceOpen] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
-  const [rangeLoading, setRangeLoading] = useState(false);
   const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
-  const [studentDataReady, setStudentDataReady] = useState(false);
-  const rangeKeyRef = useRef<string | null>(null);
-  const loadRequestRef = useRef(0);
+  const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
+  const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
+
+  // ── Linked student (must come before hooks that depend on studentId) ──
+  const selectedStudent = useMemo(
+    () => findLinkedStudent(students, user),
+    [students, user]
+  );
+  const selectedStudentId = selectedStudent?.id ?? null;
+
+  // ── Appointment query params (computed from calendarRange) ──
+  const appointmentParams = useMemo(() => {
+    if (!selectedStudentId) return null;
+    const defaultFrom = addDays(new Date(), -7);
+    defaultFrom.setHours(0, 0, 0, 0);
+    const defaultTo = addDays(new Date(), 30);
+    defaultTo.setHours(23, 59, 59, 999);
+    const selectedFrom = calendarRange ? new Date(calendarRange.from) : new Date(defaultFrom);
+    selectedFrom.setHours(0, 0, 0, 0);
+    const selectedTo = calendarRange ? new Date(calendarRange.to) : new Date(defaultTo);
+    selectedTo.setHours(23, 59, 59, 999);
+    const from = selectedFrom.getTime() < defaultFrom.getTime() ? selectedFrom : defaultFrom;
+    const to = selectedTo.getTime() > defaultTo.getTime() ? selectedTo : defaultTo;
+    return {
+      studentId: selectedStudentId,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: 280,
+      light: true,
+    };
+  }, [selectedStudentId, calendarRange]);
+
+  // ── Query hooks (data from cache on cold start, background refetch) ──
+  const appointmentsQuery = useAppointments(appointmentParams);
+  const settingsQuery = useAutoscuolaSettings();
+  const paymentProfileQuery = usePaymentProfile();
+  const paymentHistoryQuery = usePaymentHistory(40);
+  const bookingOptionsQuery = useBookingOptions(selectedStudentId);
+
+  // Derive data from hooks (fallback to empty/null for loading state)
+  const allAppointments = appointmentsQuery.data;
+  const appointments = useMemo(
+    () => (allAppointments ?? []).filter((item) => selectedStudentId ? item.studentId === selectedStudentId : true),
+    [allAppointments, selectedStudentId]
+  );
+  const settings = settingsQuery.data ?? null;
+  const paymentProfile = paymentProfileQuery.data ?? null;
+  const paymentHistory = paymentHistoryQuery.data ?? [];
+  const bookingOptions = bookingOptionsQuery.data ?? null;
+
+  // Derive loading states from hooks
+  const loading = appointmentsQuery.isLoading && !appointmentsQuery.data;
+  const rangeLoading = appointmentsQuery.isFetching && !!appointmentsQuery.data;
+  const studentDataReady = !!appointmentsQuery.data || appointmentsQuery.isError;
+
+  // ── Invalidation helper (replaces loadData) ──
+  const invalidateAllData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    queryClient.invalidateQueries({ queryKey: ['autoscuola-settings'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-profile'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+    queryClient.invalidateQueries({ queryKey: ['booking-options'] });
+  }, [queryClient]);
+
+  // ── Mutation hooks ──
+  const bookSlotMutation = useBookSlot();
+  const cancelMutation = useCancelAppointment();
+
   const historyDetailsScrollRef = useRef<ScrollView | null>(null);
   const [historyDetailsLayoutHeight, setHistoryDetailsLayoutHeight] = useState(0);
   const [historyDetailsContentHeight, setHistoryDetailsContentHeight] = useState(0);
@@ -268,13 +331,28 @@ export const AllievoHomeScreen = () => {
     }
     setPreferredDate(selectedDate);
     setPrefsOpen(true);
+    // Prefetch available slots for the selected date
+    if (selectedStudentId) {
+      queryClient.prefetchQuery({
+        queryKey: ['available-slots', activeCompanyId, {
+          studentId: selectedStudentId,
+          date: toDateString(selectedDate),
+          durationMinutes,
+          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
+          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
+        }],
+        queryFn: () => regloApi.getAvailableSlots({
+          studentId: selectedStudentId!,
+          date: toDateString(selectedDate),
+          durationMinutes,
+          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
+          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
+        }),
+        staleTime: 30 * 1000,
+      });
+    }
   };
 
-  const selectedStudent = useMemo(
-    () => findLinkedStudent(students, user),
-    [students, user]
-  );
-  const selectedStudentId = selectedStudent?.id ?? null;
   const availableDurations = useMemo(
     () =>
       (bookingOptions?.bookingSlotDurations ?? settings?.bookingSlotDurations ?? [30, 60])
@@ -300,8 +378,6 @@ export const AllievoHomeScreen = () => {
   const assignedInstructorName = bookingOptions?.assignedInstructorName ?? null;
   const assignedInstructorPhone = bookingOptions?.assignedInstructorPhone ?? null;
   const weeklyAbsenceEnabled = bookingOptions?.weeklyAbsenceEnabled === true;
-  const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
-  const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   // Prefer cluster-resolved setting over company default
@@ -336,124 +412,54 @@ export const AllievoHomeScreen = () => {
     return list;
   }, []);
 
-  const loadData = useCallback(
-    async (studentId: string) => {
-      const requestId = ++loadRequestRef.current;
-      setLoading(true);
-      setToast(null);
-      let shouldShowRangeSkeleton = false;
-      try {
-        const defaultFrom = addDays(new Date(), -7);
-        defaultFrom.setHours(0, 0, 0, 0);
-        const defaultTo = addDays(new Date(), 30);
-        defaultTo.setHours(23, 59, 59, 999);
+  // ── Side effects from bookingOptions data ──
+  const bookingOptionsInitRef = useRef(false);
+  useEffect(() => {
+    if (!bookingOptions) return;
+    // Only run initialization logic once per fresh data load
+    if (bookingOptionsInitRef.current) return;
+    bookingOptionsInitRef.current = true;
 
-        const selectedFrom = calendarRange ? new Date(calendarRange.from) : new Date(defaultFrom);
-        selectedFrom.setHours(0, 0, 0, 0);
-        const selectedTo = calendarRange ? new Date(calendarRange.to) : new Date(defaultTo);
-        selectedTo.setHours(23, 59, 59, 999);
+    if (bookingOptions.isLockedToInstructor && bookingOptions.assignedInstructorId) {
+      setSelectedInstructorId(bookingOptions.assignedInstructorId);
+    }
+    // Check weekly absence
+    if (bookingOptions.weeklyAbsenceEnabled && bookingOptions.isLockedToInstructor) {
+      const now = new Date();
+      const dow = now.getDay();
+      const mondayOff = dow === 0 ? -6 : 1 - dow;
+      const ws = new Date(now);
+      ws.setDate(ws.getDate() + mondayOff);
+      const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+      regloApi.getWeeklyAbsences(wsStr).then((absences) => {
+        if (absences.length > 0) setWeeklyAbsenceDeclared(true);
+      }).catch(() => {});
+    }
+    if (bookingOptions.instructorPreferenceEnabled) {
+      regloApi.getInstructors().then((list) => {
+        const active = list.filter((i) => i.status !== 'inactive');
+        setInstructors(active);
+      }).catch(() => {});
+    }
+    const sortedDurations = (bookingOptions.bookingSlotDurations ?? [30, 60])
+      .slice()
+      .sort((a, b) => a - b);
+    setDurationMinutes((current) =>
+      sortedDurations.includes(current) ? current : sortedDurations[0] ?? 60,
+    );
+    const availableTypes = (bookingOptions.availableLessonTypes ??
+      [...DEFAULT_BOOKING_LESSON_TYPES]) as string[];
+    setSelectedLessonTypes((current) => {
+      if (!bookingOptions.lessonTypeSelectionEnabled) return ['guida'];
+      const valid = current.filter((t) => availableTypes.includes(t));
+      return valid.length ? valid : [availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0]];
+    });
+  }, [bookingOptions]);
 
-        const from =
-          selectedFrom.getTime() < defaultFrom.getTime() ? selectedFrom : defaultFrom;
-        const to = selectedTo.getTime() > defaultTo.getTime() ? selectedTo : defaultTo;
-
-        const rangeKey = `${selectedFrom.toISOString()}|${selectedTo.toISOString()}`;
-        if (rangeKeyRef.current !== rangeKey) {
-          shouldShowRangeSkeleton = true;
-          setRangeLoading(true);
-        }
-        rangeKeyRef.current = rangeKey;
-
-        const [appointmentsResponse, settingsResponse, paymentResponse, paymentHistoryResponse] =
-          await Promise.all([
-          regloApi.getAppointments({
-            studentId,
-            from: from.toISOString(),
-            to: to.toISOString(),
-            limit: 280,
-            light: true,
-          }),
-          regloApi.getAutoscuolaSettings(),
-          regloApi.getPaymentProfile(),
-          regloApi.getPaymentHistory(40),
-        ]);
-        if (requestId !== loadRequestRef.current) {
-          return;
-        }
-
-        // Always fetch booking options — cluster-resolved appBookingActors may differ from company default
-        const bookingOptionsResponse = await regloApi.getBookingOptions(studentId).catch(() => null);
-        if (requestId !== loadRequestRef.current) {
-          return;
-        }
-
-        setAppointments(appointmentsResponse.filter((item) => item.studentId === studentId));
-        setSettings(settingsResponse);
-        setPaymentProfile(paymentResponse);
-        setPaymentHistory(paymentHistoryResponse);
-        const canBook = settingsResponse.appBookingActors !== 'instructors';
-        const resolvedBookingOptions: MobileBookingOptions = bookingOptionsResponse ?? {
-          bookingSlotDurations: settingsResponse.bookingSlotDurations ?? [30, 60],
-          lessonTypeSelectionEnabled: canBook && Boolean(settingsResponse.lessonPolicyEnabled),
-          availableLessonTypes: canBook && settingsResponse.lessonPolicyEnabled
-            ? [...DEFAULT_BOOKING_LESSON_TYPES]
-            : [],
-        };
-        setBookingOptions(resolvedBookingOptions);
-        if (resolvedBookingOptions.isLockedToInstructor && resolvedBookingOptions.assignedInstructorId) {
-          setSelectedInstructorId(resolvedBookingOptions.assignedInstructorId);
-        }
-        // Check if weekly absence already declared for current week
-        if (resolvedBookingOptions.weeklyAbsenceEnabled && resolvedBookingOptions.isLockedToInstructor) {
-          const now = new Date();
-          const dow = now.getDay();
-          const mondayOff = dow === 0 ? -6 : 1 - dow;
-          const ws = new Date(now);
-          ws.setDate(ws.getDate() + mondayOff);
-          const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
-          regloApi.getWeeklyAbsences(wsStr).then((absences) => {
-            if (absences.length > 0) setWeeklyAbsenceDeclared(true);
-          }).catch(() => {});
-        }
-        if (resolvedBookingOptions.instructorPreferenceEnabled) {
-          regloApi.getInstructors().then((list) => {
-            const active = list.filter((i) => i.status !== 'inactive');
-            setInstructors(active);
-          }).catch(() => {});
-        }
-        const sortedDurations = (resolvedBookingOptions.bookingSlotDurations ?? [30, 60])
-          .slice()
-          .sort((a, b) => a - b);
-        setDurationMinutes((current) =>
-          sortedDurations.includes(current) ? current : sortedDurations[0] ?? 60,
-        );
-        const availableTypes = (resolvedBookingOptions.availableLessonTypes ??
-          [...DEFAULT_BOOKING_LESSON_TYPES]) as string[];
-        setSelectedLessonTypes((current) => {
-          if (!resolvedBookingOptions.lessonTypeSelectionEnabled) return ['guida'];
-          const valid = current.filter((t) => availableTypes.includes(t));
-          return valid.length ? valid : [availableTypes[0] ?? DEFAULT_BOOKING_LESSON_TYPES[0]];
-        });
-      } catch (err) {
-        if (requestId !== loadRequestRef.current) {
-          return;
-        }
-        setToast({
-          text: err instanceof Error ? err.message : 'Errore nel caricamento',
-          tone: 'danger',
-        });
-      } finally {
-        if (requestId === loadRequestRef.current) {
-          setLoading(false);
-          setStudentDataReady(true);
-          if (shouldShowRangeSkeleton) {
-            setRangeLoading(false);
-          }
-        }
-      }
-    },
-    [calendarRange]
-  );
+  // Reset init ref when student changes
+  useEffect(() => {
+    bookingOptionsInitRef.current = false;
+  }, [selectedStudentId]);
 
   useEffect(() => {
     const init = async () => {
@@ -469,17 +475,12 @@ export const AllievoHomeScreen = () => {
     init();
   }, [loadStudents]);
 
-  useEffect(() => {
-    if (!selectedStudentId) return;
-    loadData(selectedStudentId);
-  }, [loadData, selectedStudentId]);
-
-  // Push intents kept in screen: appointment_cancelled (toast only)
+  // Push intents: invalidate queries instead of manual reload
   useEffect(() => {
     if (!selectedStudentId) return;
     const unsubscribe = subscribePushIntent((intent) => {
       if (intent === 'appointment_cancelled') {
-        loadData(selectedStudentId);
+        invalidateAllData();
         setToast({
           text: "Una guida e' stata annullata dall'autoscuola.",
           tone: 'info',
@@ -487,25 +488,18 @@ export const AllievoHomeScreen = () => {
       }
     });
     return unsubscribe;
-  }, [loadData, selectedStudentId]);
+  }, [invalidateAllData, selectedStudentId]);
 
-  // AppState: reload screen data on foreground
-  useEffect(() => {
-    if (!selectedStudentId) return;
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active') return;
-      loadData(selectedStudentId);
-    });
-    return () => subscription.remove();
-  }, [loadData, selectedStudentId]);
+  // AppState foreground reload is handled globally by TanStack Query focusManager
+  // in _layout.tsx — no per-screen listener needed.
 
   // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
   useEffect(() => {
     if (!selectedStudentId) return;
     return notificationEvents.onDataChanged(() => {
-      loadData(selectedStudentId);
+      invalidateAllData();
     });
-  }, [loadData, selectedStudentId]);
+  }, [invalidateAllData, selectedStudentId]);
 
   const upcoming = useMemo(() => {
     const now = new Date();
@@ -594,7 +588,6 @@ export const AllievoHomeScreen = () => {
   useEffect(() => {
     setHistoryDetailsOpen(false);
     setSelectedHistoryLesson(null);
-    setStudentDataReady(false);
   }, [selectedStudentId]);
 
   useEffect(() => {
@@ -855,6 +848,45 @@ export const AllievoHomeScreen = () => {
     if (!selectedStudentId || !freeChoiceSelected || freeChoiceBooking) return;
     setFreeChoiceBooking(true);
     setToast(null);
+
+    // Close drawer immediately for optimistic UX
+    const slot = freeChoiceSelected;
+    setFreeChoiceOpen(false);
+    setFreeChoiceSelected(null);
+    setFreeChoiceSlots([]);
+    triggerBookingCelebration();
+
+    // Add provisional appointment to cache immediately
+    const provisionalId = `provisional-${Date.now()}`;
+    const provisionalAppointment: AutoscuolaAppointmentWithRelations = {
+      id: provisionalId,
+      companyId: '',
+      studentId: selectedStudentId,
+      caseId: null,
+      slotId: null,
+      type: canSelectLessonType ? (selectedLessonTypes[0] ?? 'guida') : 'guida',
+      startsAt: slot.startsAt,
+      endsAt: slot.endsAt,
+      status: 'scheduled',
+      instructorId: selectedInstructorId,
+      vehicleId: null,
+      notes: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      student: selectedStudent!,
+      case: null,
+      instructor: selectedInstructorId
+        ? (instructors.find((i) => i.id === selectedInstructorId) ?? null)
+        : null,
+      vehicle: null,
+    };
+
+    // Inject into all active appointment queries
+    queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+      { queryKey: ['appointments'] },
+      (old) => old ? [...old, provisionalAppointment] : [provisionalAppointment],
+    );
+
     try {
       const response = await regloApi.createBookingRequest({
         studentId: selectedStudentId,
@@ -862,33 +894,25 @@ export const AllievoHomeScreen = () => {
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        selectedStartsAt: freeChoiceSelected.startsAt,
+        selectedStartsAt: slot.startsAt,
       });
       if (response.matched) {
-        setToast({ text: 'Guida prenotata', tone: 'success' });
-        triggerBookingCelebration();
-        setFreeChoiceOpen(false);
-        setFreeChoiceSelected(null);
-        setFreeChoiceSlots([]);
-        await loadData(selectedStudentId);
+        invalidateAllData();
         return;
       }
-      // Slot taken in the meantime — reload available slots
-      setToast({ text: 'Slot non più disponibile, aggiornamento in corso...', tone: 'danger' });
-      try {
-        const refreshed = await regloApi.getAvailableSlots({
-          studentId: selectedStudentId,
-          date: toDateString(preferredDate),
-          durationMinutes,
-          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
-          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        });
-        setFreeChoiceSlots(refreshed);
-        setFreeChoiceSelected(null);
-      } catch {
-        setFreeChoiceOpen(false);
-      }
+      // Slot taken — remove provisional, show error
+      queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+        { queryKey: ['appointments'] },
+        (old) => old?.filter((a) => a.id !== provisionalId),
+      );
+      setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
+      invalidateAllData();
     } catch (err) {
+      // Remove provisional on error
+      queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+        { queryKey: ['appointments'] },
+        (old) => old?.filter((a) => a.id !== provisionalId),
+      );
       setToast({
         text: err instanceof Error ? err.message : 'Errore nella prenotazione',
         tone: 'danger',
@@ -921,22 +945,18 @@ export const AllievoHomeScreen = () => {
 
   const executeCancel = async (appointmentId: string) => {
     setToast(null);
-    setCancellingAppointmentId(appointmentId);
-    try {
-      await regloApi.cancelAppointment(appointmentId);
-      setToast({ text: 'Guida annullata', tone: 'success' });
-      if (selectedStudentId) {
-        await loadData(selectedStudentId);
+    setCancellingAppointmentId(null);
+    cancelMutation.mutate(appointmentId, {
+      onSuccess: () => {
         notificationEvents.requestRefresh();
-      }
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante annullamento',
-        tone: 'danger',
-      });
-    } finally {
-      setCancellingAppointmentId(null);
-    }
+      },
+      onError: (err) => {
+        setToast({
+          text: err instanceof Error ? err.message : 'Errore durante annullamento',
+          tone: 'danger',
+        });
+      },
+    });
   };
 
   const handleCancel = (appointmentId: string) => {
@@ -1140,7 +1160,7 @@ export const AllievoHomeScreen = () => {
       }
 
       setToast({ text: 'Pagamento completato', tone: 'success' });
-      await loadData(selectedStudentId);
+      invalidateAllData();
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore durante pagamento',
@@ -1155,11 +1175,8 @@ export const AllievoHomeScreen = () => {
     setRefreshing(true);
     setToast(null);
     try {
-      const list = await loadStudents();
-      const linkedStudent = findLinkedStudent(list, user);
-      if (linkedStudent?.id) {
-        await loadData(linkedStudent.id);
-      }
+      await loadStudents();
+      invalidateAllData();
       notificationEvents.requestRefresh();
     } catch (err) {
       setToast({
@@ -1169,7 +1186,7 @@ export const AllievoHomeScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [loadData, loadStudents, user]);
+  }, [invalidateAllData, loadStudents]);
 
   const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
 

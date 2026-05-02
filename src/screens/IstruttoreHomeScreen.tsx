@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Image,
@@ -65,6 +66,10 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, radii, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { useSession } from '../context/SessionContext';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { useInstructorSettings } from '../hooks/queries/useInstructorSettings';
+import { useAgendaBootstrap } from '../hooks/queries/useAgendaBootstrap';
+import { useHolidays } from '../hooks/queries/useHolidays';
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
 type DrawerAction = InstructorActionStatus | 'save_details' | 'reposition';
@@ -912,6 +917,84 @@ export const IstruttoreHomeScreen = () => {
   const [emergencyAllStudents, setEmergencyAllStudents] = useState(false);
   const [myStudentsExpanded, setMyStudentsExpanded] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
+  const queryClient = useQueryClient();
+
+  // ── Query hooks for cold-start cache hydration ──
+  const bootstrapParams = useMemo(() => {
+    if (!instructorId) return null;
+    const from = calendarRange ? new Date(calendarRange.from) : new Date();
+    const to = calendarRange ? new Date(calendarRange.to) : new Date();
+    if (!calendarRange) {
+      from.setDate(from.getDate() - 1);
+      from.setHours(0, 0, 0, 0);
+      to.setDate(to.getDate() + 14);
+      to.setHours(23, 59, 59, 999);
+    }
+    return {
+      ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: 280,
+    };
+  }, [instructorId, calendarRange, effectiveInstructorId]);
+
+  const bootstrapCached = useAgendaBootstrap(bootstrapParams);
+  const settingsCached = useAutoscuolaSettings();
+  const instructorSettingsCached = useInstructorSettings();
+  const holidayParams = useMemo(() => {
+    const today = new Date();
+    const from = addDays(today, -14);
+    const to = addDays(today, 52 * 7);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, []);
+  const holidaysCached = useHolidays(holidayParams);
+
+  // Hydrate state from cache on cold start (before loadData runs)
+  const hydratedFromCache = useRef(false);
+  useEffect(() => {
+    if (hydratedFromCache.current) return;
+    const bootstrap = bootstrapCached.data;
+    const settingsData = settingsCached.data;
+    if (!bootstrap || !settingsData) return;
+    hydratedFromCache.current = true;
+
+    setSettings(settingsData);
+    setStudents(bootstrap.students);
+    setVehicles(bootstrap.vehicles ?? []);
+    const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
+    const matchesScope = (item: { instructorId?: string | null }) =>
+      effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
+    const freshBlocks = (bootstrap.instructorBlocks ?? []).filter(
+      (b) => effectiveInstructorId ? b.instructorId === effectiveInstructorId : true,
+    );
+    setInstructorBlocks(freshBlocks);
+    setAppointments(
+      dedupeAppointments(bootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item)))
+    );
+    setInitialLoading(false);
+    setRangeLoading(false);
+
+    // Hydrate holidays from cache
+    if (holidaysCached.data) {
+      const set = new Set<string>();
+      for (const h of holidaysCached.data) {
+        const d = new Date(h.date);
+        set.add(toDateOnlyString(d));
+      }
+      setHolidays(set);
+    }
+
+    // Hydrate cluster settings
+    const cs = instructorSettingsCached.data;
+    if (cs) {
+      const currentInstructor = bootstrap.instructors?.find((inst) => inst.id === instructorId);
+      const isAutonomous = currentInstructor?.autonomousMode ?? false;
+      setInstructorAutonomousMode(isAutonomous);
+      if (isAutonomous && cs.settings?.bookingSlotDurations?.length) {
+        setClusterDurations(cs.settings.bookingSlotDurations);
+      }
+    }
+  }, [bootstrapCached.data, settingsCached.data, instructorSettingsCached.data, holidaysCached.data, effectiveInstructorId, instructorId]);
 
   const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
     if (!instructorId) return [];

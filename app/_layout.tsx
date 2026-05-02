@@ -1,13 +1,52 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
 import { peekLaunchPushIntent } from '../src/services/pushNotifications';
 import { colors } from '../src/theme';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // 2 minutes (default; per-query overrides in hooks)
+      gcTime: 24 * 60 * 60 * 1000, // 24 hours — must be >= persister maxAge
+      retry: 1,
+    },
+  },
+});
+
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'reglo-query-cache',
+  throttleTime: 1000,
+});
+
+// Wire up RN AppState to TanStack Query focusManager
+focusManager.setEventListener((handleFocus) => {
+  const subscription = AppState.addEventListener('change', (state) => {
+    if (Platform.OS !== 'web') {
+      handleFocus(state === 'active');
+    }
+  });
+  return () => subscription.remove();
+});
+
+// Pause queries when offline instead of throwing errors
+onlineManager.setEventListener((setOnline) => {
+  return NetInfo.addEventListener((state) => {
+    setOnline(!!state.isConnected);
+  });
+});
 
 const AuthGate = () => {
   const { status, autoscuolaRole, signOut, refreshMe } = useSession();
@@ -91,11 +130,16 @@ export default function RootLayout() {
     'merchant.com.tiziano.developer.reglo-mobile';
 
   const content = (
-    <SessionProvider>
-      <View style={styles.root}>
-        <AuthGate />
-      </View>
-    </SessionProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
+    >
+      <SessionProvider>
+        <View style={styles.root}>
+          <AuthGate />
+        </View>
+      </SessionProvider>
+    </PersistQueryClientProvider>
   );
 
   if (!stripePublishableKey) {

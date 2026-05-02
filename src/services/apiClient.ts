@@ -158,11 +158,20 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
       headers['x-reglo-company-id'] = companyId;
     }
 
-    const response = await fetch(url, {
-      method: options.method ?? (options.body ? 'POST' : 'GET'),
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: options.method ?? (options.body ? 'POST' : 'GET'),
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const json = (await safeJson(response)) as ApiResponse<T> | null;
 

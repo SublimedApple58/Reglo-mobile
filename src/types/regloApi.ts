@@ -839,7 +839,7 @@ export type StartQuizSessionInput = {
 
 export type StartQuizSessionResult = {
   sessionId: Uuid;
-  questions: QuizQuestion[];
+  questions: QuizQuestionWithAnswer[];
   timeLimitSec: number | null;
   totalQuestions: number;
 };
