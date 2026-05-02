@@ -7,8 +7,7 @@ import Constants from 'expo-constants';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
@@ -25,11 +24,31 @@ const queryClient = new QueryClient({
   },
 });
 
-const asyncStoragePersister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: 'reglo-query-cache',
-  throttleTime: 1000,
-});
+// File-based persister using expo-file-system (available in current prod build)
+const CACHE_FILE = `${FileSystem.documentDirectory}reglo-query-cache.json`;
+let persistThrottleTimer: ReturnType<typeof setTimeout> | null = null;
+
+const fileSystemPersister = {
+  persistClient: (client: unknown) => {
+    if (persistThrottleTimer) clearTimeout(persistThrottleTimer);
+    persistThrottleTimer = setTimeout(async () => {
+      try {
+        await FileSystem.writeAsStringAsync(CACHE_FILE, JSON.stringify(client));
+      } catch {}
+    }, 1000);
+  },
+  restoreClient: async () => {
+    try {
+      const data = await FileSystem.readAsStringAsync(CACHE_FILE);
+      return JSON.parse(data);
+    } catch {
+      return undefined;
+    }
+  },
+  removeClient: async () => {
+    try { await FileSystem.deleteAsync(CACHE_FILE, { idempotent: true }); } catch {}
+  },
+};
 
 // Wire up RN AppState to TanStack Query focusManager
 focusManager.setEventListener((handleFocus) => {
@@ -132,7 +151,7 @@ export default function RootLayout() {
   const content = (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
+      persistOptions={{ persister: fileSystemPersister, maxAge: 24 * 60 * 60 * 1000 }}
     >
       <SessionProvider>
         <View style={styles.root}>
