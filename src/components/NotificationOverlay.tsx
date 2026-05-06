@@ -1131,7 +1131,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       />
 
       {/* ── Bell + Badge + Bubble ── */}
-      {!pathname.startsWith('/home') || pathname === '/home/notifications' ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
+      {!pathname.startsWith('/home') || pathname === '/home/notifications' || (isStudent && pathname === '/home') ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
           {/* Bubble */}
           {unreadCount > 1 ? (
             <Animated.View

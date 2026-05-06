@@ -36,7 +36,7 @@ export const colors = {
 
   // Surface
   surface: '#FFFFFF',
-  background: '#FFFFFF',
+  background: '#F8F7F4',
   border: '#E5E7EB',
 
   // Shadow

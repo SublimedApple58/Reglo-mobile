@@ -71,11 +71,11 @@ export const QuizChaptersScreen = () => {
   });
 
   if (loading) {
-    return <Screen><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
+    return <Screen gradient><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
   }
 
   return (
-    <Screen>
+    <Screen gradient>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}

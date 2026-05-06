@@ -51,13 +51,13 @@ export const QuizHomeScreen = () => {
   };
 
   if (loading) {
-    return <Screen><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
+    return <Screen gradient><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
   }
 
   const hasErrors = stats && (stats.examsFailed > 0 || stats.weakChapters.length > 0);
 
   return (
-    <Screen>
+    <Screen gradient>
       <ScrollView
         contentContainerStyle={st.list}
         showsVerticalScrollIndicator={false}

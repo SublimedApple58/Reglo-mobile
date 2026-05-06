@@ -136,7 +136,7 @@ export const StudentNotesDetailScreen = () => {
   const cleanPhone = phone?.replace(/\s+/g, '').replace(/^\+/, '');
 
   return (
-    <Screen>
+    <Screen gradient>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       <ScrollView
@@ -148,7 +148,7 @@ export const StudentNotesDetailScreen = () => {
       >
         {/* Header */}
         <Pressable style={styles.backRow} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Ionicons name="arrow-back" size={22} color="#1a120a" />
           <Text style={styles.backTitle} numberOfLines={1}>{name ?? 'Allievo'}</Text>
         </Pressable>
 
@@ -169,7 +169,7 @@ export const StudentNotesDetailScreen = () => {
             {phone ? (
               <Animated.View entering={FadeInDown.duration(300).delay(50)} style={styles.contactRow}>
                 <View style={styles.contactInfo}>
-                  <Ionicons name="call-outline" size={16} color="#64748B" />
+                  <Ionicons name="call-outline" size={16} color="#9CA3AF" />
                   <Text style={styles.contactPhone}>{phone}</Text>
                 </View>
                 <View style={styles.contactActions}>
@@ -308,7 +308,7 @@ export const StudentNotesDetailScreen = () => {
                           <Text
                             style={[
                               styles.timelineNote,
-                              !appt.notes?.trim() && { color: '#94A3B8' },
+                              !appt.notes?.trim() && { color: '#9CA3AF' },
                             ]}
                           >
                             {appt.notes?.trim() || 'Nessuna nota'}
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   backTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#1a120a',
     flex: 1,
   },
 
@@ -356,11 +356,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.10)',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   contactInfo: {
     flexDirection: 'row',
@@ -370,7 +375,7 @@ const styles = StyleSheet.create({
   contactPhone: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   contactActions: {
     flexDirection: 'row',
@@ -393,17 +398,23 @@ const styles = StyleSheet.create({
   /* Progress */
   progressCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 16,
     gap: 8,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   progressLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   progressRow: {
     flexDirection: 'row',
@@ -417,18 +428,18 @@ const styles = StyleSheet.create({
   progressCount: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   progressTotal: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   progressBarOuter: {
     flex: 1,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(26,18,10,0.06)',
     overflow: 'hidden',
   },
   progressBarInner: {
@@ -439,7 +450,7 @@ const styles = StyleSheet.create({
   progressStatus: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#9CA3AF',
   },
 
   /* Exam */
@@ -447,11 +458,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F5F3FF',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#DDD6FE',
     padding: 14,
     gap: 12,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   examIconCircle: {
     width: 36,
@@ -483,21 +499,30 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 12,
     alignItems: 'center',
     gap: 2,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
 
   /* Lessons CTA */
@@ -505,8 +530,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDF2F8',
-    borderRadius: 20,
+    backgroundColor: 'rgba(184,36,106,0.08)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 14,
     gap: 8,
   },
@@ -527,45 +554,52 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   timelineDate: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
   },
   timelineLine: {
     width: 1.5,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'rgba(26,18,10,0.08)',
     marginTop: 8,
     minHeight: 20,
   },
   timelineCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 14,
     marginBottom: 10,
     gap: 2,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   timelineTime: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   timelineMeta: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#9CA3AF',
   },
   timelineNote: {
     fontSize: 14,
-    color: '#475569',
+    color: '#1a120a',
     marginTop: 4,
     lineHeight: 20,
   },
   lessonBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(184,36,106,0.08)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -573,17 +607,21 @@ const styles = StyleSheet.create({
   lessonBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#EC4899',
   },
   examTimelineCard: {
     flex: 1,
     flexDirection: 'row' as const,
     backgroundColor: '#F5F3FF',
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#DDD6FE',
     marginBottom: 10,
-    overflow: 'hidden' as const,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   examAccent: {
     width: 4,
@@ -603,10 +641,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center' as const,
   },
   examTimelineLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#7C3AED',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   examTimelineTime: {
     fontSize: 13,
@@ -615,7 +654,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 20,
   },
 });

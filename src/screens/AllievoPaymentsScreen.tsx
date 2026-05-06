@@ -300,7 +300,7 @@ export const AllievoPaymentsScreen = () => {
   }, [documentBusy, selectedTransaction]);
 
   return (
-    <Screen>
+    <Screen gradient>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
@@ -487,7 +487,7 @@ export const AllievoPaymentsScreen = () => {
                     ? '#F0FDF4'
                     : paymentEventStatusLabel(selectedTransaction.event.status).tone === 'danger'
                       ? '#FEF2F2'
-                      : '#F8FAFC',
+                      : 'rgba(26,18,10,0.04)',
                   alignSelf: 'flex-start',
                 },
               ]}>
@@ -498,7 +498,7 @@ export const AllievoPaymentsScreen = () => {
                       ? '#16A34A'
                       : paymentEventStatusLabel(selectedTransaction.event.status).tone === 'danger'
                         ? '#DC2626'
-                        : '#64748B',
+                        : '#9CA3AF',
                   },
                 ]}>
                   {paymentEventStatusLabel(selectedTransaction.event.status).label}
@@ -621,13 +621,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
 
   /* ── Hero Card (yellow gradient) ── */
   heroShadow: {
     borderRadius: radii.lg,
-    shadowColor: '#B45309',
+    shadowColor: '#9c8a76',
     shadowOpacity: 0.35,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
@@ -663,9 +663,11 @@ const styles = StyleSheet.create({
 
   /* ── Section title ── */
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#EC4899',
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
     marginTop: spacing.xs,
   },
 
@@ -676,14 +678,16 @@ const styles = StyleSheet.create({
   txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radii.lg,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
     paddingHorizontal: 22,
     paddingVertical: 18,
-    shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   txRowSkeleton: {
@@ -722,12 +726,12 @@ const styles = StyleSheet.create({
   txTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   txDate: {
     fontSize: 13,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   txFailed: {
@@ -739,7 +743,7 @@ const styles = StyleSheet.create({
   txAmount: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
     marginLeft: 10,
   },
   empty: {
@@ -761,13 +765,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#1a120a',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#9CA3AF',
     textAlign: 'center',
   },
   more: {
@@ -779,28 +783,28 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   detailInfoCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 14,
     gap: 2,
   },
   detailInfoTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   detailInfoStatus: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   detailInfoDate: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   detailFailureMsg: {
@@ -813,16 +817,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   detailSectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
+    color: '#EC4899',
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
     marginBottom: 2,
   },
   detailSectionValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
 
   /* ── Scroll hints ── */
@@ -835,20 +840,26 @@ const styles = StyleSheet.create({
 
   /* ── Chunky Google-style BottomSheet styles ── */
   chunkyHeroCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 20,
     gap: 6,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
   },
   chunkyHeroTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   chunkyHeroSub: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   chunkyStatusPill: {
     borderRadius: 999,
@@ -877,16 +888,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chunkyRowLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#EC4899',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
   },
   chunkyRowValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   chunkyFooterRow: {
     flexDirection: 'row',
@@ -894,22 +905,22 @@ const styles = StyleSheet.create({
   },
   chunkyOutlineBtn: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderWidth: 2,
+    borderColor: 'rgba(26,18,10,0.10)',
     height: 50,
-    borderRadius: 20,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chunkyOutlineBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   chunkyDarkBtn: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1a120a',
     height: 50,
-    borderRadius: 20,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

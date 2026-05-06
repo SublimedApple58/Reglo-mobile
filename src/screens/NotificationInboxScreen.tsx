@@ -44,7 +44,7 @@ const getTitle = (item: PersistedNotification): string => {
     case 'waitlist':
       return 'Slot liberato';
     case 'swap':
-      return `Sostituzione da ${item.data.requestingStudentName}`;
+      return `${item.data.requestingStudentName} cerca un sostituto`;
     case 'confirmation':
       return `${item.data.acceptedByName} ti sostituisce`;
     case 'proposal':
@@ -151,7 +151,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
         style={[styles.card, !item.read && styles.cardUnread]}
       >
         <View style={[styles.iconCircle, !item.read && styles.iconCircleUnread]}>
-          <Ionicons name={ICON_MAP[item.kind]} size={18} color={ICON_COLOR_MAP[item.kind] ?? (!item.read ? '#EC4899' : '#94A3B8')} />
+          <Ionicons name={ICON_MAP[item.kind]} size={18} color={ICON_COLOR_MAP[item.kind] ?? (!item.read ? '#EC4899' : '#9CA3AF')} />
         </View>
         <View style={styles.cardCenter}>
           <Text style={styles.cardTitle} numberOfLines={1}>
@@ -264,10 +264,10 @@ export const NotificationInboxScreen = () => {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <Screen>
+    <Screen gradient>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Ionicons name="arrow-back" size={22} color="#1a120a" />
         </Pressable>
         <Text style={styles.headerTitle}>Notifiche</Text>
         {hasUnread ? (
@@ -296,7 +296,7 @@ export const NotificationInboxScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="notifications-off-outline" size={48} color="#D1D5DB" />
+            <Ionicons name="notifications-off-outline" size={48} color="#9CA3AF" />
             <Text style={styles.emptyText}>Nessuna notifica</Text>
           </View>
         }
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   markAllText: {
     fontSize: 14,
@@ -341,22 +341,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: 'rgba(26,18,10,0.10)',
     minHeight: 56,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   cardUnread: {
     backgroundColor: '#FDF2F8',
-    borderColor: '#FCE7F3',
+    borderColor: 'rgba(184,36,106,0.15)',
   },
   iconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8F7F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -370,22 +375,22 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   cardSubtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#9CA3AF',
   },
   cardTimestamp: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#ec4899',
   },
   swipeActionPressable: {
     flex: 1,
@@ -396,8 +401,8 @@ const styles = StyleSheet.create({
   },
   swipeAction: {
     flex: 1,
-    backgroundColor: '#EF4444',
-    borderRadius: 14,
+    backgroundColor: '#c0392b',
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
@@ -417,6 +422,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
 });

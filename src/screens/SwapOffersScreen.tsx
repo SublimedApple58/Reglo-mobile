@@ -149,7 +149,7 @@ export const SwapOffersScreen = () => {
   };
 
   return (
-    <Screen>
+    <Screen gradient>
       <ToastNotice
         message={toast?.text ?? null}
         tone={toast?.tone}
@@ -243,7 +243,7 @@ export const SwapOffersScreen = () => {
                 </View>
 
                 <View style={styles.cardFooter}>
-                  <Ionicons name="time-outline" size={13} color="#94A3B8" />
+                  <Ionicons name="time-outline" size={13} color="#9CA3AF" />
                   <Text style={styles.cardExpiry}>
                     Rispondi entro le {formatTime(offer.expiresAt)}
                   </Text>
@@ -259,6 +259,7 @@ export const SwapOffersScreen = () => {
         visible={sheetOpen && !!selectedOffer}
         title="Dettaglio sostituzione"
         showHandle
+        gradient
         onClose={responding ? () => {} : () => setSheetOpen(false)}
         closeDisabled={responding}
         footer={
@@ -331,12 +332,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: '#1a120a',
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: '#9CA3AF',
     marginTop: 4,
     lineHeight: 22,
   },
@@ -357,12 +358,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#1a120a',
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -372,15 +373,15 @@ const styles = StyleSheet.create({
   },
   // ── Card ──
   card: {
-    borderRadius: radii.sm,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 16,
-    shadowColor: 'rgba(0,0,0,0.04)',
+    shadowColor: '#9c8a76',
     shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   cardHeader: {
@@ -403,11 +404,11 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#1a120a',
   },
   cardHint: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: '#9CA3AF',
   },
   cardBadge: {
     paddingHorizontal: 10,
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
   },
   cardDetailText: {
     fontSize: 14,
-    color: colors.textPrimary,
+    color: '#1a120a',
     fontWeight: '500',
   },
   cardFooter: {
@@ -445,11 +446,11 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.04)',
+    borderTopColor: 'rgba(26,18,10,0.08)',
   },
   cardExpiry: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontWeight: '500',
   },
   // ── Sheet ──
@@ -468,14 +469,14 @@ const styles = StyleSheet.create({
   sheetHeroName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#1a120a',
   },
   sheetHeroHint: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#9CA3AF',
   },
   sheetDetails: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'rgba(26,18,10,0.03)',
     borderRadius: 14,
     padding: 14,
     gap: 10,
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
   sheetRowText: {
     fontSize: 15,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: '#1a120a',
     flex: 1,
   },
 });

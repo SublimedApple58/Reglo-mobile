@@ -80,7 +80,7 @@ export const StudentMyNotesScreen = () => {
   }, [loadData]);
 
   return (
-    <Screen>
+    <Screen gradient>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       <ScrollView
@@ -110,7 +110,7 @@ export const StudentMyNotesScreen = () => {
           </View>
         ) : appointments.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={48} color="#CBD5E1" />
+            <Ionicons name="document-text-outline" size={48} color="#c4b5a6" />
             <Text style={styles.emptyTitle}>Nessuna nota</Text>
             <Text style={styles.emptyText}>
               Le note rilasciate dagli istruttori dopo le guide appariranno qui.
@@ -169,7 +169,7 @@ export const StudentMyNotesScreen = () => {
                         ) : null}
                       </View>
                       <View style={styles.instructorRow}>
-                        <Ionicons name="person-outline" size={13} color="#64748B" />
+                        <Ionicons name="person-outline" size={13} color="#9CA3AF" />
                         <Text style={styles.instructorName}>{instructorName}</Text>
                         {appt.vehicle?.name ? (
                           <Text style={styles.vehicleName}> · {appt.vehicle.name}</Text>
@@ -178,7 +178,7 @@ export const StudentMyNotesScreen = () => {
                       {appt.notes?.trim() ? (
                         <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
                       ) : (
-                        <Text style={[styles.timelineNote, { color: '#94A3B8' }]}>Nessuna nota</Text>
+                        <Text style={[styles.timelineNote, { color: '#9CA3AF' }]}>Nessuna nota</Text>
                       )}
                     </View>
                   )}
@@ -201,11 +201,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   subtitle: {
     fontSize: 15,
-    color: '#64748B',
+    color: '#9CA3AF',
     marginTop: -8,
   },
   emptyContainer: {
@@ -217,12 +217,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#9CA3AF',
     marginTop: 4,
   },
   emptyText: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 20,
@@ -237,32 +237,39 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   timelineDate: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
   },
   timelineLine: {
     width: 1.5,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'rgba(26,18,10,0.08)',
     marginTop: 8,
     minHeight: 20,
   },
   timelineCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 14,
     marginBottom: 10,
     gap: 2,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   timelineTime: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   instructorRow: {
     flexDirection: 'row',
@@ -272,15 +279,15 @@ const styles = StyleSheet.create({
   instructorName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#9CA3AF',
   },
   vehicleName: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   timelineNote: {
     fontSize: 14,
-    color: '#475569',
+    color: '#1a120a',
     marginTop: 4,
     lineHeight: 20,
   },
@@ -288,16 +295,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row' as const,
     backgroundColor: '#F5F3FF',
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#DDD6FE',
     marginBottom: 10,
-    overflow: 'hidden' as const,
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   examAccent: {
     width: 4,
@@ -317,10 +323,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center' as const,
   },
   examLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#7C3AED',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EC4899',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   examTime: {
     fontSize: 13,
@@ -328,7 +335,7 @@ const styles = StyleSheet.create({
     color: '#A78BFA',
   },
   lessonBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(184,36,106,0.08)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -336,6 +343,6 @@ const styles = StyleSheet.create({
   lessonBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#EC4899',
   },
 });

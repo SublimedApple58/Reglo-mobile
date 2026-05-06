@@ -73,10 +73,10 @@ export const QuizResultsScreen = () => {
     setExpanded((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
-  if (loading) return <Screen><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
+  if (loading) return <Screen gradient><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
 
   if (!result) return (
-    <Screen><View style={st.center}>
+    <Screen gradient><View style={st.center}>
       <Ionicons name="alert-circle-outline" size={44} color={colors.textMuted} />
       <Text style={st.emptyText}>Risultato non trovato</Text>
       <Pressable style={st.emptyBtn} onPress={() => router.replace('/(tabs)/quiz')}>
@@ -92,7 +92,7 @@ export const QuizResultsScreen = () => {
     ? Math.round((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000) : null;
 
   return (
-    <Screen>
+    <Screen gradient>
       <ScrollView contentContainerStyle={st.scroll} bounces={false} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero ── */}

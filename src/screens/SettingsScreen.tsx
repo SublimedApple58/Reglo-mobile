@@ -58,7 +58,7 @@ const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
 
   return (
     <Animated.View style={[{ marginLeft: 8, width: 20, alignItems: 'center' }, animatedStyle]}>
-      <Text style={{ fontSize: 20, color: '#CBD5E1' }}>{'\u203A'}</Text>
+      <Text style={{ fontSize: 20, color: '#9CA3AF' }}>{'\u203A'}</Text>
     </Animated.View>
   );
 };
@@ -789,7 +789,7 @@ export const SettingsScreen = () => {
       {/* 1. Title */}
       {router.canGoBack() ? (
         <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Ionicons name="arrow-back" size={22} color="#1a120a" />
           <Text style={studentStyles.title}>Impostazioni</Text>
         </Pressable>
       ) : (
@@ -874,7 +874,7 @@ export const SettingsScreen = () => {
             {/* a. Disponibilità */}
             <Pressable onPress={() => toggleSection('availability')} style={studentStyles.menuRow}>
               <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
-                <Ionicons name="calendar-outline" size={20} color="#CA8A04" />
+                <Ionicons name="calendar-outline" size={20} color="#b8860b" />
               </View>
               <View style={studentStyles.menuTextWrap}>
                 <Text style={studentStyles.menuTitle}>Disponibilità</Text>
@@ -1054,7 +1054,7 @@ export const SettingsScreen = () => {
 
                     {paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod ? (
                       <View style={studentStyles.paymentMethodRow}>
-                        <Ionicons name="card-outline" size={18} color="#94A3B8" />
+                        <Ionicons name="card-outline" size={18} color="#9CA3AF" />
                         <Text style={studentStyles.paymentMethodText}>
                           {paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022{paymentProfile.paymentMethod.last4}
                         </Text>
@@ -1112,11 +1112,11 @@ export const SettingsScreen = () => {
 
             {/* c. Notifiche */}
             <Pressable onPress={handleNotificationsTap} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: notificationsEnabled ? '#EFF6FF' : '#FEF2F2' }]}>
+              <View style={[studentStyles.menuIcon, { backgroundColor: notificationsEnabled ? '#FCE7F3' : '#FEF2F2' }]}>
                 <Ionicons
                   name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
                   size={20}
-                  color={notificationsEnabled ? '#3B82F6' : '#EF4444'}
+                  color={notificationsEnabled ? '#ec4899' : '#EF4444'}
                 />
               </View>
               <View style={studentStyles.menuTextWrap}>
@@ -1165,7 +1165,7 @@ export const SettingsScreen = () => {
       {/* 1. Title */}
       {router.canGoBack() ? (
         <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Ionicons name="arrow-back" size={22} color="#1a120a" />
           <Text style={studentStyles.title}>Impostazioni</Text>
         </Pressable>
       ) : (
@@ -1251,7 +1251,7 @@ export const SettingsScreen = () => {
           {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
             <View style={studentStyles.menuCard}>
               <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', letterSpacing: 0.3, marginBottom: 12 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, marginBottom: 12, textTransform: 'uppercase' }}>
                   VISTA AGENDA
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1259,7 +1259,7 @@ export const SettingsScreen = () => {
                     onPress={async () => { setAgendaViewMode('day'); await sessionStorage.setAgendaViewMode('day'); }}
                     style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnActive]}
                   >
-                    <Ionicons name="calendar-outline" size={18} color={agendaViewMode === 'day' ? '#A16207' : '#94A3B8'} />
+                    <Ionicons name="calendar-outline" size={18} color={agendaViewMode === 'day' ? '#A16207' : '#9CA3AF'} />
                     <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnTextActive]}>
                       Giornaliera
                     </Text>
@@ -1268,7 +1268,7 @@ export const SettingsScreen = () => {
                     onPress={async () => { setAgendaViewMode('week'); await sessionStorage.setAgendaViewMode('week'); }}
                     style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnActive]}
                   >
-                    <Ionicons name="grid-outline" size={18} color={agendaViewMode === 'week' ? '#A16207' : '#94A3B8'} />
+                    <Ionicons name="grid-outline" size={18} color={agendaViewMode === 'week' ? '#A16207' : '#9CA3AF'} />
                     <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnTextActive]}>
                       Settimanale
                     </Text>
@@ -1282,7 +1282,7 @@ export const SettingsScreen = () => {
           {isInstructor(autoscuolaRole) ? (
             <View style={studentStyles.menuCard}>
               <View style={{ paddingHorizontal: 20, paddingVertical: 18, gap: 14 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', letterSpacing: 0.3 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, textTransform: 'uppercase' }}>
                   DISPONIBILITA
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1306,7 +1306,7 @@ export const SettingsScreen = () => {
                   />
                 </View>
                 {instrAvailabilityMode === 'publication' ? (
-                  <Text style={{ fontSize: 12, color: '#94A3B8', lineHeight: 16 }}>
+                  <Text style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 16 }}>
                     Compili e pubblichi settimana per settimana.
                   </Text>
                 ) : null}
@@ -1451,7 +1451,7 @@ export const SettingsScreen = () => {
 
 
   return (
-    <Screen>
+    <Screen gradient>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
@@ -1490,18 +1490,20 @@ const studentStyles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
 
   /* Hero Card */
   heroCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radii.lg,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
     padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   heroRow: {
@@ -1528,16 +1530,16 @@ const studentStyles = StyleSheet.create({
   heroName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   heroEmail: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   heroDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(26,18,10,0.08)',
     marginVertical: 14,
   },
   heroCompanyRow: {
@@ -1553,17 +1555,19 @@ const studentStyles = StyleSheet.create({
   },
   heroCompanyName: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#9CA3AF',
   },
 
   /* Menu Card */
   menuCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radii.lg,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
     overflow: 'hidden',
   },
@@ -1587,16 +1591,16 @@ const studentStyles = StyleSheet.create({
   menuTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   menuSubtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(26,18,10,0.08)',
     marginHorizontal: 20,
   },
 
@@ -1608,7 +1612,7 @@ const studentStyles = StyleSheet.create({
   },
   expandedHint: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginBottom: 12,
   },
   expandedStatusRow: {
@@ -1626,11 +1630,11 @@ const studentStyles = StyleSheet.create({
     backgroundColor: '#22C55E',
   },
   expandedStatusDotNeutral: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#9CA3AF',
   },
   expandedStatusText: {
     fontSize: 14,
-    color: '#1E293B',
+    color: '#1a120a',
   },
 
   /* Availability day circles */
@@ -1650,7 +1654,7 @@ const studentStyles = StyleSheet.create({
     backgroundColor: '#FACC15',
   },
   dayCircleInactive: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(26,18,10,0.06)',
   },
   dayCircleText: {
     fontWeight: '700',
@@ -1660,7 +1664,7 @@ const studentStyles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dayCircleTextInactive: {
-    color: '#64748B',
+    color: '#9CA3AF',
   },
 
   /* Slot toggles */
@@ -1675,7 +1679,7 @@ const studentStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(26,18,10,0.15)',
     padding: 16,
   },
   slotLabel: {
@@ -1683,10 +1687,10 @@ const studentStyles = StyleSheet.create({
     fontWeight: '500',
   },
   slotLabelActive: {
-    color: '#1E293B',
+    color: '#1a120a',
   },
   slotLabelInactive: {
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   slotDot: {
     width: 12,
@@ -1697,7 +1701,7 @@ const studentStyles = StyleSheet.create({
     backgroundColor: '#22C55E',
   },
   slotDotInactive: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#9CA3AF',
   },
   slotBlock: {
     gap: 8,
@@ -1713,21 +1717,21 @@ const studentStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'rgba(26,18,10,0.03)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.15)',
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   slotTimeText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   slotTimeSep: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
 
   /* Payment method row inside expanded */
@@ -1737,7 +1741,7 @@ const studentStyles = StyleSheet.create({
     gap: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(26,18,10,0.10)',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -1745,7 +1749,7 @@ const studentStyles = StyleSheet.create({
   },
   paymentMethodText: {
     fontSize: 14,
-    color: '#1E293B',
+    color: '#1a120a',
     flex: 1,
   },
   warningText: {
@@ -1790,7 +1794,7 @@ const studentStyles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
 
   /* Notification dot */
@@ -1804,13 +1808,13 @@ const studentStyles = StyleSheet.create({
     backgroundColor: '#22C55E',
   },
   notifDotOff: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#9CA3AF',
   },
 
   /* Danger Zone Card */
   dangerCard: {
     backgroundColor: '#FFFBFB',
-    borderRadius: radii.lg,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.1)',
     overflow: 'hidden',
@@ -1825,7 +1829,7 @@ const studentStyles = StyleSheet.create({
   footer: {
     textAlign: 'center',
     fontSize: 11,
-    color: '#CBD5E1',
+    color: '#9CA3AF',
     marginTop: 20,
   },
 });
@@ -2042,7 +2046,7 @@ const styles = StyleSheet.create({
   pickerBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(10, 15, 30, 0.78)',
+    backgroundColor: 'rgba(26, 18, 10, 0.72)',
     padding: spacing.lg,
   },
   pickerCard: {
@@ -2068,9 +2072,9 @@ const settingsCardStyles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1.5,
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    borderWidth: 2,
+    backgroundColor: 'rgba(26,18,10,0.03)',
+    borderColor: 'rgba(26,18,10,0.10)',
   },
   viewModeBtnActive: {
     backgroundColor: '#FEF9C3',
@@ -2079,7 +2083,7 @@ const settingsCardStyles = StyleSheet.create({
   viewModeBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   viewModeBtnTextActive: {
     color: '#A16207',

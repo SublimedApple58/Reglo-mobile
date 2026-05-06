@@ -1,19 +1,29 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import Animated, { FadeIn, FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import {
   Alert,
   Image,
+  ImageBackground,
+  LayoutAnimation,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   Share,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -32,6 +42,7 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
+import { loadInbox } from '../services/notificationStore';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { useBookingOptions } from '../hooks/queries/useBookingOptions';
 import { usePaymentProfile } from '../hooks/queries/usePaymentProfile';
@@ -47,7 +58,59 @@ import {
   AutoscuolaStudent,
   AutoscuolaInstructor,
 } from '../types/regloApi';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, pink, radii, spacing, typography } from '../theme';
+
+
+// Collapsible wrapper — measures content once, animates height
+const Collapsible = ({ open, children }: { open: boolean; children: React.ReactNode }) => {
+  const measuredRef = useRef(0);
+  const openRef = useRef(open);
+  const height = useSharedValue(open ? 1000 : 0); // Start expanded if open on mount
+
+  openRef.current = open;
+
+  const onMeasure = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    const h = Math.ceil(e.nativeEvent.layout.height);
+    if (h > 0) {
+      measuredRef.current = h;
+      // Set height immediately on first measure if open (no animation)
+      if (openRef.current) height.value = h;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (measuredRef.current === 0) return; // Not measured yet, skip
+    height.value = withTiming(open ? measuredRef.current : 0, { duration: 150 });
+  }, [open]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    height: height.value,
+    overflow: 'hidden' as const,
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <View style={{ position: 'absolute', width: '100%' }} onLayout={onMeasure}>
+        {children}
+      </View>
+    </Animated.View>
+  );
+};
+
+// Card background images
+const CARD_BACKGROUNDS = [
+  require('../../assets/card-backgrounds/2.png'),
+  require('../../assets/card-backgrounds/3.png'),
+  require('../../assets/card-backgrounds/4.png'),
+  require('../../assets/card-backgrounds/5.png'),
+  require('../../assets/card-backgrounds/6.png'),
+  require('../../assets/card-backgrounds/7.png'),
+  require('../../assets/card-backgrounds/8.png'),
+  require('../../assets/card-backgrounds/9.png'),
+  require('../../assets/card-backgrounds/10.png'),
+  require('../../assets/card-backgrounds/11.png'),
+];
+
 import { formatDay, formatTime } from '../utils/date';
 import {
   invoiceStatusLabel,
@@ -166,9 +229,11 @@ const findLinkedStudent = (
 
 export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { user, activeCompanyId } = useSession();
+  const { user, activeCompanyId, companies } = useSession();
+  const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name ?? null;
   const queryClient = useQueryClient();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
@@ -182,6 +247,12 @@ export const AllievoHomeScreen = () => {
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState<1 | 2>(1);
+  const [bookingSlots, setBookingSlots] = useState<AvailableSlot[]>([]);
+  const [bookingSlotsLoading, setBookingSlotsLoading] = useState(false);
+  const [bookingSelectedSlot, setBookingSelectedSlot] = useState<AvailableSlot | null>(null);
+  const bookingScrollRef = useRef<ScrollView | null>(null);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
@@ -207,6 +278,9 @@ export const AllievoHomeScreen = () => {
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
   const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
+  const [expandedPillId, setExpandedPillId] = useState<string | null>(null);
+  const userToggledRef = useRef(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
 
@@ -320,6 +394,139 @@ export const AllievoHomeScreen = () => {
     setHistoryDetailsLayoutHeight(0);
     setHistoryDetailsContentHeight(0);
   }, [historyDetailsOpen]);
+
+  const ITALIAN_MONTHS_BK = [
+    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+  ] as const;
+  const maxWeeksEarly = Number(settingsQuery.data?.availabilityWeeks) || 4;
+
+  // ── Unified Booking Flow ──
+  const [bookingMonth, setBookingMonth] = useState(() => {
+    const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d;
+  });
+  const bookingGridCells = useMemo(() => {
+    const first = new Date(bookingMonth.getFullYear(), bookingMonth.getMonth(), 1);
+    const day = first.getDay();
+    const startMonday = new Date(first);
+    startMonday.setDate(first.getDate() - (day === 0 ? 6 : day - 1));
+    const cells: Date[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(startMonday);
+      d.setDate(d.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      cells.push(d);
+    }
+    return cells;
+  }, [bookingMonth]);
+  const bookingMonthLabel = `${ITALIAN_MONTHS_BK[bookingMonth.getMonth()]} ${bookingMonth.getFullYear()}`;
+  const bookingMaxDate = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() + maxWeeksEarly * 7); return d;
+  }, [maxWeeksEarly]);
+  const bookingMinMonth = useMemo(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }, []);
+  const bookingMaxMonth = useMemo(() => new Date(bookingMaxDate.getFullYear(), bookingMaxDate.getMonth(), 1), [bookingMaxDate]);
+  const bookingCanPrev = bookingMonth.getTime() > bookingMinMonth.getTime();
+  const bookingCanNext = bookingMonth.getTime() < bookingMaxMonth.getTime();
+  const BOOKING_WEEKDAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'] as const;
+
+  const openBookingFlow = () => {
+    if (studentBookingDisabledByPolicy) {
+      setToast({ text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.', tone: 'info' });
+      return;
+    }
+    if (requiresPaymentMethodForBooking) {
+      setToast({ text: 'Aggiungi un metodo di pagamento dalle impostazioni prima di prenotare.', tone: 'info' });
+      return;
+    }
+    if (requiresCreditsForBooking) {
+      setToast({ text: 'Non hai crediti guida disponibili. Contatta la tua autoscuola.', tone: 'info' });
+      return;
+    }
+    if (paymentProfile?.blockedByInsoluti) {
+      setToast({ text: 'Hai pagamenti insoluti. Salda prima di prenotare una nuova guida.', tone: 'danger' });
+      return;
+    }
+    setBookingStep(1);
+    setBookingSlots([]);
+    setBookingSelectedSlot(null);
+    setBookingFlowOpen(true);
+    setBookingMonth(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
+  };
+
+  const handleBookingDateSelect = async (date: Date) => {
+    const isStepChange = bookingStep === 1;
+    setPreferredDate(date);
+    if (isStepChange) {
+      setBookingStep(2);
+      setBookingSlotsLoading(true);
+      setBookingSlots([]);
+      setTimeout(() => bookingScrollRef.current?.scrollTo({ x: screenWidth, animated: true }), 50);
+    } else {
+      setBookingSlotsLoading(true);
+      setBookingSlots([]);
+    }
+    setBookingSelectedSlot(null);
+    if (!selectedStudentId) { setBookingSlotsLoading(false); return; }
+    try {
+      const slots = await regloApi.getAvailableSlots({
+        studentId: selectedStudentId,
+        date: toDateString(date),
+        durationMinutes,
+        ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
+      });
+      setBookingSlots(slots);
+    } catch { setBookingSlots([]); }
+    finally { setBookingSlotsLoading(false); }
+  };
+
+  const handleBookingConfirm = async () => {
+    if (!selectedStudentId || !bookingSelectedSlot) return;
+    setBookingLoading(true);
+    try {
+      // Optimistic: inject provisional appointment into cache immediately
+      const optimisticId = `optimistic-${Date.now()}`;
+      const optimisticAppt = {
+        id: optimisticId,
+        companyId: activeCompanyId ?? '',
+        studentId: selectedStudentId,
+        caseId: null,
+        slotId: null,
+        type: 'guida',
+        types: canSelectLessonType ? selectedLessonTypes : [],
+        rating: null,
+        startsAt: bookingSelectedSlot.startsAt,
+        endsAt: bookingSelectedSlot.endsAt,
+        status: 'scheduled',
+        instructorId: bookingSelectedSlot.instructorId ?? null,
+        vehicleId: null,
+        notes: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        student: { id: selectedStudentId, name: '' } as any,
+        case: null,
+        instructor: bookingSelectedSlot.instructorName
+          ? { id: bookingSelectedSlot.instructorId, name: bookingSelectedSlot.instructorName, user: { name: bookingSelectedSlot.instructorName } } as any
+          : null,
+        vehicle: null,
+      };
+      queryClient.setQueriesData<any[]>(
+        { queryKey: ['appointments'] },
+        (old) => old ? [optimisticAppt, ...old] : [optimisticAppt],
+      );
+      bookSlotMutation.mutate({
+        studentId: selectedStudentId,
+        preferredDate: toDateString(preferredDate),
+        selectedStartsAt: bookingSelectedSlot.startsAt,
+        instructorId: bookingSelectedSlot.instructorId,
+        durationMinutes,
+        ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
+      });
+      setBookingFlowOpen(false);
+      triggerBookingCelebration();
+    } catch { setToast({ text: 'Errore nella prenotazione', tone: 'danger' }); }
+    finally { setBookingLoading(false); }
+  };
 
   const openPreferences = () => {
     if (studentBookingDisabledByPolicy) {
@@ -500,6 +707,17 @@ export const AllievoHomeScreen = () => {
       invalidateAllData();
     });
   }, [invalidateAllData, selectedStudentId]);
+
+  // Unread notification count
+  useEffect(() => {
+    const refreshCount = () => {
+      loadInbox().then((items) => {
+        setUnreadNotifCount(items.filter((n) => !n.read && !n.dismissed).length);
+      }).catch(() => {});
+    };
+    refreshCount();
+    return notificationEvents.onDataChanged(refreshCount);
+  }, []);
 
   const upcoming = useMemo(() => {
     const now = new Date();
@@ -1197,8 +1415,24 @@ export const AllievoHomeScreen = () => {
     return `${parts[0]} ${parts[parts.length - 1][0]}.`;
   };
 
+
+  // First pill auto-expanded until user interacts
+  const effectiveExpandedId = userToggledRef.current
+    ? expandedPillId
+    : (expandedPillId ?? upcoming[0]?.id ?? null);
+
+  const PILL_COLORS = ['#FDE4F0', '#FEE8C8', '#EDE5FE', '#D5FAE5', '#FEF6CC'];
+  const PILL_BORDERS = ['#F0A6C9', '#F2C48A', '#C5B0F0', '#82DBA8', '#F0DC7A'];
+  const PILL_IMAGES = [
+    require('../../assets/ducks/duck-vespa.png'),
+    require('../../assets/ducks/duck-bike.png'),
+    require('../../assets/ducks/duck-moto.png'),
+    require('../../assets/ducks/duck-scooter.png'),
+    require('../../assets/ducks/duck-f1.png'),
+  ];
+
   return (
-    <Screen>
+    <LinearGradient colors={['#FAE0EF', '#F8F7F4']} locations={[0, 0.5]} style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <ToastNotice
         message={toast?.text ?? null}
@@ -1209,625 +1443,483 @@ export const AllievoHomeScreen = () => {
         visible={bookingCelebrationVisible}
         onHidden={() => setBookingCelebrationVisible(false)}
       />
+
+
+      {/* Status bar cover — content never shows under the notch */}
+      <LinearGradient
+        colors={['#FAE0EF', '#FAE0EF', 'rgba(250,224,239,0)']}
+        locations={[0, 0.6, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 20, zIndex: 10 }}
+        pointerEvents="none"
+      />
+
+      {/* ── Pill Stack ── */}
       <ScrollView
-        contentContainerStyle={styles.content}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.pillStack}
         showsVerticalScrollIndicator={false}
+        scrollIndicatorInsets={{ top: insets.top }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={colors.primary}
-            colors={[colors.primary]}
           />
         }
       >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            Ciao, {selectedStudent?.firstName ?? 'Allievo'} {'\uD83D\uDC4B'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {selectedStudent
-              ? 'Pronto per la tua prossima guida?'
-              : studentsLoaded
-                ? 'Profilo allievo non collegato'
-                : 'Caricamento profilo...'}
-          </Text>
-
+        {/* ── Header (scrolls with content) ── */}
+        <View style={[styles.pillHeader, { paddingTop: insets.top - 20 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pillEyebrow}>Ciao {selectedStudent?.firstName ?? 'Allievo'}</Text>
+            <Text style={styles.pillTitle}>LE TUE GUIDE</Text>
+          </View>
+          <View style={styles.pillHeaderBtns}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/home/notifications')}
+              style={({ pressed }) => [styles.pillBellBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="notifications-outline" size={16} color="#1a120a" />
+              {unreadNotifCount > 0 && <View style={styles.pillBellDot} />}
+            </Pressable>
+          </View>
         </View>
 
-        {!selectedStudent ? (
-          studentsLoaded ? (
-            <View style={styles.emptyLessonCard}>
-              <Image
-                source={require('../../assets/duck-zen.png')}
-                style={styles.emptyLessonImage}
-                resizeMode="contain"
+        {/* ── Filter tags ── */}
+        <View style={styles.pillFiltersRow}>
+          {activeCompanyName && (
+            <View style={styles.pillFilterTag}>
+              <Ionicons name="location-outline" size={11} color="#EC4899" />
+              <Text style={styles.pillFilterTagText}>{activeCompanyName}</Text>
+            </View>
+          )}
+          {isLockedToInstructor && assignedInstructorName && (
+            <Animated.View entering={FadeIn.duration(300)} style={styles.pillFilterTag}>
+              <Ionicons name="person-outline" size={11} color="#EC4899" />
+              <Text style={styles.pillFilterTagText}>{assignedInstructorName}</Text>
+            </Animated.View>
+          )}
+          {isLockedToInstructor && (
+            <Animated.View entering={FadeIn.duration(300).delay(100)}>
+            <Pressable
+              disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
+              onPress={() => {
+                const now = new Date();
+                const dow = now.getDay();
+                const mondayOff = dow === 0 ? -6 : 1 - dow;
+                const ws = new Date(now);
+                ws.setDate(ws.getDate() + mondayOff);
+                const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+                Alert.alert(
+                  'Segnala assenza',
+                  'Vuoi segnalare la tua assenza per questa settimana al tuo istruttore?',
+                  [
+                    { text: 'Annulla', style: 'cancel' },
+                    { text: 'Conferma', onPress: async () => {
+                      setWeeklyAbsenceLoading(true);
+                      try {
+                        await regloApi.declareWeeklyAbsence({ weekStart: wsStr });
+                        setWeeklyAbsenceDeclared(true);
+                        setToast({ text: 'Assenza segnalata', tone: 'success' });
+                      } catch { setToast({ text: 'Errore nella segnalazione', tone: 'danger' }); }
+                      finally { setWeeklyAbsenceLoading(false); }
+                    }},
+                  ],
+                );
+              }}
+              style={({ pressed }) => [
+                styles.pillFilterTag,
+                { borderWidth: 1, borderColor: weeklyAbsenceDeclared ? '#7ea968' : 'rgba(184,36,106,0.3)', backgroundColor: weeklyAbsenceDeclared ? '#ecf2e3' : 'rgba(255,255,255,0.6)' },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Ionicons name={weeklyAbsenceDeclared ? 'checkmark-circle' : 'calendar-clear-outline'} size={11} color={weeklyAbsenceDeclared ? '#7ea968' : '#EC4899'} />
+              <Text style={[styles.pillFilterTagText, { color: weeklyAbsenceDeclared ? '#7ea968' : '#EC4899', fontWeight: '600' }]}>
+                {weeklyAbsenceDeclared ? 'Assenza segnalata' : 'Segnala assenza'}
+              </Text>
+            </Pressable>
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Skeleton while loading — only if no real data yet */}
+        {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
+          <>
+            <View style={styles.pillSectionLabel}>
+              <SkeletonBlock width={120} height={10} radius={5} />
+            </View>
+            {[0, 1, 2].map((i) => (
+              <SkeletonBlock
+                key={`pill-sk-${i}`}
+                width="100%"
+                height={i === 0 ? 140 : 66}
+                radius={22}
               />
-              <Text style={styles.emptyLessonText}>Profilo allievo non collegato</Text>
-            </View>
-          ) : (
-            <>
-              <SkeletonCard style={styles.nextLessonSkeleton}>
-                <SkeletonBlock width="40%" height={12} radius={6} />
-                <SkeletonBlock width="75%" height={26} radius={8} />
-                <SkeletonBlock width="55%" height={16} radius={6} />
-              </SkeletonCard>
-              <SkeletonBlock width="100%" height={58} radius={radii.sm} />
-              <View style={styles.calendarSection}>
-                <SkeletonBlock width="40%" height={22} radius={8} />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <SkeletonBlock key={`init-cal-sk-${i}`} width={58} height={72} radius={16} />
-                  ))}
-                </View>
-              </View>
-            </>
-          )
-        ) : !studentDataReady ? (
-          <>
-            {/* Skeleton: Prossima Guida — matches yellow gradient card */}
-            <SkeletonCard style={styles.nextLessonSkeleton}>
-              <SkeletonBlock width="40%" height={12} radius={6} />
-              <SkeletonBlock width="75%" height={26} radius={8} />
-              <SkeletonBlock width="55%" height={16} radius={6} />
-            </SkeletonCard>
-
-            {/* Skeleton: CTA Button */}
-            <SkeletonBlock width="100%" height={58} radius={radii.sm} />
-
-            {/* Skeleton: Calendar */}
-            <View style={styles.calendarSection}>
-              <SkeletonBlock width="40%" height={22} radius={8} />
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <SkeletonBlock key={`cal-sk-${i}`} width={58} height={72} radius={16} />
-                ))}
-              </View>
-            </View>
-
-            {/* Skeleton: Agenda */}
-            <View style={styles.agendaSection}>
-              <SkeletonBlock width="30%" height={20} radius={8} />
-              <View style={styles.agendaList}>
-                {Array.from({ length: 2 }).map((_, index) => (
-                  <SkeletonCard key={`agenda-skeleton-${index}`} style={styles.agendaRowSkeleton}>
-                    <SkeletonBlock width="65%" height={18} radius={6} />
-                    <SkeletonBlock width="50%" height={14} radius={6} />
-                    <SkeletonBlock width="40%" height={14} radius={6} />
-                    <SkeletonBlock width="100%" height={48} radius={radii.sm} />
-                  </SkeletonCard>
-                ))}
-              </View>
-            </View>
-          </>
-        ) : (
-          <>
-            {/* ── Blocked by others' Exam Priority ── */}
-            {blockedByExamPriority && !examPriority?.active && (
-              <View style={styles.blockedByExamBanner}>
-                <View style={styles.blockedByExamIconCircle}>
-                  <Ionicons name="lock-closed" size={18} color="#7C3AED" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.blockedByExamTitle}>Prenotazioni temporaneamente bloccate</Text>
-                  <Text style={styles.blockedByExamDesc}>
-                    Altri allievi hanno la priorità esame. Potrai prenotare di nuovo quando avranno completato le loro prenotazioni.
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* ── Exam Priority Banner ── */}
-            {/* Skip when the next lesson is already the exam (card below covers it) */}
-            {examPriority?.active && nextLesson?.type !== 'esame' && (
-              <LinearGradient
-                colors={['#8B5CF6', '#A78BFA']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.examBanner}
-              >
-                <View style={styles.examBannerRow}>
-                  <Text style={styles.examBannerIcon}>📋</Text>
-                  <View style={styles.examBannerContent}>
-                    <Text style={styles.examBannerTitle}>Esame di guida</Text>
-                    {examPriority.examDate ? (
-                      <Text style={styles.examBannerDate}>
-                        {new Date(examPriority.examDate).toLocaleDateString('it-IT', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    ) : null}
-                    {examPriority.examDate && (
-                      <View style={styles.examBannerPill}>
-                        <Text style={styles.examBannerPillText}>
-                          tra {Math.max(0, Math.ceil((new Date(examPriority.examDate).getTime() - Date.now()) / 86400000))} giorni
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={styles.examBannerSubtext}>
-                      Hai la priorità per prenotare più guide
-                    </Text>
-                  </View>
-                </View>
-              </LinearGradient>
-            )}
-
-            {/* ── Prossima Guida Card ── */}
-            {nextLesson ? (() => {
-              const isExam = nextLesson.type === 'esame';
-              const gradientColors: [string, string] = isExam ? ['#6366F1', '#A5B4FC'] : ['#FACC15', '#FDE68A'];
-              return (
-              <View style={[styles.nextLessonShadow, isExam && { shadowColor: '#4338CA' }]}>
-                {!examPriority?.active && !isExam && (
-                  <Image
-                    source={require('../../assets/duck-peek.png')}
-                    style={styles.nextLessonDuck}
-                    resizeMode="contain"
-                  />
-                )}
-                <LinearGradient
-                  colors={gradientColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0.8, y: 1 }}
-                  style={styles.nextLessonCard}
-                >
-                  {hasMultipleLessons ? (
-                    <>
-                      <Text style={styles.nextLessonLabel}>PROSSIME GUIDE</Text>
-                      <Text style={styles.nextLessonDateTime}>
-                        {formatDay(nextLesson.startsAt)}
-                      </Text>
-                      {sameDayLessons.map((lesson) => {
-                        const inProgress = (() => {
-                          const now = new Date();
-                          const start = new Date(lesson.startsAt);
-                          const end = lesson.endsAt
-                            ? new Date(lesson.endsAt)
-                            : new Date(start.getTime() + 60 * 60 * 1000);
-                          return start <= now && now < end;
-                        })();
-                        return (
-                          <View key={lesson.id} style={styles.nextLessonSlot}>
-                            {inProgress ? (
-                              <View style={styles.inProgressBadge}>
-                                <View style={styles.inProgressDot} />
-                                <Text style={styles.inProgressBadgeText}>IN CORSO</Text>
-                              </View>
-                            ) : null}
-                            <View style={styles.nextLessonSlotHeader}>
-                              <Text style={styles.nextLessonSlotTime}>
-                                {formatTime(lesson.startsAt)}
-                                {lesson.endsAt ? ` – ${formatTime(lesson.endsAt)}` : ''}
-                              </Text>
-                              <Text style={styles.nextLessonSlotDetails}>
-                                {formatInstructorInitials(lesson.instructor?.name)}{settings?.vehiclesEnabled !== false ? ` \u2022 ${lesson.vehicle?.name ?? 'Da assegnare'}` : ''}
-                              </Text>
-                            </View>
-                            {!inProgress ? (
-                              <View style={styles.nextLessonActions}>
-                                {settings?.swapEnabled &&
-                                  ['scheduled', 'confirmed'].includes(lesson.status) ? (
-                                  <Pressable
-                                    style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
-                                    onPress={() => handleCreateSwap(lesson.id)}
-                                    disabled={creatingSwap}
-                                  >
-                                    <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
-                                    <Text style={styles.nextLessonSwapText}>
-                                      {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
-                                    </Text>
-                                  </Pressable>
-                                ) : null}
-                                <Pressable
-                                  style={[styles.nextLessonCancelPill, cancellingAppointmentId === lesson.id && { opacity: 0.5 }]}
-                                  onPress={() => handleCancel(lesson.id)}
-                                  disabled={cancellingAppointmentId === lesson.id}
-                                >
-                                  <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
-                                  <Text style={styles.nextLessonCancelText}>
-                                    {cancellingAppointmentId === lesson.id
-                                      ? 'Annullo...'
-                                      : 'Annulla'}
-                                  </Text>
-                                </Pressable>
-                              </View>
-                            ) : null}
-                          </View>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <>
-                      {isLessonInProgress ? (
-                        <View style={styles.inProgressBadge}>
-                          <View style={styles.inProgressDot} />
-                          <Text style={styles.inProgressBadgeText}>
-                            {isExam ? 'ESAME IN CORSO' : 'GUIDA IN CORSO'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {isExam ? (
-                            <Ionicons name="school" size={18} color="#FFFFFF" />
-                          ) : null}
-                          <Text style={styles.nextLessonLabel}>
-                            {isExam ? 'ESAME DI GUIDA' : 'PROSSIMA GUIDA'}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={styles.nextLessonDateTime}>
-                        {formatDay(nextLesson.startsAt)} {'\u2022'} {formatTime(nextLesson.startsAt)}
-                      </Text>
-                      <Text style={styles.nextLessonDetails}>
-                        {isExam
-                          ? `Con ${formatInstructorInitials(nextLesson.instructor?.name) || 'accompagnatore da assegnare'}`
-                          : `${formatInstructorInitials(nextLesson.instructor?.name)}${settings?.vehiclesEnabled !== false ? ` \u2022 ${nextLesson.vehicle?.name ?? 'Da assegnare'}` : ''}`}
-                      </Text>
-                      {!isLessonInProgress && !isExam ? (
-                        <View style={styles.nextLessonActions}>
-                          {settings?.swapEnabled &&
-                            ['scheduled', 'confirmed'].includes(nextLesson.status) ? (
-                            <Pressable
-                              style={[styles.nextLessonSwapPill, creatingSwap && { opacity: 0.5 }]}
-                              onPress={() => handleCreateSwap(nextLesson.id)}
-                              disabled={creatingSwap}
-                            >
-                              <Text style={styles.nextLessonSwapEmoji}>🤝</Text>
-                              <Text style={styles.nextLessonSwapText}>
-                                {creatingSwap ? 'Invio...' : 'Cerca sostituto'}
-                              </Text>
-                            </Pressable>
-                          ) : null}
-                          <Pressable
-                            style={[styles.nextLessonCancelPill, cancellingAppointmentId === nextLesson.id && { opacity: 0.5 }]}
-                            onPress={() => handleCancel(nextLesson.id)}
-                            disabled={cancellingAppointmentId === nextLesson.id}
-                          >
-                            <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.7)" />
-                            <Text style={styles.nextLessonCancelText}>
-                              {cancellingAppointmentId === nextLesson.id
-                                ? 'Annullo...'
-                                : 'Annulla'}
-                            </Text>
-                          </Pressable>
-                        </View>
-                      ) : null}
-                    </>
-                  )}
-                </LinearGradient>
-              </View>
-              );
-            })() : (
-              <View style={styles.emptyLessonCard}>
-                {isSelectedDateHoliday ? (
-                  <>
-                    <Ionicons name="ban-outline" size={36} color="#DC2626" style={{ marginBottom: 4 }} />
-                    <Text style={[styles.emptyLessonText, { color: '#DC2626' }]}>Giorno festivo</Text>
-                    <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 2 }}>L'autoscuola è chiusa</Text>
-                  </>
-                ) : (
-                  <>
-                    <Image
-                      source={require('../../assets/duck-zen.png')}
-                      style={styles.emptyLessonImage}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.emptyLessonText}>Nessuna guida prenotata</Text>
-                  </>
-                )}
-              </View>
-            )}
-
-            {/* ── Assigned Instructor Row ── */}
-            {isLockedToInstructor && assignedInstructorName ? (
-              <View style={styles.assignedInstructorRow}>
-                <View style={styles.assignedInstructorAvatar}>
-                  <Ionicons name="person" size={16} color="#EC4899" />
-                </View>
-                <View style={styles.assignedInstructorInfo}>
-                  <Text style={styles.assignedInstructorLabel}>Il tuo istruttore</Text>
-                  <Text style={styles.assignedInstructorName}>{assignedInstructorName}</Text>
-                </View>
-                {assignedInstructorPhone ? (
-                  <View style={styles.assignedInstructorActions}>
-                    <Pressable
-                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnWhatsApp, pressed && { opacity: 0.7 }]}
-                      onPress={() => Linking.openURL(`https://wa.me/39${assignedInstructorPhone}`)}
-                      hitSlop={8}
-                    >
-                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [styles.assignedInstructorBtn, styles.assignedInstructorBtnCall, pressed && { opacity: 0.7 }]}
-                      onPress={() => Linking.openURL(`tel:${assignedInstructorPhone}`)}
-                      hitSlop={8}
-                    >
-                      <Ionicons name="call" size={18} color="#3B82F6" />
-                    </Pressable>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* ── Weekly absence CTA ── */}
-            {isLockedToInstructor && weeklyAbsenceEnabled && (
-              <Pressable
-                disabled={weeklyAbsenceLoading}
-                onPress={async () => {
-                  const now = new Date();
-                  const dayOfWeek = now.getDay();
-                  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-                  const weekStart = new Date(now);
-                  weekStart.setDate(weekStart.getDate() + mondayOffset);
-                  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
-
-                  setWeeklyAbsenceLoading(true);
-                  try {
-                    if (weeklyAbsenceDeclared) {
-                      await regloApi.cancelWeeklyAbsence(weekStartStr);
-                      setWeeklyAbsenceDeclared(false);
-                    } else {
-                      await regloApi.declareWeeklyAbsence({ weekStart: weekStartStr });
-                      setWeeklyAbsenceDeclared(true);
-                    }
-                  } catch {
-                    Alert.alert('Errore', 'Non è stato possibile completare l\'operazione.');
-                  } finally {
-                    setWeeklyAbsenceLoading(false);
-                  }
-                }}
-                style={({ pressed }) => [
-                  {
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                    backgroundColor: weeklyAbsenceDeclared ? '#FEF2F2' : '#FFFBEB',
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: weeklyAbsenceDeclared ? '#FECACA' : '#FDE68A',
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                  },
-                  pressed && { opacity: 0.7 },
-                  weeklyAbsenceLoading && { opacity: 0.5 },
-                ]}
-              >
-                <Ionicons
-                  name={weeklyAbsenceDeclared ? 'close-circle-outline' : 'calendar-clear-outline'}
-                  size={20}
-                  color={weeklyAbsenceDeclared ? '#DC2626' : '#D97706'}
-                />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: weeklyAbsenceDeclared ? '#991B1B' : '#92400E' }}>
-                  {weeklyAbsenceLoading
-                    ? 'Attendi...'
-                    : weeklyAbsenceDeclared
-                      ? 'Annulla assenza settimanale'
-                      : 'Assente questa settimana'}
-                </Text>
-              </Pressable>
-            )}
-
-            {/* ── CTA Button (standalone) ── */}
-            {!studentBookingDisabledByPolicy ? (
-              <Pressable
-                onPress={blockedByInsoluti ? handlePayNow : openPreferences}
-                disabled={blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking || weeklyLimitReached)}
-                style={({ pressed }) => [
-                  styles.ctaButton,
-                  pressed && styles.ctaButtonPressed,
-                  (blockedByInsoluti ? payNowLoading : (requiresPaymentMethodForBooking || requiresCreditsForBooking || weeklyLimitReached)) && styles.ctaButtonDisabled,
-                ]}
-              >
-                <Text style={styles.ctaButtonLabel}>
-                  {blockedByInsoluti
-                    ? payNowLoading
-                      ? 'Attendi...'
-                      : 'Salda ora'
-                    : weeklyLimitReached
-                      ? weeklyLimitLabel
-                      : requiresCreditsForBooking
-                        ? 'Crediti guida esauriti'
-                        : 'Prenota nuova guida'}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {/* ── Horizontal Day Calendar ── */}
-            <View style={styles.calendarSection}>
-              <View style={styles.calendarMonthRow}>
-                <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
-                <Pressable
-                  onPress={() => setCalendarDrawerOpen(true)}
-                  style={styles.calendarIconBtn}
-                >
-                  <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
-                </Pressable>
-              </View>
-              <ScrollView
-                ref={dayScrollRef}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.dayPillsRow}
-                onLayout={handleDayScrollLayout}
-              >
-                {calendarDays.map((day, index) => {
-                  const dayNorm = new Date(day.date);
-                  dayNorm.setHours(0, 0, 0, 0);
-                  const selNorm = new Date(selectedDate);
-                  selNorm.setHours(0, 0, 0, 0);
-                  const todayNorm = new Date();
-                  todayNorm.setHours(0, 0, 0, 0);
-                  const isToday = dayNorm.getTime() === todayNorm.getTime();
-                  const isSelected = dayNorm.getTime() === selNorm.getTime() && !isToday;
-                  const dayKey = `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`;
-                  const hasBooking = bookedDatesSet.has(dayKey);
-                  const hasExam = examDatesSet.has(dayKey);
-                  const isDayHoliday = holidaySet.has(toDateString(dayNorm));
-                  return (
-                    <Pressable
-                      key={`day-${index}`}
-                      style={[
-                        styles.dayPill,
-                        hasExam && !isSelected
-                          ? { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1.5 }
-                          : isDayHoliday && !isSelected && !isToday
-                            ? styles.dayPillHoliday
-                            : isSelected
-                              ? styles.dayPillSelected
-                              : isToday
-                                ? styles.dayPillToday
-                                : styles.dayPillUnselected,
-                      ]}
-                      onPress={() => setSelectedDate(day.date)}
-                    >
-                      <Text
-                        style={[
-                          styles.dayPillWeekday,
-                          isDayHoliday && !isSelected && !isToday
-                            ? styles.dayPillWeekdayHoliday
-                            : isSelected
-                              ? styles.dayPillWeekdaySelected
-                              : isToday
-                                ? styles.dayPillWeekdayToday
-                                : styles.dayPillWeekdayUnselected,
-                        ]}
-                      >
-                        {day.weekday}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.dayPillNumber,
-                          isDayHoliday && !isSelected && !isToday
-                            ? styles.dayPillNumberHoliday
-                            : isSelected
-                              ? styles.dayPillNumberSelected
-                              : isToday
-                                ? styles.dayPillNumberToday
-                                : styles.dayPillNumberUnselected,
-                        ]}
-                      >
-                        {day.dayNum}
-                      </Text>
-                      {hasExam ? (
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
-                      ) : isDayHoliday ? (
-                        <View style={styles.dayPillHolidayDot} />
-                      ) : hasBooking ? (
-                        <View
-                          style={[
-                            styles.dayPillDot,
-                            (isSelected || isToday) && styles.dayPillDotHighlight,
-                          ]}
-                        />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* ── Agenda Section ── */}
-            <View style={styles.agendaSection}>
-              <Text style={styles.agendaSectionTitle}>Agenda</Text>
-              <View style={styles.agendaList}>
-                {agendaLoading
-                  ? Array.from({ length: 3 }).map((_, index) => (
-                      <SkeletonCard key={`agenda-range-skeleton-${index}`} style={styles.agendaRowSkeleton}>
-                        <SkeletonBlock width="65%" height={18} radius={6} />
-                        <SkeletonBlock width="50%" height={14} radius={6} />
-                        <SkeletonBlock width="40%" height={14} radius={6} />
-                        <SkeletonBlock width="100%" height={48} radius={radii.sm} />
-                      </SkeletonCard>
-                    ))
-                  : visibleAgendaLessons.map((lesson) => {
-                      const status = statusLabel(lesson.status);
-                      const lessonPayment = paymentByAppointmentId.get(lesson.id) ?? null;
-                      const isExam = lesson.type === 'esame';
-                      if (isExam) {
-                        return (
-                          <View key={lesson.id} style={styles.agendaExamRow}>
-                            <View style={styles.agendaExamHeader}>
-                              <View style={styles.agendaExamIconBox}>
-                                <Ionicons name="school" size={14} color="#6366F1" />
-                              </View>
-                              <Text style={styles.agendaExamTime}>
-                                {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}
-                              </Text>
-                              <Text style={styles.agendaExamBadge}>ESAME</Text>
-                            </View>
-                            <Text style={styles.agendaExamTitle}>Esame di guida</Text>
-                            <Text style={styles.agendaExamMeta}>
-                              {lesson.instructor?.name
-                                ? `Con ${lesson.instructor.name}`
-                                : 'Accompagnatore da assegnare'}
-                            </Text>
-                          </View>
-                        );
-                      }
-                      return (
-                        <View key={lesson.id} style={styles.agendaRow}>
-                          <View style={styles.agendaTop}>
-                            <Text style={styles.agendaTime}>
-                              {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}
-                            </Text>
-                            <Badge label={status.label} tone={status.tone} />
-                          </View>
-                          <Text style={styles.agendaInstructor}>
-                            Istruttore: {lesson.instructor?.name ?? 'Da assegnare'}
-                          </Text>
-                          {settings?.vehiclesEnabled !== false && (
-                            <Text style={styles.agendaMeta}>
-                              Veicolo: {lesson.vehicle?.name ?? 'Da assegnare'}
-                            </Text>
-                          )}
-                          {lessonPayment ? (
-                            <Text style={styles.historyPaymentMeta}>
-                              Pagamento: {paymentStatusLabel(lessonPayment.paymentStatus).label} {'\u2022'} Residuo{' '}
-                              {'\u20AC'} {lessonPayment.dueAmount.toFixed(2)}
-                            </Text>
-                          ) : null}
-                          <Button
-                            label="Dettagli"
-                            tone="standard"
-                            onPress={() => handleOpenHistoryDetails(lesson)}
-                            fullWidth
-                          />
-                        </View>
-                      );
-                    })}
-                {!agendaLoading && !agendaLessons.length ? (
-                  <View style={{ alignItems: 'center', gap: 4, paddingVertical: 16 }}>
-                    <Text style={styles.empty}>Nessuna guida nel periodo selezionato.</Text>
-                    {!studentBookingDisabledByPolicy ? (
-                      <Text style={[styles.empty, { fontSize: 13, color: '#94A3B8' }]}>Clicca su "Prenota nuova guida" per prenotarne una</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-                {!agendaLoading && agendaLessons.length > 4 ? (
-                  <View style={styles.agendaToggleWrap}>
-                    <Button
-                      label={showAllAgendaLessons ? 'Mostra meno' : 'Mostra di più'}
-                      onPress={() => setShowAllAgendaLessons((prev) => !prev)}
-                      tone="standard"
-                      fullWidth
-                    />
-                  </View>
-                ) : null}
-              </View>
-            </View>
+            ))}
           </>
         )}
+
+        {/* Empty state — no upcoming lessons, data ready */}
+        {upcoming.length === 0 && studentsLoaded && (appointmentsQuery.data != null) && (
+          <View style={styles.pillEmpty}>
+            <Image
+              source={require('../../assets/duck-zen.png')}
+              style={styles.pillEmptyImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.pillEmptyTitle}>Nessuna guida in programma</Text>
+            <Text style={styles.pillEmptySub}>
+              Prenota la tua prima guida e inizia il percorso verso la patente!
+            </Text>
+          </View>
+        )}
+
+        {/* Section: La prossima guida */}
+        {upcoming.length > 0 && (
+          <View style={styles.pillSectionLabel}>
+            <View style={styles.pillPulseDot} />
+            <Text style={styles.pillSectionText}>LA PROSSIMA GUIDA</Text>
+          </View>
+        )}
+
+        {upcoming.map((lesson, idx) => {
+          const isFirst = idx === 0;
+          const isExpanded = effectiveExpandedId === lesson.id;
+          // Cycle colors by position so adjacent pills always differ
+          const pillIdx = idx % PILL_COLORS.length;
+          const pillBg = PILL_COLORS[pillIdx];
+          const pillBorder = PILL_BORDERS[pillIdx];
+          const pillImg = PILL_IMAGES[pillIdx];
+          const statusInfo = statusLabel(lesson.status);
+          const isFutureActive = !['cancelled', 'completed', 'no_show'].includes(
+            (lesson.status ?? '').trim().toLowerCase()
+          );
+
+          return (
+            <React.Fragment key={lesson.id}>
+              {idx === 1 && (
+                <View style={[styles.pillSectionLabel, { paddingTop: 10 }]}>
+                  <Text style={[styles.pillSectionText, { color: '#9CA3AF' }]}>IN PROGRAMMA</Text>
+                </View>
+              )}
+              <Pressable
+                onPress={() => {
+                  userToggledRef.current = true;
+                  setExpandedPillId(isExpanded ? null : lesson.id);
+                }}
+                style={[
+                  styles.pillItem,
+                  { backgroundColor: pillBg },
+                  isFirst ? styles.pillItemNext : { ...styles.pillItemDefault, borderColor: pillBorder },
+                ]}
+              >
+                {/* Header row */}
+                <View style={styles.pillItemHeader}>
+                  <Image source={pillImg} style={styles.pillAvatar} resizeMode="cover" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.pillItemTitle} numberOfLines={1}>
+                      {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
+                    </Text>
+                    <Text style={styles.pillItemSub} numberOfLines={1}>
+                      {lesson.instructor?.name ?? 'Da assegnare'}
+                    </Text>
+                  </View>
+                  <View style={[styles.pillChevron, isExpanded && { transform: [{ rotate: '180deg' }] }]}>
+                    <Ionicons name="chevron-down" size={14} color="#1a120a" />
+                  </View>
+                </View>
+
+                {/* Expanded body — animated */}
+                <Collapsible open={isExpanded}>
+                  <View style={styles.pillBody}>
+                    <View style={styles.pillDivider} />
+                    <View style={styles.pillChipRow}>
+                      <View style={styles.pillChip}>
+                        <Text style={styles.pillChipText}>{lessonDurationMinutes(lesson)} min</Text>
+                      </View>
+                      <Badge label={statusInfo.label} tone={statusInfo.tone} />
+                    </View>
+                    <View style={styles.pillCtaRow}>
+                      {isFutureActive && (bookingOptions?.swapEnabled ?? settings?.swapEnabled) && (
+                        <Pressable
+                          onPress={() => {
+                            Alert.alert(
+                              'Cerca sostituto',
+                              'Vuoi creare una richiesta di scambio per questa guida?',
+                              [
+                                { text: 'Annulla', style: 'cancel' },
+                                { text: 'Conferma', onPress: () => handleCreateSwap(lesson.id) },
+                              ],
+                            );
+                          }}
+                          disabled={creatingSwap}
+                          style={({ pressed }) => [styles.pillCtaOutline, pressed && { opacity: 0.7 }, creatingSwap && { opacity: 0.5 }]}
+                        >
+                          <Text style={styles.pillCtaOutlineText}>{creatingSwap ? 'Invio...' : 'Cerca sostituto'}</Text>
+                        </Pressable>
+                      )}
+                      {isFutureActive && (
+                        <Pressable
+                          onPress={() => handleCancel(lesson.id)}
+                          disabled={cancellingAppointmentId === lesson.id}
+                          style={({ pressed }) => [styles.pillCtaFilled, pressed && { opacity: 0.7 }]}
+                        >
+                          <Text style={styles.pillCtaFilledText}>Annulla guida</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                </Collapsible>
+              </Pressable>
+            </React.Fragment>
+          );
+        })}
+
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* ── Fixed CTA: Prenota una guida (hidden if booking disabled) ── */}
+      {bookingOptions && !studentBookingDisabledByPolicy && <Animated.View entering={FadeInUp.duration(400).delay(200)} style={[styles.pillFixedCta, { bottom: insets.bottom + 60 }]} pointerEvents="box-none">
+        <LinearGradient
+          colors={['rgba(248,247,244,0)', 'rgba(248,247,244,0.85)', '#F8F7F4']}
+          locations={[0, 0.5, 1]}
+          style={styles.pillFixedFade}
+          pointerEvents="none"
+        />
+        <View style={styles.pillFixedCtaInner}>
+          <Pressable
+            onPress={openBookingFlow}
+            style={({ pressed }) => [styles.pillBookBtn, pressed && { backgroundColor: 'rgba(214,48,127,0.06)', borderColor: 'rgba(214,48,127,0.7)' }]}
+          >
+            <View style={styles.pillBookIcon}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pillBookTitle}>Prenota una guida</Text>
+              <Text style={styles.pillBookSub}>Scegli data, orario e istruttore</Text>
+            </View>
+            <Ionicons name="arrow-up" size={16} color="#EC4899" style={{ transform: [{ rotate: '45deg' }] }} />
+          </Pressable>
+        </View>
+      </Animated.View>}
+      {/* Solid bg behind tab bar — prevents items showing through */}
+      <View style={[styles.pillTabBarBg, { height: insets.bottom + 70 }]} />
+      {/* ── Unified Booking Flow BottomSheet ── */}
+      <BottomSheet
+        gradient
+        visible={bookingFlowOpen}
+        onClose={() => { if (!bookingLoading) setBookingFlowOpen(false); }}
+        closeDisabled={bookingLoading}
+        showHandle
+        title={bookingStep === 1 ? 'Scegli il giorno' : formatDay(preferredDate.toISOString())}
+        titleRight={bookingStep === 2 ? (
+          <Pressable
+            onPress={() => {
+              setBookingStep(1);
+              bookingScrollRef.current?.scrollTo({ x: 0, animated: true });
+            }}
+            style={({ pressed }) => [styles.bkBackBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="calendar-outline" size={14} color="#EC4899" />
+            <Text style={styles.bkBackBtnText}>Cambia</Text>
+          </Pressable>
+        ) : undefined}
+        footer={bookingStep === 2 ? (
+          <Pressable
+            onPress={bookingLoading || !bookingSelectedSlot ? undefined : handleBookingConfirm}
+            disabled={bookingLoading || !bookingSelectedSlot}
+            style={[styles.chunkyPinkCta, (bookingLoading || !bookingSelectedSlot) && { opacity: 0.4 }]}
+          >
+            <Text style={styles.chunkyPinkCtaText}>
+              {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
+            </Text>
+          </Pressable>
+        ) : undefined}
+      >
+        <ScrollView
+          ref={bookingScrollRef}
+          horizontal
+          pagingEnabled
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -spacing.lg }}
+        >
+          {/* ── Step 1: Calendar ── */}
+          <View style={{ width: screenWidth, paddingHorizontal: spacing.lg }}>
+            {/* Month nav */}
+            <View style={styles.bkMonthNav}>
+              <Pressable
+                onPress={() => setBookingMonth(new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() - 1, 1))}
+                disabled={!bookingCanPrev}
+                style={[styles.bkMonthArrow, !bookingCanPrev && { opacity: 0.3 }]}
+              >
+                <Ionicons name="chevron-back" size={18} color="#1a120a" />
+              </Pressable>
+              <Text style={styles.bkMonthLabel}>{bookingMonthLabel}</Text>
+              <Pressable
+                onPress={() => setBookingMonth(new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() + 1, 1))}
+                disabled={!bookingCanNext}
+                style={[styles.bkMonthArrow, !bookingCanNext && { opacity: 0.3 }]}
+              >
+                <Ionicons name="chevron-forward" size={18} color="#1a120a" />
+              </Pressable>
+            </View>
+
+            {/* Weekday headers */}
+            <View style={styles.bkWeekdayRow}>
+              {BOOKING_WEEKDAYS.map((wd) => (
+                <View key={wd} style={styles.bkWeekdayCell}>
+                  <Text style={styles.bkWeekdayText}>{wd}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Calendar grid */}
+            <View style={styles.bkGrid}>
+              {bookingGridCells.map((date, idx) => {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const inMonth = date.getMonth() === bookingMonth.getMonth() && date.getFullYear() === bookingMonth.getFullYear();
+                const isToday = date.getTime() === today.getTime();
+                const isSelected = date.getFullYear() === preferredDate.getFullYear() && date.getMonth() === preferredDate.getMonth() && date.getDate() === preferredDate.getDate();
+                const inRange = date >= today && date <= bookingMaxDate;
+                const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                const isUnavailable = inMonth && inRange && unavailableDatesSet.has(dateKey);
+                const tappable = inMonth && inRange && !isUnavailable;
+                const hasBooking = inMonth && bookedDatesSet.has(dateKey);
+
+                return (
+                  <Pressable
+                    key={`bk-${idx}`}
+                    onPress={tappable ? () => handleBookingDateSelect(date) : undefined}
+                    disabled={!tappable}
+                    style={styles.bkDayWrapper}
+                  >
+                    <View style={[
+                      styles.bkDayCell,
+                      isToday && styles.bkDayCellToday,
+                      isSelected && styles.bkDayCellSelected,
+                    ]}>
+                      <Text style={[
+                        styles.bkDayText,
+                        !inMonth && { color: 'rgba(26,18,10,0.15)' },
+                        isToday && styles.bkDayTextToday,
+                        isSelected && styles.bkDayTextSelected,
+                        (inMonth && (!inRange || isUnavailable)) && { color: 'rgba(26,18,10,0.25)' },
+                      ]}>
+                        {date.getDate()}
+                      </Text>
+                    </View>
+                    {hasBooking ? <View style={[styles.bkDayDot, (isSelected || isToday) && { backgroundColor: '#fff' }]} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* ── Step 2: Options + Slots ── */}
+          <View style={{ width: screenWidth, paddingHorizontal: spacing.lg }}>
+            {/* Duration chips (if selectable) */}
+            {availableDurations.length > 1 && (
+              <View style={styles.bookingSection}>
+                <Text style={styles.bookingSectionLabel}>DURATA</Text>
+                <View style={styles.bookingChipRow}>
+                  {availableDurations.map((dur) => {
+                    const isActive = durationMinutes === dur;
+                    const label = dur >= 60
+                      ? dur === 60 ? '1 ora' : dur === 90 ? '1h 30' : `${dur / 60} ore`
+                      : `${dur} min`;
+                    return (
+                      <Pressable
+                        key={`bk-dur-${dur}`}
+                        style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
+                        onPress={() => {
+                          setDurationMinutes(dur);
+                          // Re-fetch slots with new duration
+                          handleBookingDateSelect(preferredDate);
+                        }}
+                      >
+                        <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Instructor info */}
+            {isLockedToInstructor && assignedInstructorName ? (
+              <View style={[styles.bkInfoRow, { marginTop: availableDurations.length > 1 ? 12 : 0 }]}>
+                <Ionicons name="person-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.bkInfoText}>{assignedInstructorName} · {durationMinutes} min</Text>
+              </View>
+            ) : null}
+
+            {/* Slot list */}
+            <Text style={[styles.bookingSectionLabel, { marginTop: 16, marginBottom: 10 }]}>ORARI DISPONIBILI</Text>
+            {bookingSlotsLoading && bookingSlots.length === 0 ? (
+              <View style={{ height: 280 }}>
+                {[0, 1, 2, 3].map((i) => (
+                  <View key={`sk-slot-${i}`} style={styles.timelineRow}>
+                    <View style={styles.timelineLeft}>
+                      <SkeletonBlock width={32} height={12} radius={6} />
+                      {i < 3 && <View style={styles.timelineLine} />}
+                    </View>
+                    <View style={[styles.timelineCard, { borderColor: 'transparent' }]}>
+                      <SkeletonBlock width="60%" height={16} radius={8} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : bookingSlots.length === 0 ? (
+              <View style={{ height: 280, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="calendar-clear-outline" size={28} color="rgba(26,18,10,0.15)" />
+                <Text style={[styles.bkInfoText, { marginTop: 8, textAlign: 'center' }]}>Nessun orario disponibile{'\n'}per questo giorno</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ height: 280 }} showsVerticalScrollIndicator={false}>
+                <View style={styles.timelineContainer}>
+                  {bookingSlots.map((slot, index) => {
+                    const isActive = bookingSelectedSlot?.startsAt === slot.startsAt;
+                    const isLast = index === bookingSlots.length - 1;
+                    return (
+                      <View key={slot.startsAt} style={styles.timelineRow}>
+                        <View style={styles.timelineLeft}>
+                          <Text style={styles.timelineHour}>{formatTime(slot.startsAt)}</Text>
+                          {!isLast ? <View style={styles.timelineLine} /> : null}
+                        </View>
+                        <Pressable
+                          style={[styles.timelineCard, isActive && styles.timelineCardActive]}
+                          onPress={() => setBookingSelectedSlot(slot)}
+                        >
+                          <Text style={isActive ? styles.timelineCardTextActive : styles.timelineCardText}>
+                            {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+                          </Text>
+                          {slot.instructorName ? (
+                            <Text style={[isActive ? styles.timelineCardTextActive : styles.timelineCardText, { fontSize: 12, fontWeight: '400', flex: 0 }]}>
+                              {slot.instructorName}
+                            </Text>
+                          ) : null}
+                          {isActive ? (
+                            <View style={styles.timelineCheck}>
+                              <Text style={styles.timelineCheckText}>{'\u2713'}</Text>
+                            </View>
+                          ) : null}
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </ScrollView>
+      </BottomSheet>
       {/* ── Lesson Detail BottomSheet ── */}
       <BottomSheet
         visible={historyDetailsOpen && !!selectedHistoryLesson}
         onClose={() => setHistoryDetailsOpen(false)}
         title="Dettaglio guida"
         showHandle
+        gradient
       >
         {selectedHistoryLesson ? (
           <>
@@ -1918,7 +2010,7 @@ export const AllievoHomeScreen = () => {
             ) &&
             new Date(selectedHistoryLesson.startsAt).getTime() > Date.now() ? (
               <>
-                {settings?.swapEnabled &&
+                {(bookingOptions?.swapEnabled ?? settings?.swapEnabled) &&
                   ['scheduled', 'confirmed'].includes(
                     (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
                   ) ? (
@@ -1960,6 +2052,7 @@ export const AllievoHomeScreen = () => {
       </BottomSheet>
       {/* ── Booking Preferences BottomSheet ── */}
       <BottomSheet
+        gradient
         visible={prefsOpen}
         onClose={handleClosePreferences}
         onClosed={() => {
@@ -2010,7 +2103,7 @@ export const AllievoHomeScreen = () => {
             }}
           >
             <View style={styles.bookingDateIconLg}>
-              <Ionicons name="calendar" size={20} color="#CA8A04" />
+              <Ionicons name="calendar" size={20} color="#ec4899" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bookingDateMainText}>
@@ -2018,7 +2111,7 @@ export const AllievoHomeScreen = () => {
               </Text>
               <Text style={styles.bookingDateHint}>Scegli quando guidare</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </Pressable>
         </View>
 
@@ -2159,6 +2252,7 @@ export const AllievoHomeScreen = () => {
       />
       {/* ── Free Choice Slot Picker BottomSheet ── */}
       <BottomSheet
+        gradient
         visible={freeChoiceOpen}
         onClose={() => {
           if (!freeChoiceBooking) {
@@ -2220,13 +2314,467 @@ export const AllievoHomeScreen = () => {
           </View>
         </ScrollView>
       </BottomSheet>
-    </Screen>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  /* ── Pill List Layout ── */
+  pillBlob: {
+    position: 'absolute',
+    top: -120,
+    left: -80,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: '#fbd6e6',
+    opacity: 0.7,
+  },
+  pillHeader: {
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  pillEyebrow: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: '#EC4899',
+    marginBottom: 8,
+  },
+  pillTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -1,
+    color: '#1a120a',
+    textTransform: 'uppercase',
+  },
+  pillHeaderBtns: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pillAbsenceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
+  },
+  pillAbsenceBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1a120a',
+  },
+  pillBellBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1a120a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  pillBellDot: {
+    position: 'absolute',
+    top: 9,
+    right: 11,
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#ec4899',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  pillSearchBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#ec4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#d6307f',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  pillFiltersRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingHorizontal: 14,
+    marginBottom: 4,
+    minHeight: 28,
+  },
+  pillFilterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  pillFilterTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1a120a',
+    letterSpacing: 0.2,
+  },
+  pillEmpty: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    gap: 6,
+  },
+  pillEmptyImage: {
+    width: 220,
+    height: 220,
+    opacity: 0.85,
+  },
+  pillEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a120a',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  pillEmptySub: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  /* ── Booking Flow Calendar ── */
+  bkBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  bkBackBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#EC4899',
+  },
+  bkMonthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  bkMonthLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a120a',
+  },
+  bkMonthArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.08)',
+  },
+  bkWeekdayRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  bkWeekdayCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  bkWeekdayText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    letterSpacing: 0.5,
+  },
+  bkGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  bkDayWrapper: {
+    width: '14.28%',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  bkDayCell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bkDayCellToday: {
+    borderWidth: 2,
+    borderColor: '#ec4899',
+  },
+  bkDayCellSelected: {
+    backgroundColor: '#1a120a',
+  },
+  bkDayText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1a120a',
+  },
+  bkDayTextToday: {
+    fontWeight: '700',
+    color: '#ec4899',
+  },
+  bkDayTextSelected: {
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  bkDayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ec4899',
+    marginTop: 2,
+  },
+  bkInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
+  bkInfoText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+
+  pillTopFade: {
+    left: 0,
+    right: 0,
+    height: 40,
+    zIndex: 2,
+    marginBottom: -40,
+  },
+  pillStack: {
+    paddingHorizontal: 14,
+    paddingBottom: 30,
+    gap: 16,
+  },
+  pillSectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  pillPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: '#ec4899',
+  },
+  pillSectionText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: '#EC4899',
+  },
+  pillItem: {
+    borderRadius: 22,
+    shadowColor: '#9c8a76',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  pillItemDefault: {
+    borderWidth: 2,
+    borderColor: 'rgba(26,18,10,0.08)',
+  },
+  pillItemNext: {
+    shadowColor: '#d6307f',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: '#ec4899',
+  },
+  pillItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  pillAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  pillItemTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: '#1a120a',
+  },
+  pillItemSub: {
+    fontSize: 11,
+    fontWeight: '400',
+    color: 'rgba(0,0,0,0.65)',
+    marginTop: 1,
+  },
+  pillChevron: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillBody: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  pillDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.10)',
+    marginBottom: 12,
+  },
+  pillChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginBottom: 14,
+    alignItems: 'center',
+  },
+  pillChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  pillChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#1a120a',
+  },
+  pillCtaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  pillCtaOutline: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.18)',
+  },
+  pillCtaOutlineText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1a120a',
+  },
+  pillCtaFilled: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: '#1a120a',
+  },
+  pillCtaFilledText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  pillTabBarBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#F8F7F4',
+    zIndex: 4,
+  },
+  pillFixedCta: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 5,
+  },
+  pillFixedFade: {
+    height: 40,
+  },
+  pillFixedCtaInner: {
+    backgroundColor: '#F8F7F4',
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+  },
+  pillBookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(214,48,127,0.45)',
+  },
+  pillBookIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: '#ec4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#d6307f',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  pillBookTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: '#1a120a',
+  },
+  pillBookSub: {
+    fontSize: 12,
+    color: '#6b5444',
+    marginTop: 2,
+  },
+
+  /* ── Legacy (kept for BottomSheets) ── */
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     gap: spacing.lg,
     paddingBottom: spacing.xxl * 2 + spacing.md,
   },
@@ -2474,7 +3022,7 @@ const styles = StyleSheet.create({
   },
   emptyLessonCard: {
     borderRadius: radii.lg,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#FACC15',
     borderStyle: 'dashed',
     backgroundColor: '#FFFFFF',
@@ -2651,7 +3199,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 12,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: 'rgba(220, 38, 38, 0.2)',
     backgroundColor: 'rgba(220, 38, 38, 0.04)',
   },
@@ -2669,7 +3217,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     paddingVertical: 12,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: 'rgba(146, 64, 14, 0.25)',
     backgroundColor: 'rgba(146, 64, 14, 0.06)',
   },
@@ -2721,6 +3269,156 @@ const styles = StyleSheet.create({
   },
   agendaList: {
     gap: spacing.sm,
+  },
+  carouselCard: {
+    borderRadius: 28,
+    flex: 1,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  carouselCardImageStyle: {
+    borderRadius: 28,
+  },
+  carouselCardContent: {
+    flex: 1,
+    padding: 24,
+  },
+  carouselCardNumber: {
+    fontSize: 64,
+    fontWeight: '800',
+    color: 'rgba(77,3,32,0.15)',
+    position: 'absolute',
+    top: 16,
+    right: 22,
+    lineHeight: 68,
+  },
+  carouselCardDate: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#4c0320',
+    marginTop: 8,
+  },
+  carouselCardTime: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4c0320',
+    marginTop: 2,
+  },
+  carouselCardMeta: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#fd94cd',
+    marginTop: 4,
+  },
+  carouselCardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+
+  // Lessons list (scroll down view)
+  lessonsListSection: {
+    gap: 12,
+    marginTop: 8,
+  },
+  lessonsListTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A2E',
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  lessonListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: pink[300],
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  lessonListThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  lessonListThumbImage: {
+    borderRadius: 16,
+  },
+  lessonListInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  lessonListDate: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A2E',
+  },
+  lessonListTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  lessonListInstructor: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+
+  cardCtaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  cardCtaBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 14,
+    borderRadius: 20,
+  },
+  cardCtaDetail: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cardCtaDetailText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A2E',
+  },
+  cardCtaCancel: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  cardCtaCancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dateGroupHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 4,
+    paddingHorizontal: 2,
   },
   nextLessonSkeleton: {
     backgroundColor: '#FEF9C3',
@@ -2856,7 +3554,7 @@ const styles = StyleSheet.create({
     minWidth: 62,
     alignItems: 'center',
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: '#FFFFFF',
     paddingVertical: spacing.xs,
@@ -3183,13 +3881,13 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   chunkyPinkCta: {
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1a120a',
     height: 54,
-    borderRadius: 20,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.3,
+    shadowColor: '#1a120a',
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
@@ -3201,7 +3899,7 @@ const styles = StyleSheet.create({
   },
   chunkyOutlineBtn: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#E2E8F0',
     height: 54,
     borderRadius: 20,
@@ -3255,7 +3953,7 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: 20,
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -3301,61 +3999,66 @@ const styles = StyleSheet.create({
 
   /* ── Booking drawer (chunky redesign) ── */
   bookingCreditsBadge: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.08)',
     paddingHorizontal: 12,
     paddingVertical: 5,
   },
   bookingCreditsBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   bookingSection: {
     gap: 10,
   },
   bookingSectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#EC4899',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
   },
   bookingDateCardChunky: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(26,18,10,0.08)',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+    shadowColor: '#9c8a76',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   bookingDateIconLg: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FEF9C3',
+    borderRadius: 999,
+    backgroundColor: '#fbd6e6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookingDateMainText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   bookingDateHint: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 2,
   },
   bookingDurationSingle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   bookingChipRow: {
     flexDirection: 'row',
@@ -3363,46 +4066,46 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   bookingChipChunky: {
-    height: 46,
-    paddingHorizontal: 22,
+    height: 44,
+    paddingHorizontal: 20,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderWidth: 2,
+    borderColor: 'rgba(26,18,10,0.10)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookingChipChunkyActive: {
-    backgroundColor: '#FACC15',
-    borderColor: '#FACC15',
+    backgroundColor: '#1a120a',
+    borderColor: '#1a120a',
   },
   bookingChipChunkyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#9CA3AF',
   },
   bookingChipChunkyTextActive: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#92400E',
+    color: '#FFFFFF',
   },
   bookingInstructorCaption: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#9CA3AF',
     marginTop: 6,
     lineHeight: 16,
   },
   bookingUnavailableCaption: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#EF4444',
+    color: '#c4334e',
     textAlign: 'center',
     marginBottom: 8,
   },
   timelineSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#9CA3AF',
     marginBottom: 16,
   },
   timelineContainer: {
@@ -3419,60 +4122,60 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   timelineHour: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#9CA3AF',
   },
   timelineLine: {
     width: 1.5,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'rgba(26,18,10,0.08)',
     marginTop: 8,
     minHeight: 20,
   },
   timelineCard: {
     flex: 1,
     height: 52,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(26,18,10,0.08)',
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 18,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowColor: '#9c8a76',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
   timelineCardActive: {
-    backgroundColor: '#FACC15',
-    borderColor: '#FACC15',
-    shadowColor: '#D97706',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    backgroundColor: '#1a120a',
+    borderColor: '#1a120a',
+    shadowColor: '#1a120a',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    elevation: 4,
   },
   timelineCardText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#1a120a',
   },
   timelineCardTextActive: {
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#92400E',
+    color: '#FFFFFF',
   },
   timelineCheck: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#92400E',
+    backgroundColor: '#ec4899',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -4,6 +4,7 @@ import {
   Dimensions,
   Keyboard,
   KeyboardEvent,
+  LayoutAnimation,
   Modal,
   PanResponder,
   Platform,
@@ -13,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, typography } from '../theme';
 
 type BottomSheetProps = {
@@ -29,6 +31,7 @@ type BottomSheetProps = {
   bottomInsetMode?: 'safe' | 'none';
   showHandle?: boolean;
   titleRight?: React.ReactNode;
+  gradient?: boolean;
 };
 
 export const BottomSheet = ({
@@ -45,6 +48,7 @@ export const BottomSheet = ({
   bottomInsetMode = 'safe',
   showHandle = false,
   titleRight,
+  gradient = false,
 }: BottomSheetProps) => {
   const insets = useSafeAreaInsets();
   const bottomInset = bottomInsetMode === 'none' ? 0 : insets.bottom;
@@ -245,6 +249,14 @@ export const BottomSheet = ({
             { transform: [{ translateY: animatedSheetTranslate }] },
           ]}
         >
+          {gradient && (
+            <LinearGradient
+              colors={['#FAE0EF', '#F8F7F4']}
+              locations={[0, 1]}
+              style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}
+              pointerEvents="none"
+            />
+          )}
           <View style={styles.dragZone} {...panResponder.panHandlers} />
           {showHandle ? (
             <View style={styles.handleRow}>
@@ -293,7 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 15, 30, 0.45)',
   },
   sheetCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     width: '100%',
     position: 'absolute',
     left: 0,

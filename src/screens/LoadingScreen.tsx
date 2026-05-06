@@ -52,7 +52,7 @@ export const LoadingScreen = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F7F4',
   },
   container: {
     flex: 1,
