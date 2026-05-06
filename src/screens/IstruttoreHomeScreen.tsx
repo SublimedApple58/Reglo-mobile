@@ -673,6 +673,7 @@ export const IstruttoreHomeScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
+  const [sheetStudentProgress, setSheetStudentProgress] = useState<{ completed: number; required: number } | null>(null);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapPending, setSwapPending] = useState(false);
   const [swapSearch, setSwapSearch] = useState('');
@@ -2114,12 +2115,29 @@ export const IstruttoreHomeScreen = () => {
 
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
     setSheetLesson(lesson);
+    setSheetStudentProgress(null);
     setSheetScrollAtBottom(false);
     setSheetScrollAtTop(true);
     setSelectedLessonTypes(resolveInitialLessonTypes(lesson));
     setSelectedRating(lesson.rating ?? null);
     setLessonNotes(lesson.notes ?? '');
   };
+
+  // Fetch student lesson progress when drawer opens
+  useEffect(() => {
+    if (!sheetLesson) return;
+    const studentId = sheetLesson.studentId;
+    let cancelled = false;
+    regloApi.getAppointments({ studentId, limit: 500 }).then((appts) => {
+      if (cancelled) return;
+      const completed = appts.filter((a) => {
+        const s = (a.status ?? '').trim().toLowerCase();
+        return s === 'completed' || s === 'checked_in';
+      }).length;
+      setSheetStudentProgress({ completed, required: 6 });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [sheetLesson]);
 
   const isPending = pendingAction !== null;
   const sheetActionAvailability = useMemo(() => {
@@ -4385,6 +4403,41 @@ export const IstruttoreHomeScreen = () => {
               </View>
             </View>
 
+            {/* PROGRESSO GUIDE */}
+            {sheetLesson.type !== 'esame' && (
+              <View style={styles.sheetProgressSection}>
+                <View style={styles.sheetProgressHeader}>
+                  <Text style={styles.sheetProgressLabel}>PROGRESSO GUIDE</Text>
+                  {sheetStudentProgress ? (
+                    <Text style={styles.sheetProgressCount}>
+                      {sheetStudentProgress.completed}/{sheetStudentProgress.required}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.sheetProgressCount, { color: '#D1D5DB' }]}>…</Text>
+                  )}
+                </View>
+                <View style={styles.sheetProgressBarBg}>
+                  <View
+                    style={[
+                      styles.sheetProgressBarFill,
+                      {
+                        width: sheetStudentProgress
+                          ? `${Math.min(100, (sheetStudentProgress.completed / Math.max(1, sheetStudentProgress.required)) * 100)}%`
+                          : '0%',
+                      },
+                    ]}
+                  />
+                </View>
+                {sheetStudentProgress && sheetStudentProgress.completed >= sheetStudentProgress.required ? (
+                  <Text style={styles.sheetProgressHint}>Obbligo completato</Text>
+                ) : sheetStudentProgress ? (
+                  <Text style={styles.sheetProgressHint}>
+                    {sheetStudentProgress.required - sheetStudentProgress.completed} guide rimanenti
+                  </Text>
+                ) : null}
+              </View>
+            )}
+
             {/* TIPO GUIDA */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionLabel}>TIPO GUIDA</Text>
@@ -6372,6 +6425,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  sheetProgressSection: {
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sheetProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sheetProgressLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: '#9CA3AF',
+  },
+  sheetProgressCount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  sheetProgressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E5E7EB',
+  },
+  sheetProgressBarFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EC4899',
+  },
+  sheetProgressHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
   lessonTypeBlock: {
     marginTop: spacing.sm,
     gap: spacing.xs,
@@ -6563,6 +6656,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    marginTop: 12,
   },
   nextBannerLive: {
     backgroundColor: '#F0FDF4',

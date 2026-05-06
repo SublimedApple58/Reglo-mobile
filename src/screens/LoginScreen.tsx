@@ -32,7 +32,7 @@ export const LoginScreen = ({ onSignup }: LoginScreenProps) => {
   };
 
   return (
-    <Screen>
+    <Screen style={{ backgroundColor: '#FFFFFF' }}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

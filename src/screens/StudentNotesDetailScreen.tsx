@@ -27,7 +27,7 @@ import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/reg
 import { colors, spacing } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 
-const REQUIRED_LESSONS = 10;
+const REQUIRED_LESSONS = 6;
 
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
@@ -269,21 +269,18 @@ export const StudentNotesDetailScreen = () => {
                       </View>
                       {isExam ? (
                         <View style={styles.examTimelineCard}>
-                          <View style={styles.examAccent} />
-                          <View style={styles.examTimelineContent}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <View style={styles.examSmallIcon}>
-                                <Ionicons name="school" size={12} color="#FFFFFF" />
-                              </View>
-                              <Text style={styles.examTimelineLabel}>ESAME</Text>
-                              <Text style={styles.examTimelineTime}>
-                                {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
-                              </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={styles.examSmallIcon}>
+                              <Ionicons name="school" size={12} color="#FFFFFF" />
                             </View>
-                            {appt.notes?.trim() ? (
-                              <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
-                            ) : null}
+                            <Text style={styles.examTimelineLabel}>ESAME</Text>
+                            <Text style={styles.examTimelineTime}>
+                              {formatTime(appt.startsAt)} – {appt.endsAt ? formatTime(appt.endsAt) : ''}
+                            </Text>
                           </View>
+                          {appt.notes?.trim() ? (
+                            <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
+                          ) : null}
                         </View>
                       ) : (
                         <View style={[styles.timelineCard, !appt.notes?.trim() && { opacity: 0.6 }]}>
@@ -611,26 +608,18 @@ const styles = StyleSheet.create({
   },
   examTimelineCard: {
     flex: 1,
-    flexDirection: 'row' as const,
     backgroundColor: '#F5F3FF',
     borderRadius: 22,
     borderWidth: 1,
     borderColor: '#DDD6FE',
     marginBottom: 10,
+    padding: 14,
+    gap: 4,
     shadowColor: '#9c8a76',
     shadowOpacity: 0.12,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-  },
-  examAccent: {
-    width: 4,
-    backgroundColor: '#8B5CF6',
-  },
-  examTimelineContent: {
-    flex: 1,
-    padding: 14,
-    gap: 4,
   },
   examSmallIcon: {
     width: 22,

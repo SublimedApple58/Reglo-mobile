@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
@@ -7,9 +7,10 @@ import { colors } from '../theme';
 type ScreenProps = {
   children: React.ReactNode;
   gradient?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
-export const Screen = ({ children, gradient }: ScreenProps) => {
+export const Screen = ({ children, gradient, style }: ScreenProps) => {
   const insets = useSafeAreaInsets();
   const Container = gradient ? LinearGradient : View;
   const containerProps = gradient
@@ -17,7 +18,7 @@ export const Screen = ({ children, gradient }: ScreenProps) => {
     : {};
 
   return (
-    <Container style={styles.root} {...containerProps}>
+    <Container style={[styles.root, style]} {...containerProps}>
       <View style={[styles.content, { paddingTop: insets.top }]}>{children}</View>
     </Container>
   );

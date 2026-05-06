@@ -773,6 +773,31 @@ export const AllievoHomeScreen = () => {
     return set;
   }, [appointments]);
 
+  const nextExam = useMemo(() => {
+    const now = new Date();
+    return appointments
+      .filter((appt) => {
+        if (appt.type !== 'esame') return false;
+        const status = (appt.status ?? '').trim().toLowerCase();
+        if (status === 'cancelled') return false;
+        return new Date(appt.startsAt) >= now;
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ?? null;
+  }, [appointments]);
+
+  const examCountdown = useMemo(() => {
+    if (!nextExam) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const examDate = new Date(nextExam.startsAt);
+    examDate.setHours(0, 0, 0, 0);
+    const diffMs = examDate.getTime() - now.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return { days: 0, label: 'Oggi!' };
+    if (diffDays === 1) return { days: 1, label: 'Domani!' };
+    return { days: diffDays, label: `Tra ${diffDays} giorni` };
+  }, [nextExam]);
+
   const agendaLessons = useMemo(() => {
     const fromTs = calendarRange ? new Date(calendarRange.from).getTime() : null;
     const toTs = calendarRange ? new Date(calendarRange.to).getTime() : null;
@@ -1416,10 +1441,10 @@ export const AllievoHomeScreen = () => {
   };
 
 
-  // First pill auto-expanded until user interacts
+  // First pill auto-expanded until user interacts (collapsed if exam card visible)
   const effectiveExpandedId = userToggledRef.current
     ? expandedPillId
-    : (expandedPillId ?? upcoming[0]?.id ?? null);
+    : (expandedPillId ?? (nextExam ? null : upcoming[0]?.id ?? null));
 
   const PILL_COLORS = ['#FDE4F0', '#FEE8C8', '#EDE5FE', '#D5FAE5', '#FEF6CC'];
   const PILL_BORDERS = ['#F0A6C9', '#F2C48A', '#C5B0F0', '#82DBA8', '#F0DC7A'];
@@ -1540,6 +1565,28 @@ export const AllievoHomeScreen = () => {
             </Animated.View>
           )}
         </View>
+
+        {/* ── Exam Countdown Card ── */}
+        {nextExam && examCountdown && (
+          <Animated.View entering={FadeInUp.duration(500).delay(100)}>
+            <View style={styles.examCard}>
+              <View style={styles.examCardContent}>
+                <View style={styles.examCardCountdown}>
+                  <Text style={styles.examCardCountdownText}>{examCountdown.label}</Text>
+                </View>
+                <Text style={styles.examCardTitle}>Esame di guida</Text>
+                <Text style={styles.examCardDate}>
+                  {formatDay(nextExam.startsAt)} · {formatTime(nextExam.startsAt)}
+                </Text>
+              </View>
+              <Image
+                source={require('../../assets/duck-graduate.png')}
+                style={styles.examCardDuck}
+                resizeMode="contain"
+              />
+            </View>
+          </Animated.View>
+        )}
 
         {/* Skeleton while loading — only if no real data yet */}
         {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
@@ -2794,58 +2841,58 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* ── Exam Priority Banner ── */
-  examBanner: {
-    borderRadius: radii.lg,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-    zIndex: 1,
-  },
-  examBannerRow: {
+  /* ── Exam Countdown Card ── */
+  examCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingLeft: 18,
+    paddingVertical: 8,
+    paddingRight: 4,
+    gap: 8,
+    shadowColor: '#8B5CF6',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  examBannerIcon: {
-    fontSize: 24,
-  },
-  examBannerContent: {
+  examCardContent: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
-  examBannerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  examBannerDate: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  examBannerPill: {
+  examCardCountdown: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    marginTop: 4,
   },
-  examBannerPillText: {
-    fontSize: 12,
-    fontWeight: '700',
+  examCardCountdownText: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
-  examBannerSubtext: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 6,
+  examCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1a120a',
+    letterSpacing: -0.2,
+  },
+  examCardDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  examCardDuck: {
+    width: 200,
+    height: 200,
+    marginRight: -45,
+    marginTop: -50,
+    marginBottom: -70,
   },
 
   /* ── Blocked by exam priority ── */

@@ -80,6 +80,10 @@ const AuthGate = () => {
     const inTabs = root === '(tabs)';
 
     if (status === 'unauthenticated') {
+      // Cancel all in-flight queries and clear cache to prevent
+      // stale API calls with invalidated token (crashes on instructor logout)
+      queryClient.cancelQueries();
+      queryClient.clear();
       const allowedAuthLeaves = new Set(['login', 'signup', 'invite']);
       if (!inAuth || !allowedAuthLeaves.has(leaf ?? '')) {
         router.replace('/(auth)/login');
