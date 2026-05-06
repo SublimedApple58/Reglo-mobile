@@ -131,8 +131,6 @@ export const StudentMyNotesScreen = () => {
                   </View>
                   {isExam ? (
                     <View style={styles.examCard}>
-                      <View style={styles.examAccent} />
-                      <View style={styles.examContent}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <View style={styles.examIconCircle}>
                             <Ionicons name="school" size={14} color="#FFFFFF" />
@@ -149,7 +147,6 @@ export const StudentMyNotesScreen = () => {
                         {appt.notes?.trim() ? (
                           <Text style={styles.timelineNote}>{appt.notes.trim()}</Text>
                         ) : null}
-                      </View>
                     </View>
                   ) : (
                     <View style={styles.timelineCard}>
@@ -293,26 +290,18 @@ const styles = StyleSheet.create({
   },
   examCard: {
     flex: 1,
-    flexDirection: 'row' as const,
     backgroundColor: '#F5F3FF',
     borderRadius: 22,
     borderWidth: 1,
     borderColor: '#DDD6FE',
     marginBottom: 10,
+    padding: 14,
+    gap: 4,
     shadowColor: '#9c8a76',
     shadowOpacity: 0.12,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-  },
-  examAccent: {
-    width: 4,
-    backgroundColor: '#8B5CF6',
-  },
-  examContent: {
-    flex: 1,
-    padding: 14,
-    gap: 4,
   },
   examIconCircle: {
     width: 24,
