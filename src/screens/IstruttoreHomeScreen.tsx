@@ -45,6 +45,7 @@ import { Button } from '../components/Button';
 import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
+import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -690,6 +691,7 @@ export const IstruttoreHomeScreen = () => {
     appointments: AutoscuolaAppointmentWithRelations[];
   } | null>(null);
   const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
+  const [examTimePickerOpen, setExamTimePickerOpen] = useState(false);
   const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
@@ -5339,46 +5341,17 @@ export const IstruttoreHomeScreen = () => {
             </View>
           </View>
 
-          {/* Modifica orario */}
-          {examDrawerGroup && !examDrawerGroup.endsAt ? (
+          {/* Imposta / Modifica orario */}
+          {examDrawerGroup ? (
             <Pressable
-              onPress={() => {
-                setExamDrawerGroup(null);
-                // Navigate to a time picker flow — for simplicity, prompt with an alert
-                const ids = examDrawerGroup.appointments.map((a) => a.id);
-                const startsAtDate = new Date(examDrawerGroup.startsAt);
-                // Default: set time to 09:00, 1h duration
-                const newStart = new Date(startsAtDate);
-                newStart.setHours(9, 0, 0, 0);
-                const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
-                Alert.alert(
-                  'Imposta orario esame',
-                  'Vuoi impostare l\u2019orario alle 09:00 (durata 1 ora)? Potrai modificarlo successivamente.',
-                  [
-                    { text: 'Annulla', style: 'cancel' },
-                    {
-                      text: 'Conferma',
-                      onPress: async () => {
-                        try {
-                          await regloApi.updateExamTime({
-                            appointmentIds: ids,
-                            startsAt: newStart.toISOString(),
-                            endsAt: newEnd.toISOString(),
-                          });
-                          loadData();
-                        } catch {
-                          Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
-                        }
-                      },
-                    },
-                  ],
-                );
-              }}
+              onPress={() => setExamTimePickerOpen(true)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', marginBottom: 12 }}
             >
               <Ionicons name="time-outline" size={16} color="#4338CA" />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#4338CA', flex: 1 }}>Imposta orario</Text>
-              <Ionicons name="chevron-forward" size={16} color="#4338CA" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#4338CA', flex: 1 }}>
+                {examDrawerGroup.endsAt ? 'Modifica orario' : 'Imposta orario'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#6366F1" />
             </Pressable>
           ) : null}
 
@@ -5493,6 +5466,37 @@ export const IstruttoreHomeScreen = () => {
           </Pressable>
         </ScrollView>
       </BottomSheet>
+
+      {/* ── Exam time picker ── */}
+      <TimePickerDrawer
+        visible={examTimePickerOpen}
+        onClose={() => setExamTimePickerOpen(false)}
+        selectedTime={examDrawerGroup?.endsAt ? new Date(examDrawerGroup.startsAt) : (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
+        onSelectTime={async (d) => {
+          setExamTimePickerOpen(false);
+          if (!examDrawerGroup) return;
+          const ids = examDrawerGroup.appointments.map((a) => a.id);
+          const startsAtDate = new Date(examDrawerGroup.startsAt);
+          const newStart = new Date(startsAtDate);
+          newStart.setHours(d.getHours(), d.getMinutes(), 0, 0);
+          const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+          try {
+            await regloApi.updateExamTime({
+              appointmentIds: ids,
+              startsAt: newStart.toISOString(),
+              endsAt: newEnd.toISOString(),
+            });
+            setExamDrawerGroup({
+              ...examDrawerGroup,
+              startsAt: newStart.toISOString(),
+              endsAt: newEnd.toISOString(),
+            });
+            loadData();
+          } catch {
+            Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
+          }
+        }}
+      />
 
       {/* ── Cluster details drawer (all-instructors scope) ── */}
       <BottomSheet
