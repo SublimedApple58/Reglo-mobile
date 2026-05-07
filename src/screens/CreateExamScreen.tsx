@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -57,6 +58,7 @@ export const CreateExamScreen = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [examDate, setExamDate] = useState(new Date());
   const [examEndDate, setExamEndDate] = useState(new Date(Date.now() + 60 * 60 * 1000));
+  const [timeSet, setTimeSet] = useState(true);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
@@ -158,12 +160,22 @@ export const CreateExamScreen = () => {
     }
     setSaving(true);
     try {
-      await regloApi.createExam({
-        studentIds: selectedStudentIds,
-        startsAt: examDate.toISOString(),
-        endsAt: examEndDate.toISOString(),
-        notes: notes || undefined,
-      });
+      if (timeSet) {
+        await regloApi.createExam({
+          studentIds: selectedStudentIds,
+          startsAt: examDate.toISOString(),
+          endsAt: examEndDate.toISOString(),
+          notes: notes || undefined,
+        });
+      } else {
+        const dateOnly = new Date(examDate);
+        dateOnly.setHours(0, 0, 0, 0);
+        await regloApi.createExam({
+          studentIds: selectedStudentIds,
+          startsAt: dateOnly.toISOString(),
+          notes: notes || undefined,
+        });
+      }
       setToast({ text: 'Esame creato', tone: 'success' });
       setTimeout(() => router.back(), 1200);
     } catch (err: unknown) {
@@ -261,11 +273,23 @@ export const CreateExamScreen = () => {
                 <Text style={styles.dateText}>{formatDate(examDate)}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
               </Pressable>
-              <Pressable style={styles.dateRow} onPress={() => setTimeDrawerOpen(true)}>
+              <View style={styles.dateRow}>
                 <Ionicons name="time-outline" size={20} color="#64748B" />
-                <Text style={styles.dateText}>{formatTime(examDate)}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-              </Pressable>
+                <Text style={[styles.dateText, { flex: 1 }]}>{timeSet ? formatTime(examDate) : 'Da definire'}</Text>
+                <Switch
+                  value={timeSet}
+                  onValueChange={setTimeSet}
+                  trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              {timeSet && (
+                <Pressable style={styles.dateRow} onPress={() => setTimeDrawerOpen(true)}>
+                  <Ionicons name="pencil-outline" size={18} color="#64748B" />
+                  <Text style={styles.dateText}>Modifica orario</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                </Pressable>
+              )}
             </View>
 
             {/* Notes */}

@@ -112,6 +112,14 @@ type AppointmentColors = { bg: string; border: string; text: string };
  * Color map aligned with daily view's timelineStatusConfig.
  * Single source of truth for appointment status colors.
  */
+const getDurationColors = (durationMinutes: number): AppointmentColors => {
+  if (durationMinutes <= 30) return { bg: '#F0FDFA', border: '#14B8A6', text: '#0F766E' };   // teal
+  if (durationMinutes <= 45) return { bg: '#F7FEE7', border: '#84CC16', text: '#4D7C0F' };   // lime
+  if (durationMinutes <= 60) return { bg: '#FEF9C3', border: '#FACC15', text: '#CA8A04' };   // yellow
+  if (durationMinutes <= 90) return { bg: '#FDF4FF', border: '#D946EF', text: '#A21CAF' };   // fuchsia
+  return { bg: '#FFF1F2', border: '#F43F5E', text: '#BE123C' };                               // rose
+};
+
 const getAppointmentColors = (
   appt: AutoscuolaAppointmentWithRelations,
   completedMinutes: Record<string, number>,
@@ -138,15 +146,16 @@ const getAppointmentColors = (
     case 'scheduled':
     case 'confirmed':
     default: {
-      // Mandatory if student < 8h completed AND lesson ≥ 60 min
       const start = new Date(appt.startsAt).getTime();
       const end = appt.endsAt ? new Date(appt.endsAt).getTime() : start + 60 * 60 * 1000;
       const dur = Math.round((end - start) / 60000);
+      // Mandatory: student < 6h completed AND lesson ≥ 60 min
       const mins = completedMinutes[appt.studentId] ?? 0;
       if (mins < MANDATORY_MINUTES_THRESHOLD && dur >= 60) {
         return { bg: '#F0F9FF', border: '#0EA5E9', text: '#0369A1' };
       }
-      return { bg: '#FEF9C3', border: '#FACC15', text: '#CA8A04' };
+      // Duration-based colors
+      return getDurationColors(dur);
     }
   }
 };
@@ -187,7 +196,7 @@ const SKELETON_BLOCKS = [
   { col: 5, top: 3.5, h: 1.2 },
 ];
 
-const MANDATORY_MINUTES_THRESHOLD = 480; // 8 hours
+const MANDATORY_MINUTES_THRESHOLD = 360; // 6 hours
 
 export default function WeeklyAgendaView({
   appointments,
@@ -594,15 +603,16 @@ export default function WeeklyAgendaView({
                 }
                 const appt = entry.appt;
                 const start = new Date(appt.startsAt);
+                const isTimelessExam = appt.type === 'esame' && !appt.endsAt;
                 const sm = start.getHours() * 60 + start.getMinutes();
-                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+                const top = isTimelessExam ? 0 : ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
                 let dur = 60;
                 if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
                 const height = Math.max((dur / 60) * ROW_H, 24);
                 const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
                 const isExam = appt.type === 'esame';
-                const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
-                const showTime = height >= 38;
+                const label = isExam ? (isTimelessExam ? 'Esame' : 'Esame') : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
+                const showTime = height >= 38 && !isTimelessExam;
                 return (
                   <Pressable
                     key={appt.id}
@@ -611,14 +621,15 @@ export default function WeeklyAgendaView({
                       else onPressAppointment(appt);
                     }}
                     style={({ pressed }) => ({
-                      position: 'absolute', top, height,
+                      position: 'absolute', top, height: isTimelessExam ? 22 : height,
                       left: GUTTER_W + colIdx * colW + 2, width: colW - 4,
                       backgroundColor: pressed ? border + '30' : bg,
                       borderLeftWidth: 3, borderLeftColor: border, borderRadius: 4,
                       paddingHorizontal: 3, paddingVertical: 2, overflow: 'hidden',
+                      zIndex: isTimelessExam ? 20 : 10,
                     })}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>{label}</Text>
+                    <Text style={{ fontSize: isTimelessExam ? 9 : 11, fontWeight: '600', color: text, lineHeight: isTimelessExam ? 12 : 14 }} numberOfLines={1}>{label}</Text>
                     {showTime && (
                       <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
                         {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
@@ -631,8 +642,9 @@ export default function WeeklyAgendaView({
           : appointmentsByCol.map((colAppts, colIdx) =>
               colAppts.map((appt) => {
                 const start = new Date(appt.startsAt);
+                const isTimelessExam = appt.type === 'esame' && !appt.endsAt;
                 const sm = start.getHours() * 60 + start.getMinutes();
-                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+                const top = isTimelessExam ? 0 : ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
                 let dur = 60;
                 if (appt.endsAt) {
                   dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
@@ -641,7 +653,7 @@ export default function WeeklyAgendaView({
                 const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
                 const isExam = appt.type === 'esame';
                 const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
-                const showTime = height >= 38;
+                const showTime = height >= 38 && !isTimelessExam;
 
                 return (
                   <Pressable
@@ -656,7 +668,7 @@ export default function WeeklyAgendaView({
                     style={({ pressed }) => ({
                       position: 'absolute',
                       top,
-                      height,
+                      height: isTimelessExam ? 22 : height,
                       left: GUTTER_W + colIdx * colW + 2,
                       width: colW - 4,
                       backgroundColor: pressed ? border + '30' : bg,
@@ -666,9 +678,10 @@ export default function WeeklyAgendaView({
                       paddingHorizontal: 3,
                       paddingVertical: 2,
                       overflow: 'hidden',
+                      zIndex: isTimelessExam ? 20 : 10,
                     })}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>
+                    <Text style={{ fontSize: isTimelessExam ? 9 : 11, fontWeight: '600', color: text, lineHeight: isTimelessExam ? 12 : 14 }} numberOfLines={1}>
                       {label}
                     </Text>
                     {showTime && (

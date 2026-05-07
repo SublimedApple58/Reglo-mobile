@@ -501,6 +501,7 @@ export type AutoscuolaSettings = {
   appBookingActors?: 'students' | 'instructors' | 'both';
   instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
+  studentCancellationEnabled?: boolean;
   studentNotesEnabled?: boolean;
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
@@ -532,6 +533,7 @@ export type MobileBookingOptions = {
   weeklyAbsenceEnabled?: boolean;
   appBookingActors?: 'students' | 'instructors' | 'both';
   swapEnabled?: boolean;
+  studentCancellationEnabled?: boolean;
   examPriority?: { active: boolean; examDate: string | null };
   blockedByExamPriority?: boolean;
 };
@@ -740,6 +742,7 @@ export type InstructorClusterSettings = {
   appBookingActors?: 'students' | 'instructors' | 'both';
   instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
+  studentCancellationEnabled?: boolean;
   swapNotifyMode?: 'all' | 'available_only';
   bookingCutoffEnabled?: boolean;
   bookingCutoffTime?: string;
@@ -804,6 +807,7 @@ export type CompanyBookingDefaults = {
   restrictedTimeRangeStart: string;
   restrictedTimeRangeEnd: string;
   weeklyAbsenceEnabled: boolean;
+  studentCancellationEnabled: boolean;
   quizEnabled: boolean;
 };
 

@@ -589,6 +589,7 @@ export const AllievoHomeScreen = () => {
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   // Prefer cluster-resolved setting over company default
+  const canCancelAppointments = bookingOptions?.studentCancellationEnabled !== false;
   const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
   const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
   const requiresPaymentMethodForBooking = Boolean(
@@ -1705,7 +1706,7 @@ export const AllievoHomeScreen = () => {
                           <Text style={styles.pillCtaOutlineText}>{creatingSwap ? 'Invio...' : 'Cerca sostituto'}</Text>
                         </Pressable>
                       )}
-                      {isFutureActive && (
+                      {isFutureActive && canCancelAppointments && (
                         <Pressable
                           onPress={() => handleCancel(lesson.id)}
                           disabled={cancellingAppointmentId === lesson.id}
@@ -2113,6 +2114,7 @@ export const AllievoHomeScreen = () => {
                     </Text>
                   </Pressable>
                 ) : null}
+                {canCancelAppointments && (
                 <Pressable
                   style={[styles.detailCancelBtn, cancellingAppointmentId === selectedHistoryLesson.id && { opacity: 0.5 }]}
                   onPress={() => {
@@ -2129,6 +2131,7 @@ export const AllievoHomeScreen = () => {
                       : 'Annulla guida'}
                   </Text>
                 </Pressable>
+                )}
               </>
             ) : null}
           </>

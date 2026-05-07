@@ -181,9 +181,15 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
 
-    createExam: async (input: { studentIds: string[]; startsAt: string; endsAt: string; instructorId?: string; notes?: string }) =>
+    createExam: async (input: { studentIds: string[]; startsAt: string; endsAt?: string; instructorId?: string; notes?: string }) =>
       client.request<{ count: number }>('/api/autoscuole/exam', {
         method: 'POST',
+        body: input,
+      }),
+
+    updateExamTime: async (input: { appointmentIds: string[]; startsAt: string; endsAt?: string }) =>
+      client.request<unknown>('/api/autoscuole/exam', {
+        method: 'PATCH',
         body: input,
       }),
 

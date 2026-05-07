@@ -73,12 +73,13 @@ export const ClusterSettingsScreen = () => {
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [bookingSlotDurations, setBookingSlotDurations] = useState<number[]>([30, 60]);
   const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
-  const [companyDefaults, setCompanyDefaults] = useState<{ bookingSlotDurations: number[]; roundedHoursOnly: boolean; appBookingActors: string; instructorBookingMode: string; swapEnabled: boolean; bookingCutoffEnabled: boolean; bookingCutoffTime: string; weeklyBookingLimitEnabled: boolean; weeklyBookingLimit: number; weeklyAbsenceEnabled: boolean; restrictedTimeRangeEnabled: boolean; restrictedTimeRangeStart: string; restrictedTimeRangeEnd: string }>({
+  const [companyDefaults, setCompanyDefaults] = useState<{ bookingSlotDurations: number[]; roundedHoursOnly: boolean; appBookingActors: string; instructorBookingMode: string; swapEnabled: boolean; studentCancellationEnabled: boolean; bookingCutoffEnabled: boolean; bookingCutoffTime: string; weeklyBookingLimitEnabled: boolean; weeklyBookingLimit: number; weeklyAbsenceEnabled: boolean; restrictedTimeRangeEnabled: boolean; restrictedTimeRangeStart: string; restrictedTimeRangeEnd: string }>({
     bookingSlotDurations: [30, 60],
     roundedHoursOnly: false,
     appBookingActors: 'students',
     instructorBookingMode: 'manual_engine',
     swapEnabled: false,
+    studentCancellationEnabled: true,
     bookingCutoffEnabled: false,
     bookingCutoffTime: '18:00',
     weeklyBookingLimitEnabled: false,
@@ -94,6 +95,7 @@ export const ClusterSettingsScreen = () => {
   const [instructorBookingMode, setInstructorBookingMode] = useState<string | undefined>(undefined);
   // New cluster booking settings
   const [swapEnabled, setSwapEnabled] = useState<boolean | undefined>(undefined);
+  const [studentCancellationEnabled, setStudentCancellationEnabled] = useState<boolean | undefined>(undefined);
   const [bookingCutoffEnabled, setBookingCutoffEnabled] = useState<boolean | undefined>(undefined);
   const [bookingCutoffTime, setBookingCutoffTime] = useState<string | undefined>(undefined);
   const [weeklyLimitEnabled, setWeeklyLimitEnabled] = useState<boolean | undefined>(undefined);
@@ -176,6 +178,7 @@ export const ClusterSettingsScreen = () => {
       setAppBookingActors(res.settings.appBookingActors);
       setInstructorBookingMode(res.settings.instructorBookingMode);
       setSwapEnabled(res.settings.swapEnabled);
+      setStudentCancellationEnabled(res.settings.studentCancellationEnabled);
       setBookingCutoffEnabled(res.settings.bookingCutoffEnabled);
       setBookingCutoffTime(res.settings.bookingCutoffTime);
       setWeeklyLimitEnabled(res.settings.weeklyBookingLimitEnabled);
@@ -216,6 +219,7 @@ export const ClusterSettingsScreen = () => {
         appBookingActors: appBookingActors as 'students' | 'instructors' | 'both' | undefined,
         instructorBookingMode: instructorBookingMode as 'manual_full' | 'manual_engine' | undefined,
         swapEnabled,
+        studentCancellationEnabled,
         bookingCutoffEnabled,
         bookingCutoffTime,
         weeklyBookingLimitEnabled: weeklyLimitEnabled,
@@ -578,6 +582,23 @@ export const ClusterSettingsScreen = () => {
                     <Switch
                       value={swapEnabled ?? companyDefaults.swapEnabled}
                       onValueChange={(v) => setSwapEnabled(v)}
+                      trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
+
+                  <View style={[styles.inlineToggleRow, { marginTop: 14 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inlineToggleLabel}>Annullamento guide allievi</Text>
+                      <Text style={styles.inlineToggleDesc}>
+                        {studentCancellationEnabled === undefined
+                          ? `Default: ${companyDefaults.studentCancellationEnabled ? 'Attivo' : 'Off'}`
+                          : studentCancellationEnabled ? 'Attivo' : 'Disattivo'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={studentCancellationEnabled ?? companyDefaults.studentCancellationEnabled}
+                      onValueChange={(v) => setStudentCancellationEnabled(v)}
                       trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
                       thumbColor="#FFFFFF"
                     />

@@ -5211,12 +5211,57 @@ export const IstruttoreHomeScreen = () => {
               <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>Esame di guida</Text>
               {examDrawerGroup ? (
                 <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
-                  {formatDay(examDrawerGroup.startsAt)} · {formatTime(examDrawerGroup.startsAt)}
-                  {examDrawerGroup.endsAt ? ` – ${formatTime(examDrawerGroup.endsAt)}` : ''}
+                  {formatDay(examDrawerGroup.startsAt)}
+                  {examDrawerGroup.endsAt
+                    ? ` · ${formatTime(examDrawerGroup.startsAt)} – ${formatTime(examDrawerGroup.endsAt)}`
+                    : ' · Orario da definire'}
                 </Text>
               ) : null}
             </View>
           </View>
+
+          {/* Modifica orario */}
+          {examDrawerGroup && !examDrawerGroup.endsAt ? (
+            <Pressable
+              onPress={() => {
+                setExamDrawerGroup(null);
+                // Navigate to a time picker flow — for simplicity, prompt with an alert
+                const ids = examDrawerGroup.appointments.map((a) => a.id);
+                const startsAtDate = new Date(examDrawerGroup.startsAt);
+                // Default: set time to 09:00, 1h duration
+                const newStart = new Date(startsAtDate);
+                newStart.setHours(9, 0, 0, 0);
+                const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+                Alert.alert(
+                  'Imposta orario esame',
+                  'Vuoi impostare l\u2019orario alle 09:00 (durata 1 ora)? Potrai modificarlo successivamente.',
+                  [
+                    { text: 'Annulla', style: 'cancel' },
+                    {
+                      text: 'Conferma',
+                      onPress: async () => {
+                        try {
+                          await regloApi.updateExamTime({
+                            appointmentIds: ids,
+                            startsAt: newStart.toISOString(),
+                            endsAt: newEnd.toISOString(),
+                          });
+                          loadData();
+                        } catch {
+                          Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
+                        }
+                      },
+                    },
+                  ],
+                );
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', marginBottom: 12 }}
+            >
+              <Ionicons name="time-outline" size={16} color="#4338CA" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#4338CA', flex: 1 }}>Imposta orario</Text>
+              <Ionicons name="chevron-forward" size={16} color="#4338CA" />
+            </Pressable>
+          ) : null}
 
           {examDrawerGroup?.instructorName ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 12 }}>
