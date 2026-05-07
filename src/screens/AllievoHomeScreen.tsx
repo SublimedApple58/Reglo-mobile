@@ -1892,11 +1892,47 @@ export const AllievoHomeScreen = () => {
               </View>
             )}
 
-            {/* Instructor info */}
+            {/* Instructor selection / info */}
             {isLockedToInstructor && assignedInstructorName ? (
               <View style={[styles.bkInfoRow, { marginTop: availableDurations.length > 1 ? 12 : 0 }]}>
                 <Ionicons name="person-outline" size={14} color="#9CA3AF" />
                 <Text style={styles.bkInfoText}>{assignedInstructorName} · {durationMinutes} min</Text>
+              </View>
+            ) : canSelectInstructor && visibleInstructors.length > 0 ? (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
+                <View style={styles.bookingChipRow}>
+                  {visibleInstructors.length > 1 ? (
+                    <Pressable
+                      style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
+                      onPress={() => {
+                        setSelectedInstructorId(null);
+                        handleBookingDateSelect(preferredDate);
+                      }}
+                    >
+                      <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                        Tutti
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {visibleInstructors.map((instructor) => {
+                    const isActive = selectedInstructorId === instructor.id;
+                    return (
+                      <Pressable
+                        key={`bk-instr-${instructor.id}`}
+                        style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
+                        onPress={() => {
+                          setSelectedInstructorId(instructor.id);
+                          handleBookingDateSelect(preferredDate);
+                        }}
+                      >
+                        <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
+                          {instructor.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
             ) : null}
 
