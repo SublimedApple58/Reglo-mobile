@@ -562,9 +562,10 @@ const TP_ITEM_H = 48;
 const TP_COL_H = 250;
 const tpPad = (n: number) => String(n).padStart(2, '0');
 
-const InlineTimePicker = ({ selectedTime, onSelectTime }: {
+const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
   selectedTime: Date;
   onSelectTime: (date: Date) => void;
+  loading?: boolean;
 }) => {
   const [hour, setHour] = useState(() => selectedTime.getHours());
   const [minute, setMinute] = useState(() => {
@@ -632,6 +633,7 @@ const InlineTimePicker = ({ selectedTime, onSelectTime }: {
       </View>
       {/* Confirm CTA */}
       <Pressable
+        disabled={loading}
         onPress={() => {
           const result = new Date(selectedTime);
           result.setHours(hour, minute, 0, 0);
@@ -641,11 +643,16 @@ const InlineTimePicker = ({ selectedTime, onSelectTime }: {
           { backgroundColor: '#EC4899', borderRadius: radii.sm, minHeight: 52, alignItems: 'center', justifyContent: 'center',
             shadowColor: '#EC4899', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
           pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+          loading && { opacity: 0.6 },
         ]}
       >
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
-          Conferma {tpPad(hour)}:{tpPad(minute)}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+            Conferma {tpPad(hour)}:{tpPad(minute)}
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -693,6 +700,7 @@ export const IstruttoreHomeScreen = () => {
   } | null>(null);
   const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
   const [examDrawerMode, setExamDrawerMode] = useState<'details' | 'timepicker'>('details');
+  const [examTimeSaving, setExamTimeSaving] = useState(false);
   const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
@@ -5335,8 +5343,10 @@ export const IstruttoreHomeScreen = () => {
             </Pressable>
             <InlineTimePicker
               selectedTime={examDrawerGroup.endsAt ? new Date(examDrawerGroup.startsAt) : (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
+              loading={examTimeSaving}
               onSelectTime={async (d) => {
                 if (!examDrawerGroup) return;
+                setExamTimeSaving(true);
                 const ids = examDrawerGroup.appointments.map((a) => a.id);
                 const startsAtDate = new Date(examDrawerGroup.startsAt);
                 const newStart = new Date(startsAtDate);
@@ -5357,6 +5367,8 @@ export const IstruttoreHomeScreen = () => {
                   loadData();
                 } catch {
                   Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
+                } finally {
+                  setExamTimeSaving(false);
                 }
               }}
             />
