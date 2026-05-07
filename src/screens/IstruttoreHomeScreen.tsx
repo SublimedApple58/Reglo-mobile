@@ -1852,8 +1852,9 @@ export const IstruttoreHomeScreen = () => {
     for (const h of availableHours) {
       if (h < earliest) earliest = h;
     }
-    // Check appointments
+    // Check appointments (skip timeless exams — they render as banners, not in the grid)
     for (const appt of appointments) {
+      if (appt.type === 'esame' && !appt.endsAt) continue;
       const h = new Date(appt.startsAt).getHours();
       if (normalizeStatus(appt.status) !== 'cancelled' && h < earliest) earliest = h;
     }
@@ -7176,6 +7177,7 @@ const oobStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: 8,
+    marginTop: spacing.sm,
   },
   bannerText: {
     flex: 1,
