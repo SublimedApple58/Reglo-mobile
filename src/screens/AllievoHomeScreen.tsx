@@ -499,15 +499,15 @@ export const AllievoHomeScreen = () => {
         startsAt: bookingSelectedSlot.startsAt,
         endsAt: bookingSelectedSlot.endsAt,
         status: 'scheduled',
-        instructorId: bookingSelectedSlot.instructorId ?? null,
+        instructorId: selectedInstructorId ?? null,
         vehicleId: null,
         notes: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         student: { id: selectedStudentId, name: '' } as any,
         case: null,
-        instructor: bookingSelectedSlot.instructorName
-          ? { id: bookingSelectedSlot.instructorId, name: bookingSelectedSlot.instructorName, user: { name: bookingSelectedSlot.instructorName } } as any
+        instructor: selectedInstructorId
+          ? (instructors.find((i) => i.id === selectedInstructorId) ?? null)
           : null,
         vehicle: null,
       };
@@ -519,7 +519,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         selectedStartsAt: bookingSelectedSlot.startsAt,
-        instructorId: bookingSelectedSlot.instructorId,
+        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
       });
