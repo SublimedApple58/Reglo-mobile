@@ -625,8 +625,10 @@ const InlineTimePicker = ({ selectedTime, onSelectTime }: {
       </View>
       {/* Duck mascot */}
       <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 4 }}>
-        <Image source={require('../../assets/duck-clock.png')} style={{ width: 100, height: 73, marginBottom: 4 }} resizeMode="contain" />
-        <Text style={{ fontSize: 14, color: '#94A3B8' }}>Scegli l'ora della guida</Text>
+        <View style={{ width: 110, height: 110, borderRadius: 55, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}>
+          <Image source={require('../../assets/duck-clock.png')} style={{ width: 80, height: 58 }} resizeMode="contain" />
+        </View>
+        <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>Scegli l'ora della guida</Text>
       </View>
       {/* Confirm CTA */}
       <Pressable
