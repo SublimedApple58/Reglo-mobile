@@ -453,7 +453,7 @@ export const AllievoHomeScreen = () => {
     setBookingMonth(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
   };
 
-  const handleBookingDateSelect = async (date: Date) => {
+  const handleBookingDateSelect = async (date: Date, overrideInstructorId?: string | null) => {
     const isStepChange = bookingStep === 1;
     setPreferredDate(date);
     if (isStepChange) {
@@ -467,13 +467,14 @@ export const AllievoHomeScreen = () => {
     }
     setBookingSelectedSlot(null);
     if (!selectedStudentId) { setBookingSlotsLoading(false); return; }
+    const effectiveInstructor = overrideInstructorId !== undefined ? overrideInstructorId : selectedInstructorId;
     try {
       const slots = await regloApi.getAvailableSlots({
         studentId: selectedStudentId,
         date: toDateString(date),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
-        ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
+        ...(effectiveInstructor ? { instructorId: effectiveInstructor } : {}),
       });
       setBookingSlots(slots);
     } catch { setBookingSlots([]); }
@@ -1907,7 +1908,7 @@ export const AllievoHomeScreen = () => {
                       style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
                       onPress={() => {
                         setSelectedInstructorId(null);
-                        handleBookingDateSelect(preferredDate);
+                        handleBookingDateSelect(preferredDate, null);
                       }}
                     >
                       <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
@@ -1923,7 +1924,7 @@ export const AllievoHomeScreen = () => {
                         style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
                         onPress={() => {
                           setSelectedInstructorId(instructor.id);
-                          handleBookingDateSelect(preferredDate);
+                          handleBookingDateSelect(preferredDate, instructor.id);
                         }}
                       >
                         <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
