@@ -1899,7 +1899,7 @@ export const AllievoHomeScreen = () => {
                 <Text style={styles.bkInfoText}>{assignedInstructorName} · {durationMinutes} min</Text>
               </View>
             ) : canSelectInstructor && visibleInstructors.length > 0 ? (
-              <View style={{ marginTop: 12 }}>
+              <View style={{ marginTop: 16, gap: 10 }}>
                 <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
                 <View style={styles.bookingChipRow}>
                   {visibleInstructors.length > 1 ? (
