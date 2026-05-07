@@ -3236,6 +3236,58 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               )
             )}
+            {/* Timeless exam banners (daily view) */}
+            {(() => {
+              const timelessExams = timelineItems.filter(
+                (item) => item.kind === 'examGroup' && !item.endsAt,
+              );
+              if (!timelessExams.length) return null;
+              return (
+                <View style={{ paddingHorizontal: 0, paddingBottom: 8, gap: 6 }}>
+                  {timelessExams.map((item) => {
+                    if (item.kind !== 'examGroup') return null;
+                    return (
+                      <Pressable
+                        key={`timeless-day-${item.id}`}
+                        onPress={() =>
+                          setExamDrawerGroup({
+                            id: item.id,
+                            startsAt: item.startsAt,
+                            endsAt: item.endsAt,
+                            instructorId: item.instructorId,
+                            instructorName: item.instructorName,
+                            notes: item.notes,
+                            appointments: item.appointments,
+                          })
+                        }
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
+                          borderRadius: 14,
+                          backgroundColor: pressed ? '#E0E7FF' : '#EEF2FF',
+                          borderWidth: 1,
+                          borderColor: '#C7D2FE',
+                        })}
+                      >
+                        <Ionicons name="school" size={18} color="#4338CA" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }}>
+                            Esame · Orario da definire
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#6366F1', marginTop: 1 }}>
+                            {item.appointments.length} {item.appointments.length === 1 ? 'allievo' : 'allievi'}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#6366F1" />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })()}
             <View style={[styles.timelineSection, { position: 'relative', height: HOUR_SLOTS.length * ROW_H }]}>
               {/* ── Tap-to-book / tap-to-dismiss ── */}
               {canInstructorBook && (
@@ -3371,9 +3423,11 @@ export const IstruttoreHomeScreen = () => {
                 : timelineItems
               ).map((item) => {
                 if (item.kind === 'examGroup') {
+                  // Timeless exams are rendered as banners outside the grid
+                  if (!item.endsAt) return null;
                   const startDate = new Date(item.startsAt);
                   const startMin = startDate.getHours() * 60 + startDate.getMinutes();
-                  const endTs = item.endsAt ? new Date(item.endsAt).getTime() : startDate.getTime() + 60 * 60 * 1000;
+                  const endTs = new Date(item.endsAt).getTime();
                   const durationMin = (endTs - startDate.getTime()) / (60 * 1000);
                   const firstHourMin = HOUR_SLOTS[0] * 60;
                   const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
@@ -3420,7 +3474,7 @@ export const IstruttoreHomeScreen = () => {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                           <Ionicons name="school" size={14} color="#4338CA" />
                           <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }} numberOfLines={1}>
-                            {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt ?? new Date(endTs).toISOString())}
+                            {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt)}
                           </Text>
                           <Text style={{ fontSize: 13, color: '#4338CA', flex: 1 }} numberOfLines={1}>
                             Esame · {studentsCount} {studentsCount === 1 ? 'allievo' : 'allievi'}
@@ -3432,7 +3486,7 @@ export const IstruttoreHomeScreen = () => {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <Ionicons name="school" size={16} color="#4338CA" />
                               <Text style={[styles.timelineBlockTime, { color: '#4338CA' }]}>
-                                {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt ?? new Date(endTs).toISOString())}
+                                {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt)}
                               </Text>
                             </View>
                             <View style={[styles.timelineStatusBadge, { backgroundColor: '#E0E7FF' }]}>
