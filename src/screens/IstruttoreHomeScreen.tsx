@@ -3768,6 +3768,69 @@ export const IstruttoreHomeScreen = () => {
       </ScrollView>
 
       {agendaViewMode === 'week' ? (
+        <>
+          {/* Timeless exam banners */}
+          {(() => {
+            const timelessExams = appointments.filter(
+              (a) => a.type === 'esame' && !a.endsAt && (a.status ?? '').toLowerCase() !== 'cancelled',
+            );
+            if (!timelessExams.length) return null;
+            // Group by startsAt (date)
+            const groups = new Map<string, typeof timelessExams>();
+            for (const a of timelessExams) {
+              const key = a.startsAt;
+              const list = groups.get(key) ?? [];
+              list.push(a);
+              groups.set(key, list);
+            }
+            return (
+              <View style={{ paddingHorizontal: 16, paddingBottom: 8, gap: 6 }}>
+                {Array.from(groups.entries()).map(([startsAt, appts]) => {
+                  const d = new Date(startsAt);
+                  const dayLabel = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+                  return (
+                    <Pressable
+                      key={`timeless-exam-${startsAt}`}
+                      onPress={() => {
+                        const first = appts[0];
+                        setExamDrawerGroup({
+                          id: `exam-${startsAt}`,
+                          startsAt: first.startsAt,
+                          endsAt: first.endsAt,
+                          instructorId: first.instructorId,
+                          instructorName: first.instructor?.name ?? null,
+                          notes: first.notes,
+                          appointments: appts,
+                        });
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 14,
+                        backgroundColor: pressed ? '#E0E7FF' : '#EEF2FF',
+                        borderWidth: 1,
+                        borderColor: '#C7D2FE',
+                      })}
+                    >
+                      <Ionicons name="school" size={18} color="#4338CA" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }}>
+                          Esame · {dayLabel}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#6366F1', marginTop: 1 }}>
+                          {appts.length} {appts.length === 1 ? 'allievo' : 'allievi'} · Orario da definire
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#6366F1" />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            );
+          })()}
           <WeeklyAgendaView
             appointments={appointments}
             instructorBlocks={instructorBlocks}
@@ -3824,6 +3887,7 @@ export const IstruttoreHomeScreen = () => {
             quickBookBottomPanHandlers={bookingDurations.length > 1 ? qbBottomPan.panHandlers : undefined}
             quickBookDragging={qbHandleDragging}
           />
+        </>
       ) : null}
 
       {/* ── Quick-book inline drawer (no modal/backdrop) ── */}
