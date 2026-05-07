@@ -45,7 +45,6 @@ import { Button } from '../components/Button';
 import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
-import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -691,8 +690,7 @@ export const IstruttoreHomeScreen = () => {
     appointments: AutoscuolaAppointmentWithRelations[];
   } | null>(null);
   const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
-  const [examTimePickerOpen, setExamTimePickerOpen] = useState(false);
-  const [examTimePickerData, setExamTimePickerData] = useState<typeof examDrawerGroup>(null);
+  const [examDrawerMode, setExamDrawerMode] = useState<'details' | 'timepicker'>('details');
   const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
@@ -5321,9 +5319,47 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Exam details drawer ── */}
       <BottomSheet
         visible={Boolean(examDrawerGroup)}
-        onClose={() => setExamDrawerGroup(null)}
+        onClose={() => { setExamDrawerGroup(null); setExamDrawerMode('details'); }}
         showHandle
       >
+        {examDrawerMode === 'timepicker' && examDrawerGroup ? (
+          <View style={{ paddingBottom: 12 }}>
+            <Pressable
+              onPress={() => setExamDrawerMode('details')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}
+            >
+              <Ionicons name="arrow-back" size={20} color="#4338CA" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#4338CA' }}>Scegli orario esame</Text>
+            </Pressable>
+            <InlineTimePicker
+              selectedTime={examDrawerGroup.endsAt ? new Date(examDrawerGroup.startsAt) : (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
+              onSelectTime={async (d) => {
+                if (!examDrawerGroup) return;
+                const ids = examDrawerGroup.appointments.map((a) => a.id);
+                const startsAtDate = new Date(examDrawerGroup.startsAt);
+                const newStart = new Date(startsAtDate);
+                newStart.setHours(d.getHours(), d.getMinutes(), 0, 0);
+                const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+                try {
+                  await regloApi.updateExamTime({
+                    appointmentIds: ids,
+                    startsAt: newStart.toISOString(),
+                    endsAt: newEnd.toISOString(),
+                  });
+                  setExamDrawerGroup({
+                    ...examDrawerGroup,
+                    startsAt: newStart.toISOString(),
+                    endsAt: newEnd.toISOString(),
+                  });
+                  setExamDrawerMode('details');
+                  loadData();
+                } catch {
+                  Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
+                }
+              }}
+            />
+          </View>
+        ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
@@ -5345,11 +5381,7 @@ export const IstruttoreHomeScreen = () => {
           {/* Imposta / Modifica orario */}
           {examDrawerGroup ? (
             <Pressable
-              onPress={() => {
-                setExamTimePickerData(examDrawerGroup);
-                setExamDrawerGroup(null);
-                setTimeout(() => setExamTimePickerOpen(true), 400);
-              }}
+              onPress={() => setExamDrawerMode('timepicker')}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', marginBottom: 12 }}
             >
               <Ionicons name="time-outline" size={16} color="#4338CA" />
@@ -5470,34 +5502,8 @@ export const IstruttoreHomeScreen = () => {
             </Text>
           </Pressable>
         </ScrollView>
+        )}
       </BottomSheet>
-
-      {/* ── Exam time picker ── */}
-      <TimePickerDrawer
-        visible={examTimePickerOpen}
-        onClose={() => { setExamTimePickerOpen(false); setExamTimePickerData(null); }}
-        selectedTime={examTimePickerData?.endsAt ? new Date(examTimePickerData.startsAt) : (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
-        onSelectTime={async (d) => {
-          setExamTimePickerOpen(false);
-          if (!examTimePickerData) return;
-          const ids = examTimePickerData.appointments.map((a) => a.id);
-          const startsAtDate = new Date(examTimePickerData.startsAt);
-          const newStart = new Date(startsAtDate);
-          newStart.setHours(d.getHours(), d.getMinutes(), 0, 0);
-          const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
-          setExamTimePickerData(null);
-          try {
-            await regloApi.updateExamTime({
-              appointmentIds: ids,
-              startsAt: newStart.toISOString(),
-              endsAt: newEnd.toISOString(),
-            });
-            loadData();
-          } catch {
-            Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
-          }
-        }}
-      />
 
       {/* ── Cluster details drawer (all-instructors scope) ── */}
       <BottomSheet
