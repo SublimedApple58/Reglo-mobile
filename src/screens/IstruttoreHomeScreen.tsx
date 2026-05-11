@@ -1344,7 +1344,7 @@ export const IstruttoreHomeScreen = () => {
     } finally {
       setBlockPending(false);
     }
-  }, [blockDate, blockStartTime, blockEndTime, blockReason, loadData]);
+  }, [blockDate, blockStartTime, blockEndTime, blockReason, blockRecurring, blockRecurringWeeks, loadData]);
 
   const openSickLeaveDrawer = useCallback(() => {
     setSickStartDate(new Date());
@@ -1857,7 +1857,9 @@ export const IstruttoreHomeScreen = () => {
   );
   const HOUR_SLOTS = useMemo(() => {
     const DEFAULT_START = 7;
-    const END = 21;
+    // END is the last visible hour-slot label. The grid extends through 24:00
+    // so events/blocks ending up to midnight are fully visible.
+    const END = 24;
     let earliest = DEFAULT_START;
     // Check availability
     for (const h of availableHours) {
@@ -1869,8 +1871,13 @@ export const IstruttoreHomeScreen = () => {
       const h = new Date(appt.startsAt).getHours();
       if (normalizeStatus(appt.status) !== 'cancelled' && h < earliest) earliest = h;
     }
+    // Also extend earliest backwards for instructor blocks (e.g. a 06:00 block).
+    for (const block of instructorBlocks) {
+      const h = new Date(block.startsAt).getHours();
+      if (h < earliest) earliest = h;
+    }
     return Array.from({ length: END - earliest + 1 }, (_, i) => i + earliest);
-  }, [availableHours, appointments]);
+  }, [availableHours, appointments, instructorBlocks]);
 
   // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {

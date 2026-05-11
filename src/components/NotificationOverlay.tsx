@@ -826,6 +826,15 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       setConfirmationOpen(true);
       return;
     }
+    // The "stale" / "expired" path below applies ONLY to interactive offer kinds.
+    // For info-only kinds (appointment_cancelled, appointment_rescheduled, weekly_absence,
+    // holiday_declared, availability_published, sick_leave_cancelled, ...) there is no
+    // drawer to open — bail silently. Otherwise the stillAvailable check would always
+    // be false (the 3 OR clauses can never match a non-offer kind) and the user would
+    // see the misleading "Troppo tardi!" drawer pop up out of nowhere.
+    const isOfferKind = item.kind === 'swap' || item.kind === 'waitlist' || item.kind === 'proposal';
+    if (!isOfferKind) return;
+
     // Check if the offer is still in the current API arrays
     const stillAvailable =
       (item.kind === 'swap' && swapOffers.some((s) => s.id === item.id)) ||

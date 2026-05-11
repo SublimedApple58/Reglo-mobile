@@ -55,7 +55,10 @@ type WeeklyAgendaViewProps = {
 /* ------------------------------------------------------------------ */
 
 const FIRST_HOUR = 7;
-const LAST_HOUR = 21;
+// Upper boundary of the grid. With LAST_HOUR = 24 the last visible row is
+// labeled "23:00" and covers 23:00–24:00, so events ending up to midnight
+// render correctly. (Prior value 21 silently clipped any block after 21:00.)
+const LAST_HOUR = 24;
 const ROW_H = 56;
 const GUTTER_W = 24;
 

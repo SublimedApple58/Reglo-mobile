@@ -55,7 +55,9 @@ const toDateStr = (d: Date): string =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 const DEFAULT_HOUR_START = 7;
-const HOUR_END = 21;
+// Last visible hour-slot label. The grid extends through 24:00 so events
+// ending up to midnight are fully visible.
+const HOUR_END = 24;
 
 type StatusColorConfig = {
   border: string;
