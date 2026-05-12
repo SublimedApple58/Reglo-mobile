@@ -590,7 +590,9 @@ export type ConfirmInstructorBookingInput = {
   endsAt: IsoDate;
   instructorId: Uuid;
   vehicleId: Uuid | null;
+  locationId?: Uuid | null;
   lessonType?: string;
+  types?: string[];
   skipWeeklyLimitCheck?: boolean;
 };
 

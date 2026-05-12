@@ -46,6 +46,8 @@ import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
+import { LocationPickerSheet } from '../components/LocationPickerSheet';
+import { LocationFormSheet } from '../components/LocationFormSheet';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
@@ -743,6 +745,11 @@ export const IstruttoreHomeScreen = () => {
     return now;
   });
   const [bookingDuration, setBookingDuration] = useState<number>(60);
+  const [bookingLocationId, setBookingLocationId] = useState<string | null>(null);
+  const [bookingLocationName, setBookingLocationName] = useState<string | null>(null);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [locationFormOpen, setLocationFormOpen] = useState(false);
+  const [editLocationContext, setEditLocationContext] = useState<{ appointmentId: string } | null>(null);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
   const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
   // ── Multi-booking state ──
@@ -1683,6 +1690,7 @@ export const IstruttoreHomeScreen = () => {
         endsAt: end.toISOString(),
         instructorId,
         vehicleId: settings?.vehiclesEnabled !== false ? (guidedSuggestion?.vehicleId ?? bookingVehicleId) : null,
+        locationId: bookingLocationId,
         ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
           ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
           : {}),
@@ -4607,6 +4615,35 @@ export const IstruttoreHomeScreen = () => {
               </View>
             ) : null}
 
+            {/* LUOGO */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionLabel}>LUOGO</Text>
+              <Pressable
+                onPress={() => {
+                  if (!sheetLesson) return;
+                  setEditLocationContext({ appointmentId: sheetLesson.id });
+                  setLocationPickerOpen(true);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: '#FFFFFF',
+                }}
+              >
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 14 }} numberOfLines={1}>
+                  {sheetLesson?.location?.name ?? "Sede dell'autoscuola"}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
             {/* NOTE */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionLabel}>NOTE</Text>
@@ -5069,8 +5106,79 @@ export const IstruttoreHomeScreen = () => {
                 ))}
               </ScrollView>
             </View>
+
+            {/* ── LUOGO ── */}
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={styles.bookingSectionLabel}>Luogo</Text>
+              <Pressable
+                onPress={() => setLocationPickerOpen(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: '#FFFFFF',
+                }}
+              >
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 14 }} numberOfLines={1}>
+                  {bookingLocationName ?? "Sede dell'autoscuola"}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
         </ScrollView></Animated.View>}
       </BottomSheet>
+
+      {/* ── Location picker (booking + edit lesson location) ── */}
+      <LocationPickerSheet
+        visible={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        selectedLocationId={editLocationContext ? (sheetLesson?.locationId ?? null) : bookingLocationId}
+        onSelect={async (location) => {
+          if (editLocationContext) {
+            try {
+              await regloApi.updateAppointmentDetails(editLocationContext.appointmentId, {
+                locationId: location.id,
+              });
+              setSheetLesson((prev) => (prev ? { ...prev, locationId: location.id, location } : prev));
+              setToast({ text: 'Luogo aggiornato.', tone: 'success' });
+            } catch (err) {
+              setToast({
+                text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
+                tone: 'danger',
+              });
+            } finally {
+              setEditLocationContext(null);
+            }
+          } else {
+            setBookingLocationId(location.id);
+            setBookingLocationName(location.name);
+          }
+        }}
+        onRequestCreate={() => setLocationFormOpen(true)}
+      />
+      <LocationFormSheet
+        visible={locationFormOpen}
+        onClose={() => setLocationFormOpen(false)}
+        onSubmit={async (values) => {
+          const created = await regloApi.createLocation(values);
+          if (editLocationContext) {
+            await regloApi.updateAppointmentDetails(editLocationContext.appointmentId, {
+              locationId: created.id,
+            });
+            setSheetLesson((prev) => (prev ? { ...prev, locationId: created.id, location: created } : prev));
+            setEditLocationContext(null);
+          } else {
+            setBookingLocationId(created.id);
+            setBookingLocationName(created.name);
+          }
+        }}
+      />
 
       <CalendarDrawer
         visible={calendarDrawerOpen}

@@ -2068,6 +2068,60 @@ export const AllievoHomeScreen = () => {
                 </View>
               )}
 
+              {/* Location */}
+              {(() => {
+                const loc = selectedHistoryLesson.location;
+                const lat =
+                  typeof loc?.latitude === 'number'
+                    ? loc.latitude
+                    : loc?.latitude
+                      ? Number(loc.latitude)
+                      : null;
+                const lng =
+                  typeof loc?.longitude === 'number'
+                    ? loc.longitude
+                    : loc?.longitude
+                      ? Number(loc.longitude)
+                      : null;
+                const isTappable =
+                  loc?.isPrecise && lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
+                const display = loc?.name ?? "Sede dell'autoscuola";
+                const handleOpenMaps = () => {
+                  if (!isTappable) return;
+                  const placeIdParam = loc!.placeId ? `&query_place_id=${loc!.placeId}` : '';
+                  Linking.openURL(
+                    `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`,
+                  ).catch(() => null);
+                };
+                const Row = isTappable ? Pressable : View;
+                return (
+                  <Row
+                    onPress={isTappable ? handleOpenMaps : undefined}
+                    style={styles.chunkyIconRow}
+                  >
+                    <View style={[styles.chunkyIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                      <Ionicons
+                        name={loc?.isPrecise ? 'location' : 'location-outline'}
+                        size={18}
+                        color="#16A34A"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.chunkyRowLabel}>LUOGO</Text>
+                      <Text style={styles.chunkyRowValue} numberOfLines={1}>{display}</Text>
+                      {loc?.isPrecise && loc.address ? (
+                        <Text style={[styles.chunkyRowValue, { color: '#64748B', fontSize: 13 }]} numberOfLines={1}>
+                          {loc.address}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {isTappable ? (
+                      <Ionicons name="open-outline" size={18} color="#16A34A" />
+                    ) : null}
+                  </Row>
+                );
+              })()}
+
               {/* Payment */}
               <View style={styles.chunkyIconRow}>
                 <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>

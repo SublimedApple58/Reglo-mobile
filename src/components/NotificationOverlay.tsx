@@ -611,6 +611,29 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         notificationEvents.emitDataChanged();
         return;
       }
+      if (intent === 'appointment_location_changed') {
+        const notifId = `location_changed_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'appointment_location_changed',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+            oldLocationName: String(data?.oldLocationName ?? ''),
+            newLocationName: String(data?.newLocationName ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
       if (intent === 'holiday_declared') {
         const notifId = `holiday_${data?.date ?? ''}_${Date.now()}`;
         const persisted: PersistedNotification = {
