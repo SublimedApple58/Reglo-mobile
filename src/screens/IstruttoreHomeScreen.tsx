@@ -4962,6 +4962,47 @@ export const IstruttoreHomeScreen = () => {
             />
           </View>
 
+          {/* ── LUOGO (visible in both single + multi mode) ── */}
+          <View style={{ marginTop: spacing.md }}>
+            <Text style={styles.bookingSectionLabel}>Luogo</Text>
+            <Pressable
+              onPress={() => setBookingSheetMode('locationPicker')}
+              style={({ pressed }) => [{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingVertical: 14,
+                paddingHorizontal: 14,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: '#FFFFFF',
+                minHeight: 56,
+              }, pressed && { opacity: 0.7 }]}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="location" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
+                  numberOfLines={1}
+                >
+                  {bookingLocationName ?? "Sede dell'autoscuola"}
+                </Text>
+                {bookingLocationAddress ? (
+                  <Text
+                    style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
+                    numberOfLines={1}
+                  >
+                    {bookingLocationAddress}
+                  </Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+          </View>
+
           {multiBookingMode ? (
             <>
               {/* ── MULTI ENTRIES LIST ── */}
@@ -5100,46 +5141,47 @@ export const IstruttoreHomeScreen = () => {
             </>
           ) : (
             <>
-              {/* ── GIORNO (single mode) ── */}
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Giorno</Text>
-                <Pressable
-                  onPress={() => setBookingSheetMode('calendar')}
-                  style={styles.bookingFieldCard}
-                >
-                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                    <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                      <Ionicons name="calendar-outline" size={18} color="#CA8A04" />
+              {/* ── GIORNO + ORA INIZIO (single mode, 2-col row) ── */}
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bookingSectionLabel}>Giorno</Text>
+                  <Pressable
+                    onPress={() => setBookingSheetMode('calendar')}
+                    style={styles.bookingFieldCard}
+                  >
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flex: 1 }}>
+                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
+                        <Ionicons name="calendar-outline" size={16} color="#CA8A04" />
+                      </View>
+                      <Text style={[styles.bookingFieldText, { flexShrink: 1 }]} numberOfLines={1}>
+                        {bookingDate.toLocaleDateString('it-IT', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: 'short',
+                        })}
+                      </Text>
                     </View>
-                    <Text style={styles.bookingFieldText}>
-                      {bookingDate.toLocaleDateString('it-IT', {
-                        weekday: 'short',
-                        day: '2-digit',
-                        month: 'short',
-                      })}
-                    </Text>
-                  </View>
-                  <Text style={styles.bookingFieldChevron}>›</Text>
-                </Pressable>
-              </View>
+                    <Text style={styles.bookingFieldChevron}>{'›'}</Text>
+                  </Pressable>
+                </View>
 
-              {/* ── ORA INIZIO (single mode) ── */}
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
-                <Pressable
-                  onPress={() => setBookingSheetMode('timepicker')}
-                  style={styles.bookingFieldCard}
-                >
-                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                    <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                      <Ionicons name="time-outline" size={18} color="#EC4899" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
+                  <Pressable
+                    onPress={() => setBookingSheetMode('timepicker')}
+                    style={styles.bookingFieldCard}
+                  >
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flex: 1 }}>
+                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                      </View>
+                      <Text style={[styles.bookingFieldText, { flexShrink: 1 }]} numberOfLines={1}>
+                        {bookingStartTime.toTimeString().slice(0, 5)}
+                      </Text>
                     </View>
-                    <Text style={styles.bookingFieldText}>
-                      {bookingStartTime.toTimeString().slice(0, 5)}
-                    </Text>
-                  </View>
-                  <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-                </Pressable>
+                    <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
+                  </Pressable>
+                </View>
               </View>
             </>
           )}
@@ -5222,46 +5264,6 @@ export const IstruttoreHomeScreen = () => {
               </ScrollView>
             </View>
 
-            {/* ── LUOGO ── */}
-            <View style={{ marginTop: spacing.sm }}>
-              <Text style={styles.bookingSectionLabel}>Luogo</Text>
-              <Pressable
-                onPress={() => setBookingSheetMode('locationPicker')}
-                style={({ pressed }) => [{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: '#FFFFFF',
-                  minHeight: 56,
-                }, pressed && { opacity: 0.7 }]}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="location" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
-                    numberOfLines={1}
-                  >
-                    {bookingLocationName ?? "Sede dell'autoscuola"}
-                  </Text>
-                  {bookingLocationAddress ? (
-                    <Text
-                      style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
-                      numberOfLines={1}
-                    >
-                      {bookingLocationAddress}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-            </View>
         </ScrollView></Animated.View>}
 
         {bookingSheetMode === 'locationPicker' && (
