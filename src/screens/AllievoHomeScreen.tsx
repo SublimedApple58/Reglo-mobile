@@ -1687,6 +1687,7 @@ export const AllievoHomeScreen = () => {
                     {/* Luogo */}
                     {(() => {
                       const loc = lesson.location;
+                      const isSede = !loc || loc.isDefault === true;
                       const lat =
                         typeof loc?.latitude === 'number'
                           ? loc.latitude
@@ -1716,17 +1717,43 @@ export const AllievoHomeScreen = () => {
                         ).catch(() => null);
                       };
 
-                      const innerContent = (
+                      // ── SEDE (default): compact inline row, low emphasis ──
+                      if (isSede) {
+                        const sedeContent = (
+                          <>
+                            <Ionicons
+                              name="location-outline"
+                              size={13}
+                              color="#6B5A48"
+                            />
+                            <Text style={styles.pillSedeText} numberOfLines={1}>
+                              {displayName}
+                            </Text>
+                          </>
+                        );
+                        return isTappable ? (
+                          <Pressable
+                            onPress={handleOpenMaps}
+                            style={({ pressed }) => [
+                              styles.pillSedeRow,
+                              pressed && { opacity: 0.6 },
+                            ]}
+                          >
+                            {sedeContent}
+                          </Pressable>
+                        ) : (
+                          <View style={styles.pillSedeRow}>{sedeContent}</View>
+                        );
+                      }
+
+                      // ── LUOGO CUSTOM: prominent card, high emphasis ──
+                      const customContent = (
                         <>
                           <View style={styles.pillLocationIcon}>
-                            <Ionicons
-                              name="location"
-                              size={18}
-                              color="#16A34A"
-                            />
+                            <Ionicons name="location" size={18} color="#16A34A" />
                           </View>
                           <View style={styles.pillLocationText}>
-                            <Text style={styles.pillLocationLabel}>LUOGO</Text>
+                            <Text style={styles.pillLocationLabel}>LUOGO DIVERSO DALLA SEDE</Text>
                             <Text style={styles.pillLocationName} numberOfLines={1}>
                               {displayName}
                             </Text>
@@ -1752,10 +1779,10 @@ export const AllievoHomeScreen = () => {
                             pressed && { opacity: 0.7 },
                           ]}
                         >
-                          {innerContent}
+                          {customContent}
                         </Pressable>
                       ) : (
-                        <View style={styles.pillLocationRow}>{innerContent}</View>
+                        <View style={styles.pillLocationRow}>{customContent}</View>
                       );
                     })()}
 
@@ -2935,6 +2962,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Compact sede row (low emphasis, when location is the default sede)
+  pillSedeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  pillSedeText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B5A48',
   },
   pillChipRow: {
     flexDirection: 'row',
