@@ -4521,19 +4521,31 @@ export const IstruttoreHomeScreen = () => {
           <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
             <InlineLocationPicker
               selectedLocationId={sheetLesson.locationId ?? defaultLocation?.id ?? null}
-              onSelect={async (location) => {
-                try {
-                  await regloApi.updateAppointmentDetails(sheetLesson.id, { locationId: location.id });
-                  setSheetLesson((prev) => (prev ? { ...prev, locationId: location.id, location } : prev));
-                  setToast({ text: 'Luogo aggiornato.', tone: 'success' });
-                } catch (err) {
-                  setToast({
-                    text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
-                    tone: 'danger',
+              onSelect={(location) => {
+                // Optimistic update: close picker + apply new location immediately
+                const lessonId = sheetLesson.id;
+                const previousLocationId = sheetLesson.locationId;
+                const previousLocation = sheetLesson.location;
+                setSheetLesson((prev) =>
+                  prev && prev.id === lessonId
+                    ? { ...prev, locationId: location.id, location }
+                    : prev,
+                );
+                setLessonSheetMode('view');
+                regloApi
+                  .updateAppointmentDetails(lessonId, { locationId: location.id })
+                  .catch((err) => {
+                    // Rollback on failure
+                    setSheetLesson((prev) =>
+                      prev && prev.id === lessonId
+                        ? { ...prev, locationId: previousLocationId, location: previousLocation }
+                        : prev,
+                    );
+                    setToast({
+                      text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
+                      tone: 'danger',
+                    });
                   });
-                } finally {
-                  setLessonSheetMode('view');
-                }
               }}
               onRequestCreate={() => setLessonSheetMode('locationForm')}
             />
@@ -4544,19 +4556,31 @@ export const IstruttoreHomeScreen = () => {
             <InlineLocationForm
               onCancel={() => setLessonSheetMode('locationPicker')}
               onSubmit={async (values) => {
+                // Create location must complete (we need the id); the appointment
+                // patch runs in background so the sheet feels instant.
                 const created = await regloApi.createLocation(values);
-                try {
-                  await regloApi.updateAppointmentDetails(sheetLesson.id, { locationId: created.id });
-                  setSheetLesson((prev) => (prev ? { ...prev, locationId: created.id, location: created } : prev));
-                  setToast({ text: 'Luogo aggiornato.', tone: 'success' });
-                } catch (err) {
-                  setToast({
-                    text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
-                    tone: 'danger',
+                const lessonId = sheetLesson.id;
+                const previousLocationId = sheetLesson.locationId;
+                const previousLocation = sheetLesson.location;
+                setSheetLesson((prev) =>
+                  prev && prev.id === lessonId
+                    ? { ...prev, locationId: created.id, location: created }
+                    : prev,
+                );
+                setLessonSheetMode('view');
+                regloApi
+                  .updateAppointmentDetails(lessonId, { locationId: created.id })
+                  .catch((err) => {
+                    setSheetLesson((prev) =>
+                      prev && prev.id === lessonId
+                        ? { ...prev, locationId: previousLocationId, location: previousLocation }
+                        : prev,
+                    );
+                    setToast({
+                      text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
+                      tone: 'danger',
+                    });
                   });
-                } finally {
-                  setLessonSheetMode('view');
-                }
               }}
             />
           </Animated.View>
