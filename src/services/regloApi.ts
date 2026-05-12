@@ -89,6 +89,9 @@ import {
   SubmitQuizAnswerResult,
   QuizSessionResult,
   QuizStudentStats,
+  AutoscuolaLocation,
+  CreateLocationInput,
+  UpdateLocationInput,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -291,6 +294,20 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+    getLocations: async () =>
+      client.request<AutoscuolaLocation[]>('/api/autoscuole/locations'),
+    createLocation: async (input: CreateLocationInput) =>
+      client.request<AutoscuolaLocation>('/api/autoscuole/locations', {
+        method: 'POST',
+        body: input,
+      }),
+    updateLocation: async (id: string, input: UpdateLocationInput) =>
+      client.request<AutoscuolaLocation>(`/api/autoscuole/locations/${id}`, {
+        method: 'PATCH',
+        body: input,
+      }),
+    deleteLocation: async (id: string) =>
+      client.request<null>(`/api/autoscuole/locations/${id}`, { method: 'DELETE' }),
     cancelAppointment: async (appointmentId: string) =>
       client.request<CancelAppointmentResult>(
         `/api/autoscuole/appointments/${appointmentId}/cancel`,

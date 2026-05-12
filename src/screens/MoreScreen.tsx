@@ -54,6 +54,15 @@ const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
   iconBg: '#FCE7F3',
 };
 
+const LOCATIONS_ITEM: MenuItem = {
+  route: 'locations',
+  label: 'Luoghi guida',
+  description: 'Sede e luoghi extra dove iniziano le guide',
+  icon: 'location-outline',
+  iconColor: '#22C55E',
+  iconBg: '#DCFCE7',
+};
+
 export const MoreScreen = () => {
   const router = useRouter();
   const { autoscuolaRole } = useSession();
@@ -69,6 +78,9 @@ export const MoreScreen = () => {
     }
     if (vehiclesEnabled) {
       items.push(VEHICLES_ITEM);
+    }
+    if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') {
+      items.push(LOCATIONS_ITEM);
     }
     items.push(SETTINGS_ITEM);
     return items;

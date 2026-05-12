@@ -1115,6 +1115,7 @@ export const AllievoHomeScreen = () => {
       status: 'scheduled',
       instructorId: selectedInstructorId,
       vehicleId: null,
+      locationId: null,
       notes: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1124,6 +1125,7 @@ export const AllievoHomeScreen = () => {
         ? (instructors.find((i) => i.id === selectedInstructorId) ?? null)
         : null,
       vehicle: null,
+      location: null,
     };
 
     // Inject into all active appointment queries

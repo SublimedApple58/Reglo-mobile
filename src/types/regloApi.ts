@@ -115,6 +115,19 @@ export type AutoscuolaVehicle = {
   updatedAt: IsoDate;
 };
 
+export type AutoscuolaLocation = {
+  id: Uuid;
+  companyId: Uuid;
+  createdByUserId: Uuid | null;
+  name: string;
+  address: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  placeId: string | null;
+  isDefault: boolean;
+  isPrecise: boolean;
+};
+
 export type AutoscuolaAppointment = {
   id: Uuid;
   companyId: Uuid;
@@ -129,6 +142,7 @@ export type AutoscuolaAppointment = {
   status: string;
   instructorId: Uuid | null;
   vehicleId: Uuid | null;
+  locationId: Uuid | null;
   notes: string | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;
@@ -142,6 +156,7 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   case: AutoscuolaCase | null;
   instructor: AutoscuolaInstructor | null;
   vehicle: AutoscuolaVehicle | null;
+  location: AutoscuolaLocation | null;
 };
 
 export type GetAppointmentsParams = {
@@ -312,6 +327,7 @@ export type CreateAppointmentInput = {
   endsAt?: IsoDate | null;
   instructorId: Uuid;
   vehicleId: Uuid;
+  locationId?: Uuid | null;
   notes?: string;
 };
 
@@ -326,7 +342,19 @@ export type UpdateAppointmentDetailsInput = {
   lessonTypes?: string[];
   rating?: number | null;
   notes?: string | null;
+  locationId?: Uuid | null;
 };
+
+export type CreateLocationInput = {
+  name: string;
+  isPrecise: boolean;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeId?: string | null;
+};
+
+export type UpdateLocationInput = Partial<CreateLocationInput>;
 
 export type CreateInstructorInput = { name: string; phone?: string };
 export type CreateVehicleInput = { name: string; plate?: string };

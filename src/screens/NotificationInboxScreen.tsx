@@ -37,6 +37,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   appointment_rescheduled: 'swap-horizontal-outline',
   appointment_cancelled: 'close-circle-outline',
   availability_published: 'megaphone-outline',
+  appointment_location_changed: 'location-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -63,6 +64,8 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Guida annullata';
     case 'availability_published':
       return 'Disponibilità pubblicate';
+    case 'appointment_location_changed':
+      return 'Luogo guida aggiornato';
   }
 };
 
@@ -90,6 +93,8 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `${formatDay(item.data.startsAt)} \u00B7 ${formatTime(item.data.startsAt)}`;
     case 'availability_published':
       return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
+    case 'appointment_location_changed':
+      return `${formatDay(item.data.startsAt)} · ${item.data.newLocationName}`;
   }
 };
 
