@@ -46,8 +46,8 @@ import { BottomSheet } from '../components/BottomSheet';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
-import { LocationPickerSheet } from '../components/LocationPickerSheet';
-import { LocationFormSheet } from '../components/LocationFormSheet';
+import { InlineLocationPicker } from '../components/InlineLocationPicker';
+import { InlineLocationForm } from '../components/InlineLocationForm';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
@@ -747,9 +747,6 @@ export const IstruttoreHomeScreen = () => {
   const [bookingDuration, setBookingDuration] = useState<number>(60);
   const [bookingLocationId, setBookingLocationId] = useState<string | null>(null);
   const [bookingLocationName, setBookingLocationName] = useState<string | null>(null);
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
-  const [locationFormOpen, setLocationFormOpen] = useState(false);
-  const [editLocationContext, setEditLocationContext] = useState<{ appointmentId: string } | null>(null);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
   const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
   // ── Multi-booking state ──
@@ -923,7 +920,8 @@ export const IstruttoreHomeScreen = () => {
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
-  const [bookingSheetMode, setBookingSheetMode] = useState<'form' | 'calendar' | 'timepicker'>('form');
+  const [bookingSheetMode, setBookingSheetMode] = useState<'form' | 'calendar' | 'timepicker' | 'locationPicker' | 'locationForm'>('form');
+  const [lessonSheetMode, setLessonSheetMode] = useState<'view' | 'locationPicker' | 'locationForm'>('view');
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
   const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
@@ -4376,8 +4374,13 @@ export const IstruttoreHomeScreen = () => {
       {/* ── Lesson Detail BottomSheet ── */}
       <BottomSheet
         visible={Boolean(sheetLesson)}
-        onClose={() => { if (!isPending) setSheetLesson(null); }}
+        onClose={() => {
+          if (isPending) return;
+          if (lessonSheetMode !== 'view') { setLessonSheetMode('view'); return; }
+          setSheetLesson(null);
+        }}
         onClosed={() => {
+          setLessonSheetMode('view');
           if (pendingRescheduleRef.current) {
             setRescheduleLesson(pendingRescheduleRef.current);
             pendingRescheduleRef.current = null;
@@ -4386,10 +4389,14 @@ export const IstruttoreHomeScreen = () => {
             setSwapModalOpen(true);
           }
         }}
-        title="Gestisci guida"
+        title={
+          lessonSheetMode === 'locationPicker' ? 'Cambia luogo'
+            : lessonSheetMode === 'locationForm' ? 'Aggiungi luogo'
+            : 'Gestisci guida'
+        }
         closeDisabled={isPending}
         showHandle
-        footer={
+        footer={lessonSheetMode === 'view' ? (
           <View style={styles.sheetFooterActions}>
             {/* Row 1: Presente + Assente (primary actions, side by side) */}
             {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
@@ -4486,9 +4493,53 @@ export const IstruttoreHomeScreen = () => {
               fullWidth
             />
           </View>
-        }
+        ) : undefined}
       >
-        {sheetLesson ? (
+        {sheetLesson && lessonSheetMode === 'locationPicker' ? (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineLocationPicker
+              selectedLocationId={sheetLesson.locationId}
+              onSelect={async (location) => {
+                try {
+                  await regloApi.updateAppointmentDetails(sheetLesson.id, { locationId: location.id });
+                  setSheetLesson((prev) => (prev ? { ...prev, locationId: location.id, location } : prev));
+                  setToast({ text: 'Luogo aggiornato.', tone: 'success' });
+                } catch (err) {
+                  setToast({
+                    text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
+                    tone: 'danger',
+                  });
+                } finally {
+                  setLessonSheetMode('view');
+                }
+              }}
+              onRequestCreate={() => setLessonSheetMode('locationForm')}
+            />
+          </Animated.View>
+        ) : null}
+        {sheetLesson && lessonSheetMode === 'locationForm' ? (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineLocationForm
+              onCancel={() => setLessonSheetMode('locationPicker')}
+              onSubmit={async (values) => {
+                const created = await regloApi.createLocation(values);
+                try {
+                  await regloApi.updateAppointmentDetails(sheetLesson.id, { locationId: created.id });
+                  setSheetLesson((prev) => (prev ? { ...prev, locationId: created.id, location: created } : prev));
+                  setToast({ text: 'Luogo aggiornato.', tone: 'success' });
+                } catch (err) {
+                  setToast({
+                    text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
+                    tone: 'danger',
+                  });
+                } finally {
+                  setLessonSheetMode('view');
+                }
+              }}
+            />
+          </Animated.View>
+        ) : null}
+        {sheetLesson && lessonSheetMode === 'view' ? (
           <View style={{ maxHeight: windowHeight * 0.45 }}>
             <ScrollView
               ref={lessonSheetScrollRef}
@@ -4619,11 +4670,7 @@ export const IstruttoreHomeScreen = () => {
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionLabel}>LUOGO</Text>
               <Pressable
-                onPress={() => {
-                  if (!sheetLesson) return;
-                  setEditLocationContext({ appointmentId: sheetLesson.id });
-                  setLocationPickerOpen(true);
-                }}
+                onPress={() => setLessonSheetMode('locationPicker')}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -4691,7 +4738,13 @@ export const IstruttoreHomeScreen = () => {
           setBookingSheetOpen(false);
           setEmergencyAllStudents(false);
         }}
-        title={bookingSheetMode === 'calendar' ? 'Seleziona data' : bookingSheetMode === 'timepicker' ? 'Seleziona orario' : 'Nuova prenotazione'}
+        title={
+          bookingSheetMode === 'calendar' ? 'Seleziona data'
+            : bookingSheetMode === 'timepicker' ? 'Seleziona orario'
+            : bookingSheetMode === 'locationPicker' ? 'Scegli il luogo'
+            : bookingSheetMode === 'locationForm' ? 'Aggiungi luogo'
+            : 'Nuova prenotazione'
+        }
         closeDisabled={Boolean(bookingPendingAction)}
         minHeight={bookingSheetMinHeight}
         showHandle
@@ -5111,74 +5164,57 @@ export const IstruttoreHomeScreen = () => {
             <View style={{ marginTop: spacing.sm }}>
               <Text style={styles.bookingSectionLabel}>Luogo</Text>
               <Pressable
-                onPress={() => setLocationPickerOpen(true)}
-                style={{
+                onPress={() => setBookingSheetMode('locationPicker')}
+                style={({ pressed }) => [{
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: 12,
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: '#FFFFFF',
-                }}
+                  minHeight: 48,
+                }, pressed && { opacity: 0.7 }]}
               >
-                <Ionicons name="location-outline" size={18} color={colors.primary} />
-                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 14 }} numberOfLines={1}>
+                <Ionicons name="location-outline" size={20} color={colors.primary} />
+                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '500' }} numberOfLines={1}>
                   {bookingLocationName ?? "Sede dell'autoscuola"}
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
             </View>
         </ScrollView></Animated.View>}
-      </BottomSheet>
 
-      {/* ── Location picker (booking + edit lesson location) ── */}
-      <LocationPickerSheet
-        visible={locationPickerOpen}
-        onClose={() => setLocationPickerOpen(false)}
-        selectedLocationId={editLocationContext ? (sheetLesson?.locationId ?? null) : bookingLocationId}
-        onSelect={async (location) => {
-          if (editLocationContext) {
-            try {
-              await regloApi.updateAppointmentDetails(editLocationContext.appointmentId, {
-                locationId: location.id,
-              });
-              setSheetLesson((prev) => (prev ? { ...prev, locationId: location.id, location } : prev));
-              setToast({ text: 'Luogo aggiornato.', tone: 'success' });
-            } catch (err) {
-              setToast({
-                text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
-                tone: 'danger',
-              });
-            } finally {
-              setEditLocationContext(null);
-            }
-          } else {
-            setBookingLocationId(location.id);
-            setBookingLocationName(location.name);
-          }
-        }}
-        onRequestCreate={() => setLocationFormOpen(true)}
-      />
-      <LocationFormSheet
-        visible={locationFormOpen}
-        onClose={() => setLocationFormOpen(false)}
-        onSubmit={async (values) => {
-          const created = await regloApi.createLocation(values);
-          if (editLocationContext) {
-            await regloApi.updateAppointmentDetails(editLocationContext.appointmentId, {
-              locationId: created.id,
-            });
-            setSheetLesson((prev) => (prev ? { ...prev, locationId: created.id, location: created } : prev));
-            setEditLocationContext(null);
-          } else {
-            setBookingLocationId(created.id);
-            setBookingLocationName(created.name);
-          }
-        }}
-      />
+        {bookingSheetMode === 'locationPicker' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineLocationPicker
+              selectedLocationId={bookingLocationId}
+              onSelect={(location) => {
+                setBookingLocationId(location.id);
+                setBookingLocationName(location.name);
+                setBookingSheetMode('form');
+              }}
+              onRequestCreate={() => setBookingSheetMode('locationForm')}
+            />
+          </Animated.View>
+        )}
+
+        {bookingSheetMode === 'locationForm' && (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <InlineLocationForm
+              onCancel={() => setBookingSheetMode('locationPicker')}
+              onSubmit={async (values) => {
+                const created = await regloApi.createLocation(values);
+                setBookingLocationId(created.id);
+                setBookingLocationName(created.name);
+                setBookingSheetMode('form');
+              }}
+            />
+          </Animated.View>
+        )}
+      </BottomSheet>
 
       <CalendarDrawer
         visible={calendarDrawerOpen}
