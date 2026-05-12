@@ -16,7 +16,7 @@ import { Button } from './Button';
 import { colors, radii, spacing, typography } from '../theme';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
-const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 type Props = {
   visible: boolean;
@@ -242,7 +242,7 @@ export const LocationFormSheet = ({
             <Text style={styles.helper}>
               {PLACES_API_KEY
                 ? 'Cerca via, città o luogo. Selezionalo per agganciare le coordinate.'
-                : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_PLACES_API_KEY).'}
+                : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).'}
             </Text>
             <View>
               <TextInput
