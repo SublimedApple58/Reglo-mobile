@@ -1715,23 +1715,18 @@ export const AllievoHomeScreen = () => {
                           `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`,
                         ).catch(() => null);
                       };
-                      const Wrap = isTappable ? Pressable : View;
-                      return (
-                        <Wrap
-                          onPress={isTappable ? handleOpenMaps : undefined}
-                          style={({ pressed }: { pressed: boolean }) => [
-                            styles.pillLocationRow,
-                            pressed && isTappable && { opacity: 0.7 },
-                          ]}
-                        >
+
+                      const innerContent = (
+                        <>
                           <View style={styles.pillLocationIcon}>
                             <Ionicons
-                              name={loc?.isPrecise ? 'location' : 'location-outline'}
-                              size={16}
+                              name="location"
+                              size={18}
                               color="#16A34A"
                             />
                           </View>
-                          <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={styles.pillLocationText}>
+                            <Text style={styles.pillLocationLabel}>LUOGO</Text>
                             <Text style={styles.pillLocationName} numberOfLines={1}>
                               {displayName}
                             </Text>
@@ -1742,9 +1737,25 @@ export const AllievoHomeScreen = () => {
                             ) : null}
                           </View>
                           {isTappable ? (
-                            <Ionicons name="open-outline" size={16} color="#16A34A" />
+                            <View style={styles.pillLocationOpenBtn}>
+                              <Ionicons name="open-outline" size={16} color="#16A34A" />
+                            </View>
                           ) : null}
-                        </Wrap>
+                        </>
+                      );
+
+                      return isTappable ? (
+                        <Pressable
+                          onPress={handleOpenMaps}
+                          style={({ pressed }) => [
+                            styles.pillLocationRow,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          {innerContent}
+                        </Pressable>
+                      ) : (
+                        <View style={styles.pillLocationRow}>{innerContent}</View>
                       );
                     })()}
 
@@ -2878,31 +2889,52 @@ const styles = StyleSheet.create({
   pillLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    marginBottom: 12,
-    minHeight: 48,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    marginBottom: 14,
+    minHeight: 64,
   },
   pillLocationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillLocationText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  pillLocationLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: '#16A34A',
+    marginBottom: 2,
+  },
+  pillLocationName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a120a',
+    lineHeight: 18,
+  },
+  pillLocationAddress: {
+    fontSize: 12,
+    color: '#6B5A48',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  pillLocationOpenBtn: {
     width: 32,
     height: 32,
     borderRadius: 10,
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pillLocationName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  pillLocationAddress: {
-    fontSize: 12,
-    color: '#5b4a3a',
-    marginTop: 1,
   },
   pillChipRow: {
     flexDirection: 'row',
