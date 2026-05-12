@@ -1683,6 +1683,71 @@ export const AllievoHomeScreen = () => {
                 <Collapsible open={isExpanded}>
                   <View style={styles.pillBody}>
                     <View style={styles.pillDivider} />
+
+                    {/* Luogo */}
+                    {(() => {
+                      const loc = lesson.location;
+                      const lat =
+                        typeof loc?.latitude === 'number'
+                          ? loc.latitude
+                          : loc?.latitude
+                            ? Number(loc.latitude)
+                            : null;
+                      const lng =
+                        typeof loc?.longitude === 'number'
+                          ? loc.longitude
+                          : loc?.longitude
+                            ? Number(loc.longitude)
+                            : null;
+                      const isTappable =
+                        loc?.isPrecise &&
+                        lat != null &&
+                        lng != null &&
+                        Number.isFinite(lat) &&
+                        Number.isFinite(lng);
+                      const displayName = loc?.name ?? "Sede dell'autoscuola";
+                      const handleOpenMaps = () => {
+                        if (!isTappable) return;
+                        const placeIdParam = loc!.placeId
+                          ? `&query_place_id=${loc!.placeId}`
+                          : '';
+                        Linking.openURL(
+                          `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`,
+                        ).catch(() => null);
+                      };
+                      const Wrap = isTappable ? Pressable : View;
+                      return (
+                        <Wrap
+                          onPress={isTappable ? handleOpenMaps : undefined}
+                          style={({ pressed }: { pressed: boolean }) => [
+                            styles.pillLocationRow,
+                            pressed && isTappable && { opacity: 0.7 },
+                          ]}
+                        >
+                          <View style={styles.pillLocationIcon}>
+                            <Ionicons
+                              name={loc?.isPrecise ? 'location' : 'location-outline'}
+                              size={16}
+                              color="#16A34A"
+                            />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.pillLocationName} numberOfLines={1}>
+                              {displayName}
+                            </Text>
+                            {loc?.isPrecise && loc.address ? (
+                              <Text style={styles.pillLocationAddress} numberOfLines={1}>
+                                {loc.address}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {isTappable ? (
+                            <Ionicons name="open-outline" size={16} color="#16A34A" />
+                          ) : null}
+                        </Wrap>
+                      );
+                    })()}
+
                     <View style={styles.pillChipRow}>
                       <View style={styles.pillChip}>
                         <Text style={styles.pillChipText}>{lessonDurationMinutes(lesson)} min</Text>
@@ -2809,6 +2874,35 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(0,0,0,0.10)',
     marginBottom: 12,
+  },
+  pillLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    marginBottom: 12,
+    minHeight: 48,
+  },
+  pillLocationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillLocationName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a120a',
+  },
+  pillLocationAddress: {
+    fontSize: 12,
+    color: '#5b4a3a',
+    marginTop: 1,
   },
   pillChipRow: {
     flexDirection: 'row',
