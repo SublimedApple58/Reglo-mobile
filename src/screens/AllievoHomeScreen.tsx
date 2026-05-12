@@ -710,7 +710,8 @@ export const AllievoHomeScreen = () => {
     });
   }, [invalidateAllData, selectedStudentId]);
 
-  // Unread notification count
+  // Unread notification count — refresh on both data changes (live push
+  // events) and inbox updates (server sync at mount, markRead, etc.)
   useEffect(() => {
     const refreshCount = () => {
       loadInbox().then((items) => {
@@ -718,7 +719,12 @@ export const AllievoHomeScreen = () => {
       }).catch(() => {});
     };
     refreshCount();
-    return notificationEvents.onDataChanged(refreshCount);
+    const unsubData = notificationEvents.onDataChanged(refreshCount);
+    const unsubInbox = notificationEvents.onInboxUpdated(refreshCount);
+    return () => {
+      unsubData();
+      unsubInbox();
+    };
   }, []);
 
   const upcoming = useMemo(() => {
