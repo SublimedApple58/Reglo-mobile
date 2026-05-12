@@ -1272,31 +1272,21 @@ export const IstruttoreHomeScreen = () => {
     [students, instructorId],
   );
   const bookingStudentOptions = useMemo(() => {
-    const toOption = (student: typeof students[number]) => ({
+    const toOption = (student: typeof students[number], offCluster: boolean) => ({
       value: student.id,
       label: `${student.firstName} ${student.lastName}`.trim(),
-      subtitle: null as string | null,
+      subtitle: offCluster ? 'Non assegnato a te' : (null as string | null),
     });
-    // Clusters not active: show all students unchanged
     if (!clustersActive) {
-      return students.map(toOption);
+      // No cluster lock \u2014 all students are equivalent
+      return students.map((s) => toOption(s, false));
     }
-    // Clusters active + emergency mode: assigned first, separator, then others
-    if (emergencyAllStudents) {
-      const assigned = assignedStudents.map(toOption);
-      if (unassignedStudents.length > 0) {
-        const separator = {
-          value: '__separator__',
-          label: '\u2500 Altri allievi \u2500',
-          subtitle: null as string | null,
-        };
-        return [...assigned, separator, ...unassignedStudents.map(toOption)];
-      }
-      return assigned;
-    }
-    // Clusters active, normal mode: only assigned students
-    return assignedStudents.map(toOption);
-  }, [students, assignedStudents, unassignedStudents, clustersActive, emergencyAllStudents]);
+    // Clusters active: own students first, then others (marked)
+    return [
+      ...assignedStudents.map((s) => toOption(s, false)),
+      ...unassignedStudents.map((s) => toOption(s, true)),
+    ];
+  }, [students, assignedStudents, unassignedStudents, clustersActive]);
   const selectedBookingStudent = useMemo(
     () => students.find((student) => student.id === bookingStudentId) ?? null,
     [bookingStudentId, students],
@@ -4912,25 +4902,6 @@ export const IstruttoreHomeScreen = () => {
             )}
             {!students.length ? (
               <Text style={styles.actionHint}>Nessun allievo disponibile.</Text>
-            ) : null}
-            {clustersActive && !emergencyAllStudents && unassignedStudents.length > 0 ? (
-              <Pressable
-                onPress={() => {
-                  Alert.alert(
-                    'Accesso allievi non assegnati',
-                    'Stai accedendo ad allievi non assegnati a te',
-                    [
-                      { text: 'Annulla', style: 'cancel' },
-                      { text: 'OK', onPress: () => setEmergencyAllStudents(true) },
-                    ],
-                  );
-                }}
-                hitSlop={8}
-              >
-                <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10, textAlign: 'center' }}>
-                  Vedi tutti gli allievi
-                </Text>
-              </Pressable>
             ) : null}
           </View>
 
