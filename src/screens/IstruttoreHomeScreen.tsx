@@ -59,6 +59,7 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
+  AutoscuolaLocation,
   AutoscuolaSettings,
   InstructorBlock,
   InstructorBookingSuggestion,
@@ -747,6 +748,23 @@ export const IstruttoreHomeScreen = () => {
   const [bookingDuration, setBookingDuration] = useState<number>(60);
   const [bookingLocationId, setBookingLocationId] = useState<string | null>(null);
   const [bookingLocationName, setBookingLocationName] = useState<string | null>(null);
+  const [bookingLocationAddress, setBookingLocationAddress] = useState<string | null>(null);
+  const [defaultLocation, setDefaultLocation] = useState<AutoscuolaLocation | null>(null);
+  // Load company default sede once (used to pre-populate Luogo field)
+  useEffect(() => {
+    let cancelled = false;
+    regloApi
+      .getLocations()
+      .then((list) => {
+        if (cancelled) return;
+        const def = list?.find((l) => l.isDefault) ?? null;
+        setDefaultLocation(def);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
   const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
   // ── Multi-booking state ──
@@ -1472,9 +1490,13 @@ export const IstruttoreHomeScreen = () => {
     setMultiBookingEntries([]);
     setEditingEntryId(null);
     setEditingEntryField(null);
+    // Pre-populate location with the autoscuola's default sede
+    setBookingLocationId(defaultLocation?.id ?? null);
+    setBookingLocationName(defaultLocation?.name ?? null);
+    setBookingLocationAddress(defaultLocation?.address ?? null);
     setBookingSheetMode('form');
     setBookingSheetOpen(true);
-  }, [canInstructorBook, normalizeToQuarter, settings?.bookingSlotDurations, students, vehicles, selectedDate]);
+  }, [canInstructorBook, normalizeToQuarter, settings?.bookingSlotDurations, students, vehicles, selectedDate, defaultLocation, clusterDurations]);
 
   const openQuickBook = useCallback((date: Date, hour: number, minutes: number) => {
     if (!canInstructorBook) {
@@ -4498,7 +4520,7 @@ export const IstruttoreHomeScreen = () => {
         {sheetLesson && lessonSheetMode === 'locationPicker' ? (
           <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
             <InlineLocationPicker
-              selectedLocationId={sheetLesson.locationId}
+              selectedLocationId={sheetLesson.locationId ?? defaultLocation?.id ?? null}
               onSelect={async (location) => {
                 try {
                   await regloApi.updateAppointmentDetails(sheetLesson.id, { locationId: location.id });
@@ -4671,23 +4693,39 @@ export const IstruttoreHomeScreen = () => {
               <Text style={styles.modalSectionLabel}>LUOGO</Text>
               <Pressable
                 onPress={() => setLessonSheetMode('locationPicker')}
-                style={{
+                style={({ pressed }) => [{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: 12,
+                  gap: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: '#FFFFFF',
-                }}
+                  minHeight: 56,
+                }, pressed && { opacity: 0.7 }]}
               >
-                <Ionicons name="location-outline" size={18} color={colors.primary} />
-                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 14 }} numberOfLines={1}>
-                  {sheetLesson?.location?.name ?? "Sede dell'autoscuola"}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="location" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
+                    numberOfLines={1}
+                  >
+                    {sheetLesson?.location?.name ?? defaultLocation?.name ?? "Sede dell'autoscuola"}
+                  </Text>
+                  {(sheetLesson?.location?.address ?? defaultLocation?.address) ? (
+                    <Text
+                      style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
+                      numberOfLines={1}
+                    >
+                      {sheetLesson?.location?.address ?? defaultLocation?.address}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
             </View>
 
@@ -5168,20 +5206,35 @@ export const IstruttoreHomeScreen = () => {
                 style={({ pressed }) => [{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 8,
-                  paddingVertical: 12,
+                  gap: 12,
+                  paddingVertical: 14,
                   paddingHorizontal: 14,
                   borderRadius: 14,
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: '#FFFFFF',
-                  minHeight: 48,
+                  minHeight: 56,
                 }, pressed && { opacity: 0.7 }]}
               >
-                <Ionicons name="location-outline" size={20} color={colors.primary} />
-                <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '500' }} numberOfLines={1}>
-                  {bookingLocationName ?? "Sede dell'autoscuola"}
-                </Text>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="location" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
+                    numberOfLines={1}
+                  >
+                    {bookingLocationName ?? "Sede dell'autoscuola"}
+                  </Text>
+                  {bookingLocationAddress ? (
+                    <Text
+                      style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
+                      numberOfLines={1}
+                    >
+                      {bookingLocationAddress}
+                    </Text>
+                  ) : null}
+                </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -5190,10 +5243,11 @@ export const IstruttoreHomeScreen = () => {
         {bookingSheetMode === 'locationPicker' && (
           <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
             <InlineLocationPicker
-              selectedLocationId={bookingLocationId}
+              selectedLocationId={bookingLocationId ?? defaultLocation?.id ?? null}
               onSelect={(location) => {
                 setBookingLocationId(location.id);
                 setBookingLocationName(location.name);
+                setBookingLocationAddress(location.address);
                 setBookingSheetMode('form');
               }}
               onRequestCreate={() => setBookingSheetMode('locationForm')}
@@ -5209,6 +5263,7 @@ export const IstruttoreHomeScreen = () => {
                 const created = await regloApi.createLocation(values);
                 setBookingLocationId(created.id);
                 setBookingLocationName(created.name);
+                setBookingLocationAddress(created.address);
                 setBookingSheetMode('form');
               }}
             />
