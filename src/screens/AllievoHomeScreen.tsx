@@ -1722,13 +1722,22 @@ export const AllievoHomeScreen = () => {
                         const sedeContent = (
                           <>
                             <Ionicons
-                              name="location-outline"
+                              name={isTappable ? 'location' : 'location-outline'}
                               size={13}
-                              color="#6B5A48"
+                              color={isTappable ? '#16A34A' : '#6B5A48'}
                             />
-                            <Text style={styles.pillSedeText} numberOfLines={1}>
+                            <Text
+                              style={[
+                                styles.pillSedeText,
+                                isTappable && styles.pillSedeTextTappable,
+                              ]}
+                              numberOfLines={1}
+                            >
                               {displayName}
                             </Text>
+                            {isTappable ? (
+                              <Ionicons name="open-outline" size={12} color="#16A34A" />
+                            ) : null}
                           </>
                         );
                         return isTappable ? (
@@ -2975,6 +2984,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: '#6B5A48',
+  },
+  pillSedeTextTappable: {
+    color: '#16A34A',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   pillChipRow: {
     flexDirection: 'row',
