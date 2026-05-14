@@ -92,6 +92,7 @@ import {
   AutoscuolaLocation,
   CreateLocationInput,
   UpdateLocationInput,
+  StudentPhasePayload,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -160,6 +161,8 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     getAutoscuolaSettings: async () =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings'),
+    getMyPhase: async () =>
+      client.request<StudentPhasePayload>('/api/autoscuole/me'),
     updateAutoscuolaSettings: async (input: AutoscuolaSettings) =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',

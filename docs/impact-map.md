@@ -80,9 +80,18 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Quiz Teoria
 - → **Settings**: reads `quizEnabled` from `getAutoscuolaSettings()` via `useQuizEnabled` hook
+- → **Student Phase**: la tab `quiz` è ora visibile solo se `studentPhase === TEORIA` (and quizEnabled). In fase PRATICA o PATENTATO la tab è nascosta.
 - → **Tab Layout**: conditional quiz tab in `_layout.tsx`
 - → **Backend**: 7 API functions (chapters, sessions, answers, stats)
 - → Self-contained: QuizContext holds session state, 3 screens
+
+### Student Phase
+- → **Quiz Teoria**: tab visibile solo in TEORIA; CTA della home TEORIA portano direttamente al quiz.
+- → **Booking Flow**: tab Agenda nascosta in TEORIA + booking server-side bloccato.
+- → **Tab Layout**: in PATENTATO solo `home` è visibile; in TEORIA aggiunge `quiz`, rimuove `payments`/`swaps`.
+- → **Notifications**: due nuovi `kinds` (`theory_exam_countdown`, `theory_quiz_inactivity`) inbox-only.
+- → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.
+- → **Backend**: `GET /api/autoscuole/me`, `updateStudentPhase` (web only).
 
 ## Cross-Repo Impact
 
@@ -96,3 +105,5 @@ When `../reglo/` backend changes:
 | New instructor setting | `InstructorClusterSettings` type + 9 consuming screens |
 | Changed appointment status values | Status-dependent rendering in 14 files |
 | New lesson type | `src/utils/lessonTypes.ts` + screens showing lesson type labels |
+| Student phase model change | `src/types/regloApi.ts` (StudentPhasePayload), `useMyPhase`, `useStudentPhase`, `_layout.tsx`, `RoleHomeScreen` |
+| New theory reminder push kind | `src/types/notifications.ts` + `NotificationInboxScreen` (icon + title + subtitle) |

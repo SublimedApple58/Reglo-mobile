@@ -38,6 +38,8 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   appointment_cancelled: 'close-circle-outline',
   availability_published: 'megaphone-outline',
   appointment_location_changed: 'location-outline',
+  theory_exam_countdown: 'time-outline',
+  theory_quiz_inactivity: 'school-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -66,6 +68,12 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Disponibilità pubblicate';
     case 'appointment_location_changed':
       return 'Luogo guida aggiornato';
+    case 'theory_exam_countdown':
+      return item.data.offsetDays === 1
+        ? 'Esame teoria domani'
+        : `Esame teoria fra ${item.data.offsetDays} giorni`;
+    case 'theory_quiz_inactivity':
+      return 'Riprendi lo studio';
   }
 };
 
@@ -95,6 +103,12 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
     case 'appointment_location_changed':
       return `${formatDay(item.data.startsAt)} · ${item.data.newLocationName}`;
+    case 'theory_exam_countdown':
+      return item.data.theoryExamAt
+        ? `Esame il ${formatDay(item.data.theoryExamAt)}`
+        : 'Continua a esercitarti';
+    case 'theory_quiz_inactivity':
+      return `Sono ${item.data.inactiveDays} giorni che non studi`;
   }
 };
 

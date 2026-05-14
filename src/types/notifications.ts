@@ -62,6 +62,15 @@ export type AppointmentLocationChangedData = {
   newLocationName: string;
 };
 
+export type TheoryExamCountdownData = {
+  offsetDays: 7 | 3 | 1 | number;
+  theoryExamAt: string | null;
+};
+
+export type TheoryQuizInactivityData = {
+  inactiveDays: number;
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
@@ -74,7 +83,9 @@ export type NotificationItem =
   | { kind: 'appointment_rescheduled'; id: string; data: AppointmentRescheduledData }
   | { kind: 'appointment_cancelled'; id: string; data: AppointmentCancelledData }
   | { kind: 'availability_published'; id: string; data: AvailabilityPublishedData }
-  | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData };
+  | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData }
+  | { kind: 'theory_exam_countdown'; id: string; data: TheoryExamCountdownData }
+  | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

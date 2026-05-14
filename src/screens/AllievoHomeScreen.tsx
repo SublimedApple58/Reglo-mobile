@@ -44,6 +44,8 @@ import { subscribePushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
 import { loadInbox } from '../services/notificationStore';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { useStudentPhase } from '../hooks/useStudentPhase';
+import { PhaseProgressBar } from '../components/PhaseProgressBar';
 import { useBookingOptions } from '../hooks/queries/useBookingOptions';
 import { usePaymentProfile } from '../hooks/queries/usePaymentProfile';
 import { usePaymentHistory } from '../hooks/queries/usePaymentHistory';
@@ -234,6 +236,7 @@ export const AllievoHomeScreen = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user, activeCompanyId, companies } = useSession();
   const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name ?? null;
+  const { phase: studentPhase, theoryExamAt: studentTheoryExamAt } = useStudentPhase();
   const queryClient = useQueryClient();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
@@ -1519,6 +1522,17 @@ export const AllievoHomeScreen = () => {
           </View>
         </View>
 
+        {/* ── Percorso patente — barra fasi ── */}
+        {studentPhase && (
+          <View style={styles.phaseProgressWrap}>
+            <PhaseProgressBar
+              phase={studentPhase}
+              theoryExamAt={studentTheoryExamAt}
+              compact
+            />
+          </View>
+        )}
+
         {/* ── Filter tags ── */}
         <View style={styles.pillFiltersRow}>
           {activeCompanyName && (
@@ -2680,6 +2694,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 4,
     minHeight: 28,
+  },
+  phaseProgressWrap: {
+    marginHorizontal: 14,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 4,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 1,
   },
   pillFilterTag: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
 import { useQuizEnabled } from '../../src/hooks/useQuizEnabled';
+import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
@@ -159,16 +160,21 @@ export default function TabsLayout() {
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
+  const { phase: studentPhase } = useStudentPhase();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
-  const showPaymentsTab = !showRoleTab && autoPaymentsEnabled;
   const isStudent = isStudentRole(autoscuolaRole);
   const isInstructor = isInstructorRole(autoscuolaRole);
-  const showSwapsTab = isStudent && swapEnabled;
-  const showNotesTab = showRoleTab || studentNotesEnabled;
   const isInstructorOwner = autoscuolaRole === 'INSTRUCTOR_OWNER';
+  const isStudentInTeoria = isStudent && studentPhase === 'TEORIA';
+  const isStudentLicensed = isStudent && studentPhase === 'PATENTATO';
+  // Students in PATENTATO: only home tab is visible.
+  // Students in TEORIA: quiz central, no swaps/payments.
+  const showPaymentsTab = !showRoleTab && autoPaymentsEnabled && !isStudentInTeoria && !isStudentLicensed;
+  const showSwapsTab = isStudent && swapEnabled && !isStudentInTeoria && !isStudentLicensed;
+  const showNotesTab = (showRoleTab || studentNotesEnabled) && !isStudentLicensed;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
   const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
-  const showQuizTab = isStudent && quizEnabled;
+  const showQuizTab = isStudent && quizEnabled && studentPhase === 'TEORIA';
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
@@ -183,8 +189,10 @@ export default function TabsLayout() {
     if (!showQuizTab) set.add('quiz');
     // Settings hidden when "Altro" is shown (accessed from More screen)
     if (showMoreTab) set.add('settings');
+    // Licensed students see only home — saluto finale.
+    if (isStudentLicensed) set.add('settings');
     return set;
-  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab, showQuizTab]);
+  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab, showQuizTab, isStudentLicensed]);
 
   const transparent =
     Platform.OS === 'ios'

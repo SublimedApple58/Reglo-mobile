@@ -7,6 +7,14 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUDENT";
 
+export type AutoscuolaStudentPhase = "TEORIA" | "PRATICA" | "PATENTATO";
+
+export type StudentPhasePayload = {
+  phase: AutoscuolaStudentPhase;
+  theoryExamAt: IsoDate | null;
+  drivingExamAt: IsoDate | null;
+};
+
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
 export type CompanyServiceStatus = "ACTIVE" | "DISABLED";
 

@@ -14,6 +14,7 @@
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen`, `InstructorManageScreen` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
+| Student Phase | [student-phase.md](features/student-phase.md) | `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx` |
 
 ## Design System
 
