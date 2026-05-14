@@ -160,21 +160,31 @@ export default function TabsLayout() {
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
-  const { phase: studentPhase } = useStudentPhase();
+  const { phase: studentPhase, hasQuizAccess } = useStudentPhase();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const isStudent = isStudentRole(autoscuolaRole);
   const isInstructor = isInstructorRole(autoscuolaRole);
   const isInstructorOwner = autoscuolaRole === 'INSTRUCTOR_OWNER';
+  const isStudentAwaiting = isStudent && studentPhase === 'AWAITING';
   const isStudentInTeoria = isStudent && studentPhase === 'TEORIA';
   const isStudentLicensed = isStudent && studentPhase === 'PATENTATO';
+  // Students in AWAITING: only the home neutral screen — no functional tabs.
   // Students in PATENTATO: only home tab is visible.
   // Students in TEORIA: quiz central, no swaps/payments.
-  const showPaymentsTab = !showRoleTab && autoPaymentsEnabled && !isStudentInTeoria && !isStudentLicensed;
-  const showSwapsTab = isStudent && swapEnabled && !isStudentInTeoria && !isStudentLicensed;
-  const showNotesTab = (showRoleTab || studentNotesEnabled) && !isStudentLicensed;
+  const showPaymentsTab =
+    !showRoleTab && autoPaymentsEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
+  const showSwapsTab =
+    isStudent && swapEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
+  const showNotesTab =
+    (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
   const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
-  const showQuizTab = isStudent && quizEnabled && studentPhase === 'TEORIA';
+  // Quiz tab: only when the student is in TEORIA AND owns a quiz seat. The
+  // legacy `quizEnabled` flag is kept as a defensive fallback for backends
+  // that still ship the deprecated boolean, but the canonical signal is the
+  // per-student `hasQuizAccess` returned by /api/autoscuole/me.
+  const showQuizTab =
+    isStudent && studentPhase === 'TEORIA' && (hasQuizAccess || quizEnabled);
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
@@ -189,10 +199,19 @@ export default function TabsLayout() {
     if (!showQuizTab) set.add('quiz');
     // Settings hidden when "Altro" is shown (accessed from More screen)
     if (showMoreTab) set.add('settings');
-    // Licensed students see only home — saluto finale.
-    if (isStudentLicensed) set.add('settings');
+    // Awaiting / Licensed students see only home — no settings either.
+    if (isStudentAwaiting || isStudentLicensed) set.add('settings');
     return set;
-  }, [showRoleTab, showNotesTab, showMoreTab, showSwapsTab, showPaymentsTab, showQuizTab, isStudentLicensed]);
+  }, [
+    showRoleTab,
+    showNotesTab,
+    showMoreTab,
+    showSwapsTab,
+    showPaymentsTab,
+    showQuizTab,
+    isStudentAwaiting,
+    isStudentLicensed,
+  ]);
 
   const transparent =
     Platform.OS === 'ios'

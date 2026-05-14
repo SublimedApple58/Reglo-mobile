@@ -2,6 +2,7 @@ import React from 'react';
 import { useSession } from '../context/SessionContext';
 import { isInstructor } from '../utils/roles';
 import { useStudentPhase } from '../hooks/useStudentPhase';
+import { AllievoAwaitingScreen } from './AllievoAwaitingScreen';
 import { AllievoHomeScreen } from './AllievoHomeScreen';
 import { AllievoTheoryHomeScreen } from './AllievoTheoryHomeScreen';
 import { AllievoLicensedScreen } from './AllievoLicensedScreen';
@@ -14,6 +15,7 @@ export const RoleHomeScreen = () => {
 
   if (autoscuolaRole === 'OWNER') return <TitolareHomeScreen />;
   if (isInstructor(autoscuolaRole)) return <IstruttoreHomeScreen />;
+  if (phase === 'AWAITING') return <AllievoAwaitingScreen />;
   if (phase === 'TEORIA') return <AllievoTheoryHomeScreen />;
   if (phase === 'PATENTATO') return <AllievoLicensedScreen />;
   return <AllievoHomeScreen />;

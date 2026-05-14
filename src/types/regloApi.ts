@@ -7,12 +7,30 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUDENT";
 
-export type AutoscuolaStudentPhase = "TEORIA" | "PRATICA" | "PATENTATO";
+export type AutoscuolaStudentPhase = "AWAITING" | "TEORIA" | "PRATICA" | "PATENTATO";
 
 export type StudentPhasePayload = {
   phase: AutoscuolaStudentPhase;
   theoryExamAt: IsoDate | null;
   drivingExamAt: IsoDate | null;
+  /**
+   * Active phases at the autoscuola level. New since the quiz-seats /
+   * student-phase commercial rollout. Older backend versions may not return
+   * this field — treat as `['PRATICA']` when absent.
+   */
+  phasesEnabled?: Array<"TEORIA" | "PRATICA">;
+  /**
+   * True when the student has been granted a nominal quiz license seat
+   * (CompanyMember.quizSeatGrantedAt != null). Drives the quiz tab
+   * visibility on mobile. Absent on legacy backends → assume false.
+   */
+  hasQuizAccess?: boolean;
+  /**
+   * Whether the autoscuola auto-assigns a quiz seat to every new student
+   * at registration. Read-only on mobile (managed from the owner web app).
+   * Absent on legacy backends → assume false.
+   */
+  autoAssignQuizOnSignup?: boolean;
 };
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
