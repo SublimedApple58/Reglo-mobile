@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Keyboard,
@@ -59,6 +60,7 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
+  AutoscuolaInstructor,
   AutoscuolaLocation,
   AutoscuolaSettings,
   InstructorBlock,
@@ -939,7 +941,21 @@ export const IstruttoreHomeScreen = () => {
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
   const [bookingSheetMode, setBookingSheetMode] = useState<'form' | 'calendar' | 'timepicker' | 'locationPicker' | 'locationForm'>('form');
-  const [lessonSheetMode, setLessonSheetMode] = useState<'view' | 'locationPicker' | 'locationForm'>('view');
+  const [lessonSheetMode, setLessonSheetMode] = useState<'view' | 'locationPicker' | 'locationForm' | 'instructorPicker'>('view');
+  // Instructor reassignment state for the "Modifica guida" sheet.
+  // `selectedInstructorId` mirrors the sheetLesson's current instructor and
+  // is only different when the user has staged a change. The availability
+  // state shows live verification feedback for the staged choice.
+  const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
+  const [instructorAvailability, setInstructorAvailability] = useState<
+    | { status: 'idle' }
+    | { status: 'checking' }
+    | { status: 'available' }
+    | { status: 'unavailable'; detail: string }
+    | { status: 'error'; detail: string }
+  >({ status: 'idle' });
+  const [instructorList, setInstructorList] = useState<AutoscuolaInstructor[]>([]);
+  const [instructorListLoading, setInstructorListLoading] = useState(false);
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
   const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
@@ -2158,7 +2174,67 @@ export const IstruttoreHomeScreen = () => {
     setSelectedLessonTypes(resolveInitialLessonTypes(lesson));
     setSelectedRating(lesson.rating ?? null);
     setLessonNotes(lesson.notes ?? '');
+    setSelectedInstructorId(lesson.instructorId ?? null);
+    setInstructorAvailability({ status: 'idle' });
   };
+
+  // Live availability check whenever the staged instructor changes to a
+  // value different from the lesson's current instructor.
+  useEffect(() => {
+    if (!sheetLesson || !selectedInstructorId) return;
+    if (selectedInstructorId === sheetLesson.instructorId) {
+      setInstructorAvailability({ status: 'idle' });
+      return;
+    }
+    const startsAt = new Date(sheetLesson.startsAt);
+    const endTs = sheetLesson.endsAt
+      ? new Date(sheetLesson.endsAt).getTime()
+      : startsAt.getTime() + 60 * 60 * 1000;
+    const endsAt = new Date(endTs);
+
+    let cancelled = false;
+    setInstructorAvailability({ status: 'checking' });
+
+    regloApi
+      .checkInstructorAvailability({
+        instructorId: selectedInstructorId,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        excludeAppointmentId: sheetLesson.id,
+      })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.available) {
+          setInstructorAvailability({ status: 'available' });
+        } else {
+          setInstructorAvailability({ status: 'unavailable', detail: result.detail });
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const detail = err instanceof Error ? err.message : 'Errore verifica disponibilità';
+        setInstructorAvailability({ status: 'error', detail });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sheetLesson, selectedInstructorId]);
+
+  // Lazily load the instructors list when the user first opens the picker.
+  const handleOpenInstructorPicker = useCallback(async () => {
+    setLessonSheetMode('instructorPicker');
+    if (instructorList.length > 0 || instructorListLoading) return;
+    setInstructorListLoading(true);
+    try {
+      const list = await regloApi.getInstructors();
+      setInstructorList(list ?? []);
+    } catch {
+      setInstructorList([]);
+    } finally {
+      setInstructorListLoading(false);
+    }
+  }, [instructorList.length, instructorListLoading]);
 
   // Fetch student lesson progress when drawer opens
   useEffect(() => {
@@ -2619,7 +2695,7 @@ export const IstruttoreHomeScreen = () => {
       return;
     }
 
-    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null } = {};
+    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null; instructorId?: string } = {};
     const initialTypes = resolveInitialLessonTypes(sheetLesson);
     const typesChanged = JSON.stringify(selectedLessonTypes.sort()) !== JSON.stringify([...initialTypes].sort());
     if (selectedLessonTypes.length && typesChanged) {
@@ -2636,6 +2712,31 @@ export const IstruttoreHomeScreen = () => {
     const initialNotes = normalizeNotes(sheetLesson.notes);
     if (currentNotes !== initialNotes) {
       payload.notes = currentNotes || null;
+    }
+
+    // Instructor reassignment. We block the save if the user staged an
+    // unavailable instructor — the inline badge already explains why.
+    if (
+      selectedInstructorId &&
+      selectedInstructorId !== sheetLesson.instructorId
+    ) {
+      if (
+        instructorAvailability.status === 'unavailable' ||
+        instructorAvailability.status === 'checking' ||
+        instructorAvailability.status === 'error'
+      ) {
+        setToast({
+          text:
+            instructorAvailability.status === 'checking'
+              ? 'Verifica disponibilità in corso…'
+              : instructorAvailability.status === 'unavailable'
+                ? instructorAvailability.detail
+                : 'Riprova la verifica disponibilità.',
+          tone: 'danger',
+        });
+        return;
+      }
+      payload.instructorId = selectedInstructorId;
     }
 
     if (!Object.keys(payload).length) {
@@ -4404,6 +4505,7 @@ export const IstruttoreHomeScreen = () => {
         title={
           lessonSheetMode === 'locationPicker' ? 'Cambia luogo'
             : lessonSheetMode === 'locationForm' ? 'Aggiungi luogo'
+            : lessonSheetMode === 'instructorPicker' ? 'Cambia istruttore'
             : 'Gestisci guida'
         }
         closeDisabled={isPending}
@@ -4575,6 +4677,91 @@ export const IstruttoreHomeScreen = () => {
             />
           </Animated.View>
         ) : null}
+        {sheetLesson && lessonSheetMode === 'instructorPicker' ? (
+          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
+            <View style={{ paddingBottom: 8 }}>
+              {instructorListLoading && instructorList.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{ marginTop: 12, color: colors.textSecondary, fontSize: 13 }}>
+                    Carico gli istruttori…
+                  </Text>
+                </View>
+              ) : instructorList.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                    Nessun istruttore disponibile.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 6 }}>
+                  {instructorList
+                    .filter((it) => it.status !== 'inactive')
+                    .map((it) => {
+                      const isCurrent = it.id === sheetLesson.instructorId;
+                      const isSelected = it.id === selectedInstructorId;
+                      return (
+                        <Pressable
+                          key={it.id}
+                          onPress={() => {
+                            setSelectedInstructorId(it.id);
+                            setLessonSheetMode('view');
+                          }}
+                          style={({ pressed }) => [{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 12,
+                            paddingVertical: 14,
+                            paddingHorizontal: 14,
+                            borderRadius: 14,
+                            borderWidth: 1,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            backgroundColor: isSelected ? '#FCE7F3' : '#FFFFFF',
+                            minHeight: 56,
+                          }, pressed && { opacity: 0.7 }]}
+                        >
+                          <View style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: isSelected ? colors.primary : '#F1F5F9',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                            <Ionicons
+                              name="person"
+                              size={18}
+                              color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                color: colors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: '600',
+                              }}
+                              numberOfLines={1}
+                            >
+                              {it.name}
+                            </Text>
+                            {isCurrent ? (
+                              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                                Istruttore attuale
+                              </Text>
+                            ) : null}
+                          </View>
+                          {isSelected ? (
+                            <Ionicons name="checkmark" size={20} color={colors.primary} />
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        ) : null}
         {sheetLesson && lessonSheetMode === 'view' ? (
           <View style={{ maxHeight: windowHeight * 0.45 }}>
             <ScrollView
@@ -4701,6 +4888,130 @@ export const IstruttoreHomeScreen = () => {
                 <StarRating value={selectedRating} onChange={setSelectedRating} />
               </View>
             ) : null}
+
+            {/* ISTRUTTORE */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionLabel}>ISTRUTTORE</Text>
+              <Pressable
+                onPress={handleOpenInstructorPicker}
+                style={({ pressed }) => [{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: '#FFFFFF',
+                  minHeight: 56,
+                }, pressed && { opacity: 0.7 }]}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="person" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
+                    numberOfLines={1}
+                  >
+                    {(() => {
+                      if (!selectedInstructorId) return 'Nessun istruttore';
+                      // 1. Try the current sheet lesson's instructor (single source of truth pre-change).
+                      if (sheetLesson?.instructorId === selectedInstructorId && sheetLesson.instructor?.name) {
+                        return sheetLesson.instructor.name;
+                      }
+                      // 2. Fall back to the lazily-loaded list.
+                      const fromList = instructorList.find((i) => i.id === selectedInstructorId);
+                      return fromList?.name ?? 'Istruttore';
+                    })()}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+
+              {/* Live availability badge (only when a different instructor is staged) */}
+              {sheetLesson &&
+              selectedInstructorId &&
+              selectedInstructorId !== sheetLesson.instructorId ? (
+                instructorAvailability.status === 'checking' ? (
+                  <View
+                    style={{
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      backgroundColor: '#F1F5F9',
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                      Verifica disponibilità…
+                    </Text>
+                  </View>
+                ) : instructorAvailability.status === 'available' ? (
+                  <View
+                    accessibilityRole="text"
+                    style={{
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      backgroundColor: '#ECFDF5',
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                    <Text style={{ color: '#047857', fontSize: 13, fontWeight: '500' }}>
+                      Disponibile a quest'orario
+                    </Text>
+                  </View>
+                ) : instructorAvailability.status === 'unavailable' ? (
+                  <View
+                    accessibilityRole="alert"
+                    style={{
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      backgroundColor: '#FEF2F2',
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginTop: 1 }} />
+                    <Text style={{ flex: 1, color: '#B91C1C', fontSize: 13 }}>
+                      {instructorAvailability.detail}
+                    </Text>
+                  </View>
+                ) : instructorAvailability.status === 'error' ? (
+                  <View
+                    accessibilityRole="alert"
+                    style={{
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      backgroundColor: '#FFFBEB',
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={16} color="#D97706" style={{ marginTop: 1 }} />
+                    <Text style={{ flex: 1, color: '#92400E', fontSize: 13 }}>
+                      {instructorAvailability.detail}
+                    </Text>
+                  </View>
+                ) : null
+              ) : null}
+            </View>
 
             {/* LUOGO */}
             <View style={styles.modalSection}>

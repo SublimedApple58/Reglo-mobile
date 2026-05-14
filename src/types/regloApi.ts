@@ -343,6 +343,27 @@ export type UpdateAppointmentDetailsInput = {
   rating?: number | null;
   notes?: string | null;
   locationId?: Uuid | null;
+  /**
+   * Reassign the appointment to a different instructor (single-lesson
+   * override; does NOT change the student's assignedInstructorId). Server
+   * verifies availability and returns `INSTRUCTOR_UNAVAILABLE` on conflict.
+   */
+  instructorId?: Uuid;
+};
+
+export type InstructorAvailabilityResult =
+  | { available: true }
+  | {
+      available: false;
+      reason: "OVERLAP" | "BLOCK" | "HOLIDAY" | "INSTRUCTOR_INACTIVE";
+      detail: string;
+    };
+
+export type CheckInstructorAvailabilityInput = {
+  instructorId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  excludeAppointmentId?: Uuid;
 };
 
 export type CreateLocationInput = {
