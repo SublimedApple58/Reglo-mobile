@@ -588,8 +588,13 @@ export const AllievoHomeScreen = () => {
   const weeklyAbsenceEnabled = bookingOptions?.weeklyAbsenceEnabled === true;
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
-  // Prefer cluster-resolved setting over company default
-  const canCancelAppointments = bookingOptions?.studentCancellationEnabled !== false;
+  // Prefer cluster-resolved setting over company default.
+  // Fail-closed default: hide the "Annulla guida" button when bookingOptions is
+  // not yet loaded (loading / stale persisted cache / query error). Showing the
+  // button to a student whose school disabled cancellations would let them click
+  // through to a backend rejection — bad UX. We'd rather hide for a beat and
+  // reveal once we have the authoritative value from the server.
+  const canCancelAppointments = bookingOptions?.studentCancellationEnabled === true;
   const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
   const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
   const requiresPaymentMethodForBooking = Boolean(
