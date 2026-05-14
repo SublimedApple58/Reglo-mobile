@@ -79,19 +79,23 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `getLatestStudentAppointmentNote()`, `updateAppointmentDetails()`
 
 ### Quiz Teoria
-- → **Settings**: reads `quizEnabled` from `getAutoscuolaSettings()` via `useQuizEnabled` hook
-- → **Student Phase**: la tab `quiz` è ora visibile solo se `studentPhase === TEORIA` (and quizEnabled). In fase PRATICA o PATENTATO la tab è nascosta.
-- → **Tab Layout**: conditional quiz tab in `_layout.tsx`
+- → **Settings**: legge `quizSeats` / `phasesEnabled` / `autoAssignQuizOnSignup` via `/api/autoscuole/me`. Il legacy `quizEnabled` resta come fallback difensivo per backend più vecchi.
+- → **Student Phase**: la tab `quiz` è visibile **solo** se `studentPhase === TEORIA && hasQuizAccess === true`. In AWAITING / PRATICA / PATENTATO la tab è nascosta.
+- → **Tab Layout**: conditional quiz tab in `_layout.tsx`, con `hasQuizAccess` come segnale primario.
 - → **Backend**: 7 API functions (chapters, sessions, answers, stats)
 - → Self-contained: QuizContext holds session state, 3 screens
 
 ### Student Phase
-- → **Quiz Teoria**: tab visibile solo in TEORIA; CTA della home TEORIA portano direttamente al quiz.
-- → **Booking Flow**: tab Agenda nascosta in TEORIA + booking server-side bloccato.
-- → **Tab Layout**: in PATENTATO solo `home` è visibile; in TEORIA aggiunge `quiz`, rimuove `payments`/`swaps`.
-- → **Notifications**: due nuovi `kinds` (`theory_exam_countdown`, `theory_quiz_inactivity`) inbox-only.
-- → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.
-- → **Backend**: `GET /api/autoscuole/me`, `updateStudentPhase` (web only).
+- → **Quiz Teoria**: tab visibile solo in TEORIA + `hasQuizAccess`; CTA della home TEORIA portano direttamente al quiz.
+- → **Booking Flow**: tab Agenda nascosta in AWAITING e TEORIA + booking server-side bloccato (messaggi distinti per AWAITING vs TEORIA).
+- → **Tab Layout**:
+  - AWAITING → solo `home` (niente settings, payments, notes, swaps, quiz)
+  - TEORIA → `home` + `quiz` (se `hasQuizAccess`) + eventualmente `notes`
+  - PRATICA → `home` + `payments` (se autoPayments) + `swaps` (se enabled) + `notes` + `settings`
+  - PATENTATO → solo `home`
+- → **Notifications**: due `kinds` (`theory_exam_countdown`, `theory_quiz_inactivity`) inbox-only.
+- → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.
+- → **Backend**: `GET /api/autoscuole/me` (arricchita di `phasesEnabled`, `hasQuizAccess`, `autoAssignQuizOnSignup`), `POST /api/mobile/auth/student-register` (decide fase + seat in transaction), `updateStudentPhase` + `grantQuizSeat` + `setAutoAssignQuizOnSignup` (tutte web/owner only).
 
 ## Cross-Repo Impact
 

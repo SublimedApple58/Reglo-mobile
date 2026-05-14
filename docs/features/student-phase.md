@@ -1,6 +1,6 @@
 # Student Phase — UX mobile per fase del percorso
 
-L'app cambia completamente in base alla fase dell'allievo (`TEORIA` / `PRATICA` / `PATENTATO`). La fase è gestita lato web dal titolare (vedi `reglo/docs/features/student-phase.md`).
+L'app cambia completamente in base alla fase dell'allievo: **AWAITING** → **TEORIA** → **PRATICA** → **PATENTATO**. La fase è gestita lato web dal titolare (vedi `reglo/docs/features/student-phase.md`).
 
 ## File chiave
 
@@ -9,11 +9,12 @@ L'app cambia completamente in base alla fase dell'allievo (`TEORIA` / `PRATICA` 
 | Tipi | `src/types/regloApi.ts` (`AutoscuolaStudentPhase`, `StudentPhasePayload`) |
 | Service | `src/services/regloApi.ts` → `getMyPhase()` |
 | Query hook | `src/hooks/queries/useMyPhase.ts` |
-| Hook UX | `src/hooks/useStudentPhase.ts` (espone `phase`, `theoryExamAt`, `drivingExamAt`) |
+| Hook UX | `src/hooks/useStudentPhase.ts` (espone `phase`, `theoryExamAt`, `drivingExamAt`, `phasesEnabled`, `hasQuizAccess`, `autoAssignQuizOnSignup`) |
 | Tab routing condizionale | `app/(tabs)/_layout.tsx` |
 | Switch home per fase | `src/screens/RoleHomeScreen.tsx` |
+| Home AWAITING | `src/screens/AllievoAwaitingScreen.tsx` (nuovo) |
 | Home TEORIA | `src/screens/AllievoTheoryHomeScreen.tsx` |
-| Home PRATICA (esistente, esteso) | `src/screens/AllievoHomeScreen.tsx` (header con `PhaseProgressBar compact`) |
+| Home PRATICA | `src/screens/AllievoHomeScreen.tsx` (header con `PhaseProgressBar compact`) |
 | Schermata PATENTATO | `src/screens/AllievoLicensedScreen.tsx` |
 | Componente progress bar | `src/components/PhaseProgressBar.tsx` |
 | Notifiche kinds | `src/types/notifications.ts` (`theory_exam_countdown`, `theory_quiz_inactivity`) |
@@ -23,37 +24,64 @@ L'app cambia completamente in base alla fase dell'allievo (`TEORIA` / `PRATICA` 
 
 | Fase | Home | Tabs visibili | Booking guida |
 |------|------|---------------|---------------|
-| TEORIA | `AllievoTheoryHomeScreen` (riepilogo + progress bar 3 step + countdown + CTA quiz) | `home`, `quiz` (se quizEnabled azienda), eventuali `notes` se abilitato | Bloccato server-side |
-| PRATICA | `AllievoHomeScreen` esistente + `PhaseProgressBar compact` in cima | `home`, `payments` (se autoPayments), `swaps` (se enabled), `notes` (se enabled), `settings` | Disponibile |
+| AWAITING | `AllievoAwaitingScreen` (duck-clock + testo, nessuna CTA) | Solo `home` (niente settings, payments, notes, swaps, quiz) | Bloccato server-side ("Il tuo percorso non è ancora stato attivato dall'autoscuola.") |
+| TEORIA | `AllievoTheoryHomeScreen` (riepilogo + progress bar + countdown + CTA quiz) | `home`, `quiz` (solo se `hasQuizAccess`), eventuali `notes` se abilitato | Bloccato server-side ("Le lezioni di guida saranno disponibili dopo l'esame di teoria.") |
+| PRATICA | `AllievoHomeScreen` + `PhaseProgressBar compact` in cima | `home`, `payments` (se autoPayments), `swaps` (se enabled), `notes` (se enabled), `settings` | Disponibile |
 | PATENTATO | `AllievoLicensedScreen` (saluto + progress bar 100% + logout) | Solo `home` | Bloccato (fase nascosta in app) |
 
-## Progress bar (`PhaseProgressBar`)
+## Schema dati `/api/autoscuole/me`
 
-- 3 checkpoint orizzontali: Teoria → Foglio rosa → Patente.
-- Track riempito secondo la fase corrente:
-  - `TEORIA + theoryExamAt presente`: progress dentro il primo segmento, scala lineare con esame fra 30 giorni → 0%, esame oggi → 33% globale (100% del segmento Teoria).
-  - `TEORIA + nessuna data esame`: ~1.7% globale (5% del primo segmento, valore base).
-  - `PRATICA`: 50% globale.
-  - `PATENTATO`: 100% globale.
-- Variante `compact` per la home PRATICA (paddings ridotti, label più piccola).
+```ts
+{
+  phase: AWAITING | TEORIA | PRATICA | PATENTATO,
+  theoryExamAt: string | null,
+  drivingExamAt: string | null,
+  phasesEnabled?: ('TEORIA' | 'PRATICA')[],      // additive, default ['PRATICA']
+  hasQuizAccess?: boolean,                       // derivato da quizSeatGrantedAt
+  autoAssignQuizOnSignup?: boolean,              // read-only mobile
+}
+```
+
+I tre campi opzionali sono additive per retro-compatibilità: client mobile vecchi che non li leggono continuano a funzionare e gli utenti restano nelle fasi esistenti (PRATICA / TEORIA / PATENTATO).
+
+## Tab Quiz — visibilità
+
+Visibile **solo** se:
+
+```
+isStudent && phase === 'TEORIA' && (hasQuizAccess || quizEnabled-legacy)
+```
+
+`hasQuizAccess` è il segnale canonico (deriva dal seat consumato a vita lato server). `quizEnabled` è un fallback difensivo per backend più vecchi.
+
+In AWAITING e in PRATICA/PATENTATO la tab non è renderizzata e non è raggiungibile via deep link.
+
+## Home AWAITING
+
+Schermata neutra:
+
+- Illustrazione: `duck-clock.png` in cerchio bianco (cornice surface + shadow soft)
+- Titolo: "Ci siamo quasi, {firstName}" (o "Ci siamo quasi" senza nome)
+- Sottotitolo: "Stai per iniziare il tuo percorso. La tua autoscuola attiverà l'accesso a breve. Riceverai una notifica appena sarà pronto."
+- **Nessuna CTA**. L'allievo non ha azioni da compiere — è il titolare che lo attiva dal web.
 
 ## Home TEORIA
 
-Costruita con la skill `/ui-ux-pro-max`:
+(invariata) Costruita con `/ui-ux-pro-max`:
 
-1. **Header**: saluto personale ("Ciao, {nome}") + sottotitolo "Stai preparando l'esame di teoria".
-2. **Progress card** con `PhaseProgressBar` 3-step.
-3. **Countdown card** se `theoryExamAt` presente: data formattata + badge giorni residui in pink. Altrimenti banner informativo.
-4. **Milestone card** con CTA contestuale (cambia in base ai giorni mancanti):
-   - >30gg: "Avvia simulazione"
-   - 8-30gg: "Apri capitoli"
-   - 2-7gg: "Avvia simulazione" / "Settimana decisiva"
-   - ≤1gg: "Rivedi i tuoi errori"
-5. **Shortcut row**: "Simulazione" + "Capitoli".
+1. Header: saluto + sottotitolo
+2. Progress card con `PhaseProgressBar` 3-step
+3. Countdown card se `theoryExamAt` presente
+4. Milestone card con CTA contestuale (cambia in base ai giorni mancanti)
+5. Shortcut row: "Simulazione" + "Capitoli"
 
 ## Schermata PATENTATO
 
-Schermata centrata: icona trofeo, titolo "Congratulazioni", `PhaseProgressBar` al 100%, bottone logout.
+(invariata) Centrata: icona trofeo + titolo "Congratulazioni" + progress 100% + logout.
+
+## Progress bar (`PhaseProgressBar`)
+
+3 checkpoint orizzontali: Teoria → Foglio rosa → Patente. Track riempito secondo la fase corrente. AWAITING attualmente non rappresentato nella progress bar (vive prima del checkpoint Teoria).
 
 ## Notifiche fase TEORIA
 
@@ -62,11 +90,11 @@ Schermata centrata: icona trofeo, titolo "Congratulazioni", `PhaseProgressBar` a
 | `theory_exam_countdown` | "Esame teoria fra N giorni" / "Esame teoria domani" | T-7, T-3, T-1 alle 10:00 locali |
 | `theory_quiz_inactivity` | "Riprendi lo studio" | 18:00 locali se nessuna `QuizSession` negli ultimi 5gg |
 
-Entrambe le push sono solo informative: arrivano nell'inbox, non aprono overlay.
+Entrambe informative (inbox, niente overlay). AWAITING non ha reminder dedicati per ora.
 
 ## Connessioni
 
-- → **Quiz Teoria**: la tab `quiz` è visibile solo in `phase === TEORIA`. CTA della home TEORIA collegano direttamente a `/(tabs)/quiz` e `/(tabs)/quiz/chapters`.
-- → **Booking Flow**: in `TEORIA` la tab non c'è e il backend rifiuta `createBookingRequest`.
-- → **Notifications**: aggiunti due nuovi kinds.
-- → **Backend**: `GET /api/autoscuole/me`, `updateStudentPhase` server action.
+- → **Quiz Teoria**: tab visibile solo in `phase === TEORIA && hasQuizAccess`. CTA della home TEORIA → `/(tabs)/quiz`.
+- → **Booking Flow**: in AWAITING e TEORIA la tab non c'è e il backend rifiuta `createBookingRequest`.
+- → **Notifications**: due kinds (`theory_exam_countdown`, `theory_quiz_inactivity`).
+- → **Backend**: `GET /api/autoscuole/me`, `POST /api/mobile/auth/student-register` (decide AWAITING/TEORIA/PRATICA in transaction), `updateStudentPhase` server action, `grantQuizSeat` (owner) per uscire da AWAITING.
