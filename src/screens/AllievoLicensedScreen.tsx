@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
 import { PhaseProgressBar } from '../components/PhaseProgressBar';
+import { DuckSlot } from '../components/DuckSlot';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme/colors';
@@ -27,7 +28,12 @@ export const AllievoLicensedScreen: React.FC = () => {
       <View style={styles.container}>
         <Animated.View entering={FadeIn.duration(400)} style={styles.iconWrap}>
           <View style={styles.iconCircle}>
-            <Ionicons name="trophy" size={56} color={colors.primary} />
+            <DuckSlot
+              kind="hero-patentato"
+              size={108}
+              placeholderTone="success"
+              accessibilityLabel="Paperotto patentato: hai concluso il percorso"
+            />
           </View>
         </Animated.View>
 
