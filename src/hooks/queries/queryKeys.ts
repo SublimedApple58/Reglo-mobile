@@ -24,8 +24,15 @@ export const STALE_TIMES = {
   instructorSettings: 15 * 60 * 1000,
   /** Instructor blocks — 5 min */
   instructorBlocks: 5 * 60 * 1000,
-  /** Student phase / theory exam date — 10 min */
-  studentPhase: 10 * 60 * 1000,
+  /**
+   * Student phase / theory exam date — 30 sec.
+   * The phase can change as soon as the owner clicks "Assegna quiz" /
+   * "Cambia fase" in the web app, so we keep it short and let the
+   * focusManager + refetchOnMount catch the change quickly. For
+   * AWAITING students the hook also polls every 30 sec while they wait
+   * on the activation screen.
+   */
+  studentPhase: 30 * 1000,
 } as const;
 
 export const queryKeys = {

@@ -306,7 +306,7 @@ export default function TabsLayout() {
           <Label>Quiz</Label>
         </NativeTabs.Trigger>
       ) : null}
-      {!showMoreTab ? (
+      {!showMoreTab && !isStudentAwaiting && !isStudentLicensed ? (
         <NativeTabs.Trigger name="settings">
           <Icon sf={{ default: 'slider.horizontal.3', selected: 'slider.horizontal.3' }} drawable="ic_menu_preferences" />
           <Label>Impostazioni</Label>
