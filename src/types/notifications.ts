@@ -71,6 +71,11 @@ export type TheoryQuizInactivityData = {
   inactiveDays: number;
 };
 
+export type StudentPhaseChangeData = {
+  fromPhase: 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO';
+  toPhase: 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO';
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
@@ -85,7 +90,8 @@ export type NotificationItem =
   | { kind: 'availability_published'; id: string; data: AvailabilityPublishedData }
   | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData }
   | { kind: 'theory_exam_countdown'; id: string; data: TheoryExamCountdownData }
-  | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData };
+  | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData }
+  | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

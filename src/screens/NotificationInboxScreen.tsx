@@ -40,6 +40,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   appointment_location_changed: 'location-outline',
   theory_exam_countdown: 'time-outline',
   theory_quiz_inactivity: 'school-outline',
+  student_phase_change: 'sparkles-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -74,6 +75,17 @@ const getTitle = (item: PersistedNotification): string => {
         : `Esame teoria fra ${item.data.offsetDays} giorni`;
     case 'theory_quiz_inactivity':
       return 'Riprendi lo studio';
+    case 'student_phase_change':
+      switch (item.data.toPhase) {
+        case 'TEORIA':
+          return '🎉 Il tuo percorso è attivo!';
+        case 'PRATICA':
+          return '🚗 Hai il foglio rosa!';
+        case 'PATENTATO':
+          return '🏆 Sei patentato!';
+        default:
+          return 'Fase aggiornata';
+      }
   }
 };
 
@@ -109,6 +121,17 @@ const getSubtitle = (item: PersistedNotification): string => {
         : 'Continua a esercitarti';
     case 'theory_quiz_inactivity':
       return `Sono ${item.data.inactiveDays} giorni che non studi`;
+    case 'student_phase_change':
+      switch (item.data.toPhase) {
+        case 'TEORIA':
+          return "L'autoscuola ti ha attivato. Inizia a studiare!";
+        case 'PRATICA':
+          return 'Puoi prenotare le tue prime guide.';
+        case 'PATENTATO':
+          return 'Hai concluso il percorso. Complimenti!';
+        default:
+          return '';
+      }
   }
 };
 
@@ -121,6 +144,8 @@ const ICON_COLOR_MAP: Partial<Record<NotificationItem['kind'], string>> = {
   sick_leave_cancelled: '#DC2626',
   appointment_cancelled: '#DC2626',
   availability_published: '#22C55E',
+  // Celebrative — primary pink accent so the row stands out among regular events
+  student_phase_change: '#EC4899',
 };
 
 /* ── Swipeable Card ── */

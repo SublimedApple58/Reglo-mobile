@@ -4,6 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../hooks/queries/queryKeys';
 import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { BookingCelebration } from './BookingCelebration';
@@ -68,10 +70,11 @@ type Props = {
 };
 
 export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabled }: Props) => {
-  const { user } = useSession();
+  const { user, activeCompanyId } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
 
   // ── Persistent inbox ──
   const [inboxItems, setInboxItems] = useState<PersistedNotification[]>([]);
@@ -727,6 +730,44 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     });
     return () => subscription.remove();
   }, [loadAll, studentId, isStudent]);
+
+  // ── Student phase change push: persist in inbox + invalidate phase query ──
+  // Triggered when the owner advances the student (e.g. AWAITING→TEORIA via
+  // "Assegna quiz", or TEORIA→PRATICA via the phase dialog). We immediately
+  // invalidate the studentPhase query so the home screen flips to the right
+  // home component (AwaitingScreen → TheoryHome → AllievoHome → Licensed)
+  // without waiting for the AWAITING-only 30s poll to fire.
+  useEffect(() => {
+    if (!isStudent) return;
+    const unsub = subscribePushIntent((intent, data) => {
+      if (intent !== 'student_phase_change') return;
+      const toPhase = String(data?.toPhase ?? '');
+      const fromPhase = String(data?.fromPhase ?? '');
+      const validPhases = new Set(['AWAITING', 'TEORIA', 'PRATICA', 'PATENTATO']);
+      if (!validPhases.has(toPhase) || !validPhases.has(fromPhase)) return;
+      const notifId = `student_phase_change_${fromPhase}_${toPhase}_${Date.now()}`;
+      const persisted: PersistedNotification = {
+        kind: 'student_phase_change',
+        id: notifId,
+        data: {
+          fromPhase: fromPhase as 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO',
+          toPhase: toPhase as 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO',
+        },
+        receivedAt: new Date().toISOString(),
+        read: false,
+        dismissed: false,
+      };
+      const merged = mergeFromApi(inboxRef.current, [persisted]);
+      inboxRef.current = merged;
+      setInboxItems(merged);
+      saveInbox(merged);
+      notificationEvents.emitInboxUpdated();
+      // Invalidate the phase query so the home routing reflects the new
+      // phase on the next render.
+      queryClient.invalidateQueries({ queryKey: queryKeys.studentPhase(activeCompanyId) });
+    });
+    return unsub;
+  }, [isStudent, queryClient, activeCompanyId]);
 
   // ── AppState: sync server notifications on foreground (all roles) ──
   useEffect(() => {
