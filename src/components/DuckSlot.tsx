@@ -19,22 +19,20 @@ export type DuckKind =
 // Each entry is `() => require(...) | null`. Wrapped in a thunk so the
 // bundler does not try to resolve missing files at module load.
 const DUCK_SOURCES: Record<DuckKind, () => number | null> = {
-  // Mini ducks for the timeline checkpoints (256×256 PNG).
-  // TODO: drop `assets/ducks/duck-step-awaiting.png` and enable:
-  // 'step-awaiting': () => require('../../assets/ducks/duck-step-awaiting.png'),
-  'step-awaiting': () => null,
-  // 'step-theory': () => require('../../assets/ducks/duck-step-theory.png'),
-  'step-theory': () => null,
+  // Mini ducks for the timeline checkpoints.
+  'step-awaiting': () => require('../../assets/ducks/duck-step-awaiting.png'),
+  'step-theory': () => require('../../assets/ducks/duck-step-theory.png'),
+  // TODO: still pending generation — drop `assets/ducks/duck-step-pratica.png`
+  // and enable the require() below.
   // 'step-pratica': () => require('../../assets/ducks/duck-step-pratica.png'),
   'step-pratica': () => null,
-  // 'step-patentato': () => require('../../assets/ducks/duck-step-patentato.png'),
-  'step-patentato': () => null,
+  'step-patentato': () => require('../../assets/ducks/duck-step-patentato.png'),
 
-  // Hero ducks (1024×1024 PNG).
-  // 'hero-awaiting': () => require('../../assets/ducks/duck-hero-awaiting.png'),
-  'hero-awaiting': () => null,
-  // 'hero-patentato': () => require('../../assets/ducks/duck-hero-patentato.png'),
-  'hero-patentato': () => null,
+  // Hero ducks.
+  'hero-awaiting': () => require('../../assets/ducks/duck-hero-awaiting.png'),
+  // Reusing the step-patentato artwork as the hero for now — works well
+  // because the step pose already reads as a celebration at large size.
+  'hero-patentato': () => require('../../assets/ducks/duck-hero-patentato.png'),
 };
 
 type Props = {
