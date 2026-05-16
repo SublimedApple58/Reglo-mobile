@@ -22,10 +22,7 @@ const DUCK_SOURCES: Record<DuckKind, () => number | null> = {
   // Mini ducks for the timeline checkpoints.
   'step-awaiting': () => require('../../assets/ducks/duck-step-awaiting.png'),
   'step-theory': () => require('../../assets/ducks/duck-step-theory.png'),
-  // TODO: still pending generation — drop `assets/ducks/duck-step-pratica.png`
-  // and enable the require() below.
-  // 'step-pratica': () => require('../../assets/ducks/duck-step-pratica.png'),
-  'step-pratica': () => null,
+  'step-pratica': () => require('../../assets/ducks/duck-step-pratica.png'),
   'step-patentato': () => require('../../assets/ducks/duck-step-patentato.png'),
 
   // Hero ducks.
