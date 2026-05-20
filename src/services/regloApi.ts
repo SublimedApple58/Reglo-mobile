@@ -93,6 +93,8 @@ import {
   CreateLocationInput,
   UpdateLocationInput,
   StudentPhasePayload,
+  CheckInstructorAvailabilityInput,
+  InstructorAvailabilityResult,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -297,6 +299,20 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+    checkInstructorAvailability: async (input: CheckInstructorAvailabilityInput) =>
+      client.request<InstructorAvailabilityResult>(
+        '/api/autoscuole/instructor-availability',
+        {
+          params: {
+            instructorId: input.instructorId,
+            startsAt: input.startsAt,
+            endsAt: input.endsAt,
+            ...(input.excludeAppointmentId
+              ? { excludeAppointmentId: input.excludeAppointmentId }
+              : {}),
+          },
+        },
+      ),
     getLocations: async () =>
       client.request<AutoscuolaLocation[]>('/api/autoscuole/locations'),
     createLocation: async (input: CreateLocationInput) =>

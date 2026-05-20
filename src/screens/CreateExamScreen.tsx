@@ -446,6 +446,8 @@ export const CreateExamScreen = () => {
           end.setHours(end.getHours() + 1);
           setExamEndDate(end);
         }}
+        unlimitedNavigation
+        caption="Scegli la data dell'esame"
       />
 
       <TimePickerDrawer

@@ -10,7 +10,7 @@ npx expo start -c      # Start with cache cleared
 ```
 
 **EAS:** `eas build --profile development|preview|production --platform ios|android`
-**OTA:** `eas update --platform ios` then `eas update --platform android` (not `--platform all` — Stripe web export breaks it)
+**OTA:** `eas update --platform ios --branch production --message "..."` then same for `--platform android` separately. **IMPORTANT:** Always use `--branch production` for prod deploys. Never use `--auto` (it targets `master` instead of `production`). Never use `--platform all` (Stripe web export breaks it).
 
 No test runner or linter configured.
 
