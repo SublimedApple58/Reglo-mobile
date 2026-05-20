@@ -343,11 +343,13 @@ export const CalendarDrawer = ({
 
           {/* Duck mascot */}
           <View style={styles.mascotSection}>
-            <Image
-              source={require('../../assets/duck-calendar.png')}
-              style={styles.mascotImage}
-              resizeMode="contain"
-            />
+            <View style={styles.mascotCircle}>
+              <Image
+                source={require('../../assets/duck-calendar.png')}
+                style={styles.mascotImage}
+                resizeMode="contain"
+              />
+            </View>
             {caption ? (
               <Text style={styles.mascotText}>{caption}</Text>
             ) : null}
@@ -528,10 +530,23 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: 4,
   },
-  mascotImage: {
-    width: 120,
-    height: 85,
+  mascotCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  mascotImage: {
+    width: 72,
+    height: 72,
   },
   mascotText: {
     fontSize: 14,
