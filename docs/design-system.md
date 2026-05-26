@@ -199,13 +199,17 @@ shadowOffset: { width: 0, height: 2 },
 elevation: 2,
 ```
 
-### 5.2 Card Primary
+### 5.2 Card Primary (v2 — aggiornato)
 
 ```ts
-shadowColor: 'rgba(0, 0, 0, 0.08)',
-shadowOpacity: 0.12,
-shadowRadius: 12,
-shadowOffset: { width: 0, height: 4 },
+backgroundColor: colors.surface,    // #FFFFFF
+borderRadius: 24,
+padding: spacing.lg,                // 22
+gap: 8,
+shadowColor: 'rgba(0, 0, 0, 0.16)',
+shadowOffset: { width: 0, height: 6 },
+shadowOpacity: 1,
+shadowRadius: 18,
 elevation: 4,
 ```
 
@@ -219,14 +223,23 @@ shadowOffset: { width: 0, height: -6 },
 elevation: 6,
 ```
 
-### 5.4 CTA Rosa (Bottone Hero / Confirm Drawer)
+### 5.4 CTA Rosa Pill (Bottone Hero / Confirm — v2 aggiornato)
 
 ```ts
-shadowColor: '#EC4899',
-shadowOpacity: 0.3,
-shadowRadius: 10–12,
-shadowOffset: { width: 0, height: 5–6 },
-elevation: 5–6,
+height: 52,
+borderRadius: 26,                    // full pill
+backgroundColor: colors.primary,
+shadowColor: 'rgba(236, 72, 153, 0.45)',
+shadowOffset: { width: 0, height: 8 },
+shadowOpacity: 1,
+shadowRadius: 18,
+elevation: 5,
+```
+
+**Press state:**
+```ts
+opacity: 0.95,
+transform: [{ scale: 0.97 }],
 ```
 
 ### 5.5 Card Accent / Prossima Guida (Ombra Ambra)

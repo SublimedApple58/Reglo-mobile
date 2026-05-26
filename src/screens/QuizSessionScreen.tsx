@@ -18,7 +18,7 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,9 @@ type DotState = null | boolean;
 
 export const QuizSessionScreen = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isHomeStack = pathname.includes('/home/');
+  const resultsRoute = isHomeStack ? '/(tabs)/home/quiz-results' : '/(tabs)/quiz/results';
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { session, clearSession } = useQuiz();
@@ -50,6 +53,8 @@ export const QuizSessionScreen = () => {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [dots, setDots] = useState<DotState[]>([]);
+  const [examAnswering, setExamAnswering] = useState(false);
+  const [examAutoFailed, setExamAutoFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
@@ -84,7 +89,7 @@ export const QuizSessionScreen = () => {
     if (!session) return;
     try { await regloApi.completeQuizSession(session.sessionId); } catch {}
     if (timerRef.current) clearInterval(timerRef.current);
-    router.replace({ pathname: '/(tabs)/quiz/results', params: { sessionId: session.sessionId } });
+    router.replace({ pathname: resultsRoute as never, params: { sessionId: session.sessionId } });
   }, [session, router]);
 
   const handleAbandon = useCallback(() => {
@@ -99,16 +104,13 @@ export const QuizSessionScreen = () => {
   }, [session, clearSession, router]);
 
   const handleTap = (chosen: boolean) => {
-    if (!session || result) return;
+    if (!session || result || examAnswering) return;
     const q = session.questions[index];
     const isCorrect = chosen === q.correctAnswer;
     const newCorrect = correct + (isCorrect ? 1 : 0);
     const newWrong = wrong + (isCorrect ? 0 : 1);
     setCorrect(newCorrect);
     setWrong(newWrong);
-
-    // Update dots
-    setDots((prev) => { const n = [...prev]; n[index] = isCorrect; return n; });
 
     // Animate button
     const scaleTarget = chosen ? trueScale : falseScale;
@@ -117,21 +119,39 @@ export const QuizSessionScreen = () => {
       withSpring(1, { damping: 12 }),
     );
 
-    const autoFailed = session.mode === 'EXAM' && newWrong > EXAM_MAX_ERRORS;
-    setResult({ isCorrect, correctAnswer: q.correctAnswer, hint: q.hint, autoFailed });
-
-    if (autoFailed) {
-      setTimeout(() => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        router.replace({ pathname: '/(tabs)/quiz/results', params: { sessionId: session.sessionId } });
-      }, 2500);
-    }
-
     // Fire-and-forget
     regloApi.submitQuizAnswer(session.sessionId, { questionId: q.id, answer: chosen }).catch(() => {});
 
-    // Scroll to show feedback
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    if (session.mode === 'EXAM') {
+      // EXAM mode: no feedback, auto-advance
+      setDots((prev) => { const n = [...prev]; n[index] = true; return n; }); // neutral "answered" marker (we override style below)
+      const autoFailed = newWrong > EXAM_MAX_ERRORS;
+
+      if (autoFailed) {
+        setExamAutoFailed(true);
+        setTimeout(() => {
+          if (timerRef.current) clearInterval(timerRef.current);
+          router.replace({ pathname: resultsRoute as never, params: { sessionId: session.sessionId } });
+        }, 1800);
+        return;
+      }
+
+      setExamAnswering(true);
+      setTimeout(() => {
+        setExamAnswering(false);
+        if (index >= total - 1) {
+          completeSession();
+        } else {
+          setIndex((i) => i + 1);
+          scrollRef.current?.scrollTo({ y: 0, animated: false });
+        }
+      }, 350);
+    } else {
+      // PRACTICE / CHAPTER / REVIEW: immediate feedback
+      setDots((prev) => { const n = [...prev]; n[index] = isCorrect; return n; });
+      setResult({ isCorrect, correctAnswer: q.correctAnswer, hint: q.hint, autoFailed: false });
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    }
   };
 
   const handleNext = () => {
@@ -182,19 +202,31 @@ export const QuizSessionScreen = () => {
           </View>
         )}
 
-        <View style={st.headerBadge}>
-          <Text style={st.headerBadgeText}>In corso</Text>
+        <View style={[
+          st.headerBadge,
+          session.mode === 'EXAM' && st.headerBadgeExam,
+          session.mode === 'PRACTICE' && st.headerBadgePractice,
+        ]}>
+          <Text style={[
+            st.headerBadgeText,
+            session.mode === 'EXAM' && st.headerBadgeTextExam,
+            session.mode === 'PRACTICE' && st.headerBadgeTextPractice,
+          ]}>
+            {session.mode === 'EXAM' ? 'Simulazione' : session.mode === 'PRACTICE' ? 'Esercitazione' : 'In corso'}
+          </Text>
         </View>
       </View>
 
       {/* ── Question label ── */}
       <View style={st.questionLabel}>
         <Text style={st.questionLabelText}>DOMANDA {index + 1} DI {total}</Text>
-        <View style={st.scoreChip}>
-          <Text style={st.scoreChipText}>
-            {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
-          </Text>
-        </View>
+        {session.mode !== 'EXAM' && (
+          <View style={st.scoreChip}>
+            <Text style={st.scoreChipText}>
+              {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ── Scrollable content ── */}
@@ -215,13 +247,23 @@ export const QuizSessionScreen = () => {
           <Text style={st.questionText}>{q.questionText}</Text>
         </View>
 
+        {/* Exam auto-fail overlay */}
+        {examAutoFailed && (
+          <Animated.View entering={FadeIn.duration(300)} style={st.examFailOverlay}>
+            <Ionicons name="alert-circle" size={40} color={colors.destructive} />
+            <Text style={st.examFailTitle}>Simulazione terminata</Text>
+            <Text style={st.examFailSub}>Hai superato il limite di errori consentiti.</Text>
+          </Animated.View>
+        )}
+
         {/* Answer buttons */}
-        {!result ? (
+        {!result && !examAutoFailed ? (
           <View style={st.answerRow}>
             <Animated.View style={[st.answerBtnWrap, trueAnimStyle]}>
               <Pressable
                 style={({ pressed }) => [st.answerBtn, st.answerBtnTrue, pressed && st.answerBtnPressed]}
                 onPress={() => handleTap(true)}
+                disabled={examAnswering}
               >
                 <Ionicons name="checkmark-circle-outline" size={28} color="#16A34A" />
                 <Text style={st.answerBtnTrueText}>VERO</Text>
@@ -231,13 +273,14 @@ export const QuizSessionScreen = () => {
               <Pressable
                 style={({ pressed }) => [st.answerBtn, st.answerBtnFalse, pressed && st.answerBtnPressed]}
                 onPress={() => handleTap(false)}
+                disabled={examAnswering}
               >
                 <Ionicons name="close-circle-outline" size={28} color={colors.destructive} />
                 <Text style={st.answerBtnFalseText}>FALSO</Text>
               </Pressable>
             </Animated.View>
           </View>
-        ) : (
+        ) : !examAutoFailed && result ? (
           <Animated.View entering={FadeInDown.duration(280).springify()}>
             {/* Result banner */}
             <View style={[st.resultBanner, result.isCorrect ? st.resultBannerCorrect : st.resultBannerWrong]}>
@@ -270,42 +313,41 @@ export const QuizSessionScreen = () => {
             <Pressable
               style={({ pressed }) => [
                 st.nextBtn,
-                result.autoFailed && st.nextBtnDisabled,
-                pressed && !result.autoFailed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
               onPress={handleNext}
-              disabled={result.autoFailed}
             >
               <Text style={st.nextBtnText}>
-                {result.autoFailed ? 'Troppi errori' : isLast ? 'Vedi risultati' : 'Avanti'}
+                {isLast ? 'Vedi risultati' : 'Avanti'}
               </Text>
-              {!result.autoFailed && <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </Pressable>
           </Animated.View>
-        )}
+        ) : null}
 
         {/* ── Progress Monitor (numbered dots) ── */}
         <View style={st.progressMonitor}>
           <Text style={st.progressMonitorTitle}>Progresso</Text>
           <View style={st.dotsGrid}>
             {dots.map((d, i) => {
-              const isCurrent = i === index && !result;
+              const isCurrent = i === index && !result && !examAnswering;
+              const isExam = session.mode === 'EXAM';
+              const answered = d !== null;
               return (
                 <View
                   key={i}
                   style={[
                     st.dot,
-                    d === true && st.dotCorrect,
-                    d === false && st.dotWrong,
-                    isCurrent && st.dotCurrent,
-                    d === null && !isCurrent && st.dotPending,
+                    isExam
+                      ? (answered ? st.dotExamAnswered : (isCurrent ? st.dotCurrent : st.dotPending))
+                      : (d === true ? st.dotCorrect : d === false ? st.dotWrong : (isCurrent ? st.dotCurrent : st.dotPending)),
                   ]}
                 >
                   <Text style={[
                     st.dotText,
-                    d === true && st.dotTextDone,
-                    d === false && st.dotTextDone,
-                    isCurrent && st.dotTextCurrent,
+                    isExam
+                      ? (answered ? st.dotTextDone : (isCurrent ? st.dotTextCurrent : undefined))
+                      : (d !== null ? st.dotTextDone : (isCurrent ? st.dotTextCurrent : undefined)),
                   ]}>
                     {i + 1}
                   </Text>
@@ -339,7 +381,7 @@ const st = StyleSheet.create({
   },
   timerPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 20,
+    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 24,
     backgroundColor: pink[50],
     shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 6, elevation: 2,
@@ -351,7 +393,11 @@ const st = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12,
     backgroundColor: '#DCFCE7',
   },
+  headerBadgeExam: { backgroundColor: '#FEF2F2' },
+  headerBadgePractice: { backgroundColor: '#F0FDF4' },
   headerBadgeText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
+  headerBadgeTextExam: { color: colors.destructive },
+  headerBadgeTextPractice: { color: '#16A34A' },
 
   // Question label
   questionLabel: {
@@ -408,7 +454,7 @@ const st = StyleSheet.create({
   // Result banner
   resultBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20,
+    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 24,
     marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
@@ -421,7 +467,7 @@ const st = StyleSheet.create({
 
   // Explanation (pink tinted card like reference)
   explanationCard: {
-    padding: 16, borderRadius: 22,
+    padding: 16, borderRadius: 24,
     backgroundColor: pink[50], gap: 8, marginBottom: 12,
     borderWidth: 1, borderColor: pink[100],
     shadowColor: pink[300], shadowOffset: { width: 0, height: 3 },
@@ -434,12 +480,19 @@ const st = StyleSheet.create({
   // Next button (pink like reference)
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 22, backgroundColor: colors.primary,
-    shadowColor: pink[400], shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+    paddingVertical: 16, borderRadius: 26, backgroundColor: colors.primary,
+    shadowColor: 'rgba(236, 72, 153, 0.45)', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
   },
-  nextBtnDisabled: { backgroundColor: colors.textMuted },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Exam auto-fail overlay
+  examFailOverlay: {
+    alignItems: 'center', gap: 10, paddingVertical: 32, paddingHorizontal: 24,
+    borderRadius: 24, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+  },
+  examFailTitle: { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
+  examFailSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, textAlign: 'center' },
 
   // Progress Monitor (numbered dots grid)
   progressMonitor: { marginTop: 8, gap: 10 },
@@ -457,6 +510,7 @@ const st = StyleSheet.create({
   dotCurrent: { backgroundColor: pink[50], borderColor: colors.primary },
   dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
+  dotExamAnswered: { backgroundColor: pink[50], borderColor: pink[200] },
   dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
   dotTextCurrent: { color: colors.primary },
   dotTextDone: { color: '#1A1A2E' },

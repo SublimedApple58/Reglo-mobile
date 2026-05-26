@@ -18,7 +18,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import RenderHtml from 'react-native-render-html';
@@ -31,6 +31,10 @@ import type { QuizSessionResult } from '../types/regloApi';
 
 export const QuizResultsScreen = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isHomeStack = pathname.includes('/home/');
+  const sessionRoute = isHomeStack ? '/(tabs)/home/quiz-session' : '/(tabs)/quiz/session';
+  const homeRoute = isHomeStack ? '/(tabs)/home' : '/(tabs)/quiz';
   const { width } = useWindowDimensions();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const { clearSession, startSession } = useQuiz();
@@ -59,13 +63,13 @@ export const QuizResultsScreen = () => {
     transform: [{ scale: heroScale.value }], opacity: heroOpacity.value,
   }));
 
-  const handleStart = async (mode: 'EXAM' | 'REVIEW') => {
+  const handleStart = async (mode: 'EXAM' | 'PRACTICE' | 'REVIEW') => {
     if (starting) return;
     setStarting(true);
     try {
       const d = await regloApi.startQuizSession({ mode });
       startSession({ sessionId: d.sessionId, questions: d.questions, mode, timeLimitSec: d.timeLimitSec });
-      router.replace('/(tabs)/quiz/session');
+      router.replace(sessionRoute as never);
     } catch {} finally { setStarting(false); }
   };
 
@@ -79,7 +83,7 @@ export const QuizResultsScreen = () => {
     <Screen gradient><View style={st.center}>
       <Ionicons name="alert-circle-outline" size={44} color={colors.textMuted} />
       <Text style={st.emptyText}>Risultato non trovato</Text>
-      <Pressable style={st.emptyBtn} onPress={() => router.replace('/(tabs)/quiz')}>
+      <Pressable style={st.emptyBtn} onPress={() => router.replace(homeRoute as never)}>
         <Text style={st.emptyBtnText}>Torna ai quiz</Text>
       </Pressable>
     </View></Screen>
@@ -99,15 +103,15 @@ export const QuizResultsScreen = () => {
         <Animated.View style={heroStyle}>
           <View style={st.heroCard}>
             {/* Big circle icon */}
-            <View style={[st.heroCircle, passed === true ? st.heroCirclePass : passed === false ? st.heroCircleFail : st.heroCircleNeutral]}>
+            <View style={[st.heroCircle, result.mode === 'PRACTICE' ? st.heroCirclePractice : passed === true ? st.heroCirclePass : passed === false ? st.heroCircleFail : st.heroCircleNeutral]}>
               <Ionicons
-                name={passed === true ? 'checkmark' : passed === false ? 'close' : 'remove'}
+                name={result.mode === 'PRACTICE' ? 'school' : passed === true ? 'checkmark' : passed === false ? 'close' : 'remove'}
                 size={40} color="#FFFFFF"
               />
             </View>
 
             <Text style={st.heroTitle}>
-              {passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
+              {result.mode === 'PRACTICE' ? 'Esercitazione completata' : passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
             </Text>
 
             {/* Score */}
@@ -206,11 +210,11 @@ export const QuizResultsScreen = () => {
 
         {/* ── Actions ── */}
         <Animated.View entering={FadeInUp.delay(500).duration(300)} style={st.actions}>
-          {result.mode === 'EXAM' && (
-            <Pressable onPress={() => handleStart('EXAM')} disabled={starting} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+          {(result.mode === 'EXAM' || result.mode === 'PRACTICE') && (
+            <Pressable onPress={() => handleStart(result.mode as 'EXAM' | 'PRACTICE')} disabled={starting} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
               <LinearGradient colors={[pink[400], pink[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.actPrimary}>
                 <Ionicons name="play" size={18} color="#FFFFFF" />
-                <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : 'Nuova simulazione'}</Text>
+                <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : result.mode === 'PRACTICE' ? 'Nuova esercitazione' : 'Nuova simulazione'}</Text>
               </LinearGradient>
             </Pressable>
           )}
@@ -220,7 +224,7 @@ export const QuizResultsScreen = () => {
               <Text style={st.actSecondaryText}>Ripeti errori</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => router.replace('/(tabs)/quiz')} style={({ pressed }) => [st.actGhost, pressed && { opacity: 0.4 }]}>
+          <Pressable onPress={() => router.replace(homeRoute as never)} style={({ pressed }) => [st.actGhost, pressed && { opacity: 0.4 }]}>
             <Text style={st.actGhostText}>Torna alla home</Text>
           </Pressable>
         </Animated.View>
@@ -251,6 +255,7 @@ const st = StyleSheet.create({
   heroCirclePass: { backgroundColor: '#16A34A', shadowColor: '#16A34A' },
   heroCircleFail: { backgroundColor: colors.destructive, shadowColor: colors.destructive },
   heroCircleNeutral: { backgroundColor: colors.textMuted, shadowColor: colors.textMuted },
+  heroCirclePractice: { backgroundColor: colors.primary, shadowColor: colors.primary },
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   scoreBig: { fontSize: 48, fontWeight: '800', color: '#1A1A2E', letterSpacing: -3 },
@@ -284,7 +289,7 @@ const st = StyleSheet.create({
 
   // Wrong answers
   wrongCard: {
-    padding: 16, borderRadius: 22, backgroundColor: '#FFFFFF',
+    padding: 16, borderRadius: 24, backgroundColor: '#FFFFFF',
     borderWidth: 1, borderColor: '#FECACA', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
@@ -296,7 +301,7 @@ const st = StyleSheet.create({
   wrongImageWrap: { backgroundColor: '#1A1A2E', borderRadius: 12, padding: 12, alignItems: 'center' },
   wrongImg: { width: '80%', height: 100 },
   wrongHint: {
-    padding: 14, borderRadius: 20,
+    padding: 14, borderRadius: 24,
     backgroundColor: pink[50], gap: 6,
     borderWidth: 1, borderColor: pink[100],
     shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
@@ -310,14 +315,14 @@ const st = StyleSheet.create({
   actions: { gap: 10, marginTop: 4 },
   actPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 22,
-    shadowColor: pink[400], shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+    paddingVertical: 16, borderRadius: 26,
+    shadowColor: 'rgba(236, 72, 153, 0.45)', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
   },
   actPrimaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   actSecondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 13, borderRadius: 22,
+    paddingVertical: 13, borderRadius: 24,
     borderWidth: 1.5, borderColor: pink[100], backgroundColor: pink[50],
     shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,

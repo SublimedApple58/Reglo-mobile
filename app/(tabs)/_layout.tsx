@@ -12,6 +12,7 @@ import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
 import { useQuizEnabled } from '../../src/hooks/useQuizEnabled';
+import { QuizProvider } from '../../src/context/QuizContext';
 import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { colors } from '../../src/theme';
@@ -176,15 +177,12 @@ export default function TabsLayout() {
   const showSwapsTab =
     isStudent && swapEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
   const showNotesTab =
-    (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed;
+    (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed && !isStudentInTeoria;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
   const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
-  // Quiz tab: only when the student is in TEORIA AND owns a quiz seat. The
-  // legacy `quizEnabled` flag is kept as a defensive fallback for backends
-  // that still ship the deprecated boolean, but the canonical signal is the
-  // per-student `hasQuizAccess` returned by /api/autoscuole/me.
-  const showQuizTab =
-    isStudent && studentPhase === 'TEORIA' && (hasQuizAccess || quizEnabled);
+  // Quiz tab: hidden for TEORIA students (quiz is integrated into the home).
+  // Kept visible only for future phases that may need a standalone quiz tab.
+  const showQuizTab = false;
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
@@ -229,6 +227,7 @@ export default function TabsLayout() {
   // Android: custom tab bar
   if (Platform.OS !== 'ios') {
     return (
+      <QuizProvider>
       <>
         <Tabs
           tabBar={(props) => <AndroidTabBar {...props} isOwner={isOwner} isStudent={isStudent} showMoreTab={showMoreTab} showRoleTab={showRoleTab} hiddenTabs={hiddenTabs} />}
@@ -245,11 +244,13 @@ export default function TabsLayout() {
         </Tabs>
         <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
       </>
+      </QuizProvider>
     );
   }
 
   // iOS: NativeTabs with liquid glass
   return (
+    <QuizProvider>
     <>
     <NativeTabs
       iconColor={{ default: defaultLabelColor, selected: selectedLabelColor }}
@@ -315,6 +316,7 @@ export default function TabsLayout() {
     </NativeTabs>
     <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
     </>
+    </QuizProvider>
   );
 }
 

@@ -17,7 +17,7 @@ import Animated, {
   Layout,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
 import { colors, pink, yellow, spacing } from '../theme';
@@ -29,6 +29,9 @@ type Filter = 'all' | 'in_progress' | 'completed';
 
 export const QuizChaptersScreen = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isHomeStack = pathname.includes('/home/');
+  const sessionRoute = isHomeStack ? '/(tabs)/home/quiz-session' : '/(tabs)/quiz/session';
   const insets = useSafeAreaInsets();
   const { startSession } = useQuiz();
   const [chapters, setChapters] = useState<QuizChapterProgress[]>([]);
@@ -55,7 +58,7 @@ export const QuizChaptersScreen = () => {
     try {
       const r = await regloApi.startQuizSession({ mode: 'CHAPTER', chapterId });
       startSession({ sessionId: r.sessionId, questions: r.questions, mode: 'CHAPTER', timeLimitSec: r.timeLimitSec });
-      router.push('/(tabs)/quiz/session');
+      router.push(sessionRoute as never);
     } catch {} finally { setStarting(null); }
   };
 
@@ -308,10 +311,10 @@ const st = StyleSheet.create({
   },
   cardBarDone: { backgroundColor: '#16A34A' },
   cardCta: {
-    alignItems: 'center', paddingVertical: 15, borderRadius: 22,
+    alignItems: 'center', paddingVertical: 15, borderRadius: 26,
     backgroundColor: colors.primary,
-    shadowColor: pink[400], shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 5,
+    shadowColor: 'rgba(236, 72, 153, 0.45)', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
   },
   cardCtaText: {
     fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.8,
