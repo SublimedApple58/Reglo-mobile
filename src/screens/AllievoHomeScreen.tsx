@@ -1538,7 +1538,7 @@ export const AllievoHomeScreen = () => {
               <Text style={styles.pillFilterTagText}>{assignedInstructorName}</Text>
             </Animated.View>
           )}
-          {isLockedToInstructor && (
+          {isLockedToInstructor && weeklyAbsenceEnabled && (
             <Animated.View entering={FadeIn.duration(300).delay(100)}>
             <Pressable
               disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
