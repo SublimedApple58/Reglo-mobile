@@ -270,12 +270,12 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
                 </Pressable>
               )}
               <Pressable
-                onPress={() => router.push('/(tabs)/home/quiz-chapters')}
+                onPress={() => router.push('/(tabs)/home/topic-list')}
                 style={({ pressed }) => [s.studyCard, pressed && s.studyCardPressed]}
               >
-                <Ionicons name="library" size={20} color={colors.primary} />
-                <Text style={s.studyCardTitle}>Argomenti</Text>
-                <Text style={s.studyCardSub}>{chapters.length} capitoli</Text>
+                <Ionicons name="albums" size={20} color={colors.primary} />
+                <Text style={s.studyCardTitle}>Studio per Argomento</Text>
+                <Text style={s.studyCardSub}>{chapters.length} argomenti</Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -298,7 +298,7 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
                       ses.passed == null && s.dotNeutral,
                     ]} />
                     <Text style={s.recentMode}>
-                      {ses.mode === 'EXAM' ? 'Simulazione' : ses.mode === 'PRACTICE' ? 'Esercitazione' : ses.mode === 'CHAPTER' ? 'Capitolo' : 'Ripasso'}
+                      {ses.mode === 'EXAM' ? 'Simulazione' : ses.mode === 'PRACTICE' ? 'Esercitazione' : ses.mode === 'CHAPTER' ? 'Capitolo' : ses.mode === 'SCHEDA' ? 'Scheda' : 'Ripasso'}
                     </Text>
                     <View style={{ flex: 1 }} />
                     <Text style={s.recentScore}>{ses.correctCount}/{ses.totalQuestions}</Text>

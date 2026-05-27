@@ -11,6 +11,7 @@ import { Button } from './Button';
 import { BookingCelebration } from './BookingCelebration';
 import { ToastNotice, ToastTone } from './ToastNotice';
 import { useSession } from '../context/SessionContext';
+import { useStudentPhase } from '../hooks/useStudentPhase';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent, consumePendingOrLaunchPushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
@@ -71,6 +72,7 @@ type Props = {
 
 export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabled }: Props) => {
   const { user, activeCompanyId } = useSession();
+  const { phase: studentPhase } = useStudentPhase();
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -1204,7 +1206,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       />
 
       {/* ── Bell + Badge + Bubble ── */}
-      {!pathname.startsWith('/home') || pathname === '/home/notifications' || (isStudent && pathname === '/home') ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
+      {!pathname.startsWith('/home') || pathname === '/home/notifications' || (isStudent && pathname === '/home') || (isStudent && studentPhase !== 'PRATICA') ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
           {/* Bubble */}
           {unreadCount > 1 ? (
             <Animated.View

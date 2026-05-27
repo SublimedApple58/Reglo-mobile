@@ -90,10 +90,14 @@ export const QuizResultsScreen = () => {
   );
 
   const passed = result.passed;
+  const isScheda = result.mode === 'SCHEDA';
   const scorePct = result.totalQuestions > 0
     ? Math.round((result.correctCount / result.totalQuestions) * 100) : 0;
-  const timeSec = result.startedAt && result.completedAt
-    ? Math.round((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000) : null;
+  const timeSec = result.durationSec ?? (
+    result.startedAt && result.completedAt
+      ? Math.round((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000) : null
+  );
+  const skippedCount = result.skippedCount ?? (result.totalQuestions - result.correctCount - result.wrongCount);
 
   return (
     <Screen gradient>
@@ -110,8 +114,14 @@ export const QuizResultsScreen = () => {
               />
             </View>
 
+            {isScheda && result.schedaNumber != null && (
+              <Text style={st.schedaLabel}>Scheda {result.schedaNumber}{result.chapterDescription ? ` \u2014 ${result.chapterDescription}` : ''}</Text>
+            )}
+
             <Text style={st.heroTitle}>
-              {result.mode === 'PRACTICE' ? 'Esercitazione completata' : passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
+              {isScheda
+                ? (passed === true ? 'IDONEO' : 'NON IDONEO')
+                : result.mode === 'PRACTICE' ? 'Esercitazione completata' : passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
             </Text>
 
             {/* Score */}
@@ -124,18 +134,24 @@ export const QuizResultsScreen = () => {
             {/* Meta pills */}
             <View style={st.metaRow}>
               <View style={st.metaPill}>
-                <Ionicons name="checkmark-circle" size={13} color="#16A34A" />
-                <Text style={st.metaPillText}>{result.correctCount} corrette</Text>
+                <Ionicons name="close-circle" size={13} color={colors.destructive} />
+                <Text style={st.metaPillText}>{result.wrongCount} sbagliate</Text>
               </View>
               <View style={st.metaPill}>
-                <Ionicons name="close-circle" size={13} color={colors.destructive} />
-                <Text style={st.metaPillText}>{result.wrongCount} errori</Text>
+                <Ionicons name="checkmark-circle" size={13} color="#16A34A" />
+                <Text style={st.metaPillText}>{result.correctCount} giuste</Text>
               </View>
+              {skippedCount > 0 && (
+                <View style={st.metaPill}>
+                  <Ionicons name="remove-circle" size={13} color={colors.textMuted} />
+                  <Text style={st.metaPillText}>{skippedCount} saltate</Text>
+                </View>
+              )}
               {timeSec !== null && (
                 <View style={st.metaPill}>
                   <Ionicons name="time-outline" size={13} color={colors.textMuted} />
                   <Text style={st.metaPillText}>
-                    {Math.floor(timeSec / 60)}:{String(timeSec % 60).padStart(2, '0')}
+                    {String(Math.floor(timeSec / 60)).padStart(2, '0')}'{String(timeSec % 60).padStart(2, '0')}''
                   </Text>
                 </View>
               )}
@@ -210,19 +226,31 @@ export const QuizResultsScreen = () => {
 
         {/* ── Actions ── */}
         <Animated.View entering={FadeInUp.delay(500).duration(300)} style={st.actions}>
-          {(result.mode === 'EXAM' || result.mode === 'PRACTICE') && (
-            <Pressable onPress={() => handleStart(result.mode as 'EXAM' | 'PRACTICE')} disabled={starting} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+          {isScheda ? (
+            /* SCHEDA: back to schede grid (no retry — immutable) */
+            <Pressable onPress={() => router.back()} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
               <LinearGradient colors={[pink[400], pink[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.actPrimary}>
-                <Ionicons name="play" size={18} color="#FFFFFF" />
-                <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : result.mode === 'PRACTICE' ? 'Nuova esercitazione' : 'Nuova simulazione'}</Text>
+                <Ionicons name="grid" size={18} color="#FFFFFF" />
+                <Text style={st.actPrimaryText}>Torna alle schede</Text>
               </LinearGradient>
             </Pressable>
-          )}
-          {result.wrongAnswers.length > 0 && (
-            <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actSecondary, pressed && { opacity: 0.7 }]}>
-              <Ionicons name="refresh" size={15} color={colors.primary} />
-              <Text style={st.actSecondaryText}>Ripeti errori</Text>
-            </Pressable>
+          ) : (
+            <>
+              {(result.mode === 'EXAM' || result.mode === 'PRACTICE') && (
+                <Pressable onPress={() => handleStart(result.mode as 'EXAM' | 'PRACTICE')} disabled={starting} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
+                  <LinearGradient colors={[pink[400], pink[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.actPrimary}>
+                    <Ionicons name="play" size={18} color="#FFFFFF" />
+                    <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : result.mode === 'PRACTICE' ? 'Nuova esercitazione' : 'Nuova simulazione'}</Text>
+                  </LinearGradient>
+                </Pressable>
+              )}
+              {result.wrongAnswers.length > 0 && (
+                <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actSecondary, pressed && { opacity: 0.7 }]}>
+                  <Ionicons name="refresh" size={15} color={colors.primary} />
+                  <Text style={st.actSecondaryText}>Ripeti errori</Text>
+                </Pressable>
+              )}
+            </>
           )}
           <Pressable onPress={() => router.replace(homeRoute as never)} style={({ pressed }) => [st.actGhost, pressed && { opacity: 0.4 }]}>
             <Text style={st.actGhostText}>Torna alla home</Text>
@@ -256,6 +284,7 @@ const st = StyleSheet.create({
   heroCircleFail: { backgroundColor: colors.destructive, shadowColor: colors.destructive },
   heroCircleNeutral: { backgroundColor: colors.textMuted, shadowColor: colors.textMuted },
   heroCirclePractice: { backgroundColor: colors.primary, shadowColor: colors.primary },
+  schedaLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   scoreBig: { fontSize: 48, fontWeight: '800', color: '#1A1A2E', letterSpacing: -3 },

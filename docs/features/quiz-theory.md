@@ -11,26 +11,33 @@ Quiz ministeriali per la teoria della patente. Tab "Quiz" condizionale per stude
 ## Screens
 
 ### QuizHomeScreen (`src/screens/QuizHomeScreen.tsx`)
+- Due CTA affiancate: "Simulazione" (EXAM, gradient pink) e "Esercitazione" (PRACTICE, outline bianco)
 - Stats card: readinessScore, examPassRate, totale esami
-- CTA "Simulazione Esame" → avvia EXAM mode
-- Lista 25 capitoli con progress bar → avvia CHAPTER mode
+- Libreria Argomenti → avvia CHAPTER mode
 - CTA "Rivedi Errori" → avvia REVIEW mode
-- Sessioni recenti (ultime 5)
+- Sessioni recenti (ultime 5) con label differenziata per mode
 
 ### QuizSessionScreen (`src/screens/QuizSessionScreen.tsx`)
-- Top bar: progresso, timer (EXAM), contatori correct/wrong
+- Top bar: progresso, timer (EXAM), badge mode (Simulazione/Esercitazione/In corso)
 - Card domanda con immagine opzionale
 - Bottoni VERO/FALSO
-- Feedback dopo risposta: corretto/sbagliato + hint HTML
-- Auto-fail se > 3 errori (EXAM)
-- Hint renderizzato con `react-native-render-html`
+
+**Comportamento per mode:**
+| | EXAM (Simulazione) | PRACTICE (Esercitazione) | CHAPTER / REVIEW |
+|---|---|---|---|
+| Feedback | Nessuno, auto-advance dopo 350ms | Immediato (banner + hint) | Immediato (banner + hint) |
+| Timer | 20 min | No | No |
+| Auto-fail | > 3 errori → overlay "Simulazione terminata" | No | No |
+| Score % | Nascosto | Visibile | Visibile |
+| Pallini | Neutri (rosa chiaro, no verde/rosso) | Verde/rosso | Verde/rosso |
+| Badge header | "Simulazione" (rosso) | "Esercitazione" (verde) | "In corso" (verde) |
 
 ### QuizResultsScreen (`src/screens/QuizResultsScreen.tsx`)
-- Hero pass/fail
+- Hero: pass/fail per EXAM, "Esercitazione completata" per PRACTICE (cerchio primary)
 - Punteggio e tempo
 - Breakdown per capitolo con progress bars
 - Lista risposte sbagliate espandibili con hint
-- Azioni: nuova simulazione, ripeti errori, torna alla home
+- Azioni: "Nuova simulazione" (EXAM) / "Nuova esercitazione" (PRACTICE), ripeti errori, torna alla home
 
 ## Routing
 

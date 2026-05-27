@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
-import { PhaseProgressBar } from '../components/PhaseProgressBar';
 import { DuckSlot } from '../components/DuckSlot';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
@@ -44,11 +43,7 @@ export const AllievoLicensedScreen: React.FC = () => {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.progressWrap}>
-          <PhaseProgressBar phase="PATENTATO" />
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.footer}>
+        <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.footer}>
           <Pressable
             onPress={handleLogout}
             style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
@@ -106,18 +101,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing.md,
     lineHeight: 22,
-  },
-  progressWrap: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    paddingVertical: spacing.md,
-    marginTop: spacing.md,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 2,
   },
   footer: {
     width: '100%',

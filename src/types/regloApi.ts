@@ -890,7 +890,7 @@ export type CompanyBookingDefaults = {
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────
 
-export type QuizSessionMode = 'EXAM' | 'CHAPTER' | 'REVIEW';
+export type QuizSessionMode = 'EXAM' | 'PRACTICE' | 'CHAPTER' | 'REVIEW' | 'SCHEDA';
 
 export type QuizChapterProgress = {
   id: Uuid;
@@ -942,9 +942,13 @@ export type QuizSessionResult = {
   totalQuestions: number;
   correctCount: number;
   wrongCount: number;
+  skippedCount: number;
+  durationSec: number | null;
   startedAt: IsoDate;
   completedAt: IsoDate | null;
   timeLimitSec: number | null;
+  schedaNumber: number | null;
+  chapterDescription: string | null;
   chaptersBreakdown: Array<{
     chapterNumber: number;
     description: string;
@@ -976,4 +980,56 @@ export type QuizStudentStats = {
     description: string;
     correctRate: number;
   }>;
+};
+
+// ── Quiz Schede ──────────────────────────────────────────────────────────────
+
+export type QuizChapterSchedeProgress = {
+  id: Uuid;
+  chapterNumber: number;
+  description: string;
+  totalSchede: number;
+  completedSchede: number;
+  passedSchede: number;
+  failedSchede: number;
+  correctRate: number;
+};
+
+export type QuizSchedaSummary = {
+  id: Uuid;
+  schedaNumber: number;
+  totalQuestions: number;
+  status: 'not_started' | 'in_progress' | 'passed' | 'failed';
+  errorCount: number | null;
+  correctCount: number | null;
+  completedAt: IsoDate | null;
+  sessionId: Uuid | null;
+};
+
+export type QuizChapterSchedeResponse = {
+  chapter: { id: Uuid; chapterNumber: number; description: string };
+  schede: QuizSchedaSummary[];
+  summary: {
+    totalSchede: number;
+    completedCount: number;
+    passedCount: number;
+    failedCount: number;
+    correctRate: number;
+  };
+};
+
+export type QuizSchedaQuestionWithAnswer = QuizQuestionWithAnswer & {
+  answered: { studentAnswer: boolean; isCorrect: boolean } | null;
+};
+
+export type StartSchedaSessionResult = {
+  sessionId: Uuid;
+  questions: QuizSchedaQuestionWithAnswer[];
+  timeLimitSec: null;
+  totalQuestions: number;
+  schedaNumber: number;
+  chapterDescription: string;
+  resuming: boolean;
+  correctCount: number;
+  wrongCount: number;
 };

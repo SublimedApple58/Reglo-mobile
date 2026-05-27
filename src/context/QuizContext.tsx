@@ -7,6 +7,10 @@ type QuizSessionState = {
   mode: QuizSessionMode;
   timeLimitSec: number | null;
   startedAt: number; // Date.now()
+  schedaNumber?: number;
+  chapterId?: string;
+  schedaId?: string;
+  chapterDescription?: string;
 } | null;
 
 type QuizContextValue = {
@@ -16,6 +20,10 @@ type QuizContextValue = {
     questions: QuizQuestionWithAnswer[];
     mode: QuizSessionMode;
     timeLimitSec: number | null;
+    schedaNumber?: number;
+    chapterId?: string;
+    schedaId?: string;
+    chapterDescription?: string;
   }) => void;
   clearSession: () => void;
 };
@@ -31,6 +39,10 @@ export const QuizProvider = ({ children }: { children: React.ReactNode }) => {
       questions: QuizQuestionWithAnswer[];
       mode: QuizSessionMode;
       timeLimitSec: number | null;
+      schedaNumber?: number;
+      chapterId?: string;
+      schedaId?: string;
+      chapterDescription?: string;
     }) => {
       setSession({ ...data, startedAt: Date.now() });
     },

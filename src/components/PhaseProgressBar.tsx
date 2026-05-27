@@ -61,32 +61,32 @@ export const PhaseProgressBar: React.FC<Props> = ({ phase, theoryExamAt = null, 
   const progress = useMemo(() => computeProgress(phase, theoryExamAt), [phase, theoryExamAt]);
   const activeIndex = STEPS.findIndex((s) => s.key === phase);
 
-  const duckSize = compact ? 26 : 44;
-  const showDucks = !compact;
+  const duckSize = compact ? 28 : 44;
 
   return (
     <Animated.View entering={FadeIn.duration(280)} style={[styles.container, compact && styles.containerCompact]}>
-      {/* ── Row of duck slots (full variant only) ── */}
-      {showDucks && (
-        <View style={[styles.ducksRow, { height: duckSize + spacing.xs }]}>
-          {STEPS.map((step, idx) => {
-            const isActive = idx === activeIndex;
-            const isDone = idx < activeIndex;
-            const left = `${(idx / (STEPS.length - 1)) * 100}%` as const;
-            return (
-              <View key={`duck-${step.key}`} style={[styles.duckWrap, { left, transform: [{ translateX: -duckSize / 2 }] }]}>
-                <DuckSlot
-                  kind={step.duckKind}
-                  size={duckSize}
-                  active={isActive}
-                  placeholderTone={isActive ? 'active' : isDone ? 'success' : 'muted'}
-                  accessibilityLabel={`Step ${step.label}${isActive ? ' (corrente)' : ''}`}
-                />
-              </View>
-            );
-          })}
-        </View>
-      )}
+      {/* ── Row of duck slots (always shown — anchors the step to the mascot) ── */}
+      <View style={[styles.ducksRow, { height: duckSize + spacing.xs }]}>
+        {STEPS.map((step, idx) => {
+          const isActive = idx === activeIndex;
+          const isDone = idx < activeIndex;
+          const left = `${(idx / (STEPS.length - 1)) * 100}%` as const;
+          return (
+            <View
+              key={`duck-${step.key}`}
+              style={[styles.duckWrap, { left, transform: [{ translateX: -duckSize / 2 }] }]}
+            >
+              <DuckSlot
+                kind={step.duckKind}
+                size={duckSize}
+                active={isActive}
+                placeholderTone={isActive ? 'active' : isDone ? 'success' : 'muted'}
+                accessibilityLabel={`Step ${step.label}${isActive ? ' (corrente)' : ''}`}
+              />
+            </View>
+          );
+        })}
+      </View>
 
       {/* ── Track + checkpoints ── */}
       <View style={styles.trackWrapper}>
