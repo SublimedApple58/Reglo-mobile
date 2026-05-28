@@ -195,11 +195,11 @@ export const QuizSessionScreen = () => {
     // Haptic on tap (all modes)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
-    // Animate button
+    // Subtle button feedback (no bounce)
     const scaleTarget = chosen ? trueScale : falseScale;
     scaleTarget.value = withSequence(
-      withSpring(0.88, { damping: 6, stiffness: 300 }),
-      withSpring(1, { damping: 12 }),
+      withTiming(0.95, { duration: 80 }),
+      withTiming(1, { duration: 150 }),
     );
 
     // Card feedback animation (learning modes)
@@ -425,13 +425,15 @@ export const QuizSessionScreen = () => {
           <Ionicons name="close" size={20} color={colors.textSecondary} />
         </Pressable>
 
-        {/* Countdown timer (EXAM) */}
+        {/* Countdown timer (EXAM) — centered */}
         {timeLeft !== null && (
-          <View style={[st.timerPill, urgent && st.timerPillUrgent]}>
-            <Ionicons name="time-outline" size={14} color={urgent ? '#FFF' : colors.textSecondary} />
-            <Text style={[st.timerText, urgent && st.timerTextUrgent]}>
-              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-            </Text>
+          <View style={st.timerPill}>
+            <View style={[st.timerInner, urgent && st.timerPillUrgent]}>
+              <Ionicons name="time-outline" size={14} color={urgent ? '#FFF' : colors.textSecondary} />
+              <Text style={[st.timerText, urgent && st.timerTextUrgent]}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -663,8 +665,8 @@ export const QuizSessionScreen = () => {
       >
         {/* Question card */}
         <Animated.View
-          key={isLearningMode ? cardKey : undefined}
-          entering={isLearningMode && cardKey > 0 ? SlideInRight.duration(250).springify() : undefined}
+          key={isLearningMode ? cardKey : index}
+          entering={isLearningMode && cardKey > 0 ? SlideInRight.duration(250).springify() : FadeIn.duration(200)}
           style={[st.questionCard, isLearningMode ? cardFeedbackStyle : undefined]}
         >
           {q.imageUrl && (
@@ -910,6 +912,11 @@ const st = StyleSheet.create({
     backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
   },
   timerPill: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    pointerEvents: 'none',
+  },
+  timerInner: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 24,
     backgroundColor: '#F3F4F6',
@@ -1092,17 +1099,15 @@ const st = StyleSheet.create({
   answerRow: { flexDirection: 'row', gap: 14 },
   answerBtnWrap: { flex: 1 },
   answerBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 20, borderRadius: 28, borderWidth: 2,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, borderRadius: 16, borderWidth: 1.5,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
-  answerBtnTrue: { borderColor: '#BBF7D0' },
-  answerBtnFalse: { borderColor: '#FECACA' },
-  answerBtnPressed: { opacity: 0.7, transform: [{ scale: 0.96 }] },
-  answerBtnTrueText: { fontSize: 16, fontWeight: '800', color: '#16A34A', letterSpacing: 1 },
-  answerBtnFalseText: { fontSize: 16, fontWeight: '800', color: colors.destructive, letterSpacing: 1 },
+  answerBtnTrue: { borderColor: '#D1FAE5' },
+  answerBtnFalse: { borderColor: '#FEE2E2' },
+  answerBtnPressed: { opacity: 0.7 },
+  answerBtnTrueText: { fontSize: 15, fontWeight: '700', color: '#16A34A' },
+  answerBtnFalseText: { fontSize: 15, fontWeight: '700', color: colors.destructive },
 
   // Result banner
   resultBanner: {

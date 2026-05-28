@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageSourcePropType,
 } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -56,6 +57,9 @@ const CHAPTER_ICONS: Record<number, ReturnType<typeof require>> = {
   24: require('../../assets/icons/chapters/chapter-24.png'),
   25: require('../../assets/icons/chapters/chapter-25.png'),
 };
+const iconAccuracy = require('../../assets/icons/stat-accuracy.png');
+const iconQuizzes = require('../../assets/icons/stat-quizzes.png');
+const iconTopics = require('../../assets/icons/stat-topics.png');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 const COMPACT_H = 44;
@@ -201,23 +205,32 @@ export const TopicListScreen: React.FC = () => {
               <Text style={st.largeSub}>{totalCompleted}/{totalSchede} schede completate</Text>
             </Animated.View>
 
-            {/* Summary pills */}
+            {/* Stats inset card */}
             {totalCompleted > 0 && (
-              <Animated.View entering={FadeIn.duration(250)} style={st.summaryRow}>
-                <View style={st.summaryPill}>
-                  <Text style={st.summaryVal}>{totalCompleted}/{totalSchede}</Text>
-                  <Text style={st.summaryLabel}>completate</Text>
-                </View>
-                <View style={st.summaryPill}>
-                  <Text style={[st.summaryVal, { color: '#16A34A' }]}>{totalPassed}</Text>
-                  <Text style={st.summaryLabel}>superate</Text>
-                </View>
-                {globalCorrectRate > 0 && (
-                  <View style={st.summaryPill}>
-                    <Text style={[st.summaryVal, { color: '#0891B2' }]}>{globalCorrectRate}%</Text>
-                    <Text style={st.summaryLabel}>correttezza</Text>
+              <Animated.View entering={FadeIn.duration(250)} style={st.statsInset}>
+                <View style={st.statsInner}>
+                  <View style={st.statItem}>
+                    <Image source={iconQuizzes as ImageSourcePropType} style={st.statIcon} />
+                    <Text style={st.statValue}>{totalCompleted}/{totalSchede}</Text>
+                    <Text style={st.statLabel}>Schede</Text>
                   </View>
-                )}
+                  <View style={st.statDivider} />
+                  <View style={st.statItem}>
+                    <Image source={iconTopics as ImageSourcePropType} style={st.statIcon} />
+                    <Text style={st.statValue}>{totalPassed}</Text>
+                    <Text style={st.statLabel}>Superate</Text>
+                  </View>
+                  {globalCorrectRate > 0 && (
+                    <>
+                      <View style={st.statDivider} />
+                      <View style={st.statItem}>
+                        <Image source={iconAccuracy as ImageSourcePropType} style={st.statIcon} />
+                        <Text style={st.statValue}>{globalCorrectRate}%</Text>
+                        <Text style={st.statLabel}>Correttezza</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
               </Animated.View>
             )}
           </>
@@ -246,27 +259,35 @@ const st = StyleSheet.create({
   },
 
   /* Large title */
-  largeTitle: { fontSize: 32, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.5 },
+  largeTitle: { fontSize: 24, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
   largeSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
   /* List */
   list: { paddingHorizontal: spacing.md, gap: 10, paddingBottom: 120 },
 
-  /* Summary */
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  summaryPill: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 16,
-    paddingVertical: 12, alignItems: 'center', gap: 2,
-    borderWidth: 1, borderColor: colors.border,
+  /* Stats inset card */
+  statsInset: {
+    backgroundColor: '#EEEDEB', borderRadius: 20, marginBottom: 8,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
   },
-  summaryVal: { fontSize: 17, fontWeight: '800', color: colors.textPrimary },
-  summaryLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
+  statsInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 16, paddingHorizontal: 8,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: colors.border },
+  statIcon: { width: 32, height: 32, marginBottom: 2 },
+  statValue: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
 
   /* Chapter card */
   card: {
-    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md, gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+    backgroundColor: colors.surface, borderRadius: 26, padding: spacing.md, gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
   cardPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },

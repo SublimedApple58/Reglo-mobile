@@ -2,28 +2,46 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  Image,
+  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuiz } from '../context/QuizContext';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { regloApi } from '../services/regloApi';
 import type { ExamSchedeProgressResponse, QuizSchedaSummary } from '../types/regloApi';
 
+/* eslint-disable @typescript-eslint/no-var-requires */
+const iconAccuracy = require('../../assets/icons/stat-accuracy.png');
+const iconQuizzes = require('../../assets/icons/stat-quizzes.png');
+const iconTopics = require('../../assets/icons/stat-topics.png');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_COLS = 4;
 const GRID_GAP = 10;
 const TILE_W = (SCREEN_W - spacing.md * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
 const TILE_H = TILE_W * 1.3;
+const COMPACT_H = 44;
+const SCROLL_RANGE = 70;
 
 const STATUS_THEME = {
   not_started: { bg: '#F3F4F6', accent: '#9CA3AF', border: '#E5E7EB', lines: '#D1D5DB' },
@@ -34,6 +52,7 @@ const STATUS_THEME = {
 
 export const ExamSchedeListScreen: React.FC = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { startSession } = useQuiz();
   const [data, setData] = useState<ExamSchedeProgressResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,9 +63,7 @@ export const ExamSchedeListScreen: React.FC = () => {
     try {
       const res = await regloApi.getExamSchedeProgress();
       setData(res);
-    } catch {
-      /* silent */
-    } finally {
+    } catch { /* silent */ } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -56,124 +73,134 @@ export const ExamSchedeListScreen: React.FC = () => {
 
   const handleTap = async (scheda: QuizSchedaSummary) => {
     if (starting) return;
-
-    // Passed schede → show results (immutable)
     if (scheda.status === 'passed') {
       if (scheda.sessionId) {
-        router.push({
-          pathname: '/(tabs)/home/quiz-results',
-          params: { sessionId: scheda.sessionId },
-        } as never);
+        router.push({ pathname: '/(tabs)/home/quiz-results', params: { sessionId: scheda.sessionId } } as never);
       }
       return;
     }
-    // Failed schede → retry (start new session)
-
     setStarting(scheda.id);
     try {
       const res = await regloApi.startExamSchedaSession(scheda.id);
       startSession({
-        sessionId: res.sessionId,
-        questions: res.questions,
-        mode: 'SCHEDA_ESAME',
-        timeLimitSec: res.timeLimitSec,
-        schedaNumber: res.schedaNumber,
-        schedaId: scheda.id,
+        sessionId: res.sessionId, questions: res.questions, mode: 'SCHEDA_ESAME',
+        timeLimitSec: res.timeLimitSec, schedaNumber: res.schedaNumber, schedaId: scheda.id,
       });
       router.push('/(tabs)/home/quiz-session' as never);
-    } catch {
-      /* silent */
-    } finally {
-      setStarting(null);
-    }
+    } catch { /* silent */ } finally { setStarting(null); }
   };
 
+  /* ── Scroll animation ── */
+  const scrollY = useSharedValue(0);
+  const headerH = insets.top + COMPACT_H;
+  const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
+
+  const largeTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -10], Extrapolation.CLAMP) }],
+  }));
+  const compactStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
+  }));
+  const borderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
+  }));
+
   if (loading) {
-    return (
-      <Screen>
-        <View style={st.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </Screen>
-    );
+    return <View style={[st.root, { paddingTop: headerH }]}><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></View>;
   }
 
   if (!data) {
     return (
-      <Screen>
+      <View style={[st.root, { paddingTop: headerH }]}>
         <View style={st.center}>
           <Text style={st.emptyText}>Nessuna scheda trovata</Text>
           <Pressable style={st.emptyBtn} onPress={() => router.back()}>
             <Text style={st.emptyBtnText}>Indietro</Text>
           </Pressable>
         </View>
-      </Screen>
+      </View>
     );
   }
 
   const { schede, summary } = data;
 
   return (
-    <Screen>
-      <View style={[st.header, { paddingTop: 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={14} style={st.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </Pressable>
-        <View style={st.headerTextWrap}>
-          <Text style={st.headerTitle}>Schede d'Esame</Text>
-          <Text style={st.headerSub}>Simula l'esame di teoria</Text>
+    <View style={st.root}>
+      {/* ── Sticky blur header ── */}
+      <View style={[st.headerWrap, { height: headerH, paddingTop: insets.top }]}>
+        {Platform.OS === 'ios' ? (
+          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+        )}
+        <Animated.View style={[StyleSheet.absoluteFill, st.headerBorder, borderStyle]} />
+        <View style={st.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={14} style={st.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <Animated.Text style={[st.compactTitle, compactStyle]} numberOfLines={1}>
+            Schede d'Esame
+          </Animated.Text>
+          <View style={{ width: 36 }} />
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={st.scroll}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[st.scroll, { paddingTop: headerH }]}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); load(); }}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} progressViewOffset={headerH} />
         }
       >
-        {/* Summary row */}
-        <Animated.View entering={FadeIn.duration(250)} style={st.summaryRow}>
-          <View style={st.summaryPill}>
-            <Text style={st.summaryVal}>{summary.completedCount}/{summary.totalSchede}</Text>
-            <Text style={st.summaryLabel}>completate</Text>
-          </View>
-          <View style={st.summaryPill}>
-            <Text style={[st.summaryVal, { color: '#16A34A' }]}>{summary.passedCount}</Text>
-            <Text style={st.summaryLabel}>superate</Text>
-          </View>
-          <View style={st.summaryPill}>
-            <Text style={[st.summaryVal, { color: '#EF4444' }]}>{summary.failedCount}</Text>
-            <Text style={st.summaryLabel}>fallite</Text>
-          </View>
-          {summary.correctRate > 0 && (
-            <View style={st.summaryPill}>
-              <Text style={[st.summaryVal, { color: colors.primary }]}>{summary.correctRate}%</Text>
-              <Text style={st.summaryLabel}>correttezza</Text>
-            </View>
-          )}
+        {/* ── Large title ── */}
+        <Animated.View style={largeTitleStyle}>
+          <Text style={st.largeTitle}>Schede d'Esame</Text>
+          <Text style={st.largeSub}>Simula l'esame di teoria</Text>
         </Animated.View>
 
-        {/* Grid */}
+        {/* ── Stats inset card ── */}
+        <Animated.View entering={FadeIn.duration(250)} style={st.statsInset}>
+          <View style={st.statsInner}>
+            <View style={st.statItem}>
+              <Image source={iconQuizzes} style={st.statIcon} />
+              <Text style={st.statValue}>{summary.completedCount}/{summary.totalSchede}</Text>
+              <Text style={st.statLabel}>Schede</Text>
+            </View>
+            <View style={st.statDivider} />
+            <View style={st.statItem}>
+              <Image source={iconTopics} style={st.statIcon} />
+              <Text style={st.statValue}>{summary.passedCount}</Text>
+              <Text style={st.statLabel}>Superate</Text>
+            </View>
+            {summary.correctRate > 0 && (
+              <>
+                <View style={st.statDivider} />
+                <View style={st.statItem}>
+                  <Image source={iconAccuracy} style={st.statIcon} />
+                  <Text style={st.statValue}>{summary.correctRate}%</Text>
+                  <Text style={st.statLabel}>Correttezza</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ── Schede grid ── */}
+        <Text style={st.sectionTitle}>Schede</Text>
         <View style={st.grid}>
           {schede.map((scheda, i) => {
             const th = STATUS_THEME[scheda.status];
             const isStarting = starting === scheda.id;
             return (
-              <Animated.View
-                key={scheda.id}
-                entering={FadeInDown.delay(i * 15).duration(200)}
-              >
+              <Animated.View key={scheda.id} entering={FadeInDown.delay(i * 15).duration(200)}>
                 <Pressable
                   onPress={() => handleTap(scheda)}
                   disabled={isStarting}
                   style={({ pressed }) => [
-                    st.tile,
-                    { backgroundColor: th.bg, borderColor: th.border },
+                    st.tile, { backgroundColor: th.bg, borderColor: th.border },
                     pressed && st.tilePressed,
                   ]}
                 >
@@ -210,48 +237,64 @@ export const ExamSchedeListScreen: React.FC = () => {
             );
           })}
         </View>
-      </ScrollView>
-    </Screen>
+
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
+    </View>
   );
 };
 
 const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
   emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+
+  /* Header */
+  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  headerBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+
+  /* Large title */
+  largeTitle: { fontSize: 24, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
+
+  /* Scroll */
+  scroll: { paddingHorizontal: spacing.md, gap: spacing.md, paddingBottom: 20 },
+
+  /* Stats inset card */
+  statsInset: {
+    backgroundColor: '#EEEDEB', borderRadius: 20,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+  statsInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 16, paddingHorizontal: 8,
   },
-  headerTextWrap: { flex: 1 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.3 },
-  headerSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 2 },
-  scroll: { padding: spacing.md, paddingBottom: 120, gap: spacing.md },
-  summaryRow: { flexDirection: 'row', gap: 8 },
-  summaryPill: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 16,
-    paddingVertical: 10, alignItems: 'center', gap: 2,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  summaryVal: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  summaryLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: colors.border },
+  statIcon: { width: 32, height: 32, marginBottom: 2 },
+  statValue: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
+
+  /* Section */
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 4 },
+
+  /* Grid */
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
   tile: {
     width: TILE_W, height: TILE_H,
-    borderRadius: 14, borderWidth: 1.5,
+    borderRadius: 18, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', gap: 2,
     position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 5, elevation: 3,
   },
   tilePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   tileLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },

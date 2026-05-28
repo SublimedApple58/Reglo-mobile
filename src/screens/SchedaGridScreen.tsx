@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -28,6 +29,12 @@ import { spacing } from '../theme/spacing';
 import { regloApi } from '../services/regloApi';
 import type { QuizChapterSchedeResponse, QuizSchedaSummary } from '../types/regloApi';
 import { saveLastTopic } from './AllievoTheoryHomeScreen';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
+const iconAccuracy = require('../../assets/icons/stat-accuracy.png');
+const iconQuizzes = require('../../assets/icons/stat-quizzes.png');
+const iconTopics = require('../../assets/icons/stat-topics.png');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_COLS = 4;
@@ -164,39 +171,34 @@ export const SchedaGridScreen: React.FC = () => {
           <Text style={st.largeTitle} numberOfLines={2}>{chapterLabel}</Text>
         </Animated.View>
 
-        {/* ── Progress card ── */}
-        <Animated.View entering={FadeIn.duration(250)} style={st.progressCard}>
-          <View style={st.progressHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={st.progressLabel}>Progresso capitolo</Text>
-              <View style={st.progressRow}>
-                <Text style={st.progressBig}>{pctComplete}</Text>
-                <Text style={st.progressUnit}>%</Text>
-              </View>
+        {/* ── Stats inset card ── */}
+        <Animated.View entering={FadeIn.duration(250)} style={st.statsInset}>
+          <View style={st.statsInner}>
+            <View style={st.statItem}>
+              <Image source={iconQuizzes} style={st.statIcon} />
+              <Text style={st.statValue}>{summary.completedCount}/{summary.totalSchede}</Text>
+              <Text style={st.statLabel}>Schede</Text>
             </View>
-            <View style={st.progressStats}>
-              <View style={st.progressStatItem}>
-                <Text style={[st.progressStatVal, { color: '#16A34A' }]}>{summary.passedCount}</Text>
-                <Text style={st.progressStatLabel}>superate</Text>
-              </View>
-              <View style={st.progressStatItem}>
-                <Text style={[st.progressStatVal, { color: '#EF4444' }]}>{summary.failedCount}</Text>
-                <Text style={st.progressStatLabel}>fallite</Text>
-              </View>
-              {summary.correctRate > 0 && (
-                <View style={st.progressStatItem}>
-                  <Text style={[st.progressStatVal, { color: '#0891B2' }]}>{summary.correctRate}%</Text>
-                  <Text style={st.progressStatLabel}>corrette</Text>
+            <View style={st.statDivider} />
+            <View style={st.statItem}>
+              <Image source={iconTopics} style={st.statIcon} />
+              <Text style={st.statValue}>{summary.passedCount}</Text>
+              <Text style={st.statLabel}>Superate</Text>
+            </View>
+            {summary.correctRate > 0 && (
+              <>
+                <View style={st.statDivider} />
+                <View style={st.statItem}>
+                  <Image source={iconAccuracy} style={st.statIcon} />
+                  <Text style={st.statValue}>{summary.correctRate}%</Text>
+                  <Text style={st.statLabel}>Correttezza</Text>
                 </View>
-              )}
-            </View>
+              </>
+            )}
           </View>
           <View style={st.progressTrack}>
             <View style={[st.progressFill, { width: `${pctComplete}%` }]} />
           </View>
-          <Text style={st.progressSub}>
-            {summary.completedCount} di {summary.totalSchede} schede completate
-          </Text>
         </Animated.View>
 
         {/* ── Schede grid ── */}
@@ -271,31 +273,32 @@ const st = StyleSheet.create({
 
   /* Large title */
   largeTitle: {
-    fontSize: 28, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.5,
+    fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3,
     marginBottom: 16,
   },
 
   /* Scroll */
   scroll: { paddingHorizontal: spacing.md, gap: spacing.md, paddingBottom: 20 },
 
-  /* Progress card */
-  progressCard: {
-    backgroundColor: colors.surface, borderRadius: 24, padding: spacing.lg, gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+  /* Stats inset card */
+  statsInset: {
+    backgroundColor: '#EEEDEB', borderRadius: 20, paddingBottom: 14, gap: 12,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
   },
-  progressHeader: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  progressLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  progressRow: { flexDirection: 'row', alignItems: 'baseline' },
-  progressBig: { fontSize: 40, fontWeight: '800', color: '#1A1A2E', letterSpacing: -2 },
-  progressUnit: { fontSize: 18, fontWeight: '700', color: colors.textMuted, marginLeft: 1 },
-  progressStats: { flexDirection: 'row', gap: 16 },
-  progressStatItem: { alignItems: 'center', gap: 2 },
-  progressStatVal: { fontSize: 18, fontWeight: '800' },
-  progressStatLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
-  progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#F0F0F5', overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary, minWidth: 4 },
-  progressSub: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+  statsInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 16, paddingHorizontal: 8,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: colors.border },
+  statIcon: { width: 32, height: 32, marginBottom: 2 },
+  statValue: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 14, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary, minWidth: 4 },
 
   /* Section */
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 4 },
@@ -304,9 +307,11 @@ const st = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
   tile: {
     width: TILE_W, height: TILE_H,
-    borderRadius: 14, borderWidth: 1.5,
+    borderRadius: 18, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', gap: 2,
     position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 5, elevation: 3,
   },
   tilePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   tileLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },

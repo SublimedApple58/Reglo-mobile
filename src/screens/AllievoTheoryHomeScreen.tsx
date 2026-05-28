@@ -434,7 +434,7 @@ const s = StyleSheet.create({
 
   /* ── Large title ── */
   largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  largeTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -0.5, color: '#1A1A2E' },
+  largeTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
   largeTitleTagRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4,
   },
@@ -444,9 +444,7 @@ const s = StyleSheet.create({
   /* ── Continue CTA ── */
   continueCta: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.primary, borderRadius: 22, padding: 16, gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
+    backgroundColor: colors.primary, borderRadius: 26, padding: 16, gap: 12,
   },
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
   continueContent: { flex: 1, gap: 2 },
@@ -468,10 +466,10 @@ const s = StyleSheet.create({
   /* ── Quiz CTA cards (prominent, tappable) ── */
   ctaRow: { flexDirection: 'row', gap: 10 },
   ctaCard: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 22,
+    flex: 1, backgroundColor: colors.surface, borderRadius: 26,
     paddingTop: 16, paddingBottom: 14, paddingHorizontal: 16, gap: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
   ctaCardDark: { backgroundColor: '#1A1A2E' },
   ctaCardPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
@@ -482,9 +480,9 @@ const s = StyleSheet.create({
   ctaSubLight: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.6)' },
   ctaReview: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
+    backgroundColor: '#FFFFFF', borderRadius: 26, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
   ctaReviewIcon: { width: 36, height: 36 },
   ctaReviewTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
@@ -504,9 +502,9 @@ const s = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: colors.border },
-  statIcon: { width: 32, height: 32, marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#1A1A2E' },
-  statLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+  statIcon: { width: 34, height: 34, marginBottom: 2 },
+  statValue: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
 
   /* ── Countdown ── */
   countdownCard: {
