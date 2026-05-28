@@ -1396,6 +1396,8 @@ Per contenuti estesi (hint quiz, dettagli): `Modal` con `presentationStyle="page
 
 Preferire **sempre** il pageSheet nativo al BottomSheet custom per contenuti read-only o scroll pesante.
 
+**Schermi gia' migrati a PageSheet:** `QuizSessionScreen` (hint modal), `AllievoHomeScreen` (booking flow unificato + lesson detail).
+
 ### 13.3 Haptic Feedback
 
 Abbinare sempre animazioni con feedback tattile (`expo-haptics`):

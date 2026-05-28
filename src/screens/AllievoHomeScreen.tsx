@@ -1,12 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import Animated, { FadeIn, FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInUp,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import {
   Alert,
   Image,
-  ImageBackground,
-  LayoutAnimation,
   Linking,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -14,30 +21,21 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
-import { BottomSheet } from '../components/BottomSheet';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { Badge } from '../components/Badge';
-import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
-import { ScrollHintFab } from '../components/ScrollHintFab';
-import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
+import { SkeletonBlock } from '../components/Skeleton';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
@@ -45,7 +43,6 @@ import { notificationEvents } from '../services/notificationEvents';
 import { loadInbox } from '../services/notificationStore';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { useStudentPhase } from '../hooks/useStudentPhase';
-import { PhaseProgressBar } from '../components/PhaseProgressBar';
 import { useBookingOptions } from '../hooks/queries/useBookingOptions';
 import { usePaymentProfile } from '../hooks/queries/usePaymentProfile';
 import { usePaymentHistory } from '../hooks/queries/usePaymentHistory';
@@ -60,58 +57,11 @@ import {
   AutoscuolaStudent,
   AutoscuolaInstructor,
 } from '../types/regloApi';
-import { colors, pink, radii, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
+import { lessonDetailStore } from '../stores/lessonDetailStore';
+import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
-// Collapsible wrapper — measures content once, animates height
-const Collapsible = ({ open, children }: { open: boolean; children: React.ReactNode }) => {
-  const measuredRef = useRef(0);
-  const openRef = useRef(open);
-  const height = useSharedValue(open ? 1000 : 0); // Start expanded if open on mount
-
-  openRef.current = open;
-
-  const onMeasure = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
-    const h = Math.ceil(e.nativeEvent.layout.height);
-    if (h > 0) {
-      measuredRef.current = h;
-      // Set height immediately on first measure if open (no animation)
-      if (openRef.current) height.value = h;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (measuredRef.current === 0) return; // Not measured yet, skip
-    height.value = withTiming(open ? measuredRef.current : 0, { duration: 150 });
-  }, [open]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    height: height.value,
-    overflow: 'hidden' as const,
-  }));
-
-  return (
-    <Animated.View style={animStyle}>
-      <View style={{ position: 'absolute', width: '100%' }} onLayout={onMeasure}>
-        {children}
-      </View>
-    </Animated.View>
-  );
-};
-
-// Card background images
-const CARD_BACKGROUNDS = [
-  require('../../assets/card-backgrounds/2.png'),
-  require('../../assets/card-backgrounds/3.png'),
-  require('../../assets/card-backgrounds/4.png'),
-  require('../../assets/card-backgrounds/5.png'),
-  require('../../assets/card-backgrounds/6.png'),
-  require('../../assets/card-backgrounds/7.png'),
-  require('../../assets/card-backgrounds/8.png'),
-  require('../../assets/card-backgrounds/9.png'),
-  require('../../assets/card-backgrounds/10.png'),
-  require('../../assets/card-backgrounds/11.png'),
-];
 
 import { formatDay, formatTime } from '../utils/date';
 import {
@@ -229,6 +179,9 @@ const findLinkedStudent = (
 
 
 
+const COMPACT_HEADER_H = 44;
+const SCROLL_RANGE = 70;
+
 export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -250,12 +203,11 @@ export const AllievoHomeScreen = () => {
   const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<1 | 2>(1);
   const [bookingSlots, setBookingSlots] = useState<AvailableSlot[]>([]);
   const [bookingSlotsLoading, setBookingSlotsLoading] = useState(false);
   const [bookingSelectedSlot, setBookingSelectedSlot] = useState<AvailableSlot | null>(null);
-  const bookingScrollRef = useRef<ScrollView | null>(null);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
@@ -263,7 +215,6 @@ export const AllievoHomeScreen = () => {
     useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [historyDocumentBusy, setHistoryDocumentBusy] = useState<'view' | 'share' | null>(null);
   const [payNowLoading, setPayNowLoading] = useState(false);
-  const [prefsOpen, setPrefsOpen] = useState(false);
   const [creatingSwap, setCreatingSwap] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -273,16 +224,10 @@ export const AllievoHomeScreen = () => {
     dates: Record<string, boolean>;
     instructorsByDate: Record<string, string[]>;
   }>({ dates: {}, instructorsByDate: {} });
-  const [freeChoiceSlots, setFreeChoiceSlots] = useState<AvailableSlot[]>([]);
-  const [freeChoiceOpen, setFreeChoiceOpen] = useState(false);
-  const [freeChoiceSelected, setFreeChoiceSelected] = useState<AvailableSlot | null>(null);
   const [freeChoiceBooking, setFreeChoiceBooking] = useState(false);
-  const [pendingFreeChoiceOpen, setPendingFreeChoiceOpen] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
   const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
-  const [expandedPillId, setExpandedPillId] = useState<string | null>(null);
-  const userToggledRef = useRef(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
@@ -429,6 +374,38 @@ export const AllievoHomeScreen = () => {
   const bookingMinMonth = useMemo(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }, []);
   const bookingMaxMonth = useMemo(() => new Date(bookingMaxDate.getFullYear(), bookingMaxDate.getMonth(), 1), [bookingMaxDate]);
   const bookingCanPrev = bookingMonth.getTime() > bookingMinMonth.getTime();
+
+  // Continuous calendar months (Airbnb-style)
+  const calendarMonths = useMemo(() => {
+    const months: { year: number; month: number; label: string; cells: Date[] }[] = [];
+    const cur = new Date(bookingMinMonth);
+    while (cur <= bookingMaxMonth) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const first = new Date(y, m, 1);
+      const dow = first.getDay();
+      const startMon = new Date(first);
+      startMon.setDate(first.getDate() - (dow === 0 ? 6 : dow - 1));
+      const cells: Date[] = [];
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(startMon);
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        cells.push(d);
+      }
+      // Trim trailing row if entirely next month
+      const lastRowStart = 35;
+      const lastRowAllNext = cells.slice(lastRowStart).every((d) => d.getMonth() !== m);
+      months.push({
+        year: y,
+        month: m,
+        label: `${ITALIAN_MONTHS_BK[m]} ${y}`,
+        cells: lastRowAllNext ? cells.slice(0, 35) : cells,
+      });
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return months;
+  }, [bookingMinMonth, bookingMaxMonth]);
   const bookingCanNext = bookingMonth.getTime() < bookingMaxMonth.getTime();
   const BOOKING_WEEKDAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'] as const;
 
@@ -452,8 +429,99 @@ export const AllievoHomeScreen = () => {
     setBookingStep(1);
     setBookingSlots([]);
     setBookingSelectedSlot(null);
-    setBookingFlowOpen(true);
     setBookingMonth(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
+    bookingFlowStore.init({
+      step: 1,
+      preferredDate,
+      durationMinutes,
+      selectedLessonTypes,
+      selectedInstructorId,
+      selectedSlot: null,
+      calendarOpen: false,
+      slots: [],
+      slotsLoading: false,
+      loading: false,
+      preferredDateAvailable,
+      availableDurations,
+      availableLessonTypes,
+      canSelectLessonType,
+      canSelectInstructor,
+      isLockedToInstructor,
+      assignedInstructorName,
+      visibleInstructors,
+      creditFlowEnabled,
+      creditsAvailable: paymentProfile?.lessonCreditsAvailable ?? 0,
+      autoPaymentsEnabled: paymentProfile?.autoPaymentsEnabled ?? false,
+      calendarMonths,
+      bookingMaxDate,
+      bookedDatesSet,
+      unavailableDatesSet,
+      onSearchSlots: () => {
+        const s = bookingFlowStore.get();
+        if (!s || !selectedStudentId) return;
+        bookingFlowStore.set({ slotsLoading: true, slots: [] });
+        regloApi.getAvailableSlots({
+          studentId: selectedStudentId,
+          date: toDateString(s.preferredDate),
+          durationMinutes: s.durationMinutes,
+          ...(canSelectLessonType ? { lessonType: s.selectedLessonTypes[0], types: s.selectedLessonTypes } : {}),
+          ...(s.selectedInstructorId ? { instructorId: s.selectedInstructorId } : {}),
+        }).then((slots) => {
+          bookingFlowStore.set({ slots, slotsLoading: false, step: 2 });
+        }).catch(() => {
+          bookingFlowStore.set({ slots: [], slotsLoading: false });
+        });
+      },
+      onConfirmBooking: () => {
+        const s = bookingFlowStore.get();
+        if (!s?.selectedSlot || !selectedStudentId) return;
+        bookingFlowStore.set({ loading: true });
+        const slot = s.selectedSlot;
+        // Optimistic insert
+        const provisionalId = `provisional-${Date.now()}`;
+        const provisionalAppt: AutoscuolaAppointmentWithRelations = {
+          id: provisionalId, companyId: '', studentId: selectedStudentId,
+          caseId: null, slotId: null,
+          type: canSelectLessonType ? (s.selectedLessonTypes[0] ?? 'guida') : 'guida',
+          startsAt: slot.startsAt, endsAt: slot.endsAt, status: 'scheduled',
+          instructorId: s.selectedInstructorId, vehicleId: null, locationId: null,
+          notes: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          student: selectedStudent!, case: null,
+          instructor: s.selectedInstructorId ? (instructors.find((i) => i.id === s.selectedInstructorId) ?? null) : null,
+          vehicle: null, location: null,
+        };
+        queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+          { queryKey: ['appointments'] },
+          (old) => old ? [...old, provisionalAppt] : [provisionalAppt],
+        );
+        router.back();
+        triggerBookingCelebration();
+        regloApi.createBookingRequest({
+          studentId: selectedStudentId,
+          preferredDate: toDateString(s.preferredDate),
+          durationMinutes: s.durationMinutes,
+          ...(canSelectLessonType ? { lessonType: s.selectedLessonTypes[0], types: s.selectedLessonTypes } : {}),
+          ...(s.selectedInstructorId ? { instructorId: s.selectedInstructorId } : {}),
+          selectedStartsAt: slot.startsAt,
+        }).then((response) => {
+          if (response.matched) { invalidateAllData(); return; }
+          queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+            { queryKey: ['appointments'] },
+            (old) => old?.filter((a) => a.id !== provisionalId),
+          );
+          setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
+          invalidateAllData();
+        }).catch(() => {
+          queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
+            { queryKey: ['appointments'] },
+            (old) => old?.filter((a) => a.id !== provisionalId),
+          );
+          setToast({ text: 'Errore nella prenotazione', tone: 'danger' });
+        });
+      },
+      onClose: () => { /* cleanup done by store.clear() in screen unmount */ },
+    });
+    router.push('/(tabs)/home/booking-flow');
   };
 
   const handleBookingDateSelect = async (date: Date, overrideInstructorId?: string | null) => {
@@ -463,7 +531,6 @@ export const AllievoHomeScreen = () => {
       setBookingStep(2);
       setBookingSlotsLoading(true);
       setBookingSlots([]);
-      setTimeout(() => bookingScrollRef.current?.scrollTo({ x: screenWidth, animated: true }), 50);
     } else {
       setBookingSlotsLoading(true);
       setBookingSlots([]);
@@ -526,7 +593,7 @@ export const AllievoHomeScreen = () => {
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
       });
-      setBookingFlowOpen(false);
+      setBookingOpen(false);
       triggerBookingCelebration();
     } catch { setToast({ text: 'Errore nella prenotazione', tone: 'danger' }); }
     finally { setBookingLoading(false); }
@@ -541,27 +608,7 @@ export const AllievoHomeScreen = () => {
       return;
     }
     setPreferredDate(selectedDate);
-    setPrefsOpen(true);
-    // Prefetch available slots for the selected date
-    if (selectedStudentId) {
-      queryClient.prefetchQuery({
-        queryKey: ['available-slots', activeCompanyId, {
-          studentId: selectedStudentId,
-          date: toDateString(selectedDate),
-          durationMinutes,
-          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
-          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        }],
-        queryFn: () => regloApi.getAvailableSlots({
-          studentId: selectedStudentId!,
-          date: toDateString(selectedDate),
-          durationMinutes,
-          ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
-          ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
-        }),
-        staleTime: 30 * 1000,
-      });
-    }
+    openBookingFlow();
   };
 
   const availableDurations = useMemo(
@@ -873,6 +920,33 @@ export const AllievoHomeScreen = () => {
   }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
+
+  // ── Computed stats for the redesigned home ──
+  const completedCount = useMemo(
+    () => appointments.filter((a) => (a.status ?? '').trim().toLowerCase() === 'completed').length,
+    [appointments],
+  );
+  const totalHoursLabel = useMemo(() => {
+    const mins = appointments
+      .filter((a) => (a.status ?? '').trim().toLowerCase() === 'completed')
+      .reduce((sum, a) => sum + lessonDurationMinutes(a), 0);
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }, [appointments]);
+
+  const nextLessonCountdown = useMemo(() => {
+    if (!nextLesson) return null;
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const ld = new Date(nextLesson.startsAt); ld.setHours(0, 0, 0, 0);
+    const diff = Math.round((ld.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return 'Oggi';
+    if (diff === 1) return 'Domani';
+    if (diff < 0) return 'In corso';
+    return `Tra ${diff} giorni`;
+  }, [nextLesson]);
+
   const sameDayLessons = useMemo(() => {
     if (!nextLesson) return [];
     const d = new Date(nextLesson.startsAt);
@@ -1089,10 +1163,9 @@ export const AllievoHomeScreen = () => {
         setToast({ text: 'Nessuna disponibilità per il giorno scelto. Prova con un altro giorno.', tone: 'info' });
         return;
       }
-      setFreeChoiceSlots(slots);
-      setFreeChoiceSelected(null);
-      setPendingFreeChoiceOpen(true);
-      setPrefsOpen(false);
+      setBookingSlots(slots);
+      setBookingSelectedSlot(null);
+      setBookingStep(2);
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nella richiesta',
@@ -1104,15 +1177,15 @@ export const AllievoHomeScreen = () => {
   };
 
   const handleConfirmFreeChoiceSlot = async () => {
-    if (!selectedStudentId || !freeChoiceSelected || freeChoiceBooking) return;
+    if (!selectedStudentId || !bookingSelectedSlot || freeChoiceBooking) return;
     setFreeChoiceBooking(true);
     setToast(null);
 
-    // Close drawer immediately for optimistic UX
-    const slot = freeChoiceSelected;
-    setFreeChoiceOpen(false);
-    setFreeChoiceSelected(null);
-    setFreeChoiceSlots([]);
+    // Close modal immediately for optimistic UX
+    const slot = bookingSelectedSlot;
+    setBookingOpen(false);
+    setBookingSelectedSlot(null);
+    setBookingSlots([]);
     triggerBookingCelebration();
 
     // Add provisional appointment to cache immediately
@@ -1183,8 +1256,11 @@ export const AllievoHomeScreen = () => {
     }
   };
 
-  const handleClosePreferences = () => {
-    setPrefsOpen(false);
+  const handleCloseBooking = () => {
+    if (!bookingLoading) {
+      setBookingOpen(false);
+      setBookingStep(1);
+    }
   };
 
   const handleCreateSwap = async (appointmentId: string) => {
@@ -1261,8 +1337,7 @@ export const AllievoHomeScreen = () => {
   };
 
   const handleOpenHistoryDetails = (lesson: AutoscuolaAppointmentWithRelations) => {
-    setSelectedHistoryLesson(lesson);
-    setHistoryDetailsOpen(true);
+    openLessonDetail(lesson);
   };
 
   const getPaymentDocument = useCallback(
@@ -1451,6 +1526,21 @@ export const AllievoHomeScreen = () => {
 
   const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
 
+  const openLessonDetail = useCallback((lesson: AutoscuolaAppointmentWithRelations) => {
+    const status = (lesson.status ?? '').trim().toLowerCase();
+    const isFutureActive = upcomingConfirmedStatuses.has(status) && new Date(lesson.startsAt).getTime() > Date.now();
+    lessonDetailStore.set({
+      lesson,
+      payment: paymentByAppointmentId.get(lesson.id) ?? null,
+      canSwap: isFutureActive && ['scheduled', 'confirmed'].includes(status) && !!(bookingOptions?.swapEnabled ?? settings?.swapEnabled),
+      canCancel: isFutureActive && !!canCancelAppointments,
+      vehiclesEnabled: settings?.vehiclesEnabled !== false,
+      onSwap: handleCreateSwap,
+      onCancel: handleCancel,
+    });
+    router.push('/(tabs)/home/lesson-detail');
+  }, [paymentByAppointmentId, bookingOptions, settings, canCancelAppointments, handleCreateSwap, handleCancel, router]);
+
   const formatInstructorInitials = (name: string | null | undefined) => {
     if (!name) return 'Da assegnare';
     const parts = name.trim().split(/\s+/);
@@ -1459,23 +1549,32 @@ export const AllievoHomeScreen = () => {
   };
 
 
-  // First pill auto-expanded until user interacts (collapsed if exam card visible)
-  const effectiveExpandedId = userToggledRef.current
-    ? expandedPillId
-    : (expandedPillId ?? (nextExam ? null : upcoming[0]?.id ?? null));
+  // ── Scroll animation (sticky header) ──
+  const headerH = insets.top + COMPACT_HEADER_H;
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+  });
 
-  const PILL_COLORS = ['#FDE4F0', '#FEE8C8', '#EDE5FE', '#D5FAE5', '#FEF6CC'];
-  const PILL_BORDERS = ['#F0A6C9', '#F2C48A', '#C5B0F0', '#82DBA8', '#F0DC7A'];
-  const PILL_IMAGES = [
-    require('../../assets/ducks/duck-vespa.png'),
-    require('../../assets/ducks/duck-bike.png'),
-    require('../../assets/ducks/duck-moto.png'),
-    require('../../assets/ducks/duck-scooter.png'),
-    require('../../assets/ducks/duck-f1.png'),
-  ];
+  const largeTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -12], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const compactTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const headerBorderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const firstName = selectedStudent?.firstName ?? 'Allievo';
 
   return (
-    <LinearGradient colors={['#FAE0EF', '#F8F7F4']} locations={[0, 0.5]} style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
       <ToastNotice
         message={toast?.text ?? null}
@@ -1487,1041 +1586,265 @@ export const AllievoHomeScreen = () => {
         onHidden={() => setBookingCelebrationVisible(false)}
       />
 
+      {/* ── Sticky header ── */}
+      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]}>
+        {Platform.OS === 'ios' ? (
+          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+        )}
+        <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, headerBorderStyle]} />
+        <View style={styles.headerRow}>
+          <Animated.View style={[styles.compactHeader, compactTitleStyle]}>
+            <Text style={styles.compactTitle} numberOfLines={1}>Ciao, {firstName}</Text>
+            <View style={styles.compactTag}>
+              <Text style={styles.compactTagText}>Pratica</Text>
+            </View>
+          </Animated.View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/home/notifications')}
+            style={({ pressed }) => [styles.headerBellBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="notifications-outline" size={18} color="#1a120a" />
+            {unreadNotifCount > 0 && <View style={styles.headerBellDot} />}
+          </Pressable>
+        </View>
+      </View>
 
-      {/* Status bar cover — content never shows under the notch */}
-      <LinearGradient
-        colors={['#FAE0EF', '#FAE0EF', 'rgba(250,224,239,0)']}
-        locations={[0, 0.6, 1]}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 20, zIndex: 10 }}
-        pointerEvents="none"
-      />
-
-      {/* ── Pill Stack ── */}
-      <ScrollView
+      {/* ── Scroll content ── */}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
-        contentContainerStyle={styles.pillStack}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerH }]}
         showsVerticalScrollIndicator={false}
-        scrollIndicatorInsets={{ top: insets.top }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={colors.primary}
+            progressViewOffset={headerH}
           />
         }
       >
-        {/* ── Header (scrolls with content) ── */}
-        <View style={[styles.pillHeader, { paddingTop: insets.top - 20 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pillEyebrow}>Ciao {selectedStudent?.firstName ?? 'Allievo'}</Text>
-            <Text style={styles.pillTitle}>LE TUE GUIDE</Text>
-          </View>
-          <View style={styles.pillHeaderBtns}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/home/notifications')}
-              style={({ pressed }) => [styles.pillBellBtn, pressed && { opacity: 0.7 }]}
-            >
-              <Ionicons name="notifications-outline" size={16} color="#1a120a" />
-              {unreadNotifCount > 0 && <View style={styles.pillBellDot} />}
-            </Pressable>
-          </View>
-        </View>
+        {/* ── Large title ── */}
+        <Animated.View style={[styles.largeTitleWrap, largeTitleStyle]}>
+          <Text style={styles.largeTitleText}>Ciao, {firstName}</Text>
+          <Text style={styles.largeTitleSub}>Le tue guide</Text>
+        </Animated.View>
 
-        {/* ── Percorso patente — barra fasi ── */}
-        {studentPhase && (
-          <View style={styles.phaseProgressWrap}>
-            <PhaseProgressBar
-              phase={studentPhase}
-              theoryExamAt={studentTheoryExamAt}
-              compact
+        {/* ── Context cards row (autoscuola + instructor) ── */}
+        {(activeCompanyName || (isLockedToInstructor && assignedInstructorName)) && (
+          <Animated.View entering={FadeInUp.delay(0).duration(280).springify()} style={styles.contextRow}>
+            {/* Autoscuola — info card (inset shadow, non-tappable) */}
+            {activeCompanyName && (
+              <View style={styles.contextInfoCard}>
+                <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.contextIcon} />
+                <Text style={styles.contextInfoText} numberOfLines={1}>{activeCompanyName}</Text>
+              </View>
+            )}
+
+            {/* Instructor — CTA card (elevated, tappable if absence available) */}
+            {isLockedToInstructor && assignedInstructorName && (
+              <Pressable
+                disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
+                onPress={() => {
+                  if (weeklyAbsenceDeclared) return;
+                  const now = new Date();
+                  const dow = now.getDay();
+                  const mondayOff = dow === 0 ? -6 : 1 - dow;
+                  const ws = new Date(now);
+                  ws.setDate(ws.getDate() + mondayOff);
+                  const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+                  Alert.alert(
+                    'Segnala assenza',
+                    'Vuoi segnalare la tua assenza per questa settimana al tuo istruttore?',
+                    [
+                      { text: 'Annulla', style: 'cancel' },
+                      { text: 'Conferma', onPress: async () => {
+                        setWeeklyAbsenceLoading(true);
+                        try {
+                          await regloApi.declareWeeklyAbsence({ weekStart: wsStr });
+                          setWeeklyAbsenceDeclared(true);
+                          setToast({ text: 'Assenza segnalata', tone: 'success' });
+                        } catch { setToast({ text: 'Errore nella segnalazione', tone: 'danger' }); }
+                        finally { setWeeklyAbsenceLoading(false); }
+                      }},
+                    ],
+                  );
+                }}
+                style={({ pressed }) => [styles.contextCtaCard, pressed && !weeklyAbsenceDeclared && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
+              >
+                <Image source={require('../../assets/icons/fluent-id-card.png')} style={styles.contextIcon} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.contextCtaTitle} numberOfLines={1}>{assignedInstructorName}</Text>
+                  <Text style={styles.contextCtaSub}>
+                    {weeklyAbsenceDeclared ? 'Assenza segnalata' : 'Segnala assenza'}
+                  </Text>
+                </View>
+                {weeklyAbsenceDeclared
+                  ? <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                  : <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                }
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
+
+        {/* ── Skeleton while loading ── */}
+        {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
+          <>
+            <SkeletonBlock width="100%" height={80} radius={26} />
+            <SkeletonBlock width="100%" height={160} radius={26} />
+            <SkeletonBlock width="100%" height={80} radius={20} />
+          </>
+        )}
+
+        {/* ── Empty state ── */}
+        {upcoming.length === 0 && studentsLoaded && (appointmentsQuery.data != null) && (
+          <View style={styles.emptyState}>
+            <Image
+              source={require('../../assets/icons/fluent-car.png')}
+              style={styles.emptyStateIcon}
             />
+            <Text style={styles.emptyStateTitle}>Nessuna guida in programma</Text>
+            <Text style={styles.emptyStateSub}>
+              Prenota la tua prima guida e inizia il percorso{'\n'}verso la patente!
+            </Text>
           </View>
         )}
 
-        {/* ── Filter tags ── */}
-        <View style={styles.pillFiltersRow}>
-          {activeCompanyName && (
-            <View style={styles.pillFilterTag}>
-              <Ionicons name="location-outline" size={11} color="#EC4899" />
-              <Text style={styles.pillFilterTagText}>{activeCompanyName}</Text>
-            </View>
-          )}
-          {isLockedToInstructor && assignedInstructorName && (
-            <Animated.View entering={FadeIn.duration(300)} style={styles.pillFilterTag}>
-              <Ionicons name="person-outline" size={11} color="#EC4899" />
-              <Text style={styles.pillFilterTagText}>{assignedInstructorName}</Text>
-            </Animated.View>
-          )}
-          {isLockedToInstructor && (
-            <Animated.View entering={FadeIn.duration(300).delay(100)}>
+        {/* ── Next Lesson — Hero Dark Card ── */}
+        {nextLesson && (
+          <Animated.View entering={FadeInUp.delay(80).duration(280).springify()}>
+            <Text style={styles.sectionLabel}>Prossima guida</Text>
             <Pressable
-              disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
-              onPress={() => {
-                const now = new Date();
-                const dow = now.getDay();
-                const mondayOff = dow === 0 ? -6 : 1 - dow;
-                const ws = new Date(now);
-                ws.setDate(ws.getDate() + mondayOff);
-                const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
-                Alert.alert(
-                  'Segnala assenza',
-                  'Vuoi segnalare la tua assenza per questa settimana al tuo istruttore?',
-                  [
-                    { text: 'Annulla', style: 'cancel' },
-                    { text: 'Conferma', onPress: async () => {
-                      setWeeklyAbsenceLoading(true);
-                      try {
-                        await regloApi.declareWeeklyAbsence({ weekStart: wsStr });
-                        setWeeklyAbsenceDeclared(true);
-                        setToast({ text: 'Assenza segnalata', tone: 'success' });
-                      } catch { setToast({ text: 'Errore nella segnalazione', tone: 'danger' }); }
-                      finally { setWeeklyAbsenceLoading(false); }
-                    }},
-                  ],
-                );
-              }}
-              style={({ pressed }) => [
-                styles.pillFilterTag,
-                { borderWidth: 1, borderColor: weeklyAbsenceDeclared ? '#7ea968' : 'rgba(184,36,106,0.3)', backgroundColor: weeklyAbsenceDeclared ? '#ecf2e3' : 'rgba(255,255,255,0.6)' },
-                pressed && { opacity: 0.7 },
-              ]}
+              onPress={() => openLessonDetail(nextLesson)}
+              style={({ pressed }) => [styles.heroCard, pressed && styles.ctaPressed]}
             >
-              <Ionicons name={weeklyAbsenceDeclared ? 'checkmark-circle' : 'calendar-clear-outline'} size={11} color={weeklyAbsenceDeclared ? '#7ea968' : '#EC4899'} />
-              <Text style={[styles.pillFilterTagText, { color: weeklyAbsenceDeclared ? '#7ea968' : '#EC4899', fontWeight: '600' }]}>
-                {weeklyAbsenceDeclared ? 'Assenza segnalata' : 'Segnala assenza'}
-              </Text>
-            </Pressable>
-            </Animated.View>
-          )}
-        </View>
-
-        {/* ── Exam Countdown Card ── */}
-        {nextExam && examCountdown && (
-          <Animated.View entering={FadeInUp.duration(500).delay(100)}>
-            <View style={styles.examCard}>
-              <View style={styles.examCardContent}>
-                <View style={styles.examCardCountdown}>
-                  <Text style={styles.examCardCountdownText}>{examCountdown.label}</Text>
+              <View style={styles.heroTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heroDate}>{formatDay(nextLesson.startsAt)}</Text>
+                  <Text style={styles.heroTime}>
+                    {formatTime(nextLesson.startsAt)}{nextLesson.endsAt ? ` \u2013 ${formatTime(nextLesson.endsAt)}` : ''}
+                  </Text>
                 </View>
-                <Text style={styles.examCardTitle}>Esame di guida</Text>
-                <Text style={styles.examCardDate}>
-                  {formatDay(nextExam.startsAt)} · {formatTime(nextExam.startsAt)}
-                </Text>
+                {nextLessonCountdown && (
+                  <View style={styles.heroBadge}>
+                    <Text style={styles.heroBadgeText}>{nextLessonCountdown}</Text>
+                  </View>
+                )}
               </View>
-              <Image
-                source={require('../../assets/duck-graduate.png')}
-                style={styles.examCardDuck}
-                resizeMode="contain"
-              />
+              <View style={styles.heroInfoRow}>
+                <Ionicons name="person-outline" size={14} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.heroInfoText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
+                {nextLesson.types && nextLesson.types.length > 0 && (
+                  <>
+                    <Text style={styles.heroInfoDot}>{'\u2022'}</Text>
+                    <Text style={styles.heroInfoText}>{formatLessonType(nextLesson.types[0])}</Text>
+                  </>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── In programma — Grouped White Card ── */}
+        {upcoming.length > 1 && (
+          <Animated.View entering={FadeInUp.delay(120).duration(280).springify()}>
+            <Text style={styles.sectionLabel}>In programma</Text>
+            <View style={styles.groupedCard}>
+              {upcoming.slice(1).map((lesson, idx) => (
+                <Pressable
+                  key={lesson.id}
+                  onPress={() => openLessonDetail(lesson)}
+                  style={({ pressed }) => [
+                    styles.groupedRow,
+                    idx < upcoming.length - 2 && styles.groupedRowBorder,
+                    pressed && { opacity: 0.5 },
+                  ]}
+                >
+                  <View style={styles.groupedDayBadge}>
+                    <Text style={styles.groupedDayText}>{new Date(lesson.startsAt).getDate()}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.groupedRowTitle} numberOfLines={1}>
+                      {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
+                    </Text>
+                    <Text style={styles.groupedRowSub} numberOfLines={1}>
+                      {lesson.instructor?.name ?? 'Da assegnare'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                </Pressable>
+              ))}
             </View>
           </Animated.View>
         )}
 
-        {/* Skeleton while loading — only if no real data yet */}
-        {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
-          <>
-            <View style={styles.pillSectionLabel}>
-              <SkeletonBlock width={120} height={10} radius={5} />
+        {/* ── Stats inset card ── */}
+        {studentsLoaded && studentDataReady && (
+          <Animated.View entering={FadeInUp.delay(160).duration(280).springify()}>
+            <View style={styles.statsInset}>
+              <View style={styles.statsInner}>
+                <View style={styles.statItem}>
+                  <Image source={require('../../assets/icons/fluent-car.png')} style={styles.statIcon} />
+                  <Text style={styles.statValue}>{completedCount}</Text>
+                  <Text style={styles.statLabel}>Guide fatte</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Image source={require('../../assets/icons/fluent-clock.png')} style={styles.statIcon} />
+                  <Text style={styles.statValue}>{totalHoursLabel}</Text>
+                  <Text style={styles.statLabel}>Ore di guida</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Image source={require('../../assets/icons/fluent-calendar.png')} style={styles.statIcon} />
+                  <Text style={styles.statValue}>{upcoming.length}</Text>
+                  <Text style={styles.statLabel}>In programma</Text>
+                </View>
+              </View>
             </View>
-            {[0, 1, 2].map((i) => (
-              <SkeletonBlock
-                key={`pill-sk-${i}`}
-                width="100%"
-                height={i === 0 ? 140 : 66}
-                radius={22}
-              />
-            ))}
-          </>
+          </Animated.View>
         )}
 
-        {/* Empty state — no upcoming lessons, data ready */}
-        {upcoming.length === 0 && studentsLoaded && (appointmentsQuery.data != null) && (
-          <View style={styles.pillEmpty}>
-            <Image
-              source={require('../../assets/duck-zen.png')}
-              style={styles.pillEmptyImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.pillEmptyTitle}>Nessuna guida in programma</Text>
-            <Text style={styles.pillEmptySub}>
-              Prenota la tua prima guida e inizia il percorso verso la patente!
-            </Text>
-          </View>
+        {/* ── Exam countdown card ── */}
+        {nextExam && examCountdown && (
+          <Animated.View entering={FadeInUp.delay(200).duration(280).springify()}>
+            <View style={styles.countdownCard}>
+              <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.countdownIcon} />
+              <View style={styles.countdownText}>
+                <Text style={styles.countdownLabel}>Esame di guida</Text>
+                <Text style={styles.countdownDate}>
+                  {formatDay(nextExam.startsAt)} {'\u2022'} {formatTime(nextExam.startsAt)}
+                </Text>
+              </View>
+              <View style={styles.countdownBadge}>
+                <Text style={styles.countdownBadgeNum}>{examCountdown.days}</Text>
+                <Text style={styles.countdownBadgeUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
+              </View>
+            </View>
+          </Animated.View>
         )}
 
-        {/* Section: La prossima guida */}
-        {upcoming.length > 0 && (
-          <View style={styles.pillSectionLabel}>
-            <View style={styles.pillPulseDot} />
-            <Text style={styles.pillSectionText}>LA PROSSIMA GUIDA</Text>
-          </View>
-        )}
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
 
-        {upcoming.map((lesson, idx) => {
-          const isFirst = idx === 0;
-          const isExpanded = effectiveExpandedId === lesson.id;
-          // Cycle colors by position so adjacent pills always differ
-          const pillIdx = idx % PILL_COLORS.length;
-          const pillBg = PILL_COLORS[pillIdx];
-          const pillBorder = PILL_BORDERS[pillIdx];
-          const pillImg = PILL_IMAGES[pillIdx];
-          const statusInfo = statusLabel(lesson.status);
-          const isFutureActive = !['cancelled', 'completed', 'no_show'].includes(
-            (lesson.status ?? '').trim().toLowerCase()
-          );
-
-          return (
-            <React.Fragment key={lesson.id}>
-              {idx === 1 && (
-                <View style={[styles.pillSectionLabel, { paddingTop: 10 }]}>
-                  <Text style={[styles.pillSectionText, { color: '#9CA3AF' }]}>IN PROGRAMMA</Text>
-                </View>
-              )}
-              <Pressable
-                onPress={() => {
-                  userToggledRef.current = true;
-                  setExpandedPillId(isExpanded ? null : lesson.id);
-                }}
-                style={[
-                  styles.pillItem,
-                  { backgroundColor: pillBg },
-                  isFirst ? styles.pillItemNext : { ...styles.pillItemDefault, borderColor: pillBorder },
-                ]}
-              >
-                {/* Header row */}
-                <View style={styles.pillItemHeader}>
-                  <Image source={pillImg} style={styles.pillAvatar} resizeMode="cover" />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.pillItemTitle} numberOfLines={1}>
-                      {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
-                    </Text>
-                    <Text style={styles.pillItemSub} numberOfLines={1}>
-                      {lesson.instructor?.name ?? 'Da assegnare'}
-                    </Text>
-                  </View>
-                  <View style={[styles.pillChevron, isExpanded && { transform: [{ rotate: '180deg' }] }]}>
-                    <Ionicons name="chevron-down" size={14} color="#1a120a" />
-                  </View>
-                </View>
-
-                {/* Expanded body — animated */}
-                <Collapsible open={isExpanded}>
-                  <View style={styles.pillBody}>
-                    <View style={styles.pillDivider} />
-
-                    {/* Luogo */}
-                    {(() => {
-                      const loc = lesson.location;
-                      const isSede = !loc || loc.isDefault === true;
-                      const lat =
-                        typeof loc?.latitude === 'number'
-                          ? loc.latitude
-                          : loc?.latitude
-                            ? Number(loc.latitude)
-                            : null;
-                      const lng =
-                        typeof loc?.longitude === 'number'
-                          ? loc.longitude
-                          : loc?.longitude
-                            ? Number(loc.longitude)
-                            : null;
-                      const isTappable =
-                        loc?.isPrecise &&
-                        lat != null &&
-                        lng != null &&
-                        Number.isFinite(lat) &&
-                        Number.isFinite(lng);
-                      const displayName = loc?.name ?? "Sede dell'autoscuola";
-                      const handleOpenMaps = () => {
-                        if (!isTappable) return;
-                        const placeIdParam = loc!.placeId
-                          ? `&query_place_id=${loc!.placeId}`
-                          : '';
-                        Linking.openURL(
-                          `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`,
-                        ).catch(() => null);
-                      };
-
-                      // ── SEDE (default): compact inline row, low emphasis ──
-                      if (isSede) {
-                        const sedeContent = (
-                          <>
-                            <Ionicons
-                              name={isTappable ? 'location' : 'location-outline'}
-                              size={13}
-                              color={isTappable ? '#16A34A' : '#6B5A48'}
-                            />
-                            <Text
-                              style={[
-                                styles.pillSedeText,
-                                isTappable && styles.pillSedeTextTappable,
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {displayName}
-                            </Text>
-                            {isTappable ? (
-                              <Ionicons name="open-outline" size={12} color="#16A34A" />
-                            ) : null}
-                          </>
-                        );
-                        return isTappable ? (
-                          <Pressable
-                            onPress={handleOpenMaps}
-                            style={({ pressed }) => [
-                              styles.pillSedeRow,
-                              pressed && { opacity: 0.6 },
-                            ]}
-                          >
-                            {sedeContent}
-                          </Pressable>
-                        ) : (
-                          <View style={styles.pillSedeRow}>{sedeContent}</View>
-                        );
-                      }
-
-                      // ── LUOGO CUSTOM: prominent card, high emphasis ──
-                      const customContent = (
-                        <>
-                          <View style={styles.pillLocationIcon}>
-                            <Ionicons name="location" size={18} color="#16A34A" />
-                          </View>
-                          <View style={styles.pillLocationText}>
-                            <Text style={styles.pillLocationLabel}>LUOGO DIVERSO DALLA SEDE</Text>
-                            <Text style={styles.pillLocationName} numberOfLines={1}>
-                              {displayName}
-                            </Text>
-                            {loc?.isPrecise && loc.address ? (
-                              <Text style={styles.pillLocationAddress} numberOfLines={1}>
-                                {loc.address}
-                              </Text>
-                            ) : null}
-                          </View>
-                          {isTappable ? (
-                            <View style={styles.pillLocationOpenBtn}>
-                              <Ionicons name="open-outline" size={16} color="#16A34A" />
-                            </View>
-                          ) : null}
-                        </>
-                      );
-
-                      return isTappable ? (
-                        <Pressable
-                          onPress={handleOpenMaps}
-                          style={({ pressed }) => [
-                            styles.pillLocationRow,
-                            pressed && { opacity: 0.7 },
-                          ]}
-                        >
-                          {customContent}
-                        </Pressable>
-                      ) : (
-                        <View style={styles.pillLocationRow}>{customContent}</View>
-                      );
-                    })()}
-
-                    <View style={styles.pillChipRow}>
-                      <View style={styles.pillChip}>
-                        <Text style={styles.pillChipText}>{lessonDurationMinutes(lesson)} min</Text>
-                      </View>
-                      <Badge label={statusInfo.label} tone={statusInfo.tone} />
-                    </View>
-                    <View style={styles.pillCtaRow}>
-                      {isFutureActive && (bookingOptions?.swapEnabled ?? settings?.swapEnabled) && (
-                        <Pressable
-                          onPress={() => {
-                            Alert.alert(
-                              'Cerca sostituto',
-                              'Vuoi creare una richiesta di scambio per questa guida?',
-                              [
-                                { text: 'Annulla', style: 'cancel' },
-                                { text: 'Conferma', onPress: () => handleCreateSwap(lesson.id) },
-                              ],
-                            );
-                          }}
-                          disabled={creatingSwap}
-                          style={({ pressed }) => [styles.pillCtaOutline, pressed && { opacity: 0.7 }, creatingSwap && { opacity: 0.5 }]}
-                        >
-                          <Text style={styles.pillCtaOutlineText}>{creatingSwap ? 'Invio...' : 'Cerca sostituto'}</Text>
-                        </Pressable>
-                      )}
-                      {isFutureActive && canCancelAppointments && (
-                        <Pressable
-                          onPress={() => handleCancel(lesson.id)}
-                          disabled={cancellingAppointmentId === lesson.id}
-                          style={({ pressed }) => [styles.pillCtaFilled, pressed && { opacity: 0.7 }]}
-                        >
-                          <Text style={styles.pillCtaFilledText}>Annulla guida</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                </Collapsible>
-              </Pressable>
-            </React.Fragment>
-          );
-        })}
-
-        <View style={{ height: 120 }} />
-      </ScrollView>
-
-      {/* ── Fixed CTA: Prenota una guida (hidden if booking disabled) ── */}
-      {bookingOptions && !studentBookingDisabledByPolicy && <Animated.View entering={FadeInUp.duration(400).delay(200)} style={[styles.pillFixedCta, { bottom: insets.bottom + 60 }]} pointerEvents="box-none">
-        <LinearGradient
-          colors={['rgba(248,247,244,0)', 'rgba(248,247,244,0.85)', '#F8F7F4']}
-          locations={[0, 0.5, 1]}
-          style={styles.pillFixedFade}
-          pointerEvents="none"
-        />
-        <View style={styles.pillFixedCtaInner}>
+      {/* ── FAB: Book a lesson (Google Calendar style) ── */}
+      {bookingOptions && !studentBookingDisabledByPolicy && (
+        <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.fab}>
           <Pressable
             onPress={openBookingFlow}
-            style={({ pressed }) => [styles.pillBookBtn, pressed && { backgroundColor: 'rgba(214,48,127,0.06)', borderColor: 'rgba(214,48,127,0.7)' }]}
+            style={({ pressed }) => [styles.fabBtn, pressed && { transform: [{ scale: 0.92 }] }]}
           >
-            <View style={styles.pillBookIcon}>
-              <Ionicons name="add" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pillBookTitle}>Prenota una guida</Text>
-              <Text style={styles.pillBookSub}>Scegli data, orario e istruttore</Text>
-            </View>
-            <Ionicons name="arrow-up" size={16} color="#EC4899" style={{ transform: [{ rotate: '45deg' }] }} />
+            <Ionicons name="add" size={28} color={colors.surface} />
           </Pressable>
-        </View>
-      </Animated.View>}
-      {/* Solid bg behind tab bar — prevents items showing through */}
-      <View style={[styles.pillTabBarBg, { height: insets.bottom + 70 }]} />
-      {/* ── Unified Booking Flow BottomSheet ── */}
-      <BottomSheet
-        gradient
-        visible={bookingFlowOpen}
-        onClose={() => { if (!bookingLoading) setBookingFlowOpen(false); }}
-        closeDisabled={bookingLoading}
-        showHandle
-        title={bookingStep === 1 ? 'Scegli il giorno' : formatDay(preferredDate.toISOString())}
-        titleRight={bookingStep === 2 ? (
-          <Pressable
-            onPress={() => {
-              setBookingStep(1);
-              bookingScrollRef.current?.scrollTo({ x: 0, animated: true });
-            }}
-            style={({ pressed }) => [styles.bkBackBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="calendar-outline" size={14} color="#EC4899" />
-            <Text style={styles.bkBackBtnText}>Cambia</Text>
-          </Pressable>
-        ) : undefined}
-        footer={bookingStep === 2 ? (
-          <Pressable
-            onPress={bookingLoading || !bookingSelectedSlot ? undefined : handleBookingConfirm}
-            disabled={bookingLoading || !bookingSelectedSlot}
-            style={[styles.chunkyPinkCta, (bookingLoading || !bookingSelectedSlot) && { opacity: 0.4 }]}
-          >
-            <Text style={styles.chunkyPinkCtaText}>
-              {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
-            </Text>
-          </Pressable>
-        ) : undefined}
-      >
-        <ScrollView
-          ref={bookingScrollRef}
-          horizontal
-          pagingEnabled
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -spacing.lg }}
-        >
-          {/* ── Step 1: Calendar ── */}
-          <View style={{ width: screenWidth, paddingHorizontal: spacing.lg }}>
-            {/* Month nav */}
-            <View style={styles.bkMonthNav}>
-              <Pressable
-                onPress={() => setBookingMonth(new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() - 1, 1))}
-                disabled={!bookingCanPrev}
-                style={[styles.bkMonthArrow, !bookingCanPrev && { opacity: 0.3 }]}
-              >
-                <Ionicons name="chevron-back" size={18} color="#1a120a" />
-              </Pressable>
-              <Text style={styles.bkMonthLabel}>{bookingMonthLabel}</Text>
-              <Pressable
-                onPress={() => setBookingMonth(new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() + 1, 1))}
-                disabled={!bookingCanNext}
-                style={[styles.bkMonthArrow, !bookingCanNext && { opacity: 0.3 }]}
-              >
-                <Ionicons name="chevron-forward" size={18} color="#1a120a" />
-              </Pressable>
-            </View>
+        </Animated.View>
+      )}
 
-            {/* Weekday headers */}
-            <View style={styles.bkWeekdayRow}>
-              {BOOKING_WEEKDAYS.map((wd) => (
-                <View key={wd} style={styles.bkWeekdayCell}>
-                  <Text style={styles.bkWeekdayText}>{wd}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Calendar grid */}
-            <View style={styles.bkGrid}>
-              {bookingGridCells.map((date, idx) => {
-                const today = new Date(); today.setHours(0,0,0,0);
-                const inMonth = date.getMonth() === bookingMonth.getMonth() && date.getFullYear() === bookingMonth.getFullYear();
-                const isToday = date.getTime() === today.getTime();
-                const isSelected = date.getFullYear() === preferredDate.getFullYear() && date.getMonth() === preferredDate.getMonth() && date.getDate() === preferredDate.getDate();
-                const inRange = date >= today && date <= bookingMaxDate;
-                const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-                const isUnavailable = inMonth && inRange && unavailableDatesSet.has(dateKey);
-                const tappable = inMonth && inRange && !isUnavailable;
-                const hasBooking = inMonth && bookedDatesSet.has(dateKey);
-
-                return (
-                  <Pressable
-                    key={`bk-${idx}`}
-                    onPress={tappable ? () => handleBookingDateSelect(date) : undefined}
-                    disabled={!tappable}
-                    style={styles.bkDayWrapper}
-                  >
-                    <View style={[
-                      styles.bkDayCell,
-                      isToday && styles.bkDayCellToday,
-                      isSelected && styles.bkDayCellSelected,
-                    ]}>
-                      <Text style={[
-                        styles.bkDayText,
-                        !inMonth && { color: 'rgba(26,18,10,0.15)' },
-                        isToday && styles.bkDayTextToday,
-                        isSelected && styles.bkDayTextSelected,
-                        (inMonth && (!inRange || isUnavailable)) && { color: 'rgba(26,18,10,0.25)' },
-                      ]}>
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                    {hasBooking ? <View style={[styles.bkDayDot, (isSelected || isToday) && { backgroundColor: '#fff' }]} /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ── Step 2: Options + Slots ── */}
-          <View style={{ width: screenWidth, paddingHorizontal: spacing.lg }}>
-            {/* Duration chips (if selectable) */}
-            {availableDurations.length > 1 && (
-              <View style={styles.bookingSection}>
-                <Text style={styles.bookingSectionLabel}>DURATA</Text>
-                <View style={styles.bookingChipRow}>
-                  {availableDurations.map((dur) => {
-                    const isActive = durationMinutes === dur;
-                    const label = dur >= 60
-                      ? dur === 60 ? '1 ora' : dur === 90 ? '1h 30' : `${dur / 60} ore`
-                      : `${dur} min`;
-                    return (
-                      <Pressable
-                        key={`bk-dur-${dur}`}
-                        style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                        onPress={() => {
-                          setDurationMinutes(dur);
-                          // Re-fetch slots with new duration
-                          handleBookingDateSelect(preferredDate);
-                        }}
-                      >
-                        <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>{label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* Instructor selection / info */}
-            {isLockedToInstructor && assignedInstructorName ? (
-              <View style={[styles.bkInfoRow, { marginTop: availableDurations.length > 1 ? 12 : 0 }]}>
-                <Ionicons name="person-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.bkInfoText}>{assignedInstructorName} · {durationMinutes} min</Text>
-              </View>
-            ) : canSelectInstructor && visibleInstructors.length > 0 ? (
-              <View style={{ marginTop: 16, gap: 10 }}>
-                <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
-                <View style={styles.bookingChipRow}>
-                  {visibleInstructors.length > 1 ? (
-                    <Pressable
-                      style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
-                      onPress={() => {
-                        setSelectedInstructorId(null);
-                        handleBookingDateSelect(preferredDate, null);
-                      }}
-                    >
-                      <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                        Tutti
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {visibleInstructors.map((instructor) => {
-                    const isActive = selectedInstructorId === instructor.id;
-                    return (
-                      <Pressable
-                        key={`bk-instr-${instructor.id}`}
-                        style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                        onPress={() => {
-                          setSelectedInstructorId(instructor.id);
-                          handleBookingDateSelect(preferredDate, instructor.id);
-                        }}
-                      >
-                        <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                          {instructor.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : null}
-
-            {/* Slot list */}
-            <Text style={[styles.bookingSectionLabel, { marginTop: 16, marginBottom: 10 }]}>ORARI DISPONIBILI</Text>
-            {bookingSlotsLoading && bookingSlots.length === 0 ? (
-              <View style={{ height: 280 }}>
-                {[0, 1, 2, 3].map((i) => (
-                  <View key={`sk-slot-${i}`} style={styles.timelineRow}>
-                    <View style={styles.timelineLeft}>
-                      <SkeletonBlock width={32} height={12} radius={6} />
-                      {i < 3 && <View style={styles.timelineLine} />}
-                    </View>
-                    <View style={[styles.timelineCard, { borderColor: 'transparent' }]}>
-                      <SkeletonBlock width="60%" height={16} radius={8} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : bookingSlots.length === 0 ? (
-              <View style={{ height: 280, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="calendar-clear-outline" size={28} color="rgba(26,18,10,0.15)" />
-                <Text style={[styles.bkInfoText, { marginTop: 8, textAlign: 'center' }]}>Nessun orario disponibile{'\n'}per questo giorno</Text>
-              </View>
-            ) : (
-              <ScrollView style={{ height: 280 }} showsVerticalScrollIndicator={false}>
-                <View style={styles.timelineContainer}>
-                  {bookingSlots.map((slot, index) => {
-                    const isActive = bookingSelectedSlot?.startsAt === slot.startsAt;
-                    const isLast = index === bookingSlots.length - 1;
-                    return (
-                      <View key={slot.startsAt} style={styles.timelineRow}>
-                        <View style={styles.timelineLeft}>
-                          <Text style={styles.timelineHour}>{formatTime(slot.startsAt)}</Text>
-                          {!isLast ? <View style={styles.timelineLine} /> : null}
-                        </View>
-                        <Pressable
-                          style={[styles.timelineCard, isActive && styles.timelineCardActive]}
-                          onPress={() => setBookingSelectedSlot(slot)}
-                        >
-                          <Text style={isActive ? styles.timelineCardTextActive : styles.timelineCardText}>
-                            {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
-                          </Text>
-                          {slot.instructorName ? (
-                            <Text style={[isActive ? styles.timelineCardTextActive : styles.timelineCardText, { fontSize: 12, fontWeight: '400', flex: 0 }]}>
-                              {slot.instructorName}
-                            </Text>
-                          ) : null}
-                          {isActive ? (
-                            <View style={styles.timelineCheck}>
-                              <Text style={styles.timelineCheckText}>{'\u2713'}</Text>
-                            </View>
-                          ) : null}
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </ScrollView>
-      </BottomSheet>
-      {/* ── Lesson Detail BottomSheet ── */}
-      <BottomSheet
-        visible={historyDetailsOpen && !!selectedHistoryLesson}
-        onClose={() => setHistoryDetailsOpen(false)}
-        title="Dettaglio guida"
-        showHandle
-        gradient
-      >
-        {selectedHistoryLesson ? (
-          <>
-            {/* Hero info card */}
-            <View style={styles.chunkyHeroCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={styles.chunkyHeroTitle}>
-                  {formatDay(selectedHistoryLesson.startsAt)} {'\u2022'} {formatTime(selectedHistoryLesson.startsAt)}
-                </Text>
-                <View style={[styles.chunkyStatusPill, { backgroundColor: '#FEF9C3' }]}>
-                  <Text style={[styles.chunkyStatusPillText, { color: '#CA8A04' }]}>
-                    {statusLabel(selectedHistoryLesson.status).label.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.chunkyHeroSub}>
-                Durata: {lessonDurationMinutes(selectedHistoryLesson)} min
-              </Text>
-            </View>
-
-            {/* Icon rows */}
-            <View style={{ gap: 16 }}>
-              {/* Instructor */}
-              <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#EFF6FF' }]}>
-                  <Ionicons name="person-outline" size={18} color="#3B82F6" />
-                </View>
-                <View>
-                  <Text style={styles.chunkyRowLabel}>ISTRUTTORE</Text>
-                  <Text style={styles.chunkyRowValue}>
-                    {selectedHistoryLesson.instructor?.name ?? 'Da assegnare'}
-                  </Text>
-                  {selectedHistoryLesson.instructor?.phone ? (
-                    <Pressable
-                      onPress={() =>
-                        Linking.openURL(`tel:${selectedHistoryLesson.instructor!.phone}`)
-                      }
-                    >
-                      <Text style={styles.chunkyRowPhone}>
-                        {selectedHistoryLesson.instructor.phone}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
-
-              {/* Vehicle */}
-              {settings?.vehiclesEnabled !== false && (
-                <View style={styles.chunkyIconRow}>
-                  <View style={[styles.chunkyIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                    <Ionicons name="car-outline" size={18} color="#CA8A04" />
-                  </View>
-                  <View>
-                    <Text style={styles.chunkyRowLabel}>VEICOLO</Text>
-                    <Text style={styles.chunkyRowValue}>
-                      {selectedHistoryLesson.vehicle?.name ?? 'Da assegnare'}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Location */}
-              {(() => {
-                const loc = selectedHistoryLesson.location;
-                const lat =
-                  typeof loc?.latitude === 'number'
-                    ? loc.latitude
-                    : loc?.latitude
-                      ? Number(loc.latitude)
-                      : null;
-                const lng =
-                  typeof loc?.longitude === 'number'
-                    ? loc.longitude
-                    : loc?.longitude
-                      ? Number(loc.longitude)
-                      : null;
-                const isTappable =
-                  loc?.isPrecise && lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
-                const display = loc?.name ?? "Sede dell'autoscuola";
-                const handleOpenMaps = () => {
-                  if (!isTappable) return;
-                  const placeIdParam = loc!.placeId ? `&query_place_id=${loc!.placeId}` : '';
-                  Linking.openURL(
-                    `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`,
-                  ).catch(() => null);
-                };
-                const Row = isTappable ? Pressable : View;
-                return (
-                  <Row
-                    onPress={isTappable ? handleOpenMaps : undefined}
-                    style={styles.chunkyIconRow}
-                  >
-                    <View style={[styles.chunkyIconCircle, { backgroundColor: '#DCFCE7' }]}>
-                      <Ionicons
-                        name={loc?.isPrecise ? 'location' : 'location-outline'}
-                        size={18}
-                        color="#16A34A"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.chunkyRowLabel}>LUOGO</Text>
-                      <Text style={styles.chunkyRowValue} numberOfLines={1}>{display}</Text>
-                      {loc?.isPrecise && loc.address ? (
-                        <Text style={[styles.chunkyRowValue, { color: '#64748B', fontSize: 13 }]} numberOfLines={1}>
-                          {loc.address}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {isTappable ? (
-                      <Ionicons name="open-outline" size={18} color="#16A34A" />
-                    ) : null}
-                  </Row>
-                );
-              })()}
-
-              {/* Payment */}
-              <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="wallet-outline" size={18} color="#EC4899" />
-                </View>
-                <View>
-                  <Text style={styles.chunkyRowLabel}>PAGAMENTO</Text>
-                  {selectedHistoryPayment ? (
-                    <Text style={[styles.chunkyRowValue, { fontStyle: 'italic', color: '#64748B' }]}>
-                      {paymentStatusLabel(selectedHistoryPayment.paymentStatus).label}
-                      {selectedHistoryPayment.dueAmount > 0
-                        ? ` \u2022 Residuo \u20AC ${selectedHistoryPayment.dueAmount.toFixed(2)}`
-                        : ''}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.chunkyRowValue, { fontStyle: 'italic', color: '#64748B' }]}>
-                      Nessun dettaglio disponibile
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {/* Swap + Cancel buttons — only for upcoming confirmed lessons */}
-            {upcomingConfirmedStatuses.has(
-              (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
-            ) &&
-            new Date(selectedHistoryLesson.startsAt).getTime() > Date.now() ? (
-              <>
-                {(bookingOptions?.swapEnabled ?? settings?.swapEnabled) &&
-                  ['scheduled', 'confirmed'].includes(
-                    (selectedHistoryLesson.status ?? '').trim().toLowerCase(),
-                  ) ? (
-                  <Pressable
-                    style={[styles.detailSwapBtn, creatingSwap && { opacity: 0.5 }]}
-                    onPress={() => {
-                      const id = selectedHistoryLesson.id;
-                      setHistoryDetailsOpen(false);
-                      setTimeout(() => handleCreateSwap(id), 350);
-                    }}
-                    disabled={creatingSwap}
-                  >
-                    <Text style={{ fontSize: 16 }}>🤝</Text>
-                    <Text style={styles.detailSwapText}>
-                      {creatingSwap ? 'Invio richiesta...' : 'Cerca sostituto'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {canCancelAppointments && (
-                <Pressable
-                  style={[styles.detailCancelBtn, cancellingAppointmentId === selectedHistoryLesson.id && { opacity: 0.5 }]}
-                  onPress={() => {
-                    const id = selectedHistoryLesson.id;
-                    setHistoryDetailsOpen(false);
-                    setTimeout(() => handleCancel(id), 350);
-                  }}
-                  disabled={cancellingAppointmentId === selectedHistoryLesson.id}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                  <Text style={styles.detailCancelText}>
-                    {cancellingAppointmentId === selectedHistoryLesson.id
-                      ? 'Annullamento...'
-                      : 'Annulla guida'}
-                  </Text>
-                </Pressable>
-                )}
-              </>
-            ) : null}
-          </>
-        ) : null}
-      </BottomSheet>
-      {/* ── Booking Preferences BottomSheet ── */}
-      <BottomSheet
-        gradient
-        visible={prefsOpen}
-        onClose={handleClosePreferences}
-        onClosed={() => {
-          if (pendingFreeChoiceOpen) {
-            setFreeChoiceOpen(true);
-            setPendingFreeChoiceOpen(false);
-          }
-        }}
-        title="Prenota guida"
-        closeDisabled={bookingLoading}
-        showHandle
-        titleRight={
-          (paymentProfile?.autoPaymentsEnabled || creditFlowEnabled) ? (
-            <View style={styles.bookingCreditsBadge}>
-              <Text style={styles.bookingCreditsBadgeText}>
-                Crediti: {paymentProfile?.lessonCreditsAvailable ?? 0}
-              </Text>
-            </View>
-          ) : undefined
-        }
-        footer={
-          <>
-            {!preferredDateAvailable ? (
-              <Text style={styles.bookingUnavailableCaption}>
-                Nessuna disponibilità per il giorno selezionato
-              </Text>
-            ) : null}
-            <Pressable
-              onPress={bookingLoading || !preferredDateAvailable ? undefined : handleBookingRequest}
-              disabled={bookingLoading || !preferredDateAvailable}
-              style={[styles.chunkyPinkCta, (bookingLoading || !preferredDateAvailable) && { opacity: 0.5 }]}
-            >
-              <Text style={styles.chunkyPinkCtaText}>
-                {bookingLoading ? 'Attendi...' : 'Prenota \u2192'}
-              </Text>
-            </Pressable>
-          </>
-        }
-      >
-        {/* GIORNO */}
-        <View style={styles.bookingSection}>
-          <Text style={styles.bookingSectionLabel}>GIORNO</Text>
-          <Pressable
-            style={({ pressed }) => [styles.bookingDateCardChunky, pressed && { opacity: 0.85 }]}
-            onPress={() => {
-              setPrefsOpen(false);
-              setTimeout(() => setBookingCalendarOpen(true), 350);
-            }}
-          >
-            <View style={styles.bookingDateIconLg}>
-              <Ionicons name="calendar" size={20} color="#ec4899" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bookingDateMainText}>
-                {formatDay(preferredDate.toISOString())}
-              </Text>
-              <Text style={styles.bookingDateHint}>Scegli quando guidare</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </Pressable>
-        </View>
-
-        {/* DURATA */}
-        <View style={styles.bookingSection}>
-          <Text style={styles.bookingSectionLabel}>DURATA</Text>
-          {availableDurations.length === 1 ? (
-            <Text style={styles.bookingDurationSingle}>{availableDurations[0]} min</Text>
-          ) : (
-            <View style={styles.bookingChipRow}>
-              {availableDurations.map((duration) => {
-                const isActive = durationMinutes === duration;
-                const label = duration >= 60
-                  ? duration === 60 ? '1 ora' : duration === 90 ? '1 ora e mezza' : `${duration / 60} ore`
-                  : `${duration} min`;
-                return (
-                  <Pressable
-                    key={`duration-${duration}`}
-                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                    onPress={() => setDurationMinutes(duration)}
-                  >
-                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* TIPO GUIDA */}
-        {canSelectLessonType ? (
-          <View style={styles.bookingSection}>
-            <Text style={styles.bookingSectionLabel}>TIPO GUIDA</Text>
-            <View style={styles.bookingChipRow}>
-              {availableLessonTypes.map((lessonType) => {
-                const isActive = selectedLessonTypes.includes(lessonType);
-                return (
-                  <Pressable
-                    key={`type-${lessonType}`}
-                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                    onPress={() => {
-                      setSelectedLessonTypes((prev) => {
-                        if (prev.includes(lessonType)) {
-                          const next = prev.filter((t) => t !== lessonType);
-                          return next.length ? next : [lessonType];
-                        }
-                        return [...prev, lessonType];
-                      });
-                    }}
-                  >
-                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                      {formatLessonType(lessonType)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
-        {/* ISTRUTTORE */}
-        {isLockedToInstructor && assignedInstructorName ? (
-          <View style={styles.bookingSection}>
-            <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
-            <View style={styles.bookingChipRow}>
-              <View style={[styles.bookingChipChunky, styles.bookingChipChunkyActive, { opacity: 1 }]}>
-                <Text style={styles.bookingChipChunkyTextActive}>
-                  {assignedInstructorName}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.bookingInstructorCaption}>
-              Istruttore assegnato dal tuo cluster.
-            </Text>
-          </View>
-        ) : canSelectInstructor && visibleInstructors.length > 0 ? (
-          <View style={styles.bookingSection}>
-            <Text style={styles.bookingSectionLabel}>ISTRUTTORE</Text>
-            <View style={styles.bookingChipRow}>
-              {visibleInstructors.length > 1 ? (
-                <Pressable
-                  style={[styles.bookingChipChunky, !selectedInstructorId && styles.bookingChipChunkyActive]}
-                  onPress={() => setSelectedInstructorId(null)}
-                >
-                  <Text style={!selectedInstructorId ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                    Tutti
-                  </Text>
-                </Pressable>
-              ) : null}
-              {visibleInstructors.map((instructor) => {
-                const isActive = selectedInstructorId === instructor.id;
-                return (
-                  <Pressable
-                    key={`instr-${instructor.id}`}
-                    style={[styles.bookingChipChunky, isActive && styles.bookingChipChunkyActive]}
-                    onPress={() => setSelectedInstructorId(instructor.id)}
-                  >
-                    <Text style={isActive ? styles.bookingChipChunkyTextActive : styles.bookingChipChunkyText}>
-                      {instructor.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.bookingInstructorCaption}>
-              {visibleInstructors.length < instructors.length
-                ? 'Solo gli istruttori disponibili per questo giorno.'
-                : 'Se non scegli, vedrai proposte con tutti gli istruttori.'}
-            </Text>
-          </View>
-        ) : null}
-      </BottomSheet>
-      <CalendarDrawer
-        visible={bookingCalendarOpen}
-        onClose={() => {
-          setBookingCalendarOpen(false);
-          setTimeout(() => setPrefsOpen(true), 350);
-        }}
-        bookedDates={bookedDatesSet}
-        unavailableDates={unavailableDatesSet}
-        onSelectDate={(date) => {
-          setPreferredDate(date);
-          setBookingCalendarOpen(false);
-          setTimeout(() => setPrefsOpen(true), 350);
-        }}
-        selectedDate={preferredDate}
-        maxWeeks={Number(settings?.availabilityWeeks) || 4}
-      />
+      {/* Booking flow — now an Expo Router formSheet screen at /(tabs)/home/booking-flow */}
+      {/* Lesson Detail — now an Expo Router formSheet screen at /(tabs)/home/lesson-detail */}
       <CalendarDrawer
         visible={calendarDrawerOpen}
         onClose={() => setCalendarDrawerOpen(false)}
@@ -2530,229 +1853,197 @@ export const AllievoHomeScreen = () => {
         maxWeeks={Number(settings?.availabilityWeeks) || 4}
         bookedDates={bookedDatesSet}
       />
-      {/* ── Free Choice Slot Picker BottomSheet ── */}
-      <BottomSheet
-        gradient
-        visible={freeChoiceOpen}
-        onClose={() => {
-          if (!freeChoiceBooking) {
-            setFreeChoiceOpen(false);
-            setFreeChoiceSelected(null);
-          }
-        }}
-        title="Scegli un orario"
-        closeDisabled={freeChoiceBooking}
-        showHandle
-        footer={
-          <Pressable
-            onPress={freeChoiceBooking || !freeChoiceSelected ? undefined : handleConfirmFreeChoiceSlot}
-            disabled={freeChoiceBooking || !freeChoiceSelected}
-            style={[
-              styles.chunkyPinkCta,
-              (freeChoiceBooking || !freeChoiceSelected) && { opacity: 0.5 },
-            ]}
-          >
-            <Text style={styles.chunkyPinkCtaText}>
-              {freeChoiceBooking ? 'Attendi...' : 'Prenota'}
-            </Text>
-          </Pressable>
-        }
-      >
-        <Text style={styles.timelineSubtitle}>
-          {formatDay(preferredDate.toISOString())} {'\u2022'} {durationMinutes} min
-        </Text>
-        <ScrollView
-          style={{ maxHeight: 380 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.timelineContainer}>
-            {freeChoiceSlots.map((slot, index) => {
-              const isActive = freeChoiceSelected?.startsAt === slot.startsAt;
-              const isLast = index === freeChoiceSlots.length - 1;
-              return (
-                <View key={slot.startsAt} style={styles.timelineRow}>
-                  <View style={styles.timelineLeft}>
-                    <Text style={styles.timelineHour}>{formatTime(slot.startsAt)}</Text>
-                    {!isLast ? <View style={styles.timelineLine} /> : null}
-                  </View>
-                  <Pressable
-                    style={[styles.timelineCard, isActive && styles.timelineCardActive]}
-                    onPress={() => setFreeChoiceSelected(slot)}
-                  >
-                    <Text style={isActive ? styles.timelineCardTextActive : styles.timelineCardText}>
-                      {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
-                    </Text>
-                    {isActive ? (
-                      <View style={styles.timelineCheck}>
-                        <Text style={styles.timelineCheckText}>{'\u2713'}</Text>
-                      </View>
-                    ) : null}
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </BottomSheet>
-    </LinearGradient>
+      {/* Free Choice BottomSheet removed — unified into Booking PageSheet */}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  /* ── Pill List Layout ── */
-  pillBlob: {
-    position: 'absolute',
-    top: -120,
-    left: -80,
-    width: 360,
-    height: 360,
-    borderRadius: 180,
-    backgroundColor: '#fbd6e6',
-    opacity: 0.7,
+  /* ── Sticky blur header ── */
+  headerWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
   },
-  pillHeader: {
-    paddingHorizontal: 14,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 1,
+  headerBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  pillEyebrow: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    color: '#EC4899',
-    marginBottom: 8,
+  headerRow: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
   },
-  pillTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: -1,
-    color: '#1a120a',
-    textTransform: 'uppercase',
+  compactHeader: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  pillHeaderBtns: {
-    flexDirection: 'row',
-    gap: 8,
+  compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  compactTag: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+    backgroundColor: colors.primary,
   },
-  pillAbsenceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 36,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.10)',
+  compactTagText: { fontSize: 11, fontWeight: '700', color: colors.surface },
+  headerBellBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', right: spacing.md,
   },
-  pillAbsenceBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1a120a',
+  headerBellDot: {
+    position: 'absolute', top: 4, right: 4,
+    width: 8, height: 8, borderRadius: 999,
+    backgroundColor: '#ec4899', borderWidth: 2, borderColor: colors.background,
   },
-  pillBellBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 999,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1a120a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+
+  /* ── Large title ── */
+  largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: 2 },
+  largeTitleText: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
+  largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
+
+  /* ── Context cards (autoscuola + instructor in a row) ── */
+  contextRow: { flexDirection: 'row', gap: 10 },
+  contextInfoCard: {
+    flex: 4, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EEEDEB', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 4, spreadDistance: 0, color: 'rgba(0,0,0,0.10)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.05)', inset: true },
+    ],
   },
-  pillBellDot: {
-    position: 'absolute',
-    top: 9,
-    right: 11,
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#ec4899',
-    borderWidth: 2,
-    borderColor: '#fff',
+  contextIcon: { width: 28, height: 28, alignSelf: 'center' },
+  contextInfoText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1 },
+  contextCtaCard: {
+    flex: 5, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  pillSearchBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 999,
-    backgroundColor: '#ec4899',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#d6307f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 6,
+  contextCtaTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  contextCtaSub: { fontSize: 11, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
+
+  /* ── PageSheet shared ── */
+  pageSheet: { flex: 1, backgroundColor: colors.background, paddingTop: 12 },
+  pageSheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  pageSheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 16 },
+  pageSheetTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  pageSheetFooter: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  /* ── Scroll content ── */
+  scrollContent: { paddingHorizontal: spacing.md, gap: 20 },
+
+  /* ── Press feedback ── */
+  ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
+
+  /* ── Section label ── */
+  sectionLabel: {
+    fontSize: 13, fontWeight: '700', color: colors.textMuted,
+    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6,
   },
-  pillFiltersRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    paddingHorizontal: 14,
-    marginBottom: 4,
-    minHeight: 28,
+
+  /* ── FAB (Google Calendar style) ── */
+  fab: {
+    position: 'absolute', right: 20, bottom: 16, zIndex: 5,
   },
-  phaseProgressWrap: {
-    marginHorizontal: 14,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 4,
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 1,
+  fabBtn: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
   },
-  pillFilterTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+
+  /* ── Next lesson hero dark card ── */
+  heroCard: {
+    backgroundColor: '#1A1A2E', borderRadius: 26,
+    padding: 20, gap: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  pillFilterTagText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1a120a',
-    letterSpacing: 0.2,
+  heroTopRow: {
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
   },
-  pillEmpty: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    gap: 6,
+  heroDate: {
+    fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.6)',
   },
-  pillEmptyImage: {
-    width: 220,
-    height: 220,
-    opacity: 0.85,
+  heroTime: {
+    fontSize: 26, fontWeight: '800', color: colors.surface, letterSpacing: -0.5, marginTop: 2,
   },
-  pillEmptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a120a',
-    letterSpacing: -0.3,
-    textAlign: 'center',
+  heroBadge: {
+    backgroundColor: colors.primary, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 5,
   },
-  pillEmptySub: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 20,
+  heroBadgeText: {
+    fontSize: 12, fontWeight: '800', color: colors.surface,
+  },
+  heroInfoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  heroInfoText: {
+    fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.6)',
+  },
+  heroInfoDot: {
+    fontSize: 14, color: 'rgba(255,255,255,0.3)',
+  },
+
+  /* ── Grouped white card (upcoming lessons list) ── */
+  groupedCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
+  },
+  groupedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11,
+  },
+  groupedRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  groupedDayBadge: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+  },
+  groupedDayText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
+  groupedRowTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  groupedRowSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
+
+  /* ── Stats inset card (same pattern as theory) ── */
+  statsInset: {
+    backgroundColor: '#EEEDEB', borderRadius: 20,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
+  },
+  statsInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 18, paddingHorizontal: 8,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: colors.border },
+  statIcon: { width: 34, height: 34, marginBottom: 2 },
+  statValue: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
+
+  /* ── Countdown card ── */
+  countdownCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 22, padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
+  },
+  countdownIcon: { width: 44, height: 44 },
+  countdownText: { flex: 1 },
+  countdownLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  countdownDate: { fontSize: 16, color: colors.textPrimary, fontWeight: '700', marginTop: 2 },
+  countdownBadge: {
+    backgroundColor: colors.primary, borderRadius: 16,
+    paddingHorizontal: spacing.sm, paddingVertical: 6, alignItems: 'center', minWidth: 64,
+  },
+  countdownBadgeNum: { color: colors.surface, fontSize: 22, fontWeight: '800', lineHeight: 24 },
+  countdownBadgeUnit: { color: colors.surface, fontSize: 10, fontWeight: '600', opacity: 0.9 },
+
+  /* ── Empty state ── */
+  emptyState: {
+    alignItems: 'center', paddingVertical: 10, paddingHorizontal: 30, gap: 6,
+  },
+  emptyStateIcon: { width: 120, height: 120, marginBottom: 12 },
+  emptyStateTitle: {
+    fontSize: 18, fontWeight: '700', color: '#1a120a', letterSpacing: -0.3, textAlign: 'center',
+  },
+  emptyStateSub: {
+    fontSize: 14, fontWeight: '400', color: '#9CA3AF', textAlign: 'center', lineHeight: 20,
   },
   /* ── Booking Flow Calendar ── */
   bkBackBtn: {
@@ -2863,350 +2154,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 
-  pillTopFade: {
-    left: 0,
-    right: 0,
-    height: 40,
-    zIndex: 2,
-    marginBottom: -40,
-  },
-  pillStack: {
-    paddingHorizontal: 14,
-    paddingBottom: 30,
-    gap: 16,
-  },
-  pillSectionLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  pillPulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: '#ec4899',
-  },
-  pillSectionText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: '#EC4899',
-  },
-  pillItem: {
-    borderRadius: 22,
-    shadowColor: '#9c8a76',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  pillItemDefault: {
-    borderWidth: 2,
-    borderColor: 'rgba(26,18,10,0.08)',
-  },
-  pillItemNext: {
-    shadowColor: '#d6307f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: '#ec4899',
-  },
-  pillItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  pillAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  pillItemTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    color: '#1a120a',
-  },
-  pillItemSub: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: 'rgba(0,0,0,0.65)',
-    marginTop: 1,
-  },
-  pillChevron: {
-    width: 30,
-    height: 30,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  pillDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.10)',
-    marginBottom: 12,
-  },
-  pillLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    marginBottom: 14,
-    minHeight: 64,
-  },
-  pillLocationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillLocationText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  pillLocationLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    color: '#16A34A',
-    marginBottom: 2,
-  },
-  pillLocationName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a120a',
-    lineHeight: 18,
-  },
-  pillLocationAddress: {
-    fontSize: 12,
-    color: '#6B5A48',
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  pillLocationOpenBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Compact sede row (low emphasis, when location is the default sede)
-  pillSedeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 12,
-    paddingHorizontal: 2,
-  },
-  pillSedeText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#6B5A48',
-  },
-  pillSedeTextTappable: {
-    color: '#16A34A',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  pillChipRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 14,
-    alignItems: 'center',
-  },
-  pillChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  pillChipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#1a120a',
-  },
-  pillCtaRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  pillCtaOutline: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.18)',
-  },
-  pillCtaOutlineText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1a120a',
-  },
-  pillCtaFilled: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: '#1a120a',
-  },
-  pillCtaFilledText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  pillTabBarBg: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#F8F7F4',
-    zIndex: 4,
-  },
-  pillFixedCta: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 5,
-  },
-  pillFixedFade: {
-    height: 40,
-  },
-  pillFixedCtaInner: {
-    backgroundColor: '#F8F7F4',
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-  },
-  pillBookBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(214,48,127,0.45)',
-  },
-  pillBookIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    backgroundColor: '#ec4899',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#d6307f',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  pillBookTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    color: '#1a120a',
-  },
-  pillBookSub: {
-    fontSize: 12,
-    color: '#6b5444',
-    marginTop: 2,
-  },
-
-  /* ── Legacy (kept for BottomSheets) ── */
-  content: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl * 2 + spacing.md,
-  },
-
-  /* ── Header ── */
-  header: {
-    gap: 4,
-    paddingRight: 56,
-  },
-  title: {
-    ...typography.title,
-    color: '#1E293B',
-  },
-  subtitle: {
-    ...typography.body,
-    color: '#64748B',
-    marginTop: 2,
-  },
-
-  /* ── Exam Countdown Card ── */
-  examCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F3FF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#DDD6FE',
-    paddingLeft: 18,
-    paddingVertical: 8,
-    paddingRight: 4,
-    gap: 8,
-    shadowColor: '#8B5CF6',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  examCardContent: {
-    flex: 1,
-    gap: 4,
-  },
-  examCardCountdown: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#8B5CF6',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  examCardCountdownText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  examCardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1a120a',
-    letterSpacing: -0.2,
-  },
-  examCardDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8B5CF6',
-  },
-  examCardDuck: {
-    width: 200,
-    height: 200,
-    marginRight: -45,
-    marginTop: -50,
-    marginBottom: -70,
-  },
+  /* ── Legacy styles removed — old pills, fixed CTA, exam card ── */
 
   /* ── Blocked by exam priority ── */
   blockedByExamBanner: {
@@ -3239,318 +2187,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ── Next Lesson Card (yellow) ── */
-  nextLessonShadow: {
-    borderRadius: radii.lg,
-    shadowColor: '#B45309',
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  nextLessonDuck: {
-    position: 'absolute',
-    top: -49.5,
-    right: 20,
-    width: 80,
-    height: 50,
-    zIndex: 10,
-  },
-  nextLessonCard: {
-    borderRadius: radii.lg,
-    padding: 22,
-    gap: 8,
-    overflow: 'hidden',
-  },
-  inProgressBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: 'rgba(22, 163, 74, 0.15)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  inProgressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16A34A',
-  },
-  inProgressBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#15803D',
-    letterSpacing: 0.6,
-  },
-  nextLessonLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    textShadowColor: 'rgba(120, 53, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  nextLessonDateTime: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(120, 53, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  nextLessonDetails: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(120, 53, 0, 0.25)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  nextLessonActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  nextLessonSwapPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  nextLessonSwapEmoji: {
-    fontSize: 13,
-  },
-  nextLessonSwapText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(120, 53, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  nextLessonCancelPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  nextLessonCancelText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
-  },
-  nextLessonSlot: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 16,
-    padding: 14,
-    gap: 8,
-  },
-  nextLessonSlotHeader: {
-    gap: 2,
-  },
-  nextLessonSlotTime: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(120, 53, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  nextLessonSlotDetails: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.85)',
-    textShadowColor: 'rgba(120, 53, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  emptyLessonCard: {
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    borderColor: '#FACC15',
-    borderStyle: 'dashed',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: spacing.lg,
-    gap: 8,
-  },
-  emptyLessonImage: {
-    width: 200,
-    height: 125,
-  },
-  emptyLessonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ACABB2',
-    fontStyle: 'italic',
-  },
-
-  /* ── CTA Button ── */
-  ctaButton: {
-    backgroundColor: '#EC4899',
-    borderRadius: radii.sm,
-    minHeight: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  ctaButtonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.92,
-  },
-  ctaButtonDisabled: {
-    opacity: 0.5,
-  },
-  ctaButtonLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  /* ── Calendar Section ── */
-  calendarSection: {
-    gap: spacing.sm,
-  },
-  calendarMonthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  calendarMonthTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  calendarIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayPillsRow: {
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  dayPill: {
-    width: 58,
-    height: 72,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  dayPillSelected: {
-    backgroundColor: '#FCE7F3',
-    borderWidth: 2,
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  dayPillUnselected: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dayPillToday: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 2,
-    borderColor: '#FACC15',
-    shadowColor: '#D97706',
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  dayPillWeekday: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  dayPillWeekdaySelected: {
-    color: '#BE185D',
-  },
-  dayPillWeekdayUnselected: {
-    color: '#94A3B8',
-  },
-  dayPillWeekdayToday: {
-    color: '#CA8A04',
-  },
-  dayPillNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  dayPillNumberSelected: {
-    color: '#BE185D',
-  },
-  dayPillNumberUnselected: {
-    color: '#1E293B',
-  },
-  dayPillNumberToday: {
-    color: '#CA8A04',
-  },
-
-  dayPillDot: {
-    position: 'absolute',
-    bottom: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EC4899',
-  },
-  dayPillDotHighlight: {
-    backgroundColor: '#FFFFFF',
-  },
-  dayPillHoliday: {
-    backgroundColor: '#FEE2E2',
-    borderWidth: 2,
-    borderColor: '#FCA5A5',
-  },
-  dayPillWeekdayHoliday: {
-    color: '#DC2626',
-  },
-  dayPillNumberHoliday: {
-    color: '#DC2626',
-  },
-  dayPillHolidayDot: {
-    position: 'absolute' as const,
-    bottom: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#DC2626',
-  },
+  /* ── Old nextLesson/calendar/CTA styles removed ── */
   detailCancelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3700,7 +2337,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
-    shadowColor: pink[300],
+    shadowColor: '#F9A8D4',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -4155,60 +2792,50 @@ const styles = StyleSheet.create({
   },
 
   /* ── Chunky Google-style BottomSheet styles ── */
-  chunkyHeroCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 24,
-    padding: 20,
-    gap: 6,
+  /* ── Detail PageSheet ── */
+  detailHero: {
+    backgroundColor: '#1A1A2E', borderRadius: 26, padding: 20, gap: 8, marginTop: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  chunkyHeroTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
+  detailHeroTopRow: {
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
   },
-  chunkyHeroSub: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#94A3B8',
+  detailHeroDate: {
+    fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.6)',
   },
-  chunkyStatusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  detailHeroTime: {
+    fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, marginTop: 2,
   },
-  chunkyStatusPillText: {
-    fontSize: 11,
-    fontWeight: '700',
+  detailStatusBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 4,
   },
-  chunkyIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+  detailStatusText: {
+    fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)',
   },
-  chunkyIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+  detailHeroDuration: {
+    fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.45)',
   },
-  chunkyRowLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  detailGroupCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  chunkyRowValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
+  detailRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6,
   },
-  chunkyRowPhone: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
-    marginTop: 2,
+  detailRowDivider: {
+    height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 4,
+  },
+  detailRowValue: {
+    fontSize: 15, fontWeight: '600', color: colors.textPrimary,
+  },
+  detailRowSub: {
+    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1,
+  },
+  detailRowLink: {
+    fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2,
   },
   chunkyYellowCard: {
     backgroundColor: '#FEF9C3',
@@ -4241,12 +2868,12 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   chunkyPinkCta: {
-    backgroundColor: '#1a120a',
+    backgroundColor: colors.primary,
     height: 54,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1a120a',
+    shadowColor: colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -4372,14 +2999,12 @@ const styles = StyleSheet.create({
     color: '#1a120a',
   },
   bookingSection: {
-    gap: 10,
+    gap: 12,
   },
   bookingSectionLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#EC4899',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    color: colors.textPrimary,
   },
   bookingDateCardChunky: {
     backgroundColor: '#FFFFFF',
@@ -4404,6 +3029,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bookingDateFluent: {
+    width: 42,
+    height: 42,
+  },
   bookingDateMainText: {
     fontSize: 16,
     fontWeight: '700',
@@ -4426,11 +3055,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   bookingChipChunky: {
-    height: 44,
-    paddingHorizontal: 20,
+    height: 46,
+    paddingHorizontal: 22,
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(26,18,10,0.10)',
+    borderWidth: 1.5,
+    borderColor: colors.border,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4442,7 +3071,7 @@ const styles = StyleSheet.create({
   bookingChipChunkyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   bookingChipChunkyTextActive: {
     fontSize: 14,
