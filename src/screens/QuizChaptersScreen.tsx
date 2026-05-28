@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
-import { colors, pink, yellow, spacing } from '../theme';
+import { colors, yellow, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import { useQuiz } from '../context/QuizContext';
 import type { QuizChapterProgress } from '../types/regloApi';
@@ -74,11 +74,11 @@ export const QuizChaptersScreen = () => {
   });
 
   if (loading) {
-    return <Screen gradient><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
+    return <Screen><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
   }
 
   return (
-    <Screen gradient>
+    <Screen>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -176,7 +176,7 @@ export const QuizChaptersScreen = () => {
                     <Ionicons
                       name={done ? 'checkmark' : 'book-outline'}
                       size={20}
-                      color={done ? '#FFFFFF' : pink[500]}
+                      color={done ? '#FFFFFF' : colors.textSecondary}
                     />
                   </View>
                   <View style={st.cardInfo}>
@@ -278,17 +278,15 @@ const st = StyleSheet.create({
   // Chapter card
   card: {
     padding: 20, borderRadius: 28,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: pink[100],
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border,
     gap: 14,
-    shadowColor: pink[300], shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22, shadowRadius: 16, elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
   },
   cardTop: { flexDirection: 'row', gap: 14 },
   cardIcon: {
     width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-    shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
   },
   cardIconDone: { backgroundColor: '#16A34A' },
   cardInfo: { flex: 1, gap: 6 },
@@ -301,10 +299,10 @@ const st = StyleSheet.create({
   cardProgressLabel: {
     fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5,
   },
-  cardProgressPct: { fontSize: 13, fontWeight: '800', color: pink[500] },
+  cardProgressPct: { fontSize: 13, fontWeight: '800', color: colors.textPrimary },
   cardProgressPctDone: { color: '#16A34A' },
   cardBarTrack: {
-    height: 5, borderRadius: 2.5, backgroundColor: pink[100], overflow: 'hidden',
+    height: 5, borderRadius: 2.5, backgroundColor: '#F0F0F5', overflow: 'hidden',
   },
   cardBarFill: {
     height: '100%', borderRadius: 2.5, backgroundColor: colors.primary,
@@ -313,8 +311,8 @@ const st = StyleSheet.create({
   cardCta: {
     alignItems: 'center', paddingVertical: 15, borderRadius: 26,
     backgroundColor: colors.primary,
-    shadowColor: 'rgba(236, 72, 153, 0.45)', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },
   cardCtaText: {
     fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.8,

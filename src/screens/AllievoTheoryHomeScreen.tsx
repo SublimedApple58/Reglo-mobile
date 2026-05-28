@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Extrapolation,
@@ -9,25 +18,33 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { useSession } from '../context/SessionContext';
 import { useQuiz } from '../context/QuizContext';
 import { regloApi } from '../services/regloApi';
-import { colors, pink } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
 import type { QuizChapterProgress, QuizStudentStats } from '../types/regloApi';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const duckTheory = require('../../assets/ducks/duck-step-theory.png');
+/* eslint-disable @typescript-eslint/no-var-requires */
+const iconAccuracy = require('../../assets/icons/stat-accuracy.png');
+const iconQuizzes = require('../../assets/icons/stat-quizzes.png');
+const iconTopics = require('../../assets/icons/stat-topics.png');
+const iconCountdown = require('../../assets/icons/stat-countdown.png');
+const iconReview = require('../../assets/icons/review-retry.png');
+const iconExam = require('../../assets/icons/cta-exam.png');
+const iconPractice = require('../../assets/icons/cta-practice.png');
+const iconTheory = require('../../assets/icons/tag-theory.png');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HERO_HEIGHT = Math.min(SCREEN_HEIGHT * 0.50, 450);
-const HEADER_BAR_HEIGHT = 56;
-const FADE_HEIGHT = 100;
+const COMPACT_HEADER_H = 44;
+const LARGE_TITLE_H = 88;
+const SCROLL_RANGE = LARGE_TITLE_H;
+const LAST_TOPIC_KEY = 'reglo_last_studied_topic';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -47,6 +64,19 @@ const computeDaysLeft = (iso: string | null): number | null => {
   return Math.max(0, Math.ceil((exam - Date.now()) / (1000 * 60 * 60 * 24)));
 };
 
+type LastTopic = { id: string; chapterNumber: number; description: string };
+
+const saveLastTopic = async (topic: LastTopic) => {
+  try { await AsyncStorage.setItem(LAST_TOPIC_KEY, JSON.stringify(topic)); } catch { /* silent */ }
+};
+
+const loadLastTopic = async (): Promise<LastTopic | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_TOPIC_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
@@ -63,20 +93,25 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
   const examDateLabel = useMemo(() => formatExamDate(theoryExamAt), [theoryExamAt]);
   const hasExamDate = daysLeft !== null;
 
-  /* ── Quiz data ─────────────────────────────────────────────────── */
+  /* ── Data ── */
 
   const [stats, setStats] = useState<QuizStudentStats | null>(null);
   const [chapters, setChapters] = useState<QuizChapterProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState<string | null>(null);
-  const [modePickerVisible, setModePickerVisible] = useState(false);
+  const [lastTopic, setLastTopic] = useState<LastTopic | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [c, s] = await Promise.all([regloApi.getQuizChapters(), regloApi.getQuizStudentStats()]);
+      const [c, st, lt] = await Promise.all([
+        regloApi.getQuizChapters(),
+        regloApi.getQuizStudentStats(),
+        loadLastTopic(),
+      ]);
       setChapters(c);
-      setStats(s);
+      setStats(st);
+      setLastTopic(lt);
     } catch {
       /* silent */
     } finally {
@@ -87,353 +122,400 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  /* ── Computed stats ── */
+
+  const correctRate = useMemo(() => {
+    if (!stats) return 0;
+    const attempted = stats.chaptersProgress.reduce((sum, c) => sum + c.attemptedCount, 0);
+    const correct = stats.chaptersProgress.reduce((sum, c) => sum + c.correctCount, 0);
+    return attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+  }, [stats]);
+
+  const totalQuizzes = stats?.totalSessions ?? 0;
+
+  const chaptersRemaining = useMemo(() => {
+    if (!stats) return 0;
+    return stats.chaptersProgress.filter((c) => c.attemptedCount === 0).length;
+  }, [stats]);
+
+  const hasErrors = stats && (stats.examsFailed > 0 || stats.weakChapters.length > 0);
+
+  /* ── Actions ── */
+
   const handleStart = async (mode: 'EXAM' | 'PRACTICE' | 'REVIEW') => {
     if (starting) return;
     setStarting(mode);
-    setModePickerVisible(false);
     try {
       const r = await regloApi.startQuizSession({ mode });
       startSession({ sessionId: r.sessionId, questions: r.questions, mode, timeLimitSec: r.timeLimitSec });
       router.push('/(tabs)/home/quiz-session');
-    } catch {
-      /* silent */
-    } finally {
-      setStarting(null);
-    }
+    } catch { /* silent */ } finally { setStarting(null); }
   };
 
-  const hasErrors = stats && (stats.examsFailed > 0 || stats.weakChapters.length > 0);
+  const handleGoToTopics = () => {
+    router.push('/(tabs)/home/topic-list');
+  };
 
-  /* ── Scroll-driven animation ─────────────────────────────────── */
+  const handleContinueTopic = () => {
+    if (!lastTopic) {
+      handleGoToTopics();
+      return;
+    }
+    router.push({ pathname: '/(tabs)/home/scheda-grid', params: { chapterId: lastTopic.id } } as never);
+  };
+
+  /* ── Scroll animation ── */
 
   const scrollY = useSharedValue(0);
-  const collapsedHeight = insets.top + HEADER_BAR_HEIGHT;
-  const scrollRange = HERO_HEIGHT - collapsedHeight;
+  const headerTotalH = insets.top + COMPACT_HEADER_H;
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => { scrollY.value = e.contentOffset.y; },
   });
 
-  const heroStyle = useAnimatedStyle(() => ({
+  const largeTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
     transform: [
-      { translateY: interpolate(scrollY.value, [0, scrollRange], [0, -scrollRange * 0.5], Extrapolation.CLAMP) },
-      { scale: interpolate(scrollY.value, [-100, 0], [1.15, 1], Extrapolation.CLAMP) },
-    ],
-    opacity: interpolate(scrollY.value, [0, scrollRange * 0.7], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const stickyStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [scrollRange * 0.5, scrollRange * 0.85], [0, 1], Extrapolation.CLAMP),
-    transform: [
-      { translateY: interpolate(scrollY.value, [scrollRange * 0.5, scrollRange * 0.85], [8, 0], Extrapolation.CLAMP) },
+      { translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -12], Extrapolation.CLAMP) },
     ],
   }));
 
-  /* ── Render ──────────────────────────────────────────────────── */
+  const compactTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
+  }));
 
-  const delay = (base: number) => base; // stagger helper
+  const headerBorderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  /* ── Render ── */
 
   return (
     <View style={s.root}>
-      <View style={s.rootTopBg} />
+      {/* ── Sticky header ── */}
+      <View style={[s.headerWrap, { height: headerTotalH, paddingTop: insets.top }]}>
+        {Platform.OS === 'ios' ? (
+          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.92)' }]} />
+        )}
+        <Animated.View style={[StyleSheet.absoluteFill, s.headerBorder, headerBorderStyle]} />
+        <Animated.View style={[s.compactHeader, compactTitleStyle]}>
+          <Text style={s.compactTitle} numberOfLines={1}>Ciao, {firstName}</Text>
+          <View style={s.compactTag}>
+            <Text style={s.compactTagText}>Teoria</Text>
+          </View>
+        </Animated.View>
+      </View>
 
-      {/* ── Hero ── */}
-      <Animated.View style={[s.hero, { height: HERO_HEIGHT, paddingTop: insets.top }, heroStyle]}>
-        <LinearGradient colors={['#FAE0EF', '#FAE0EF']} style={StyleSheet.absoluteFill} />
-        <Text style={s.heroGreeting}>Ciao, {firstName}</Text>
-        <View style={s.heroLabel}>
-          <Ionicons name="book-outline" size={12} color={colors.surface} />
-          <Text style={s.heroLabelText}>Teoria</Text>
-        </View>
-        <Image source={duckTheory} style={s.heroImage} resizeMode="contain" accessibilityLabel="Paperotto che studia" />
-      </Animated.View>
-
-      {/* ── Scrollable content ── */}
+      {/* ── Scroll ── */}
       <Animated.ScrollView
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scrollContent, { paddingTop: HERO_HEIGHT - FADE_HEIGHT * 0.3 }]}
+        contentContainerStyle={[s.scrollContent, { paddingTop: headerTotalH }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(); }}
+            tintColor={colors.primary}
+            progressViewOffset={headerTotalH}
+          />
         }
       >
-        {/* ── Sheet ── */}
-        <View style={s.sheet}>
+        {/* ── Large title ── */}
+        <Animated.View style={[s.largeTitleWrap, largeTitleStyle]}>
+          <Text style={s.largeTitle}>Ciao, {firstName}</Text>
+          <View style={s.largeTitleTagRow}>
+            <Image source={iconTheory} style={s.largeTitleTagIcon} />
+            <Text style={s.largeTitleTagText}>Percorso teoria</Text>
+          </View>
+        </Animated.View>
 
-          {/* Primary CTA */}
-          <Animated.View entering={FadeInUp.delay(delay(0)).duration(280)}>
+        {/* ── Study CTA (adaptive) ── */}
+        <Animated.View entering={FadeInUp.delay(0).duration(280).springify()}>
+          {lastTopic ? (
+            <>
+              <Pressable
+                onPress={handleContinueTopic}
+                style={({ pressed }) => [s.continueCta, pressed && s.ctaPressed]}
+              >
+                <View style={s.continueContent}>
+                  <Text style={s.continueLabel}>Continua a studiare</Text>
+                  <Text style={s.continueSub} numberOfLines={1}>
+                    Cap. {lastTopic.chapterNumber} · {lastTopic.description}
+                  </Text>
+                </View>
+                <View style={s.continueArrow}>
+                  <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={handleGoToTopics}
+                style={({ pressed }) => [s.browseLink, pressed && { opacity: 0.5 }]}
+              >
+                <Text style={s.browseLinkText}>Tutti gli argomenti</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </Pressable>
+            </>
+          ) : (
             <Pressable
-              onPress={() => setModePickerVisible(!modePickerVisible)}
-              style={({ pressed }) => [s.cta, pressed && s.ctaPressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Avvia quiz"
+              onPress={handleGoToTopics}
+              style={({ pressed }) => [s.continueCta, pressed && s.ctaPressed]}
             >
-              {starting ? (
-                <ActivityIndicator size="small" color={colors.surface} />
-              ) : (
-                <>
-                  <Ionicons name="play" size={16} color={colors.surface} />
-                  <Text style={s.ctaText}>Avvia quiz</Text>
-                </>
-              )}
-            </Pressable>
-          </Animated.View>
-
-          {/* Mode picker (inline, not bottom sheet for simplicity) */}
-          {modePickerVisible && !starting && (
-            <Animated.View entering={FadeInUp.duration(200)} style={s.modeRow}>
-              <Pressable
-                onPress={() => handleStart('EXAM')}
-                style={({ pressed }) => [s.modeCard, pressed && s.modeCardPressed]}
-              >
-                <View style={s.modeIconWrap}>
-                  <Ionicons name="document-text" size={20} color={colors.surface} />
-                </View>
-                <Text style={s.modeTitle}>Simulazione</Text>
-                <Text style={s.modeSub}>30 domande · 20 min</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleStart('PRACTICE')}
-                style={({ pressed }) => [s.modeCard, s.modeCardOutline, pressed && s.modeCardPressed]}
-              >
-                <View style={[s.modeIconWrap, s.modeIconOutline]}>
-                  <Ionicons name="school-outline" size={20} color={colors.primary} />
-                </View>
-                <Text style={[s.modeTitle, { color: colors.textPrimary }]}>Esercitazione</Text>
-                <Text style={s.modeSub}>30 domande · no timer</Text>
-              </Pressable>
-            </Animated.View>
-          )}
-
-          {/* Stats row */}
-          {stats && !loading && (
-            <Animated.View entering={FadeInUp.delay(delay(60)).duration(280)} style={s.statsRow}>
-              <View style={s.statPill}>
-                <Text style={s.statValue}>{stats.readinessScore}%</Text>
-                <Text style={s.statLabel}>Prontezza</Text>
+              <Image source={require('../../assets/icons/study-books.png')} style={s.continueIcon} />
+              <View style={s.continueContent}>
+                <Text style={s.continueLabel}>Sfoglia gli argomenti</Text>
+                <Text style={s.continueSub}>{chapters.length} capitoli da studiare</Text>
               </View>
-              <View style={s.statPill}>
-                <Text style={s.statValue}>{stats.totalSessions}</Text>
+              <View style={s.continueArrow}>
+                <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+              </View>
+            </Pressable>
+          )}
+        </Animated.View>
+
+        {/* ── Esercitati (prominent CTA cards) ── */}
+        <Animated.View entering={FadeInUp.delay(80).duration(280).springify()}>
+          <Text style={s.sectionLabel}>Pronto per l'esame?</Text>
+          <View style={s.ctaRow}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/home/exam-schede')}
+              style={({ pressed }) => [s.ctaCard, s.ctaCardDark, pressed && s.ctaCardPressed]}
+            >
+              <Image source={iconExam} style={s.ctaIcon} />
+              <Text style={s.ctaTitleLight}>Simulazione</Text>
+              <Text style={s.ctaSubLight}>Schede d'esame</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleStart('PRACTICE')}
+              disabled={!!starting}
+              style={({ pressed }) => [s.ctaCard, pressed && s.ctaCardPressed]}
+            >
+              <Image source={iconPractice} style={s.ctaIcon} />
+              <Text style={s.ctaTitle}>Esercitazione</Text>
+              <Text style={s.ctaSub}>30 domande</Text>
+            </Pressable>
+          </View>
+          {hasErrors && (
+            <Pressable
+              onPress={() => handleStart('REVIEW')}
+              disabled={!!starting}
+              style={({ pressed }) => [s.ctaReview, pressed && s.ctaCardPressed]}
+            >
+              <Image source={iconReview} style={s.ctaReviewIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.ctaReviewTitle}>Ripassa i tuoi errori</Text>
+                <Text style={s.ctaReviewSub}>Rivedi le domande sbagliate</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </Animated.View>
+
+        {/* ── Stats (inset shadow — clearly informational) ── */}
+        {stats && !loading && (
+          <Animated.View entering={FadeInUp.delay(120).duration(280).springify()} style={[s.statsInset, { marginTop: 6 }]}>
+            <View style={s.statsInner}>
+              <View style={s.statItem}>
+                <Image source={iconAccuracy} style={s.statIcon} />
+                <Text style={s.statValue}>{correctRate}%</Text>
+                <Text style={s.statLabel}>Accuratezza</Text>
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Image source={iconQuizzes} style={s.statIcon} />
+                <Text style={s.statValue}>{totalQuizzes}</Text>
                 <Text style={s.statLabel}>Quiz fatti</Text>
               </View>
-              <View style={s.statPill}>
-                <Text style={s.statValue}>{stats.examPassRate}%</Text>
-                <Text style={s.statLabel}>Successo</Text>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Image source={iconTopics} style={s.statIcon} />
+                <Text style={s.statValue}>{chapters.length - chaptersRemaining}/{chapters.length}</Text>
+                <Text style={s.statLabel}>Argomenti</Text>
               </View>
-            </Animated.View>
-          )}
-
-          {/* Loading placeholder for stats */}
-          {loading && (
-            <View style={s.statsRow}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={[s.statPill, { backgroundColor: '#F1F5F9' }]}>
-                  <ActivityIndicator size="small" color={colors.textMuted} />
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Countdown */}
-          {hasExamDate && (
-            <Animated.View entering={FadeInUp.delay(delay(120)).duration(280)} style={s.card}>
-              <View style={s.countdownRow}>
-                <View style={s.countdownIcon}>
-                  <Ionicons name="calendar" size={20} color={colors.primary} />
-                </View>
-                <View style={s.countdownText}>
-                  <Text style={s.countdownLabel}>Esame teoria</Text>
-                  {examDateLabel && <Text style={s.countdownDate}>{examDateLabel}</Text>}
-                </View>
-                <View style={s.countdownBadge}>
-                  <Text style={s.countdownBadgeNum}>{daysLeft}</Text>
-                  <Text style={s.countdownBadgeUnit}>{daysLeft === 1 ? 'giorno' : 'giorni'}</Text>
-                </View>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Section: Studia */}
-          <Animated.View entering={FadeInUp.delay(delay(180)).duration(280)}>
-            <Text style={s.sectionTitle}>Studia</Text>
-            <View style={s.studyRow}>
-              {hasErrors && (
-                <Pressable
-                  onPress={() => handleStart('REVIEW')}
-                  disabled={!!starting}
-                  style={({ pressed }) => [s.studyCard, pressed && s.studyCardPressed]}
-                >
-                  <Ionicons name="refresh" size={20} color={colors.primary} />
-                  <Text style={s.studyCardTitle}>Rivedi errori</Text>
-                  <Text style={s.studyCardSub}>Ripassa le domande sbagliate</Text>
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => router.push('/(tabs)/home/topic-list')}
-                style={({ pressed }) => [s.studyCard, pressed && s.studyCardPressed]}
-              >
-                <Ionicons name="albums" size={20} color={colors.primary} />
-                <Text style={s.studyCardTitle}>Studio per Argomento</Text>
-                <Text style={s.studyCardSub}>{chapters.length} argomenti</Text>
-              </Pressable>
             </View>
           </Animated.View>
+        )}
+        {loading && (
+          <View style={[s.statsInset, { marginTop: 6 }]}>
+            <View style={[s.statsInner, { justifyContent: 'center', paddingVertical: 32 }]}>
+              <ActivityIndicator size="small" color={colors.textMuted} />
+            </View>
+          </View>
+        )}
 
-          {/* Section: Sessioni recenti */}
-          {stats && stats.recentSessions.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(delay(240)).duration(280)}>
-              <Text style={s.sectionTitle}>Sessioni recenti</Text>
-              <View style={s.recentCard}>
-                {stats.recentSessions.slice(0, 3).map((ses) => (
+        {/* ── Exam countdown ── */}
+        {hasExamDate && (
+          <Animated.View entering={FadeInUp.delay(160).duration(280).springify()} style={s.countdownCard}>
+            <Image source={iconCountdown} style={s.countdownIcon} />
+            <View style={s.countdownText}>
+              <Text style={s.countdownLabel}>Esame teoria</Text>
+              {examDateLabel && <Text style={s.countdownDate}>{examDateLabel}</Text>}
+            </View>
+            <View style={s.countdownBadge}>
+              <Text style={s.countdownBadgeNum}>{daysLeft}</Text>
+              <Text style={s.countdownBadgeUnit}>{daysLeft === 1 ? 'giorno' : 'giorni'}</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Weak chapters (actionable) ── */}
+        {stats && stats.weakChapters.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(200).duration(280).springify()}>
+            <Text style={s.sectionTitle}>Da migliorare</Text>
+            <View style={s.weakCard}>
+              {stats.weakChapters.map((wc) => {
+                const ch = chapters.find((c) => c.chapterNumber === wc.chapterNumber);
+                return (
                   <Pressable
-                    key={ses.id}
-                    onPress={() => router.push({ pathname: '/(tabs)/home/quiz-results', params: { sessionId: ses.id } })}
-                    style={({ pressed }) => [s.recentRow, pressed && { opacity: 0.5 }]}
+                    key={wc.chapterNumber}
+                    onPress={() => {
+                      if (ch) router.push({ pathname: '/(tabs)/home/scheda-grid', params: { chapterId: ch.id } } as never);
+                    }}
+                    style={({ pressed }) => [s.weakRow, pressed && { opacity: 0.5 }]}
                   >
-                    <View style={[
-                      s.recentDot,
-                      ses.passed === true && s.dotGreen,
-                      ses.passed === false && s.dotRed,
-                      ses.passed == null && s.dotNeutral,
-                    ]} />
-                    <Text style={s.recentMode}>
-                      {ses.mode === 'EXAM' ? 'Simulazione' : ses.mode === 'PRACTICE' ? 'Esercitazione' : ses.mode === 'CHAPTER' ? 'Capitolo' : ses.mode === 'SCHEDA' ? 'Scheda' : 'Ripasso'}
-                    </Text>
-                    <View style={{ flex: 1 }} />
-                    <Text style={s.recentScore}>{ses.correctCount}/{ses.totalQuestions}</Text>
-                    {ses.completedAt && (
-                      <Text style={s.recentDate}>
-                        {new Date(ses.completedAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                    <View style={s.weakBadge}>
+                      <Text style={s.weakBadgeText}>{wc.chapterNumber}</Text>
+                    </View>
+                    <Text style={s.weakName} numberOfLines={1}>{wc.description}</Text>
+                    <View style={[s.weakRatePill, wc.correctRate < 40 && s.weakRateRed]}>
+                      <Text style={[s.weakRateText, wc.correctRate < 40 && s.weakRateTextRed]}>
+                        {wc.correctRate}%
                       </Text>
-                    )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                   </Pressable>
-                ))}
-              </View>
-            </Animated.View>
-          )}
-        </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
 
-        <View style={s.sheetExtension} />
+        <View style={{ height: 100 }} />
       </Animated.ScrollView>
-
-      {/* ── Sticky header ── */}
-      <Animated.View
-        style={[s.stickyHeader, { height: collapsedHeight, paddingTop: insets.top }, stickyStyle]}
-        pointerEvents="none"
-      >
-        <LinearGradient
-          colors={[colors.primary, '#DB2777']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={s.stickyContent}>
-          <Text style={s.stickyTitle}>Ciao, {firstName}</Text>
-          <Text style={s.stickySub}>Teoria</Text>
-        </View>
-      </Animated.View>
     </View>
   );
 };
+
+/* ------------------------------------------------------------------ */
+/*  Export saveLastTopic for use in SchedaGridScreen                    */
+/* ------------------------------------------------------------------ */
+
+export { saveLastTopic };
 
 /* ------------------------------------------------------------------ */
 /*  Styles                                                             */
 /* ------------------------------------------------------------------ */
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surface },
-  rootTopBg: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    height: '75%', backgroundColor: '#FAE0EF',
-  },
+  root: { flex: 1, backgroundColor: colors.background },
 
-  /* Hero */
-  hero: { position: 'absolute', top: 0, left: 0, right: 0 },
-  heroGreeting: {
-    fontSize: 27, fontWeight: '800', letterSpacing: -0.3, color: '#FFFFFF',
-    paddingHorizontal: spacing.lg + spacing.xs, marginTop: spacing.xs,
-    textShadowColor: 'rgba(150, 20, 70, 0.45)',
-    textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 12,
+  /* ── Sticky blur header ── */
+  headerWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
   },
-  heroLabel: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
-    gap: 5, backgroundColor: colors.primary,
-    marginLeft: spacing.lg + spacing.xs, marginTop: 6,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-    shadowColor: 'rgba(190, 24, 93, 0.4)',
-    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3,
+  headerBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  heroLabelText: { fontSize: 12, fontWeight: '700', color: colors.surface },
-  heroImage: { flex: 1, width: '100%', marginTop: -spacing.xxl * 2 },
-
-  /* Scroll */
-  scrollContent: { paddingBottom: spacing.md, gap: spacing.md },
-
-  /* Sheet */
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 36, borderTopRightRadius: 36,
-    paddingTop: spacing.lg, paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl * 3, gap: spacing.md,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -16 }, shadowOpacity: 0.9, shadowRadius: 30, elevation: 8,
+  compactHeader: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: spacing.md, gap: 8,
   },
-  sheetExtension: { height: 100, backgroundColor: colors.surface, marginTop: -80 },
+  compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  compactTag: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  compactTagText: { fontSize: 11, fontWeight: '700', color: colors.surface },
 
-  /* CTA */
-  cta: {
-    height: 52, borderRadius: 26, backgroundColor: colors.primary,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: 'rgba(236, 72, 153, 0.45)',
-    shadowOffset: { width: 0, height: 8 }, shadowOpacity: 1, shadowRadius: 18, elevation: 5,
+  /* ── Scroll content ── */
+  scrollContent: { paddingHorizontal: spacing.md, gap: 14 },
+
+  /* ── Large title ── */
+  largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: spacing.xs },
+  largeTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -0.5, color: '#1A1A2E' },
+  largeTitleTagRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4,
+  },
+  largeTitleTagIcon: { width: 16, height: 16 },
+  largeTitleTagText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+
+  /* ── Continue CTA ── */
+  continueCta: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.primary, borderRadius: 22, padding: 16, gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
-  ctaText: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  continueContent: { flex: 1, gap: 2 },
+  continueLabel: { fontSize: 16, fontWeight: '700', color: colors.surface },
+  continueSub: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.75)' },
+  continueIcon: { width: 36, height: 36 },
+  continueArrow: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
+  },
 
-  /* Mode picker */
-  modeRow: { flexDirection: 'row', gap: spacing.sm },
-  modeCard: {
-    flex: 1, backgroundColor: colors.primary, borderRadius: 24,
-    padding: spacing.md, gap: 6, alignItems: 'center',
-    shadowColor: 'rgba(236, 72, 153, 0.3)',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 3,
+  /* ── Browse link (when lastTopic exists) ── */
+  browseLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 10,
   },
-  modeCardOutline: {
-    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: pink[100],
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  modeCardPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
-  modeIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center',
-  },
-  modeIconOutline: { backgroundColor: pink[50] },
-  modeTitle: { fontSize: 14, fontWeight: '700', color: colors.surface, marginTop: 2 },
-  modeSub: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
+  browseLinkText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
 
-  /* Stats */
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
-  statPill: {
-    flex: 1, backgroundColor: '#F8FAFC', borderRadius: 20,
-    paddingVertical: 14, alignItems: 'center', gap: 2,
-    borderWidth: 1, borderColor: colors.border,
+  /* ── Quiz CTA cards (prominent, tappable) ── */
+  ctaRow: { flexDirection: 'row', gap: 10 },
+  ctaCard: {
+    flex: 1, backgroundColor: colors.surface, borderRadius: 22,
+    paddingTop: 16, paddingBottom: 14, paddingHorizontal: 16, gap: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+  ctaCardDark: { backgroundColor: '#1A1A2E' },
+  ctaCardPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
+  ctaIcon: { width: 44, height: 44, marginBottom: 4 },
+  ctaTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  ctaTitleLight: { fontSize: 15, fontWeight: '700', color: colors.surface },
+  ctaSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted },
+  ctaSubLight: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.6)' },
+  ctaReview: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10,
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 5,
+  },
+  ctaReviewIcon: { width: 36, height: 36 },
+  ctaReviewTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  ctaReviewSub: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+
+  /* ── Stats (inset shadow — clearly informational, not tappable) ── */
+  statsInset: {
+    backgroundColor: '#EEEDEB', borderRadius: 20,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
+  },
+  statsInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 18, paddingHorizontal: 8,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: colors.border },
+  statIcon: { width: 32, height: 32, marginBottom: 4 },
+  statValue: { fontSize: 20, fontWeight: '800', color: '#1A1A2E' },
   statLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
 
-  /* Countdown */
-  card: {
-    backgroundColor: colors.surface, borderRadius: 24, padding: spacing.lg,
-    shadowColor: 'rgba(0, 0, 0, 0.16)',
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 1, shadowRadius: 18, elevation: 4,
-    gap: 8,
+  /* ── Countdown ── */
+  countdownCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 22, padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
   },
-  countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  countdownIcon: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: pink[50],
-    alignItems: 'center', justifyContent: 'center',
-  },
+  countdownIcon: { width: 44, height: 44 },
   countdownText: { flex: 1 },
   countdownLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   countdownDate: { fontSize: 16, color: colors.textPrimary, fontWeight: '700', marginTop: 2 },
@@ -444,49 +526,39 @@ const s = StyleSheet.create({
   countdownBadgeNum: { color: colors.surface, fontSize: 22, fontWeight: '800', lineHeight: 24 },
   countdownBadgeUnit: { color: colors.surface, fontSize: 10, fontWeight: '600', opacity: 0.9 },
 
-  /* Section titles */
+  /* ── Section titles ── */
+  sectionLabel: {
+    fontSize: 13, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5,
+    textTransform: 'uppercase', marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 16, fontWeight: '700', color: colors.textPrimary,
-    marginBottom: spacing.xs, marginTop: spacing.xs,
+    marginBottom: 2, marginTop: 4,
   },
 
-  /* Study row */
-  studyRow: { flexDirection: 'row', gap: spacing.sm },
-  studyCard: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 24,
-    padding: spacing.lg, gap: 6,
-    shadowColor: 'rgba(0, 0, 0, 0.14)',
-    shadowOffset: { width: 0, height: 5 }, shadowOpacity: 1, shadowRadius: 14, elevation: 3,
+  /* ── Weak chapters ── */
+  weakCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
   },
-  studyCardPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
-  studyCardTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 4 },
-  studyCardSub: { fontSize: 12, color: colors.textSecondary },
-
-  /* Recent sessions */
-  recentCard: {
-    backgroundColor: colors.surface, borderRadius: 24, padding: spacing.md,
-    shadowColor: 'rgba(0, 0, 0, 0.10)',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 2,
-    gap: 0,
-  },
-  recentRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 12,
+  weakRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  recentDot: { width: 8, height: 8, borderRadius: 4 },
-  dotGreen: { backgroundColor: '#22C55E' },
-  dotRed: { backgroundColor: '#EF4444' },
-  dotNeutral: { backgroundColor: colors.textMuted },
-  recentMode: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  recentScore: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  recentDate: { fontSize: 12, color: colors.textMuted, marginLeft: 6, minWidth: 50, textAlign: 'right' },
-
-  /* Sticky header */
-  stickyHeader: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', zIndex: 10 },
-  stickyContent: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.md },
-  stickyTitle: { color: colors.surface, fontSize: 18, fontWeight: '700' },
-  stickySub: { color: 'rgba(255, 255, 255, 0.8)', fontSize: 13, fontWeight: '500' },
+  weakBadge: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+  },
+  weakBadgeText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
+  weakName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  weakRatePill: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    backgroundColor: '#FEF3C7',
+  },
+  weakRateRed: { backgroundColor: '#FEE2E2' },
+  weakRateText: { fontSize: 12, fontWeight: '800', color: '#CA8A04' },
+  weakRateTextRed: { color: '#EF4444' },
 });
 
 export default AllievoTheoryHomeScreen;

@@ -92,6 +92,8 @@ import {
   QuizChapterSchedeProgress,
   QuizChapterSchedeResponse,
   StartSchedaSessionResult,
+  ExamSchedeProgressResponse,
+  StartExamSchedaSessionResult,
   AutoscuolaLocation,
   CreateLocationInput,
   UpdateLocationInput,
@@ -678,6 +680,15 @@ export const createRegloApi = (baseUrl?: string) => {
     startSchedaSession: async (schedaId: string) =>
       client.request<StartSchedaSessionResult>(
         `/api/autoscuole/quiz/schede/${schedaId}/start`,
+        { method: 'POST' },
+      ),
+
+    // ── Exam Schede ────────────────────────────────────────────────
+    getExamSchedeProgress: async () =>
+      client.request<ExamSchedeProgressResponse>('/api/autoscuole/quiz/exam-schede'),
+    startExamSchedaSession: async (schedaId: string) =>
+      client.request<StartExamSchedaSessionResult>(
+        `/api/autoscuole/quiz/exam-schede/${schedaId}/start`,
         { method: 'POST' },
       ),
   };

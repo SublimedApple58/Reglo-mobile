@@ -1175,9 +1175,11 @@ Quando queste animazioni vengono portate sulla web app:
 
 ## 10. Icone
 
+### 10.1 Icone Vettoriali (UI funzionale)
+
 Libreria: **`@expo/vector-icons` → `Ionicons`**
 
-Icone usate nel design system:
+Uso: navigazione, bottoni, badge di stato, indicatori. Sempre monocromatiche.
 
 | Icona | Size | Contesto |
 |---|---|---|
@@ -1190,6 +1192,41 @@ Icone usate nel design system:
 | `alert-circle` | 22 | ToastNotice danger |
 | `sparkles` | 18 | BookingCelebration burst |
 | `chevron-down` | 19 | ScrollHintFab |
+
+### 10.2 Icone 3D (elementi decorativi e identita visiva)
+
+Libreria: **Microsoft Fluent Emoji 3D** (`assets/icons/`)
+
+Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA, statistiche e sezioni tematiche. **Mai** per navigazione o bottoni funzionali piccoli.
+
+**Source:** [github.com/microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) — cartella `assets/{Nome}/3D/` — PNG 256x256 con trasparenza RGBA.
+
+**Dimensioni standard:**
+
+| Contesto | Size (px) | Esempio |
+|---|---|---|
+| CTA card (azione principale) | 44x44 | Simulazione, Esercitazione |
+| Stat tile (dato numerico) | 32x32 | Accuratezza, Quiz fatti |
+| Inline tag / subtitle | 16x16 | "Percorso teoria" sotto il greeting |
+| Card navigazione (topic list) | 52x52 | Capitolo nell'elenco argomenti |
+| Banner / card orizzontale | 36x36 | Ripassa errori, countdown esame |
+
+**Icone attualmente in uso:**
+
+| File | Emoji | Contesto |
+|---|---|---|
+| `stat-accuracy.png` | Bullseye | Stat accuratezza risposte |
+| `stat-quizzes.png` | Memo | Stat quiz completati |
+| `stat-topics.png` | Books | Stat argomenti studiati |
+| `stat-countdown.png` | Alarm clock | Countdown esame |
+| `cta-exam.png` | Clipboard | CTA Simulazione esame |
+| `cta-practice.png` | Graduation cap | CTA Esercitazione |
+| `review-retry.png` | Counterclockwise arrows | Ripassa errori |
+| `study-books.png` | Books (colorati) | Sfoglia argomenti |
+| `tag-theory.png` | Open book | Tag "Percorso teoria" |
+| `chapters/chapter-XX.png` | Vari (25 icone) | Icona per capitolo nella lista argomenti |
+
+**Regola:** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
 
 ---
 
@@ -1204,25 +1241,160 @@ Icone usate nel design system:
 
 ---
 
-## 12. Regole e Divieti
+## 12. Gerarchia Visiva — CTA vs Informazioni
+
+### 12.1 Principio Fondamentale
+
+**Le azioni devono essere "forti", i dati devono essere "silenziosi".**
+
+L'utente deve capire a colpo d'occhio cosa e tappabile e cosa e informativo. Mai confondere card azione con card dato — devono essere visivamente opposte.
+
+### 12.2 Card Azione (CTA)
+
+Le CTA usano **ombre esterne** per sembrare "sollevate" dalla pagina. Invitano al tap.
+
+| Livello | Aspetto | Ombra | Esempio |
+|---|---|---|---|
+| **CTA Primaria** | `bg: colors.primary`, testo bianco, `borderRadius: 22` | shadowOpacity 0.15, shadowRadius 12 | "Continua a studiare" |
+| **CTA Card** | `bg: colors.surface` o `#1A1A2E` (dark), icona 3D 44px, `borderRadius: 22` | shadowOpacity 0.1, shadowRadius 14 | Simulazione, Esercitazione |
+| **CTA Secondaria** | `bg: colors.surface`, bordo chiaro, icona 3D 36px, layout orizzontale | shadowOpacity 0.1, shadowRadius 14 | Ripassa errori |
+
+**Press state CTA:** `opacity: 0.9, transform: [{ scale: 0.96 }]`
+
+Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota.
+
+### 12.3 Card Informativa (Stat/Dato)
+
+Le card informative usano **ombre interne (inset shadow)** per sembrare "incassate" nella pagina. Non invitano al tap.
+
+```ts
+// Inset shadow nativo (React Native 0.81+)
+boxShadow: [
+  { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+  { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+],
+backgroundColor: '#EEEDEB',  // leggermente piu scuro del background
+borderRadius: 20,
+```
+
+Stat con icone 3D (32px), numeri grossi (`fontSize: 20, fontWeight: 800`), label muted. Layout orizzontale con divider hairline tra le stat.
+
+### 12.4 Confronto Visivo
+
+| Proprieta | CTA (Azione) | Info (Dato) |
+|---|---|---|
+| Ombra | **Esterna** (sollevata) | **Interna/inset** (incassata) |
+| Background | Bianco o dark (#1A1A2E) | Grigio caldo (#EEEDEB) |
+| Icone 3D | 44px, prominenti | 32px, decorative |
+| Testo primario | Bold, scuro o bianco | Bold numerico |
+| Border | Nessuno | Nessuno |
+| Tappabile | Si | No |
+
+### 12.5 Sezioni e Label
+
+Le sezioni usano label uppercase muted per introdurre gruppi di CTA:
+
+```ts
+sectionLabel: {
+  fontSize: 13, fontWeight: '700', color: colors.textMuted,
+  letterSpacing: 0.5, textTransform: 'uppercase',
+  marginBottom: 10,
+}
+```
+
+Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
+
+### 12.6 Ordine Gerarchia Home (Top → Bottom)
+
+1. **Greeting** — "Ciao, {nome}" con subtitle "Percorso teoria" + icona 3D libro
+2. **CTA Primaria** — "Continua a studiare" (rosa, full-width) o "Sfoglia gli argomenti" (se primo accesso)
+3. **CTA Card** — Simulazione (dark) + Esercitazione (bianca) affiancate
+4. **CTA Secondaria** — "Ripassa i tuoi errori" (se ha errori)
+5. **Stats inset** — Accuratezza / Quiz fatti / Argomenti (incassata, non tappabile)
+6. **Countdown** — Esame teoria (se data impostata)
+7. **Sezione azionabile** — "Da migliorare" con capitoli deboli (tappabili)
+
+---
+
+## 13. Pattern Nativi iOS
+
+### 13.1 iOS Large Title con BlurView
+
+Pattern per schermate con lista scrollabile. Il titolo grande scompare nello scroll e il titolo compatto appare nella barra blur.
+
+```ts
+// Header sticky
+headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }
+// iOS: BlurView intensity={80} tint="systemChromeMaterialLight"
+// Android: View con backgroundColor rgba(255,255,255,0.92)
+
+// Large title: opacity e translateY interpolati su scrollY
+// Compact title: opacity interpolata (appare quando large title scompare)
+// Border: hairline che appare con lo scroll
+```
+
+Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
+
+### 13.2 Native PageSheet Modal
+
+Per contenuti estesi (hint quiz, dettagli): `Modal` con `presentationStyle="pageSheet"` + handle visivo.
+
+```tsx
+<Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+  <View style={modalContainer}>
+    <View style={modalHandle} />  {/* 36x4px, bg: #D1D5DB, centered */}
+    {/* contenuto */}
+  </View>
+</Modal>
+```
+
+Preferire **sempre** il pageSheet nativo al BottomSheet custom per contenuti read-only o scroll pesante.
+
+### 13.3 Haptic Feedback
+
+Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
+
+| Azione | Haptic | Quando |
+|---|---|---|
+| Risposta quiz corretta | `notificationAsync(Success)` | Swipe/tap VERO/FALSO |
+| Risposta quiz sbagliata | `notificationAsync(Error)` | Swipe/tap VERO/FALSO |
+| Tap bottone generico | `impactAsync(Light)` | Ogni CTA |
+| Swipe card | `impactAsync(Light)` | Al rilascio swipe |
+
+---
+
+## 14. Regole e Divieti
 
 ### Da fare
 
 - Usare **sempre** i token da `src/theme/` per colori, tipografia, spacing, radii
 - Usare i componenti esistenti in `src/components/` — comporli, non duplicarli
-- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili complessi: **BottomSheet**
+- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili: **PageSheet nativo** (`presentationStyle="pageSheet"`)
+- Per hint/dettagli scrollabili: **PageSheet nativo** (mai BottomSheet custom)
 - Avvolgere card con gradient in un `View` wrapper per l'ombra (l'ombra non funziona con `overflow: 'hidden'`)
 - Touch target minimo: **44x44px** (rispettato da day cell calendario, bottoni freccia, chip)
 - Animazioni: usare `useNativeDriver: true` dove possibile
 - Ombre: specificare sempre **sia** `shadowColor/Opacity/Radius/Offset` (iOS) **sia** `elevation` (Android)
+- **Icone 3D Fluent** per elementi decorativi: CTA card, stat, sezioni tematiche, topic list
+- **Icone Ionicons** per UI funzionale: navigazione, bottoni, badge stato
+- **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
+- **Ombre esterne** per CTA e card tappabili
+- **Gerarchia CTA chiara**: la distanza visiva tra azioni e informazioni deve essere evidente (vedi sezione 12)
+- **Colore Reglo solo per CTA**: rosa (#EC4899) riservato a bottoni primari, tab bar attiva, piccoli tag. Mai per sfondi grandi o card informative
+- **iOS Large Title** per schermate con lista: BlurView header + titolo che collassa
 
 ### Da NON fare
 
-- **Non** usare `BlurView` / `expo-blur` (rimosso dal design system, eccetto `GlassTabBar.ios.tsx`)
+- **Non** usare `BlurView` / `expo-blur` eccetto negli header sticky (iOS Large Title pattern) e `GlassTabBar.ios.tsx`
 - **Non** creare nuovi primitivi — estendi quelli esistenti
 - **Non** hardcodare colori senza motivo — usa i token da `colors.ts`
 - **Non** usare radii arbitrari — segui la scala: `radii.sm` (20), `radii.lg` (35), `999` (pill), o valori inline documentati
-- **Non** usare BottomSheet per azioni rapide — preferisci modali centrate
+- **Non** usare BottomSheet per contenuti read-only — preferisci PageSheet nativo
 - **Non** approssimare i valori Figma — riproduci esattamente dimensioni, colori, spacing
 - **Non** usare class component — solo functional component con hooks
 - **Non** animare `width`/`height` — usare `transform` e `opacity` per performance
+- **Non** usare Ionicons dove serve personalita visiva — usa icone 3D Fluent
+- **Non** usare icone 3D Fluent per bottoni funzionali piccoli (nav, close, chevron)
+- **Non** dare ombre esterne a card informative — usare inset shadow
+- **Non** dare inset shadow a CTA — usare ombre esterne
+- **Non** usare colore rosa per sfondi grandi, card informative, o elementi non interattivi

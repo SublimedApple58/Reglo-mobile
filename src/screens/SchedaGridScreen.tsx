@@ -2,34 +2,46 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen } from '../components/Screen';
 import { useQuiz } from '../context/QuizContext';
-import { colors, pink } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { regloApi } from '../services/regloApi';
 import type { QuizChapterSchedeResponse, QuizSchedaSummary } from '../types/regloApi';
+import { saveLastTopic } from './AllievoTheoryHomeScreen';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_COLS = 4;
 const GRID_GAP = 10;
-const TILE_SIZE = (SCREEN_W - spacing.md * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+const TILE_W = (SCREEN_W - spacing.md * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+const TILE_H = TILE_W * 1.3;
+const COMPACT_H = 44;
+const SCROLL_RANGE = 70;
 
-const STATUS_COLORS = {
-  not_started: { bg: '#F0F0F5', text: '#9CA3AF', border: '#E5E7EB' },
-  in_progress: { bg: '#FEF3C7', text: '#CA8A04', border: '#FDE68A' },
-  passed: { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' },
-  failed: { bg: '#FEE2E2', text: '#EF4444', border: '#FECACA' },
+const STATUS_THEME = {
+  not_started: { bg: '#F3F4F6', accent: '#9CA3AF', border: '#E5E7EB', lines: '#D1D5DB' },
+  in_progress: { bg: '#FEF9C3', accent: '#CA8A04', border: '#FDE68A', lines: '#FCD34D' },
+  passed: { bg: '#DCFCE7', accent: '#16A34A', border: '#BBF7D0', lines: '#86EFAC' },
+  failed: { bg: '#FEE2E2', accent: '#EF4444', border: '#FECACA', lines: '#FCA5A5' },
 } as const;
 
 export const SchedaGridScreen: React.FC = () => {
@@ -47,6 +59,7 @@ export const SchedaGridScreen: React.FC = () => {
     try {
       const res = await regloApi.getChapterSchede(chapterId);
       setData(res);
+      saveLastTopic({ id: chapterId, chapterNumber: res.chapter.chapterNumber, description: res.chapter.description });
     } catch {
       /* silent */
     } finally {
@@ -59,143 +72,174 @@ export const SchedaGridScreen: React.FC = () => {
 
   const handleTap = async (scheda: QuizSchedaSummary) => {
     if (starting) return;
-
-    // Completed schede → show results
-    if (scheda.status === 'passed' || scheda.status === 'failed') {
+    // Passed schede → show results (immutable)
+    if (scheda.status === 'passed') {
       if (scheda.sessionId) {
-        router.push({
-          pathname: '/(tabs)/home/quiz-results',
-          params: { sessionId: scheda.sessionId },
-        } as never);
+        router.push({ pathname: '/(tabs)/home/quiz-results', params: { sessionId: scheda.sessionId } } as never);
       }
       return;
     }
-
-    // Start or resume
+    // Failed schede → retry (start new session)
     setStarting(scheda.id);
     try {
       const res = await regloApi.startSchedaSession(scheda.id);
       startSession({
-        sessionId: res.sessionId,
-        questions: res.questions,
-        mode: 'SCHEDA',
-        timeLimitSec: null,
-        schedaNumber: res.schedaNumber,
-        schedaId: scheda.id,
-        chapterId: chapterId!,
-        chapterDescription: res.chapterDescription,
+        sessionId: res.sessionId, questions: res.questions, mode: 'SCHEDA',
+        timeLimitSec: null, schedaNumber: res.schedaNumber,
+        schedaId: scheda.id, chapterId: chapterId!, chapterDescription: res.chapterDescription,
       });
       router.push('/(tabs)/home/quiz-session' as never);
-    } catch {
-      /* silent */
-    } finally {
-      setStarting(null);
-    }
+    } catch { /* silent */ } finally { setStarting(null); }
   };
 
+  /* ── Scroll animation ── */
+  const scrollY = useSharedValue(0);
+  const headerH = insets.top + COMPACT_H;
+  const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
+
+  const largeTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -10], Extrapolation.CLAMP) }],
+  }));
+  const compactStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
+  }));
+  const borderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
+  }));
+
   if (loading) {
-    return (
-      <Screen gradient>
-        <View style={st.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </Screen>
-    );
+    return <View style={[st.root, { paddingTop: headerH }]}><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></View>;
   }
 
   if (!data) {
     return (
-      <Screen gradient>
+      <View style={[st.root, { paddingTop: headerH }]}>
         <View style={st.center}>
           <Text style={st.emptyText}>Capitolo non trovato</Text>
           <Pressable style={st.emptyBtn} onPress={() => router.back()}>
             <Text style={st.emptyBtnText}>Indietro</Text>
           </Pressable>
         </View>
-      </Screen>
+      </View>
     );
   }
 
   const { chapter, schede, summary } = data;
+  const chapterLabel = `${chapter.chapterNumber}. ${chapter.description}`;
+  const pctComplete = summary.totalSchede > 0 ? Math.round((summary.completedCount / summary.totalSchede) * 100) : 0;
 
   return (
-    <Screen gradient>
-      <View style={[st.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={14} style={st.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </Pressable>
-        <View style={st.headerTextWrap}>
-          <Text style={st.headerTitle} numberOfLines={1}>
-            {chapter.chapterNumber}. {chapter.description}
-          </Text>
+    <View style={st.root}>
+      {/* ── Sticky blur header ── */}
+      <View style={[st.headerWrap, { height: headerH, paddingTop: insets.top }]}>
+        {Platform.OS === 'ios' ? (
+          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+        )}
+        <Animated.View style={[StyleSheet.absoluteFill, st.headerBorder, borderStyle]} />
+        <View style={st.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={14} style={st.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <Animated.Text style={[st.compactTitle, compactStyle]} numberOfLines={1}>
+            {chapterLabel}
+          </Animated.Text>
+          <View style={{ width: 36 }} />
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={st.scroll}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[st.scroll, { paddingTop: headerH }]}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); load(); }}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} progressViewOffset={headerH} />
         }
       >
-        {/* Summary row */}
-        <Animated.View entering={FadeIn.duration(250)} style={st.summaryRow}>
-          <View style={st.summaryPill}>
-            <Text style={st.summaryVal}>{summary.completedCount}/{summary.totalSchede}</Text>
-            <Text style={st.summaryLabel}>completate</Text>
-          </View>
-          <View style={st.summaryPill}>
-            <Text style={[st.summaryVal, { color: '#16A34A' }]}>{summary.passedCount}</Text>
-            <Text style={st.summaryLabel}>superate</Text>
-          </View>
-          <View style={st.summaryPill}>
-            <Text style={[st.summaryVal, { color: '#EF4444' }]}>{summary.failedCount}</Text>
-            <Text style={st.summaryLabel}>fallite</Text>
-          </View>
-          {summary.correctRate > 0 && (
-            <View style={st.summaryPill}>
-              <Text style={[st.summaryVal, { color: colors.primary }]}>{summary.correctRate}%</Text>
-              <Text style={st.summaryLabel}>correttezza</Text>
-            </View>
-          )}
+        {/* ── Large title ── */}
+        <Animated.View style={largeTitleStyle}>
+          <Text style={st.largeTitle} numberOfLines={2}>{chapterLabel}</Text>
         </Animated.View>
 
-        {/* Grid */}
+        {/* ── Progress card ── */}
+        <Animated.View entering={FadeIn.duration(250)} style={st.progressCard}>
+          <View style={st.progressHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={st.progressLabel}>Progresso capitolo</Text>
+              <View style={st.progressRow}>
+                <Text style={st.progressBig}>{pctComplete}</Text>
+                <Text style={st.progressUnit}>%</Text>
+              </View>
+            </View>
+            <View style={st.progressStats}>
+              <View style={st.progressStatItem}>
+                <Text style={[st.progressStatVal, { color: '#16A34A' }]}>{summary.passedCount}</Text>
+                <Text style={st.progressStatLabel}>superate</Text>
+              </View>
+              <View style={st.progressStatItem}>
+                <Text style={[st.progressStatVal, { color: '#EF4444' }]}>{summary.failedCount}</Text>
+                <Text style={st.progressStatLabel}>fallite</Text>
+              </View>
+              {summary.correctRate > 0 && (
+                <View style={st.progressStatItem}>
+                  <Text style={[st.progressStatVal, { color: '#0891B2' }]}>{summary.correctRate}%</Text>
+                  <Text style={st.progressStatLabel}>corrette</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <View style={st.progressTrack}>
+            <View style={[st.progressFill, { width: `${pctComplete}%` }]} />
+          </View>
+          <Text style={st.progressSub}>
+            {summary.completedCount} di {summary.totalSchede} schede completate
+          </Text>
+        </Animated.View>
+
+        {/* ── Schede grid ── */}
+        <Text style={st.sectionTitle}>Schede</Text>
         <View style={st.grid}>
           {schede.map((scheda, i) => {
-            const sc = STATUS_COLORS[scheda.status];
+            const th = STATUS_THEME[scheda.status];
             const isStarting = starting === scheda.id;
             return (
-              <Animated.View
-                key={scheda.id}
-                entering={FadeInDown.delay(i * 15).duration(200)}
-              >
+              <Animated.View key={scheda.id} entering={FadeInDown.delay(i * 15).duration(200)}>
                 <Pressable
                   onPress={() => handleTap(scheda)}
                   disabled={isStarting}
                   style={({ pressed }) => [
-                    st.tile,
-                    { backgroundColor: sc.bg, borderColor: sc.border },
+                    st.tile, { backgroundColor: th.bg, borderColor: th.border },
                     pressed && st.tilePressed,
                   ]}
                 >
                   {isStarting ? (
-                    <ActivityIndicator size="small" color={sc.text} />
+                    <ActivityIndicator size="small" color={th.accent} />
                   ) : (
                     <>
-                      <Text style={[st.tileNum, { color: sc.text }]}>{scheda.schedaNumber}</Text>
+                      <Text style={[st.tileLabel, { color: th.accent }]}>Scheda</Text>
+                      <Text style={[st.tileNum, { color: th.accent }]}>{scheda.schedaNumber}</Text>
+                      <View style={st.tileLines}>
+                        {[0, 1, 2].map((j) => (
+                          <View key={j} style={[st.tileLine, { backgroundColor: th.lines }]} />
+                        ))}
+                      </View>
                       {scheda.status === 'passed' && (
-                        <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                        <View style={[st.tileBadge, { backgroundColor: '#16A34A' }]}>
+                          <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                        </View>
                       )}
                       {scheda.status === 'failed' && (
-                        <Text style={st.tileErrors}>{scheda.errorCount} err</Text>
+                        <View style={[st.tileBadge, { backgroundColor: '#EF4444' }]}>
+                          <Text style={st.tileBadgeText}>{scheda.errorCount}</Text>
+                        </View>
                       )}
                       {scheda.status === 'in_progress' && (
-                        <Ionicons name="play-circle" size={14} color="#CA8A04" />
+                        <View style={[st.tileBadge, { backgroundColor: '#CA8A04' }]}>
+                          <Ionicons name="play" size={8} color="#FFFFFF" />
+                        </View>
                       )}
                     </>
                   )}
@@ -204,50 +248,77 @@ export const SchedaGridScreen: React.FC = () => {
             );
           })}
         </View>
-      </ScrollView>
-    </Screen>
+
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
+    </View>
   );
 };
 
 const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: pink[50] },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+
+  /* Header */
+  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  headerBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+
+  /* Large title */
+  largeTitle: {
+    fontSize: 28, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.5,
+    marginBottom: 16,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+
+  /* Scroll */
+  scroll: { paddingHorizontal: spacing.md, gap: spacing.md, paddingBottom: 20 },
+
+  /* Progress card */
+  progressCard: {
+    backgroundColor: colors.surface, borderRadius: 24, padding: spacing.lg, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
-  headerTextWrap: { flex: 1 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.3 },
-  scroll: { padding: spacing.md, paddingBottom: 120, gap: spacing.md },
-  summaryRow: { flexDirection: 'row', gap: 8 },
-  summaryPill: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 16,
-    paddingVertical: 10, alignItems: 'center', gap: 2,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  summaryVal: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  summaryLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
+  progressHeader: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  progressLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  progressRow: { flexDirection: 'row', alignItems: 'baseline' },
+  progressBig: { fontSize: 40, fontWeight: '800', color: '#1A1A2E', letterSpacing: -2 },
+  progressUnit: { fontSize: 18, fontWeight: '700', color: colors.textMuted, marginLeft: 1 },
+  progressStats: { flexDirection: 'row', gap: 16 },
+  progressStatItem: { alignItems: 'center', gap: 2 },
+  progressStatVal: { fontSize: 18, fontWeight: '800' },
+  progressStatLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
+  progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#F0F0F5', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary, minWidth: 4 },
+  progressSub: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+
+  /* Section */
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 4 },
+
+  /* Grid */
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
   tile: {
-    width: TILE_SIZE, height: TILE_SIZE,
-    borderRadius: 16, borderWidth: 1.5,
+    width: TILE_W, height: TILE_H,
+    borderRadius: 14, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', gap: 2,
+    position: 'relative',
   },
   tilePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
-  tileNum: { fontSize: 18, fontWeight: '800' },
-  tileErrors: { fontSize: 9, fontWeight: '700', color: '#EF4444' },
+  tileLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
+  tileNum: { fontSize: 22, fontWeight: '800', marginTop: -2 },
+  tileLines: { gap: 4, marginTop: 4, alignItems: 'center' },
+  tileLine: { width: TILE_W * 0.5, height: 2, borderRadius: 1 },
+  tileBadge: {
+    position: 'absolute', top: 4, right: 4,
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tileBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
 });
 
 export default SchedaGridScreen;

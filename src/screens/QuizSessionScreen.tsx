@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,19 +12,23 @@ import {
 import Animated, {
   FadeIn,
   FadeInDown,
+  SlideInRight,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withSequence,
+  withTiming,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { usePathname, useRouter } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, pink, spacing } from '../theme';
+import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import { useQuiz } from '../context/QuizContext';
+import { SwipeQuizCard, SwipeQuizCardRef } from '../components/SwipeQuizCard';
 
 const EXAM_MAX_ERRORS = 3;
 const SCHEDA_MAX_ERRORS = 3;
@@ -57,6 +62,8 @@ export const QuizSessionScreen = () => {
   const [examAutoFailed, setExamAutoFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
+  const swipeCardRef = useRef<SwipeQuizCardRef>(null);
+  const [hintModalVisible, setHintModalVisible] = useState(false);
 
   // SCHEDA-specific state
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -66,13 +73,34 @@ export const QuizSessionScreen = () => {
   const trueScale = useSharedValue(1);
   const falseScale = useSharedValue(1);
 
+  // Card feedback animations (learning modes only)
+  const cardShakeX = useSharedValue(0);
+  const cardBorderColor = useSharedValue(0); // 0=neutral, 1=green, -1=red
+  const cardScale = useSharedValue(1);
+  const [streak, setStreak] = useState(0);
+  const [cardKey, setCardKey] = useState(0); // forces remount for slide animation
+
+  const isLearningMode = session?.mode === 'PRACTICE' || session?.mode === 'CHAPTER' || session?.mode === 'REVIEW' || session?.mode === 'SCHEDA';
+
+  const cardFeedbackStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: cardShakeX.value },
+      { scale: cardScale.value },
+    ],
+    borderColor: cardBorderColor.value > 0.5 ? '#16A34A'
+      : cardBorderColor.value < -0.5 ? '#EF4444'
+      : '#F0F0F5',
+    borderWidth: Math.abs(cardBorderColor.value) > 0.1 ? 2 : 1,
+  }));
+
   const isScheda = session?.mode === 'SCHEDA';
+  const isSchedaEsame = session?.mode === 'SCHEDA_ESAME';
   const total = session?.questions.length ?? 0;
 
-  // Initialize dots + restore SCHEDA resume state
+  // Initialize dots + restore SCHEDA/SCHEDA_ESAME resume state
   useEffect(() => {
     if (!session) return;
-    if (isScheda) {
+    if (isScheda || isSchedaEsame) {
       // Restore dots from answered questions (resume support)
       const newDots: DotState[] = new Array(session.questions.length).fill(null);
       let resumeCorrect = 0;
@@ -80,7 +108,7 @@ export const QuizSessionScreen = () => {
       let firstUnanswered = 0;
       session.questions.forEach((q: any, i: number) => {
         if (q.answered) {
-          newDots[i] = q.answered.isCorrect;
+          newDots[i] = isSchedaEsame ? true : q.answered.isCorrect; // SCHEDA_ESAME: neutral dots
           if (q.answered.isCorrect) resumeCorrect++;
           else resumeWrong++;
         }
@@ -154,8 +182,8 @@ export const QuizSessionScreen = () => {
 
   const handleTap = (chosen: boolean) => {
     if (!session || result || examAnswering || schedaCooldown) return;
-    // SCHEDA: don't allow answering already-answered questions
-    if (isScheda && dots[index] !== null) return;
+    // SCHEDA/SCHEDA_ESAME: don't allow answering already-answered questions
+    if ((isScheda || isSchedaEsame) && dots[index] !== null) return;
 
     const q = session.questions[index];
     const isCorrect = chosen === q.correctAnswer;
@@ -164,12 +192,47 @@ export const QuizSessionScreen = () => {
     setCorrect(newCorrect);
     setWrong(newWrong);
 
+    // Haptic on tap (all modes)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
     // Animate button
     const scaleTarget = chosen ? trueScale : falseScale;
     scaleTarget.value = withSequence(
       withSpring(0.88, { damping: 6, stiffness: 300 }),
       withSpring(1, { damping: 12 }),
     );
+
+    // Card feedback animation (learning modes)
+    if (isLearningMode) {
+      if (isCorrect) {
+        // Success: pulse green border + slight scale
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        cardBorderColor.value = withSequence(
+          withTiming(1, { duration: 100 }),
+          withTiming(0, { duration: 600 }),
+        );
+        cardScale.value = withSequence(
+          withSpring(1.015, { damping: 8, stiffness: 400 }),
+          withSpring(1, { damping: 14 }),
+        );
+        setStreak((s) => s + 1);
+      } else {
+        // Error: shake + red border flash
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+        cardBorderColor.value = withSequence(
+          withTiming(-1, { duration: 80 }),
+          withTiming(0, { duration: 500 }),
+        );
+        cardShakeX.value = withSequence(
+          withTiming(-8, { duration: 50 }),
+          withTiming(8, { duration: 50 }),
+          withTiming(-6, { duration: 50 }),
+          withTiming(6, { duration: 50 }),
+          withTiming(0, { duration: 50 }),
+        );
+        setStreak(0);
+      }
+    }
 
     // Fire-and-forget
     regloApi.submitQuizAnswer(session.sessionId, { questionId: q.id, answer: chosen }).catch(() => {});
@@ -187,6 +250,20 @@ export const QuizSessionScreen = () => {
         }, 1800);
         return;
       }
+
+      setExamAnswering(true);
+      setTimeout(() => {
+        setExamAnswering(false);
+        if (index >= total - 1) {
+          completeSession();
+        } else {
+          setIndex((i) => i + 1);
+          scrollRef.current?.scrollTo({ y: 0, animated: false });
+        }
+      }, 350);
+    } else if (isSchedaEsame) {
+      // SCHEDA_ESAME: like EXAM (sequential, no feedback, neutral dots) but NO auto-fail
+      setDots((prev) => { const n = [...prev]; n[index] = true; return n; });
 
       setExamAnswering(true);
       setTimeout(() => {
@@ -227,6 +304,11 @@ export const QuizSessionScreen = () => {
 
   const handleNext = () => {
     setResult(null);
+    // Reset card feedback values
+    cardBorderColor.value = 0;
+    cardShakeX.value = 0;
+    cardScale.value = 1;
+    if (isLearningMode) setCardKey((k) => k + 1);
     if (isScheda) {
       // SCHEDA: find next unanswered, or complete if all answered
       const updatedDots = [...dots];
@@ -261,6 +343,50 @@ export const QuizSessionScreen = () => {
   const handleSchedaNext = () => {
     if (index < total - 1) navigateToQuestion(index + 1);
   };
+
+  // Swipe-based answer handler (learning modes)
+  const handleSwipeAnswer = useCallback((answer: boolean) => {
+    if (!session || result || examAutoFailed) return;
+    const q = session.questions[index];
+    const isCorrect = answer === q.correctAnswer;
+    const newCorrect = correct + (isCorrect ? 1 : 0);
+    const newWrong = wrong + (isCorrect ? 0 : 1);
+    setCorrect(newCorrect);
+    setWrong(newWrong);
+
+    if (isCorrect) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setStreak((s) => s + 1);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setStreak(0);
+    }
+
+    setDots((prev) => { const n = [...prev]; n[index] = isCorrect; return n; });
+    regloApi.submitQuizAnswer(session.sessionId, { questionId: q.id, answer }).catch(() => {});
+
+    // SCHEDA auto-fail at 4th error (same logic as classic mode)
+    if (isScheda && newWrong > SCHEDA_MAX_ERRORS) {
+      setExamAutoFailed(true);
+      setResult({ isCorrect, correctAnswer: q.correctAnswer, hint: q.hint, autoFailed: true });
+      setTimeout(() => {
+        if (elapsedRef.current) clearInterval(elapsedRef.current);
+        router.replace({ pathname: resultsRoute as never, params: { sessionId: session.sessionId } });
+      }, 1800);
+      return;
+    }
+
+    setResult({ isCorrect, correctAnswer: q.correctAnswer, hint: q.hint, autoFailed: false });
+  }, [session, index, correct, wrong, result, isScheda, examAutoFailed]);
+
+  const handleSwipeNext = useCallback(() => {
+    setResult(null);
+    if (index >= total - 1) {
+      completeSession();
+    } else {
+      setIndex((i) => i + 1);
+    }
+  }, [index, total, completeSession]);
 
   const trueAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: trueScale.value }] }));
   const falseAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: falseScale.value }] }));
@@ -319,17 +445,18 @@ export const QuizSessionScreen = () => {
 
         <View style={[
           st.headerBadge,
-          session.mode === 'EXAM' && st.headerBadgeExam,
+          (session.mode === 'EXAM' || isSchedaEsame) && st.headerBadgeExam,
           session.mode === 'PRACTICE' && st.headerBadgePractice,
           isScheda && st.headerBadgeScheda,
         ]}>
           <Text style={[
             st.headerBadgeText,
-            session.mode === 'EXAM' && st.headerBadgeTextExam,
+            (session.mode === 'EXAM' || isSchedaEsame) && st.headerBadgeTextExam,
             session.mode === 'PRACTICE' && st.headerBadgeTextPractice,
             isScheda && st.headerBadgeTextScheda,
           ]}>
             {session.mode === 'EXAM' ? 'Simulazione'
+              : isSchedaEsame ? `Scheda Esame ${session.schedaNumber ?? ''}`
               : session.mode === 'PRACTICE' ? 'Esercitazione'
               : isScheda ? `Scheda ${session.schedaNumber ?? ''}`
               : 'In corso'}
@@ -337,13 +464,147 @@ export const QuizSessionScreen = () => {
         </View>
       </View>
 
+      {/* ═══ SWIPE MODE (PRACTICE / CHAPTER / REVIEW) ═══ */}
+      {isLearningMode && (
+        <>
+          {/* Progress row */}
+          <View style={st.swipeHeader}>
+            <Text style={st.swipeCounter}>{index + 1} / {total}</Text>
+            <View style={st.questionLabelRight}>
+              {streak >= 3 && (
+                <Animated.View entering={FadeIn.duration(200)} style={st.streakBadge}>
+                  <Text style={st.streakText}>{streak}</Text>
+                  <Ionicons name="flame" size={13} color="#F59E0B" />
+                </Animated.View>
+              )}
+              <View style={st.scoreChip}>
+                <Text style={st.scoreChipText}>
+                  {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Progress bar */}
+          <View style={st.swipeProgressTrack}>
+            <View style={[st.swipeProgressFill, { width: `${Math.round(((index + (result ? 1 : 0)) / total) * 100)}%` }]} />
+          </View>
+
+          {examAutoFailed ? (
+            /* ── Auto-fail overlay (SCHEDA swipe mode) ── */
+            <View style={st.swipeArea}>
+              <Animated.View entering={FadeIn.duration(300)} style={st.swipeAutoFail}>
+                <Ionicons name="alert-circle" size={48} color={colors.destructive} />
+                <Text style={st.swipeAutoFailTitle}>NON IDONEO</Text>
+                <Text style={st.swipeAutoFailSub}>Hai superato il limite di errori consentiti.</Text>
+              </Animated.View>
+            </View>
+          ) : !result ? (
+            /* ── Swipe card ── */
+            <View style={st.swipeArea}>
+              <SwipeQuizCard
+                ref={swipeCardRef}
+                key={index}
+                question={q}
+                nextQuestion={index < total - 1 ? session.questions[index + 1] : null}
+                onAnswer={handleSwipeAnswer}
+              />
+              {/* Fallback buttons — tap triggers card flyout animation */}
+              <View style={[st.swipeBtnRow, { marginBottom: insets.bottom + 60 }]}>
+                <Pressable
+                  onPress={() => swipeCardRef.current?.flyOut(false)}
+                  style={({ pressed }) => [st.swipeBtn, st.swipeBtnFalse, pressed && { opacity: 0.7, transform: [{ scale: 0.92 }] }]}
+                >
+                  <Ionicons name="close" size={24} color={colors.destructive} />
+                </Pressable>
+                <Pressable
+                  onPress={() => swipeCardRef.current?.flyOut(true)}
+                  style={({ pressed }) => [st.swipeBtn, st.swipeBtnTrue, pressed && { opacity: 0.7, transform: [{ scale: 0.92 }] }]}
+                >
+                  <Ionicons name="checkmark" size={24} color="#16A34A" />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            /* ── Feedback: tap anywhere to advance ── */
+            <Pressable style={st.swipeArea} onPress={() => { setHintModalVisible(false); handleSwipeNext(); }}>
+              <Animated.View entering={FadeIn.duration(200)} style={[
+                st.feedbackCard,
+                result.isCorrect ? st.feedbackCardCorrect : st.feedbackCardWrong,
+              ]}>
+                <View style={st.feedbackTop}>
+                  <View style={[st.feedbackIcon, result.isCorrect ? { backgroundColor: '#DCFCE7' } : { backgroundColor: '#FEE2E2' }]}>
+                    <Ionicons
+                      name={result.isCorrect ? 'checkmark' : 'close'}
+                      size={28}
+                      color={result.isCorrect ? '#16A34A' : colors.destructive}
+                    />
+                  </View>
+                  <Text style={[st.feedbackTitle, result.isCorrect ? { color: '#16A34A' } : { color: colors.destructive }]}>
+                    {result.isCorrect ? 'Corretto!' : 'Sbagliato'}
+                  </Text>
+                  {!result.isCorrect && (
+                    <Text style={st.feedbackAnswer}>
+                      La risposta era {result.correctAnswer ? 'VERO' : 'FALSO'}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Hint preview — truncated, with "read more" */}
+                {result.hint && (
+                  <Pressable
+                    onPress={(e) => { e.stopPropagation; setHintModalVisible(true); }}
+                    style={st.feedbackHintPreview}
+                  >
+                    <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
+                    <Text style={st.feedbackHintPreviewTitle}>{result.hint.title}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </Pressable>
+                )}
+
+                <Text style={st.feedbackTapHint}>Tocca per continuare</Text>
+              </Animated.View>
+            </Pressable>
+          )}
+
+          {/* Hint modal */}
+          {result?.hint && (
+            <Modal
+              visible={hintModalVisible}
+              animationType="slide"
+              presentationStyle="pageSheet"
+              onRequestClose={() => setHintModalVisible(false)}
+            >
+              <View style={st.modalContainer}>
+                <View style={st.modalHandle} />
+                <Text style={st.modalTitle}>{result.hint.title}</Text>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.modalScroll}>
+                  <RenderHtml
+                    contentWidth={width - spacing.md * 2 - 32}
+                    source={{ html: result.hint.descriptionHtml }}
+                    baseStyle={st.modalHtml as any}
+                  />
+                </ScrollView>
+                <Pressable onPress={() => setHintModalVisible(false)} style={st.modalClose}>
+                  <Text style={st.modalCloseText}>Chiudi</Text>
+                </Pressable>
+              </View>
+            </Modal>
+          )}
+        </>
+      )}
+
+      {/* ═══ CLASSIC MODE (EXAM / SCHEDA_ESAME / SCHEDA) ═══ */}
+      {!isLearningMode && (
+      <>
+
       {/* ── SCHEDA: chapter subtitle ── */}
-      {isScheda && session.chapterDescription && (
+      {isScheda && !isSchedaEsame && session.chapterDescription && (
         <Text style={st.schedaSubtitle} numberOfLines={1}>{session.chapterDescription}</Text>
       )}
 
       {/* ── SCHEDA: Tappable question grid ── */}
-      {isScheda && (
+      {isScheda && !isSchedaEsame && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.schedaGridScroll} contentContainerStyle={st.schedaGridContent}>
           {dots.map((d, i) => {
             const isCurrent = i === index;
@@ -375,13 +636,21 @@ export const QuizSessionScreen = () => {
       {/* ── Question label ── */}
       <View style={st.questionLabel}>
         <Text style={st.questionLabelText}>DOMANDA {index + 1} DI {total}</Text>
-        {session.mode !== 'EXAM' && (
-          <View style={st.scoreChip}>
-            <Text style={st.scoreChipText}>
-              {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
-            </Text>
-          </View>
-        )}
+        <View style={st.questionLabelRight}>
+          {isLearningMode && streak >= 3 && (
+            <Animated.View entering={FadeIn.duration(200)} style={st.streakBadge}>
+              <Text style={st.streakText}>{streak}</Text>
+              <Ionicons name="flame" size={13} color="#F59E0B" />
+            </Animated.View>
+          )}
+          {session.mode !== 'EXAM' && !isSchedaEsame && (
+            <View style={st.scoreChip}>
+              <Text style={st.scoreChipText}>
+                {total > 0 ? Math.round((correct / Math.max(correct + wrong, 1)) * 100) : 0}%
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ── Scrollable content ── */}
@@ -393,14 +662,40 @@ export const QuizSessionScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Question card */}
-        <View style={st.questionCard}>
+        <Animated.View
+          key={isLearningMode ? cardKey : undefined}
+          entering={isLearningMode && cardKey > 0 ? SlideInRight.duration(250).springify() : undefined}
+          style={[st.questionCard, isLearningMode ? cardFeedbackStyle : undefined]}
+        >
           {q.imageUrl && (
             <View style={st.imageWrap}>
               <Image source={{ uri: q.imageUrl }} style={st.questionImage} resizeMode="contain" />
             </View>
           )}
           <Text style={st.questionText}>{q.questionText}</Text>
-        </View>
+          {(session.mode === 'REVIEW' || session.mode === 'PRACTICE') && q.wrongCount != null && q.wrongCount > 0 && (
+            <View style={[
+              st.errorFreqPill,
+              q.correctRate != null && q.correctRate < 40 ? st.errorFreqRed
+                : q.correctRate != null && q.correctRate < 70 ? st.errorFreqOrange
+                : st.errorFreqGray,
+            ]}>
+              <Ionicons name="warning" size={12} color={
+                q.correctRate != null && q.correctRate < 40 ? colors.destructive
+                  : q.correctRate != null && q.correctRate < 70 ? '#F59E0B'
+                  : colors.textMuted
+              } />
+              <Text style={[
+                st.errorFreqText,
+                q.correctRate != null && q.correctRate < 40 ? { color: colors.destructive }
+                  : q.correctRate != null && q.correctRate < 70 ? { color: '#F59E0B' }
+                  : { color: colors.textMuted },
+              ]}>
+                Sbagliato {q.wrongCount}/{q.timesAnswered ?? 0} volt{q.wrongCount === 1 ? 'a' : 'e'}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
 
         {/* Auto-fail overlay (EXAM + SCHEDA) */}
         {examAutoFailed && (
@@ -413,8 +708,8 @@ export const QuizSessionScreen = () => {
           </Animated.View>
         )}
 
-        {/* SCHEDA: read-only view for already-answered questions */}
-        {isScheda && isCurrentAnswered && !result && !examAutoFailed && (
+        {/* SCHEDA: read-only view for already-answered questions (not SCHEDA_ESAME) */}
+        {isScheda && !isSchedaEsame && isCurrentAnswered && !result && !examAutoFailed && (
           <Animated.View entering={FadeIn.duration(200)}>
             <View style={[st.resultBanner, dots[index] === true ? st.resultBannerCorrect : st.resultBannerWrong]}>
               <Ionicons
@@ -429,7 +724,7 @@ export const QuizSessionScreen = () => {
             {q.hint && (
               <View style={st.explanationCard}>
                 <View style={st.explanationHeader}>
-                  <Ionicons name="bulb-outline" size={16} color={pink[600]} />
+                  <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
                   <Text style={st.explanationTitle}>{q.hint.title}</Text>
                 </View>
                 <RenderHtml
@@ -443,7 +738,7 @@ export const QuizSessionScreen = () => {
         )}
 
         {/* Answer buttons (only if not answered yet and not auto-failed) */}
-        {!result && !examAutoFailed && !(isScheda && isCurrentAnswered) ? (
+        {!result && !examAutoFailed && !((isScheda || isSchedaEsame) && isCurrentAnswered) ? (
           <View style={st.answerRow}>
             <Animated.View style={[st.answerBtnWrap, trueAnimStyle]}>
               <Pressable
@@ -484,7 +779,7 @@ export const QuizSessionScreen = () => {
             {result.hint && (
               <Animated.View entering={FadeIn.delay(100).duration(250)} style={st.explanationCard}>
                 <View style={st.explanationHeader}>
-                  <Ionicons name="bulb-outline" size={16} color={pink[600]} />
+                  <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
                   <Text style={st.explanationTitle}>{result.hint.title}</Text>
                 </View>
                 <RenderHtml
@@ -516,7 +811,7 @@ export const QuizSessionScreen = () => {
         ) : null}
 
         {/* ── SCHEDA: prev/next nav + complete button ── */}
-        {isScheda && !result && !examAutoFailed && (
+        {isScheda && !isSchedaEsame && !result && !examAutoFailed && (
           <View style={st.schedaNav}>
             <Pressable
               onPress={handleSchedaPrev}
@@ -552,7 +847,7 @@ export const QuizSessionScreen = () => {
             <View style={st.dotsGrid}>
               {dots.map((d, i) => {
                 const isCurrent = i === index && !result && !examAnswering;
-                const isExam = session.mode === 'EXAM';
+                const isExam = session.mode === 'EXAM' || isSchedaEsame;
                 const answered = d !== null;
                 return (
                   <View
@@ -579,8 +874,8 @@ export const QuizSessionScreen = () => {
           </View>
         )}
 
-        {/* SCHEDA: error counter */}
-        {isScheda && !examAutoFailed && (
+        {/* SCHEDA: error counter (not for SCHEDA_ESAME) */}
+        {isScheda && !isSchedaEsame && !examAutoFailed && (
           <View style={st.schedaErrorRow}>
             <Text style={st.schedaErrorLabel}>Errori: </Text>
             <Text style={[st.schedaErrorCount, wrong > SCHEDA_MAX_ERRORS && { color: colors.destructive }]}>
@@ -589,6 +884,8 @@ export const QuizSessionScreen = () => {
           </View>
         )}
       </ScrollView>
+      </>
+      )}
     </View>
   );
 };
@@ -600,7 +897,7 @@ const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
   emptyCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: pink[50] },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   // Header
@@ -615,9 +912,7 @@ const st = StyleSheet.create({
   timerPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 24,
-    backgroundColor: pink[50],
-    shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 6, elevation: 2,
+    backgroundColor: '#F3F4F6',
   },
   timerPillUrgent: { backgroundColor: colors.destructive },
   timerText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
@@ -628,11 +923,11 @@ const st = StyleSheet.create({
   },
   headerBadgeExam: { backgroundColor: '#FEF2F2' },
   headerBadgePractice: { backgroundColor: '#F0FDF4' },
-  headerBadgeScheda: { backgroundColor: pink[50] },
+  headerBadgeScheda: { backgroundColor: '#F3F4F6' },
   headerBadgeText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
   headerBadgeTextExam: { color: colors.destructive },
   headerBadgeTextPractice: { color: '#16A34A' },
-  headerBadgeTextScheda: { color: pink[600] },
+  headerBadgeTextScheda: { color: colors.textSecondary },
 
   // SCHEDA subtitle
   schedaSubtitle: {
@@ -648,11 +943,97 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
   schedaDotPending: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
-  schedaDotCurrent: { backgroundColor: pink[50], borderColor: colors.primary },
+  schedaDotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
   schedaDotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   schedaDotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
   schedaDotText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
   schedaDotTextActive: { color: '#1A1A2E' },
+
+  // Swipe mode
+  swipeHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingVertical: 4,
+  },
+  swipeCounter: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  swipeProgressTrack: {
+    height: 3, backgroundColor: '#F0F0F5', marginHorizontal: spacing.md, borderRadius: 1.5,
+    overflow: 'hidden', marginBottom: 4,
+  },
+  swipeProgressFill: {
+    height: '100%', backgroundColor: '#1A1A2E', borderRadius: 1.5,
+  },
+  swipeArea: { flex: 1 },
+  swipeBtnRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 48,
+    paddingTop: 12, paddingBottom: 24,
+  },
+  swipeBtn: {
+    width: 60, height: 60, borderRadius: 30,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 4,
+  },
+  swipeBtnTrue: { borderColor: '#BBF7D0' },
+  swipeBtnFalse: { borderColor: '#FECACA' },
+
+  // Auto-fail overlay (swipe mode)
+  swipeAutoFail: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12,
+    marginHorizontal: spacing.md,
+    borderRadius: 24, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+  },
+  swipeAutoFailTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E' },
+  swipeAutoFailSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 24 },
+
+  // Feedback card (tap-anywhere)
+  feedbackCard: {
+    flex: 1, marginHorizontal: spacing.md, borderRadius: 24,
+    padding: 24, gap: 16, justifyContent: 'center', alignItems: 'center',
+  },
+  feedbackCardCorrect: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' },
+  feedbackCardWrong: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
+  feedbackTop: { alignItems: 'center', gap: 8 },
+  feedbackIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  feedbackTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
+  feedbackAnswer: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  feedbackHintPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  feedbackHintPreviewTitle: {
+    flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary,
+    numberOfLines: 1,
+  },
+  feedbackTapHint: {
+    textAlign: 'center', fontSize: 13, fontWeight: '500',
+    color: colors.textMuted, marginTop: 4,
+  },
+
+  // Hint modal (pageSheet)
+  modalContainer: {
+    flex: 1, backgroundColor: colors.background,
+    paddingHorizontal: spacing.md, paddingTop: 12,
+  },
+  modalHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB',
+    alignSelf: 'center', marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20, fontWeight: '800', color: colors.textPrimary,
+    letterSpacing: -0.3, marginBottom: 16,
+  },
+  modalScroll: { paddingBottom: 40 },
+  modalHtml: { fontSize: 16, color: '#374151', lineHeight: 26 },
+  modalClose: {
+    alignItems: 'center', paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
+  },
+  modalCloseText: { fontSize: 16, fontWeight: '600', color: colors.primary },
 
   // Question label
   questionLabel: {
@@ -663,11 +1044,18 @@ const st = StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: colors.textMuted,
     letterSpacing: 1, textTransform: 'uppercase',
   },
+  questionLabelRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  streakBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingVertical: 2, paddingHorizontal: 8, borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+  },
+  streakText: { fontSize: 13, fontWeight: '800', color: '#CA8A04' },
   scoreChip: {
     paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8,
-    backgroundColor: pink[50],
+    backgroundColor: '#F3F4F6',
   },
-  scoreChipText: { fontSize: 14, fontWeight: '800', color: pink[600] },
+  scoreChipText: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
 
   // Scroll
   scrollArea: { flex: 1 },
@@ -677,8 +1065,8 @@ const st = StyleSheet.create({
   questionCard: {
     borderRadius: 24, overflow: 'hidden',
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0F0F5',
-    shadowColor: pink[200], shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18, shadowRadius: 16, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 14, elevation: 5,
   },
   imageWrap: {
     backgroundColor: '#1A1A2E', paddingVertical: 20, alignItems: 'center',
@@ -689,6 +1077,16 @@ const st = StyleSheet.create({
     lineHeight: 26, letterSpacing: -0.2,
     padding: 20,
   },
+  errorFreqPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    marginHorizontal: 20, marginTop: -12, marginBottom: 16,
+    paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  errorFreqRed: { backgroundColor: '#FEF2F2' },
+  errorFreqOrange: { backgroundColor: '#FFFBEB' },
+  errorFreqGray: { backgroundColor: '#F3F4F6' },
+  errorFreqText: { fontSize: 12, fontWeight: '700' },
 
   // Answer buttons
   answerRow: { flexDirection: 'row', gap: 14 },
@@ -723,21 +1121,21 @@ const st = StyleSheet.create({
   // Explanation
   explanationCard: {
     padding: 16, borderRadius: 24,
-    backgroundColor: pink[50], gap: 8, marginBottom: 12,
-    borderWidth: 1, borderColor: pink[100],
-    shadowColor: pink[300], shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
+    backgroundColor: '#F8F7F4', gap: 8, marginBottom: 12,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   explanationHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  explanationTitle: { fontSize: 14, fontWeight: '700', color: pink[700] },
+  explanationTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   explanationHtml: { fontSize: 13, color: '#4A4458', lineHeight: 19 },
 
   // Next button
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, borderRadius: 26, backgroundColor: colors.primary,
-    shadowColor: 'rgba(236, 72, 153, 0.45)', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },
   nextBtnDisabled: { opacity: 0.5 },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
@@ -760,7 +1158,7 @@ const st = StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 12,
   },
   schedaNavBtnDisabled: { opacity: 0.4 },
-  schedaNavBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  schedaNavBtnText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   schedaCompleteBtn: {
     paddingVertical: 8, paddingHorizontal: 16, borderRadius: 16,
     backgroundColor: colors.primary,
@@ -787,11 +1185,11 @@ const st = StyleSheet.create({
     borderWidth: 1.5,
   },
   dotPending: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
-  dotCurrent: { backgroundColor: pink[50], borderColor: colors.primary },
+  dotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
   dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
-  dotExamAnswered: { backgroundColor: pink[50], borderColor: pink[200] },
+  dotExamAnswered: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
   dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  dotTextCurrent: { color: colors.primary },
+  dotTextCurrent: { color: '#1A1A2E' },
   dotTextDone: { color: '#1A1A2E' },
 });

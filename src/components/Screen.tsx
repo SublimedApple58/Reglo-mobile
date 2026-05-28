@@ -12,15 +12,11 @@ type ScreenProps = {
 
 export const Screen = ({ children, gradient, style }: ScreenProps) => {
   const insets = useSafeAreaInsets();
-  const Container = gradient ? LinearGradient : View;
-  const containerProps = gradient
-    ? { colors: ['#FAE0EF', '#F8F7F4'], locations: [0, 0.5] }
-    : {};
 
   return (
-    <Container style={[styles.root, style]} {...containerProps}>
+    <View style={[styles.root, style]}>
       <View style={[styles.content, { paddingTop: insets.top }]}>{children}</View>
-    </Container>
+    </View>
   );
 };
 

@@ -890,7 +890,7 @@ export type CompanyBookingDefaults = {
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────
 
-export type QuizSessionMode = 'EXAM' | 'PRACTICE' | 'CHAPTER' | 'REVIEW' | 'SCHEDA';
+export type QuizSessionMode = 'EXAM' | 'PRACTICE' | 'CHAPTER' | 'REVIEW' | 'SCHEDA' | 'SCHEDA_ESAME';
 
 export type QuizChapterProgress = {
   id: Uuid;
@@ -911,6 +911,9 @@ export type QuizQuestion = {
 export type QuizQuestionWithAnswer = QuizQuestion & {
   correctAnswer: boolean;
   hint: { title: string; descriptionHtml: string } | null;
+  wrongCount?: number;
+  timesAnswered?: number;
+  correctRate?: number;
 };
 
 export type StartQuizSessionInput = {
@@ -1029,6 +1032,30 @@ export type StartSchedaSessionResult = {
   totalQuestions: number;
   schedaNumber: number;
   chapterDescription: string;
+  resuming: boolean;
+  correctCount: number;
+  wrongCount: number;
+};
+
+// ── Exam Schede ─────────────────────────────────────────────────────────────
+
+export type ExamSchedeProgressResponse = {
+  schede: QuizSchedaSummary[];
+  summary: {
+    totalSchede: number;
+    completedCount: number;
+    passedCount: number;
+    failedCount: number;
+    correctRate: number;
+  };
+};
+
+export type StartExamSchedaSessionResult = {
+  sessionId: Uuid;
+  questions: QuizSchedaQuestionWithAnswer[];
+  timeLimitSec: number;
+  totalQuestions: number;
+  schedaNumber: number;
   resuming: boolean;
   correctCount: number;
   wrongCount: number;
