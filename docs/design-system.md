@@ -1381,22 +1381,31 @@ headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }
 
 Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
 
-### 13.2 Native PageSheet Modal
+### 13.2 Native FormSheet (Expo Router)
 
-Per contenuti estesi (hint quiz, dettagli): `Modal` con `presentationStyle="pageSheet"` + handle visivo.
+Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'` + `sheetGrabberVisible: true`. Lo sheet si adatta all'altezza del contenuto e mostra il grabber nativo iOS.
 
 ```tsx
-<Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-  <View style={modalContainer}>
-    <View style={modalHandle} />  {/* 36x4px, bg: #D1D5DB, centered */}
-    {/* contenuto */}
-  </View>
-</Modal>
+// app/(tabs)/home/_layout.tsx
+<Stack.Screen
+  name="my-sheet"
+  options={{
+    presentation: 'formSheet',
+    sheetAllowedDetents: 'fitToContents',
+    sheetGrabberVisible: true,
+    headerShown: false,
+  }}
+/>
 ```
 
-Preferire **sempre** il pageSheet nativo al BottomSheet custom per contenuti read-only o scroll pesante.
+Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` con `useSyncExternalStore`.
 
-**Schermi gia' migrati a PageSheet:** `QuizSessionScreen` (hint modal), `AllievoHomeScreen` (booking flow unificato + lesson detail).
+**IMPORTANTE:** con `fitToContents` non usare `flex: 1` ne' `ScrollView` nel root — il contenuto deve avere altezza esplicita. Usare `View` per contenuto fisso, `ScrollView` solo per contenuto lungo con detent fissi (es. `[0.7, 0.95]`).
+
+**Schermi migrati a formSheet:**
+- `lesson-detail` — dettaglio guida (fitToContents)
+- `booking-flow` — prenotazione guida 2 step (fitToContents)
+- `quiz-hint` — hint quiz con HTML (fitToContents)
 
 ### 13.3 Haptic Feedback
 
@@ -1417,8 +1426,8 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 
 - Usare **sempre** i token da `src/theme/` per colori, tipografia, spacing, radii
 - Usare i componenti esistenti in `src/components/` — comporli, non duplicarli
-- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili: **PageSheet nativo** (`presentationStyle="pageSheet"`)
-- Per hint/dettagli scrollabili: **PageSheet nativo** (mai BottomSheet custom)
+- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili: **FormSheet nativo** via Expo Router (`presentation: 'formSheet'`)
+- Per hint/dettagli scrollabili: **FormSheet nativo** (mai BottomSheet custom, mai `<Modal>` inline)
 - Avvolgere card con gradient in un `View` wrapper per l'ombra (l'ombra non funziona con `overflow: 'hidden'`)
 - Touch target minimo: **44x44px** (rispettato da day cell calendario, bottoni freccia, chip)
 - Animazioni: usare `useNativeDriver: true` dove possibile

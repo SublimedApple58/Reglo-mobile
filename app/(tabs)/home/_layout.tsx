@@ -22,6 +22,15 @@ export default function HomeLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="quiz-hint"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

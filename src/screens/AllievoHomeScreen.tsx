@@ -1915,12 +1915,6 @@ const styles = StyleSheet.create({
   contextCtaTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   contextCtaSub: { fontSize: 11, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
 
-  /* ── PageSheet shared ── */
-  pageSheet: { flex: 1, backgroundColor: colors.background, paddingTop: 12 },
-  pageSheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
-  pageSheetTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 16 },
-  pageSheetTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
-  pageSheetFooter: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   /* ── Scroll content ── */
   scrollContent: { paddingHorizontal: spacing.md, gap: 20 },
 
@@ -2188,41 +2182,6 @@ const styles = StyleSheet.create({
   },
 
   /* ── Old nextLesson/calendar/CTA styles removed ── */
-  detailCancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    marginTop: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'rgba(220, 38, 38, 0.2)',
-    backgroundColor: 'rgba(220, 38, 38, 0.04)',
-  },
-  detailCancelText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  detailSwapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    marginTop: 20,
-    marginBottom: 0,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'rgba(146, 64, 14, 0.25)',
-    backgroundColor: 'rgba(146, 64, 14, 0.06)',
-  },
-  detailSwapText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#92400E',
-  },
   swapDetailsCard: {
     backgroundColor: '#F8FAFC',
     borderRadius: 14,
@@ -2792,51 +2751,6 @@ const styles = StyleSheet.create({
   },
 
   /* ── Chunky Google-style BottomSheet styles ── */
-  /* ── Detail PageSheet ── */
-  detailHero: {
-    backgroundColor: '#1A1A2E', borderRadius: 26, padding: 20, gap: 8, marginTop: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
-  },
-  detailHeroTopRow: {
-    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
-  },
-  detailHeroDate: {
-    fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.6)',
-  },
-  detailHeroTime: {
-    fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, marginTop: 2,
-  },
-  detailStatusBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  detailStatusText: {
-    fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)',
-  },
-  detailHeroDuration: {
-    fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.45)',
-  },
-  detailGroupCard: {
-    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
-  },
-  detailRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6,
-  },
-  detailRowDivider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 4,
-  },
-  detailRowValue: {
-    fontSize: 15, fontWeight: '600', color: colors.textPrimary,
-  },
-  detailRowSub: {
-    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1,
-  },
-  detailRowLink: {
-    fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2,
-  },
   chunkyYellowCard: {
     backgroundColor: '#FEF9C3',
     borderRadius: 24,

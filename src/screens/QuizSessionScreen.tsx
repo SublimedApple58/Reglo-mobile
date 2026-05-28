@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { usePathname, useRouter } from 'expo-router';
+import { quizHintStore } from '../stores/quizHintStore';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,7 +63,6 @@ export const QuizSessionScreen = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const swipeCardRef = useRef<SwipeQuizCardRef>(null);
-  const [hintModalVisible, setHintModalVisible] = useState(false);
 
   // SCHEDA-specific state
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -529,7 +528,7 @@ export const QuizSessionScreen = () => {
             </View>
           ) : (
             /* ── Feedback: tap anywhere to advance ── */
-            <Pressable style={st.swipeArea} onPress={() => { setHintModalVisible(false); handleSwipeNext(); }}>
+            <Pressable style={st.swipeArea} onPress={() => handleSwipeNext()}>
               <Animated.View entering={FadeIn.duration(200)} style={[
                 st.feedbackCard,
                 result.isCorrect ? st.feedbackCardCorrect : st.feedbackCardWrong,
@@ -555,7 +554,13 @@ export const QuizSessionScreen = () => {
                 {/* Hint preview — truncated, with "read more" */}
                 {result.hint && (
                   <Pressable
-                    onPress={(e) => { e.stopPropagation; setHintModalVisible(true); }}
+                    onPress={(e) => {
+                      e.stopPropagation;
+                      if (result?.hint) {
+                        quizHintStore.set({ title: result.hint.title, descriptionHtml: result.hint.descriptionHtml });
+                        router.push('/(tabs)/home/quiz-hint');
+                      }
+                    }}
                     style={st.feedbackHintPreview}
                   >
                     <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
@@ -569,30 +574,7 @@ export const QuizSessionScreen = () => {
             </Pressable>
           )}
 
-          {/* Hint modal */}
-          {result?.hint && (
-            <Modal
-              visible={hintModalVisible}
-              animationType="slide"
-              presentationStyle="pageSheet"
-              onRequestClose={() => setHintModalVisible(false)}
-            >
-              <View style={st.modalContainer}>
-                <View style={st.modalHandle} />
-                <Text style={st.modalTitle}>{result.hint.title}</Text>
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.modalScroll}>
-                  <RenderHtml
-                    contentWidth={width - spacing.md * 2 - 32}
-                    source={{ html: result.hint.descriptionHtml }}
-                    baseStyle={st.modalHtml as any}
-                  />
-                </ScrollView>
-                <Pressable onPress={() => setHintModalVisible(false)} style={st.modalClose}>
-                  <Text style={st.modalCloseText}>Chiudi</Text>
-                </Pressable>
-              </View>
-            </Modal>
-          )}
+          {/* Hint — now an Expo Router formSheet at /(tabs)/home/quiz-hint */}
         </>
       )}
 
@@ -1021,26 +1003,6 @@ const st = StyleSheet.create({
     color: colors.textMuted, marginTop: 4,
   },
 
-  // Hint modal (pageSheet)
-  modalContainer: {
-    flex: 1, backgroundColor: colors.background,
-    paddingHorizontal: spacing.md, paddingTop: 12,
-  },
-  modalHandle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB',
-    alignSelf: 'center', marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20, fontWeight: '800', color: colors.textPrimary,
-    letterSpacing: -0.3, marginBottom: 16,
-  },
-  modalScroll: { paddingBottom: 40 },
-  modalHtml: { fontSize: 16, color: '#374151', lineHeight: 26 },
-  modalClose: {
-    alignItems: 'center', paddingVertical: 16,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-  },
-  modalCloseText: { fontSize: 16, fontWeight: '600', color: colors.primary },
 
   // Question label
   questionLabel: {
