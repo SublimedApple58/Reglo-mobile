@@ -171,49 +171,109 @@ Definiti in `src/theme/spacing.ts` → `radii`:
 | Valore | Contesto |
 |---|---|
 | `999` | Badge pill, SelectableChip, action pill SectionHeader, RangesEditor row, add button |
+| **`26`** | **CTA card (Airbnb-style)** — Simulazione, Esercitazione, Continua a studiare, Ripassa errori, card capitolo in topic list |
 | `24` | Modal card centrata, BottomSheet top radius |
 | `28` | CalendarDrawer top radius |
 | `22` | BookingCelebration card |
-| `18` | Frecce navigazione mese (circle 36x36) |
+| **`20`** | **Stats inset card** (informativa), card deboli, card sessioni |
+| **`18`** | **Schede tile** (griglia schede capitolo e esame), frecce navigazione mese |
 | `17` | Frecce CalendarNavigator (circle 34x34) |
-| `16` | Card base default, info card modale, scroll container time picker |
+| **`16`** | **Bottoni VERO/FALSO quiz**, card base default, info card modale |
 | `12` | Item time picker |
 | `10` | SkeletonBlock default |
 | `CELL_SIZE/2` | Day cell calendario (cerchio perfetto) |
 
-**Regola**: contenitore grande → `radii.lg`. Controllo interattivo inline → `radii.sm`. Pill/chip → `999`. Cerchi → dimensione/2.
+**Regola**: CTA card → `26`. Info card → `20`. Tile griglia → `18`. Bottoni inline → `16`. Pill/chip → `999`. Cerchi → dimensione/2.
 
 ---
 
 ## 5. Ombre (Shadow Presets)
 
-### 5.1 Ombra Base Generica
+### 5.0 Principio: Raised vs Recessed
 
-Usata da: Card default, Button, ScrollHintFab, action pill SectionHeader
+Le ombre comunicano la gerarchia interattiva:
+- **Ombra esterna (raised)** = tappabile, azione. L'elemento "galleggia" sopra la pagina.
+- **Ombra interna (inset/recessed)** = informativo, non tappabile. L'elemento e' "incassato" nella pagina.
+
+**Mai** dare ombra esterna a card informative. **Mai** dare inset shadow a CTA.
+
+### 5.1 CTA Card — Ombra Concentrata (v3)
+
+Usata da: card Simulazione, Esercitazione, Ripassa errori, card capitolo (topic list), tile schede.
+L'ombra e' stretta e vicina alla card → effetto "oggetto sollevato dal tavolo", non alone diffuso.
 
 ```ts
-shadowColor: 'rgba(0, 0, 0, 0.08)',
-shadowOpacity: 0.08,
-shadowRadius: 4–8,
+shadowColor: '#000',
+shadowOffset: { width: 0, height: 3 },
+shadowOpacity: 0.14,
+shadowRadius: 6,
+elevation: 5,
+```
+
+**Press state:**
+```ts
+opacity: 0.9,
+transform: [{ scale: 0.96 }],
+```
+
+### 5.2 CTA Rosa Primary (Bottone Hero — no shadow)
+
+Il colore pieno fa tutto il lavoro. Nessuna ombra necessaria.
+
+```ts
+backgroundColor: colors.primary,
+borderRadius: 26,
+padding: 16,
+// NO shadowColor/shadowOffset/shadowOpacity
+```
+
+**Press state:**
+```ts
+opacity: 0.95,
+transform: [{ scale: 0.97 }],
+```
+
+### 5.3 Tile Schede — Ombra Leggera
+
+Usata da: griglia schede capitolo, griglia schede esame.
+
+```ts
+shadowColor: '#000',
+shadowOffset: { width: 0, height: 3 },
+shadowOpacity: 0.1,
+shadowRadius: 5,
+elevation: 3,
+```
+
+### 5.4 Card Informativa — Inset Shadow (v3)
+
+Usata da: stats home, stats topic list, stats scheda grid, stats exam schede.
+Usa `boxShadow` nativo di React Native 0.81+ con `inset: true`.
+
+```ts
+backgroundColor: '#EEEDEB',
+borderRadius: 20,
+boxShadow: [
+  { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+  { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+],
+```
+
+Due layer: uno morbido (blur 6) + uno nitido (blur 2) per profondita' realistica.
+
+### 5.5 Card Secondaria — Ombra Leggera
+
+Usata da: countdown esame, capitoli da migliorare, card generiche non-CTA.
+
+```ts
+shadowColor: '#000',
 shadowOffset: { width: 0, height: 2 },
+shadowOpacity: 0.06,
+shadowRadius: 10,
 elevation: 2,
 ```
 
-### 5.2 Card Primary (v2 — aggiornato)
-
-```ts
-backgroundColor: colors.surface,    // #FFFFFF
-borderRadius: 24,
-padding: spacing.lg,                // 22
-gap: 8,
-shadowColor: 'rgba(0, 0, 0, 0.16)',
-shadowOffset: { width: 0, height: 6 },
-shadowOpacity: 1,
-shadowRadius: 18,
-elevation: 4,
-```
-
-### 5.3 BottomSheet / CalendarDrawer
+### 5.6 BottomSheet / CalendarDrawer
 
 ```ts
 shadowColor: 'rgba(0, 0, 0, 0.08)',
@@ -223,36 +283,7 @@ shadowOffset: { width: 0, height: -6 },
 elevation: 6,
 ```
 
-### 5.4 CTA Rosa Pill (Bottone Hero / Confirm — v2 aggiornato)
-
-```ts
-height: 52,
-borderRadius: 26,                    // full pill
-backgroundColor: colors.primary,
-shadowColor: 'rgba(236, 72, 153, 0.45)',
-shadowOffset: { width: 0, height: 8 },
-shadowOpacity: 1,
-shadowRadius: 18,
-elevation: 5,
-```
-
-**Press state:**
-```ts
-opacity: 0.95,
-transform: [{ scale: 0.97 }],
-```
-
-### 5.5 Card Accent / Prossima Guida (Ombra Ambra)
-
-```ts
-shadowColor: '#B45309',
-shadowOpacity: 0.35,
-shadowRadius: 20,
-shadowOffset: { width: 0, height: 10 },
-elevation: 10,
-```
-
-### 5.6 Day Pill Calendario (Selezionato)
+### 5.7 Day Pill Calendario (Selezionato)
 
 ```ts
 shadowColor: '#D97706',
@@ -1251,17 +1282,20 @@ L'utente deve capire a colpo d'occhio cosa e tappabile e cosa e informativo. Mai
 
 ### 12.2 Card Azione (CTA)
 
-Le CTA usano **ombre esterne** per sembrare "sollevate" dalla pagina. Invitano al tap.
+Le CTA usano **ombre esterne concentrate** per sembrare "sollevate" dalla pagina. Invitano al tap.
 
 | Livello | Aspetto | Ombra | Esempio |
 |---|---|---|---|
-| **CTA Primaria** | `bg: colors.primary`, testo bianco, `borderRadius: 22` | shadowOpacity 0.15, shadowRadius 12 | "Continua a studiare" |
-| **CTA Card** | `bg: colors.surface` o `#1A1A2E` (dark), icona 3D 44px, `borderRadius: 22` | shadowOpacity 0.1, shadowRadius 14 | Simulazione, Esercitazione |
-| **CTA Secondaria** | `bg: colors.surface`, bordo chiaro, icona 3D 36px, layout orizzontale | shadowOpacity 0.1, shadowRadius 14 | Ripassa errori |
+| **CTA Primaria** | `bg: colors.primary`, testo bianco, `borderRadius: 26` | **Nessuna ombra** — il colore pieno fa il lavoro | "Continua a studiare" |
+| **CTA Card** | `bg: colors.surface` o `#1A1A2E` (dark), icona 3D 44px, `borderRadius: 26` | `shadowOpacity: 0.14, shadowRadius: 6, height: 3` (concentrata) | Simulazione, Esercitazione |
+| **CTA Secondaria** | `bg: colors.surface`, icona 3D 36px, layout orizzontale, `borderRadius: 26` | `shadowOpacity: 0.14, shadowRadius: 6, height: 3` (concentrata) | Ripassa errori |
+| **Tile Schede** | bg colorato per stato, `borderRadius: 18` | `shadowOpacity: 0.1, shadowRadius: 5, height: 3` | Griglia schede |
 
 **Press state CTA:** `opacity: 0.9, transform: [{ scale: 0.96 }]`
 
 Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota.
+
+**Principio ombre concentrate:** `shadowRadius` basso (5-6) + `shadowOffset.height` corto (3) = ombra stretta vicino alla card → effetto 3D "sollevato dal tavolo". Evitare `shadowRadius` > 10 sulle CTA (troppo disperso, sembra alone).
 
 ### 12.3 Card Informativa (Stat/Dato)
 
@@ -1283,11 +1317,12 @@ Stat con icone 3D (32px), numeri grossi (`fontSize: 20, fontWeight: 800`), label
 
 | Proprieta | CTA (Azione) | Info (Dato) |
 |---|---|---|
-| Ombra | **Esterna** (sollevata) | **Interna/inset** (incassata) |
+| Ombra | **Esterna concentrata** (radius 6, height 3) | **Interna/inset** (boxShadow inset) |
 | Background | Bianco o dark (#1A1A2E) | Grigio caldo (#EEEDEB) |
-| Icone 3D | 44px, prominenti | 32px, decorative |
-| Testo primario | Bold, scuro o bianco | Bold numerico |
-| Border | Nessuno | Nessuno |
+| Border Radius | **26** | **20** |
+| Icone 3D | 44px, prominenti | 32-34px, decorative |
+| Testo valori | 15px, bold | 14-15px, bold |
+| Testo label | 12px, muted | 10px, muted |
 | Tappabile | Si | No |
 
 ### 12.5 Sezioni e Label
@@ -1306,13 +1341,24 @@ Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
 
 ### 12.6 Ordine Gerarchia Home (Top → Bottom)
 
-1. **Greeting** — "Ciao, {nome}" con subtitle "Percorso teoria" + icona 3D libro
-2. **CTA Primaria** — "Continua a studiare" (rosa, full-width) o "Sfoglia gli argomenti" (se primo accesso)
-3. **CTA Card** — Simulazione (dark) + Esercitazione (bianca) affiancate
-4. **CTA Secondaria** — "Ripassa i tuoi errori" (se ha errori)
-5. **Stats inset** — Accuratezza / Quiz fatti / Argomenti (incassata, non tappabile)
+1. **Greeting** — "Ciao, {nome}" (24px) con subtitle "Percorso teoria" + icona 3D libro (16px)
+2. **CTA Primaria** — "Continua a studiare" (rosa, full-width, borderRadius 26, **no shadow**)
+3. **CTA Card** — Simulazione (dark) + Esercitazione (bianca) affiancate (borderRadius 26, shadow concentrata)
+4. **CTA Secondaria** — "Ripassa i tuoi errori" (borderRadius 26, shadow concentrata)
+5. **Stats inset** — Accuratezza / Quiz fatti / Argomenti (borderRadius 20, inset shadow, icone 3D 34px, valori 15px)
 6. **Countdown** — Esame teoria (se data impostata)
 7. **Sezione azionabile** — "Da migliorare" con capitoli deboli (tappabili)
+
+### 12.7 Titoli Pagina
+
+| Schermata | fontSize | fontWeight | letterSpacing |
+|---|---|---|---|
+| Home quiz ("Ciao, {nome}") | 24 | 800 | -0.3 |
+| Lista argomenti ("Studio per Argomento") | 24 | 800 | -0.3 |
+| Schede esame ("Schede d'Esame") | 24 | 800 | -0.3 |
+| Sezione capitolo ("4. Segnali di obbligo") | 22 | 800 | -0.3 |
+
+**Regola:** titoli pagina top-level a 24px. Sotto-pagine (dentro un capitolo) a 22px. Mai superare 24px per i large title.
 
 ---
 
