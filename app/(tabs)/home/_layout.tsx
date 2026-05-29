@@ -23,6 +23,13 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
+        name="booking-slots"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="quiz-hint"
         options={{
           presentation: 'formSheet',

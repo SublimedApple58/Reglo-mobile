@@ -459,7 +459,7 @@ export const AllievoHomeScreen = () => {
       onSearchSlots: () => {
         const s = bookingFlowStore.get();
         if (!s || !selectedStudentId) return;
-        bookingFlowStore.set({ slotsLoading: true, slots: [] });
+        bookingFlowStore.set({ loading: true });
         regloApi.getAvailableSlots({
           studentId: selectedStudentId,
           date: toDateString(s.preferredDate),
@@ -467,9 +467,10 @@ export const AllievoHomeScreen = () => {
           ...(canSelectLessonType ? { lessonType: s.selectedLessonTypes[0], types: s.selectedLessonTypes } : {}),
           ...(s.selectedInstructorId ? { instructorId: s.selectedInstructorId } : {}),
         }).then((slots) => {
-          bookingFlowStore.set({ slots, slotsLoading: false, step: 2 });
+          bookingFlowStore.set({ slots, slotsLoading: false, loading: false, selectedSlot: null });
+          router.push('/(tabs)/home/booking-slots');
         }).catch(() => {
-          bookingFlowStore.set({ slots: [], slotsLoading: false });
+          bookingFlowStore.set({ slots: [], slotsLoading: false, loading: false });
         });
       },
       onConfirmBooking: () => {
@@ -494,7 +495,9 @@ export const AllievoHomeScreen = () => {
           { queryKey: ['appointments'] },
           (old) => old ? [...old, provisionalAppt] : [provisionalAppt],
         );
-        router.back();
+        // Dismiss both sheets (slots + booking) and cleanup store
+        router.dismiss(2);
+        bookingFlowStore.clear();
         triggerBookingCelebration();
         regloApi.createBookingRequest({
           studentId: selectedStudentId,
@@ -519,7 +522,7 @@ export const AllievoHomeScreen = () => {
           setToast({ text: 'Errore nella prenotazione', tone: 'danger' });
         });
       },
-      onClose: () => { /* cleanup done by store.clear() in screen unmount */ },
+      onClose: () => { bookingFlowStore.clear(); },
     });
     router.push('/(tabs)/home/booking-flow');
   };

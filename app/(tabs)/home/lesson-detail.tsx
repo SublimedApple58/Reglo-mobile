@@ -148,16 +148,16 @@ export default function LessonDetailScreen() {
           <View style={{ gap: 10, marginTop: 4 }}>
             {canSwap && (
               <Pressable
-                style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.8 }]}
+                style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
                 onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
               >
-                <Ionicons name="swap-horizontal-outline" size={16} color="#92400E" />
+                <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
                 <Text style={s.swapText}>Cerca sostituto</Text>
               </Pressable>
             )}
             {canCancel && (
               <Pressable
-                style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.8 }]}
+                style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
                 onPress={() => { router.back(); setTimeout(() => onCancel(lesson.id), 350); }}
               >
                 <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
@@ -188,9 +188,11 @@ const s = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
   heroDuration: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.45)' },
   groupCard: {
-    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
+    backgroundColor: '#EEEDEB', borderRadius: 20, padding: spacing.md,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 4 },
@@ -198,15 +200,15 @@ const s = StyleSheet.create({
   rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
   rowLink: { fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2 },
   swapBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    marginTop: 8, paddingVertical: 12, borderRadius: 14,
-    borderWidth: 2, borderColor: 'rgba(146, 64, 14, 0.25)', backgroundColor: 'rgba(146, 64, 14, 0.06)',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 8, height: 50, borderRadius: 26,
+    backgroundColor: colors.primary,
   },
-  swapText: { fontSize: 15, fontWeight: '700', color: '#92400E' },
+  swapText: { fontSize: 16, fontWeight: '600', color: colors.surface },
   cancelBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    paddingVertical: 12, borderRadius: 14,
-    borderWidth: 2, borderColor: 'rgba(220, 38, 38, 0.2)', backgroundColor: 'rgba(220, 38, 38, 0.04)',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 50, borderRadius: 26,
+    backgroundColor: '#FEE2E2',
   },
-  cancelText: { fontSize: 15, fontWeight: '700', color: '#DC2626' },
+  cancelText: { fontSize: 16, fontWeight: '600', color: '#DC2626' },
 });
