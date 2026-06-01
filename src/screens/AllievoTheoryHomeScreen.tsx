@@ -197,7 +197,7 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
         {Platform.OS === 'ios' ? (
           <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.92)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
         )}
         <Animated.View style={[StyleSheet.absoluteFill, s.headerBorder, headerBorderStyle]} />
         <Animated.View style={[s.compactHeader, compactTitleStyle]}>

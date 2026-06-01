@@ -59,6 +59,8 @@ import {
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { lessonDetailStore } from '../stores/lessonDetailStore';
+import { allLessonsStore } from '../stores/allLessonsStore';
+import { examDetailStore } from '../stores/examDetailStore';
 import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
@@ -120,14 +122,6 @@ const statusLabel = (status: string) => {
   return { label: 'Programmato', tone: 'default' as const };
 };
 
-const lessonDurationMinutes = (appointment: AutoscuolaAppointmentWithRelations) => {
-  const startsAt = new Date(appointment.startsAt).getTime();
-  const endsAt = appointment.endsAt
-    ? new Date(appointment.endsAt).getTime()
-    : startsAt + 30 * 60 * 1000;
-  return Math.max(30, Math.round((endsAt - startsAt) / 60000));
-};
-
 const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
   const normalized = (message ?? '').toLowerCase();
   return (
@@ -157,6 +151,14 @@ const normalize = (value: string | null | undefined) =>
 
 const formatLessonType = (value: string | null | undefined) =>
   lessonTypeLabelMap[normalize(value)] ?? value ?? 'Guida';
+
+const LESSON_CARD_COLORS = [
+  { bg: '#FFF0F3', accent: '#ec4899' },  // rose
+  { bg: '#EFF6FF', accent: '#3B82F6' },  // sky
+  { bg: '#F0FDF4', accent: '#22C55E' },  // mint
+  { bg: '#FFFBEB', accent: '#F59E0B' },  // amber
+  { bg: '#F5F3FF', accent: '#8B5CF6' },  // violet
+] as const;
 
 const findLinkedStudent = (
   students: AutoscuolaStudent[],
@@ -792,8 +794,11 @@ export const AllievoHomeScreen = () => {
       return upcomingConfirmedStatuses.has(status);
     });
 
+    // Exclude exams from the lesson list
+    const lessons = confirmed.filter((item) => (item.type ?? '').trim().toLowerCase() !== 'esame');
+
     // First: find any lesson currently in progress (startsAt <= now < endsAt)
-    const inProgress = confirmed
+    const inProgress = lessons
       .filter((item) => {
         const start = new Date(item.startsAt);
         const end = item.endsAt
@@ -804,7 +809,7 @@ export const AllievoHomeScreen = () => {
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
     // Then: future lessons
-    const future = confirmed
+    const future = lessons
       .filter((item) => new Date(item.startsAt) >= now)
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
@@ -923,21 +928,6 @@ export const AllievoHomeScreen = () => {
   }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
-
-  // ── Computed stats for the redesigned home ──
-  const completedCount = useMemo(
-    () => appointments.filter((a) => (a.status ?? '').trim().toLowerCase() === 'completed').length,
-    [appointments],
-  );
-  const totalHoursLabel = useMemo(() => {
-    const mins = appointments
-      .filter((a) => (a.status ?? '').trim().toLowerCase() === 'completed')
-      .reduce((sum, a) => sum + lessonDurationMinutes(a), 0);
-    if (mins < 60) return `${mins}m`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }, [appointments]);
 
   const nextLessonCountdown = useMemo(() => {
     if (!nextLesson) return null;
@@ -1697,9 +1687,8 @@ export const AllievoHomeScreen = () => {
         {/* ── Skeleton while loading ── */}
         {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
           <>
-            <SkeletonBlock width="100%" height={80} radius={26} />
-            <SkeletonBlock width="100%" height={160} radius={26} />
-            <SkeletonBlock width="100%" height={80} radius={20} />
+            <SkeletonBlock width="100%" height={180} radius={26} />
+            <SkeletonBlock width="100%" height={60} radius={20} />
           </>
         )}
 
@@ -1717,117 +1706,120 @@ export const AllievoHomeScreen = () => {
           </View>
         )}
 
-        {/* ── Next Lesson — Hero Dark Card ── */}
+        {/* ── Exam countdown card (top priority) ── */}
+        {nextExam && examCountdown && (
+          <Animated.View entering={FadeInUp.delay(50).duration(280).springify()}>
+            <Pressable
+              onPress={() => {
+                examDetailStore.set({ exam: nextExam, countdown: examCountdown });
+                router.push('/(tabs)/home/exam-detail');
+              }}
+              style={({ pressed }) => [styles.examCard, pressed && styles.ctaPressed]}
+            >
+              <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.examLabel}>Esame di guida</Text>
+                <Text style={styles.examDate}>
+                  {formatDay(nextExam.startsAt)} {'\u2022'} {formatTime(nextExam.startsAt)}
+                </Text>
+              </View>
+              <View style={styles.examBadge}>
+                <Text style={styles.examBadgeNum}>{examCountdown.days}</Text>
+                <Text style={styles.examBadgeUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
+              </View>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── HERO: Next lesson — warm elevated card ── */}
         {nextLesson && (
-          <Animated.View entering={FadeInUp.delay(80).duration(280).springify()}>
-            <Text style={styles.sectionLabel}>Prossima guida</Text>
+          <Animated.View entering={FadeInUp.delay(80).duration(320).springify()}>
             <Pressable
               onPress={() => openLessonDetail(nextLesson)}
               style={({ pressed }) => [styles.heroCard, pressed && styles.ctaPressed]}
             >
-              <View style={styles.heroTopRow}>
+              <View style={styles.heroTop}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.heroDate}>{formatDay(nextLesson.startsAt)}</Text>
+                  {nextLessonCountdown && (
+                    <View style={styles.heroPill}>
+                      <Text style={styles.heroPillText}>{nextLessonCountdown}</Text>
+                    </View>
+                  )}
                   <Text style={styles.heroTime}>
                     {formatTime(nextLesson.startsAt)}{nextLesson.endsAt ? ` \u2013 ${formatTime(nextLesson.endsAt)}` : ''}
                   </Text>
+                  <Text style={styles.heroDate}>{formatDay(nextLesson.startsAt)}</Text>
                 </View>
-                {nextLessonCountdown && (
-                  <View style={styles.heroBadge}>
-                    <Text style={styles.heroBadgeText}>{nextLessonCountdown}</Text>
-                  </View>
-                )}
+                <Image
+                  source={require('../../assets/icons/fluent-racing.png')}
+                  style={styles.heroIcon}
+                />
               </View>
-              <View style={styles.heroInfoRow}>
-                <Ionicons name="person-outline" size={14} color="rgba(255,255,255,0.6)" />
-                <Text style={styles.heroInfoText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
+
+              <View style={styles.heroFooter}>
+                <View style={styles.heroChip}>
+                  <Ionicons name="person" size={13} color={colors.textSecondary} />
+                  <Text style={styles.heroChipText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
+                </View>
                 {nextLesson.types && nextLesson.types.length > 0 && (
-                  <>
-                    <Text style={styles.heroInfoDot}>{'\u2022'}</Text>
-                    <Text style={styles.heroInfoText}>{formatLessonType(nextLesson.types[0])}</Text>
-                  </>
+                  <View style={styles.heroChip}>
+                    <Ionicons name="flag" size={13} color={colors.textSecondary} />
+                    <Text style={styles.heroChipText}>{formatLessonType(nextLesson.types[0])}</Text>
+                  </View>
                 )}
               </View>
             </Pressable>
           </Animated.View>
         )}
 
-        {/* ── In programma — Grouped White Card ── */}
+        {/* ── Upcoming lessons — horizontal scroll of mini-cards ── */}
         {upcoming.length > 1 && (
-          <Animated.View entering={FadeInUp.delay(120).duration(280).springify()}>
-            <Text style={styles.sectionLabel}>In programma</Text>
-            <View style={styles.groupedCard}>
-              {upcoming.slice(1).map((lesson, idx) => (
-                <Pressable
-                  key={lesson.id}
-                  onPress={() => openLessonDetail(lesson)}
-                  style={({ pressed }) => [
-                    styles.groupedRow,
-                    idx < upcoming.length - 2 && styles.groupedRowBorder,
-                    pressed && { opacity: 0.5 },
-                  ]}
-                >
-                  <View style={styles.groupedDayBadge}>
-                    <Text style={styles.groupedDayText}>{new Date(lesson.startsAt).getDate()}</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.groupedRowTitle} numberOfLines={1}>
-                      {formatDay(lesson.startsAt)} {'\u2022'} {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
+          <Animated.View entering={FadeInUp.delay(140).duration(280).springify()}>
+            <Pressable
+              onPress={() => {
+                allLessonsStore.set({ lessons: upcoming, onOpenDetail: openLessonDetail });
+                router.push('/(tabs)/home/all-lessons');
+              }}
+              style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.6 }]}
+            >
+              <Text style={styles.seeAllText}>Vedi tutte le guide</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+            </Pressable>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ overflow: 'visible' }}
+              contentContainerStyle={styles.upcomingScroll}
+            >
+              {upcoming.slice(1).map((lesson, idx) => {
+                const bg = LESSON_CARD_COLORS[(idx + 1) % LESSON_CARD_COLORS.length];
+                return (
+                  <Pressable
+                    key={lesson.id}
+                    onPress={() => openLessonDetail(lesson)}
+                    style={({ pressed }) => [
+                      styles.miniCard,
+                      { backgroundColor: bg.bg },
+                      pressed && styles.ctaPressed,
+                    ]}
+                  >
+                    <Image
+                      source={require('../../assets/icons/fluent-car.png')}
+                      style={styles.miniCardIcon}
+                    />
+                    <Text style={styles.miniCardTime} numberOfLines={1}>
+                      {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
                     </Text>
-                    <Text style={styles.groupedRowSub} numberOfLines={1}>
+                    <Text style={styles.miniCardDate} numberOfLines={1}>
+                      {formatDay(lesson.startsAt)}
+                    </Text>
+                    <Text style={styles.miniCardInstructor} numberOfLines={1}>
                       {lesson.instructor?.name ?? 'Da assegnare'}
                     </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-                </Pressable>
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* ── Stats inset card ── */}
-        {studentsLoaded && studentDataReady && (
-          <Animated.View entering={FadeInUp.delay(160).duration(280).springify()}>
-            <View style={styles.statsInset}>
-              <View style={styles.statsInner}>
-                <View style={styles.statItem}>
-                  <Image source={require('../../assets/icons/fluent-car.png')} style={styles.statIcon} />
-                  <Text style={styles.statValue}>{completedCount}</Text>
-                  <Text style={styles.statLabel}>Guide fatte</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Image source={require('../../assets/icons/fluent-clock.png')} style={styles.statIcon} />
-                  <Text style={styles.statValue}>{totalHoursLabel}</Text>
-                  <Text style={styles.statLabel}>Ore di guida</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Image source={require('../../assets/icons/fluent-calendar.png')} style={styles.statIcon} />
-                  <Text style={styles.statValue}>{upcoming.length}</Text>
-                  <Text style={styles.statLabel}>In programma</Text>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* ── Exam countdown card ── */}
-        {nextExam && examCountdown && (
-          <Animated.View entering={FadeInUp.delay(200).duration(280).springify()}>
-            <View style={styles.countdownCard}>
-              <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.countdownIcon} />
-              <View style={styles.countdownText}>
-                <Text style={styles.countdownLabel}>Esame di guida</Text>
-                <Text style={styles.countdownDate}>
-                  {formatDay(nextExam.startsAt)} {'\u2022'} {formatTime(nextExam.startsAt)}
-                </Text>
-              </View>
-              <View style={styles.countdownBadge}>
-                <Text style={styles.countdownBadgeNum}>{examCountdown.days}</Text>
-                <Text style={styles.countdownBadgeUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
-              </View>
-            </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Animated.View>
         )}
 
@@ -1893,7 +1885,7 @@ const styles = StyleSheet.create({
   },
 
   /* ── Large title ── */
-  largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: 2 },
+  largeTitleWrap: { paddingTop: 4, paddingBottom: 2 },
   largeTitleText: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
 
@@ -1924,12 +1916,6 @@ const styles = StyleSheet.create({
   /* ── Press feedback ── */
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
 
-  /* ── Section label ── */
-  sectionLabel: {
-    fontSize: 13, fontWeight: '700', color: colors.textMuted,
-    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6,
-  },
-
   /* ── FAB (Google Calendar style) ── */
   fab: {
     position: 'absolute', right: 20, bottom: 16, zIndex: 5,
@@ -1942,94 +1928,74 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
   },
 
-  /* ── Next lesson hero dark card ── */
+  /* ── HERO card: next lesson — warm elevated card ── */
   heroCard: {
-    backgroundColor: '#1A1A2E', borderRadius: 26,
-    padding: 20, gap: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
+    backgroundColor: colors.surface, borderRadius: 26,
+    padding: 20, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
-  heroTopRow: {
-    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
-  },
-  heroDate: {
-    fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.6)',
-  },
-  heroTime: {
-    fontSize: 26, fontWeight: '800', color: colors.surface, letterSpacing: -0.5, marginTop: 2,
-  },
-  heroBadge: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 5,
-  },
-  heroBadgeText: {
-    fontSize: 12, fontWeight: '800', color: colors.surface,
-  },
-  heroInfoRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-  },
-  heroInfoText: {
-    fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.6)',
-  },
-  heroInfoDot: {
-    fontSize: 14, color: 'rgba(255,255,255,0.3)',
-  },
-
-  /* ── Grouped white card (upcoming lessons list) ── */
-  groupedCard: {
-    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
-  },
-  groupedRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11,
-  },
-  groupedRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-  },
-  groupedDayBadge: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
-  },
-  groupedDayText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
-  groupedRowTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  groupedRowSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
-
-  /* ── Stats inset card (same pattern as theory) ── */
-  statsInset: {
-    backgroundColor: '#EEEDEB', borderRadius: 20,
-    boxShadow: [
-      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
-      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
-    ],
-  },
-  statsInner: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 18, paddingHorizontal: 8,
-  },
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: colors.border },
-  statIcon: { width: 34, height: 34, marginBottom: 2 },
-  statValue: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
-  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
-
-  /* ── Countdown card ── */
-  countdownCard: {
+  heroTop: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: 22, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  countdownIcon: { width: 44, height: 44 },
-  countdownText: { flex: 1 },
-  countdownLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
-  countdownDate: { fontSize: 16, color: colors.textPrimary, fontWeight: '700', marginTop: 2 },
-  countdownBadge: {
-    backgroundColor: colors.primary, borderRadius: 16,
+  heroPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6,
+  },
+  heroPillText: { fontSize: 11, fontWeight: '800', color: '#FFF' },
+  heroTime: {
+    fontSize: 30, fontWeight: '800', color: '#1A1A2E',
+    letterSpacing: -0.8, lineHeight: 36,
+  },
+  heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
+  heroIcon: { width: 72, height: 72 },
+  heroFooter: {
+    flexDirection: 'row', gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
+    paddingTop: 12,
+  },
+  heroChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#F3F4F6', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+
+  /* ── Mini-cards: horizontal upcoming lessons ── */
+  upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
+  miniCard: {
+    width: 150, borderRadius: 20, padding: 14,
+    alignItems: 'flex-start', gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10, shadowRadius: 6, elevation: 4,
+  },
+  miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
+  miniCardTime: { fontSize: 16, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
+  miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
+  seeAllBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 4,
+  },
+  seeAllText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+
+  /* ── Exam countdown card ── */
+  examCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#F5F0FF', borderRadius: 22, padding: 16,
+    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
+  },
+  examIcon: { width: 44, height: 44 },
+  examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
+  examDate: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginTop: 2 },
+  examBadge: {
+    backgroundColor: '#8B5CF6', borderRadius: 16,
     paddingHorizontal: spacing.sm, paddingVertical: 6, alignItems: 'center', minWidth: 64,
   },
-  countdownBadgeNum: { color: colors.surface, fontSize: 22, fontWeight: '800', lineHeight: 24 },
-  countdownBadgeUnit: { color: colors.surface, fontSize: 10, fontWeight: '600', opacity: 0.9 },
+  examBadgeNum: { color: '#FFF', fontSize: 22, fontWeight: '800', lineHeight: 24 },
+  examBadgeUnit: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.9 },
 
   /* ── Empty state ── */
   emptyState: {

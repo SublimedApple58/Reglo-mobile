@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
 
-export default function HomeLayout() {
+export default function SettingsLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen
-        name="lesson-detail"
+        name="profile-edit"
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
@@ -14,7 +14,7 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
-        name="booking-flow"
+        name="availability"
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
@@ -23,32 +23,7 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
-        name="booking-slots"
-        options={{
-          presentation: 'modal',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="exam-detail"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="all-lessons"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="quiz-hint"
+        name="payment"
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
@@ -59,4 +34,3 @@ export default function HomeLayout() {
     </Stack>
   );
 }
-
