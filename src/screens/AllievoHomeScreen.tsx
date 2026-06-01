@@ -1692,8 +1692,8 @@ export const AllievoHomeScreen = () => {
           </>
         )}
 
-        {/* ── Empty state ── */}
-        {upcoming.length === 0 && studentsLoaded && (appointmentsQuery.data != null) && (
+        {/* ── Empty state (no lessons AND no exam) ── */}
+        {upcoming.length === 0 && !nextExam && studentsLoaded && (appointmentsQuery.data != null) && (
           <View style={styles.emptyState}>
             <Image
               source={require('../../assets/icons/fluent-car.png')}
@@ -1706,8 +1706,72 @@ export const AllievoHomeScreen = () => {
           </View>
         )}
 
-        {/* ── Exam countdown card (top priority) ── */}
-        {nextExam && examCountdown && (
+        {/* ── Dedicated EXAM-HERO state (exam scheduled, but NO lessons booked) ── */}
+        {upcoming.length === 0 && nextExam && examCountdown && studentsLoaded && (appointmentsQuery.data != null) && (
+          <>
+            <Animated.View entering={FadeInUp.delay(40).duration(340).springify()}>
+              <Pressable
+                onPress={() => {
+                  examDetailStore.set({ exam: nextExam, countdown: examCountdown });
+                  router.push('/(tabs)/home/exam-detail');
+                }}
+                style={({ pressed }) => [styles.examHero, pressed && styles.ctaPressed]}
+              >
+                <View style={styles.examHeroTop}>
+                  <View style={styles.examHeroEyebrowRow}>
+                    <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examHeroIcon} />
+                    <Text style={styles.examHeroEyebrow}>ESAME DI GUIDA</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+                </View>
+
+                {examCountdown.days === 0 ? (
+                  <Text style={styles.examHeroToday}>È oggi!</Text>
+                ) : (
+                  <View style={styles.examHeroCountWrap}>
+                    <Text style={styles.examHeroNum}>{examCountdown.days}</Text>
+                    <Text style={styles.examHeroUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
+                  </View>
+                )}
+
+                <View style={styles.examHeroFooter}>
+                  <View style={styles.examHeroChip}>
+                    <Ionicons name="calendar" size={13} color="#FFFFFF" />
+                    <Text style={styles.examHeroChipText}>{formatDay(nextExam.startsAt)}</Text>
+                  </View>
+                  <View style={styles.examHeroChip}>
+                    <Ionicons name="time" size={13} color="#FFFFFF" />
+                    <Text style={styles.examHeroChipText}>{formatTime(nextExam.startsAt)}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            </Animated.View>
+
+            <Animated.View entering={FadeInUp.delay(140).duration(320).springify()} style={styles.examPrompt}>
+              <Image source={require('../../assets/icons/fluent-car.png')} style={styles.examPromptIcon} />
+              <Text style={styles.examPromptTitle}>Non hai guide prenotate</Text>
+              <Text style={styles.examPromptSub}>
+                {studentBookingDisabledByPolicy
+                  ? 'Contatta la tua autoscuola per fissare le guide di pratica prima dell’esame.'
+                  : examCountdown.days <= 1
+                    ? 'Manca pochissimo! Prenota una guida per allenarti prima dell’esame.'
+                    : `Mancano ${examCountdown.days} giorni: prenota le tue guide di pratica e arriva all’esame al massimo.`}
+              </Text>
+              {!studentBookingDisabledByPolicy && (
+                <Pressable
+                  onPress={openBookingFlow}
+                  style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
+                >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
+                </Pressable>
+              )}
+            </Animated.View>
+          </>
+        )}
+
+        {/* ── Exam countdown card (compact, shown above lessons when lessons exist) ── */}
+        {nextExam && examCountdown && upcoming.length > 0 && (
           <Animated.View entering={FadeInUp.delay(50).duration(280).springify()}>
             <Pressable
               onPress={() => {
@@ -1996,6 +2060,63 @@ const styles = StyleSheet.create({
   },
   examBadgeNum: { color: '#FFF', fontSize: 22, fontWeight: '800', lineHeight: 24 },
   examBadgeUnit: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.9 },
+
+  /* ── Exam HERO (dedicated empty-state when exam scheduled but no lessons) ── */
+  examHero: {
+    backgroundColor: '#7C3AED', borderRadius: 26, padding: 22,
+    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 16, elevation: 8,
+  },
+  examHeroTop: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  examHeroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  examHeroIcon: { width: 34, height: 34 },
+  examHeroEyebrow: {
+    fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.85)', letterSpacing: 1,
+  },
+  examHeroCountWrap: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 16, marginBottom: 20,
+  },
+  examHeroNum: {
+    fontSize: 64, fontWeight: '800', color: '#FFFFFF', lineHeight: 62, letterSpacing: -2,
+  },
+  examHeroUnit: {
+    fontSize: 18, fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: 11,
+  },
+  examHeroToday: {
+    fontSize: 50, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1.5,
+    marginTop: 16, marginBottom: 20,
+  },
+  examHeroFooter: {
+    flexDirection: 'row', gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.25)',
+    paddingTop: 16,
+  },
+  examHeroChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  examHeroChipText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+
+  examPrompt: { alignItems: 'center', paddingTop: 20, paddingHorizontal: 16, gap: 6 },
+  examPromptIcon: { width: 72, height: 72, marginBottom: 4 },
+  examPromptTitle: {
+    fontSize: 17, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center',
+  },
+  examPromptSub: {
+    fontSize: 14, fontWeight: '400', color: colors.textMuted, textAlign: 'center',
+    lineHeight: 20, maxWidth: 300,
+  },
+  examPromptCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.primary, borderRadius: 26, paddingHorizontal: 24, minHeight: 50,
+    marginTop: 14, alignSelf: 'stretch',
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22, shadowRadius: 8, elevation: 4,
+  },
+  examPromptCtaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 
   /* ── Empty state ── */
   emptyState: {

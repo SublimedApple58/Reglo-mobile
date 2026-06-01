@@ -50,10 +50,9 @@ export default function HomeLayout() {
       <Stack.Screen
         name="quiz-hint"
         options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          presentation: 'modal',
           headerShown: false,
+          gestureEnabled: true,
         }}
       />
     </Stack>

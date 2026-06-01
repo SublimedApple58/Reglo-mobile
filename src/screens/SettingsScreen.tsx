@@ -41,6 +41,7 @@ import { settingsStore, SlotTarget } from '../stores/settingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
 import { isInstructor, isOwner, isStudent } from '../utils/roles';
+import { useAutoPaymentsEnabled } from '../hooks/useAutoPaymentsEnabled';
 
 type AnimatedChevronProps = { expanded: boolean };
 const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
@@ -256,6 +257,8 @@ export const SettingsScreen = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  // Loads after initialLoading (background) — gates only the availability hint.
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
   const [morningActive, setMorningActive] = useState(false);
   const [afternoonActive, setAfternoonActive] = useState(false);
   const [morningStart, setMorningStart] = useState(buildTime(8, 0));
@@ -293,8 +296,12 @@ export const SettingsScreen = () => {
   const paymentStatusText = paymentProfile?.hasPaymentMethod
     ? 'Metodo di pagamento configurato'
     : 'Nessun metodo configurato';
+  // Presence of the payment row comes from the cached settings query (instant
+  // after first load) so the row renders immediately; only its summary value
+  // waits on the payment profile.
+  const autoPayments = useAutoPaymentsEnabled();
   const showStudentPaymentCard =
-    isStudent(autoscuolaRole) && paymentProfile?.autoPaymentsEnabled === true;
+    autoPayments.enabled || paymentProfile?.autoPaymentsEnabled === true;
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -362,29 +369,35 @@ export const SettingsScreen = () => {
   const loadStudentAvailabilityPreset = useCallback(async (studentId: string) => {
     const anchor = new Date();
     anchor.setHours(0, 0, 0, 0);
-    const dates = Array.from({ length: 7 }, (_, index) => addDays(anchor, index));
-    const responses = await Promise.all(
-      dates.map((day) =>
-        regloApi.getAvailabilitySlots({
-          ownerType: 'student',
-          ownerId: studentId,
-          date: toDateString(day),
-        })
-      )
-    );
+    // Single range request for the whole week (was 7 separate per-day calls).
+    const slots = await regloApi.getAvailabilitySlots({
+      ownerType: 'student',
+      ownerId: studentId,
+      from: toDateString(anchor),
+      to: toDateString(addDays(anchor, 6)),
+    });
+
+    // Group the week's slots by calendar day.
+    const byDay = new Map<string, typeof slots>();
+    (slots ?? []).forEach((slot) => {
+      if (slot.status === 'cancelled') return;
+      const key = toDateString(new Date(slot.startsAt));
+      const arr = byDay.get(key);
+      if (arr) arr.push(slot);
+      else byDay.set(key, [slot]);
+    });
 
     const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
-    responses.forEach((response, index) => {
-      if (!response || response.length === 0) return;
-      const usableSlots = response
-        .filter((slot) => slot.status !== 'cancelled')
+    byDay.forEach((daySlots) => {
+      if (!daySlots.length) return;
+      const sorted = daySlots
+        .slice()
         .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-      if (!usableSlots.length) return;
-      const first = new Date(usableSlots[0].startsAt);
-      const last = new Date(usableSlots[usableSlots.length - 1].endsAt);
+      const first = new Date(sorted[0].startsAt);
+      const last = new Date(sorted[sorted.length - 1].endsAt);
       const startMin = first.getHours() * 60 + first.getMinutes();
       const endMin = last.getHours() * 60 + last.getMinutes();
-      ranges.push({ dayIndex: dates[index].getDay(), startMin, endMin });
+      ranges.push({ dayIndex: first.getDay(), startMin, endMin });
     });
 
     if (!ranges.length) {
@@ -445,8 +458,18 @@ export const SettingsScreen = () => {
         }
         const linkedStudent = findLinkedStudent(studentsList, user);
         setStudentProfile(linkedStudent);
+        // Unblock the screen immediately: the profile card needs no network
+        // and payment is already loaded. The availability preset only feeds
+        // the Disponibilità sub-page + its summary row, so load it in the
+        // background instead of blocking the whole screen on 7 slot calls.
+        setInitialLoading(false);
         if (linkedStudent?.id) {
-          await loadStudentAvailabilityPreset(linkedStudent.id);
+          setAvailabilityLoading(true);
+          loadStudentAvailabilityPreset(linkedStudent.id)
+            .catch(() => {})
+            .finally(() => setAvailabilityLoading(false));
+        } else {
+          setAvailabilityLoading(false);
         }
       } else {
         setPaymentProfile(null);
@@ -827,87 +850,86 @@ export const SettingsScreen = () => {
         </View>
       ) : null}
 
-      {initialLoading ? (
-        <>
-          <SkeletonBlock width="100%" height={96} radius={24} />
-          <SkeletonBlock width="100%" height={56} radius={16} />
-          <SkeletonBlock width="100%" height={56} radius={16} />
-        </>
-      ) : (
-        <>
-          {/* Profile card -> opens profile-edit page */}
-          <Pressable
-            onPress={() => router.push('/(tabs)/settings/profile-edit')}
-            style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
-          >
-            <View style={studentStyles.profileAvatar}>
-              <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
-              <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
-              <View style={studentStyles.profileCompanyPill}>
-                <Ionicons name="business-outline" size={12} color={colors.textMuted} />
-                <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-          </Pressable>
+      {/* Profile card -> opens profile-edit page. Name/email/company come from
+          the session, so they render instantly with no skeleton. */}
+      <Pressable
+        onPress={() => router.push('/(tabs)/settings/profile-edit')}
+        style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
+      >
+        <View style={studentStyles.profileAvatar}>
+          <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
+          <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
+          <View style={studentStyles.profileCompanyPill}>
+            <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+            <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+      </Pressable>
 
-          {/* Menu group: preferences */}
-          <View style={studentStyles.menuGroup}>
-            <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={studentStyles.rowLabel}>Disponibilità</Text>
-                <Text style={studentStyles.rowHint} numberOfLines={1}>{availabilitySummary}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-            </Pressable>
-
-            {showStudentPaymentCard && (
-              <>
-                <View style={studentStyles.rowDivider} />
-                <Pressable onPress={() => router.push('/(tabs)/settings/payment')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                  <Ionicons name="card-outline" size={23} color="#1A1A2E" />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={studentStyles.rowLabel}>Metodo di pagamento</Text>
-                    <Text style={studentStyles.rowHint} numberOfLines={1}>{paymentSummary}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-                </Pressable>
-              </>
+      {/* Menu group: preferences */}
+      <View style={studentStyles.menuGroup}>
+        <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.rowLabel}>Disponibilità</Text>
+            {availabilityLoading ? (
+              <SkeletonBlock width={130} height={11} radius={6} style={{ marginTop: 5 }} />
+            ) : (
+              <Text style={studentStyles.rowHint} numberOfLines={1}>{availabilitySummary}</Text>
             )}
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
 
+        {showStudentPaymentCard && (
+          <>
             <View style={studentStyles.rowDivider} />
-            <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#1A1A2E" />
+            <Pressable onPress={() => router.push('/(tabs)/settings/payment')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="card-outline" size={23} color="#1A1A2E" />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={studentStyles.rowLabel}>Notifiche</Text>
-                <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
-                  {notificationsEnabled ? 'Attive' : 'Disattivate'}
-                </Text>
+                <Text style={studentStyles.rowLabel}>Metodo di pagamento</Text>
+                {initialLoading ? (
+                  <SkeletonBlock width={110} height={11} radius={6} style={{ marginTop: 5 }} />
+                ) : (
+                  <Text style={studentStyles.rowHint} numberOfLines={1}>{paymentSummary}</Text>
+                )}
               </View>
               <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
             </Pressable>
-          </View>
+          </>
+        )}
 
-          {/* Menu group: account */}
-          <View style={studentStyles.menuGroup}>
-            <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
-              <Text style={studentStyles.rowLabelFlex}>Esci</Text>
-            </Pressable>
-            <View style={studentStyles.rowDivider} />
-            <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="trash-outline" size={23} color="#DC2626" />
-              <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
-            </Pressable>
+        <View style={studentStyles.rowDivider} />
+        <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#1A1A2E" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.rowLabel}>Notifiche</Text>
+            <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
+              {notificationsEnabled ? 'Attive' : 'Disattivate'}
+            </Text>
           </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
+      </View>
 
-          <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
-        </>
-      )}
+      {/* Menu group: account */}
+      <View style={studentStyles.menuGroup}>
+        <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+          <Text style={studentStyles.rowLabelFlex}>Esci</Text>
+        </Pressable>
+        <View style={studentStyles.rowDivider} />
+        <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="trash-outline" size={23} color="#DC2626" />
+          <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
+        </Pressable>
+      </View>
+
+      <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
     </>
   );
 
