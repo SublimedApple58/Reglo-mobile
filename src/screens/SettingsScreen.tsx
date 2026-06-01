@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
   Easing,
   interpolate,
+  FadeInUp,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -841,7 +842,7 @@ export const SettingsScreen = () => {
 
   const renderStudentContent = () => (
     <>
-      <Text style={studentStyles.pageTitle}>Profilo</Text>
+      <Animated.Text entering={FadeInUp.duration(400).springify()} style={studentStyles.pageTitle}>Profilo</Animated.Text>
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -852,26 +853,28 @@ export const SettingsScreen = () => {
 
       {/* Profile card -> opens profile-edit page. Name/email/company come from
           the session, so they render instantly with no skeleton. */}
-      <Pressable
-        onPress={() => router.push('/(tabs)/settings/profile-edit')}
-        style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
-      >
-        <View style={studentStyles.profileAvatar}>
-          <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
-          <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
-          <View style={studentStyles.profileCompanyPill}>
-            <Ionicons name="business-outline" size={12} color={colors.textMuted} />
-            <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
+      <Animated.View entering={FadeInUp.delay(70).duration(420).springify()}>
+        <Pressable
+          onPress={() => router.push('/(tabs)/settings/profile-edit')}
+          style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
+        >
+          <View style={studentStyles.profileAvatar}>
+            <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
           </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-      </Pressable>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
+            <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
+            <View style={studentStyles.profileCompanyPill}>
+              <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+              <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        </Pressable>
+      </Animated.View>
 
       {/* Menu group: preferences */}
-      <View style={studentStyles.menuGroup}>
+      <Animated.View entering={FadeInUp.delay(140).duration(420).springify()} style={studentStyles.menuGroup}>
         <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
           <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -914,10 +917,10 @@ export const SettingsScreen = () => {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </Pressable>
-      </View>
+      </Animated.View>
 
       {/* Menu group: account */}
-      <View style={studentStyles.menuGroup}>
+      <Animated.View entering={FadeInUp.delay(210).duration(420).springify()} style={studentStyles.menuGroup}>
         <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
           <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
           <Text style={studentStyles.rowLabelFlex}>Esci</Text>
@@ -927,9 +930,9 @@ export const SettingsScreen = () => {
           <Ionicons name="trash-outline" size={23} color="#DC2626" />
           <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
-      <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
+      <Animated.Text entering={FadeInUp.delay(280).duration(420).springify()} style={studentStyles.footer}>Reglo v1.0.0</Animated.Text>
     </>
   );
 
