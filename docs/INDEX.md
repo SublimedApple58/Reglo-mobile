@@ -31,3 +31,4 @@
 | API Layer & Types | [api-layer.md](architecture/api-layer.md) |
 | Theme & Design System | [theme.md](architecture/theme.md) |
 | Session & Auth | [session-auth.md](architecture/session-auth.md) |
+| **Performance Playbook** (canonical, in the `reglo` repo) — diagnose & fix slow screens: non-blocking loads, granular skeletons, TanStack Query, call schema, + backend indexing/Redis | `../../reglo/docs/architecture/performance-playbook.md` |
