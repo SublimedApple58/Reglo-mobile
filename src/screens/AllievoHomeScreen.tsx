@@ -233,6 +233,7 @@ export const AllievoHomeScreen = () => {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
+  const [swapOffersCount, setSwapOffersCount] = useState<number | null>(null);
 
   // ── Linked student (must come before hooks that depend on studentId) ──
   const selectedStudent = useMemo(
@@ -641,6 +642,7 @@ export const AllievoHomeScreen = () => {
   const assignedInstructorName = bookingOptions?.assignedInstructorName ?? null;
   const assignedInstructorPhone = bookingOptions?.assignedInstructorPhone ?? null;
   const weeklyAbsenceEnabled = bookingOptions?.weeklyAbsenceEnabled === true;
+  const swapEnabled = (bookingOptions?.swapEnabled ?? settings?.swapEnabled) === true;
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   // Prefer cluster-resolved setting over company default.
@@ -652,6 +654,7 @@ export const AllievoHomeScreen = () => {
   const canCancelAppointments = bookingOptions?.studentCancellationEnabled === true;
   const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
   const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
+  const canBook = !!bookingOptions && !studentBookingDisabledByPolicy;
   const requiresPaymentMethodForBooking = Boolean(
     paymentProfile?.autoPaymentsEnabled &&
       !creditFlowEnabled &&
@@ -786,6 +789,59 @@ export const AllievoHomeScreen = () => {
       unsubInbox();
     };
   }, []);
+
+  // Open swap-offers count for the home "Scambi" slot (background, non-blocking).
+  useEffect(() => {
+    if (!swapEnabled || !selectedStudentId) {
+      setSwapOffersCount(null);
+      return;
+    }
+    let cancelled = false;
+    regloApi
+      .getSwapOffers(selectedStudentId, 20)
+      .then((list) => {
+        if (!cancelled) setSwapOffersCount(Array.isArray(list) ? list.length : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setSwapOffersCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [swapEnabled, selectedStudentId]);
+
+  // Declare weekly absence to the assigned instructor (used by the slim row).
+  const handleDeclareAbsence = useCallback(() => {
+    if (weeklyAbsenceDeclared) return;
+    const now = new Date();
+    const dow = now.getDay();
+    const mondayOff = dow === 0 ? -6 : 1 - dow;
+    const ws = new Date(now);
+    ws.setDate(ws.getDate() + mondayOff);
+    const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+    Alert.alert(
+      'Segnala assenza',
+      'Vuoi segnalare la tua assenza per questa settimana al tuo istruttore?',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Conferma',
+          onPress: async () => {
+            setWeeklyAbsenceLoading(true);
+            try {
+              await regloApi.declareWeeklyAbsence({ weekStart: wsStr });
+              setWeeklyAbsenceDeclared(true);
+              setToast({ text: 'Assenza segnalata', tone: 'success' });
+            } catch {
+              setToast({ text: 'Errore nella segnalazione', tone: 'danger' });
+            } finally {
+              setWeeklyAbsenceLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [weeklyAbsenceDeclared]);
 
   const upcoming = useMemo(() => {
     const now = new Date();
@@ -1623,66 +1679,15 @@ export const AllievoHomeScreen = () => {
         {/* ── Large title ── */}
         <Animated.View style={[styles.largeTitleWrap, largeTitleStyle]}>
           <Text style={styles.largeTitleText}>Ciao, {firstName}</Text>
-          <Text style={styles.largeTitleSub}>Le tue guide</Text>
+          {activeCompanyName ? (
+            <View style={styles.largeTitleSchoolRow}>
+              <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.largeTitleSchoolIcon} />
+              <Text style={styles.largeTitleSub} numberOfLines={1}>{activeCompanyName}</Text>
+            </View>
+          ) : (
+            <Text style={styles.largeTitleSub}>Le tue guide</Text>
+          )}
         </Animated.View>
-
-        {/* ── Context cards row (autoscuola + instructor) ── */}
-        {(activeCompanyName || (isLockedToInstructor && assignedInstructorName)) && (
-          <Animated.View entering={FadeInUp.delay(0).duration(280).springify()} style={styles.contextRow}>
-            {/* Autoscuola — info card (inset shadow, non-tappable) */}
-            {activeCompanyName && (
-              <View style={styles.contextInfoCard}>
-                <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.contextIcon} />
-                <Text style={styles.contextInfoText} numberOfLines={1}>{activeCompanyName}</Text>
-              </View>
-            )}
-
-            {/* Instructor — CTA card (elevated, tappable if absence available) */}
-            {isLockedToInstructor && assignedInstructorName && (
-              <Pressable
-                disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
-                onPress={() => {
-                  if (weeklyAbsenceDeclared) return;
-                  const now = new Date();
-                  const dow = now.getDay();
-                  const mondayOff = dow === 0 ? -6 : 1 - dow;
-                  const ws = new Date(now);
-                  ws.setDate(ws.getDate() + mondayOff);
-                  const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
-                  Alert.alert(
-                    'Segnala assenza',
-                    'Vuoi segnalare la tua assenza per questa settimana al tuo istruttore?',
-                    [
-                      { text: 'Annulla', style: 'cancel' },
-                      { text: 'Conferma', onPress: async () => {
-                        setWeeklyAbsenceLoading(true);
-                        try {
-                          await regloApi.declareWeeklyAbsence({ weekStart: wsStr });
-                          setWeeklyAbsenceDeclared(true);
-                          setToast({ text: 'Assenza segnalata', tone: 'success' });
-                        } catch { setToast({ text: 'Errore nella segnalazione', tone: 'danger' }); }
-                        finally { setWeeklyAbsenceLoading(false); }
-                      }},
-                    ],
-                  );
-                }}
-                style={({ pressed }) => [styles.contextCtaCard, pressed && !weeklyAbsenceDeclared && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
-              >
-                <Image source={require('../../assets/icons/fluent-id-card.png')} style={styles.contextIcon} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.contextCtaTitle} numberOfLines={1}>{assignedInstructorName}</Text>
-                  <Text style={styles.contextCtaSub}>
-                    {weeklyAbsenceDeclared ? 'Assenza segnalata' : 'Segnala assenza'}
-                  </Text>
-                </View>
-                {weeklyAbsenceDeclared
-                  ? <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-                  : <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-                }
-              </Pressable>
-            )}
-          </Animated.View>
-        )}
 
         {/* ── Skeleton while loading ── */}
         {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
@@ -1703,6 +1708,15 @@ export const AllievoHomeScreen = () => {
             <Text style={styles.emptyStateSub}>
               Prenota la tua prima guida e inizia il percorso{'\n'}verso la patente!
             </Text>
+            {canBook && (
+              <Pressable
+                onPress={openBookingFlow}
+                style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
+              >
+                <Ionicons name="add" size={18} color="#FFFFFF" />
+                <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -1836,25 +1850,39 @@ export const AllievoHomeScreen = () => {
           </Animated.View>
         )}
 
-        {/* ── Upcoming lessons — horizontal scroll of mini-cards ── */}
-        {upcoming.length > 1 && (
+        {/* ── Upcoming lessons + booking CTA — horizontal scroll of mini-cards ── */}
+        {(upcoming.length > 1 || (canBook && upcoming.length >= 1)) && (
           <Animated.View entering={FadeInUp.delay(140).duration(280).springify()}>
-            <Pressable
-              onPress={() => {
-                allLessonsStore.set({ lessons: upcoming, onOpenDetail: openLessonDetail });
-                router.push('/(tabs)/home/all-lessons');
-              }}
-              style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.6 }]}
-            >
-              <Text style={styles.seeAllText}>Vedi tutte le guide</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-            </Pressable>
+            {upcoming.length > 1 && (
+              <Pressable
+                onPress={() => {
+                  allLessonsStore.set({ lessons: upcoming, onOpenDetail: openLessonDetail });
+                  router.push('/(tabs)/home/all-lessons');
+                }}
+                style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.seeAllText}>Vedi tutte le guide</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </Pressable>
+            )}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={{ overflow: 'visible' }}
               contentContainerStyle={styles.upcomingScroll}
             >
+              {canBook && (
+                <Pressable
+                  onPress={openBookingFlow}
+                  style={({ pressed }) => [styles.bookCard, pressed && styles.ctaPressed]}
+                >
+                  <View style={styles.bookCardIcon}>
+                    <Ionicons name="add" size={22} color="#1A1A2E" />
+                  </View>
+                  <Text style={styles.bookCardTitle}>Prenota</Text>
+                  <Text style={styles.bookCardSub}>una guida</Text>
+                </Pressable>
+              )}
               {upcoming.slice(1).map((lesson, idx) => {
                 const bg = LESSON_CARD_COLORS[(idx + 1) % LESSON_CARD_COLORS.length];
                 return (
@@ -1887,20 +1915,65 @@ export const AllievoHomeScreen = () => {
           </Animated.View>
         )}
 
+        {/* ── Scambi — open swap offers from other students ── */}
+        {swapEnabled && (
+          <Animated.View entering={FadeInUp.delay(180).duration(280).springify()}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/swaps')}
+              style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
+            >
+              <Image source={require('../../assets/icons/fluent-swap.png')} style={styles.swapIcon} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.swapTitle}>Scambi</Text>
+                <Text style={styles.swapSub} numberOfLines={1}>
+                  {swapOffersCount == null
+                    ? 'Guide libere da altri allievi'
+                    : swapOffersCount > 0
+                      ? `${swapOffersCount} guid${swapOffersCount === 1 ? 'a disponibile' : 'e disponibili'} da altri allievi`
+                      : 'Nessuna guida disponibile al momento'}
+                </Text>
+              </View>
+              {swapOffersCount != null && swapOffersCount > 0 && (
+                <View style={styles.swapBadge}>
+                  <Text style={styles.swapBadgeText}>{swapOffersCount}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── Segnala assenza — slim, low-emphasis row ── */}
+        {isLockedToInstructor && assignedInstructorName && (
+          <Animated.View entering={FadeInUp.delay(220).duration(280).springify()}>
+            <Pressable
+              disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
+              onPress={handleDeclareAbsence}
+              style={({ pressed }) => [styles.absenceRow, pressed && !weeklyAbsenceDeclared && { opacity: 0.6 }]}
+            >
+              <Ionicons
+                name={weeklyAbsenceDeclared ? 'checkmark-circle' : 'calendar-outline'}
+                size={18}
+                color={weeklyAbsenceDeclared ? '#22C55E' : colors.textMuted}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.absenceTitle}>
+                  {weeklyAbsenceDeclared ? 'Assenza segnalata questa settimana' : 'Sarai assente questa settimana?'}
+                </Text>
+                <Text style={styles.absenceSub} numberOfLines={1}>
+                  {weeklyAbsenceDeclared ? assignedInstructorName : `Avvisa ${assignedInstructorName}`}
+                </Text>
+              </View>
+              {!weeklyAbsenceDeclared && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+            </Pressable>
+          </Animated.View>
+        )}
+
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
 
-      {/* ── FAB: Book a lesson (Google Calendar style) ── */}
-      {bookingOptions && !studentBookingDisabledByPolicy && (
-        <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.fab}>
-          <Pressable
-            onPress={openBookingFlow}
-            style={({ pressed }) => [styles.fabBtn, pressed && { transform: [{ scale: 0.92 }] }]}
-          >
-            <Ionicons name="add" size={28} color={colors.surface} />
-          </Pressable>
-        </Animated.View>
-      )}
+      {/* Booking is now triggered from the in-row "Prenota una guida" CTA card
+          (and the empty-state button) instead of a floating FAB. */}
 
       {/* Booking flow — now an Expo Router formSheet screen at /(tabs)/home/booking-flow */}
       {/* Lesson Detail — now an Expo Router formSheet screen at /(tabs)/home/lesson-detail */}
@@ -1952,27 +2025,32 @@ const styles = StyleSheet.create({
   largeTitleWrap: { paddingTop: 4, paddingBottom: 2 },
   largeTitleText: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
+  largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  largeTitleSchoolIcon: { width: 16, height: 16 },
 
-  /* ── Context cards (autoscuola + instructor in a row) ── */
-  contextRow: { flexDirection: 'row', gap: 10 },
-  contextInfoCard: {
-    flex: 4, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#EEEDEB', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14,
-    boxShadow: [
-      { offsetX: 0, offsetY: 2, blurRadius: 4, spreadDistance: 0, color: 'rgba(0,0,0,0.10)', inset: true },
-      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.05)', inset: true },
-    ],
-  },
-  contextIcon: { width: 28, height: 28, alignSelf: 'center' },
-  contextInfoText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1 },
-  contextCtaCard: {
-    flex: 5, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14,
+  /* ── Scambi (swap offers) slot ── */
+  swapCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
+    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
   },
-  contextCtaTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  contextCtaSub: { fontSize: 11, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
+  swapIcon: { width: 36, height: 36 },
+  swapTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2 },
+  swapSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
+  swapBadge: {
+    backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, height: 22,
+    paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
+  },
+  swapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+
+  /* ── Segnala assenza — slim row ── */
+  absenceRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 12, paddingHorizontal: 4,
+  },
+  absenceTitle: { fontSize: 13.5, fontWeight: '600', color: colors.textSecondary },
+  absenceSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
 
   /* ── Scroll content ── */
   scrollContent: { paddingHorizontal: spacing.md, gap: 20 },
@@ -1980,17 +2058,21 @@ const styles = StyleSheet.create({
   /* ── Press feedback ── */
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
 
-  /* ── FAB (Google Calendar style) ── */
-  fab: {
-    position: 'absolute', right: 20, bottom: 16, zIndex: 5,
+  /* ── Booking CTA — white Airbnb card, lifted, Reglo-colored shadow ── */
+  bookCard: {
+    width: 150, borderRadius: 20, padding: 14,
+    alignItems: 'flex-start', justifyContent: 'center', gap: 4,
+    backgroundColor: colors.surface,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.30, shadowRadius: 16, elevation: 8,
   },
-  fabBtn: {
-    width: 56, height: 56, borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
+  bookCardIcon: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#1A1A2E', borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
+  bookCardTitle: { fontSize: 16, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2 },
+  bookCardSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted },
 
   /* ── HERO card: next lesson — warm elevated card ── */
   heroCard: {
