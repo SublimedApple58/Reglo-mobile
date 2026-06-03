@@ -1,8 +1,8 @@
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { TimePickerDrawer } from '../../../src/components/TimePickerDrawer';
 import { settingsStore, SlotTarget } from '../../../src/stores/settingsStore';
+import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -12,7 +12,6 @@ const toTimeStr = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${Strin
 export default function AvailabilityScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(settingsStore.subscribe, settingsStore.get);
-  const [pickerTarget, setPickerTarget] = useState<SlotTarget | null>(null);
 
   if (!data) return <View style={s.root} />;
 
@@ -23,12 +22,13 @@ export default function AvailabilityScreen() {
     onPickSlotTime, availabilitySaving, onSaveAvailability,
   } = data;
 
-  const selectedTime =
-    pickerTarget === 'morningStart' ? morningStart
-    : pickerTarget === 'morningEnd' ? morningEnd
-    : pickerTarget === 'afternoonStart' ? afternoonStart
-    : pickerTarget === 'afternoonEnd' ? afternoonEnd
-    : morningStart;
+  const openPicker = (target: SlotTarget, current: Date) => {
+    timePickerStore.set({
+      selectedTime: current,
+      onConfirm: (date) => onPickSlotTime(target, date),
+    });
+    router.push('/(tabs)/settings/time-picker');
+  };
 
   return (
     <View style={s.root}>
@@ -59,11 +59,11 @@ export default function AvailabilityScreen() {
               </Pressable>
               {morningActive && (
                 <View style={s.timeRow}>
-                  <Pressable style={s.timeCard} onPress={() => setPickerTarget('morningStart')}>
+                  <Pressable style={s.timeCard} onPress={() => openPicker('morningStart', morningStart)}>
                     <Text style={s.timeText}>{toTimeStr(morningStart)}</Text>
                   </Pressable>
                   <Text style={s.sep}>—</Text>
-                  <Pressable style={s.timeCard} onPress={() => setPickerTarget('morningEnd')}>
+                  <Pressable style={s.timeCard} onPress={() => openPicker('morningEnd', morningEnd)}>
                     <Text style={s.timeText}>{toTimeStr(morningEnd)}</Text>
                   </Pressable>
                 </View>
@@ -77,11 +77,11 @@ export default function AvailabilityScreen() {
               </Pressable>
               {afternoonActive && (
                 <View style={s.timeRow}>
-                  <Pressable style={s.timeCard} onPress={() => setPickerTarget('afternoonStart')}>
+                  <Pressable style={s.timeCard} onPress={() => openPicker('afternoonStart', afternoonStart)}>
                     <Text style={s.timeText}>{toTimeStr(afternoonStart)}</Text>
                   </Pressable>
                   <Text style={s.sep}>—</Text>
-                  <Pressable style={s.timeCard} onPress={() => setPickerTarget('afternoonEnd')}>
+                  <Pressable style={s.timeCard} onPress={() => openPicker('afternoonEnd', afternoonEnd)}>
                     <Text style={s.timeText}>{toTimeStr(afternoonEnd)}</Text>
                   </Pressable>
                 </View>
@@ -98,13 +98,6 @@ export default function AvailabilityScreen() {
           </Pressable>
         </>
       )}
-
-      <TimePickerDrawer
-        visible={pickerTarget !== null}
-        onClose={() => setPickerTarget(null)}
-        onSelectTime={(date) => { if (pickerTarget) onPickSlotTime(pickerTarget, date); setPickerTarget(null); }}
-        selectedTime={selectedTime}
-      />
     </View>
   );
 }

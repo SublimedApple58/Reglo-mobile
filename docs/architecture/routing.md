@@ -14,11 +14,12 @@ Expo Router 6, file-based routing.
 | role | Instructor, Owner | RoleHomeScreen (agenda) |
 | notes | Instructor, Owner | Notes management + ClusterSettings |
 | payments | Student (if autoPayments) | AllievoPaymentsScreen |
-| swaps | Student (if swaps enabled) | SwapOffersScreen |
 | more | All | MoreScreen → settings, vehicles, instructors, hours |
 | settings | All | SettingsScreen |
 
-Sub-routes: home/create-exam, home/notifications, notes/[studentId], notes/cluster-settings, more/settings, more/vehicles, more/instructors-overview, more/instructor-hours
+Swaps is **not** a tab — it's a home sub-route (`home/swaps`, SwapOffersScreen), opened from the home "Scambi" CTA when swaps are enabled.
+
+Sub-routes: home/create-exam, home/notifications, home/swaps, notes/[studentId], notes/cluster-settings, more/settings, more/vehicles, more/instructors-overview, more/instructor-hours
 
 ## Tab bar
 - iOS: native tabs (`NativeTabs` + `GlassTabBar.ios.tsx`)

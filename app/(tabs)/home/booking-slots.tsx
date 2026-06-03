@@ -33,7 +33,7 @@ export default function BookingSlotsScreen() {
 
       {slots.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md }}>
-          <Ionicons name="calendar-clear-outline" size={28} color="rgba(26,18,10,0.15)" />
+          <Ionicons name="calendar-clear-outline" size={28} color="#CBD5E1" />
           <Text style={s.emptyText}>Nessun orario disponibile{'\n'}per questo giorno</Text>
         </View>
       ) : (
@@ -87,21 +87,21 @@ export default function BookingSlotsScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, flex: 1 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, paddingHorizontal: spacing.md, marginBottom: 6 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: '#9CA3AF', paddingHorizontal: spacing.md, marginBottom: 8 },
-  emptyText: { fontSize: 13, color: '#9CA3AF', marginTop: 8, textAlign: 'center', lineHeight: 18 },
+  title: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4, paddingHorizontal: spacing.md, marginBottom: 6 },
+  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, paddingHorizontal: spacing.md, marginBottom: 8 },
+  emptyText: { fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 18 },
   footer: { paddingTop: spacing.md, paddingBottom: 34, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  cta: { backgroundColor: colors.primary, height: 54, borderRadius: 999, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
+  cta: { backgroundColor: colors.primary, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFF', letterSpacing: -0.2 },
   // Timeline
   tlRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 62 },
   tlLeft: { width: 52, alignItems: 'center', paddingTop: 16 },
   tlHour: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
-  tlLine: { width: 1.5, flex: 1, backgroundColor: 'rgba(26,18,10,0.08)', marginTop: 8, minHeight: 20 },
-  tlCard: { flex: 1, height: 52, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(26,18,10,0.08)', backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 6, elevation: 5 },
-  tlCardActive: { backgroundColor: '#1a120a', borderColor: '#1a120a', shadowColor: '#1a120a', shadowOpacity: 0.2 },
-  tlCardText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1a120a' },
-  tlCardTextActive: { flex: 1, fontSize: 15, fontWeight: '700', color: '#FFF' },
-  tlCheck: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#ec4899', alignItems: 'center', justifyContent: 'center' },
+  tlLine: { width: 1.5, flex: 1, backgroundColor: colors.border, marginTop: 8, minHeight: 20 },
+  tlCard: { flex: 1, minHeight: 52, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingVertical: 10, marginBottom: 10, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  tlCardActive: { borderColor: '#1A1A2E', borderWidth: 2, shadowOpacity: 0.08 },
+  tlCardText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  tlCardTextActive: { flex: 1, fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  tlCheck: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
   tlCheckText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 });

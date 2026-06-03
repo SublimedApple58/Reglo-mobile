@@ -35,8 +35,6 @@ export default function TabsLayout() {
   // Students in TEORIA: quiz central, no swaps/payments.
   const showPaymentsTab =
     !showRoleTab && autoPaymentsEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
-  const showSwapsTab =
-    isStudent && swapEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
   const showNotesTab =
     (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed && !isStudentInTeoria;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
@@ -53,7 +51,6 @@ export default function TabsLayout() {
     if (!showRoleTab) set.add('role');
     if (!showNotesTab) set.add('notes');
     if (!showMoreTab) set.add('more');
-    if (!showSwapsTab) set.add('swaps');
     if (!showPaymentsTab) set.add('payments');
     if (!showQuizTab) set.add('quiz');
     // Settings hidden when "Altro" is shown (accessed from More screen)
@@ -65,7 +62,6 @@ export default function TabsLayout() {
     showRoleTab,
     showNotesTab,
     showMoreTab,
-    showSwapsTab,
     showPaymentsTab,
     showQuizTab,
     isStudentAwaiting,
@@ -94,7 +90,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
-        <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
         <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
       </Tabs>

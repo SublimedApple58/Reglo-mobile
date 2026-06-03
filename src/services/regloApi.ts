@@ -547,6 +547,18 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaSwapOfferWithDetails[]>('/api/autoscuole/swap/offers', {
         params: { studentId, limit },
       }),
+    getMySwapOffers: async (studentId: string) =>
+      client.request<AutoscuolaSwapOfferWithDetails[]>('/api/autoscuole/swap/my-offers', {
+        params: { studentId },
+      }),
+    cancelSwapOffer: async (offerId: string, studentId: string) =>
+      client.request<{ cancelled: boolean }>(
+        `/api/autoscuole/swap/offers/${offerId}/cancel`,
+        {
+          method: 'POST',
+          body: { studentId },
+        },
+      ),
     getMyAcceptedSwaps: async (studentId: string) =>
       client.request<Array<{
         id: string;

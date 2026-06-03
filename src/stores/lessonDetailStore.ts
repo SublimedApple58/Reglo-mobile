@@ -6,8 +6,11 @@ type LessonDetailData = {
   canSwap: boolean;
   canCancel: boolean;
   vehiclesEnabled: boolean;
+  /** Set when an active swap request already exists for this lesson. */
+  activeSwapOfferId?: string | null;
   onSwap: (id: string) => void;
   onCancel: (id: string) => void;
+  onRevokeSwap?: (offerId: string) => void;
 };
 
 let _data: LessonDetailData | null = null;

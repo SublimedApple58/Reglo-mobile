@@ -295,6 +295,11 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
               <Image source={iconPractice} style={s.ctaIcon} />
               <Text style={s.ctaTitle}>Esercitazione</Text>
               <Text style={s.ctaSub}>30 domande</Text>
+              {starting === 'PRACTICE' && (
+                <View style={s.ctaLoading}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              )}
             </Pressable>
           </View>
           {hasErrors && (
@@ -308,7 +313,9 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
                 <Text style={s.ctaReviewTitle}>Ripassa i tuoi errori</Text>
                 <Text style={s.ctaReviewSub}>Rivedi le domande sbagliate</Text>
               </View>
-              <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
+              {starting === 'REVIEW'
+                ? <ActivityIndicator color={colors.primary} />
+                : <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />}
             </Pressable>
           )}
         </Animated.View>
@@ -473,6 +480,13 @@ const s = StyleSheet.create({
   },
   ctaCardDark: { backgroundColor: '#1A1A2E' },
   ctaCardPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
+  ctaLoading: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ctaIcon: { width: 44, height: 44, marginBottom: 4 },
   ctaTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   ctaTitleLight: { fontSize: 15, fontWeight: '700', color: colors.surface },

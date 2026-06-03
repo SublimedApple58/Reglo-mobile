@@ -26,7 +26,7 @@ import {
 } from 'react-native';
 
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import { BlurView } from 'expo-blur';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -234,6 +234,8 @@ export const AllievoHomeScreen = () => {
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
   const [swapOffersCount, setSwapOffersCount] = useState<number | null>(null);
+  // My active swap requests: appointmentId → offerId (for the home marker + revoke).
+  const [mySwapByAppointment, setMySwapByAppointment] = useState<Map<string, string>>(new Map());
 
   // ── Linked student (must come before hooks that depend on studentId) ──
   const selectedStudent = useMemo(
@@ -765,6 +767,18 @@ export const AllievoHomeScreen = () => {
   // AppState foreground reload is handled globally by TanStack Query focusManager
   // in _layout.tsx — no per-screen listener needed.
 
+  // Refetch appointments whenever the Home tab regains focus (or the app opens
+  // on it). focusManager only fires on OS-level app foreground and respects
+  // staleTime, so a booking made elsewhere (e.g. an exam booked from the web
+  // while the app stayed open) wouldn't show up. Forcing a refetch on focus
+  // makes returning to Home always reflect the current schedule.
+  useFocusEffect(
+    useCallback(() => {
+      if (!selectedStudentId) return;
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    }, [queryClient, selectedStudentId]),
+  );
+
   // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
   useEffect(() => {
     if (!selectedStudentId) return;
@@ -809,6 +823,34 @@ export const AllievoHomeScreen = () => {
       cancelled = true;
     };
   }, [swapEnabled, selectedStudentId]);
+
+  // My active swap requests (background): mark the lessons I asked to swap.
+  const refreshMySwaps = useCallback(async () => {
+    if (!swapEnabled || !selectedStudentId) {
+      setMySwapByAppointment(new Map());
+      return;
+    }
+    try {
+      const list = await regloApi.getMySwapOffers(selectedStudentId);
+      const map = new Map<string, string>();
+      (Array.isArray(list) ? list : []).forEach((o) => map.set(o.appointmentId, o.id));
+      setMySwapByAppointment(map);
+    } catch {
+      // non-blocking
+    }
+  }, [swapEnabled, selectedStudentId]);
+
+  useEffect(() => {
+    refreshMySwaps();
+  }, [refreshMySwaps]);
+
+  // Re-sync swap markers when another screen mutates swaps (e.g. revoke/accept
+  // from the Scambi section emits emitDataChanged).
+  useEffect(() => {
+    return notificationEvents.onDataChanged(() => {
+      refreshMySwaps();
+    });
+  }, [refreshMySwaps]);
 
   // Declare weekly absence to the assigned instructor (used by the slim row).
   const handleDeclareAbsence = useCallback(() => {
@@ -1316,16 +1358,53 @@ export const AllievoHomeScreen = () => {
     if (creatingSwap) return;
     setCreatingSwap(true);
     setToast(null);
+    // Optimistic: mark the lesson immediately with a temp offer id.
+    const tempOfferId = `temp-${appointmentId}`;
+    setMySwapByAppointment((prev) => new Map(prev).set(appointmentId, tempOfferId));
     try {
       await regloApi.createSwapOffer(appointmentId);
       setToast({ text: 'Richiesta di sostituzione inviata!', tone: 'success' });
+      refreshMySwaps(); // reconcile temp id → real offer id (background)
     } catch (err) {
+      // Revert only if our optimistic entry is still the temp one.
+      setMySwapByAppointment((prev) => {
+        if (prev.get(appointmentId) !== tempOfferId) return prev;
+        const next = new Map(prev);
+        next.delete(appointmentId);
+        return next;
+      });
       setToast({
         text: err instanceof Error ? err.message : 'Errore durante la richiesta di scambio',
         tone: 'danger',
       });
     } finally {
       setCreatingSwap(false);
+    }
+  };
+
+  const handleRevokeSwap = async (offerId: string) => {
+    if (!selectedStudentId) return;
+    setToast(null);
+    // Optimistic: drop the marker immediately (capture entry for revert).
+    const entry = Array.from(mySwapByAppointment.entries()).find(([, oId]) => oId === offerId);
+    setMySwapByAppointment((prev) => {
+      if (!entry) return prev;
+      const next = new Map(prev);
+      next.delete(entry[0]);
+      return next;
+    });
+    try {
+      await regloApi.cancelSwapOffer(offerId, selectedStudentId);
+      setToast({ text: 'Richiesta di sostituzione revocata', tone: 'info' });
+      refreshMySwaps(); // reconcile in background
+    } catch (err) {
+      if (entry) {
+        setMySwapByAppointment((prev) => new Map(prev).set(entry[0], entry[1]));
+      }
+      setToast({
+        text: err instanceof Error ? err.message : 'Errore durante la revoca',
+        tone: 'danger',
+      });
     }
   };
 
@@ -1584,11 +1663,13 @@ export const AllievoHomeScreen = () => {
       canSwap: isFutureActive && ['scheduled', 'confirmed'].includes(status) && !!(bookingOptions?.swapEnabled ?? settings?.swapEnabled),
       canCancel: isFutureActive && !!canCancelAppointments,
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
+      activeSwapOfferId: mySwapByAppointment.get(lesson.id) ?? null,
       onSwap: handleCreateSwap,
       onCancel: handleCancel,
+      onRevokeSwap: handleRevokeSwap,
     });
     router.push('/(tabs)/home/lesson-detail');
-  }, [paymentByAppointmentId, bookingOptions, settings, canCancelAppointments, handleCreateSwap, handleCancel, router]);
+  }, [paymentByAppointmentId, bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
 
   const formatInstructorInitials = (name: string | null | undefined) => {
     if (!name) return 'Da assegnare';
@@ -1835,15 +1916,24 @@ export const AllievoHomeScreen = () => {
               </View>
 
               <View style={styles.heroFooter}>
-                <View style={styles.heroChip}>
-                  <Ionicons name="person" size={13} color={colors.textSecondary} />
-                  <Text style={styles.heroChipText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
-                </View>
-                {nextLesson.types && nextLesson.types.length > 0 && (
-                  <View style={styles.heroChip}>
-                    <Ionicons name="flag" size={13} color={colors.textSecondary} />
-                    <Text style={styles.heroChipText}>{formatLessonType(nextLesson.types[0])}</Text>
+                {mySwapByAppointment.has(nextLesson.id) ? (
+                  <View style={styles.heroSwapChip}>
+                    <Ionicons name="swap-horizontal" size={13} color="#DB2777" />
+                    <Text style={styles.heroSwapChipText}>Sostituzione richiesta</Text>
                   </View>
+                ) : (
+                  <>
+                    <View style={styles.heroChip}>
+                      <Ionicons name="person" size={13} color={colors.textSecondary} />
+                      <Text style={styles.heroChipText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
+                    </View>
+                    {nextLesson.types && nextLesson.types.length > 0 && (
+                      <View style={styles.heroChip}>
+                        <Ionicons name="flag" size={13} color={colors.textSecondary} />
+                        <Text style={styles.heroChipText}>{formatLessonType(nextLesson.types[0])}</Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             </Pressable>
@@ -1895,6 +1985,11 @@ export const AllievoHomeScreen = () => {
                       pressed && styles.ctaPressed,
                     ]}
                   >
+                    {mySwapByAppointment.has(lesson.id) && (
+                      <View style={styles.miniSwapBadge}>
+                        <Ionicons name="swap-horizontal" size={12} color="#DB2777" />
+                      </View>
+                    )}
                     <Image
                       source={require('../../assets/icons/fluent-car.png')}
                       style={styles.miniCardIcon}
@@ -1905,9 +2000,15 @@ export const AllievoHomeScreen = () => {
                     <Text style={styles.miniCardDate} numberOfLines={1}>
                       {formatDay(lesson.startsAt)}
                     </Text>
-                    <Text style={styles.miniCardInstructor} numberOfLines={1}>
-                      {lesson.instructor?.name ?? 'Da assegnare'}
-                    </Text>
+                    {mySwapByAppointment.has(lesson.id) ? (
+                      <Text style={styles.miniCardSwap} numberOfLines={1}>
+                        Sostituzione richiesta
+                      </Text>
+                    ) : (
+                      <Text style={styles.miniCardInstructor} numberOfLines={1}>
+                        {lesson.instructor?.name ?? 'Da assegnare'}
+                      </Text>
+                    )}
                   </Pressable>
                 );
               })}
@@ -1919,7 +2020,7 @@ export const AllievoHomeScreen = () => {
         {swapEnabled && (
           <Animated.View entering={FadeInUp.delay(180).duration(280).springify()}>
             <Pressable
-              onPress={() => router.push('/(tabs)/swaps')}
+              onPress={() => router.push('/(tabs)/home/swaps')}
               style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
             >
               <Image source={require('../../assets/icons/fluent-swap.png')} style={styles.swapIcon} />
@@ -2107,6 +2208,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  heroSwapChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#FCE7F3', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#DB2777' },
 
   /* ── Mini-cards: horizontal upcoming lessons ── */
   upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
@@ -2120,6 +2227,12 @@ const styles = StyleSheet.create({
   miniCardTime: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
   miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
+  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#DB2777', marginTop: 2 },
+  miniSwapBadge: {
+    position: 'absolute', top: 10, right: 10,
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#FCE7F3',
+    alignItems: 'center', justifyContent: 'center',
+  },
   seeAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 4,

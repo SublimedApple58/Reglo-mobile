@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useSession } from '../../src/context/SessionContext';
-import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
-import { SwapOffersScreen } from '../../src/screens/SwapOffersScreen';
+import { useSession } from '../../../src/context/SessionContext';
+import { useSwapEnabled } from '../../../src/hooks/useSwapEnabled';
+import { SwapOffersScreen } from '../../../src/screens/SwapOffersScreen';
 
 export default function SwapsRoute() {
   const { autoscuolaRole } = useSession();

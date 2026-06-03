@@ -45,8 +45,9 @@ export default function LessonDetailScreen() {
     return <View style={s.root} />;
   }
 
-  const { lesson, payment, canSwap, canCancel, vehiclesEnabled, onSwap, onCancel } = data;
+  const { lesson, payment, canSwap, canCancel, vehiclesEnabled, activeSwapOfferId, onSwap, onCancel, onRevokeSwap } = data;
   const isFuture = new Date(lesson.startsAt).getTime() > Date.now();
+  const hasActiveSwap = !!activeSwapOfferId;
 
   return (
     <View style={s.root}>
@@ -65,6 +66,12 @@ export default function LessonDetailScreen() {
           <Text style={s.heroDuration}>
             {lessonDurationMinutes(lesson.startsAt, lesson.endsAt)} min
           </Text>
+          {hasActiveSwap && (
+            <View style={s.swapBanner}>
+              <Ionicons name="swap-horizontal" size={14} color="#DB2777" />
+              <Text style={s.swapBannerText}>Sostituzione richiesta · in attesa di un compagno</Text>
+            </View>
+          )}
         </View>
 
         {/* Details (flat rows) */}
@@ -152,9 +159,17 @@ export default function LessonDetailScreen() {
         </View>
 
         {/* Action buttons */}
-        {isFuture && (canSwap || canCancel) && (
+        {isFuture && (canSwap || canCancel || hasActiveSwap) && (
           <View style={{ gap: 8, marginTop: 32 }}>
-            {canSwap && (
+            {hasActiveSwap ? (
+              <Pressable
+                style={({ pressed }) => [s.revokeBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                onPress={() => { router.back(); setTimeout(() => onRevokeSwap?.(activeSwapOfferId!), 350); }}
+              >
+                <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                <Text style={s.revokeText}>Revoca richiesta sostituzione</Text>
+              </Pressable>
+            ) : canSwap ? (
               <Pressable
                 style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
                 onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
@@ -162,7 +177,7 @@ export default function LessonDetailScreen() {
                 <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
                 <Text style={s.swapText}>Cerca sostituto</Text>
               </Pressable>
-            )}
+            ) : null}
             {canCancel && (
               <Pressable
                 style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
@@ -206,6 +221,18 @@ const s = StyleSheet.create({
     shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
   },
   swapText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
+  swapBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+    marginTop: 12, paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 999, backgroundColor: '#FCE7F3',
+  },
+  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#DB2777', letterSpacing: -0.1 },
+  revokeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 54, borderRadius: 27,
+    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+  },
+  revokeText: { fontSize: 16, fontWeight: '700', color: '#DC2626', letterSpacing: -0.2 },
   cancelBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 48, borderRadius: 26,

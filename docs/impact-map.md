@@ -89,9 +89,9 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Quiz Teoria**: tab visibile solo in TEORIA + `hasQuizAccess`; CTA della home TEORIA portano direttamente al quiz.
 - → **Booking Flow**: tab Agenda nascosta in AWAITING e TEORIA + booking server-side bloccato (messaggi distinti per AWAITING vs TEORIA).
 - → **Tab Layout**:
-  - AWAITING → solo `home` (niente settings, payments, notes, swaps, quiz)
+  - AWAITING → solo `home` (niente settings, payments, notes, quiz)
   - TEORIA → `home` + `quiz` (se `hasQuizAccess`) + eventualmente `notes`
-  - PRATICA → `home` + `payments` (se autoPayments) + `swaps` (se enabled) + `notes` + `settings`
+  - PRATICA → `home` + `payments` (se autoPayments) + `notes` + `settings`. Scambi **non** è una tab: si apre da `home/swaps` via CTA "Scambi" (se `swapEnabled`).
   - PATENTATO → solo `home`
 - → **Notifications**: due `kinds` (`theory_exam_countdown`, `theory_quiz_inactivity`) inbox-only.
 - → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.

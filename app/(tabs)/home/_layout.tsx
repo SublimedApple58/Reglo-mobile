@@ -56,6 +56,16 @@ export default function HomeLayout() {
           gestureEnabled: true,
         }}
       />
+      <Stack.Screen name="swaps" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="swap-detail"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

@@ -90,16 +90,12 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
   // ── Swap offers (all incoming) ──
   const [swapOffers, setSwapOffers] = useState<AutoscuolaSwapOfferWithDetails[]>([]);
-  const [swapOffer, setSwapOffer] = useState<AutoscuolaSwapOfferWithDetails | null>(null);
-  const [swapOpen, setSwapOpen] = useState(false);
-  const [swapLoading, setSwapLoading] = useState(false);
   const ignoredIds = useRef(new Set<string>());
   const ignoredLoaded = useRef(false);
 
-  // ── Swap accepted confirmations (all) ──
+  // ── Swap accepted confirmations (tracked for inbox/badge only; no drawer —
+  // swap-accepted notifications route to the Scambi section) ──
   const [confirmations, setConfirmations] = useState<ConfirmationData[]>([]);
-  const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null);
-  const [confirmationOpen, setConfirmationOpen] = useState(false);
 
   // ── Waitlist (all) ──
   const [waitlistOffers, setWaitlistOffers] = useState<AutoscuolaWaitlistOfferWithSlot[]>([]);
@@ -141,7 +137,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   // ── Accepted / expired tracking ──
   const acceptedIds = useRef(new Set<string>());
   const acceptedLoaded = useRef(false);
-  const [staleDrawerKind, setStaleDrawerKind] = useState<'accepted' | 'expired' | null>(null);
+  const [staleDrawerKind, setStaleDrawerKind] = useState<'accepted' | null>(null);
 
   // ── Student scheduled appointments (for overlap check) ──
   const [scheduledAppointments, setScheduledAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
@@ -876,6 +872,11 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
   // ── Open drawer for a specific notification item ──
   const openDrawerForItem = useCallback((item: NotificationItem) => {
+    // Swap offers no longer open a drawer — they are handled in the dedicated
+    // "Scambi" section (the inbox navigates there on tap). Swap-accepted
+    // confirmations are swap-related too → no drawer, handled via the inbox
+    // routing to Scambi.
+    if (item.kind === 'swap' || item.kind === 'confirmation') return;
     // Available slots: loads fresh from API, no stale check needed
     if (item.kind === 'available_slots') {
       handleAvailableSlotsNotification(item.data.date);
@@ -886,37 +887,29 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       setStaleDrawerKind('accepted');
       return;
     }
-    // Confirmations are always viewable (they're info-only)
-    if (item.kind === 'confirmation') {
-      setConfirmationData(item.data);
-      setConfirmationOpen(true);
-      return;
-    }
     // The "stale" / "expired" path below applies ONLY to interactive offer kinds.
     // For info-only kinds (appointment_cancelled, appointment_rescheduled, weekly_absence,
     // holiday_declared, availability_published, sick_leave_cancelled, ...) there is no
     // drawer to open — bail silently. Otherwise the stillAvailable check would always
     // be false (the 3 OR clauses can never match a non-offer kind) and the user would
     // see the misleading "Troppo tardi!" drawer pop up out of nowhere.
-    const isOfferKind = item.kind === 'swap' || item.kind === 'waitlist' || item.kind === 'proposal';
+    const isOfferKind = item.kind === 'waitlist' || item.kind === 'proposal';
     if (!isOfferKind) return;
 
     // Check if the offer is still in the current API arrays
     const stillAvailable =
-      (item.kind === 'swap' && swapOffers.some((s) => s.id === item.id)) ||
       (item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id)) ||
       (item.kind === 'proposal' && proposals.some((p) => p.id === item.id));
 
     if (!stillAvailable) {
-      setStaleDrawerKind('expired');
+      // The offer was taken/expired — light toast instead of a drawer.
+      setToast({ text: 'Offerta non più disponibile', tone: 'info' });
       return;
     }
 
     // Check overlap with scheduled appointments
     let busy: string | null = null;
-    if (item.kind === 'swap') {
-      busy = checkBusy(item.data.appointment.startsAt, item.data.appointment.endsAt);
-    } else if (item.kind === 'waitlist') {
+    if (item.kind === 'waitlist') {
       busy = checkBusy(item.data.slot.startsAt, item.data.slot.endsAt);
     } else if (item.kind === 'proposal') {
       busy = checkBusy(item.data.startsAt, item.data.endsAt);
@@ -924,10 +917,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     setBusySlotLabel(busy);
 
     switch (item.kind) {
-      case 'swap':
-        setSwapOffer(item.data);
-        setSwapOpen(true);
-        break;
       case 'waitlist':
         setWaitlistOffer(item.data);
         setWaitlistOpen(true);
@@ -937,7 +926,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         setProposalOpen(true);
         break;
     }
-  }, [swapOffers, waitlistOffers, proposals, checkBusy, handleAvailableSlotsNotification]);
+  }, [waitlistOffers, proposals, checkBusy, handleAvailableSlotsNotification]);
 
   // ── Listen for openDrawer events from inbox screen ──
   useEffect(() => {
@@ -958,12 +947,14 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     if (unread.length === 1) {
       const item = unread[0];
       if (autoOpenedIds.current.has(item.id)) return;
+      // Swap offers & swap-accepted confirmations never auto-open a drawer —
+      // leave them unread so the user taps through to the "Scambi" section.
+      if (item.kind === 'swap' || item.kind === 'confirmation') return;
 
       // For offer-type items, verify they are still live before auto-opening.
-      const isOfferKind = item.kind === 'swap' || item.kind === 'waitlist' || item.kind === 'proposal';
+      const isOfferKind = item.kind === 'waitlist' || item.kind === 'proposal';
       if (isOfferKind) {
         const stillAvailable =
-          (item.kind === 'swap' && swapOffers.some((s) => s.id === item.id)) ||
           (item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id)) ||
           (item.kind === 'proposal' && proposals.some((p) => p.id === item.id));
         if (!stillAvailable) {
@@ -989,7 +980,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         data: item.data,
       } as NotificationItem);
     }
-  }, [inboxItems, openDrawerForItem, swapOffers, waitlistOffers, proposals]);
+  }, [inboxItems, openDrawerForItem, waitlistOffers, proposals]);
 
   // ── Bubble animation: >1 unread → show "Hai N novità!" ──
   useEffect(() => {
@@ -1021,54 +1012,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   }, []);
 
   // ── Handlers: Swap ──
-
-  const handleAcceptSwap = async () => {
-    if (!studentId || !swapOffer) return;
-    setSwapLoading(true);
-    setToast(null);
-    try {
-      const response = await regloApi.respondSwapOffer(swapOffer.id, {
-        studentId,
-        response: 'accept',
-      });
-      if (response.accepted) {
-        markAccepted(swapOffer.id);
-        setToast({ text: 'Scambio confermato!', tone: 'success' });
-        setCelebrationVariant('swap');
-        setCelebrationVisible(false);
-        setTimeout(() => setCelebrationVisible(true), 0);
-        setSwapOpen(false);
-        setSwapOffer(null);
-        setSwapOffers((prev) => prev.filter((o) => o.id !== swapOffer.id));
-        notificationEvents.emitDataChanged();
-      } else {
-        setToast({ text: 'Offerta non più disponibile', tone: 'info' });
-      }
-      await loadSwapOffers(studentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore',
-        tone: 'danger',
-      });
-    } finally {
-      setSwapLoading(false);
-    }
-  };
-
-  const handleCloseSwap = () => {
-    setSwapOpen(false);
-    setSwapOffer(null);
-  };
-
-  // ── Handlers: Swap Accepted Confirmation ──
-
-  const handleCloseConfirmation = () => {
-    setConfirmationOpen(false);
-    if (confirmationData) {
-      setConfirmations((prev) => prev.filter((c) => c.id !== confirmationData.id));
-    }
-    setConfirmationData(null);
-  };
 
   // ── Handlers: Waitlist ──
 
@@ -1234,133 +1177,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
             ) : null}
           </Pressable>
         </View>}
-
-      {/* ── Swap Offer ── */}
-      <BottomSheet
-        visible={isStudent && swapOpen && !!swapOffer}
-        title="Richiesta sostituzione"
-        showHandle
-        onClose={swapLoading ? () => {} : handleCloseSwap}
-        closeDisabled={swapLoading}
-        footer={
-          busySlotLabel ? (
-            <View style={styles.busyFooter}>
-              <View style={styles.busyButton}>
-                <Text style={styles.busyButtonText}>{busySlotLabel}</Text>
-              </View>
-            </View>
-          ) : (
-            <Button
-              label={swapLoading ? 'Attendi...' : `${'\u{1F91D}'} Accetta sostituzione`}
-              tone="primary"
-              onPress={swapLoading ? undefined : handleAcceptSwap}
-              disabled={swapLoading}
-              fullWidth
-            />
-          )
-        }
-      >
-        {swapOffer ? (
-          <View style={{ gap: 16 }}>
-            <View style={styles.hero}>
-              <Text style={styles.heroEmoji}>{'\u{1F64B}'}</Text>
-              <Text style={styles.heroName}>{swapOffer.requestingStudentName}</Text>
-              <Text style={styles.heroHint}>cerca un sostituto per la guida</Text>
-            </View>
-            <View style={styles.detailsCard}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u{1F4C5}'}</Text>
-                <Text style={styles.detailText}>
-                  {formatDay(swapOffer.appointment.startsAt)} · {formatTime(swapOffer.appointment.startsAt)}
-                  {swapOffer.appointment.endsAt ? ` - ${formatTime(swapOffer.appointment.endsAt)}` : ''}
-                </Text>
-              </View>
-              {swapOffer.appointment.instructorName ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F468}\u200D\u{1F3EB}'}</Text>
-                  <Text style={styles.detailText}>{swapOffer.appointment.instructorName}</Text>
-                </View>
-              ) : null}
-              {swapOffer.appointment.vehicleName ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F697}'}</Text>
-                  <Text style={styles.detailText}>{swapOffer.appointment.vehicleName}</Text>
-                </View>
-              ) : null}
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u{1F4CB}'}</Text>
-                <Text style={styles.detailText}>
-                  {lessonTypeLabelMap[swapOffer.appointment.type] ?? swapOffer.appointment.type}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u23F0'}</Text>
-                <Text style={styles.detailText}>Rispondi entro le {formatTime(swapOffer.expiresAt)}</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-      </BottomSheet>
-
-      {/* ── Swap Accepted Confirmation ── */}
-      <BottomSheet
-        visible={isStudent && confirmationOpen && !!confirmationData}
-        title="Affare fatto!"
-        showHandle
-        onClose={handleCloseConfirmation}
-        footer={
-          <Button
-            label={`Perfetto! ${'\u{1F389}'}`}
-            tone="primary"
-            onPress={handleCloseConfirmation}
-            fullWidth
-          />
-        }
-      >
-        {confirmationData ? (
-          <View style={{ gap: 20 }}>
-            <View style={styles.confirmHero}>
-              <Text style={styles.confirmEmoji}>{'\u{1F91D}'}</Text>
-              <Text style={styles.confirmTitle}>Affare fatto!</Text>
-              <Text style={styles.confirmSubtitle}>
-                {confirmationData.acceptedByName} ti sostituirà{'\n'}per la tua guida
-              </Text>
-            </View>
-            <View style={styles.detailsCard}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u{1F4C5}'}</Text>
-                <Text style={styles.detailText}>
-                  {confirmationData.appointmentDate} alle {confirmationData.appointmentTime}
-                </Text>
-              </View>
-              {confirmationData.instructorName ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F468}\u200D\u{1F3EB}'}</Text>
-                  <Text style={styles.detailText}>{confirmationData.instructorName}</Text>
-                </View>
-              ) : null}
-              {confirmationData.vehicleName ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F697}'}</Text>
-                  <Text style={styles.detailText}>{confirmationData.vehicleName}</Text>
-                </View>
-              ) : null}
-              {confirmationData.appointmentType ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F4CB}'}</Text>
-                  <Text style={styles.detailText}>
-                    {lessonTypeLabelMap[confirmationData.appointmentType] ?? confirmationData.appointmentType}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.confirmFootnote}>
-              Non devi più presentarti a questa guida {'\u{1F392}'}{'\n'}
-              Il tuo credito è stato rimborsato {'\u2705'}
-            </Text>
-          </View>
-        ) : null}
-      </BottomSheet>
 
       {/* ── Waitlist Offer ── */}
       <BottomSheet
@@ -1632,36 +1448,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
           <View style={styles.staleAcceptedCard}>
             <Text style={styles.staleAcceptedCardText}>
               {'\u{1F4AA}'} La tua guida è confermata e ti aspetta in calendario
-            </Text>
-          </View>
-        </View>
-      </BottomSheet>
-
-      {/* ── Too Late / Expired ── */}
-      <BottomSheet
-        visible={isStudent && staleDrawerKind === 'expired'}
-        onClose={() => setStaleDrawerKind(null)}
-        showHandle
-        footer={
-          <Pressable
-            onPress={() => setStaleDrawerKind(null)}
-            style={styles.staleExpiredCta}
-          >
-            <Text style={styles.staleExpiredCtaText}>Capito, nessun problema</Text>
-          </Pressable>
-        }
-      >
-        <View style={{ gap: 16 }}>
-          <View style={styles.staleHero}>
-            <Text style={styles.staleHeroEmoji}>{'\u{1F3C3}\u200D\u2642\uFE0F'}</Text>
-            <Text style={styles.staleExpiredTitle}>Troppo tardi!</Text>
-            <Text style={styles.staleSub}>
-              Qualcuno ti ha battuto sul tempo{'\n'}e si è aggiudicato lo slot
-            </Text>
-          </View>
-          <View style={styles.staleExpiredCard}>
-            <Text style={styles.staleExpiredCardText}>
-              {'\u{1F340}'} Non preoccuparti, ne arriveranno altre!{'\n'}Tieni d{'\u2019'}occhio le notifiche
             </Text>
           </View>
         </View>
