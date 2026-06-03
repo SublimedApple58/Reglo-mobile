@@ -50,30 +50,30 @@ export default function LessonDetailScreen() {
 
   return (
     <View style={s.root}>
-      <View style={{ paddingHorizontal: spacing.md, paddingBottom: 40, gap: 14 }}>
-        {/* Dark hero card */}
-        <View style={s.hero}>
-          <View style={s.heroTopRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.heroDate}>{formatDay(lesson.startsAt)}</Text>
-              <Text style={s.heroTime}>
-                {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
-              </Text>
-            </View>
+      <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}>
+        {/* Header (flat) */}
+        <View style={s.header}>
+          <View style={s.headerTopRow}>
+            <Text style={s.heroDate}>{formatDay(lesson.startsAt)}</Text>
             <View style={s.statusBadge}>
               <Text style={s.statusText}>{statusLabel(lesson.status)}</Text>
             </View>
           </View>
+          <Text style={s.heroTime}>
+            {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
+          </Text>
           <Text style={s.heroDuration}>
             {lessonDurationMinutes(lesson.startsAt, lesson.endsAt)} min
           </Text>
         </View>
 
-        {/* Details grouped card */}
+        {/* Details (flat rows) */}
         <View style={s.groupCard}>
           {/* Instructor */}
           <View style={s.row}>
-            <Ionicons name="person-outline" size={18} color={colors.textMuted} />
+            <View style={[s.iconChip, { backgroundColor: '#E0E7FF' }]}>
+              <Ionicons name="person" size={18} color="#4F46E5" />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.rowValue}>{lesson.instructor?.name ?? 'Da assegnare'}</Text>
               {lesson.instructor?.phone ? (
@@ -89,7 +89,9 @@ export default function LessonDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <Ionicons name="car-outline" size={18} color={colors.textMuted} />
+                <View style={[s.iconChip, { backgroundColor: '#EDE9FE' }]}>
+                  <Ionicons name="car" size={18} color="#7C3AED" />
+                </View>
                 <Text style={s.rowValue}>{lesson.vehicle?.name ?? 'Da assegnare'}</Text>
               </View>
             </>
@@ -110,7 +112,9 @@ export default function LessonDetailScreen() {
             };
             return (
               <Pressable onPress={isTappable ? handleOpenMaps : undefined} disabled={!isTappable} style={s.row}>
-                <Ionicons name={loc?.isPrecise ? 'location' : 'location-outline'} size={18} color={isTappable ? '#16A34A' : colors.textMuted} />
+                <View style={[s.iconChip, { backgroundColor: '#CCFBF1' }]}>
+                  <Ionicons name="location" size={18} color="#0D9488" />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.rowValue} numberOfLines={1}>{display}</Text>
                   {loc?.isPrecise && loc.address ? <Text style={s.rowSub} numberOfLines={1}>{loc.address}</Text> : null}
@@ -123,7 +127,9 @@ export default function LessonDetailScreen() {
           {/* Payment */}
           <View style={s.divider} />
           <View style={s.row}>
-            <Ionicons name="wallet-outline" size={18} color={colors.textMuted} />
+            <View style={[s.iconChip, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="wallet" size={18} color="#D97706" />
+            </View>
             <Text style={[s.rowValue, { color: colors.textSecondary }]}>
               {payment
                 ? `${paymentStatusLabel(payment.paymentStatus).label}${payment.dueAmount > 0 ? ` \u2022 Residuo \u20AC${payment.dueAmount.toFixed(2)}` : ''}`
@@ -136,7 +142,9 @@ export default function LessonDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <Ionicons name="flag-outline" size={18} color={colors.textMuted} />
+                <View style={[s.iconChip, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="flag" size={18} color="#2563EB" />
+                </View>
                 <Text style={s.rowValue}>{lesson.types.map(formatLessonType).join(', ')}</Text>
               </View>
             </>
@@ -145,7 +153,7 @@ export default function LessonDetailScreen() {
 
         {/* Action buttons */}
         {isFuture && (canSwap || canCancel) && (
-          <View style={{ gap: 10, marginTop: 4 }}>
+          <View style={{ gap: 8, marginTop: 32 }}>
             {canSwap && (
               <Pressable
                 style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
@@ -173,42 +181,35 @@ export default function LessonDetailScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
-  hero: {
-    backgroundColor: '#1A1A2E', borderRadius: 26, padding: 20, gap: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
-  },
-  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  heroDate: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
-  heroTime: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, marginTop: 2 },
+  header: { gap: 4, paddingTop: 10 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
+  heroTime: { fontSize: 36, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.8, marginTop: 6 },
   statusBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: '#F3F4F6', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 5,
   },
-  statusText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-  heroDuration: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.45)' },
-  groupCard: {
-    backgroundColor: '#EEEDEB', borderRadius: 20, padding: spacing.md,
-    boxShadow: [
-      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
-      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
-    ],
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 4 },
-  rowValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  statusText: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.2 },
+  heroDuration: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
+  groupCard: { marginTop: 30 },
+  iconChip: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  rowValue: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
   rowLink: { fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2 },
   swapBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginTop: 8, height: 50, borderRadius: 26,
+    height: 54, borderRadius: 27,
     backgroundColor: colors.primary,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
   },
-  swapText: { fontSize: 16, fontWeight: '600', color: colors.surface },
+  swapText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
   cancelBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 50, borderRadius: 26,
-    backgroundColor: '#FEE2E2',
+    height: 48, borderRadius: 26,
+    backgroundColor: 'transparent',
   },
-  cancelText: { fontSize: 16, fontWeight: '600', color: '#DC2626' },
+  cancelText: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
 });

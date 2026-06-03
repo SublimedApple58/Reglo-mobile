@@ -1,8 +1,9 @@
 import { Stack } from 'expo-router';
+import { colors } from '../../../src/theme/colors';
 
 export default function HomeLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="lesson-detail"
