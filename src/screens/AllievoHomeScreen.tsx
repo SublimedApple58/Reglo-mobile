@@ -1640,7 +1640,7 @@ export const AllievoHomeScreen = () => {
         {Platform.OS === 'ios' ? (
           <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(247,247,247,0.95)' }]} />
         )}
         <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, headerBorderStyle]} />
         <View style={styles.headerRow}>
@@ -1877,7 +1877,7 @@ export const AllievoHomeScreen = () => {
                   style={({ pressed }) => [styles.bookCard, pressed && styles.ctaPressed]}
                 >
                   <View style={styles.bookCardIcon}>
-                    <Ionicons name="add" size={22} color="#1A1A2E" />
+                    <Ionicons name="add" size={20} color="#6B7280" />
                   </View>
                   <Text style={styles.bookCardTitle}>Prenota</Text>
                   <Text style={styles.bookCardSub}>una guida</Text>
@@ -2023,7 +2023,7 @@ const styles = StyleSheet.create({
 
   /* ── Large title ── */
   largeTitleWrap: { paddingTop: 4, paddingBottom: 2 },
-  largeTitleText: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
+  largeTitleText: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   largeTitleSchoolIcon: { width: 16, height: 16 },
@@ -2036,13 +2036,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
   },
   swapIcon: { width: 36, height: 36 },
-  swapTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2 },
+  swapTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
   swapSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
   swapBadge: {
     backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, height: 22,
     paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
   },
-  swapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  swapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 
   /* ── Segnala assenza — slim row ── */
   absenceRow: {
@@ -2068,10 +2068,10 @@ const styles = StyleSheet.create({
   },
   bookCardIcon: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#1A1A2E', borderStyle: 'dashed',
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#9CA3AF', borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  bookCardTitle: { fontSize: 16, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2 },
+  bookCardTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
   bookCardSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted },
 
   /* ── HERO card: next lesson — warm elevated card ── */
@@ -2089,9 +2089,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6,
   },
-  heroPillText: { fontSize: 11, fontWeight: '800', color: '#FFF' },
+  heroPillText: { fontSize: 11, fontWeight: '700', color: '#FFF' },
   heroTime: {
-    fontSize: 30, fontWeight: '800', color: '#1A1A2E',
+    fontSize: 30, fontWeight: '600', color: '#1A1A2E',
     letterSpacing: -0.8, lineHeight: 36,
   },
   heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
@@ -2117,7 +2117,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 6, elevation: 4,
   },
   miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
-  miniCardTime: { fontSize: 16, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  miniCardTime: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
   miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
   seeAllBtn: {
