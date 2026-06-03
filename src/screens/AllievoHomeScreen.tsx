@@ -2063,8 +2063,8 @@ const styles = StyleSheet.create({
     width: 150, borderRadius: 20, padding: 14,
     alignItems: 'flex-start', justifyContent: 'center', gap: 4,
     backgroundColor: colors.surface,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.30, shadowRadius: 16, elevation: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.17, shadowRadius: 28, elevation: 12,
   },
   bookCardIcon: {
     width: 38, height: 38, borderRadius: 19,
@@ -2086,10 +2086,10 @@ const styles = StyleSheet.create({
   },
   heroPill: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.primary, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6,
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#F9A8D4', borderRadius: 999,
+    paddingHorizontal: 11, paddingVertical: 3, marginBottom: 6,
   },
-  heroPillText: { fontSize: 11, fontWeight: '700', color: '#FFF' },
+  heroPillText: { fontSize: 11, fontWeight: '700', color: '#DB2777' },
   heroTime: {
     fontSize: 30, fontWeight: '600', color: '#1A1A2E',
     letterSpacing: -0.8, lineHeight: 36,
@@ -2113,8 +2113,8 @@ const styles = StyleSheet.create({
   miniCard: {
     width: 150, borderRadius: 20, padding: 14,
     alignItems: 'flex-start', gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.10, shadowRadius: 6, elevation: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 10, elevation: 5,
   },
   miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
   miniCardTime: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
