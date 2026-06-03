@@ -197,7 +197,7 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
         {Platform.OS === 'ios' ? (
           <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(247,247,247,0.95)' }]} />
         )}
         <Animated.View style={[StyleSheet.absoluteFill, s.headerBorder, headerBorderStyle]} />
         <Animated.View style={[s.compactHeader, compactTitleStyle]}>
@@ -490,7 +490,7 @@ const s = StyleSheet.create({
 
   /* ── Stats (inset shadow — clearly informational, not tappable) ── */
   statsInset: {
-    backgroundColor: '#EEEDEB', borderRadius: 20,
+    backgroundColor: colors.background, borderRadius: 20,
     boxShadow: [
       { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
       { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },

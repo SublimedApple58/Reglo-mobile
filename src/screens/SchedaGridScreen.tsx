@@ -143,7 +143,7 @@ export const SchedaGridScreen: React.FC = () => {
         {Platform.OS === 'ios' ? (
           <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,247,244,0.95)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(247,247,247,0.95)' }]} />
         )}
         <Animated.View style={[StyleSheet.absoluteFill, st.headerBorder, borderStyle]} />
         <View style={st.headerRow}>
@@ -282,7 +282,7 @@ const st = StyleSheet.create({
 
   /* Stats inset card */
   statsInset: {
-    backgroundColor: '#EEEDEB', borderRadius: 20, paddingBottom: 14, gap: 12,
+    backgroundColor: colors.background, borderRadius: 20, paddingBottom: 14, gap: 12,
     boxShadow: [
       { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
       { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },

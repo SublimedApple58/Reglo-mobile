@@ -120,7 +120,7 @@ const s = StyleSheet.create({
   countdownNum: { color: '#FFF', fontSize: 24, fontWeight: '800', lineHeight: 26 },
   countdownUnit: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.9 },
   infoCard: {
-    backgroundColor: '#EEEDEB', borderRadius: 20, padding: spacing.md,
+    backgroundColor: colors.background, borderRadius: 20, padding: spacing.md,
     boxShadow: [
       { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
       { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },

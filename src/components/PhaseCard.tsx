@@ -85,7 +85,7 @@ export const PhaseCard: React.FC<Props> = ({
         />
         {/* Fade overlay: transparent → page background */}
         <LinearGradient
-          colors={['rgba(250,224,239,0)', 'rgba(250,224,239,0.4)', '#F8F7F4']}
+          colors={['rgba(250,224,239,0)', 'rgba(250,224,239,0.4)', colors.background]}
           locations={[0, 0.5, 1]}
           style={styles.mascotFade}
         />

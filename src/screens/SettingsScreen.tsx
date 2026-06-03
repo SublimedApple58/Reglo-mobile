@@ -1382,7 +1382,7 @@ const studentStyles = StyleSheet.create({
   yellowDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FACC15' },
   heroCompanyName: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
   menuCard: {
-    backgroundColor: '#EEEDEB', borderRadius: 20, overflow: 'hidden',
+    backgroundColor: colors.background, borderRadius: 20, overflow: 'hidden',
     boxShadow: [
       { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
       { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
@@ -1396,7 +1396,7 @@ const studentStyles = StyleSheet.create({
   menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginHorizontal: 18 },
   expandedContent: { paddingHorizontal: 18, paddingBottom: 18, paddingTop: 10 },
   dangerCard: {
-    backgroundColor: '#EEEDEB', borderRadius: 20, overflow: 'hidden',
+    backgroundColor: colors.background, borderRadius: 20, overflow: 'hidden',
     boxShadow: [
       { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
       { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },

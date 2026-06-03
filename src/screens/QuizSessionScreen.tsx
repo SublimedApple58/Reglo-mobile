@@ -564,7 +564,7 @@ export const QuizSessionScreen = () => {
                     style={st.feedbackHintPreview}
                   >
                     <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
-                    <Text style={st.feedbackHintPreviewTitle}>{result.hint.title}</Text>
+                    <Text style={st.feedbackHintPreviewTitle} numberOfLines={1}>{result.hint.title}</Text>
                     <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </Pressable>
                 )}
@@ -996,7 +996,6 @@ const st = StyleSheet.create({
   },
   feedbackHintPreviewTitle: {
     flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary,
-    numberOfLines: 1,
   },
   feedbackTapHint: {
     textAlign: 'center', fontSize: 13, fontWeight: '500',
@@ -1088,7 +1087,7 @@ const st = StyleSheet.create({
   // Explanation
   explanationCard: {
     padding: 16, borderRadius: 24,
-    backgroundColor: '#F8F7F4', gap: 8, marginBottom: 12,
+    backgroundColor: colors.background, gap: 8, marginBottom: 12,
     borderWidth: 1, borderColor: '#E5E7EB',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,

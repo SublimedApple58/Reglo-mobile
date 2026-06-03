@@ -368,7 +368,7 @@ const st = StyleSheet.create({
   wrongImg: { width: '80%', height: 100 },
   wrongHint: {
     padding: 14, borderRadius: 24,
-    backgroundColor: '#F8F7F4', gap: 6,
+    backgroundColor: colors.background, gap: 6,
     borderWidth: 1, borderColor: '#E5E7EB',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
