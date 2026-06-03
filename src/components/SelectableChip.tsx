@@ -10,8 +10,10 @@ type SelectableChipProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-const ACTIVE_BG = '#FEF9C3';
-const ACTIVE_BORDER = '#FDE047';
+// Selection language = outline navy (design system): no heavy fill, dark
+// border + dark text on active. No yellow anywhere.
+const ACTIVE_BG = '#FFFFFF';
+const ACTIVE_BORDER = '#1A1A2E';
 const INACTIVE_BG = '#F8FAFC';
 const INACTIVE_BORDER = '#E2E8F0';
 
@@ -48,7 +50,7 @@ export const SelectableChip = ({
 
   const animatedTextColor = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#64748B', '#A16207'],
+    outputRange: ['#64748B', '#1A1A2E'],
   });
 
   return (
@@ -67,7 +69,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   text: {
     fontSize: 14,

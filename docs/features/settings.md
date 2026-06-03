@@ -4,8 +4,17 @@
 Role-conditional settings screen + instructor cluster settings.
 
 ## Key files
-- `src/screens/SettingsScreen.tsx` (72KB) — all-roles settings
-- `src/screens/ClusterSettingsScreen.tsx` (41KB) — instructor cluster config
+- `src/screens/SettingsScreen.tsx` — all-roles settings (`renderStudentContent` + `renderNonStudentContent`)
+- `src/screens/ClusterSettingsScreen.tsx` — instructor cluster config ("Il mio gruppo")
+- `app/(tabs)/settings/profile-edit.tsx` — profile-edit formSheet (student, settings tab)
+- `app/(tabs)/more/profile-edit.tsx` — profile-edit formSheet (instructor/owner, "Altro" stack; bound to `settingsStore`)
+- `app/(tabs)/more/agenda-view.tsx` — Vista agenda formSheet (day/week)
+- `app/(tabs)/more/availability-mode.tsx` — Disponibilità mode formSheet (default/publication, local select → "Salva" persists)
+- `app/(tabs)/more/agenda-settings.tsx` — Agenda formSheet (owner: weeks + reminders)
+- `src/stores/instructorSettingsStore.ts` — publishes instructor/owner setting values + handlers to those sub-pages
+
+## Design (design-system aligned)
+The instructor/owner branch (`renderNonStudentContent`) mirrors the student branch: large title, the **profile card is the only boxed card** (→ sub-page `more/profile-edit`). Every setting is a **normal `menuGroup` row** (icon + label + current-value hint + chevron) that opens a **formSheet sub-page** in the "Altro" stack — Vista agenda → `more/agenda-view`, Disponibilità → `more/availability-mode`, Agenda (owner) → `more/agenda-settings`, plus Notifiche; then the account group (Esci / Elimina account). No inline control cards. `SelectableChip` is outline navy globally; selection in the sub-pages = navy radio/check; pink reserved for CTAs. Profile fields are published to `settingsStore` for all roles; instructor/owner setting values to `instructorSettingsStore`. **No yellow anywhere**: `SelectableChip` is now **outline navy** globally (`#1A1A2E`), the agenda segmented control is outline navy, and Switch tracks use pink (not `#FACC15`). Pink reserved for CTAs only. The profile fields are published to `settingsStore` for **all roles** (was student-only) so `more/profile-edit` can bind to them.
 
 ## Settings by role
 
@@ -25,6 +34,11 @@ Role-conditional settings screen + instructor cluster settings.
 - Restricted time range (no-booking window)
 - Booking actor governance (students/instructors/both)
 - Student assignment to cluster
+
+## Performance — instant render (non-blocking load)
+The screen never blocks on network. `initialLoading` is set `false` as soon as the session-derived UI can render; the network calls that only feed **row hints** run in the **background, in parallel**, gated by a separate loading flag that shows a small `SkeletonBlock` on just that row.
+- **Student:** profile card + payment render immediately; `loadStudentAvailabilityPreset` runs in background, `availabilityLoading` gates only the Disponibilità hint.
+- **Instructor/Owner:** profile card + Vista agenda (from `sessionStorage`) render immediately; `getAutoscuolaSettings` + `getInstructorSettings` run in parallel in the background, `settingsLoading` gates only the Disponibilità mode + Agenda weeks hints. (Previously these were two sequential awaits blocking the whole screen behind a full skeleton.)
 
 ## API functions used
 `getAutoscuolaSettings`, `getInstructorSettings`, `updateInstructorSettings`, `getPaymentProfile`, `createSetupIntent`, `confirmPaymentMethod`, `removePaymentMethod`, `deleteAccount`

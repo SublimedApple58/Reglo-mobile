@@ -13,14 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  Easing,
-  interpolate,
-  FadeInUp,
-} from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -31,7 +24,6 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
-import { SelectableChip } from '../components/SelectableChip';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
@@ -39,59 +31,11 @@ import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent, MobileStudentPaymentProfile } from '../types/regloApi';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { settingsStore, SlotTarget } from '../stores/settingsStore';
+import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
 import { isInstructor, isOwner, isStudent } from '../utils/roles';
 import { useAutoPaymentsEnabled } from '../hooks/useAutoPaymentsEnabled';
-
-type AnimatedChevronProps = { expanded: boolean };
-const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    rotation.value = withTiming(expanded ? 1 : 0, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [expanded, rotation]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 90])}deg` }],
-  }));
-
-  return (
-    <Animated.View style={[{ marginLeft: 8, width: 20, alignItems: 'center' }, animatedStyle]}>
-      <Text style={{ fontSize: 20, color: '#9CA3AF' }}>{'\u203A'}</Text>
-    </Animated.View>
-  );
-};
-
-type AnimatedSectionProps = { expanded: boolean; children: React.ReactNode };
-const AnimatedSection = ({ expanded, children }: AnimatedSectionProps) => {
-  const [contentHeight, setContentHeight] = useState(0);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withTiming(expanded ? 1 : 0, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [expanded, progress]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    height: contentHeight > 0 ? interpolate(progress.value, [0, 1], [0, contentHeight]) : expanded ? undefined : 0,
-    opacity: interpolate(progress.value, [0, 0.3, 1], [0, 0, 1]),
-    overflow: 'hidden' as const,
-  }));
-
-  return (
-    <Animated.View style={containerStyle}>
-      <View onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)} style={{ position: contentHeight > 0 ? 'relative' : 'absolute', width: '100%' }}>
-        {children}
-      </View>
-    </Animated.View>
-  );
-};
 
 const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
   const normalized = (message ?? '').toLowerCase();
@@ -99,12 +43,6 @@ const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
 };
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
-const weekPresets = [2, 4, 6, 8, 12] as const;
-
-const toReminderLabel = (minutes: number) => {
-  if (minutes === 120) return '2h';
-  return `${minutes}m`;
-};
 
 const roleLabelMap: Record<string, string> = {
   STUDENT: 'Allievo',
@@ -260,6 +198,10 @@ export const SettingsScreen = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   // Loads after initialLoading (background) — gates only the availability hint.
   const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  // Instructor/owner: gates only the settings-dependent row hints (Disponibilità
+  // mode, Agenda weeks) while they load in the background. The screen renders
+  // immediately from the session — never blocked on these network calls.
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [morningActive, setMorningActive] = useState(false);
   const [afternoonActive, setAfternoonActive] = useState(false);
   const [morningStart, setMorningStart] = useState(buildTime(8, 0));
@@ -269,7 +211,6 @@ export const SettingsScreen = () => {
   const [slotTimePickerTarget, setSlotTimePickerTarget] = useState<
     'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
   >(null);
-  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
 
@@ -425,26 +366,39 @@ export const SettingsScreen = () => {
       const savedViewMode = await sessionStorage.getAgendaViewMode();
       setAgendaViewMode(savedViewMode);
       if (isOwner(autoscuolaRole) || isInstructor(autoscuolaRole)) {
-        try {
-          const settings = await regloApi.getAutoscuolaSettings();
-          setAvailabilityWeeks(String(settings.availabilityWeeks));
-          setStudentReminderMinutes(String(settings.studentReminderMinutes));
-          setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
-          setAppBookingActors(settings.appBookingActors ?? 'students');
-          setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
-        } catch (settingsErr) {
-          if (isOwner(autoscuolaRole)) {
-            throw settingsErr;
-          }
-        }
+        // Render immediately — the profile card + Vista agenda (local storage)
+        // need no network. The settings feeding the Disponibilità / Agenda row
+        // hints load in the background, in parallel, gated by settingsLoading.
+        setInitialLoading(false);
+        setSettingsLoading(true);
+        const tasks: Promise<void>[] = [];
+        tasks.push(
+          regloApi.getAutoscuolaSettings()
+            .then((settings) => {
+              setAvailabilityWeeks(String(settings.availabilityWeeks));
+              setStudentReminderMinutes(String(settings.studentReminderMinutes));
+              setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+              setAppBookingActors(settings.appBookingActors ?? 'students');
+              setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
+            })
+            .catch((settingsErr) => {
+              if (isOwner(autoscuolaRole)) {
+                setError(settingsErr instanceof Error ? settingsErr.message : 'Errore caricando impostazioni');
+              }
+            }),
+        );
         if (isInstructor(autoscuolaRole)) {
-          try {
-            const instrSettings = await regloApi.getInstructorSettings();
-            if (instrSettings.settings?.availabilityMode) {
-              setInstrAvailabilityMode(instrSettings.settings.availabilityMode);
-            }
-          } catch {}
+          tasks.push(
+            regloApi.getInstructorSettings()
+              .then((instrSettings) => {
+                if (instrSettings.settings?.availabilityMode) {
+                  setInstrAvailabilityMode(instrSettings.settings.availabilityMode);
+                }
+              })
+              .catch(() => {}),
+          );
         }
+        Promise.all(tasks).finally(() => setSettingsLoading(false));
       }
 
       if (isStudent(autoscuolaRole)) {
@@ -797,13 +751,6 @@ export const SettingsScreen = () => {
     );
   };
 
-  const handleOpenInstructorManage = () => {
-    router.push('/(tabs)/role');
-  };
-
-  const toggleSection = (key: string) =>
-    setActiveSection((prev) => (prev === key ? null : key));
-
   const paymentSubtitle = paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod
     ? `${paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022${paymentProfile.paymentMethod.last4} configurata`
     : 'Nessun metodo configurato';
@@ -824,10 +771,11 @@ export const SettingsScreen = () => {
     else if (target === 'afternoonEnd') setAfternoonEnd(date);
   };
 
-  // Publish student edit state + handlers to the store so dedicated
-  // sub-pages (profile-edit, availability, payment) can bind to them.
+  // Publish edit state + handlers to the store so dedicated sub-pages
+  // (profile-edit, availability, payment) can bind to them. Published for
+  // every role: instructors/owners reach profile-edit from the "Altro" stack
+  // (more/profile-edit); availability/payment remain student-only routes.
   useEffect(() => {
-    if (!isStudent(autoscuolaRole)) return;
     settingsStore.set({
       name, phone, saving, setName, setPhone, onSaveProfile: handleSaveProfile,
       hasProfile: !!studentProfile, weeks: Number(availabilityWeeks) || 4,
@@ -837,6 +785,34 @@ export const SettingsScreen = () => {
       onPickSlotTime, availabilitySaving, onSaveAvailability: handleSaveStudentAvailability,
       paymentProfile, paymentLoading,
       onConfigurePayment: handleConfigurePaymentMethod, onRemovePayment: handleRemovePaymentMethod,
+    });
+  });
+
+  // Publish instructor/owner settings so the "Altro" formSheet sub-pages
+  // (agenda-view, availability-mode, agenda-settings) can bind to live state.
+  useEffect(() => {
+    if (isStudent(autoscuolaRole)) return;
+    instructorSettingsStore.set({
+      agendaViewMode,
+      onPickAgendaView: async (m) => {
+        setAgendaViewMode(m);
+        await sessionStorage.setAgendaViewMode(m);
+      },
+      availabilityMode: instrAvailabilityMode,
+      onPickAvailabilityMode: async (m) => {
+        const prev = instrAvailabilityMode;
+        setInstrAvailabilityMode(m);
+        try { await regloApi.updateInstructorSettings({ availabilityMode: m }); }
+        catch { setInstrAvailabilityMode(prev); }
+      },
+      availabilityWeeks,
+      setAvailabilityWeeks,
+      studentReminderMinutes,
+      setStudentReminderMinutes,
+      instructorReminderMinutes,
+      setInstructorReminderMinutes,
+      savingSettings,
+      onSaveOwnerSettings: handleSaveOwnerSettings,
     });
   });
 
@@ -942,7 +918,7 @@ export const SettingsScreen = () => {
       {/* 1. Title */}
       {router.canGoBack() ? (
         <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1a120a" />
+          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
           <Text style={studentStyles.title}>Impostazioni</Text>
         </Pressable>
       ) : (
@@ -958,268 +934,125 @@ export const SettingsScreen = () => {
 
       {initialLoading ? (
         <>
-          <View style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <SkeletonBlock width={56} height={56} radius={28} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <SkeletonBlock width="60%" height={18} />
-                <SkeletonBlock width="40%" height={14} />
-              </View>
+          <View style={studentStyles.profileCard}>
+            <SkeletonBlock width={60} height={60} radius={30} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <SkeletonBlock width="60%" height={18} />
+              <SkeletonBlock width="40%" height={14} />
             </View>
           </View>
-          <View style={studentStyles.menuCard}>
-            <SkeletonCard>
-              <SkeletonBlock width="72%" />
-              <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
-            </SkeletonCard>
-          </View>
+          <SkeletonCard>
+            <SkeletonBlock width="72%" />
+            <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
+          </SkeletonCard>
         </>
       ) : (
         <>
-          {/* 2. Profile Hero Card */}
-          <Pressable onPress={() => toggleSection('profile')} style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <View style={studentStyles.heroAvatar}>
-                <Text style={studentStyles.heroAvatarText}>{userInitials}</Text>
-              </View>
-              <View style={studentStyles.heroMeta}>
-                <Text style={studentStyles.heroName}>{user?.name ?? 'Utente'}</Text>
-                <Text style={studentStyles.heroEmail}>{user?.email ?? 'Email non disponibile'}</Text>
-              </View>
-              <AnimatedChevron expanded={activeSection === 'profile'} />
+          {/* 2. Profile card -> sub-page (more/profile-edit) */}
+          <Pressable
+            onPress={() => router.push('/(tabs)/more/profile-edit')}
+            style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
+          >
+            <View style={studentStyles.profileAvatar}>
+              <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
             </View>
-            <View style={studentStyles.heroDivider} />
-            <View style={studentStyles.heroCompanyRow}>
-              <View style={studentStyles.yellowDot} />
-              <Text style={studentStyles.heroCompanyName}>{activeCompany?.name ?? 'Nessuna autoscuola'}</Text>
-            </View>
-
-            {/* Expanded: profile edit */}
-            <AnimatedSection expanded={activeSection === 'profile'}>
-              <View style={studentStyles.expandedContent}>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Nome completo</Text>
-                  <Input placeholder="Nome" value={name} onChangeText={setName} />
-                </View>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Numero di cellulare</Text>
-                  <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-                </View>
-                <Pressable
-                  onPress={handleSaveProfile}
-                  disabled={saving}
-                  style={({ pressed }) => [
-                    studentStyles.pinkCta,
-                    pressed && { opacity: 0.85 },
-                    saving && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text style={studentStyles.pinkCtaText}>
-                    {saving ? 'Salvataggio...' : 'Salva profilo'}
-                  </Text>
-                </Pressable>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
+              <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
+              <View style={studentStyles.profileCompanyPill}>
+                <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+                <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
               </View>
-            </AnimatedSection>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
           </Pressable>
 
-          {/* 3. Settings sections */}
-
-          {/* Vista agenda */}
-          {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
-            <View style={studentStyles.menuCard}>
-              <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, marginBottom: 12, textTransform: 'uppercase' }}>
-                  VISTA AGENDA
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable
-                    onPress={async () => { setAgendaViewMode('day'); await sessionStorage.setAgendaViewMode('day'); }}
-                    style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnActive]}
-                  >
-                    <Ionicons name="calendar-outline" size={18} color={agendaViewMode === 'day' ? '#A16207' : '#9CA3AF'} />
-                    <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnTextActive]}>
-                      Giornaliera
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={async () => { setAgendaViewMode('week'); await sessionStorage.setAgendaViewMode('week'); }}
-                    style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnActive]}
-                  >
-                    <Ionicons name="grid-outline" size={18} color={agendaViewMode === 'week' ? '#A16207' : '#9CA3AF'} />
-                    <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnTextActive]}>
-                      Settimanale
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Disponibilità (instructor) */}
-          {isInstructor(autoscuolaRole) ? (
-            <View style={studentStyles.menuCard}>
-              <View style={{ paddingHorizontal: 20, paddingVertical: 18, gap: 14 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, textTransform: 'uppercase' }}>
-                  DISPONIBILITA
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <SelectableChip
-                    label="Predefinita"
-                    active={instrAvailabilityMode === 'default'}
-                    onPress={async () => {
-                      setInstrAvailabilityMode('default');
-                      try { await regloApi.updateInstructorSettings({ availabilityMode: 'default' }); }
-                      catch { setInstrAvailabilityMode('publication'); }
-                    }}
-                  />
-                  <SelectableChip
-                    label="Pubblicazione"
-                    active={instrAvailabilityMode === 'publication'}
-                    onPress={async () => {
-                      setInstrAvailabilityMode('publication');
-                      try { await regloApi.updateInstructorSettings({ availabilityMode: 'publication' }); }
-                      catch { setInstrAvailabilityMode('default'); }
-                    }}
-                  />
-                </View>
-                {instrAvailabilityMode === 'publication' ? (
-                  <Text style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 16 }}>
-                    Compili e pubblichi settimana per settimana.
+          {/* 3. Preferences — normal rows that open formSheet sub-pages (like student) */}
+          <View style={studentStyles.menuGroup}>
+            {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
+              <Pressable onPress={() => router.push('/(tabs)/more/agenda-view')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                <Ionicons name="grid-outline" size={23} color="#1A1A2E" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={studentStyles.rowLabel}>Vista agenda</Text>
+                  <Text style={studentStyles.rowHint} numberOfLines={1}>
+                    {agendaViewMode === 'day' ? 'Giornaliera' : 'Settimanale'}
                   </Text>
-                ) : null}
-                <Pressable
-                  onPress={handleOpenInstructorManage}
-                  style={({ pressed }) => [
-                    studentStyles.pinkCta,
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <Text style={studentStyles.pinkCtaText}>Gestisci disponibilità</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Agenda settings (owner) */}
-          {isOwner(autoscuolaRole) ? (
-            <View style={studentStyles.menuCard}>
-              <Pressable onPress={() => toggleSection('agenda')} style={studentStyles.menuRow}>
-                <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
-                  <Ionicons name="calendar-outline" size={20} color="#CA8A04" />
                 </View>
-                <View style={studentStyles.menuTextWrap}>
-                  <Text style={studentStyles.menuTitle}>Agenda</Text>
-                  <Text style={studentStyles.menuSubtitle}>{availabilityWeeks} settimane prenotabili</Text>
-                </View>
-                <AnimatedChevron expanded={activeSection === 'agenda'} />
+                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
               </Pressable>
+            ) : null}
 
-              <AnimatedSection expanded={activeSection === 'agenda'}>
-                <View style={studentStyles.expandedContent}>
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Settimane prenotabili</Text>
-                    <View style={styles.chipRow}>
-                      {weekPresets.map((weeks) => (
-                        <SelectableChip
-                          key={weeks}
-                          label={`${weeks}w`}
-                          active={availabilityWeeks === String(weeks)}
-                          onPress={() => setAvailabilityWeeks(String(weeks))}
-                        />
-                      ))}
-                    </View>
+            {isInstructor(autoscuolaRole) ? (
+              <>
+                <View style={studentStyles.rowDivider} />
+                <Pressable onPress={() => router.push('/(tabs)/more/availability-mode')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                  <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={studentStyles.rowLabel}>Disponibilità</Text>
+                    {settingsLoading ? (
+                      <SkeletonBlock width={90} height={11} radius={6} style={{ marginTop: 5 }} />
+                    ) : (
+                      <Text style={studentStyles.rowHint} numberOfLines={1}>
+                        {instrAvailabilityMode === 'publication' ? 'Pubblicazione' : 'Predefinita'}
+                      </Text>
+                    )}
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+                </Pressable>
+              </>
+            ) : null}
 
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Promemoria allievo</Text>
-                    <View style={styles.chipRow}>
-                      {reminderOptions.map((minutes) => (
-                        <SelectableChip
-                          key={`student-${minutes}`}
-                          label={toReminderLabel(minutes)}
-                          active={studentReminderMinutes === String(minutes)}
-                          onPress={() => setStudentReminderMinutes(String(minutes))}
-                        />
-                      ))}
-                    </View>
+            {isOwner(autoscuolaRole) ? (
+              <>
+                <View style={studentStyles.rowDivider} />
+                <Pressable onPress={() => router.push('/(tabs)/more/agenda-settings')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                  <Ionicons name="time-outline" size={23} color="#1A1A2E" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={studentStyles.rowLabel}>Agenda</Text>
+                    {settingsLoading ? (
+                      <SkeletonBlock width={120} height={11} radius={6} style={{ marginTop: 5 }} />
+                    ) : (
+                      <Text style={studentStyles.rowHint} numberOfLines={1}>
+                        {availabilityWeeks} settimane prenotabili
+                      </Text>
+                    )}
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+                </Pressable>
+              </>
+            ) : null}
 
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Promemoria istruttore</Text>
-                    <View style={styles.chipRow}>
-                      {reminderOptions.map((minutes) => (
-                        <SelectableChip
-                          key={`instructor-${minutes}`}
-                          label={toReminderLabel(minutes)}
-                          active={instructorReminderMinutes === String(minutes)}
-                          onPress={() => setInstructorReminderMinutes(String(minutes))}
-                        />
-                      ))}
-                    </View>
-                  </View>
-
-                  <Pressable
-                    onPress={handleSaveOwnerSettings}
-                    disabled={savingSettings}
-                    style={({ pressed }) => [
-                      studentStyles.pinkCta,
-                      pressed && { opacity: 0.85 },
-                      savingSettings && { opacity: 0.6 },
-                    ]}
-                  >
-                    <Text style={studentStyles.pinkCtaText}>
-                      {savingSettings ? 'Salvataggio...' : 'Salva'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </AnimatedSection>
-            </View>
-          ) : null}
-
-          {/* Notifiche */}
-          <View style={studentStyles.menuCard}>
-            <Pressable onPress={handleNotificationsTap} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: notificationsEnabled ? '#ECFDF5' : '#FEF2F2' }]}>
-                <Ionicons
-                  name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
-                  size={20}
-                  color={notificationsEnabled ? '#10B981' : '#EF4444'}
-                />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.menuTitle}>Notifiche</Text>
-                <Text style={[studentStyles.menuSubtitle, !notificationsEnabled && { color: '#EF4444' }]}>
+            <View style={studentStyles.rowDivider} />
+            <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons
+                name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
+                size={23}
+                color="#1A1A2E"
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={studentStyles.rowLabel}>Notifiche</Text>
+                <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
                   {notificationsEnabled ? 'Attive' : 'Disattivate'}
                 </Text>
               </View>
-              <View style={[studentStyles.notifDot, notificationsEnabled ? studentStyles.notifDotOn : studentStyles.notifDotOff]} />
+              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
             </Pressable>
           </View>
 
-          {/* 4. Danger Zone Card */}
-          <View style={studentStyles.dangerCard}>
-            <Pressable onPress={handleSignOut} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Logout</Text>
-              </View>
+          {/* Account (flat menu group, like student) */}
+          <View style={studentStyles.menuGroup}>
+            <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+              <Text style={studentStyles.rowLabelFlex}>Esci</Text>
             </Pressable>
-
-            <View style={studentStyles.menuDivider} />
-
-            <Pressable onPress={handleDeleteAccount} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Elimina account</Text>
-              </View>
+            <View style={studentStyles.rowDivider} />
+            <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="trash-outline" size={23} color="#DC2626" />
+              <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
             </Pressable>
           </View>
 
-          {/* 5. Footer */}
+          {/* Footer */}
           <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
         </>
       )}
@@ -1350,59 +1183,12 @@ const studentStyles = StyleSheet.create({
   fieldGroup: { gap: 8, marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
-  /* ── Notification dot ── */
-  notifDot: { width: 12, height: 12, borderRadius: 6 },
-  notifDotOn: { backgroundColor: '#22C55E' },
-  notifDotOff: { backgroundColor: '#D1D5DB' },
-
-
   /* ── Footer ── */
   footer: {
     textAlign: 'center', fontSize: 11, fontWeight: '500',
     color: colors.textMuted, marginTop: 12,
   },
 
-  /* ── Legacy: used by renderNonStudentContent (instructor/owner) ── */
-  heroCard: {
-    backgroundColor: colors.surface, borderRadius: 22, padding: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12, shadowRadius: 8, elevation: 5,
-  },
-  heroRow: { flexDirection: 'row', alignItems: 'center' },
-  heroAvatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#FCE7F3',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  heroAvatarText: { fontSize: 18, fontWeight: '800', color: colors.primary },
-  heroMeta: { flex: 1, marginLeft: 14 },
-  heroName: { fontSize: 17, fontWeight: '700', color: '#1A1A2E' },
-  heroEmail: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-  heroDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 14 },
-  heroCompanyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  yellowDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FACC15' },
-  heroCompanyName: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
-  menuCard: {
-    backgroundColor: colors.background, borderRadius: 20, overflow: 'hidden',
-    boxShadow: [
-      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
-      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
-    ],
-  },
-  menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14 },
-  menuIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  menuTextWrap: { flex: 1, marginLeft: 12 },
-  menuTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  menuSubtitle: { fontSize: 12, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
-  menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginHorizontal: 18 },
-  expandedContent: { paddingHorizontal: 18, paddingBottom: 18, paddingTop: 10 },
-  dangerCard: {
-    backgroundColor: colors.background, borderRadius: 20, overflow: 'hidden',
-    boxShadow: [
-      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
-      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
-    ],
-  },
-  dangerTitle: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
 });
 
 /* \u2500\u2500\u2500 Shared / non-student styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
@@ -1632,32 +1418,5 @@ const styles = StyleSheet.create({
   pickerTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,
-  },
-});
-
-const settingsCardStyles = StyleSheet.create({
-  viewModeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    backgroundColor: 'rgba(26,18,10,0.03)',
-    borderColor: 'rgba(26,18,10,0.10)',
-  },
-  viewModeBtnActive: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE047',
-  },
-  viewModeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  viewModeBtnTextActive: {
-    color: '#A16207',
   },
 });
