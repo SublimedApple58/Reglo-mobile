@@ -60,7 +60,7 @@ export default function AvailabilityModeScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4, marginBottom: 16 },
   list: { gap: 10, marginBottom: 20 },
   optRow: {

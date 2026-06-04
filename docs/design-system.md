@@ -1353,12 +1353,13 @@ Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
 
 | Schermata | fontSize | fontWeight | letterSpacing |
 |---|---|---|---|
-| Home quiz ("Ciao, {nome}") | 24 | 800 | -0.3 |
-| Lista argomenti ("Studio per Argomento") | 24 | 800 | -0.3 |
-| Schede esame ("Schede d'Esame") | 24 | 800 | -0.3 |
-| Sezione capitolo ("4. Segnali di obbligo") | 22 | 800 | -0.3 |
+| Home quiz ("Ciao, {nome}") | 24 | 600 | -0.3 |
+| Lista argomenti ("Studio per Argomento") | 24 | 600 | -0.3 |
+| Schede esame ("Schede d'Esame") | 24 | 600 | -0.3 |
+| Sezione capitolo ("4. Segnali di obbligo") | 22 | 600 | -0.3 |
 
-**Regola:** titoli pagina top-level a 24px. Sotto-pagine (dentro un capitolo) a 22px. Mai superare 24px per i large title.
+**Regola peso:** i titoli grandi/pagina/header/sheet usano **`fontWeight: '600'`** — NON 800 (l'800 risultava un grassetto troppo pronunciato). Vale **ovunque** (large title, header schermate, titoli dei formSheet). I numeri grandi decorativi (countdown esame, valori stat, badge) restano 800. `compactTitle` 600, sottotitoli 500.
+**Regola size:** titoli pagina top-level a 24px. Sotto-pagine / titoli sheet a 20-22px. Mai superare 24px per i large title.
 
 ---
 

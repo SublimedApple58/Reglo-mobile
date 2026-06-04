@@ -441,7 +441,7 @@ const s = StyleSheet.create({
 
   /* ── Large title ── */
   largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  largeTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E' },
+  largeTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
   largeTitleTagRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4,
   },

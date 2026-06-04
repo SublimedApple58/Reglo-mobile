@@ -62,7 +62,7 @@ export default function PaymentScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 14 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
   hint: { fontSize: 14, fontWeight: '400', color: colors.textMuted, lineHeight: 20 },
   warning: { fontSize: 13, fontWeight: '500', color: '#F59E0B' },
   card: {

@@ -97,6 +97,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.
 - → **Backend**: `GET /api/autoscuole/me` (arricchita di `phasesEnabled`, `hasQuizAccess`, `autoAssignQuizOnSignup`), `POST /api/mobile/auth/student-register` (decide fase + seat in transaction), `updateStudentPhase` + `grantQuizSeat` + `setAutoAssignQuizOnSignup` (tutte web/owner only).
 
+### Locations
+- → **Booking Flow / Instructor Manage**: i luoghi vengono scelti quando si prenota/crea una guida (`LocationPickerSheet`, `InlineLocationPicker`, `IstruttoreHomeScreen` chiamano anch'essi `getLocations`, ma non condividono ancora `useLocations`).
+- → **Settings**: raggiungibile da "Altro" (istruttore/owner).
+- → **Backend**: `getLocations`/`createLocation`/`updateLocation`/`deleteLocation`. Google Places via `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`.
+- Form migrato da `BottomSheet` custom (`LocationFormSheet`, eliminato) a route formSheet `more/location-form` (store-driven).
+
 ## Cross-Repo Impact
 
 When `../reglo/` backend changes:

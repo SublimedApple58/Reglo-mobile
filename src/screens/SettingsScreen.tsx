@@ -1098,11 +1098,11 @@ export const SettingsScreen = () => {
 /* \u2500\u2500\u2500 Student-specific styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 const studentStyles = StyleSheet.create({
   title: {
-    fontSize: 24, fontWeight: '800', letterSpacing: -0.3, color: '#1A1A2E',
+    fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E',
   },
 
   pageTitle: {
-    fontSize: 30, fontWeight: '800', letterSpacing: -0.5, color: '#1A1A2E',
+    fontSize: 30, fontWeight: '600', letterSpacing: -0.5, color: '#1A1A2E',
     marginBottom: 4,
   },
 

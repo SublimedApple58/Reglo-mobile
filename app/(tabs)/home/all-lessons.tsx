@@ -72,7 +72,7 @@ export default function AllLessonsScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
   header: { paddingHorizontal: spacing.md, marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   list: { paddingHorizontal: spacing.md, paddingBottom: 40, gap: 10 },
   card: {

@@ -225,7 +225,7 @@ const st = StyleSheet.create({
     marginBottom: 16,
   },
   pageTitle: {
-    fontSize: 28, fontWeight: '800', color: '#1A1A2E',
+    fontSize: 28, fontWeight: '600', color: '#1A1A2E',
     letterSpacing: -0.5, lineHeight: 34,
   },
   pageSubtitle: {

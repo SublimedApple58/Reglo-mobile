@@ -104,7 +104,7 @@ export default function AvailabilityScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
   hint: { fontSize: 13, fontWeight: '400', color: colors.textMuted },
   dayRow: { flexDirection: 'row', gap: 8 },
   day: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

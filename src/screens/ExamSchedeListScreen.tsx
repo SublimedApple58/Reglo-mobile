@@ -259,7 +259,7 @@ const st = StyleSheet.create({
   compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
   /* Scroll */

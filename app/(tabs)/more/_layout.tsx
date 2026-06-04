@@ -46,6 +46,15 @@ export default function MoreLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="location-form"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

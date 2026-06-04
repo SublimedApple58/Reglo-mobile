@@ -273,7 +273,7 @@ const st = StyleSheet.create({
 
   /* Large title */
   largeTitle: {
-    fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3,
+    fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3,
     marginBottom: 16,
   },
 

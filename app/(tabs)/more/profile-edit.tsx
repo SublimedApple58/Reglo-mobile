@@ -40,7 +40,7 @@ export default function MoreProfileEditScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
   field: { gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   cta: {

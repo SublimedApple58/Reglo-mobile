@@ -24,6 +24,8 @@ export const STALE_TIMES = {
   instructorSettings: 15 * 60 * 1000,
   /** Instructor blocks — 5 min */
   instructorBlocks: 5 * 60 * 1000,
+  /** Driving locations change rarely — 15 min */
+  locations: 15 * 60 * 1000,
   /**
    * Student phase / theory exam date — 30 sec.
    * The phase can change as soon as the owner clicks "Assegna quiz" /
@@ -68,6 +70,9 @@ export const queryKeys = {
 
   instructorBlocks: (companyId: string | null, params?: Record<string, unknown>) =>
     ['instructor-blocks', companyId, params] as const,
+
+  locations: (companyId: string | null) =>
+    ['locations', companyId] as const,
 
   studentPhase: (companyId: string | null) =>
     ['student-phase', companyId] as const,

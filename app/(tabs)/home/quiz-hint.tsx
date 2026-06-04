@@ -43,7 +43,7 @@ export default function QuizHintScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.md, paddingTop: 24, paddingBottom: 14 },
-  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.3 },
+  title: { fontSize: 22, fontWeight: '600', color: colors.textPrimary, letterSpacing: -0.3 },
   scrollView: { flex: 1 },
   scroll: { paddingHorizontal: spacing.md, paddingBottom: 24 },
   html: { fontSize: 16, color: '#374151', lineHeight: 26 },
