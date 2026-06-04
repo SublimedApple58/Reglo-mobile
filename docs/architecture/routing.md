@@ -19,7 +19,7 @@ Expo Router 6, file-based routing.
 
 Swaps is **not** a tab — it's a home sub-route (`home/swaps`, SwapOffersScreen), opened from the home "Scambi" CTA when swaps are enabled.
 
-Sub-routes: home/create-exam, home/notifications, home/swaps, notes/[studentId], notes/cluster-settings, more/settings, more/profile-edit (formSheet), more/agenda-view (formSheet), more/availability-mode (formSheet), more/agenda-settings (formSheet), more/location-form (formSheet), more/vehicles, more/instructors-overview, more/instructor-hours
+Sub-routes: home/create-exam, home/notifications, home/swaps, notes/[studentId], notes/cluster-settings, more/settings, more/profile-edit (formSheet), more/agenda-view (formSheet), more/availability-mode (formSheet), more/agenda-settings (formSheet), more/location-form (formSheet), more/hours-period (formSheet), more/vehicles, more/instructors-overview, more/instructor-hours
 
 ## Tab bar
 - iOS: native tabs (`NativeTabs` + `GlassTabBar.ios.tsx`)

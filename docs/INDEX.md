@@ -14,6 +14,7 @@
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen`, `InstructorManageScreen` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Locations | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form` |
+| Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
 | Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |
 

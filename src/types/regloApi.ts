@@ -866,6 +866,30 @@ export type InstructorHoursEntry = {
 
 export type InstructorHoursResponse = InstructorHoursEntry[];
 
+// Range-based reporting (period selector). Buckets = days (span ≤ 14) or weeks.
+export type InstructorHoursBucket = {
+  key: string;
+  label: string;
+  startDate: string; // ISO YYYY-MM-DD (day, or week Monday)
+  totalMinutes: number;
+  outsideWorkingHoursMinutes: number;
+  appointmentCount: number;
+};
+
+export type InstructorHoursRange = {
+  instructorId: string;
+  instructorName: string;
+  workingHoursStart: string | null;
+  workingHoursEnd: string | null;
+  rangeStart: string; // ISO YYYY-MM-DD inclusive
+  rangeEnd: string; // ISO YYYY-MM-DD inclusive
+  granularity: 'day' | 'week';
+  total: { totalMinutes: number; outsideWorkingHoursMinutes: number; appointmentCount: number };
+  buckets: InstructorHoursBucket[];
+};
+
+export type InstructorHoursRangeResponse = InstructorHoursRange[];
+
 export type CompanyBookingDefaults = {
   bookingSlotDurations: number[];
   roundedHoursOnly: boolean;

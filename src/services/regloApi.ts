@@ -83,6 +83,7 @@ import {
   InstructorClusterSettings,
   CompanyBookingDefaults,
   InstructorHoursResponse,
+  InstructorHoursRangeResponse,
   QuizChapterProgress,
   StartQuizSessionInput,
   StartQuizSessionResult,
@@ -649,6 +650,12 @@ export const createRegloApi = (baseUrl?: string) => {
       const qs = new URLSearchParams({ weekStart: params.weekStart });
       if (params.monthStart) qs.set('monthStart', params.monthStart);
       return client.request<InstructorHoursResponse>(
+        `/api/autoscuole/instructor-hours?${qs.toString()}`
+      );
+    },
+    getInstructorHoursRange: async (params: { from: string; to: string }) => {
+      const qs = new URLSearchParams({ from: params.from, to: params.to });
+      return client.request<InstructorHoursRangeResponse>(
         `/api/autoscuole/instructor-hours?${qs.toString()}`
       );
     },

@@ -55,6 +55,15 @@ export default function MoreLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="hours-period"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
