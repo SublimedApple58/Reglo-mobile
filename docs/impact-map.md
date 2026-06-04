@@ -6,8 +6,8 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Component | Used by screens | Notes |
 |-----------|----------------|-------|
-| `BottomSheet` | AllievoHome, AllievoPayments, ClusterSettings, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, SwapOffers, TitolareHome (14) | iOS + Android separate implementations |
-| `TimePickerDrawer` | ClusterSettings, CreateExam, InstructorAvailability, InstructorManage, InstructorVehicles, OwnerVehicles, PublicationModeEditor, RescheduleAppointmentSheet, Settings (9) | Depends on BottomSheet |
+| `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, LocationPickerSheet, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, TitolareHome (11) | iOS + Android separate implementations. ClusterSettings migrated to a page-sheet route (notes/group-students). |
+| `TimePickerDrawer` | CreateExam, InstructorManage, InstructorVehicles, OwnerInstructor, OwnerVehicles, PublicationModeEditor, RescheduleAppointmentSheet, Settings (8) | Depends on BottomSheet. ClusterSettings now uses the formSheet `time-picker` route (timePickerStore). |
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome, TitolareHome (4) | Depends on MiniCalendar + BottomSheet |
 | `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor (3) | Time range format changes break all availability UIs |
 | `SelectableChip` | CalendarNavigator, ClusterSettings, InstructorManage, Settings (4) | |

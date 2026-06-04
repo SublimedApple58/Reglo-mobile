@@ -22,7 +22,7 @@ Definiti in `src/theme/colors.ts` → oggetto `colors`:
 | `colors.textMuted` | `#9CA3AF` | Placeholder, label terziarie, weekday calendar headers |
 | `colors.border` | `#E5E7EB` | Bordi card, separatori, bordi pulsanti freccia |
 | `colors.surface` | `#FFFFFF` | Sfondo card |
-| `colors.background` | `#FFFFFF` | Sfondo pagina |
+| `colors.background` | `#FDFDFD` | Sfondo pagina + tab bar (off-white che sfiora il bianco, mai bianco puro). Tab bar (`GlassTabBar`) e fallback Android degli header blur (`rgba(253,253,253,…)`) usano lo stesso valore. |
 | `colors.shadow` | `rgba(0, 0, 0, 0.08)` | Ombra base generica |
 
 ### 1.2 Regola d'oro: **70 / 20 / 10**

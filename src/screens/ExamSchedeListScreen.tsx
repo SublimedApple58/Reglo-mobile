@@ -132,7 +132,7 @@ export const ExamSchedeListScreen: React.FC = () => {
         {Platform.OS === 'ios' ? (
           <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(247,247,247,0.95)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.95)' }]} />
         )}
         <Animated.View style={[StyleSheet.absoluteFill, st.headerBorder, borderStyle]} />
         <View style={st.headerRow}>

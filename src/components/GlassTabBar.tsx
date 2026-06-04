@@ -173,7 +173,7 @@ export const GlassTabBar = ({
 
 const st = StyleSheet.create({
   bar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     paddingTop: 8,

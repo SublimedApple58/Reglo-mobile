@@ -26,14 +26,10 @@ The instructor/owner branch (`renderNonStudentContent`) mirrors the student bran
 
 **Owner:** availability weeks ahead (2/4/6/8/12), booking actors, instructor booking mode, swap enabled, company-wide cutoff, weekly booking limits
 
-## Cluster settings (ClusterSettingsScreen)
-- Booking duration options
-- Booking cutoff time
-- Weekly booking limit
-- Weekly absence toggle
-- Restricted time range (no-booking window)
-- Booking actor governance (students/instructors/both)
-- Student assignment to cluster
+## Cluster settings (ClusterSettingsScreen — "Il mio gruppo")
+- Booking duration options, cutoff time, weekly limit, weekly absence, restricted time range, booking actor governance, student assignment to cluster.
+- **Design-system aligned**: Switch tracks are **pink** (`#EC4899`, was yellow `#FACC15`); palette `#1A1A2E` (was slate `#1E293B`); `SelectableChip` navy.
+- **Migrated off custom drawers**: the 3 `TimePickerDrawer`s → **formSheet route** `app/(tabs)/notes/time-picker.tsx` (shared `timePickerStore`); the students-management `BottomSheet` → **page-sheet route** `app/(tabs)/notes/group-students.tsx` (`groupStudentsStore`). Notes layout got `contentStyle` background + the two route registrations.
 
 ## Performance — instant render (non-blocking load)
 The screen never blocks on network. `initialLoading` is set `false` as soon as the session-derived UI can render; the network calls that only feed **row hints** run in the **background, in parallel**, gated by a separate loading flag that shows a small `SkeletonBlock` on just that row.
