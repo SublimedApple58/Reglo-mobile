@@ -7,6 +7,8 @@ import { AvailabilityMode, TimeRange } from '../types/regloApi';
 
 export type CachedDay = { date: string; available: boolean; ranges: TimeRange[] };
 export type CachedMode = { mode: AvailabilityMode; weeks: number };
+// Default-mode base: per-weekday ranges (0=Sun..6=Sat). Empty/absent day = off.
+export type CachedBase = { scheduleByDay: Record<number, TimeRange[]> };
 
 const read = async <T>(key: string): Promise<T | null> => {
   try {
@@ -38,7 +40,7 @@ export const availabilityCache = {
   getWeekDays: (id: string, weekStart: string) => read<CachedDay[]>(`avail:week:${id}:${weekStart}`),
   setWeekDays: (id: string, weekStart: string, days: CachedDay[]) => write(`avail:week:${id}:${weekStart}`, days),
 
-  // Default-mode base weekly schedule
-  getBase: (id: string) => read<{ daysOfWeek: number[]; ranges: TimeRange[] }>(`avail:base:${id}`),
-  setBase: (id: string, v: { daysOfWeek: number[]; ranges: TimeRange[] }) => write(`avail:base:${id}`, v),
+  // Default-mode base weekly schedule (per-weekday ranges)
+  getBase: (id: string) => read<CachedBase>(`avail:base:${id}`),
+  setBase: (id: string, v: CachedBase) => write(`avail:base:${id}`, v),
 };

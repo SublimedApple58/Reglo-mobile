@@ -155,13 +155,17 @@ export const InstructorAvailabilityScreen = () => {
           <Animated.Text style={[styles.largeTitle, largeTitleStyle]}>Disponibilità</Animated.Text>
         </View>
 
-        {/* Mode badge */}
-        <View style={styles.modeRow}>
-          <View style={styles.modeBadge}>
-            <Image source={FLUENT_CALENDAR} style={styles.modeIcon} />
-            <Text style={styles.modeBadgeText}>{modeLabel}</Text>
+        {/* Mode badge — only in publication mode (default mode reads as the plain screen) */}
+        {isPublication ? (
+          <View style={styles.modeRow}>
+            <View style={styles.modeBadge}>
+              <Image source={FLUENT_CALENDAR} style={styles.modeIcon} />
+              <Text style={styles.modeBadgeText}>{modeLabel}</Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.modeSpacer} />
+        )}
 
         {!instructorId ? (
           <View style={styles.emptyCard}>
@@ -208,6 +212,7 @@ const styles = StyleSheet.create({
 
   /* Mode badge */
   modeRow: { flexDirection: 'row', marginTop: 8, marginBottom: 22 },
+  modeSpacer: { height: 18 },
   modeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999,

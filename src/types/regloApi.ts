@@ -462,6 +462,17 @@ export type CreateAvailabilitySlotsInput = {
   daysOfWeek?: number[];
   weeks?: number;
   ranges?: TimeRange[];
+  // Per-weekday schedule (0=Sun..6=Sat). When present the backend persists it as
+  // authoritative and derives the flat fields above from a representative day.
+  scheduleByDay?: Record<number, TimeRange[]>;
+};
+
+// Returned by getDefaultAvailability. `scheduleByDay` is always present (legacy
+// shared records are projected onto each active day server-side).
+export type DefaultAvailability = {
+  daysOfWeek: number[];
+  ranges: TimeRange[];
+  scheduleByDay: Record<number, TimeRange[]>;
 };
 
 export type CreateBookingRequestInput = {

@@ -18,6 +18,7 @@ import {
   CancelAppointmentResult,
   CreateAppointmentInput,
   CreateAvailabilitySlotsInput,
+  DefaultAvailability,
   CreateBookingRequestInput,
   CreateBookingRequestResult,
   CreateCaseInput,
@@ -444,7 +445,7 @@ export const createRegloApi = (baseUrl?: string) => {
       ownerType: string;
       ownerId: string;
     }) =>
-      client.request<{ daysOfWeek: number[]; ranges: TimeRange[] } | null>('/api/autoscuole/availability/default', {
+      client.request<DefaultAvailability | null>('/api/autoscuole/availability/default', {
         params,
       }),
     getDailyAvailabilityOverrides: async (params: {
