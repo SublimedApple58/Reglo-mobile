@@ -9,13 +9,13 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, LocationPickerSheet, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, TitolareHome (11) | iOS + Android separate implementations. ClusterSettings migrated to a page-sheet route (notes/group-students). |
 | `TimePickerDrawer` | CreateExam, InstructorManage, InstructorVehicles, OwnerInstructor, OwnerVehicles, PublicationModeEditor, RescheduleAppointmentSheet, Settings (8) | Depends on BottomSheet. ClusterSettings now uses the formSheet `time-picker` route (timePickerStore). |
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome, TitolareHome (4) | Depends on MiniCalendar + BottomSheet |
-| `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor (3) | Time range format changes break all availability UIs |
+| `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor, DefaultAvailabilityEditor, role/availability-exception (5) | Time range format changes break all availability UIs. Navy clock circle (no pink). |
 | `SelectableChip` | CalendarNavigator, ClusterSettings, InstructorManage, Settings (4) | |
 | `WeeklyAgendaView` | IstruttoreHome, TitolareHome (2) | Shared between instructor and owner |
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
-| `MiniCalendar` | InstructorManage, OwnerInstructor + used by CalendarDrawer (3) | |
+| `MiniCalendar` | InstructorManage, OwnerInstructor, role/availability-exception + used by CalendarDrawer (4) | Navy selected/today/dot (no yellow/pink). |
 
 ## API Type → Screens
 
@@ -37,9 +37,9 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Availability Editor
 - → **Booking Flow**: published availability determines bookable slots for students
-- → **Settings**: `availabilityMode` toggle (default vs publication) lives in Settings
-- → **Instructor Manage**: InstructorManageScreen also shows/edits daily overrides
-- → **Backend**: `setDailyAvailabilityOverride()`, `publishWeek()`, `unpublishWeek()`
+- → **Settings**: `availabilityMode` toggle (default vs publication) lives in Settings (chosen there, NOT in the Disponibilità screen)
+- → **Backend**: `setDailyAvailabilityOverride()`, `setRecurringAvailabilityOverride()`, `deleteDailyAvailabilityOverride()`, `createAvailabilitySlots()`, `publishWeek()`, `unpublishWeek()`
+- **Live tree:** `app/(tabs)/role/` stack → `InstructorAvailabilityScreen` (shell, collapsible BlurView header) → `DefaultAvailabilityEditor` (Settimana tipo + Eccezioni) or `PublicationModeEditor`. Exceptions edited via the `role/availability-exception` page-sheet (`availabilityExceptionStore`). `InstructorManageScreen` + its `AvailabilityEditor` are **legacy/unmounted** (React-Navigation `TabNavigator`, not in Expo Router tree).
 
 ### Payments
 - → **Booking Flow**: payment profile needed for booking

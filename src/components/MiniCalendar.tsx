@@ -262,7 +262,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
               // Other month
               textStyle = styles.dayTextOtherMonth;
             } else if (isSelected && isToday) {
-              // Selected + today: pink bg wins, yellow border on top
+              // Selected + today: navy fill (selection dominates)
               cellStyle = styles.dayCellSelectedToday;
               textStyle = styles.dayTextSelected;
             } else if (isSelected) {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FACC15',
+    borderColor: '#1A1A2E',
   },
   dayCellSelected: {
     width: CELL_SIZE,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   dayCellSelectedToday: {
     width: CELL_SIZE,
@@ -394,9 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EC4899',
-    borderWidth: 2,
-    borderColor: '#FACC15',
+    backgroundColor: '#1A1A2E',
   },
   // ── Day text ──────────────────────────────────────────────
   dayText: {
@@ -431,6 +429,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
 });

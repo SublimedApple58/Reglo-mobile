@@ -594,8 +594,8 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `maxWeeks` | `number` | `12` | Settimane navigabili |
 
 **Day cell:** `40x40px`, `borderRadius: 20`. Day text: `fontSize: 14`.
-**Stato `selectedToday`:** bg rosa + border giallo (combinazione).
-**Marked dot:** cerchio `5x5px`, `bg: #EC4899`, posizione `absolute bottom: 4`.
+**Selezionato:** `bg: #1A1A2E` (navy), testo bianco. **Today:** border 2 `#1A1A2E`. **`selectedToday`:** fill navy (la selezione domina). No giallo/rosa.
+**Marked dot:** cerchio `5x5px`, `bg: #1A1A2E`, posizione `absolute bottom: 4`.
 **Fade transition:** `Animated.timing` 220ms su opacity al cambio mese.
 **LayoutAnimation:** attivato su Android per transizioni mese (`easeInEaseOut`).
 
@@ -638,7 +638,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `disabled` | `boolean` | `false` | Stato disabilitato |
 
 **Row:** `borderRadius: 999`, `bg: #FFFFFF`, `paddingVertical: 14`. Ombra leggera (`shadowOpacity: 0.05`).
-**Clock icon circle:** `36x36`, `borderRadius: 18`, `bg: #FDF2F8` (pink[50]), icona `time` color `#EC4899`.
+**Clock icon circle:** `36x36`, `borderRadius: 18`, `bg: #EEF0F4` (navy tint), icona `time` color `#1A1A2E`.
 **Time text:** `fontSize: 16`, `fontWeight: '600'`, `color: #1E293B`, `textDecorationLine: 'underline'`, underline color `#E2E8F0`.
 **Add button:** `borderRadius: 999`, `borderWidth: 1.5`, `borderStyle: 'dashed'`, `borderColor: #CBD5E1`. Testo `fontSize: 14`, `color: #64748B`.
 **Animazioni:** `FadeIn.duration(200)` / `FadeOut.duration(150)` (react-native-reanimated).

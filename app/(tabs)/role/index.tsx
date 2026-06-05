@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useSession } from '../../src/context/SessionContext';
-import { OwnerInstructorScreen } from '../../src/screens/OwnerInstructorScreen';
-import { InstructorAvailabilityScreen } from '../../src/screens/InstructorAvailabilityScreen';
-import { RoleHomeScreen } from '../../src/screens/RoleHomeScreen';
-import { isInstructor, isOwner } from '../../src/utils/roles';
+import { useSession } from '../../../src/context/SessionContext';
+import { OwnerInstructorScreen } from '../../../src/screens/OwnerInstructorScreen';
+import { InstructorAvailabilityScreen } from '../../../src/screens/InstructorAvailabilityScreen';
+import { RoleHomeScreen } from '../../../src/screens/RoleHomeScreen';
+import { isInstructor, isOwner } from '../../../src/utils/roles';
 
 export default function RoleRoute() {
   const { autoscuolaRole } = useSession();
