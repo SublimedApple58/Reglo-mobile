@@ -287,7 +287,6 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
       {/* ── Eccezioni ─────────────────────────────────── */}
       <View style={styles.exHead}>
         <Text style={styles.exTitle}>Eccezioni</Text>
-        <Text style={styles.exSub}>Giorni che cambiano rispetto agli orari settimanali.</Text>
       </View>
 
       {overridesLoading ? (
@@ -374,7 +373,7 @@ const styles = StyleSheet.create({
 
   /* Save CTA */
   cta: {
-    backgroundColor: '#1A1A2E', minHeight: 52, borderRadius: 14,
+    backgroundColor: '#1A1A2E', minHeight: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 20,
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
@@ -386,18 +385,17 @@ const styles = StyleSheet.create({
   /* Eccezioni */
   exHead: { marginTop: 38, marginBottom: 2 },
   exTitle: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
-  exSub: { fontSize: 13, color: colors.textMuted, marginTop: 3 },
   exDate: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
 
   /* Empty — flat */
   emptyWrap: { paddingVertical: 26 },
   emptyText: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
-  /* Add exception — clean filled button (no dashed) */
+  /* Add exception — Airbnb outline button (white + thin border, pill) */
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 15, borderRadius: 14,
-    backgroundColor: '#EAEDF1', borderWidth: 1, borderColor: '#DBDFE5', marginTop: 14,
+    paddingVertical: 16, borderRadius: 26,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCDFE4', marginTop: 14,
   },
   addText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
 });
