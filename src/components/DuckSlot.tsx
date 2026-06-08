@@ -36,7 +36,7 @@ type Props = {
   kind: DuckKind;
   /** Logical size of the slot in dp (square). Default 48. */
   size?: number;
-  /** Active variant gets a soft pink halo to draw the eye. */
+  /** Active variant gets a soft navy halo to draw the eye. */
   active?: boolean;
   /** When the placeholder is rendered, this is the accent of the empty disc. */
   placeholderTone?: 'muted' | 'active' | 'success';
@@ -97,9 +97,9 @@ export const DuckSlot: React.FC<Props> = ({
   // Placeholder: a soft duck-shaped silhouette so the slot is never empty.
   const placeholderBg =
     placeholderTone === 'active'
-      ? 'rgba(236, 72, 153, 0.16)'
+      ? 'rgba(26, 26, 46, 0.16)'
       : placeholderTone === 'success'
-        ? 'rgba(236, 72, 153, 0.32)'
+        ? 'rgba(26, 26, 46, 0.32)'
         : 'rgba(15, 23, 42, 0.06)';
   const placeholderBorder =
     placeholderTone === 'active'

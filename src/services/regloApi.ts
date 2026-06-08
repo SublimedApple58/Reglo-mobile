@@ -341,6 +341,13 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'POST',
         }
       ),
+    permanentlyCancelAppointment: async (appointmentId: string) =>
+      client.request<{ success: boolean; message?: string }>(
+        `/api/autoscuole/appointments/${appointmentId}/permanent-cancel`,
+        {
+          method: 'POST',
+        }
+      ),
     repositionAppointment: async (appointmentId: string, reason?: string) =>
       client.request<RepositionAppointmentResult>(
         `/api/autoscuole/appointments/${appointmentId}/reposition`,

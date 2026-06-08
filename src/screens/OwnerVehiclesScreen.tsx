@@ -723,7 +723,7 @@ export const OwnerVehiclesScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Inizio</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
                         <Text style={styles.timeCardValue}>
                           {toTimeString(vehicleAvailabilityStart)}
                         </Text>
@@ -738,7 +738,7 @@ export const OwnerVehiclesScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Fine</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
                         <Text style={styles.timeCardValue}>
                           {toTimeString(vehicleAvailabilityEnd)}
                         </Text>

@@ -206,8 +206,8 @@ export const SwapOffersScreen = () => {
         {/* Top: who */}
         <View style={st.cardTop}>
           {mine ? (
-            <View style={[st.avatar, { backgroundColor: '#FCE7F3' }]}>
-              <Ionicons name="swap-horizontal" size={22} color="#DB2777" />
+            <View style={[st.avatar, { backgroundColor: '#E9EBF2' }]}>
+              <Ionicons name="swap-horizontal" size={22} color="#14141F" />
             </View>
           ) : (
             <View style={st.avatar}>
@@ -221,8 +221,8 @@ export const SwapOffersScreen = () => {
             <Text style={st.cardHint}>{mine ? 'in attesa di un sostituto' : 'cerca un sostituto'}</Text>
           </View>
           {mine ? (
-            <View style={[st.openBadge, { backgroundColor: '#FCE7F3' }]}>
-              <Text style={[st.openBadgeText, { color: '#DB2777' }]}>In attesa</Text>
+            <View style={[st.openBadge, { backgroundColor: '#E9EBF2' }]}>
+              <Text style={[st.openBadgeText, { color: '#14141F' }]}>In attesa</Text>
             </View>
           ) : (
             <View style={st.openBadge}>
@@ -234,8 +234,8 @@ export const SwapOffersScreen = () => {
 
         {/* When */}
         <View style={st.whenRow}>
-          <View style={[st.chip, { backgroundColor: '#FCE7F3' }]}>
-            <Ionicons name="calendar" size={17} color="#DB2777" />
+          <View style={[st.chip, { backgroundColor: '#E9EBF2' }]}>
+            <Ionicons name="calendar" size={17} color="#14141F" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={st.whenDate}>{formatDay(offer.appointment.startsAt)}</Text>
@@ -443,7 +443,7 @@ const st = StyleSheet.create({
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 28, elevation: 5,
   },
   myCard: {
-    borderWidth: 1.5, borderColor: '#FBCFE8', backgroundColor: '#FFFCFD',
+    borderWidth: 1.5, borderColor: '#D6D9E6', backgroundColor: '#FDFDFD',
   },
   cardPressed: { opacity: 0.96, transform: [{ scale: 0.985 }] },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },

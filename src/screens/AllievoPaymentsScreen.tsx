@@ -567,8 +567,8 @@ export const AllievoPaymentsScreen = () => {
             <Text style={[styles.chunkyRowLabel, { marginTop: 8 }]}>PAGAMENTO</Text>
             <View style={{ gap: 16 }}>
               <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="wallet-outline" size={18} color="#EC4899" />
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#E9EBF2' }]}>
+                  <Ionicons name="wallet-outline" size={18} color="#1A1A2E" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.chunkyRowLabel}>STATO</Text>
@@ -578,8 +578,8 @@ export const AllievoPaymentsScreen = () => {
                 </View>
               </View>
               <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="cash-outline" size={18} color="#EC4899" />
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#E9EBF2' }]}>
+                  <Ionicons name="cash-outline" size={18} color="#1A1A2E" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.chunkyRowLabel}>IMPORTI</Text>
@@ -591,8 +591,8 @@ export const AllievoPaymentsScreen = () => {
                 </View>
               </View>
               <View style={styles.chunkyIconRow}>
-                <View style={[styles.chunkyIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="document-text-outline" size={18} color="#EC4899" />
+                <View style={[styles.chunkyIconCircle, { backgroundColor: '#E9EBF2' }]}>
+                  <Ionicons name="document-text-outline" size={18} color="#1A1A2E" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.chunkyRowLabel}>FATTURA</Text>
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
     textTransform: 'uppercase',
     letterSpacing: 1.4,
     marginTop: spacing.xs,
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9C3',
   },
   txIconDanger: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
   },
   txIconText: {
     fontSize: 11,
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     color: '#CA8A04',
   },
   txIconTextDanger: {
-    color: '#EC4899',
+    color: '#1A1A2E',
   },
   txCenter: {
     flex: 1,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   detailSectionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
     textTransform: 'uppercase',
     letterSpacing: 1.4,
     marginBottom: 2,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   chunkyRowLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
     textTransform: 'uppercase',
     letterSpacing: 1.4,
   },

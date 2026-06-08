@@ -13,7 +13,7 @@ Definiti in `src/theme/colors.ts` → oggetto `colors`:
 
 | Token | Hex | Uso |
 |---|---|---|
-| `colors.primary` | `#EC4899` | CTA principali, bottoni primari, tint tab bar, focus input, dot calendario, ombra CTA |
+| `colors.primary` | `#1A1A2E` | CTA principali, bottoni primari, tint tab bar, focus input, dot calendario, ombra CTA |
 | `colors.accent` | `#FACC15` | Card "prossima guida", day pill selezionato, chip attivi, border today calendario |
 | `colors.destructive` | `#EF4444` | Errori, annullamenti, azioni distruttive, toast danger |
 | `colors.positive` | `#22C55E` | Successo, conferme, stati completati, toast success, icona celebrazione |
@@ -28,24 +28,24 @@ Definiti in `src/theme/colors.ts` → oggetto `colors`:
 ### 1.2 Regola d'oro: **70 / 20 / 10**
 
 - **70% neutri** — bianco, grigi, testo scuro
-- **20% rosa** — CTA, accenti interattivi, focus state
+- **20% navy** — CTA, accenti interattivi, focus state
 - **10% giallo** — highlight informativi, prossima guida, selezioni temporali
 
 ### 1.3 Scale Colori
 
-Accesso diretto via `colors.pink[shade]` e `colors.yellow[shade]`:
+Accesso diretto via `colors.navy[shade]` e `colors.yellow[shade]`:
 
-**Rosa (Pink)**
+**Navy (mono)**
 | Shade | Hex | Uso principale |
 |---|---|---|
-| `50` | `#FDF2F8` | Badge default bg, clock circle bg (RangesEditor), ring celebrazione |
-| `100` | `#FCE7F3` | — |
-| `200` | `#FBCFE8` | Badge default border, ring BookingCelebration |
-| `300` | `#F9A8D4` | — |
-| `400` | `#F472B6` | — |
-| `500` | `#EC4899` | = `colors.primary` |
-| `600` | `#DB2777` | — |
-| `700` | `#BE185D` | — |
+| `50` | `#F4F5F9` | Badge default bg, clock circle bg (RangesEditor), ring celebrazione |
+| `100` | `#E9EBF2` | — |
+| `200` | `#D6D9E6` | Badge default border, ring BookingCelebration |
+| `300` | `#AEB4CC` | — |
+| `400` | `#6E7596` | — |
+| `500` | `#1A1A2E` | = `colors.primary` |
+| `600` | `#14141F` | — |
+| `700` | `#0D0D16` | — |
 
 **Giallo (Yellow)**
 | Shade | Hex | Uso principale |
@@ -93,14 +93,7 @@ Usati direttamente negli stili dei componenti:
 
 ### 1.6 Token Deprecati
 
-In `colors.ts`, usati **solo** da `GlassTabBar.ios.tsx`:
-
-| Token | Valore | Sostituzione |
-|---|---|---|
-| `colors.navy` | `#EC4899` | `colors.primary` |
-| `colors.glass` | `#FFFFFF` | `colors.surface` |
-| `colors.glassStrong` | `#FFFFFF` | `colors.surface` |
-| `colors.glassBorder` | `#E5E7EB` | `colors.border` |
+Gli alias deprecati (`colors.navy` stringa, `colors.glass`, `colors.glassStrong`, `colors.glassBorder`) sono stati **rimossi** da `colors.ts`: erano inutilizzati. `colors.navy` ora è la **scala navy** (oggetto `50…700`), non più una stringa. Usare `colors.primary` / `colors.surface` / `colors.border`.
 
 ---
 
@@ -216,7 +209,7 @@ opacity: 0.9,
 transform: [{ scale: 0.96 }],
 ```
 
-### 5.2 CTA Rosa Primary (Bottone Hero — no shadow)
+### 5.2 CTA Navy Primary (Bottone Hero — no shadow)
 
 Il colore pieno fa tutto il lavoro. Nessuna ombra necessaria.
 
@@ -406,7 +399,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 | Tone | bg | border | text |
 |---|---|---|---|
-| `primary` | `#EC4899` | `#EC4899` | `#FFFFFF` |
+| `primary` | `#1A1A2E` | `#1A1A2E` | `#FFFFFF` |
 | `standard` | `#FFFFFF` | `colors.border` | `colors.textPrimary` |
 | `danger` | `#FFFFFF` | `#EF4444` | `#EF4444` |
 | `secondary` | `#FFFFFF` | `#FACC15` | `#A16207` |
@@ -429,7 +422,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 | Tone | bg | text | border |
 |---|---|---|---|
-| `default` | `pink[50]` (`#FDF2F8`) | `colors.primary` (`#EC4899`) | `pink[200]` (`#FBCFE8`) |
+| `default` | `navy[50]` (`#F4F5F9`) | `colors.primary` (`#1A1A2E`) | `navy[200]` (`#D6D9E6`) |
 | `success` | `#F0FDF4` | `#16A34A` | `#BBF7D0` |
 | `warning` | `#FEFCE8` | `#CA8A04` | `#FEF08A` |
 | `danger` | `#FEF2F2` | `#DC2626` | `#FECACA` |
@@ -448,7 +441,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 **Stili wrapper:**
 - Default: `borderRadius: radii.sm`, `borderWidth: 1`, `borderColor: #E2E8F0`, `bg: #F8FAFC`
-- Focused: `borderColor: colors.primary` (`#EC4899`), `bg: #FFFFFF`
+- Focused: `borderColor: colors.primary` (`#1A1A2E`), `bg: #FFFFFF`
 
 **Stili input:** `typography.body`, `color: colors.textPrimary`, `paddingHorizontal: 18`, `paddingVertical: 14`. Placeholder color: `colors.textMuted`.
 
@@ -571,7 +564,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 |---|---|---|---|---|---|
 | Default | — | — | — | `#1E293B` | `'600'` |
 | Today | — | 2 | `#FACC15` | `#1E293B` | `'700'` |
-| Selected | `#EC4899` | — | — | `#FFFFFF` | `'700'` |
+| Selected | `#1A1A2E` | — | — | `#FFFFFF` | `'700'` |
 | Unavailable | — | — | — | `#CBD5E1` | `'600'` |
 | Other month | — | — | — | `#E2E8F0` | `'600'` |
 
@@ -594,7 +587,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `maxWeeks` | `number` | `12` | Settimane navigabili |
 
 **Day cell:** `40x40px`, `borderRadius: 20`. Day text: `fontSize: 14`.
-**Selezionato:** `bg: #1A1A2E` (navy), testo bianco. **Today:** border 2 `#1A1A2E`. **`selectedToday`:** fill navy (la selezione domina). No giallo/rosa.
+**Selezionato:** `bg: #1A1A2E` (navy), testo bianco. **Today:** border 2 `#1A1A2E`. **`selectedToday`:** fill navy (la selezione domina). No giallo.
 **Marked dot:** cerchio `5x5px`, `bg: #1A1A2E`, posizione `absolute bottom: 4`.
 **Fade transition:** `Animated.timing` 220ms su opacity al cambio mese.
 **LayoutAnimation:** attivato su Android per transizioni mese (`easeInEaseOut`).
@@ -618,7 +611,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 **Item selezionato:** `bg: #FACC15`, `fontWeight: '700'`, `color: #92400E`.
 **Item non selezionato:** `color: #64748B`, `fontWeight: '500'`.
 **Label colonne:** `fontSize: 12`, `fontWeight: '700'`, `color: #94A3B8`, uppercase.
-**CTA footer:** `bg: #EC4899`, `borderRadius: radii.sm`, `minHeight: 52`, ombra rosa.
+**CTA footer:** `bg: #1A1A2E`, `borderRadius: radii.sm`, `minHeight: 52`, ombra navy.
 **Mascotte:** `duck-clock.png` (100x73px).
 **Auto-scroll:** scroll al valore selezionato al mount con `setTimeout` 100ms.
 
@@ -665,7 +658,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 **Input wrapper:** come `Input` (`borderRadius: radii.sm`, bordo `#E2E8F0` / focus `colors.primary`), con icona search (`Ionicons search`, 20px, `#94A3B8`).
 **Dropdown:** `position: absolute`, `top: 100%`, `marginTop: spacing.xs`, `borderRadius: radii.sm`, `bg: #FFFFFF`, `maxHeight: 220`, `zIndex: 200`.
-**Option selezionata:** `bg: pink[50]`. **Option pressed:** `opacity: 0.72`.
+**Option selezionata:** `bg: navy[50]`. **Option pressed:** `opacity: 0.72`.
 **Animazione apertura:** timing 180ms `opacity` + `translateY` (-6 → 0) + `scale` (0.98 → 1).
 
 ---
@@ -719,7 +712,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `onHidden` | `() => void?` | — | Callback fine animazione |
 
 **Durata totale:** ~1550ms (1450ms animazione + 100ms hold).
-**Elementi:** backdrop fade, ring espansione (`pink[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
+**Elementi:** backdrop fade, ring espansione (`navy[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
 **Card:** `minWidth: 248`, `borderRadius: 22`, `bg: #FFFFFF`. Icona: `checkmark-circle` 46px `colors.positive` in cerchio 66px con `bg: rgba(34,197,94,0.12)`, `border: rgba(34,197,94,0.35)`.
 **Testo:** "Prenotazione confermata", `typography.subtitle`.
 
@@ -748,7 +741,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 **Scopo:** Tab bar personalizzata.
 
 - **iOS:** usa token deprecati `glass*` + `BlurView` nativo per effetto vetro.
-- **Android:** tab bar custom con `bg: #FFFFFF`, highlight rosa.
+- **Android:** tab bar custom con `bg: #FFFFFF`, highlight navy.
 
 ---
 
@@ -792,9 +785,9 @@ Per azioni rapide (proposte, conferme, form brevi). **Preferire sempre rispetto 
 
 Il wrapper esterno porta l'ombra ambra (§5.5), il gradient interno ha `overflow: 'hidden'` e `borderRadius: radii.lg`.
 
-### 7.3 CTA Hero (Bottone Grande Rosa)
+### 7.3 CTA Hero (Bottone Grande Navy)
 
-`Pressable` custom (non il componente `Button`) con `minHeight: 58`, `fontSize: 18`, `fontWeight: '700'`, `borderRadius: radii.sm`, ombra rosa (§5.4). **Pressed:** `scale: 0.98`, `opacity: 0.85`.
+`Pressable` custom (non il componente `Button`) con `minHeight: 58`, `fontSize: 18`, `fontWeight: '700'`, `borderRadius: radii.sm`, ombra navy (§5.4). **Pressed:** `scale: 0.98`, `opacity: 0.85`.
 
 ### 7.4 Mascotte (Duck)
 
@@ -1079,7 +1072,7 @@ opacity: loop(
 #### Spinner / Activity Indicator
 
 Se serve un loading puntuale (non skeleton), usare un cerchio che ruota con:
-- Colore: `colors.primary` (#EC4899)
+- Colore: `colors.primary` (#1A1A2E)
 - Size: 24px (inline), 40px (centrato in pagina)
 - Animazione: rotazione continua `withRepeat(withTiming(360deg, { duration: 800 }), -1)`
 
@@ -1098,7 +1091,7 @@ Animazioni non obbligatorie ma che aggiungono personalita:
 #### Confetti / Sparkle
 
 Dopo un pagamento completato o un traguardo raggiunto. Pattern come `BookingCelebration` ma con variazioni:
-- Particelle piu piccole e colorate (rosa + giallo + verde)
+- Particelle piu piccole e colorate (navy + giallo + verde)
 - Burst radiale piu ampio
 - Durata: 1200–1800ms
 
@@ -1193,7 +1186,7 @@ Quando queste animazioni vengono portate sulla web app:
 
 | Aspetto | iOS | Android |
 |---|---|---|
-| Tab bar | `GlassTabBar.ios.tsx` — BlurView nativo, effetto vetro | `GlassTabBar.tsx` — custom, bg bianco, highlight rosa |
+| Tab bar | `GlassTabBar.ios.tsx` — BlurView nativo, effetto vetro | `GlassTabBar.tsx` — custom, bg bianco, highlight navy |
 | Tabs | `NativeTabs` (Expo Router) | Custom tab bar |
 | BottomSheet | `BottomSheet.ios.tsx` (implementazione specifica) | `BottomSheet.tsx` |
 | Keyboard handling | `keyboardWillShow` + `keyboardWillChangeFrame` + `keyboardDidShow` | `keyboardDidShow` / `keyboardDidHide` |
@@ -1342,7 +1335,7 @@ Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
 ### 12.6 Ordine Gerarchia Home (Top → Bottom)
 
 1. **Greeting** — "Ciao, {nome}" (24px) con subtitle "Percorso teoria" + icona 3D libro (16px)
-2. **CTA Primaria** — "Continua a studiare" (rosa, full-width, borderRadius 26, **no shadow**)
+2. **CTA Primaria** — "Continua a studiare" (navy, full-width, borderRadius 26, **no shadow**)
 3. **CTA Card** — Simulazione (dark) + Esercitazione (bianca) affiancate (borderRadius 26, shadow concentrata)
 4. **CTA Secondaria** — "Ripassa i tuoi errori" (borderRadius 26, shadow concentrata)
 5. **Stats inset** — Accuratezza / Quiz fatti / Argomenti (borderRadius 20, inset shadow, icone 3D 34px, valori 15px)
@@ -1438,7 +1431,7 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
 - **Ombre esterne** per CTA e card tappabili
 - **Gerarchia CTA chiara**: la distanza visiva tra azioni e informazioni deve essere evidente (vedi sezione 12)
-- **Colore Reglo solo per CTA**: rosa (#EC4899) riservato a bottoni primari, tab bar attiva, piccoli tag. Mai per sfondi grandi o card informative
+- **Colore Reglo solo per CTA**: navy (#1A1A2E) riservato a bottoni primari, tab bar attiva, piccoli tag. Mai per sfondi grandi o card informative
 - **iOS Large Title** per schermate con lista: BlurView header + titolo che collassa
 
 ### Da NON fare
@@ -1455,4 +1448,4 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Non** usare icone 3D Fluent per bottoni funzionali piccoli (nav, close, chevron)
 - **Non** dare ombre esterne a card informative — usare inset shadow
 - **Non** dare inset shadow a CTA — usare ombre esterne
-- **Non** usare colore rosa per sfondi grandi, card informative, o elementi non interattivi
+- **Non** usare colore navy per sfondi grandi, card informative, o elementi non interattivi

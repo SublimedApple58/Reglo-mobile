@@ -119,8 +119,8 @@ const getDurationColors = (durationMinutes: number): AppointmentColors => {
   if (durationMinutes <= 30) return { bg: '#F0FDFA', border: '#14B8A6', text: '#0F766E' };   // teal
   if (durationMinutes <= 45) return { bg: '#F7FEE7', border: '#84CC16', text: '#4D7C0F' };   // lime
   if (durationMinutes <= 60) return { bg: '#FEF9C3', border: '#FACC15', text: '#CA8A04' };   // yellow
-  if (durationMinutes <= 90) return { bg: '#FDF4FF', border: '#D946EF', text: '#A21CAF' };   // fuchsia
-  return { bg: '#FFF1F2', border: '#F43F5E', text: '#BE123C' };                               // rose
+  if (durationMinutes <= 90) return { bg: '#F0F9FF', border: '#0EA5E9', text: '#0369A1' };   // sky
+  return { bg: '#F5F3FF', border: '#8B5CF6', text: '#6D28D9' };                               // violet
 };
 
 const getAppointmentColors = (
@@ -138,7 +138,7 @@ const getAppointmentColors = (
     case 'pending_review':
       return { bg: '#FFF7ED', border: '#F97316', text: '#EA580C' };
     case 'checked_in':
-      return { bg: '#FDF2F8', border: '#EC4899', text: '#9D174D' };
+      return { bg: '#F4F5F9', border: '#1A1A2E', text: '#14141F' };
     case 'completed':
       return { bg: '#F0FDF4', border: '#22C55E', text: '#16A34A' };
     case 'no_show':
@@ -177,7 +177,7 @@ const SkeletonBlock = ({ style }: { style: object }) => {
     );
   }, [opacity]);
   const animStyle = useAnimatedStyle(() => ({
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     opacity: opacity.value,
   }));
   return <Animated.View style={[style, animStyle]} />;
@@ -399,7 +399,7 @@ export default function WeeklyAgendaView({
                 style={[
                   styles.dayLetter,
                   isPast && !isHoliday && { color: '#CBD5E1' },
-                  isToday && !isHoliday && { color: '#EC4899' },
+                  isToday && !isHoliday && { color: '#1A1A2E' },
                   isHoliday && { color: '#DC2626' },
                 ]}
               >
@@ -448,7 +448,7 @@ export default function WeeklyAgendaView({
               left: GUTTER_W + todayColIdx * colW,
               width: colW,
               height: gridHeight,
-              backgroundColor: '#FDF2F8',
+              backgroundColor: '#F4F5F9',
               opacity: 0.35,
             }}
           />
@@ -584,20 +584,20 @@ export default function WeeklyAgendaView({
                         height,
                         left: GUTTER_W + colIdx * colW + 2,
                         width: colW - 4,
-                        backgroundColor: pressed ? '#FBCFE830' : '#FDF2F8',
+                        backgroundColor: pressed ? '#D6D9E630' : '#F4F5F9',
                         borderLeftWidth: 3,
-                        borderLeftColor: '#EC4899',
+                        borderLeftColor: '#1A1A2E',
                         borderRadius: 4,
                         paddingHorizontal: 3,
                         paddingVertical: 2,
                         overflow: 'hidden',
                       })}
                     >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#EC4899', lineHeight: 14 }} numberOfLines={1}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A1A2E', lineHeight: 14 }} numberOfLines={1}>
                         {count} guide
                       </Text>
                       {height >= 38 && (
-                        <Text style={{ fontSize: 9, fontWeight: '500', color: '#EC4899', opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
+                        <Text style={{ fontSize: 9, fontWeight: '500', color: '#1A1A2E', opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
                           {String(Math.floor(entry.startMin / 60)).padStart(2, '0')}:{String(entry.startMin % 60).padStart(2, '0')}
                         </Text>
                       )}
@@ -786,16 +786,16 @@ export default function WeeklyAgendaView({
                   left: 0,
                   right: 0,
                   height: blockH,
-                  backgroundColor: '#FDF2F8',
+                  backgroundColor: '#F4F5F9',
                   borderWidth: 1.5,
-                  borderColor: '#EC4899',
+                  borderColor: '#1A1A2E',
                   borderStyle: 'dashed',
                   borderRadius: 4,
                   justifyContent: 'center',
                   paddingHorizontal: 3,
                 }}
               >
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#EC4899', lineHeight: 12 }} numberOfLines={1}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#1A1A2E', lineHeight: 12 }} numberOfLines={1}>
                   {String(quickBookPreview.hour).padStart(2, '0')}:{String(quickBookPreview.minutes).padStart(2, '0')}–{String(endH).padStart(2, '0')}:{String(endM).padStart(2, '0')}
                 </Text>
               </View>
@@ -806,13 +806,13 @@ export default function WeeklyAgendaView({
                     {...quickBookTopPanHandlers}
                     style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
                   >
-                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#EC4899' }} />
+                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#1A1A2E' }} />
                   </View>
                   <View
                     {...quickBookBottomPanHandlers}
                     style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
                   >
-                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#EC4899' }} />
+                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#1A1A2E' }} />
                   </View>
                 </>
               )}
@@ -823,8 +823,8 @@ export default function WeeklyAgendaView({
         {/* Now line */}
         {nowLineTop !== null && (
           <View pointerEvents="none" style={{ position: 'absolute', top: nowLineTop, left: 0, right: 0, height: 0, zIndex: 10 }}>
-            <View style={{ position: 'absolute', top: -0.75, left: GUTTER_W, right: 0, height: 1.5, backgroundColor: '#EC4899' }} />
-            <View style={{ position: 'absolute', top: -4, left: GUTTER_W - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EC4899' }} />
+            <View style={{ position: 'absolute', top: -0.75, left: GUTTER_W, right: 0, height: 1.5, backgroundColor: '#1A1A2E' }} />
+            <View style={{ position: 'absolute', top: -4, left: GUTTER_W - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#1A1A2E' }} />
           </View>
         )}
       </ScrollView>
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },

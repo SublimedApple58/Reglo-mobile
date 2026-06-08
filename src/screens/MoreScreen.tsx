@@ -41,8 +41,8 @@ const INSTRUCTOR_HOURS_ITEM: MenuItem = {
   label: 'Ore di guida',
   description: 'Ore settimanali e mensili',
   icon: 'time-outline',
-  iconColor: '#EC4899',
-  iconBg: '#FCE7F3',
+  iconColor: '#1A1A2E',
+  iconBg: '#E9EBF2',
 };
 
 const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
@@ -50,8 +50,8 @@ const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
   label: 'Panoramica Istruttori',
   description: 'Visualizza agenda e gestisci istruttori',
   icon: 'people-outline',
-  iconColor: '#EC4899',
-  iconBg: '#FCE7F3',
+  iconColor: '#1A1A2E',
+  iconBg: '#E9EBF2',
 };
 
 const LOCATIONS_ITEM: MenuItem = {

@@ -58,7 +58,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
 };
 
 const THEME: Record<NotificationItem['kind'], { bg: string; fg: string }> = {
-  swap: { bg: '#FCE7F3', fg: '#DB2777' },
+  swap: { bg: '#E9EBF2', fg: '#14141F' },
   waitlist: { bg: '#DBEAFE', fg: '#2563EB' },
   confirmation: { bg: '#DCFCE7', fg: '#16A34A' },
   proposal: { bg: '#E0E7FF', fg: '#4F46E5' },
@@ -72,7 +72,7 @@ const THEME: Record<NotificationItem['kind'], { bg: string; fg: string }> = {
   appointment_location_changed: { bg: '#CCFBF1', fg: '#0D9488' },
   theory_exam_countdown: { bg: '#E0E7FF', fg: '#4F46E5' },
   theory_quiz_inactivity: { bg: '#EDE9FE', fg: '#7C3AED' },
-  student_phase_change: { bg: '#FCE7F3', fg: '#DB2777' },
+  student_phase_change: { bg: '#E9EBF2', fg: '#14141F' },
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 3,
   },
-  cardUnread: { backgroundColor: '#FFF7FB' },
+  cardUnread: { backgroundColor: '#F4F5F9' },
   cardPressed: { opacity: 0.95, transform: [{ scale: 0.99 }] },
   iconChip: {
     width: 40,

@@ -68,7 +68,7 @@ export default function LessonDetailScreen() {
           </Text>
           {hasActiveSwap && (
             <View style={s.swapBanner}>
-              <Ionicons name="swap-horizontal" size={14} color="#DB2777" />
+              <Ionicons name="swap-horizontal" size={14} color="#14141F" />
               <Text style={s.swapBannerText}>Sostituzione richiesta · in attesa di un compagno</Text>
             </View>
           )}
@@ -224,9 +224,9 @@ const s = StyleSheet.create({
   swapBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
     marginTop: 12, paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999, backgroundColor: '#FCE7F3',
+    borderRadius: 999, backgroundColor: '#E9EBF2',
   },
-  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#DB2777', letterSpacing: -0.1 },
+  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#14141F', letterSpacing: -0.1 },
   revokeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 54, borderRadius: 27,

@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   rowSelected: {
-    backgroundColor: '#FDF2F8',
+    backgroundColor: '#F4F5F9',
     borderRadius: radii.sm,
   },
   iconWrap: {

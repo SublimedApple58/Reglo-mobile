@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     width: 190,
     height: 8,
     borderRadius: 999,
-    backgroundColor: colors.pink[100],
+    backgroundColor: colors.navy[100],
     overflow: 'hidden',
   },
   barSlider: {

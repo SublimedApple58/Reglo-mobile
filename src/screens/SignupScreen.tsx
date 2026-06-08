@@ -183,8 +183,8 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     borderWidth: 2,
-    borderColor: colors.pink[200],
-    backgroundColor: colors.pink[50],
+    borderColor: colors.navy[200],
+    backgroundColor: colors.navy[50],
     borderRadius: radii.sm,
     paddingVertical: 14,
     paddingHorizontal: 18,

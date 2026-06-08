@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Animated,
   Dimensions,
-  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -250,14 +250,14 @@ export const CalendarDrawer = ({
             { transform: [{ translateY: animatedTranslate }] },
           ]}
         >
-          {/* Drag handle zone */}
-          <View style={styles.dragZone} {...panResponder.panHandlers}>
-            <View style={styles.dragHandle} />
-          </View>
+          <View style={styles.dragZone} {...panResponder.panHandlers} />
 
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Seleziona data</Text>
+            <Pressable onPress={() => triggerClose(false)} hitSlop={10} style={styles.sheetClose}>
+              <Ionicons name="close" size={22} color="#1A1A2E" />
+            </Pressable>
           </View>
 
           {/* Month navigation */}
@@ -341,14 +341,9 @@ export const CalendarDrawer = ({
             })}
           </View>
 
-          {/* Duck mascot */}
           <View style={styles.mascotSection}>
             <View style={styles.mascotCircle}>
-              <Image
-                source={require('../../assets/duck-calendar.png')}
-                style={styles.mascotImage}
-                resizeMode="contain"
-              />
+              <Ionicons name="calendar-outline" size={40} color="#1A1A2E" />
             </View>
             {caption ? (
               <Text style={styles.mascotText}>{caption}</Text>
@@ -403,6 +398,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  sheetClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F2F4',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
@@ -478,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FACC15',
+    borderColor: '#1A1A2E',
   },
   dayCellSelected: {
     width: CELL_SIZE,
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   dayText: {
     fontSize: 15,
@@ -519,10 +522,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   dayDotHighlight: {
-    backgroundColor: '#FACC15',
+    backgroundColor: '#FFFFFF',
   },
   mascotSection: {
     alignItems: 'center',
@@ -558,7 +561,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

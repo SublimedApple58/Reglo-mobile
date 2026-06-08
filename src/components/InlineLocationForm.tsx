@@ -3,15 +3,14 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Button } from './Button';
-import { colors, radii, spacing, typography } from '../theme';
+import { ToggleSwitch } from './ToggleSwitch';
+import { colors, spacing, typography } from '../theme';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
 const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -190,12 +189,7 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
             Permette agli allievi di aprire Google Maps direttamente.
           </Text>
         </View>
-        <Switch
-          value={isPrecise}
-          onValueChange={setIsPrecise}
-          trackColor={{ true: colors.primary, false: '#D1D5DB' }}
-          thumbColor="#FFFFFF"
-        />
+        <ToggleSwitch value={isPrecise} onValueChange={setIsPrecise} />
       </View>
 
       {isPrecise ? (
@@ -266,18 +260,17 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.footer}>
-        <View style={{ flex: 1 }}>
-          <Button label="Annulla" tone="standard" onPress={onCancel} fullWidth />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            label={saving ? 'Salvataggio…' : 'Salva luogo'}
-            tone="primary"
-            onPress={handleSubmit}
-            disabled={!canSubmit || saving}
-            fullWidth
-          />
-        </View>
+        <Pressable
+          onPress={handleSubmit}
+          disabled={!canSubmit || saving}
+          style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.9 }, (!canSubmit || saving) && { opacity: 0.4 }]}
+        >
+          {saving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveText}>Salva luogo</Text>
+          )}
+        </Pressable>
       </View>
     </View>
   );
@@ -314,12 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.md,
-    borderRadius: 14,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: spacing.sm,
   },
   toggleTitle: {
     ...typography.body,
@@ -353,8 +341,19 @@ const styles = StyleSheet.create({
   coords: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
   error: { ...typography.caption, color: colors.destructive, marginTop: spacing.md },
   footer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     marginTop: spacing.lg,
   },
+  saveBtn: {
+    minHeight: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A1A2E',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

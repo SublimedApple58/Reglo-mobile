@@ -38,8 +38,8 @@ const getInitials = (firstName: string, lastName: string) => {
   if (l) return l.slice(0, 2).toUpperCase();
   return '?';
 };
-const AVATAR_BG_PALETTE = ['#FCE7F3', '#FEF3C7', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2'];
-const AVATAR_FG_PALETTE = ['#BE185D', '#B45309', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C'];
+const AVATAR_BG_PALETTE = ['#E9EBF2', '#FEF3C7', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2'];
+const AVATAR_FG_PALETTE = ['#0D0D16', '#B45309', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C'];
 const hashStr = (s: string) => {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
@@ -220,7 +220,7 @@ export const CreateExamScreen = () => {
                   onPress={openStudentsSheet}
                   style={({ pressed }) => [styles.manageBtn, pressed && { opacity: 0.85 }]}
                 >
-                  <Ionicons name="create-outline" size={15} color="#BE185D" />
+                  <Ionicons name="create-outline" size={15} color="#0D0D16" />
                   <Text style={styles.manageBtnText}>Gestisci</Text>
                 </Pressable>
               </View>
@@ -231,7 +231,7 @@ export const CreateExamScreen = () => {
                   style={({ pressed }) => [styles.emptyStateBtn, pressed && { opacity: 0.85 }]}
                 >
                   <View style={styles.emptyStateIconCircle}>
-                    <Ionicons name="person-add-outline" size={22} color="#BE185D" />
+                    <Ionicons name="person-add-outline" size={22} color="#0D0D16" />
                   </View>
                   <Text style={styles.emptyStateText}>Aggiungi allievi</Text>
                 </Pressable>
@@ -526,12 +526,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
   },
   manageBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   emptyStateBtn: {
     flexDirection: 'row',
@@ -542,14 +542,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#F9A8D4',
-    backgroundColor: '#FDF2F8',
+    borderColor: '#AEB4CC',
+    backgroundColor: '#F4F5F9',
   },
   emptyStateIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   avatarStackWrapper: {
     flexDirection: 'row',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     height: 52,
     borderRadius: 999,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -632,14 +632,14 @@ const styles = StyleSheet.create({
     height: 28,
     paddingHorizontal: 8,
     borderRadius: 14,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sheetCounterText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   sheetSearchRow: {
     flexDirection: 'row',
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   clusterBadgeMine: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
   },
   clusterBadgeText: {
     fontSize: 11,
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   clusterBadgeTextMine: {
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   sheetCheckbox: {
     width: 24,
@@ -732,8 +732,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetCheckboxChecked: {
-    backgroundColor: '#EC4899',
-    borderColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
+    borderColor: '#1A1A2E',
   },
   sheetSeparator: {
     height: 1,
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   sheetConfirmBtn: {
     height: 52,
     borderRadius: 999,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },

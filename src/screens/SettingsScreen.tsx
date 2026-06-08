@@ -1115,7 +1115,7 @@ const studentStyles = StyleSheet.create({
   },
   profileAvatar: {
     width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     alignItems: 'center', justifyContent: 'center',
   },
   profileAvatarText: {
@@ -1205,7 +1205,7 @@ const styles = StyleSheet.create({
   rolePill: {
     alignSelf: 'flex-start',
     borderRadius: 999,
-    backgroundColor: colors.pink[50],
+    backgroundColor: colors.navy[50],
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
@@ -1253,7 +1253,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.pink[50],
+    backgroundColor: colors.navy[50],
     borderWidth: 1,
     borderColor: colors.border,
   },

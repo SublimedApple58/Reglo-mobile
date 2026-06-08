@@ -302,11 +302,11 @@ export const InstructorVehiclesScreen = () => {
                 <View style={styles.timeRow}>
                   <Pressable onPress={() => { setEditVehicleDrawerOpen(false); setTimeout(() => setVehicleStartTimePickerOpen(true), 350); }} style={styles.timeCard}>
                     <Text style={styles.timeLabel}>INIZIO</Text>
-                    <View style={styles.timeValRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeVal}>{toTimeString(vehicleAvailabilityStart)}</Text></View>
+                    <View style={styles.timeValRow}><Ionicons name="time-outline" size={16} color="#1A1A2E" /><Text style={styles.timeVal}>{toTimeString(vehicleAvailabilityStart)}</Text></View>
                   </Pressable>
                   <Pressable onPress={() => { setEditVehicleDrawerOpen(false); setTimeout(() => setVehicleEndTimePickerOpen(true), 350); }} style={styles.timeCard}>
                     <Text style={styles.timeLabel}>FINE</Text>
-                    <View style={styles.timeValRow}><Ionicons name="time-outline" size={16} color="#EC4899" /><Text style={styles.timeVal}>{toTimeString(vehicleAvailabilityEnd)}</Text></View>
+                    <View style={styles.timeValRow}><Ionicons name="time-outline" size={16} color="#1A1A2E" /><Text style={styles.timeVal}>{toTimeString(vehicleAvailabilityEnd)}</Text></View>
                   </Pressable>
                 </View>
               </View>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, pink, radii, spacing, typography } from '../theme';
+import { colors, navy, radii, spacing, typography } from '../theme';
 
 export type SearchableSelectOption = {
   value: string;
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   optionRowSelected: {
-    backgroundColor: pink[50],
+    backgroundColor: navy[50],
   },
   optionRowPressed: {
     opacity: 0.72,

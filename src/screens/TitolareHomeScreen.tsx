@@ -71,7 +71,7 @@ const statusConfig = (status: string): StatusColorConfig => {
   if (s === 'pending_review')
     return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare' };
   if (s === 'checked_in')
-    return { border: '#EC4899', badgeBg: '#FDF2F8', badgeText: '#EC4899', label: 'In corso' };
+    return { border: '#1A1A2E', badgeBg: '#F4F5F9', badgeText: '#1A1A2E', label: 'In corso' };
   if (s === 'completed')
     return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata' };
   if (s === 'cancelled' || s === 'no_show')
@@ -576,18 +576,18 @@ export const TitolareHomeScreen = () => {
                           hourAppts.length >= 2 ? (
                             /* ── Cluster block: multiple appointments in same hour ── */
                             <Pressable
-                              style={[styles.appointmentBlock, { borderLeftColor: '#EC4899', backgroundColor: '#FDF2F8' }]}
+                              style={[styles.appointmentBlock, { borderLeftColor: '#1A1A2E', backgroundColor: '#F4F5F9' }]}
                               onPress={() => setClusterDrawerAppts(hourAppts)}
                             >
                               <View style={styles.appointmentHeader}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                  <Ionicons name="layers-outline" size={15} color="#EC4899" />
-                                  <Text style={[styles.appointmentTime, { color: '#EC4899' }]}>
+                                  <Ionicons name="layers-outline" size={15} color="#1A1A2E" />
+                                  <Text style={[styles.appointmentTime, { color: '#1A1A2E' }]}>
                                     {formatHourLabel(hour)}
                                   </Text>
                                 </View>
-                                <View style={[styles.statusBadge, { backgroundColor: '#FCE7F3' }]}>
-                                  <Text style={[styles.statusBadgeText, { color: '#EC4899' }]}>
+                                <View style={[styles.statusBadge, { backgroundColor: '#E9EBF2' }]}>
+                                  <Text style={[styles.statusBadgeText, { color: '#1A1A2E' }]}>
                                     {hourAppts.length} GUIDE
                                   </Text>
                                 </View>
@@ -730,13 +730,6 @@ export const TitolareHomeScreen = () => {
               )}
               <View style={oobStyles.actions}>
                 <Pressable
-                  style={oobStyles.actionBtn}
-                  disabled={isLoading}
-                  onPress={() => handleOutOfAvailAction(apt.id, 'reposition')}
-                >
-                  <Text style={oobStyles.actionBtnText}>Riposiziona</Text>
-                </Pressable>
-                <Pressable
                   style={[oobStyles.actionBtn, oobStyles.actionBtnDanger]}
                   disabled={isLoading}
                   onPress={() => handleOutOfAvailAction(apt.id, 'cancel')}
@@ -861,8 +854,8 @@ export const TitolareHomeScreen = () => {
           <View style={{ gap: 18 }}>
             {/* ── Student header ── */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#EC4899' }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A1A2E' }}>
                   {selectedAppt.student
                     ? `${selectedAppt.student.firstName.charAt(0)}${selectedAppt.student.lastName.charAt(0)}`.toUpperCase()
                     : '?'}
@@ -901,9 +894,9 @@ export const TitolareHomeScreen = () => {
                 const types = selectedAppt.types?.length ? selectedAppt.types : (selectedAppt.type ? [selectedAppt.type] : []);
                 const displayTypes = types.filter((t: string) => t !== 'guida');
                 return displayTypes.map((t: string, i: number) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FDF2F8', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
-                    <Ionicons name="flag-outline" size={14} color="#EC4899" />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#EC4899' }}>
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F4F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Ionicons name="flag-outline" size={14} color="#1A1A2E" />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#1A1A2E' }}>
                       {t.charAt(0).toUpperCase() + t.slice(1)}
                     </Text>
                   </View>
@@ -960,8 +953,8 @@ export const TitolareHomeScreen = () => {
       >
         <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="layers" size={20} color="#EC4899" />
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="layers" size={20} color="#1A1A2E" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>
@@ -1101,10 +1094,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dayPillSelected: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     borderWidth: 2,
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
+    borderColor: '#1A1A2E',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -1131,7 +1124,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dayPillWeekdaySelected: {
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   dayPillWeekdayUnselected: {
     color: '#94A3B8',
@@ -1144,7 +1137,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dayPillNumberSelected: {
-    color: '#BE185D',
+    color: '#0D0D16',
   },
   dayPillNumberUnselected: {
     color: '#1E293B',
@@ -1374,7 +1367,7 @@ const oobStyles = StyleSheet.create({
     backgroundColor: '#DBEAFE',
   },
   badgeBoth: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
   },
   badgeText: {
     fontSize: 11,
@@ -1387,7 +1380,7 @@ const oobStyles = StyleSheet.create({
     color: '#1E40AF',
   },
   badgeTextBoth: {
-    color: '#9D174D',
+    color: '#14141F',
   },
   cardTime: {
     fontSize: 12,
@@ -1424,8 +1417,8 @@ const oobStyles = StyleSheet.create({
     color: '#DC2626',
   },
   actionBtnPrimary: {
-    borderColor: '#EC4899',
-    backgroundColor: '#EC4899',
+    borderColor: '#1A1A2E',
+    backgroundColor: '#1A1A2E',
   },
   actionBtnPrimaryText: {
     color: '#FFFFFF',

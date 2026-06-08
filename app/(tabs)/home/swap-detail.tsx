@@ -38,8 +38,8 @@ export default function SwapDetailScreen() {
         {/* Hero */}
         <View style={s.heroRow}>
           {mine ? (
-            <View style={[s.avatar, { backgroundColor: '#FCE7F3' }]}>
-              <Ionicons name="swap-horizontal" size={24} color="#DB2777" />
+            <View style={[s.avatar, { backgroundColor: '#E9EBF2' }]}>
+              <Ionicons name="swap-horizontal" size={24} color="#14141F" />
             </View>
           ) : (
             <View style={s.avatar}>

@@ -8,7 +8,7 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
 const CARD_COLORS = [
-  { bg: '#FFF0F3', accent: '#ec4899' },
+  { bg: '#F4F5F9', accent: '#1A1A2E' },
   { bg: '#EFF6FF', accent: '#3B82F6' },
   { bg: '#F0FDF4', accent: '#22C55E' },
   { bg: '#FFFBEB', accent: '#F59E0B' },

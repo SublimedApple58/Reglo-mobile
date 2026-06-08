@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preview — Home Istruttore (nuovo header)</title>
+<style>
+  :root{
+    --bg:#FDFDFD; --navy:#1A1A2E; --muted:#94A3B8; --muted2:#64748B;
+    --line:#E6E8EC; --pillGrey:#EEF0F4; --card:#FFFFFF; --red:#EF4444; --redBg:#FEE2E2;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:28px;flex-wrap:wrap;padding:40px 16px;}
+  .label{color:#cfe;font-size:12px;text-align:center;margin-bottom:8px;opacity:.7;letter-spacing:.3px}
+  .phone{width:390px;height:760px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+  .statusbar{height:54px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font-weight:600;color:var(--navy);font-size:15px;}
+  .statusbar .r{display:flex;gap:6px;align-items:center;font-size:13px}
+  .scroll{height:calc(100% - 54px - 70px);overflow-y:auto;}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* GREETING ROW (scrolls away) */
+  .greetRow{display:flex;align-items:baseline;justify-content:space-between;padding:14px 20px 12px;gap:12px;}
+  .greet{font-size:17px;font-weight:600;color:var(--navy);letter-spacing:-.2px;}
+  .next{display:flex;align-items:center;gap:6px;color:var(--muted2);font-size:13px;font-weight:500;white-space:nowrap;}
+  .next svg{width:14px;height:14px;stroke:var(--muted);}
+  .divider{height:1px;background:var(--line);margin:0 20px;}
+
+  /* STICKY: month + day pills */
+  .sticky{position:sticky;top:0;background:rgba(253,253,253,.86);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);z-index:5;padding:14px 20px 12px;}
+  .sticky.stuck{border-bottom:1px solid var(--line);}
+  .monthRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .month{font-size:26px;font-weight:800;color:var(--navy);letter-spacing:-.6px;}
+  .monthBtns{display:flex;gap:8px;}
+  .iconBtn{width:40px;height:40px;border-radius:20px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff;}
+  .iconBtn svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:2;}
+  .pills{display:flex;gap:10px;overflow-x:auto;}
+  .pills::-webkit-scrollbar{display:none}
+  .day{min-width:62px;height:78px;border-radius:18px;border:1px solid var(--line);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;}
+  .day .dow{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.4px;}
+  .day .num{font-size:22px;font-weight:800;color:var(--navy);}
+  .day.sel{border:2px solid var(--navy);}
+  .day .dot{width:5px;height:5px;border-radius:3px;background:var(--navy);}
+
+  /* itinerary */
+  .cap{color:#9AA1AC;font-size:13px;font-weight:500;line-height:18px;padding:14px 20px 6px;}
+  .itin{padding:0 20px 40px;}
+  .row{display:flex;gap:0;align-items:stretch;}
+  .rail{width:74px;padding-top:16px;align-items:center;display:flex;flex-direction:column;position:relative;}
+  .rail .lineTop{position:absolute;left:36px;top:0;height:12px;width:2px;background:var(--line);}
+  .rail .lineBot{position:absolute;left:36px;top:46px;bottom:-14px;width:2px;background:var(--line);}
+  .railPill{min-height:26px;padding:0 9px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--pillGrey);}
+  .railPill.now{background:var(--redBg);}
+  .railPill .t{font-size:13px;font-weight:700;color:var(--navy);}
+  .railPill.now .t{color:var(--red);}
+  .markerBody{flex:1;padding-top:22px;margin-bottom:14px;}
+  .markerBody .mt{font-size:13px;font-weight:700;color:#475569;}
+  .nowBody{flex:1;display:flex;align-items:center;gap:6px;padding-top:22px;margin-bottom:14px;}
+  .nowLine{flex:1;height:1.5px;background:var(--red);opacity:.45;}
+  .nowLbl{font-size:11px;font-weight:700;color:var(--red);}
+  .bookCard{flex:1;background:var(--card);border-radius:22px;padding:26px 14px;margin-bottom:14px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 6px 16px rgba(26,26,46,.08);}
+  .bookCard .circle{width:44px;height:44px;border-radius:22px;background:#F1F3F7;display:flex;align-items:center;justify-content:center;font-size:20px;}
+  .bookCard .lbl{font-size:13.5px;font-weight:600;color:#8A93A2;}
+
+  .tabbar{height:70px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;padding-bottom:8px;position:absolute;bottom:0;left:0;right:0;background:#fff;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);}
+  .tab.act{color:var(--navy);font-weight:700;}
+  .tab .ic{width:22px;height:22px;border-radius:6px;background:currentColor;opacity:.85;}
+  .fab{position:absolute;right:20px;bottom:86px;width:56px;height:56px;border-radius:28px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 20px rgba(26,26,46,.35);}
+</style>
+</head>
+<body>
+
+<div>
+  <div class="label">A riposo — greeting piccolo + prossima guida inline a destra</div>
+  <div class="phone">
+    <div class="statusbar"><span>12:10</span><span class="r">●●● 📶 🔋</span></div>
+    <div class="scroll" id="s1">
+      <div class="greetRow">
+        <div class="greet">Ciao, Tiziano</div>
+        <div class="next">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          16:00 · Allievo Prova
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="sticky" id="sticky1">
+        <div class="monthRow">
+          <div class="month">Giugno 2026</div>
+          <div class="monthBtns">
+            <div class="iconBtn"><svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></div>
+            <div class="iconBtn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+          </div>
+        </div>
+        <div class="pills">
+          <div class="day"><div class="dow">VEN</div><div class="num">5</div></div>
+          <div class="day"><div class="dow">SAB</div><div class="num">6</div><div class="dot"></div></div>
+          <div class="day sel"><div class="dow">DOM</div><div class="num">7</div></div>
+          <div class="day"><div class="dow">LUN</div><div class="num">8</div></div>
+          <div class="day"><div class="dow">MAR</div><div class="num">9</div></div>
+        </div>
+      </div>
+
+      <div class="cap">Nessuna guida oggi · tieni premuto uno slot libero per prenotare</div>
+      <div class="itin">
+        <div class="row">
+          <div class="rail"><div class="lineBot"></div><div class="railPill"><span class="t">08:00</span></div></div>
+          <div class="markerBody"><div class="mt">Inizio disponibilità</div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="lineTop"></div><div class="lineBot"></div><div class="railPill now"><span class="t">12:10</span></div></div>
+          <div class="nowBody"><div class="nowLine"></div><div class="nowLbl">Adesso</div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="lineTop"></div><div class="lineBot"></div><div class="railPill"><span class="t">12:15</span></div></div>
+          <div class="bookCard"><div class="circle">☝︎</div><div class="lbl">Tieni premuto per prenotare</div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="lineTop"></div><div class="railPill"><span class="t">20:00</span></div></div>
+          <div class="markerBody"><div class="mt">Fine disponibilità</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="fab">+</div>
+    <div class="tabbar">
+      <div class="tab act"><div class="ic"></div>Home</div>
+      <div class="tab"><div class="ic"></div>Disponibilità</div>
+      <div class="tab"><div class="ic"></div>Allievi</div>
+      <div class="tab"><div class="ic"></div>Altro</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // toggle .stuck border when the month block is pinned to the top
+  const s1 = document.getElementById('s1');
+  const st1 = document.getElementById('sticky1');
+  s1.addEventListener('scroll', () => {
+    if (s1.scrollTop > 70) st1.classList.add('stuck'); else st1.classList.remove('stuck');
+  });
+</script>
+</body>
+</html>

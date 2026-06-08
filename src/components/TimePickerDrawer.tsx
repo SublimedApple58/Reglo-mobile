@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -83,8 +84,12 @@ export const TimePickerDrawer = ({
       onDismiss={onClosed}
     >
       <View style={[styles.sheet, Platform.OS === 'android' && { paddingTop: insets.top }]}>
-        <View style={styles.handle} />
-        <Text style={styles.title}>Seleziona orario</Text>
+        <View style={styles.tpHeader}>
+          <Text style={styles.title}>Seleziona orario</Text>
+          <Pressable onPress={handleClose} hitSlop={10} style={styles.tpClose}>
+            <Ionicons name="close" size={22} color="#1A1A2E" />
+          </Pressable>
+        </View>
 
         <View style={styles.body}>
           <View style={styles.columnsRow}>
@@ -160,13 +165,16 @@ export const TimePickerDrawer = ({
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.background },
-  handle: {
-    width: 36, height: 5, borderRadius: 3, backgroundColor: '#D1D5DB',
-    alignSelf: 'center', marginTop: 10, marginBottom: 8,
+  tpHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg, paddingTop: 16, paddingBottom: 6,
+  },
+  tpClose: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F2F4',
+    alignItems: 'center', justifyContent: 'center',
   },
   title: {
     fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3,
-    paddingHorizontal: spacing.lg, marginBottom: 8,
   },
   body: { flex: 1, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   columnsRow: {
@@ -205,7 +213,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemSelected: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
   },
   itemText: {
     fontSize: 18,
@@ -214,7 +222,7 @@ const styles = StyleSheet.create({
   },
   itemTextSelected: {
     fontWeight: '700',
-    color: '#DB2777',
+    color: '#14141F',
   },
   mascotSection: {
     alignItems: 'center',
@@ -235,12 +243,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   confirmCta: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#1A1A2E',
     borderRadius: 27,
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },

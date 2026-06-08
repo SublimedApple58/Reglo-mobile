@@ -35,7 +35,7 @@ const SCROLL_RANGE = 70;
 
 const TYPE_THEME: Record<string, { bg: string; fg: string; label: string }> = {
   manovre: { bg: '#DCFCE7', fg: '#15803D', label: 'Manovre' },
-  parcheggio: { bg: '#FCE7F3', fg: '#DB2777', label: 'Parcheggio' },
+  parcheggio: { bg: '#E9EBF2', fg: '#14141F', label: 'Parcheggio' },
   urbano: { bg: '#DBEAFE', fg: '#2563EB', label: 'Urbano' },
   extraurbano: { bg: '#CCFBF1', fg: '#0D9488', label: 'Extraurbano' },
   notturna: { bg: '#E0E7FF', fg: '#4F46E5', label: 'Notturna' },
@@ -145,7 +145,7 @@ export const StudentMyNotesScreen = () => {
           {/* Top: date + rating */}
           <View style={st.cardTop}>
             <View style={[st.dateChip, isExam && { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : '#DB2777'} />
+              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : '#14141F'} />
               <Text style={[st.dateChipText, isExam && { color: '#7C3AED' }]}>
                 {formatDay(appt.startsAt)}
               </Text>
@@ -292,12 +292,12 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  dateChipText: { fontSize: 12, fontWeight: '700', color: '#DB2777', letterSpacing: -0.1 },
+  dateChipText: { fontSize: 12, fontWeight: '700', color: '#14141F', letterSpacing: -0.1 },
   cardTime: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 10 },
 
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },

@@ -1148,35 +1148,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         onHidden={() => setCelebrationVisible(false)}
       />
 
-      {/* ── Bell + Badge + Bubble ── */}
-      {!pathname.startsWith('/home') || pathname === '/home/notifications' || (isStudent && pathname.startsWith('/home')) || (isStudent && studentPhase !== 'PRATICA') ? null : <View style={[styles.bellContainer, { top: insets.top + 8 }]} pointerEvents="box-none">
-          {/* Bubble */}
-          {unreadCount > 1 ? (
-            <Animated.View
-              style={[
-                styles.bubble,
-                {
-                  opacity: bubbleOpacity,
-                  transform: [{ translateX: bubbleTranslateX }],
-                },
-              ]}
-            >
-              <Text style={styles.bubbleText}>
-                Hai {unreadCount} novit{'\u00E0'}!
-              </Text>
-            </Animated.View>
-          ) : null}
-
-          {/* Bell */}
-          <Pressable onPress={handleBellPress} style={styles.bellButton}>
-            <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
-            {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>}
 
       {/* ── Waitlist Offer ── */}
       <BottomSheet
@@ -1678,12 +1649,12 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   chunkyPinkCta: {
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     height: 54,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -1907,9 +1878,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   availableSlotsTimelineCardActive: {
-    backgroundColor: '#FDF2F8',
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
+    backgroundColor: '#F4F5F9',
+    borderColor: '#1A1A2E',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -1924,14 +1895,14 @@ const styles = StyleSheet.create({
   availableSlotsTimelineCardTextActive: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
     flex: 1,
   },
   availableSlotsTimelineCheck: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },

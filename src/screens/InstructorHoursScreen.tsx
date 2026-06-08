@@ -207,7 +207,7 @@ export const InstructorHoursScreen = () => {
                 <View style={s.heroStatDivider} />
                 <View style={s.heroStat}>
                   <View style={s.statTop}>
-                    <View style={[s.statDot, { backgroundColor: '#EC4899' }]} />
+                    <View style={[s.statDot, { backgroundColor: '#1A1A2E' }]} />
                     <Text style={s.statLabel}>Fuori orario</Text>
                   </View>
                   <Text style={s.statValue}>{formatMinutes(data.total.outsideWorkingHoursMinutes)}</Text>
@@ -305,7 +305,7 @@ const s = StyleSheet.create({
   colTrack: { width: '100%', height: COLUMN_HEIGHT, justifyContent: 'flex-end', alignItems: 'center' },
   bar: { width: '64%', borderTopLeftRadius: 7, borderTopRightRadius: 7, minHeight: 5, overflow: 'hidden', flexDirection: 'column' },
   barInside: { width: '100%', backgroundColor: '#1A1A2E' },
-  barOutside: { width: '100%', backgroundColor: '#EC4899' },
+  barOutside: { width: '100%', backgroundColor: '#1A1A2E' },
   colEmpty: { width: '64%', height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' },
   colValue: { fontSize: 10, fontWeight: '700', color: '#64748B', fontVariant: ['tabular-nums'] },
   colLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },

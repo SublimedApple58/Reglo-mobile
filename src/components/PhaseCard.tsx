@@ -3,7 +3,7 @@ import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'r
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, pink } from '../theme/colors';
+import { colors, navy } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import type { AutoscuolaStudentPhase } from '../types/regloApi';
 
@@ -28,7 +28,7 @@ const PHASE_CONFIG: Record<AutoscuolaStudentPhase, PhaseConfig> = {
   AWAITING: {
     title: 'In attesa',
     subtitle: 'Stiamo preparando tutto per il tuo percorso!',
-    accentColor: pink[300],
+    accentColor: navy[300],
     image: require('../../assets/ducks/duck-step-awaiting.png'),
   },
   TEORIA: {
@@ -90,21 +90,6 @@ export const PhaseCard: React.FC<Props> = ({
           style={styles.mascotFade}
         />
       </View>
-
-      {/* ── Bell (top-right, above the image) ── */}
-      {onBellPress && (
-        <View style={styles.bellRow}>
-          <Pressable
-            onPress={onBellPress}
-            style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
-            accessibilityLabel="Notifiche"
-            accessibilityRole="button"
-          >
-            <Ionicons name="notifications-outline" size={16} color="#1a120a" />
-            {unreadCount > 0 && <View style={styles.bellDot} />}
-          </Pressable>
-        </View>
-      )}
 
       {/* ── Spacer to push text below the image area ── */}
       <View style={{ height: HERO_IMAGE_SIZE * 0.65 }} />

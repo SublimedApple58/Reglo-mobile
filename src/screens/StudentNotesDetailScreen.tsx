@@ -26,7 +26,7 @@ const REQUIRED_LESSONS = 6;
 
 const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
   manovre: { bg: '#DCFCE7', fg: '#15803D' },
-  parcheggio: { bg: '#FCE7F3', fg: '#BE185D' },
+  parcheggio: { bg: '#E9EBF2', fg: '#0D0D16' },
   urbano: { bg: '#DBEAFE', fg: '#1D4ED8' },
   extraurbano: { bg: '#CCFBF1', fg: '#0F766E' },
   notturna: { bg: '#E0E7FF', fg: '#4338CA' },
@@ -359,8 +359,8 @@ const s = StyleSheet.create({
   faceFront: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
   faceBack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: 16 },
   profileLeft: { flex: 1, alignItems: 'center', gap: 4, paddingRight: 8 },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  avatarText: { fontSize: 24, fontWeight: '700', color: '#EC4899' },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  avatarText: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },

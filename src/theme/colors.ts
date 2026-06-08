@@ -1,13 +1,14 @@
 // ─── Color Scales ────────────────────────────────────────────
-export const pink = {
-  50: '#FDF2F8',
-  100: '#FCE7F3',
-  200: '#FBCFE8',
-  300: '#F9A8D4',
-  400: '#F472B6',
-  500: '#EC4899',
-  600: '#DB2777',
-  700: '#BE185D',
+// Brand scale: dark navy (mono). Replaces the former pink scale 1:1.
+export const navy = {
+  50: '#F4F5F9',
+  100: '#E9EBF2',
+  200: '#D6D9E6',
+  300: '#AEB4CC',
+  400: '#6E7596',
+  500: '#1A1A2E',
+  600: '#14141F',
+  700: '#0D0D16',
 } as const;
 
 export const yellow = {
@@ -24,7 +25,7 @@ export const yellow = {
 // ─── Semantic Tokens ─────────────────────────────────────────
 export const colors = {
   // Brand
-  primary: '#EC4899',
+  primary: '#1A1A2E',
   accent: '#FACC15',
   destructive: '#EF4444',
   positive: '#22C55E',
@@ -47,13 +48,7 @@ export const colors = {
   statusScheduledBg: '#FEF9C3',
   statusCompletedText: '#64748B',
 
-  // Pink & Yellow scales (for direct access)
-  pink,
+  // Brand & accent scales (for direct access)
+  navy,
   yellow,
-
-  // ─── DEPRECATED (used by GlassTabBar.ios.tsx only) ─────
-  navy: '#EC4899', // DEPRECATED → use colors.primary
-  glass: '#FFFFFF', // DEPRECATED → use colors.surface
-  glassStrong: '#FFFFFF', // DEPRECATED → use colors.surface
-  glassBorder: '#E5E7EB', // DEPRECATED → use colors.border
 } as const;

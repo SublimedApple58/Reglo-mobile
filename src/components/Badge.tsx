@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, pink, spacing, typography } from '../theme';
+import { colors, navy, spacing, typography } from '../theme';
 
 type BadgeTone = 'default' | 'success' | 'warning' | 'danger';
 
@@ -11,9 +11,9 @@ type BadgeProps = {
 
 const toneConfig: Record<BadgeTone, { bg: string; text: string; border: string }> = {
   default: {
-    bg: pink[50],
+    bg: navy[50],
     text: colors.primary,
-    border: pink[200],
+    border: navy[200],
   },
   success: {
     bg: '#F0FDF4',

@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   prefixOptionActive: {
-    backgroundColor: colors.pink[50],
+    backgroundColor: colors.navy[50],
   },
   prefixOptionText: {
     ...typography.body,

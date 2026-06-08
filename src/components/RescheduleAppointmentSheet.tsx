@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BottomSheet } from './BottomSheet';
+import { NativeFormSheet } from './NativeFormSheet';
 import { Button } from './Button';
 import { CalendarDrawer } from './CalendarDrawer';
 import { TimePickerDrawer } from './TimePickerDrawer';
@@ -196,7 +196,7 @@ export const RescheduleAppointmentSheet = ({
 
   return (
     <>
-      <BottomSheet
+      <NativeFormSheet
         visible={sheetOpen}
         onClose={() => {
           if (pending) return;
@@ -208,17 +208,16 @@ export const RescheduleAppointmentSheet = ({
         }}
         onClosed={handleSheetClosed}
         title={`Sposta guida di ${studentName}`}
-        showHandle
         closeDisabled={pending}
         footer={
           <View style={styles.footer}>
-            <Button
-              label={pending ? 'Spostando...' : 'Conferma spostamento'}
-              tone="primary"
+            <Pressable
               onPress={canSubmit ? handleSubmit : undefined}
               disabled={!canSubmit}
-              fullWidth
-            />
+              style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
+            >
+              <Text style={styles.confirmBtnText}>{pending ? 'Spostando…' : 'Conferma spostamento'}</Text>
+            </Pressable>
             <Button
               label="Annulla"
               tone="standard"
@@ -240,7 +239,7 @@ export const RescheduleAppointmentSheet = ({
             disabled={pending}
           >
             <View style={[styles.iconBox, styles.iconBoxPink]}>
-              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Ionicons name="calendar-outline" size={20} color={'#1A1A2E'} />
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Cambia data</Text>
@@ -257,7 +256,7 @@ export const RescheduleAppointmentSheet = ({
             disabled={pending}
           >
             <View style={[styles.iconBox, styles.iconBoxYellow]}>
-              <Ionicons name="time-outline" size={20} color="#CA8A04" />
+              <Ionicons name="time-outline" size={20} color="#1A1A2E" />
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Cambia orario</Text>
@@ -302,7 +301,7 @@ export const RescheduleAppointmentSheet = ({
             </View>
           ) : null}
         </View>
-      </BottomSheet>
+      </NativeFormSheet>
 
       <CalendarDrawer
         visible={calendarOpen}
@@ -349,10 +348,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxPink: {
-    backgroundColor: colors.pink[50],
+    backgroundColor: '#EEF0F4',
   },
   iconBoxYellow: {
-    backgroundColor: colors.yellow[50],
+    backgroundColor: '#EEF0F4',
   },
   rowText: {
     flex: 1,
@@ -364,14 +363,14 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     ...typography.caption,
-    color: colors.primary,
+    color: '#1A1A2E',
     marginTop: 2,
   },
   previewPanel: {
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: colors.pink[200],
-    backgroundColor: colors.pink[50],
+    borderColor: '#D6D9E0',
+    backgroundColor: '#EEF0F4',
     padding: spacing.md,
     gap: 8,
   },
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   previewBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#1A1A2E',
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -400,13 +399,13 @@ const styles = StyleSheet.create({
   },
   diffPill: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.pink[100],
+    backgroundColor: '#EEF0F4',
     borderRadius: 999,
     paddingVertical: 3,
     paddingHorizontal: 10,
   },
   diffPillText: {
-    color: colors.pink[700],
+    color: '#6B7280',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -444,5 +443,17 @@ const styles = StyleSheet.create({
   },
   footer: {
     gap: 8,
+  },
+  confirmBtn: {
+    backgroundColor: '#1A1A2E',
+    minHeight: 52,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -9,8 +9,9 @@ type StarRatingProps = {
   readOnly?: boolean;
 };
 
-const STAR_COLOR = '#FACC15';
-const STAR_EMPTY_COLOR = '#E2E8F0';
+// Brand palette is monochrome navy — no yellow/gold anywhere.
+const STAR_COLOR = '#1A1A2E';
+const STAR_EMPTY_COLOR = '#D7DBE2';
 
 export const StarRating = ({ value, onChange, size = 24, readOnly = false }: StarRatingProps) => {
   const stars = [1, 2, 3, 4, 5];

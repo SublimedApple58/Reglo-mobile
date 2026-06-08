@@ -120,9 +120,9 @@ const s = StyleSheet.create({
   },
   scrollContent: { paddingVertical: 8, alignItems: 'center' },
   item: { height: ITEM_HEIGHT, width: '82%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  itemSelected: { backgroundColor: '#FCE7F3' },
+  itemSelected: { backgroundColor: '#E9EBF2' },
   itemText: { fontSize: 18, fontWeight: '500', color: '#64748B' },
-  itemTextSelected: { fontWeight: '700', color: '#DB2777' },
+  itemTextSelected: { fontWeight: '700', color: '#14141F' },
 
   cta: {
     height: 54, borderRadius: 27, backgroundColor: colors.primary,

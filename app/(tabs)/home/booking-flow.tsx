@@ -260,7 +260,7 @@ const s = StyleSheet.create({
   dayCell: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   dayCellSel: { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#1A1A2E' },
   dayText: { fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
-  dayTextToday: { fontWeight: '800', color: '#DB2777' },
+  dayTextToday: { fontWeight: '800', color: '#14141F' },
   dayTextSel: { fontWeight: '700', color: '#1A1A2E' },
   dayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#9CA3AF', marginTop: 2 },
   monthLabel: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },

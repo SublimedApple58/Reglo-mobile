@@ -10,6 +10,8 @@ export type ScrollableMonthsCalendarProps = {
   onSelectDate: (date: string) => void;
   markedDates?: Set<string>;
   monthsCount?: number; // how many months ahead to render (default 12)
+  monthsBack?: number; // how many months before the current one to render (default 0)
+  allowPast?: boolean; // when true, past days are selectable + not greyed (agenda use)
   hideWeekHeader?: boolean; // when the parent renders a fixed weekday header
 };
 
@@ -29,6 +31,8 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
   onSelectDate,
   markedDates,
   monthsCount = 12,
+  monthsBack = 0,
+  allowPast = false,
   hideWeekHeader = false,
 }) => {
   const today = useMemo(() => {
@@ -38,8 +42,12 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
   }, []);
 
   const months = useMemo(
-    () => Array.from({ length: monthsCount }, (_, i) => new Date(today.getFullYear(), today.getMonth() + i, 1)),
-    [today, monthsCount],
+    () =>
+      Array.from(
+        { length: monthsBack + monthsCount },
+        (_, i) => new Date(today.getFullYear(), today.getMonth() - monthsBack + i, 1),
+      ),
+    [today, monthsCount, monthsBack],
   );
 
   return (
@@ -72,6 +80,7 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
                 const date = new Date(year, month, day);
                 date.setHours(0, 0, 0, 0);
                 const past = date.getTime() < today.getTime();
+                const disabled = past && !allowPast;
                 const isToday = date.getTime() === today.getTime();
                 const ds = toDateString(year, month, day);
                 const selected = selectedDate === ds;
@@ -80,7 +89,7 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
                   <Pressable
                     key={`d-${idx}`}
                     style={styles.cell}
-                    disabled={past}
+                    disabled={disabled}
                     onPress={() => onSelectDate(ds)}
                   >
                     <View
@@ -90,7 +99,7 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
                         !selected && isToday && styles.dayCircleToday,
                       ]}
                     >
-                      <Text style={[styles.dayText, past && styles.dayTextPast, selected && styles.dayTextSelected]}>
+                      <Text style={[styles.dayText, disabled && styles.dayTextPast, selected && styles.dayTextSelected]}>
                         {day}
                       </Text>
                     </View>

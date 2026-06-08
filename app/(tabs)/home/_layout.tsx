@@ -6,6 +6,71 @@ export default function HomeLayout() {
   return (
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="select-date" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen
+        name="quick-book"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen
+        name="manage-lesson-details"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="swap-lesson"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="reschedule-lesson"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="manage-lesson-instructor"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="manage-lesson-location"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="manage-lesson-location-form"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="lesson-detail"
         options={{

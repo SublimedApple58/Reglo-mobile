@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, pink, spacing, typography } from '../theme';
+import { colors, navy, spacing, typography } from '../theme';
 
 type BookingCelebrationProps = {
   visible: boolean;
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     height: 154,
     borderRadius: 77,
     borderWidth: 3,
-    borderColor: pink[200],
+    borderColor: navy[200],
   },
   sparkWrap: {
     position: 'absolute',

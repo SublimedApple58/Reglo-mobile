@@ -153,7 +153,7 @@ const formatLessonType = (value: string | null | undefined) =>
   lessonTypeLabelMap[normalize(value)] ?? value ?? 'Guida';
 
 const LESSON_CARD_COLORS = [
-  { bg: '#FFF0F3', accent: '#ec4899' },  // rose
+  { bg: '#F4F5F9', accent: '#1A1A2E' },  // rose
   { bg: '#EFF6FF', accent: '#3B82F6' },  // sky
   { bg: '#F0FDF4', accent: '#22C55E' },  // mint
   { bg: '#FFFBEB', accent: '#F59E0B' },  // amber
@@ -1731,13 +1731,6 @@ export const AllievoHomeScreen = () => {
               <Text style={styles.compactTagText}>Pratica</Text>
             </View>
           </Animated.View>
-          <Pressable
-            onPress={() => router.push('/(tabs)/home/notifications')}
-            style={({ pressed }) => [styles.headerBellBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="notifications-outline" size={18} color="#1a120a" />
-            {unreadNotifCount > 0 && <View style={styles.headerBellDot} />}
-          </Pressable>
         </View>
       </View>
 
@@ -1918,7 +1911,7 @@ export const AllievoHomeScreen = () => {
               <View style={styles.heroFooter}>
                 {mySwapByAppointment.has(nextLesson.id) ? (
                   <View style={styles.heroSwapChip}>
-                    <Ionicons name="swap-horizontal" size={13} color="#DB2777" />
+                    <Ionicons name="swap-horizontal" size={13} color="#14141F" />
                     <Text style={styles.heroSwapChipText}>Sostituzione richiesta</Text>
                   </View>
                 ) : (
@@ -1987,7 +1980,7 @@ export const AllievoHomeScreen = () => {
                   >
                     {mySwapByAppointment.has(lesson.id) && (
                       <View style={styles.miniSwapBadge}>
-                        <Ionicons name="swap-horizontal" size={12} color="#DB2777" />
+                        <Ionicons name="swap-horizontal" size={12} color="#14141F" />
                       </View>
                     )}
                     <Image
@@ -2119,7 +2112,7 @@ const styles = StyleSheet.create({
   headerBellDot: {
     position: 'absolute', top: 4, right: 4,
     width: 8, height: 8, borderRadius: 999,
-    backgroundColor: '#ec4899', borderWidth: 2, borderColor: colors.background,
+    backgroundColor: '#1A1A2E', borderWidth: 2, borderColor: colors.background,
   },
 
   /* ── Large title ── */
@@ -2187,10 +2180,10 @@ const styles = StyleSheet.create({
   },
   heroPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#F9A8D4', borderRadius: 999,
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#AEB4CC', borderRadius: 999,
     paddingHorizontal: 11, paddingVertical: 3, marginBottom: 6,
   },
-  heroPillText: { fontSize: 11, fontWeight: '700', color: '#DB2777' },
+  heroPillText: { fontSize: 11, fontWeight: '700', color: '#14141F' },
   heroTime: {
     fontSize: 30, fontWeight: '600', color: '#1A1A2E',
     letterSpacing: -0.8, lineHeight: 36,
@@ -2210,10 +2203,10 @@ const styles = StyleSheet.create({
   heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   heroSwapChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#FCE7F3', borderRadius: 10,
+    backgroundColor: '#E9EBF2', borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#DB2777' },
+  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#14141F' },
 
   /* ── Mini-cards: horizontal upcoming lessons ── */
   upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
@@ -2227,10 +2220,10 @@ const styles = StyleSheet.create({
   miniCardTime: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
   miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
-  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#DB2777', marginTop: 2 },
+  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#14141F', marginTop: 2 },
   miniSwapBadge: {
     position: 'absolute', top: 10, right: 10,
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#FCE7F3',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#E9EBF2',
     alignItems: 'center', justifyContent: 'center',
   },
   seeAllBtn: {
@@ -2337,7 +2330,7 @@ const styles = StyleSheet.create({
   bkBackBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#EC4899',
+    color: '#1A1A2E',
   },
   bkMonthNav: {
     flexDirection: 'row',
@@ -2392,7 +2385,7 @@ const styles = StyleSheet.create({
   },
   bkDayCellToday: {
     borderWidth: 2,
-    borderColor: '#ec4899',
+    borderColor: '#1A1A2E',
   },
   bkDayCellSelected: {
     backgroundColor: '#1a120a',
@@ -2404,7 +2397,7 @@ const styles = StyleSheet.create({
   },
   bkDayTextToday: {
     fontWeight: '700',
-    color: '#ec4899',
+    color: '#1A1A2E',
   },
   bkDayTextSelected: {
     fontWeight: '700',
@@ -2414,7 +2407,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#ec4899',
+    backgroundColor: '#1A1A2E',
     marginTop: 2,
   },
   bkInfoRow: {
@@ -2581,7 +2574,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#F9A8D4',
+    shadowColor: '#AEB4CC',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -3146,9 +3139,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chunkyChipActive: {
-    backgroundColor: '#EC4899',
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
+    borderColor: '#1A1A2E',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.32,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -3363,7 +3356,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ec4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3390,7 +3383,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
