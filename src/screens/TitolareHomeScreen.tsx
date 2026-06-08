@@ -730,13 +730,6 @@ export const TitolareHomeScreen = () => {
               )}
               <View style={oobStyles.actions}>
                 <Pressable
-                  style={oobStyles.actionBtn}
-                  disabled={isLoading}
-                  onPress={() => handleOutOfAvailAction(apt.id, 'reposition')}
-                >
-                  <Text style={oobStyles.actionBtnText}>Riposiziona</Text>
-                </Pressable>
-                <Pressable
                   style={[oobStyles.actionBtn, oobStyles.actionBtnDanger]}
                   disabled={isLoading}
                   onPress={() => handleOutOfAvailAction(apt.id, 'cancel')}
