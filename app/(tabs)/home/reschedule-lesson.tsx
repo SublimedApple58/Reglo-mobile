@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
@@ -185,7 +185,11 @@ export default function RescheduleLessonScreen() {
         disabled={!canSubmit}
         style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
       >
-        <Text style={s.confirmText}>{pending ? 'Spostando…' : 'Conferma spostamento'}</Text>
+        {pending ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={s.confirmText}>Conferma spostamento</Text>
+        )}
       </Pressable>
     </View>
   );

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vista settimana — quadro generale (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB; --muted:#9CA3AF;
+    --yellow:#FACC15; --yellowBg:#FEF9C3; --yellowTx:#CA8A04; --violet:#8B5CF6;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#AEB4CC; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.55; }
+  .lane .cap b { color:#AEB4CC; }
+  code { color:#AEB4CC; }
+
+  .phone { width:390px; height:844px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 24px 0; }
+  .weekhead { display:flex; align-items:center; justify-content:space-between; padding:14px 24px 14px; }
+  .weekrange { font-size:24px; font-weight:700; letter-spacing:-.4px; }
+  .weekrange .mo { color:var(--navy300); font-weight:600; }
+  .ctrls { display:flex; align-items:center; gap:8px; }
+  .today-chip { background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:8px 15px; font-size:14px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow { width:40px; height:40px; border-radius:20px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow svg { width:18px; height:18px; stroke:var(--navy); }
+
+  /* week summary strip */
+  .weeksum { margin:0 24px 4px; display:flex; gap:18px; padding:0 4px 14px; border-bottom:.5px solid var(--border); }
+  .weeksum .it { display:flex; flex-direction:column; gap:1px; }
+  .weeksum .n { font-size:20px; font-weight:700; letter-spacing:-.4px; }
+  .weeksum .l { font-size:12px; color:var(--muted); }
+
+  /* hour scale */
+  .scale { display:flex; padding:14px 24px 0; }
+  .scale .pad { width:78px; flex-shrink:0; }
+  .scale .ticks { flex:1; position:relative; height:16px; }
+  .scale .ticks span { position:absolute; top:0; transform:translateX(-50%); font-size:11px; font-weight:600; color:var(--navy300); }
+
+  /* day rows */
+  .days { padding:2px 24px 0; }
+  .drow { display:flex; align-items:center; gap:0; height:84px; }
+  .drow + .drow { border-top:.5px solid var(--border); }
+  .dlabel { width:78px; flex-shrink:0; display:flex; align-items:center; gap:10px; }
+  .dlabel .wd { font-size:11px; font-weight:700; color:var(--navy300); letter-spacing:.4px; }
+  .dlabel .num { font-size:19px; font-weight:700; letter-spacing:-.3px; }
+  .dlabel.today .numwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .dlabel.today .num { color:#fff; }
+  .dlabel.today .wd { color:var(--yellowTx); }
+  .dlabel.rest .wd, .dlabel.rest .num { color:var(--navy200); }
+  .dcol { display:flex; flex-direction:column; }
+
+  .track { flex:1; position:relative; height:84px; }
+  /* faint vertical gridlines at 11/14/17 */
+  .track .grid { position:absolute; top:18px; bottom:18px; width:1px; background:var(--navy50); }
+  /* availability window = light rounded bar (the bookable/free area) */
+  .avail { position:absolute; top:50%; transform:translateY(-50%); height:34px; background:var(--navy50); border-radius:10px; }
+  /* segments on top */
+  .seg { position:absolute; top:50%; transform:translateY(-50%); height:34px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; padding:0 9px; overflow:hidden; }
+  .seg.booked { background:var(--navy); }
+  .seg.booked .t { font-size:12px; font-weight:700; color:#fff; line-height:1.1; }
+  .seg.booked .s { font-size:10px; color:var(--navy300); line-height:1.1; }
+  .seg.done { background:var(--navy100); }
+  .seg.done .t { font-size:12px; font-weight:700; color:var(--navy400); }
+  .seg.exam { background:#EDE9FE; }
+  .seg.exam .t { font-size:12px; font-weight:700; color:#6D28D9; }
+  .seg.block { background:repeating-linear-gradient(45deg,#EDEFF4,#EDEFF4 5px,#F6F7FA 5px,#F6F7FA 10px); }
+  .seg.block .t { font-size:11px; font-weight:600; color:var(--navy400); }
+  /* status accent dot on booked */
+  .seg .dot { position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:3px; background:var(--yellow); }
+  /* day right summary */
+  .dsum { width:54px; flex-shrink:0; text-align:right; }
+  .dsum .a { font-size:13px; font-weight:700; }
+  .dsum .b { font-size:11px; color:var(--muted); margin-top:1px; }
+  .dsum .rest { font-size:12px; color:var(--navy200); font-weight:500; }
+
+  /* empty/full track tap hint shown on today */
+  .freehint { position:absolute; left:0; right:0; bottom:9px; text-align:center; font-size:10.5px; color:var(--navy300); }
+
+  .fab { position:absolute; right:22px; bottom:96px; width:60px; height:60px; border-radius:30px; background:var(--navy); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(26,26,46,.4); z-index:30; }
+  .fab svg { width:26px; height:26px; stroke:#fff; stroke-width:2.4; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:80px; background:rgba(253,253,253,.96); border-top:.5px solid var(--border); display:flex; align-items:flex-start; justify-content:space-around; padding-top:12px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .tab.on { color:var(--navy); font-weight:600; }
+  .tab svg { width:24px; height:24px; }
+
+  /* scrub bubble (gesture) */
+  .scrub-bubble { position:absolute; background:var(--navy); color:#fff; border-radius:14px; padding:10px 14px; box-shadow:0 12px 30px rgba(0,0,0,.35); display:flex; align-items:center; gap:8px; z-index:45; }
+  .scrub-bubble .tm { font-size:18px; font-weight:700; letter-spacing:-.3px; }
+  .scrub-bubble .dr { font-size:12px; color:var(--navy300); }
+  .ghost { position:absolute; top:50%; transform:translateY(-50%); height:34px; border-radius:10px; border:2px solid var(--navy); background:rgba(26,26,46,.06); z-index:44; }
+  .finger { position:absolute; width:44px; height:44px; border-radius:22px; background:rgba(26,26,46,.12); border:2px solid rgba(26,26,46,.25); z-index:46; }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — Quadro settimana ════════ -->
+<div class="lane">
+  <h2>1 · Settimana a colpo d'occhio</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls">
+        <div class="today-chip">Oggi</div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+
+    <div class="weeksum">
+      <div class="it"><span class="n">7</span><span class="l">guide</span></div>
+      <div class="it"><span class="n">1</span><span class="l">esame</span></div>
+      <div class="it"><span class="n">23h</span><span class="l">libere</span></div>
+    </div>
+
+    <!-- hour scale (8 → 20) -->
+    <div class="scale">
+      <div class="pad"></div>
+      <div class="ticks" style="margin-right:54px">
+        <span style="left:8.3%">8</span>
+        <span style="left:33.3%">11</span>
+        <span style="left:58.3%">14</span>
+        <span style="left:75%">17</span>
+        <span style="left:100%">20</span>
+      </div>
+    </div>
+
+    <div class="days">
+      <!-- LUN 8: avail 9-17, done 15-16 -->
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">LUN</span><span class="num">8</span></div></div>
+        <div class="track">
+          <div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div>
+          <div class="avail" style="left:8.3%;width:58.4%"></div>
+          <div class="seg done" style="left:58.3%;width:8.3%"><span class="t">15:00</span></div>
+        </div>
+        <div class="dsum"><div class="a">1</div><div class="b">guida</div></div>
+      </div>
+
+      <!-- MAR 9: avail 9-18, block 10-11 -->
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">MAR</span><span class="num">9</span></div></div>
+        <div class="track">
+          <div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div>
+          <div class="avail" style="left:8.3%;width:75%"></div>
+          <div class="seg block" style="left:16.7%;width:8.3%"><span class="t">Blocco</span></div>
+        </div>
+        <div class="dsum"><div class="a">0</div><div class="b">guide</div></div>
+      </div>
+
+      <!-- MER 10 (oggi): avail 9-17, booked 12-13 (programmata) -->
+      <div class="drow">
+        <div class="dlabel today"><div class="numwrap"><span class="num">10</span></div><div class="dcol"><span class="wd">MER</span></div></div>
+        <div class="track">
+          <div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div>
+          <div class="avail" style="left:8.3%;width:66.7%"></div>
+          <div class="seg booked" style="left:33.3%;width:8.3%"><span class="dot"></span><span class="t">12:00</span><span class="s">A. Prova</span></div>
+        </div>
+        <div class="dsum"><div class="a">1</div><div class="b">· 6h lib.</div></div>
+      </div>
+
+      <!-- GIO 11: avail 9-17 tutto libero -->
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">GIO</span><span class="num">11</span></div></div>
+        <div class="track">
+          <div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div>
+          <div class="avail" style="left:8.3%;width:66.7%"></div>
+        </div>
+        <div class="dsum"><div class="a">8h</div><div class="b">libere</div></div>
+      </div>
+
+      <!-- VEN 12: avail 9-19, booked 9-10,11-12, exam 16-17.5 -->
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">VEN</span><span class="num">12</span></div></div>
+        <div class="track">
+          <div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div>
+          <div class="avail" style="left:8.3%;width:83.4%"></div>
+          <div class="seg booked" style="left:8.3%;width:8.3%"><span class="t">9:00</span></div>
+          <div class="seg booked" style="left:25%;width:8.3%"><span class="t">11:00</span></div>
+          <div class="seg exam" style="left:66.7%;width:12.5%"><span class="t">Esame 16:00</span></div>
+        </div>
+        <div class="dsum"><div class="a">2+1</div><div class="b">esame</div></div>
+      </div>
+
+      <!-- SAB 13: riposo -->
+      <div class="drow">
+        <div class="dlabel rest"><div class="dcol"><span class="wd">SAB</span><span class="num">13</span></div></div>
+        <div class="track"><div class="dsum rest" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:auto;text-align:left">Nessuna disponibilità</div></div>
+        <div class="dsum"></div>
+      </div>
+    </div>
+
+    <div class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Tempo sull'asse <b>orizzontale</b>: 1 giorno = 1 riga, tutta la settimana in una schermata. Barra chiara = disponibilità (libero), segmenti navy = guide, viola = esame, tratteggio = blocchi. Sintesi settimana in alto (7 guide · 1 esame · 23h libere) e per-giorno a destra. Vedi al volo i giorni pieni vs vuoti. Tap riga → vista giorno per il dettaglio.</div>
+</div>
+
+<!-- ════════ LANE 2 — Gesture quick-book (orizzontale) ════════ -->
+<div class="lane">
+  <h2>2 · Quick-book sulla barra libera</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls"><div class="today-chip">Oggi</div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+    </div>
+    <div class="weeksum">
+      <div class="it"><span class="n">7</span><span class="l">guide</span></div>
+      <div class="it"><span class="n">1</span><span class="l">esame</span></div>
+      <div class="it"><span class="n">23h</span><span class="l">libere</span></div>
+    </div>
+    <div class="scale"><div class="pad"></div><div class="ticks" style="margin-right:54px"><span style="left:8.3%">8</span><span style="left:33.3%">11</span><span style="left:58.3%">14</span><span style="left:75%">17</span><span style="left:100%">20</span></div></div>
+
+    <div class="days">
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">LUN</span><span class="num">8</span></div></div>
+        <div class="track"><div class="avail" style="left:8.3%;width:58.4%"></div><div class="seg done" style="left:58.3%;width:8.3%"><span class="t">15:00</span></div></div>
+        <div class="dsum"><div class="a">1</div><div class="b">guida</div></div>
+      </div>
+      <!-- MER today: scrub in progress on free track -->
+      <div class="drow">
+        <div class="dlabel today"><div class="numwrap"><span class="num">10</span></div><div class="dcol"><span class="wd">MER</span></div></div>
+        <div class="track" style="overflow:visible">
+          <div class="avail" style="left:8.3%;width:66.7%"></div>
+          <div class="seg booked" style="left:33.3%;width:8.3%"><span class="dot"></span><span class="t">12:00</span></div>
+          <!-- ghost slot being placed at ~14:15 -->
+          <div class="ghost" style="left:51%;width:8.3%"></div>
+          <div class="scrub-bubble" style="left:42%;top:8px"><span class="tm">14:15</span><span class="dr">· 60 min</span></div>
+          <div class="finger" style="left:54%;top:50%;margin-top:-22px"></div>
+        </div>
+        <div class="dsum"><div class="a">1</div><div class="b">· 6h lib.</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">GIO</span><span class="num">11</span></div></div>
+        <div class="track"><div class="avail" style="left:8.3%;width:66.7%"></div></div>
+        <div class="dsum"><div class="a">8h</div><div class="b">libere</div></div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Stesso flusso di <code>BookableBand</code>, asse ruotato: tieni premuto sulla parte chiara (libera) di un giorno → scrub <b>orizzontale</b> a step di 15′, la bubble segue il dito e mostra l'ora; al rilascio apre il quick-book con <b>data del giorno + ora</b>. Tap secco = prenota all'inizio dello slot.</div>
+</div>
+
+</body>
+</html>

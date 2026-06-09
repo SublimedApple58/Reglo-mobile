@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home Istruttore — Come separare greeting e calendario (senza divider)</title>
+<style>
+  :root{
+    --bg:#FDFDFD; --navy:#1A1A2E;
+    --n50:#F4F5F9; --n100:#E9EBF2; --n200:#D6D9E6; --n300:#AEB4CC; --n400:#6E7596;
+    --muted:#94A3B8; --muted2:#64748B; --line:#ECECEC; --hair:#EEF0F4;
+    --card:#FFFFFF; --accent:#FACC15; --warnBg:#FEF3C7; --warnTx:#92400E;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:30px;flex-wrap:wrap;padding:42px 18px 60px;}
+  .col{display:flex;flex-direction:column;align-items:center;width:380px;}
+  .label{color:#dff;font-size:13px;text-align:center;margin-bottom:4px;font-weight:700;}
+  .sub{color:#bcd;font-size:11px;text-align:center;margin-bottom:12px;line-height:16px;opacity:.85}
+  .phone{width:380px;height:680px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+  .statusbar{height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font-weight:600;color:var(--navy);font-size:15px;}
+  .statusbar .r{display:flex;gap:6px;align-items:center;font-size:13px}
+  .scroll{height:calc(100% - 50px);overflow-y:auto;padding-bottom:30px;}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* shared bits */
+  .greet{font-size:17px;font-weight:600;color:var(--navy);letter-spacing:-.2px;}
+  .month{font-size:24px;font-weight:800;color:var(--navy);letter-spacing:-.5px;}
+  .ctrls{display:flex;gap:8px;align-items:center;}
+  .ghost{width:38px;height:38px;border-radius:19px;background:var(--n50);display:flex;align-items:center;justify-content:center;}
+  .ghost svg{width:19px;height:19px;stroke:var(--navy);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .oggi{height:34px;padding:0 14px;border-radius:17px;background:var(--n50);display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--navy);}
+
+  /* CELLS — identical to your current app */
+  .strip{display:flex;gap:8px;overflow-x:auto;padding:8px 20px 14px;}
+  .strip::-webkit-scrollbar{display:none}
+  .cell{min-width:58px;height:72px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;background:#fff;border:1px solid var(--line);position:relative;}
+  .cell.today{border:1.5px solid var(--navy);}
+  .cell.sel{background:var(--navy);border:none;box-shadow:0 4px 8px rgba(26,26,46,.22);}
+  .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .num{font-size:20px;font-weight:700;color:var(--navy);}
+  .cell.sel .dow,.cell.sel .num{color:#fff;}
+  .cdot{position:absolute;bottom:8px;width:6px;height:6px;border-radius:3px;background:var(--navy);}
+  .cell.sel .cdot{background:#fff;}
+
+  /* body (minimal, shared) */
+  .cap{color:#9AA1AC;font-size:12.5px;font-weight:500;padding:6px 20px 4px;}
+  .itin{padding:4px 20px 0;}
+  .irow{display:flex;align-items:stretch;}
+  .rail{width:64px;padding-top:14px;display:flex;flex-direction:column;align-items:center;position:relative;}
+  .rail .lt{position:absolute;left:31px;top:0;height:12px;width:2px;background:var(--hair);}
+  .rail .lb{position:absolute;left:31px;top:42px;bottom:-12px;width:2px;background:var(--hair);}
+  .rp{min-height:24px;padding:0 8px;display:flex;align-items:center;border-radius:12px;background:var(--hair);}
+  .rp .t{font-size:12.5px;font-weight:700;color:var(--navy);}
+  .mk{flex:1;padding-top:18px;}
+  .mk .mt{font-size:13px;font-weight:700;color:#475569;}
+  .lcard{flex:1;background:var(--card);border-radius:20px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 16px rgba(26,26,46,.07);}
+  .av{width:42px;height:42px;border-radius:21px;background:var(--n50);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy);}
+  .lc-name{font-size:15px;font-weight:700;color:var(--navy);}
+  .lc-meta{font-size:12.5px;color:var(--muted2);margin-top:2px;}
+  .pill{padding:4px 10px;border-radius:11px;background:var(--warnBg);font-size:11.5px;font-weight:700;color:var(--warnTx);white-space:nowrap;}
+
+  /* ===== option-specific top zones ===== */
+
+  /* current divider (reference) */
+  .greetRow{display:flex;align-items:baseline;justify-content:space-between;padding:12px 20px;gap:12px;}
+  .next{flex-shrink:1;text-align:right;color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .divider{height:1px;background:#C2C7D6;margin:0 20px;}
+  .monthRow{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+
+  /* OPT 1 — air only */
+  .o1 .greetRow{padding:14px 20px 0;}
+  .o1 .monthRow{padding:26px 20px 0;}
+
+  /* OPT 2 — next-guide card */
+  .o2 .greet{padding:14px 20px 10px;}
+  .o2 .nguide{margin:0 20px 4px;display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 6px 16px rgba(26,26,46,.07);}
+  .o2 .nIcon{width:36px;height:36px;border-radius:18px;background:var(--n50);display:flex;align-items:center;justify-content:center;}
+  .o2 .nIcon svg{width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2;}
+  .o2 .nLbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  .o2 .nVal{font-size:14px;font-weight:700;color:var(--navy);margin-top:1px;}
+  .o2 .monthRow{padding:22px 20px 0;}
+  .o2 .chev{margin-left:auto;color:var(--n300);font-size:18px;}
+
+  /* OPT 3 — greeting as eyebrow (one unified block) */
+  .o3 .head{padding:16px 20px 0;}
+  .o3 .eyebrow{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.2px;margin-bottom:6px;}
+  .o3 .row{display:flex;align-items:center;justify-content:space-between;}
+  .o3 .chip{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:var(--n50);border-radius:13px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--navy2,#334155);}
+  .o3 .chip svg{width:14px;height:14px;stroke:var(--navy);fill:none;stroke-width:2;}
+  .o3 .chip .b{color:var(--muted);font-weight:600;}
+
+  /* OPT 4 — tonal panel groups the calendar */
+  .o4 .greetRow{padding:14px 20px 16px;}
+  .o4 .panel{background:#F5F6FA;border-radius:24px 24px 0 0;margin:0;padding-top:6px;}
+  .o4 .monthRow{padding:18px 20px 0;}
+  .o4 .strip{padding:8px 20px 18px;}
+  .o4 .cell{background:#fff;}
+</style>
+</head>
+<body>
+
+<!-- CURRENT -->
+<div class="col">
+  <div class="label">ATTUALE (col divider)</div>
+  <div class="sub">La riga grigia separa ma è povera: sembra un foglio tagliato a metà.</div>
+  <div class="phone">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="divider"></div>
+      <div class="monthRow"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div style="flex:1"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPT 1 -->
+<div class="col">
+  <div class="label">1 — Solo aria (niente divider)</div>
+  <div class="sub">Nessuna riga. La separazione la fanno il salto di dimensione (17→24px) e lo spazio. In scroll, quando "Giugno + celle" si incolla in alto, compare l'ombra/hairline che separa SOLO quando serve.</div>
+  <div class="phone o1">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="monthRow"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div style="flex:1"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPT 2 -->
+<div class="col">
+  <div class="label">2 — Prossima guida come card</div>
+  <div class="sub">La "prossima guida" diventa una card (icona + label). Dà peso alla zona alta, così il calendario sotto si stacca da solo: due moduli distinti, niente riga.</div>
+  <div class="phone o2">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greet">Ciao, Tiziano</div>
+      <div class="nguide">
+        <div class="nIcon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <div><div class="nLbl">Prossima guida</div><div class="nVal">Dopodomani 16:00 · Allievo Prova</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="monthRow"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div style="flex:1"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPT 3 -->
+<div class="col">
+  <div class="label">3 — Greeting come occhiello</div>
+  <div class="sub">"Ciao, Tiziano" diventa un piccolo occhiello SOPRA "Giugno 2026": un unico blocco-titolo. Il problema "come separo" sparisce perché greeting e mese sono la stessa cosa. La prossima guida è una chip sotto.</div>
+  <div class="phone o3">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="head">
+        <div class="eyebrow">Ciao, Tiziano 👋</div>
+        <div class="row"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+        <div class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> <span>Dopodomani 16:00</span> <span class="b">· Allievo Prova</span></div>
+      </div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div style="flex:1"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPT 4 -->
+<div class="col">
+  <div class="label">4 — Pannello tonale</div>
+  <div class="sub">Il greeting resta sul bianco; il calendario (mese + celle) vive in un pannello grigino con angoli arrotondati. La separazione la fa il cambio di superficie, non una riga. Rende anche "sensato" lo stick in alto.</div>
+  <div class="phone o4">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="panel">
+        <div class="monthRow"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+        <div class="strip">
+          <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+          <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+          <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+          <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+          <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+        </div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div style="flex:1"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

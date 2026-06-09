@@ -6,15 +6,18 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Component | Used by screens | Notes |
 |-----------|----------------|-------|
-| `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, LocationPickerSheet, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, TitolareHome (11) | iOS + Android separate implementations. ClusterSettings migrated to a page-sheet route (notes/group-students). |
-| `TimePickerDrawer` | CreateExam, InstructorManage, InstructorVehicles, OwnerInstructor, OwnerVehicles, PublicationModeEditor, RescheduleAppointmentSheet, Settings (8) | Depends on BottomSheet. ClusterSettings now uses the formSheet `time-picker` route (timePickerStore). |
+| `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, LocationPickerSheet, NotificationOverlay, OwnerInstructor, RescheduleAppointmentSheet, TitolareHome (9) | iOS + Android separate implementations. ClusterSettings + Vehicles migrated to formSheet routes. |
+| `TimePickerDrawer` | CreateExam, InstructorManage, OwnerInstructor, PublicationModeEditor, RescheduleAppointmentSheet, Settings (6) | Depends on BottomSheet. ClusterSettings + Vehicles now use the formSheet `time-picker` route (timePickerStore). |
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome, TitolareHome (4) | Depends on MiniCalendar + BottomSheet |
 | `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor, DefaultAvailabilityEditor, role/availability-exception (5) | Time range format changes break all availability UIs. Navy clock circle (no pink). |
 | `SelectableChip` | CalendarNavigator, ClusterSettings, InstructorManage, Settings (4) | |
-| `WeeklyAgendaView` | IstruttoreHome, TitolareHome (2) | Shared between instructor and owner |
+| `WeeklyAgendaView` | TitolareHome (1) | Hour-grid week view. **IstruttoreHome migrated off it** → `WeeklyOverview` (words-first). Still used by the owner home. |
+| `WeeklyOverview` | IstruttoreHome (1) | "Control in words" week view (preview 008): density strip + per-day textual summary + tap-to-expand inline `DayItinerary`. Uses `computeDayPlan` (`src/utils/weeklyAgenda.ts`) + `BookableBand` (quick-book preserved). |
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
+| `BookingForm` | `home/new-booking`, `home/quick-book` (2) | Form completo prenotazione. Legge `bookingSheetStore`. Prop `embedded`. Modificarlo cambia ENTRAMBE le route. |
+| `BlockForm` | `home/block-slot`, `home/quick-book` (2) | Form completo blocca slot. Legge `blockSheetStore`. Prop `embedded`. Modificarlo cambia ENTRAMBE le route. |
 | `MiniCalendar` | InstructorManage, OwnerInstructor, role/availability-exception + used by CalendarDrawer (4) | Navy selected/today/dot (no yellow/pink). |
 
 ## API Type → Screens
@@ -106,6 +109,13 @@ When modifying a feature, read its connected features to verify nothing breaks.
 ### Instructor Hours
 - → **Settings / Cluster**: la finestra "orario di lavoro" che definisce le ore *fuori orario* arriva dalle impostazioni istruttore/azienda.
 - → **Backend**: `GET /api/autoscuole/instructor-hours` (settimanale + mensile). Hook cache-first `useInstructorHours` per settimana.
+
+### Vehicles
+- **Owner + Instructor condividono `VehiclesScreen`** (impl unica): `OwnerVehiclesScreen`/`InstructorVehiclesScreen` sono wrapper sottili; il route `more/vehicles` smista per ruolo. Lista flat (header large-title blur collassabile, righe icona+nome+targa, tap → form, `•••` → ActionSheet attiva/disattiva).
+- Form migrato da `BottomSheet` + `TimePickerDrawer` a route formSheet `more/vehicle-form` (store `vehicleFormStore`, seed-and-callback `onChanged`) + route `more/time-picker` (`timePickerStore`).
+- → **Backend**: `getVehicles`/`createVehicle`/`updateVehicle` (name/plate/status) e `deleteVehicle` (= soft-delete, status inattivo). Disponibilità via `get/create/deleteAvailabilitySlots` (`ownerType: 'vehicle'`), orizzonte `settings.availabilityWeeks`.
+- → **Availability Editor / Booking**: la disponibilità del veicolo concorre agli slot prenotabili; cambia gli slot mostrati in prenotazione.
+- **Veicolo fisso per istruttore (1:1, 2026-06-09)**: tutto in `more/vehicle-form` (sezione Veicoli, NON nei cluster). Titolare → picker "Istruttore assegnato" (`isOwner`, lista da `getInstructors`); istruttore → toggle "Assegna a me" (`session.instructorId`; bloccato se il veicolo è di un altro). Toggle `followsInstructorAvailability` nel form. BE riassegna automaticamente (rilascia il veicolo precedente dell'istruttore). → **Quick-book** (`IstruttoreHomeScreen`/`bookingSheetStore`): `defaultVehicleId` precompilato col veicolo fisso, modificabile. → **Backend** `updateVehicle({assignedInstructorId, followsInstructorAvailability})`.
 
 ## Cross-Repo Impact
 

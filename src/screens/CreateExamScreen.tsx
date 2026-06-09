@@ -1,754 +1,360 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { BottomSheet } from '../components/BottomSheet';
-import { CalendarDrawer } from '../components/CalendarDrawer';
-import { TimePickerDrawer } from '../components/TimePickerDrawer';
-import { ToastNotice, ToastTone } from '../components/ToastNotice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { examSheetStore } from '../stores/examSheetStore';
+import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
+import { dayPickerStore } from '../stores/dayPickerStore';
+import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
-import { colors, spacing } from '../theme';
+import { Button } from '../components/Button';
+import { ToggleSwitch } from '../components/ToggleSwitch';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
 
-type StudentItem = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  clusterLabel: string | null; // "Mio gruppo" | "<nome istruttore>" | null (non assegnato)
-  isMyCluster: boolean;
-};
+const NAVY = '#1A1A2E';
+const GREY = '#717171';
+const MUTED = '#94A3B8';
+const N50 = '#F4F5F9';
+const N100 = '#E9EBF2';
 
-// Avatar helpers — shared visual language with ClusterSettingsScreen
-const getInitials = (firstName: string, lastName: string) => {
-  const f = (firstName ?? '').trim();
-  const l = (lastName ?? '').trim();
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+const initialsOf = (first: string, last: string) => {
+  const f = (first ?? '').trim();
+  const l = (last ?? '').trim();
   if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
   if (f) return f.slice(0, 2).toUpperCase();
   if (l) return l.slice(0, 2).toUpperCase();
   return '?';
 };
-const AVATAR_BG_PALETTE = ['#E9EBF2', '#FEF3C7', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2'];
-const AVATAR_FG_PALETTE = ['#0D0D16', '#B45309', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C'];
-const hashStr = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
+
+type StudentItem = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  clusterLabel: string | null; // "Mio gruppo" | "<istruttore>" | null
+  isMyCluster: boolean;
 };
-const avatarColorsFor = (id: string) => {
-  const i = hashStr(id) % AVATAR_BG_PALETTE.length;
-  return { bg: AVATAR_BG_PALETTE[i], fg: AVATAR_FG_PALETTE[i] };
-};
+
+/* ── Flat row inside the elevated card (icon · label · value · chevron) ── */
+const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string;
+  value?: string | null; placeholder?: string; onPress: () => void; disabled?: boolean;
+}) => (
+  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
+    <View style={s.rowIcon}><Ionicons name={icon} size={22} color={NAVY} /></View>
+    <View style={s.rowBody}>
+      <Text style={s.rowLabel}>{label}</Text>
+      {value ? (
+        <Text style={s.rowValue} numberOfLines={1}>{value}</Text>
+      ) : (
+        <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>
+      )}
+    </View>
+    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+  </Pressable>
+);
 
 export const CreateExamScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const data = useSyncExternalStore(examSheetStore.subscribe, examSheetStore.get);
+
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [students, setStudents] = useState<StudentItem[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [examDate, setExamDate] = useState(new Date());
-  const [examEndDate, setExamEndDate] = useState(new Date(Date.now() + 60 * 60 * 1000));
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [examDate, setExamDate] = useState<Date>(() => (data ? new Date(data.initialDate) : new Date()));
   const [timeSet, setTimeSet] = useState(true);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
-  const [timeDrawerOpen, setTimeDrawerOpen] = useState(false);
-  // Students picker sheet
-  const [studentsSheetOpen, setStudentsSheetOpen] = useState(false);
-  const [draftSelectedIds, setDraftSelectedIds] = useState<string[]>([]);
-  const [studentSearch, setStudentSearch] = useState('');
 
   const loadStudents = useCallback(async () => {
     try {
       const settings = await regloApi.getInstructorSettings().catch(() => null);
       if (settings) {
         const myInstructorId = settings.instructorId ?? null;
-        const instructorNameById = new Map(
-          (settings.autonomousInstructors ?? []).map((i) => [i.id, i.name]),
-        );
-        const all = settings.students ?? [];
+        const instructorNameById = new Map((settings.autonomousInstructors ?? []).map((i) => [i.id, i.name]));
         setStudents(
-          all.map((s) => {
-            const isMyCluster = Boolean(myInstructorId) && s.assignedInstructorId === myInstructorId;
+          (settings.students ?? []).map((st) => {
+            const isMyCluster = Boolean(myInstructorId) && st.assignedInstructorId === myInstructorId;
             let clusterLabel: string | null = null;
-            if (isMyCluster) {
-              clusterLabel = 'Mio gruppo';
-            } else if (s.assignedInstructorId) {
-              clusterLabel = instructorNameById.get(s.assignedInstructorId) ?? 'Altro gruppo';
-            }
-            return {
-              id: s.id,
-              firstName: s.firstName ?? '',
-              lastName: s.lastName ?? '',
-              clusterLabel,
-              isMyCluster,
-            };
+            if (isMyCluster) clusterLabel = 'Mio gruppo';
+            else if (st.assignedInstructorId) clusterLabel = instructorNameById.get(st.assignedInstructorId) ?? 'Altro gruppo';
+            return { id: st.id, firstName: st.firstName ?? '', lastName: st.lastName ?? '', clusterLabel, isMyCluster };
           }),
         );
       } else {
-        // Fallback — OWNER or missing instructor profile
         const res = await regloApi.getStudents();
         setStudents(
-          res.map((s: Record<string, unknown>) => ({
-            id: s.id as string,
-            firstName: (s.firstName ?? s.name ?? '') as string,
-            lastName: (s.lastName ?? '') as string,
+          res.map((st: Record<string, unknown>) => ({
+            id: st.id as string,
+            firstName: (st.firstName ?? st.name ?? '') as string,
+            lastName: (st.lastName ?? '') as string,
             clusterLabel: null,
             isMyCluster: false,
           })),
         );
       }
     } catch {
-      setToast({ text: 'Errore nel caricamento allievi', tone: 'danger' });
+      Alert.alert('Errore', 'Errore nel caricamento allievi.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadStudents();
-  }, [loadStudents]);
+  useEffect(() => { loadStudents(); }, [loadStudents]);
 
-  const openStudentsSheet = () => {
-    setDraftSelectedIds(selectedStudentIds);
-    setStudentSearch('');
-    setStudentsSheetOpen(true);
-  };
-  const confirmStudentsSelection = () => {
-    setSelectedStudentIds(draftSelectedIds);
-    setStudentsSheetOpen(false);
-  };
+  // Re-seed the default day whenever the sheet is (re)opened.
+  useEffect(() => {
+    if (!data) return;
+    setExamDate(new Date(data.initialDate));
+    setSelectedIds([]);
+    setTimeSet(true);
+    setNotes('');
+    setSaving(false);
+  }, [data]);
 
   const selectedStudents = useMemo(
-    () => students.filter((s) => selectedStudentIds.includes(s.id)),
-    [students, selectedStudentIds],
+    () => students.filter((st) => selectedIds.includes(st.id)),
+    [students, selectedIds],
   );
 
-  const filteredSheetStudents = useMemo(() => {
-    const q = studentSearch.toLowerCase().trim();
-    const filtered = q
-      ? students.filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(q))
-      : students;
-    return [...filtered].sort((a, b) => {
-      // 1. Selected first
-      const aSel = draftSelectedIds.includes(a.id) ? 0 : 1;
-      const bSel = draftSelectedIds.includes(b.id) ? 0 : 1;
-      if (aSel !== bSel) return aSel - bSel;
-      // 2. My cluster before other clusters / unassigned
-      const aMine = a.isMyCluster ? 0 : 1;
-      const bMine = b.isMyCluster ? 0 : 1;
-      if (aMine !== bMine) return aMine - bMine;
-      // 3. Alphabetical
-      return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+  if (!data) return <View style={s.root} />;
+
+  const openStudentsPicker = () => {
+    const options: ExamStudentOption[] = students.map((st) => ({
+      value: st.id,
+      label: `${st.firstName} ${st.lastName}`.trim(),
+      subtitle: st.clusterLabel,
+      isMyCluster: st.isMyCluster,
+    }));
+    examStudentsStore.set({ selectedIds, options, onConfirm: setSelectedIds });
+    router.push('/(tabs)/home/select-exam-students');
+  };
+
+  const openDatePicker = () => {
+    dayPickerStore.set({
+      selectedDate: toYMD(examDate), markedDates: new Set(), monthsBack: 0, monthsCount: 4,
+      allowPast: false, title: "Data dell'esame",
+      onSelect: (ymd) => {
+        const picked = fromYMD(ymd);
+        setExamDate((prev) => {
+          const next = new Date(prev);
+          next.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate());
+          return next;
+        });
+      },
     });
-  }, [students, studentSearch, draftSelectedIds]);
+    router.push('/(tabs)/home/select-date');
+  };
+
+  const openTimePicker = () => {
+    timePickerStore.set({
+      selectedTime: examDate,
+      onConfirm: (d) => setExamDate((prev) => {
+        const next = new Date(prev);
+        next.setHours(d.getHours(), d.getMinutes(), 0, 0);
+        return next;
+      }),
+    });
+    router.push('/(tabs)/home/time-picker');
+  };
+
+  const studentsValue = selectedStudents.length === 0
+    ? null
+    : selectedStudents.length === 1
+      ? `${selectedStudents[0].firstName} ${selectedStudents[0].lastName}`.trim()
+      : `${selectedStudents.length} allievi`;
+
+  const summary = selectedStudents.length === 0
+    ? 'Nessun allievo'
+    : `${selectedStudents.length} ${selectedStudents.length === 1 ? 'allievo' : 'allievi'}`;
 
   const handleCreate = async () => {
-    if (!selectedStudentIds.length) {
-      setToast({ text: 'Seleziona almeno un allievo', tone: 'danger' });
+    if (selectedIds.length === 0) {
+      Alert.alert('Seleziona allievi', "Aggiungi almeno un allievo all'esame.");
       return;
     }
     setSaving(true);
     try {
       if (timeSet) {
+        const endsAt = new Date(examDate); endsAt.setHours(endsAt.getHours() + 1);
         await regloApi.createExam({
-          studentIds: selectedStudentIds,
+          studentIds: selectedIds,
           startsAt: examDate.toISOString(),
-          endsAt: examEndDate.toISOString(),
-          notes: notes || undefined,
+          endsAt: endsAt.toISOString(),
+          notes: notes.trim() || undefined,
         });
       } else {
-        const dateOnly = new Date(examDate);
-        dateOnly.setHours(0, 0, 0, 0);
+        const dateOnly = new Date(examDate); dateOnly.setHours(0, 0, 0, 0);
         await regloApi.createExam({
-          studentIds: selectedStudentIds,
+          studentIds: selectedIds,
           startsAt: dateOnly.toISOString(),
-          notes: notes || undefined,
+          notes: notes.trim() || undefined,
         });
       }
-      setToast({ text: 'Esame creato', tone: 'success' });
-      setTimeout(() => router.back(), 1200);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Errore nella creazione';
-      setToast({ text: msg, tone: 'danger' });
-    } finally {
+      data.onDone('Esame creato.');
+      router.back();
+    } catch (err) {
+      Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella creazione.');
       setSaving(false);
     }
   };
 
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  const formatTime = (d: Date) =>
-    d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
   return (
-    <Screen>
-      <StatusBar style="dark" />
-      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backRow} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-          <Text style={styles.backTitle}>Crea esame</Text>
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+      <View style={s.header}>
+        <Text style={s.title}>Crea esame</Text>
+        <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+          <Ionicons name="close" size={20} color={NAVY} />
         </Pressable>
+      </View>
 
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-        ) : (
-          <>
-            {/* Students — primary card */}
-            <View style={styles.studentsCard}>
-              <View style={styles.studentsHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.studentsTitle}>Allievi all&apos;esame</Text>
-                  <Text style={styles.studentsSubtitle}>
-                    {selectedStudents.length === 0
-                      ? 'Scegli gli allievi che sostengono l\u2019esame.'
-                      : `${selectedStudents.length} ${selectedStudents.length === 1 ? 'allievo selezionato' : 'allievi selezionati'}.`}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={openStudentsSheet}
-                  style={({ pressed }) => [styles.manageBtn, pressed && { opacity: 0.85 }]}
-                >
-                  <Ionicons name="create-outline" size={15} color="#0D0D16" />
-                  <Text style={styles.manageBtnText}>Gestisci</Text>
-                </Pressable>
+      {loading ? (
+        <View style={s.loadingBox}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <>
+          {/* Card 3D primaria: allievi + giorno + ora */}
+          <View style={s.group}>
+            {/* Allievi — riga con stack avatar */}
+            <Pressable onPress={openStudentsPicker} disabled={saving} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
+              <View style={s.rowIcon}><Ionicons name="people-outline" size={22} color={NAVY} /></View>
+              <View style={s.rowBody}>
+                <Text style={s.rowLabel}>Allievi</Text>
+                {studentsValue ? (
+                  <Text style={s.rowValue} numberOfLines={1}>{studentsValue}</Text>
+                ) : (
+                  <Text style={s.rowPlaceholder} numberOfLines={1}>Seleziona allievi</Text>
+                )}
               </View>
-
-              {selectedStudents.length === 0 ? (
-                <Pressable
-                  onPress={openStudentsSheet}
-                  style={({ pressed }) => [styles.emptyStateBtn, pressed && { opacity: 0.85 }]}
-                >
-                  <View style={styles.emptyStateIconCircle}>
-                    <Ionicons name="person-add-outline" size={22} color="#0D0D16" />
-                  </View>
-                  <Text style={styles.emptyStateText}>Aggiungi allievi</Text>
-                </Pressable>
-              ) : (
-                <View style={styles.avatarStackWrapper}>
-                  {selectedStudents.slice(0, 6).map((student, idx) => {
-                    const { bg, fg } = avatarColorsFor(student.id);
-                    return (
-                      <View
-                        key={student.id}
-                        style={[
-                          styles.avatarCircle,
-                          { backgroundColor: bg, marginLeft: idx === 0 ? 0 : -10, zIndex: 10 - idx },
-                        ]}
-                      >
-                        <Text style={[styles.avatarInitials, { color: fg }]}>
-                          {getInitials(student.firstName, student.lastName)}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                  {selectedStudents.length > 6 ? (
-                    <View style={[styles.avatarCircle, styles.avatarOverflow, { marginLeft: -10 }]}>
-                      <Text style={styles.avatarOverflowText}>
-                        +{selectedStudents.length - 6}
-                      </Text>
+              {selectedStudents.length > 0 ? (
+                <View style={s.avatarStack}>
+                  {selectedStudents.slice(0, 3).map((st, idx) => (
+                    <View key={st.id} style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
+                      <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
+                    </View>
+                  ))}
+                  {selectedStudents.length > 3 ? (
+                    <View style={[s.stackAvatar, s.stackMore, { marginLeft: -10 }]}>
+                      <Text style={s.stackMoreTxt}>+{selectedStudents.length - 3}</Text>
                     </View>
                   ) : null}
-                  <View style={{ flex: 1 }} />
                 </View>
-              )}
-            </View>
-
-            {/* Date & time */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Data e ora</Text>
-              <Pressable style={styles.dateRow} onPress={() => setDateDrawerOpen(true)}>
-                <Ionicons name="calendar-outline" size={20} color="#64748B" />
-                <Text style={styles.dateText}>{formatDate(examDate)}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-              </Pressable>
-              <View style={styles.dateRow}>
-                <Ionicons name="time-outline" size={20} color="#64748B" />
-                <Text style={[styles.dateText, { flex: 1 }]}>{timeSet ? formatTime(examDate) : 'Da definire'}</Text>
-                <Switch
-                  value={timeSet}
-                  onValueChange={setTimeSet}
-                  trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-              {timeSet && (
-                <Pressable style={styles.dateRow} onPress={() => setTimeDrawerOpen(true)}>
-                  <Ionicons name="pencil-outline" size={18} color="#64748B" />
-                  <Text style={styles.dateText}>Modifica orario</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-                </Pressable>
-              )}
-            </View>
-
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Note</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Note opzionali..."
-                placeholderTextColor="#94A3B8"
-                multiline
-              />
-            </View>
-
-            {/* Save */}
-            <Pressable
-              onPress={saving ? undefined : handleCreate}
-              disabled={saving}
-              style={({ pressed }) => [
-                styles.saveBtn,
-                pressed && { opacity: 0.85 },
-                saving && { opacity: 0.6 },
-              ]}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveBtnText}>Crea esame</Text>
-              )}
+              ) : null}
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
-          </>
-        )}
-      </ScrollView>
 
-      {/* Students picker bottom sheet */}
-      <BottomSheet
-        visible={studentsSheetOpen}
-        onClose={() => setStudentsSheetOpen(false)}
-        title="Allievi all&#39;esame"
-        showHandle
-        titleRight={
-          <View style={styles.sheetCounter}>
-            <Text style={styles.sheetCounterText}>{draftSelectedIds.length}</Text>
+            <View style={s.divider} />
+            <Row icon="calendar-outline" label="Giorno" value={fmtDay(examDate)} onPress={openDatePicker} disabled={saving} />
+            {timeSet ? (
+              <>
+                <View style={s.divider} />
+                <Row icon="time-outline" label="Ora" value={fmtTime(examDate)} onPress={openTimePicker} disabled={saving} />
+              </>
+            ) : null}
           </View>
-        }
-        footer={
-          <Pressable
-            onPress={confirmStudentsSelection}
-            style={({ pressed }) => [styles.sheetConfirmBtn, pressed && { opacity: 0.88 }]}
-          >
-            <Text style={styles.sheetConfirmText}>
-              {draftSelectedIds.length === 0
-                ? 'Conferma'
-                : `Conferma selezione (${draftSelectedIds.length})`}
-            </Text>
-          </Pressable>
-        }
-      >
-        <View style={styles.sheetSearchRow}>
-          <Ionicons name="search" size={16} color="#94A3B8" />
+
+          {/* Orario da definire — banner optional */}
+          <View style={s.optBanner}>
+            <View style={s.optIcon}><Ionicons name="help-circle-outline" size={18} color={NAVY} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.optTitle}>Orario da definire</Text>
+              <Text style={s.optSub}>Crea l'esame senza un orario fisso</Text>
+            </View>
+            <ToggleSwitch value={!timeSet} onValueChange={(v) => setTimeSet(!v)} disabled={saving} />
+          </View>
+
+          {/* Note — opzionale */}
+          <Text style={s.fieldLabel}>Note <Text style={s.fieldOptional}>· facoltativo</Text></Text>
           <TextInput
-            style={styles.sheetSearchInput}
-            placeholder="Cerca allievo..."
-            placeholderTextColor="#94A3B8"
-            value={studentSearch}
-            onChangeText={setStudentSearch}
-            autoCorrect={false}
-            autoCapitalize="none"
+            style={s.textArea}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Es. sede, documenti necessari…"
+            placeholderTextColor={MUTED}
+            editable={!saving}
+            multiline
+            textAlignVertical="top"
           />
-          {studentSearch.length > 0 ? (
-            <Pressable onPress={() => setStudentSearch('')} hitSlop={10}>
-              <Ionicons name="close-circle" size={18} color="#CBD5E1" />
-            </Pressable>
-          ) : null}
-        </View>
 
-        {draftSelectedIds.length > 0 ? (
-          <Pressable
-            onPress={() => setDraftSelectedIds([])}
-            style={({ pressed }) => [styles.clearAllRow, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={styles.clearAllText}>Deseleziona tutti</Text>
-          </Pressable>
-        ) : null}
-
-        {filteredSheetStudents.length === 0 ? (
-          <View style={styles.sheetEmpty}>
-            <Ionicons name="search-outline" size={28} color="#CBD5E1" />
-            <Text style={styles.sheetEmptyText}>
-              {studentSearch ? 'Nessun allievo trovato.' : 'Nessun allievo disponibile.'}
-            </Text>
+          {/* Footer: riepilogo + CTA */}
+          <View style={s.footer}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+              <Text style={s.sumKey}>Riepilogo</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{summary}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)}` : ' · orario da definire'}</Text>
+            </View>
+            <View style={{ flexShrink: 0 }}>
+              <Button label="Crea esame" tone="primary" loading={saving} disabled={selectedIds.length === 0} onPress={handleCreate} />
+            </View>
           </View>
-        ) : (
-          <FlatList
-            data={filteredSheetStudents}
-            keyExtractor={(item) => item.id}
-            style={{ maxHeight: 420 }}
-            contentContainerStyle={{ paddingBottom: 8 }}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item: student }) => {
-              const isSelected = draftSelectedIds.includes(student.id);
-              const { bg, fg } = avatarColorsFor(student.id);
-              return (
-                <Pressable
-                  onPress={() => {
-                    setDraftSelectedIds((prev) =>
-                      prev.includes(student.id)
-                        ? prev.filter((id) => id !== student.id)
-                        : [...prev, student.id],
-                    );
-                  }}
-                  style={({ pressed }) => [styles.sheetRow, pressed && { opacity: 0.6 }]}
-                >
-                  <View style={[styles.sheetAvatar, { backgroundColor: bg }]}>
-                    <Text style={[styles.sheetAvatarText, { color: fg }]}>
-                      {getInitials(student.firstName, student.lastName)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sheetRowName} numberOfLines={1}>
-                      {student.firstName} {student.lastName}
-                    </Text>
-                    {student.clusterLabel ? (
-                      <View style={[styles.clusterBadge, student.isMyCluster && styles.clusterBadgeMine]}>
-                        <Text style={[styles.clusterBadgeText, student.isMyCluster && styles.clusterBadgeTextMine]} numberOfLines={1}>
-                          {student.clusterLabel}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View
-                    style={[styles.sheetCheckbox, isSelected && styles.sheetCheckboxChecked]}
-                  >
-                    {isSelected ? <Ionicons name="checkmark" size={16} color="#FFFFFF" /> : null}
-                  </View>
-                </Pressable>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={styles.sheetSeparator} />}
-          />
-        )}
-      </BottomSheet>
-
-      <CalendarDrawer
-        visible={dateDrawerOpen}
-        onClose={() => setDateDrawerOpen(false)}
-        selectedDate={examDate}
-        onSelectDate={(d) => {
-          const next = new Date(examDate);
-          next.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
-          setExamDate(next);
-          const end = new Date(next);
-          end.setHours(end.getHours() + 1);
-          setExamEndDate(end);
-        }}
-        unlimitedNavigation
-        caption="Scegli la data dell'esame"
-      />
-
-      <TimePickerDrawer
-        visible={timeDrawerOpen}
-        onClose={() => setTimeDrawerOpen(false)}
-        selectedTime={examDate}
-        onSelectTime={(d) => {
-          const next = new Date(examDate);
-          next.setHours(d.getHours(), d.getMinutes(), 0, 0);
-          setExamDate(next);
-          const end = new Date(next);
-          end.setHours(end.getHours() + 1);
-          setExamEndDate(end);
-        }}
-      />
-    </Screen>
+        </>
+      )}
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    paddingBottom: 120,
-    gap: 20,
-  },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  backTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  studentsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
-    gap: 12,
-  },
-  studentsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  studentsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  studentsSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  manageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#E9EBF2',
-  },
-  manageBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0D0D16',
-  },
-  emptyStateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#AEB4CC',
-    backgroundColor: '#F4F5F9',
-  },
-  emptyStateIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E9EBF2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyStateText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0D0D16',
-  },
-  avatarStackWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarInitials: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  avatarOverflow: {
-    backgroundColor: '#F1F5F9',
-  },
-  avatarOverflowText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dateText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1E293B',
-    fontWeight: '600',
-  },
-  notesInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 12,
-    fontSize: 14,
-    color: '#1E293B',
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  saveBtn: {
-    height: 52,
-    borderRadius: 999,
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  saveBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  // BottomSheet
-  sheetCounter: {
-    minWidth: 28,
-    height: 28,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    backgroundColor: '#E9EBF2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetCounterText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0D0D16',
-  },
-  sheetSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    marginBottom: 10,
-  },
-  sheetSearchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1E293B',
-    padding: 0,
-  },
-  clearAllRow: {
-    alignSelf: 'flex-end',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    marginBottom: 4,
-  },
-  clearAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    textDecorationLine: 'underline',
-  },
-  sheetEmpty: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 8,
-  },
-  sheetEmptyText: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  sheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  sheetAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  sheetRowName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  clusterBadge: {
-    alignSelf: 'flex-start',
-    marginTop: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  clusterBadgeMine: {
-    backgroundColor: '#E9EBF2',
-  },
-  clusterBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  clusterBadgeTextMine: {
-    color: '#0D0D16',
-  },
-  sheetCheckbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetCheckboxChecked: {
-    backgroundColor: '#1A1A2E',
-    borderColor: '#1A1A2E',
-  },
-  sheetSeparator: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  sheetConfirmBtn: {
-    height: 52,
-    borderRadius: 999,
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetConfirmText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+const ELEV = {
+  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+} as const;
+
+const s = StyleSheet.create({
+  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
+  title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+
+  loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
+
+  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
+
+  /* row */
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
+  rowIcon: { width: 26, alignItems: 'center' },
+  rowBody: { flex: 1, minWidth: 0, gap: 1 },
+  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
+  rowValue: { fontSize: 14, color: GREY },
+  rowPlaceholder: { fontSize: 14, color: MUTED },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+
+  /* avatar stack on the allievi row */
+  avatarStack: { flexDirection: 'row', alignItems: 'center' },
+  stackAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: N100, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  stackAvatarTxt: { fontSize: 11, fontWeight: '600', color: NAVY },
+  stackMore: { backgroundColor: '#E2E5EE' },
+  stackMoreTxt: { fontSize: 10, fontWeight: '600', color: NAVY },
+
+  /* note text area */
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },
+  fieldOptional: { fontSize: 13, fontWeight: '500', color: MUTED },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E4E7EE', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
+
+  /* optional banner */
+  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
+  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
+  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
+
+  /* footer */
+  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
+  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
+  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
 });

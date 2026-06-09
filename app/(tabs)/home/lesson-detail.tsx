@@ -51,6 +51,11 @@ export default function LessonDetailScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}>
         {/* Header (flat) */}
         <View style={s.header}>
@@ -196,6 +201,8 @@ export default function LessonDetailScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   header: { gap: 4, paddingTop: 10 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },

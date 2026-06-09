@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home Istruttore — Redesign header (v2, stile Airbnb)</title>
+<style>
+  :root{
+    --bg:#FDFDFD; --navy:#1A1A2E; --navy600:#14141F;
+    --n50:#F4F5F9; --n100:#E9EBF2; --n200:#D6D9E6; --n300:#AEB4CC; --n400:#6E7596;
+    --muted:#94A3B8; --muted2:#64748B; --line:#ECECEC; --hair:#EEF0F4;
+    --card:#FFFFFF; --accent:#FACC15; --warnBg:#FEF3C7; --warnTx:#92400E;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:30px;flex-wrap:wrap;padding:42px 18px 60px;}
+  .col{display:flex;flex-direction:column;align-items:center;}
+  .label{color:#dff;font-size:13px;text-align:center;margin-bottom:4px;font-weight:700;letter-spacing:.2px}
+  .sub{color:#bcd;font-size:11px;text-align:center;margin-bottom:12px;max-width:360px;line-height:16px;opacity:.85}
+  .phone{width:380px;height:720px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+  .statusbar{height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font-weight:600;color:var(--navy);font-size:15px;}
+  .statusbar .r{display:flex;gap:6px;align-items:center;font-size:13px}
+  .scroll{height:calc(100% - 50px);overflow-y:auto;padding-bottom:30px;}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* GREETING (shared) */
+  .greetRow{display:flex;align-items:baseline;justify-content:space-between;padding:12px 20px 12px;gap:12px;}
+  .greet{font-size:17px;font-weight:600;color:var(--navy);letter-spacing:-.2px;}
+  .next{flex-shrink:1;text-align:right;color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .divider{height:1px;background:#C2C7D6;margin:0 20px;}
+
+  /* month row (shared skeleton, tweaked per variant) */
+  .monthRow{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;}
+  .month{font-size:24px;font-weight:800;color:var(--navy);letter-spacing:-.5px;}
+  .ctrls{display:flex;gap:8px;align-items:center;}
+  .ghost{width:38px;height:38px;border-radius:19px;background:var(--n50);display:flex;align-items:center;justify-content:center;}
+  .ghost svg{width:19px;height:19px;stroke:var(--navy);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .oggi{height:34px;padding:0 14px;border-radius:17px;background:var(--n50);display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--navy);}
+
+  .strip{display:flex;gap:14px;overflow-x:auto;padding:4px 20px 14px;}
+  .strip::-webkit-scrollbar{display:none}
+
+  /* === CURRENT (reference) === */
+  .cur .strip{gap:8px;padding:8px 20px 14px;}
+  .cur .cell{min-width:58px;height:72px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;background:#fff;border:1px solid var(--line);position:relative;}
+  .cur .cell.today{border:1.5px solid var(--navy);}
+  .cur .cell.sel{background:var(--navy);border:none;box-shadow:0 4px 8px rgba(26,26,46,.22);}
+  .cur .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .cur .num{font-size:20px;font-weight:700;color:var(--navy);}
+  .cur .cell.sel .dow,.cur .cell.sel .num{color:#fff;}
+  .cur .dot{position:absolute;bottom:8px;width:6px;height:6px;border-radius:3px;background:var(--navy);}
+  .cur .cell.sel .dot{background:#fff;}
+
+  /* === A — Clean borderless (number pill) === */
+  .a .cell{min-width:46px;display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 0 auto;padding-top:2px;}
+  .a .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
+  .a .pad{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;position:relative;}
+  .a .num{font-size:19px;font-weight:700;color:var(--navy);}
+  .a .cell.sel .pad{background:var(--navy);}
+  .a .cell.sel .num{color:#fff;}
+  .a .cell.today .num{color:var(--navy);}
+  .a .dot{position:absolute;bottom:4px;width:5px;height:5px;border-radius:3px;background:var(--navy);}
+  .a .cell.sel .dot{background:var(--accent);}
+  .a .cell.today .tdot{width:5px;height:5px;border-radius:3px;background:var(--navy);margin-top:-2px;}
+
+  /* === B — Soft pill (no border, refined fill) === */
+  .b .strip{gap:10px;}
+  .b .cell{min-width:54px;height:68px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;position:relative;background:transparent;}
+  .b .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .b .num{font-size:20px;font-weight:700;color:var(--navy);}
+  .b .cell.sel{background:var(--navy);box-shadow:0 8px 18px rgba(26,26,46,.20);}
+  .b .cell.sel .dow,.b .cell.sel .num{color:#fff;}
+  .b .cell.today .num{color:var(--navy);}
+  .b .dot{position:absolute;bottom:9px;width:6px;height:6px;border-radius:3px;background:var(--navy);}
+  .b .cell.sel .dot{background:var(--accent);}
+  .b .cell.today .tdot{position:absolute;bottom:9px;width:6px;height:6px;border-radius:3px;background:var(--navy);}
+
+  /* === C — Editorial underline === */
+  .c .strip{gap:18px;}
+  .c .cell{min-width:38px;display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 auto;position:relative;padding-bottom:10px;}
+  .c .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+  .c .num{font-size:21px;font-weight:700;color:var(--n300);}
+  .c .cell.today .num,.c .cell.sel .num{color:var(--navy);}
+  .c .bar{position:absolute;bottom:0;width:22px;height:3px;border-radius:2px;background:transparent;}
+  .c .cell.sel .bar{background:var(--navy);}
+  .c .dot{position:absolute;bottom:0;width:5px;height:5px;border-radius:3px;background:var(--navy);}
+
+  /* shared body (kept identical & minimal so focus stays on the header) */
+  .cap{color:#9AA1AC;font-size:12.5px;font-weight:500;padding:8px 20px 4px;}
+  .itin{padding:4px 20px 0;}
+  .irow{display:flex;align-items:stretch;}
+  .rail{width:64px;padding-top:14px;display:flex;flex-direction:column;align-items:center;position:relative;}
+  .rail .lt{position:absolute;left:31px;top:0;height:12px;width:2px;background:var(--hair);}
+  .rail .lb{position:absolute;left:31px;top:42px;bottom:-12px;width:2px;background:var(--hair);}
+  .rp{min-height:24px;padding:0 8px;display:flex;align-items:center;border-radius:12px;background:var(--hair);}
+  .rp .t{font-size:12.5px;font-weight:700;color:var(--navy);}
+  .mk{flex:1;padding-top:18px;}
+  .mk .mt{font-size:13px;font-weight:700;color:#475569;}
+  .bk{flex:1;background:var(--card);border-radius:20px;padding:22px 14px;margin-bottom:14px;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 6px 16px rgba(26,26,46,.07);}
+  .bk .circle{width:42px;height:42px;border-radius:21px;background:#F1F3F7;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .bk .lbl{font-size:13px;font-weight:600;color:#8A93A2;}
+  .lcard{flex:1;background:var(--card);border-radius:20px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 16px rgba(26,26,46,.07);}
+  .av{width:42px;height:42px;border-radius:21px;background:var(--n50);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy);}
+  .lc-mid{flex:1;min-width:0}
+  .lc-name{font-size:15px;font-weight:700;color:var(--navy);}
+  .lc-meta{font-size:12.5px;color:var(--muted2);margin-top:2px;}
+  .pill{padding:4px 10px;border-radius:11px;background:var(--warnBg);font-size:11.5px;font-weight:700;color:var(--warnTx);white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<!-- CURRENT -->
+<div class="col">
+  <div class="label">ATTUALE</div>
+  <div class="sub">Pill bordate 58×72, selezione = blocco navy pieno, "oggi" = anello 1.5px, freccia "torna a oggi" poco chiara.</div>
+  <div class="phone cur">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="divider"></div>
+      <div class="monthRow">
+        <div class="month">Giugno 2026</div>
+        <div class="ctrls">
+          <div class="ghost" style="background:transparent"><svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></div>
+          <div class="ghost" style="background:transparent"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        </div>
+      </div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="dot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+      </div>
+      <div class="cap">Mer 10 · 2 guide</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="bk"><div class="circle">☝︎</div><div class="lbl">Tieni premuto per prenotare</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div class="lc-mid"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A -->
+<div class="col">
+  <div class="label">A — Clean borderless</div>
+  <div class="sub">Niente box né bordi: solo DOW + numero. Selezione = quadratino navy SOLO attorno al numero (dot giallo). Oggi = numero navy + puntino. Aria massima, è il più "Airbnb".</div>
+  <div class="phone a">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="divider"></div>
+      <div class="monthRow">
+        <div class="month">Giugno 2026</div>
+        <div class="ctrls">
+          <div class="oggi">Oggi</div>
+          <div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        </div>
+      </div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="pad"><span class="num">8</span></span><span class="tdot"></span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="pad"><span class="num">9</span></span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="pad"><span class="num">10</span><span class="dot"></span></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="pad"><span class="num">11</span></span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="pad"><span class="num">12</span></span></div>
+        <div class="cell"><span class="dow">SAB</span><span class="pad"><span class="num">13</span></span></div>
+      </div>
+      <div class="cap">Mer 10 · 2 guide</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="bk"><div class="circle">☝︎</div><div class="lbl">Tieni premuto per prenotare</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div class="lc-mid"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="col">
+  <div class="label">B — Soft pill</div>
+  <div class="sub">Stessa idea di pill ma SENZA bordi: gli inattivi spariscono nel bianco, solo il selezionato è una pill navy morbida con ombra. Oggi = numero navy + puntino. Più vicino all'attuale ma ripulito.</div>
+  <div class="phone b">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="divider"></div>
+      <div class="monthRow">
+        <div class="month">Giugno 2026</div>
+        <div class="ctrls">
+          <div class="oggi">Oggi</div>
+          <div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        </div>
+      </div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span><span class="tdot"></span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="dot"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+        <div class="cell"><span class="dow">SAB</span><span class="num">13</span></div>
+      </div>
+      <div class="cap">Mer 10 · 2 guide</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="bk"><div class="circle">☝︎</div><div class="lbl">Tieni premuto per prenotare</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div class="lc-mid"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- C -->
+<div class="col">
+  <div class="label">C — Editorial underline</div>
+  <div class="sub">Il più minimale: nessun box. Numeri grigi, il selezionato diventa navy con una barretta sotto. Oggi = numero navy + puntino. Elegante/editoriale, leggerissimo.</div>
+  <div class="phone c">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="greetRow"><div class="greet">Ciao, Tiziano</div><div class="next">Dopodomani 16:00 · Allievo</div></div>
+      <div class="divider"></div>
+      <div class="monthRow">
+        <div class="month">Giugno 2026</div>
+        <div class="ctrls">
+          <div class="oggi">Oggi</div>
+          <div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        </div>
+      </div>
+      <div class="strip">
+        <div class="cell today"><span class="dow">LUN</span><span class="num">8</span><span class="dot"></span></div>
+        <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+        <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="bar"></span></div>
+        <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+        <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+        <div class="cell"><span class="dow">SAB</span><span class="num">13</span></div>
+        <div class="cell"><span class="dow">DOM</span><span class="num">14</span></div>
+      </div>
+      <div class="cap">Mer 10 · 2 guide</div>
+      <div class="itin">
+        <div class="irow"><div class="rail"><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="mk"><div class="mt">Inizio disponibilità</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">09:00</span></div></div><div class="bk"><div class="circle">☝︎</div><div class="lbl">Tieni premuto per prenotare</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="lb"></div><div class="rp"><span class="t">16:00</span></div></div><div class="lcard"><div class="av">AP</div><div class="lc-mid"><div class="lc-name">Allievo Prova</div><div class="lc-meta">60 min</div></div><div class="pill">Programmata</div></div></div>
+        <div class="irow"><div class="rail"><div class="lt"></div><div class="rp"><span class="t">17:00</span></div></div><div class="mk"><div class="mt">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

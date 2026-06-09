@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dettaglio esame — formsheet nativo redesign (PRIMA → DOPO)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB; --muted:#9CA3AF;
+    --violet:#6D28D9; --violet500:#8B5CF6; --violetTx:#7C3AED; --violetBg:#F5F0FF;
+    --red:#DC2626; --redBg:#FEF2F2;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane h2.bad { color:#9A6A6A; } .lane h2.good { color:#7FA889; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.6; }
+  .lane .cap b { color:#AEB4CC; font-weight:600; }
+
+  .phone { width:390px; height:760px; background:#C9CDD6; border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  /* native page sheet: rounded card starting below the top, dimmed bg behind */
+  .sheet { position:absolute; left:0; right:0; bottom:0; top:54px; background:var(--bg); border-radius:14px 14px 0 0; overflow:hidden; }
+
+  /* ── BEFORE (current, ugly) ── */
+  .before .top { display:flex; justify-content:flex-end; padding:16px 20px 0; }
+  .before .x { width:34px; height:34px; border-radius:17px; background:#E2E8F0; display:flex; align-items:center; justify-content:center; }
+  .before .x svg { width:18px; height:18px; stroke:#1A1A2E; }
+  .before .body { padding:4px 20px; }
+  .before .hd { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .before .hdIc { width:40px; height:40px; border-radius:20px; background:#EEF2FF; display:flex; align-items:center; justify-content:center; }
+  .before .hdIc svg { width:22px; height:22px; }
+  .before .hdT { font-size:18px; font-weight:800; color:#1E293B; }
+  .before .hdS { font-size:13px; color:#64748B; margin-top:2px; }
+  .before .editbtn { display:flex; align-items:center; gap:8px; padding:11px 12px; border-radius:14px; background:#EEF2FF; border:1px solid #C7D2FE; margin-bottom:12px; }
+  .before .editbtn .l { flex:1; font-size:13px; font-weight:600; color:#4338CA; }
+  .before .editbtn svg { width:16px; height:16px; stroke:#4338CA; }
+  .before .accomp { display:flex; align-items:center; gap:8px; padding:11px 12px; border-radius:14px; background:#F8FAFC; margin-bottom:12px; font-size:13px; }
+  .before .accomp svg { width:16px; height:16px; stroke:#64748B; }
+  .before .accomp .b { font-weight:600; }
+  .before .sec { font-size:12px; font-weight:700; color:#64748B; letter-spacing:.5px; margin-bottom:8px; }
+  .before .listcard { border:1px solid #E2E8F0; border-radius:14px; background:#fff; overflow:hidden; margin-bottom:12px; }
+  .before .srow { display:flex; align-items:center; gap:10px; padding:12px; }
+  .before .srow + .srow { border-top:1px solid #F1F5F9; }
+  .before .sAv { width:32px; height:32px; border-radius:16px; background:#EEF2FF; display:flex; align-items:center; justify-content:center; }
+  .before .sAv svg { width:14px; height:14px; }
+  .before .sNm { flex:1; font-size:14px; font-weight:600; color:#1E293B; }
+  .before .rm { padding:6px 10px; border-radius:999px; background:#FEF2F2; border:1px solid #FECACA; font-size:12px; font-weight:600; color:#DC2626; }
+  .before .note { padding:12px; border-radius:14px; background:#F8FAFC; border:1px solid #E2E8F0; margin-bottom:12px; font-size:13px; color:#475569; }
+  .before .cancel { padding:14px; border-radius:999px; border:1px solid #FECACA; background:#fff; text-align:center; font-size:15px; font-weight:700; color:#DC2626; }
+
+  /* ── AFTER (new design system) ── */
+  .after .top { display:flex; justify-content:flex-end; padding:16px 18px 0; }
+  .after .x { width:34px; height:34px; border-radius:17px; background:var(--navy100); display:flex; align-items:center; justify-content:center; }
+  .after .x svg { width:18px; height:18px; stroke:var(--navy); }
+  .after .body { padding:2px 22px; }
+  /* header: Fluent 3D graduate icon (no stylised cap) */
+  .after .hd { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+  .after .hd img { width:52px; height:52px; }
+  .after .hdT { font-size:22px; font-weight:600; color:var(--navy); letter-spacing:-.4px; }
+  .after .hdS { font-size:14px; font-weight:400; color:var(--muted); margin-top:3px; }
+  /* "Modifica orario" — rounded 3D tappable card */
+  .after .edit { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:20px; background:var(--surface); box-shadow:0 6px 16px rgba(26,26,46,.08); margin-bottom:14px; }
+  .after .edit .ic { width:38px; height:38px; border-radius:19px; background:var(--violetBg); display:flex; align-items:center; justify-content:center; }
+  .after .edit .ic svg { width:19px; height:19px; stroke:var(--violetTx); }
+  .after .edit .l { flex:1; } .after .edit .l .t { font-size:15px; font-weight:600; color:var(--navy); } .after .edit .l .s { font-size:12.5px; font-weight:400; color:var(--muted); margin-top:1px; }
+  .after .edit .chev { width:18px; height:18px; stroke:var(--navy300); }
+  /* accompagnatore — soft inset info card (not tappable) */
+  .after .accomp { display:flex; align-items:center; gap:10px; padding:13px 16px; border-radius:18px; background:var(--navy50); margin-bottom:24px; }
+  .after .accomp svg { width:18px; height:18px; stroke:var(--navy400); }
+  .after .accomp .k { font-size:14px; font-weight:400; color:var(--navy400); }
+  .after .accomp .v { font-size:14px; font-weight:600; color:var(--navy); }
+  /* ALLIEVI — flat rows OUTSIDE a card, hairline dividers, ••• native menu */
+  .after .secrow { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding:0 2px; }
+  .after .sec { font-size:12px; font-weight:600; color:var(--navy400); letter-spacing:.6px; }
+  .after .add { width:30px; height:30px; border-radius:15px; background:var(--navy50); display:flex; align-items:center; justify-content:center; }
+  .after .add svg { width:18px; height:18px; stroke:var(--navy); stroke-width:2.2; }
+  .after .srow { display:flex; align-items:center; gap:13px; padding:14px 2px; border-bottom:1px solid var(--navy100); }
+  .after .srow:last-of-type { border-bottom:none; }
+  .after .sAv { width:42px; height:42px; border-radius:21px; background:var(--violetBg); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:var(--violetTx); }
+  .after .sNm { flex:1; font-size:16px; font-weight:500; color:var(--navy); }
+  .after .dots { width:30px; height:30px; display:flex; align-items:center; justify-content:center; }
+  .after .dots svg { width:20px; height:20px; fill:var(--navy300); }
+  /* NOTE — soft inset card */
+  .after .noteSec { margin-top:22px; }
+  .after .note { padding:14px 16px; border-radius:18px; background:var(--navy50); margin-top:6px; font-size:14px; font-weight:400; color:var(--navy400); line-height:1.5; }
+  /* Annulla esame — destructive, rounded, soft */
+  .after .cancel { margin-top:26px; padding:15px; border-radius:18px; background:var(--redBg); text-align:center; font-size:15px; font-weight:600; color:var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — PRIMA ════════ -->
+<div class="lane before">
+  <h2 class="bad">Prima · com'è ora</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="sheet">
+      <div class="top"><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div></div>
+      <div class="body">
+        <div class="hd">
+          <div class="hdIc"><svg viewBox="0 0 24 24" fill="none" stroke="#4338CA" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M6 10.5V15c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-4.5"/></svg></div>
+          <div><div class="hdT">Esame di guida</div><div class="hdS">ven 19 giu · 20:00 – 21:00</div></div>
+        </div>
+        <div class="editbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="l">Modifica orario</span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="#6366F1"><polyline points="9 6 15 12 9 18"/></svg></div>
+        <div class="accomp"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Accompagnatore:</span><span class="b">Tiziano Nuovo 1</span></div>
+        <div class="sec">ALLIEVI (2)</div>
+        <div class="listcard">
+          <div class="srow"><div class="sAv"><svg viewBox="0 0 24 24" fill="#4338CA"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg></div><span class="sNm">Allievo Prova</span><span class="rm">Rimuovi</span></div>
+          <div class="srow"><div class="sAv"><svg viewBox="0 0 24 24" fill="#4338CA"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg></div><span class="sNm">Allievo 3</span><span class="rm">Rimuovi</span></div>
+        </div>
+        <div class="sec">NOTE</div>
+        <div class="note">Esame B</div>
+        <div class="cancel">Annulla esame</div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Custom Modal (non nativo). Liste <b>dentro una card bordata</b>, bottoni "Rimuovi" inline, banner squadrati, cappello stilizzato, pesi 800/700. Affollato e incoerente col resto.</div>
+</div>
+
+<!-- ════════ LANE 2 — DOPO ════════ -->
+<div class="lane after">
+  <h2 class="good">Dopo · formsheet nativo + design system</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="sheet">
+      <div class="top"><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div></div>
+      <div class="body">
+        <div class="hd">
+          <img src="../../assets/icons/fluent-graduate.png" alt="" />
+          <div><div class="hdT">Esame di guida</div><div class="hdS">ven 19 giu · 20:00 – 21:00</div></div>
+        </div>
+
+        <div class="edit">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+          <div class="l"><div class="t">Modifica orario</div><div class="s">20:00 – 21:00</div></div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </div>
+
+        <div class="accomp">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          <span class="k">Accompagnatore</span><span class="v" style="margin-left:auto">Tiziano Nuovo 1</span>
+        </div>
+
+        <div class="secrow">
+          <span class="sec">ALLIEVI · 2</span>
+          <div class="add"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="srow"><div class="sAv">AP</div><span class="sNm">Allievo Prova</span><div class="dots"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div></div>
+        <div class="srow"><div class="sAv">A3</div><span class="sNm">Allievo 3</span><div class="dots"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div></div>
+
+        <div class="noteSec">
+          <span class="sec">NOTE</span>
+          <div class="note">Esame B</div>
+        </div>
+
+        <div class="cancel">Annulla esame</div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Formsheet nativo (X in alto a destra, no grabber). Header con <b>icona Fluent 3D</b>. "Modifica orario" = <b>card tonda 3D</b> con ombra. Lista allievi <b>flat fuori dalla card</b> con divider hairline; "Rimuovi" nel <b>menu •••</b>, "+" per aggiungere. Note in card inset morbida. Pesi 600/500/400.</div>
+</div>
+
+</body>
+</html>

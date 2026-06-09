@@ -1,8 +1,10 @@
 import React, { useCallback } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -84,6 +86,38 @@ export const LocationsScreen = () => {
     Linking.openURL(url).catch(() => null);
   };
 
+  // Tapping a location opens a native action menu (Airbnb-style) instead of
+  // inline buttons cluttering each row.
+  const openActions = (loc: AutoscuolaLocation) => {
+    const lat = toNumber(loc.latitude);
+    const lng = toNumber(loc.longitude);
+    const canMaps = loc.isPrecise && lat != null && lng != null;
+
+    if (Platform.OS === 'ios') {
+      const options = [
+        ...(canMaps ? ['Apri in Maps'] : []),
+        'Elimina',
+        'Annulla',
+      ];
+      const cancelButtonIndex = options.length - 1;
+      const destructiveButtonIndex = options.length - 2;
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: loc.name, options, cancelButtonIndex, destructiveButtonIndex },
+        (i) => {
+          const label = options[i];
+          if (label === 'Apri in Maps') openMaps(loc);
+          else if (label === 'Elimina') handleDelete(loc);
+        },
+      );
+    } else {
+      Alert.alert(loc.name, undefined, [
+        ...(canMaps ? [{ text: 'Apri in Maps', onPress: () => openMaps(loc) }] : []),
+        { text: 'Elimina', style: 'destructive' as const, onPress: () => handleDelete(loc) },
+        { text: 'Annulla', style: 'cancel' as const },
+      ]);
+    }
+  };
+
   const sede = locations.find((l) => l.isDefault) ?? null;
   const customs = locations.filter((l) => !l.isDefault);
   const sedeTappable = sede?.isPrecise && toNumber(sede.latitude) != null && toNumber(sede.longitude) != null;
@@ -97,7 +131,10 @@ export const LocationsScreen = () => {
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
         </Pressable>
-        <Text style={styles.headerTitle}>Luoghi guida</Text>
+        <Text style={[styles.headerTitle, { flex: 1 }]}>Luoghi guida</Text>
+        <Pressable onPress={() => openForm(null)} hitSlop={10} style={styles.headerAdd}>
+          <Ionicons name="add" size={28} color="#1A1A2E" />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -111,8 +148,8 @@ export const LocationsScreen = () => {
         ) : (
           <View style={styles.card}>
             <View style={styles.row}>
-              <View style={[styles.iconWrap, styles.iconSede]}>
-                <Ionicons name="business" size={20} color="#1A1A2E" />
+              <View style={styles.iconWrap}>
+                <Ionicons name="business-outline" size={23} color="#1A1A2E" />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.cardName} numberOfLines={1}>{sede?.name ?? "Sede dell'autoscuola"}</Text>
@@ -123,8 +160,8 @@ export const LocationsScreen = () => {
                 )}
               </View>
               {sedeTappable ? (
-                <Pressable onPress={() => openMaps(sede!)} hitSlop={8} style={styles.mapsCircle}>
-                  <Ionicons name="open-outline" size={17} color="#1A1A2E" />
+                <Pressable onPress={() => openMaps(sede!)} hitSlop={8} style={styles.mapsBtn}>
+                  <Ionicons name="open-outline" size={19} color="#6E7596" />
                 </Pressable>
               ) : null}
             </View>
@@ -135,13 +172,7 @@ export const LocationsScreen = () => {
         </Text>
 
         {/* ── Altri luoghi ── */}
-        <View style={styles.customsHeader}>
-          <Text style={styles.sectionLabel}>ALTRI LUOGHI</Text>
-          <Pressable onPress={() => openForm(null)} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.85 }]}>
-            <Ionicons name="add" size={17} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Aggiungi</Text>
-          </Pressable>
-        </View>
+        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>ALTRI LUOGHI</Text>
 
         {isLoading ? (
           <>
@@ -163,54 +194,32 @@ export const LocationsScreen = () => {
             <Text style={styles.emptySub}>Aggiungi parcheggi, punti di ritrovo o aree di esercitazione.</Text>
           </View>
         ) : (
-          customs.map((loc) => {
-            const lat = toNumber(loc.latitude);
-            const lng = toNumber(loc.longitude);
-            const tappable = loc.isPrecise && lat != null && lng != null;
-            return (
-              <View key={loc.id} style={styles.card}>
-                <View style={styles.row}>
-                  <View style={[styles.iconWrap, loc.isPrecise ? styles.iconPrecise : styles.iconGeneric]}>
-                    <Ionicons
-                      name={loc.isPrecise ? 'location' : 'pricetag-outline'}
-                      size={20}
-                      color={loc.isPrecise ? '#16A34A' : '#6B7280'}
-                    />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.cardName} numberOfLines={1}>{loc.name}</Text>
-                      <View style={[styles.badge, loc.isPrecise ? styles.badgePrecise : styles.badgeGeneric]}>
-                        <Text style={[styles.badgeText, loc.isPrecise ? styles.badgeTextPrecise : styles.badgeTextGeneric]}>
-                          {loc.isPrecise ? 'Precisa' : 'Generica'}
-                        </Text>
-                      </View>
-                    </View>
-                    {loc.address ? (
-                      <Text style={styles.cardAddress} numberOfLines={1}>{loc.address}</Text>
-                    ) : null}
-                  </View>
+          customs.map((loc, i) => (
+            <React.Fragment key={loc.id}>
+              {i > 0 ? <View style={styles.locDivider} /> : null}
+              <Pressable
+                onPress={() => openForm(loc)}
+                style={({ pressed }) => [styles.locRow, pressed && styles.locRowPressed]}
+              >
+                <View style={styles.iconWrap}>
+                  <Ionicons
+                    name={loc.isPrecise ? 'location-outline' : 'pricetag-outline'}
+                    size={23}
+                    color="#1A1A2E"
+                  />
                 </View>
-
-                <View style={styles.actionRow}>
-                  {tappable ? (
-                    <Pressable onPress={() => openMaps(loc)} style={styles.actionBtn} hitSlop={6}>
-                      <Ionicons name="open-outline" size={17} color="#475569" />
-                      <Text style={styles.actionText}>Maps</Text>
-                    </Pressable>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.cardName} numberOfLines={1}>{loc.name}</Text>
+                  {loc.address ? (
+                    <Text style={styles.cardAddress} numberOfLines={1}>{loc.address}</Text>
                   ) : null}
-                  <Pressable onPress={() => openForm(loc)} style={styles.actionBtn} hitSlop={6}>
-                    <Ionicons name="pencil-outline" size={17} color="#475569" />
-                    <Text style={styles.actionText}>Modifica</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handleDelete(loc)} style={styles.actionBtn} hitSlop={6}>
-                    <Ionicons name="trash-outline" size={17} color={colors.destructive} />
-                    <Text style={[styles.actionText, { color: colors.destructive }]}>Elimina</Text>
-                  </Pressable>
                 </View>
-              </View>
-            );
-          })
+                <Pressable onPress={() => openActions(loc)} hitSlop={12} style={styles.ellipsisBtn}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#C7C7CC" />
+                </Pressable>
+              </Pressable>
+            </React.Fragment>
+          ))
         )}
       </ScrollView>
     </Screen>
@@ -228,63 +237,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm,
   },
   backBtn: { padding: 2 },
+  headerAdd: { padding: 2 },
   headerTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
 
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#94A3B8',
-    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10,
+    fontSize: 12, fontWeight: '600', color: '#9CA3AF',
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 12,
   },
-  note: { fontSize: 12, color: '#9CA3AF', lineHeight: 17, marginTop: 10 },
-
-  customsHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 28, marginBottom: 0,
-  },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.primary, paddingLeft: 10, paddingRight: 14, paddingVertical: 8,
-    borderRadius: 999, marginBottom: 10,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22, shadowRadius: 8, elevation: 4,
-  },
-  addBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  note: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', lineHeight: 18, marginTop: 12 },
 
   card: {
     backgroundColor: colors.surface, borderRadius: 20, padding: 16, marginBottom: 12,
     ...CARD_SHADOW,
   },
   skelCard: { borderRadius: 20, padding: 16, marginBottom: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  iconSede: { backgroundColor: '#F1F5F9' },
-  iconPrecise: { backgroundColor: '#DCFCE7' },
-  iconGeneric: { backgroundColor: '#F1F5F9' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconWrap: { width: 32, alignItems: 'center', justifyContent: 'center' },
 
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardName: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', flexShrink: 1 },
-  cardAddress: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  cardAddressMuted: { fontSize: 13, fontStyle: 'italic', color: '#9CA3AF', marginTop: 2 },
+  cardName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  cardAddress: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
+  cardAddressMuted: { fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: '#9CA3AF', marginTop: 2 },
 
-  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
-  badgePrecise: { backgroundColor: '#DCFCE7' },
-  badgeGeneric: { backgroundColor: '#F1F5F9' },
-  badgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
-  badgeTextPrecise: { color: '#15803D' },
-  badgeTextGeneric: { color: '#64748B' },
+  mapsBtn: { padding: 4 },
 
-  mapsCircle: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: '#F1F5F9',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  actionRow: {
-    flexDirection: 'row', gap: 22, marginTop: 14, paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-  },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actionText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  // "Altri luoghi" = FLAT list (NOT wrapped in a card): rows flush-left on the
+  // page background (icon at the screen margin), hairline dividers, tap → edit,
+  // ••• → native action menu.
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 0 },
+  locRowPressed: { backgroundColor: '#F4F5F9' },
+  locDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 46 },
+  ellipsisBtn: { padding: 4 },
 
   empty: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24 },
   emptyIconCircle: {
@@ -293,6 +277,6 @@ const styles = StyleSheet.create({
     ...CARD_SHADOW,
   },
   emptyIcon: { width: 48, height: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
-  emptySub: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  emptySub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });

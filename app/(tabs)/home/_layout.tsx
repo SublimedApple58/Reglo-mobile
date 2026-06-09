@@ -6,6 +6,15 @@ export default function HomeLayout() {
   return (
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
+      <Stack.Screen
+        name="add-action"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen name="select-date" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen
         name="quick-book"
@@ -17,6 +26,75 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="day-detail" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="exam-manage" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="student-detail" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="new-booking" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen
+        name="block-slot"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="sick-leave"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="select-date-range"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="create-exam"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen name="select-student" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="select-exam-students" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen
+        name="out-of-availability"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="select-options"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="time-picker"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="manage-lesson-details"
         options={{
@@ -76,7 +154,7 @@ export default function HomeLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -85,7 +163,7 @@ export default function HomeLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -101,7 +179,7 @@ export default function HomeLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -110,7 +188,7 @@ export default function HomeLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -128,7 +206,7 @@ export default function HomeLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />

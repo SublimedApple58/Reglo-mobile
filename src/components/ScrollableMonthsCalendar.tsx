@@ -13,6 +13,9 @@ export type ScrollableMonthsCalendarProps = {
   monthsBack?: number; // how many months before the current one to render (default 0)
   allowPast?: boolean; // when true, past days are selectable + not greyed (agenda use)
   hideWeekHeader?: boolean; // when the parent renders a fixed weekday header
+  // Reports the vertical center (Y, relative to the scroll content) of the
+  // selected day's row once it's laid out, so the parent can scroll to center it.
+  onMeasureSelected?: (centerY: number) => void;
 };
 
 export const CALENDAR_WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'] as const;
@@ -34,12 +37,20 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
   monthsBack = 0,
   allowPast = false,
   hideWeekHeader = false,
+  onMeasureSelected,
 }) => {
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+
+  // Parsed selected date [year, monthIndex, day] for the auto-scroll measure.
+  const sel = useMemo(() => {
+    if (!selectedDate) return null;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return { y, m: m - 1, d };
+  }, [selectedDate]);
 
   const months = useMemo(
     () =>
@@ -71,8 +82,18 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
           ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
         ];
 
+        // If the selected day lives in this month, report its row center once the
+        // month is laid out (y is relative to the scroll content top).
+        const isSelMonth = sel != null && sel.y === year && sel.m === month;
+        const onMonthLayout = isSelMonth && onMeasureSelected
+          ? (e: { nativeEvent: { layout: { y: number } } }) => {
+              const rowIndex = Math.floor((offset + (sel!.d - 1)) / 7);
+              onMeasureSelected(e.nativeEvent.layout.y + MONTH_LABEL_BLOCK + rowIndex * CELL + CELL / 2);
+            }
+          : undefined;
+
         return (
-          <View key={`${year}-${month}`} style={styles.month}>
+          <View key={`${year}-${month}`} style={styles.month} onLayout={onMonthLayout}>
             <Text style={styles.monthLabel}>{ITALIAN_MONTHS[month]} {year}</Text>
             <View style={styles.grid}>
               {cells.map((day, idx) => {
@@ -117,13 +138,16 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
 
 const CELL = 44;
 const CIRCLE = 40;
+// Height taken by the month label block (lineHeight 20 + marginBottom 6) — kept
+// deterministic so the parent can compute the selected row's center for scroll.
+const MONTH_LABEL_BLOCK = 26;
 
 const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', paddingBottom: 8 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9AA1AC' },
 
   month: { marginTop: 14 },
-  monthLabel: { fontSize: 15, fontWeight: '600', color: '#3A3A3C', letterSpacing: -0.2, marginBottom: 6, marginLeft: 2 },
+  monthLabel: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: '#3A3A3C', letterSpacing: -0.2, marginBottom: 6, marginLeft: 2 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.2857%' as unknown as number, height: CELL, alignItems: 'center', justifyContent: 'center' },

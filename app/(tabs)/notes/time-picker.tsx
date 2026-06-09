@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { colors } from '../../../src/theme/colors';
@@ -55,6 +56,11 @@ export default function NotesTimePickerScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>Seleziona orario</Text>
 
       <View style={s.columnsRow}>
@@ -103,6 +109,8 @@ export default function NotesTimePickerScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28, gap: 18 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
 
   columnsRow: { flexDirection: 'row', gap: spacing.md, justifyContent: 'center' },

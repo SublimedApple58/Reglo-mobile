@@ -117,7 +117,6 @@ const statusLabel = (status: string) => {
   if (status === 'completed') return { label: 'Completata', tone: 'success' as const };
   if (status === 'no_show') return { label: 'Assente', tone: 'danger' as const };
   if (status === 'cancelled') return { label: 'Annullata', tone: 'warning' as const };
-  if (status === 'proposal') return { label: 'Proposta', tone: 'default' as const };
   if (status === 'pending_review') return { label: 'Da confermare', tone: 'warning' as const };
   return { label: 'Programmato', tone: 'default' as const };
 };
@@ -453,7 +452,9 @@ export const AllievoHomeScreen = () => {
       canSelectInstructor,
       isLockedToInstructor,
       assignedInstructorName,
-      visibleInstructors,
+      instructors,
+      instructorsByDate: dateAvailability.instructorsByDate,
+      availabilityDates: dateAvailability.dates,
       creditFlowEnabled,
       creditsAvailable: paymentProfile?.lessonCreditsAvailable ?? 0,
       autoPaymentsEnabled: paymentProfile?.autoPaymentsEnabled ?? false,
@@ -1143,8 +1144,12 @@ export const AllievoHomeScreen = () => {
   const visibleInstructors = useMemo(() => {
     if (!canSelectInstructor || !instructors.length) return instructors;
     const dateKey = toDateString(preferredDate);
-    const availableIds = dateAvailability.instructorsByDate[dateKey];
-    if (!availableIds) return instructors; // data not loaded yet → show all
+    // The availability map covers the whole bookable range. If this date is not
+    // in `dates` yet, the map simply hasn't loaded → show all (avoid a flash).
+    if (!(dateKey in dateAvailability.dates)) return instructors;
+    // Loaded: a missing `instructorsByDate` entry means NO instructor is
+    // available that day (holiday / everyone on leave), not "unknown" → none.
+    const availableIds = dateAvailability.instructorsByDate[dateKey] ?? [];
     return instructors.filter((i) => availableIds.includes(i.id));
   }, [canSelectInstructor, instructors, preferredDate, dateAvailability]);
 
@@ -1160,6 +1165,21 @@ export const AllievoHomeScreen = () => {
       setSelectedInstructorId(null);
     }
   }, [visibleInstructors, selectedInstructorId, canSelectInstructor, isLockedToInstructor]);
+
+  // Keep the booking-flow store's raw inputs fresh while the sheet is open: the
+  // date-availability prefetch can resolve AFTER the sheet was opened, and the
+  // sheet recomputes its own visible-instructor list from these on every date
+  // change. Without this, the list stays frozen at the value seeded on open.
+  useEffect(() => {
+    if (!bookingFlowStore.get()) return;
+    bookingFlowStore.set({
+      instructors,
+      instructorsByDate: dateAvailability.instructorsByDate,
+      availabilityDates: dateAvailability.dates,
+      unavailableDatesSet,
+      bookedDatesSet,
+    });
+  }, [instructors, dateAvailability, unavailableDatesSet, bookedDatesSet]);
 
   const dayScrollMountedRef = useRef(false);
 

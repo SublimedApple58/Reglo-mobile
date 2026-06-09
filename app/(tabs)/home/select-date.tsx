@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from 'react';
+import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,6 +22,25 @@ export default function SelectDateScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(dayPickerStore.subscribe, dayPickerStore.get);
+
+  // Auto-scroll so the selected day sits centered vertically when the sheet opens.
+  const scrollRef = useRef<ScrollView>(null);
+  const viewportH = useRef(0);
+  const targetCenterY = useRef<number | null>(null);
+  const didScroll = useRef(false);
+
+  const maybeScroll = useCallback(() => {
+    if (didScroll.current) return;
+    if (viewportH.current <= 0 || targetCenterY.current == null) return;
+    didScroll.current = true;
+    const y = Math.max(0, targetCenterY.current - viewportH.current / 2);
+    scrollRef.current?.scrollTo({ y, animated: false });
+  }, []);
+
+  const onMeasureSelected = useCallback((centerY: number) => {
+    targetCenterY.current = centerY;
+    maybeScroll();
+  }, [maybeScroll]);
 
   if (!data) return <View style={s.root} />;
 
@@ -49,8 +68,10 @@ export default function SelectDateScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; maybeScroll(); }}
       >
         <ScrollableMonthsCalendar
           selectedDate={data.selectedDate}
@@ -60,6 +81,7 @@ export default function SelectDateScreen() {
           monthsCount={data.monthsCount}
           allowPast={data.allowPast}
           hideWeekHeader
+          onMeasureSelected={onMeasureSelected}
         />
       </ScrollView>
     </View>

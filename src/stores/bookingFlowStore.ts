@@ -28,7 +28,11 @@ export type BookingFlowState = {
   canSelectInstructor: boolean;
   isLockedToInstructor: boolean;
   assignedInstructorName: string | null;
-  visibleInstructors: AutoscuolaInstructor[];
+  // Raw inputs so the flow can recompute the visible instructor list reactively
+  // as the date changes inside the sheet (keys are YYYY-MM-DD, matching the BE).
+  instructors: AutoscuolaInstructor[];
+  instructorsByDate: Record<string, string[]>;
+  availabilityDates: Record<string, boolean>;
   creditFlowEnabled: boolean;
   creditsAvailable: number;
   autoPaymentsEnabled: boolean;

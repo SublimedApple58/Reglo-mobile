@@ -394,8 +394,13 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `tone` | `'standard' \| 'primary' \| 'danger' \| 'secondary'` | `'standard'` | Tono visivo |
 | `disabled` | `boolean` | `false` | Stato disabilitato |
 | `fullWidth` | `boolean` | `false` | Larghezza piena |
+| `loading` | `boolean` | `false` | Mostra `ActivityIndicator` al posto della label |
 
 **Stili base:** `borderRadius: radii.sm` (20), `borderWidth: 1`, `minHeight: 48`, `paddingVertical: spacing.sm`, `paddingHorizontal: spacing.lg`.
+
+**Loading:** quando `loading` è `true` il bottone mostra uno **spinner** (`ActivityIndicator`, colore = `text` del tone) **al posto della label, che NON cambia testo** (no "Salvataggio…/Prenotazione…/Spostando…"). Il press è disabilitato. Regola di prodotto: per azioni async usare **sempre** lo spinner, mai lo swap di label. Vale anche per le pill custom (CTA picker, conferme): `pending ? <ActivityIndicator color="#fff" /> : <Text>label</Text>`.
+
+**Spinner sul bottone CLICCATO:** se più bottoni async convivono (es. Cancella/Mantieni in una card), lo spinner deve apparire **sul bottone effettivamente premuto**, non su un fratello. Non basta un flag per-riga: tracciare `{ id, action }` e mettere `loading` solo sul match; gli altri restano `disabled`.
 
 | Tone | bg | border | text |
 |---|---|---|---|
@@ -795,6 +800,60 @@ Pattern ricorrente nei drawer:
 - `duck-calendar.png` in CalendarDrawer (120x85px)
 - `duck-clock.png` in TimePickerDrawer (100x73px)
 - Posizionata in sezione centrata con caption e hint text sotto
+
+### 7.5 Form a Card — Gerarchia Input (3D primario vs Lista secondario)
+
+Pattern di riferimento: **`app/(tabs)/home/new-booking.tsx`** ("Nuova prenotazione", rifatta 2026-06-08) + **`manage-lesson.tsx`** ("Gestisci guida"). Regola: la **gerarchia visiva comunica la priorità del dato**. Niente bordi sui campi — solo superfici bianche + ombra, oppure righe piatte.
+
+**Titolo pagina** = hero (vedi §12.7), **senza divider sotto**.
+
+**① Input PRIMARI → righe in card bianca elevata (3D, NO bordi).** Per i dati più importanti (es. allievo, giorno, ora, durata).
+```tsx
+// card group
+group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14,
+  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 }
+// riga dentro la card: icona outline (26w) + label + valore + chevron
+row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 }
+rowLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' }   // nome campo
+rowValue: { fontSize: 14, color: '#717171' }                     // selezione corrente
+rowPlaceholder: { fontSize: 14, color: '#94A3B8' }               // quando vuoto
+divider: { height: hairline, backgroundColor: '#EFF0F3' }        // SOLO tra righe interne
+chevron: 'chevron-forward' 18 '#C7CBD1'
+```
+Più righe correlate possono stare nella stessa card (es. Giorno + Ora + Durata). L'allievo usa un **avatar a iniziali** (44, `backgroundColor: N100`) al posto dell'icona.
+
+**② Input SECONDARI → righe piatte a lista (NO card, NO ombra).** Per i dati meno prioritari (es. luogo, veicolo, tipo). Stesso markup `row` ma su sfondo trasparente, preceduti da una caption.
+```tsx
+listCaption: { fontSize: 12, fontWeight: '600', color: '#94A3B8', letterSpacing: 0.4,
+  textTransform: 'uppercase', marginLeft: 6 }   // es. "DETTAGLI"
+list: { paddingHorizontal: 6 }                   // righe + divider tra loro, niente superficie
+```
+
+**③ Opzioni OPTIONAL → banner tinto leggero (NO ombra).** Per un extra non necessario (es. "Prenotazione multipla"): si distingue dalle card bianche, legge come secondario.
+```tsx
+optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F4F5F9',
+  borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14 }   // N50, flat
+optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF' }  // icona in cerchio bianco
+```
+
+**④ CTA footer** = riepilogo a sinistra (label muted + valore navy, la durata va a capo se la riga è lunga) + `Button tone="primary"` a destra. **In loading mostra lo spinner, NON cambia label** (`<Button loading={pending} .../>`, vedi §6.3).
+
+Sintesi gerarchia: **card 3D bianca = primario · lista piatta = secondario · banner tinto = optional**.
+
+### 7.6 Picker via Form Sheet Nativa (store seed-and-callback)
+
+Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo Router), seminata via store + callback. Pattern: il parent fa `store.set({ ...dati, onConfirm/onSelect })` poi `router.push('/(tabs)/home/<route>')`; la route legge lo store con `useSyncExternalStore`, e su conferma chiama la callback e fa `router.back()`. Vedi [[reference_native_formsheet]].
+
+| Cosa | Route | Store | Presentazione |
+|------|-------|-------|--------------|
+| Data (calendario mesi) | `select-date` | `dayPickerStore` | `modal` |
+| Ora (ruota) | `time-picker` | `timePickerStore` | `formSheet` + `fitToContents` |
+| Allievo (ricerca + lista, single) | `select-student` | `studentPickerStore` | `modal` |
+| Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
+| Durata / Veicolo / Tipo | `select-options` (single/multi) | `optionsPickerStore` | `formSheet` + `fitToContents` |
+| Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
+
+Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).
 
 ---
 
@@ -1433,8 +1492,17 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Gerarchia CTA chiara**: la distanza visiva tra azioni e informazioni deve essere evidente (vedi sezione 12)
 - **Colore Reglo solo per CTA**: navy (#1A1A2E) riservato a bottoni primari, tab bar attiva, piccoli tag. Mai per sfondi grandi o card informative
 - **iOS Large Title** per schermate con lista: BlurView header + titolo che collassa
+- **FormSheet nativi = niente grabber, X in alto a destra.** Nel route: `sheetGrabberVisible: false`. Nello screen, come PRIMO figlio del root: un `topBar` con la pill X (`closeBtn` 34×34, bg `#E2E8F0`, `Ionicons name="close"` → `router.back()`). Pattern di riferimento: `app/(tabs)/home/swap-lesson.tsx`. Vale per TUTTI i formSheet (mai l'handle nativo).
+- **Liste = righe FLAT sullo sfondo** (icona + testo + chevron/`•••`), separate da divider hairline. La card si usa **solo per elementi singoli/standalone** (es. hero profilo, "Sede principale"). Vedi `MoreScreen.tsx`, `LocationsScreen.tsx`.
+- **Azioni per riga in un menu nativo** (`ActionSheetIOS` / `Alert` su Android), non bottoni inline dentro la riga — la riga resta pulita. **Tap sulla riga = azione primaria** (es. apri il formsheet di modifica); il `•••` apre il menu secondario (Maps/Elimina).
+- **"Aggiungi" / "Nuovo" = icona `+` nell'header** (alto a destra), pattern mobile nativo. Mai un bottone "Aggiungi" piazzato in mezzo alla pagina.
+- **Testo visivamente leggero**: righe di lista / voci / body → `'400'`; titoli e nomi → `'500'`–`'600'` max. Mai `'700'`/`'800'` (vedi §2). Confronto di riferimento: Airbnb.
 
 ### Da NON fare
+
+- **Non** wrappare una **lista in una card** (card bianca con dentro N righe). Le liste vanno flat sullo sfondo con divider hairline; la card è solo per item singoli/standalone.
+- **Non** mettere bottoni di azione inline dentro ogni riga di lista (Maps/Modifica/Elimina ecc.) — usare un menu nativo aperto dalla riga.
+- **Non** usare font-weight pesanti (`700`/`800`) né `600` su righe di lista/body — l'utente vuole leggerezza visiva.
 
 - **Non** usare `BlurView` / `expo-blur` eccetto negli header sticky (iOS Large Title pattern) e `GlassTabBar.ios.tsx`
 - **Non** creare nuovi primitivi — estendi quelli esistenti

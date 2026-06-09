@@ -29,6 +29,11 @@ export default function AllLessonsScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <View style={s.header}>
         <Text style={s.title}>Le tue guide</Text>
         <Text style={s.subtitle}>{lessons.length} {lessons.length === 1 ? 'guida' : 'guide'} in programma</Text>
@@ -71,6 +76,8 @@ export default function AllLessonsScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: spacing.md, marginBottom: 16 },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },

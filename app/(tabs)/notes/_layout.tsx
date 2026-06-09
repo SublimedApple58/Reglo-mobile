@@ -13,7 +13,7 @@ export default function NotesLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />

@@ -1,12 +1,14 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { examDetailStore } from '../../../src/stores/examDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
 export default function ExamDetailScreen() {
+  const router = useRouter();
   const data = useSyncExternalStore(examDetailStore.subscribe, examDetailStore.get);
 
   useEffect(() => {
@@ -23,6 +25,11 @@ export default function ExamDetailScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       {/* Purple hero */}
       <View style={s.hero}>
         <Image source={require('../../../assets/icons/fluent-graduate.png')} style={s.heroIcon} />
@@ -103,6 +110,8 @@ export default function ExamDetailScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.md, paddingBottom: 40, gap: 14 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   hero: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#F5F0FF', borderRadius: 26, padding: 20,

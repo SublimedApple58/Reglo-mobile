@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -151,6 +151,11 @@ export default function LocationFormScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>{initialValue ? 'Modifica luogo' : 'Aggiungi luogo'}</Text>
 
         <Text style={s.label}>Nome del luogo</Text>
@@ -168,22 +173,15 @@ export default function LocationFormScreen() {
             <Text style={s.toggleTitle}>Posizione precisa</Text>
             <Text style={s.toggleSub}>Permette agli allievi di aprire Google Maps direttamente.</Text>
           </View>
-          <Switch
-            value={isPrecise}
-            onValueChange={setIsPrecise}
-            trackColor={{ true: colors.primary, false: '#E2E8F0' }}
-            thumbColor="#FFFFFF"
-          />
+          <ToggleSwitch value={isPrecise} onValueChange={setIsPrecise} />
         </View>
 
         {isPrecise ? (
           <>
             <Text style={s.label}>Indirizzo</Text>
-            <Text style={s.helper}>
-              {PLACES_API_KEY
-                ? 'Cerca via, città o luogo. Selezionalo per agganciare le coordinate.'
-                : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).'}
-            </Text>
+            {!PLACES_API_KEY ? (
+              <Text style={s.helper}>Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).</Text>
+            ) : null}
             <View>
               <TextInput
                 style={[s.input, !PLACES_API_KEY && s.inputDisabled]}
@@ -212,7 +210,7 @@ export default function LocationFormScreen() {
 
             {latitude != null && longitude != null ? (
               <View style={s.coordsRow}>
-                <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+                <Ionicons name="checkmark-circle" size={15} color="#6E7596" />
                 <Text style={s.coords}>Coordinate agganciate · {latitude.toFixed(5)}, {longitude.toFixed(5)}</Text>
               </View>
             ) : null}
@@ -234,43 +232,43 @@ export default function LocationFormScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 8 },
-  label: { fontSize: 13, fontWeight: '600', color: '#475569', marginTop: 16, marginBottom: 8 },
-  helper: { fontSize: 12, color: '#9CA3AF', marginBottom: 8, lineHeight: 16 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginTop: 22, marginBottom: 10 },
+  helper: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginBottom: 10, lineHeight: 18 },
   input: {
-    borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#1A1A2E',
-    backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#1A1A2E',
+    backgroundColor: '#FFFFFF',
   },
-  inputDisabled: { backgroundColor: '#F1F5F9', color: '#9CA3AF' },
-  spinner: { position: 'absolute', right: 14, top: 14 },
+  inputDisabled: { backgroundColor: '#F8FAFC', color: '#9CA3AF' },
+  spinner: { position: 'absolute', right: 16, top: 16 },
   toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 16, marginTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 4, marginTop: 26,
   },
-  toggleTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  toggleSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2, lineHeight: 16 },
+  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 3, lineHeight: 18 },
   suggestionsBox: {
-    marginTop: 8, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14,
+    marginTop: 8, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14,
     backgroundColor: '#FFFFFF', overflow: 'hidden',
   },
   suggestionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F1F5F9',
   },
-  suggestionPrimary: { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
-  suggestionSecondary: { fontSize: 12, color: '#9CA3AF' },
-  coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  coords: { fontSize: 12, fontWeight: '500', color: '#15803D' },
-  error: { fontSize: 13, color: '#DC2626', marginTop: 16 },
+  suggestionPrimary: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  suggestionSecondary: { fontSize: 13, fontWeight: '400', color: '#9CA3AF' },
+  coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+  coords: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
+  error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {
-    backgroundColor: colors.primary, height: 54, borderRadius: 27, marginTop: 28,
+    backgroundColor: colors.primary, height: 56, borderRadius: 28, marginTop: 30,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28, shadowRadius: 14, elevation: 6,
+    shadowOpacity: 0.24, shadowRadius: 14, elevation: 6,
   },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
 });

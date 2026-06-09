@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Altro — redesign Airbnb</title>
+<style>
+  :root{
+    --navy-700:#0D0D16;--navy-600:#14141F;--navy-500:#1A1A2E;--navy-400:#6E7596;
+    --navy-300:#AEB4CC;--navy-200:#D6D9E6;--navy-100:#E9EBF2;--navy-50:#F4F5F9;
+    --bg:#FDFDFD;--div:#F0F1F5;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#e9ebf0;font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;padding:32px 16px 60px;}
+  .stage{display:flex;gap:40px;justify-content:center;align-items:flex-start;flex-wrap:wrap;}
+  .lbl{text-align:center;font-size:12px;font-weight:600;color:#475569;margin-bottom:10px;letter-spacing:.3px;}
+  .lbl.bad{color:#b91c1c;}
+  .lbl.good{color:#15803d;}
+  .phone{width:340px;height:720px;background:var(--bg);border-radius:42px;border:11px solid #0c0c12;box-shadow:0 18px 50px rgba(20,20,31,.25);overflow:hidden;position:relative;}
+  .scr{padding:54px 20px 0;height:100%;overflow:auto;}
+
+  /* ===== current ===== */
+  h1.cur{font-size:28px;font-weight:600;color:#1E293B;margin:0 0 20px;}
+  .ccard{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #F1F5F9;border-radius:20px;padding:16px;margin-bottom:12px;}
+  .cicon{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;}
+  .ctitle{font-size:16px;font-weight:700;color:#1E293B;}
+  .cdesc{font-size:13px;color:#64748B;margin-top:2px;}
+  .chev{margin-left:auto;color:#CBD5E1;font-size:19px;}
+
+  /* ===== redesign ===== */
+  h1.alt{font-size:30px;font-weight:600;color:var(--navy-500);letter-spacing:-.4px;margin:0 0 20px;}
+
+  .hero{display:flex;align-items:center;gap:14px;background:#fff;border-radius:20px;padding:16px;margin-bottom:26px;
+        box-shadow:0 4px 14px rgba(20,20,31,.05);}
+  .av{width:52px;height:52px;border-radius:26px;background:var(--navy-500);display:flex;align-items:center;justify-content:center;
+      color:#fff;font-size:18px;font-weight:600;letter-spacing:.4px;}
+  .nm{font-size:17px;font-weight:600;color:var(--navy-500);}
+  .ro{font-size:13.5px;font-weight:500;color:var(--navy-400);margin-top:3px;}
+
+  .sec{font-size:12px;font-weight:600;color:var(--navy-400);letter-spacing:.8px;text-transform:uppercase;margin:0 0 10px 4px;}
+  .group{background:#fff;border-radius:20px;box-shadow:0 4px 14px rgba(20,20,31,.05);overflow:hidden;margin-bottom:22px;}
+  .row{display:flex;align-items:center;gap:14px;padding:15px 16px;cursor:pointer;}
+  .row:active{background:var(--navy-50);}
+  .ric{width:40px;height:40px;border-radius:20px;background:var(--navy-50);display:flex;align-items:center;justify-content:center;color:var(--navy-500);}
+  .rt{font-size:15.5px;font-weight:600;color:var(--navy-500);}
+  .rd{font-size:13px;font-weight:500;color:var(--navy-400);margin-top:2px;}
+  .rc{margin-left:auto;color:var(--navy-300);font-size:18px;}
+  .div{height:1px;background:var(--div);margin-left:70px;}
+  svg{display:block;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <!-- CURRENT -->
+    <div>
+      <div class="lbl bad">● Adesso — pallini colorati, bold 700, card sparse</div>
+      <div class="phone"><div class="scr">
+        <h1 class="cur">Altro</h1>
+        <div class="ccard"><div class="cicon" style="background:#E9EBF2;color:#1A1A2E;">🕐</div><div><div class="ctitle">Ore di guida</div><div class="cdesc">Ore settimanali e mensili</div></div><span class="chev">›</span></div>
+        <div class="ccard"><div class="cicon" style="background:#DCFCE7;color:#22C55E;">📍</div><div><div class="ctitle">Luoghi guida</div><div class="cdesc">Sede e luoghi extra dove iniziano le guide</div></div><span class="chev">›</span></div>
+        <div class="ccard"><div class="cicon" style="background:#F1F5F9;color:#64748B;">⚙️</div><div><div class="ctitle">Impostazioni</div><div class="cdesc">Preferenze e configurazione</div></div><span class="chev">›</span></div>
+      </div></div>
+    </div>
+
+    <!-- REDESIGN -->
+    <div>
+      <div class="lbl good">● Airbnb — hero profilo, sezioni, icone mono-navy, divider</div>
+      <div class="phone"><div class="scr">
+        <h1 class="alt">Altro</h1>
+
+        <div class="hero">
+          <div class="av">MR</div>
+          <div><div class="nm">Mario Rossi</div><div class="ro">Titolare e istruttore</div></div>
+        </div>
+
+        <div class="sec">Gestione</div>
+        <div class="group">
+          <div class="row"><div class="ric">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </div><div><div class="rt">Ore di guida</div><div class="rd">Ore settimanali e mensili</div></div><span class="rc">›</span></div>
+          <div class="div"></div>
+          <div class="row"><div class="ric">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>
+            </div><div><div class="rt">Luoghi guida</div><div class="rd">Sede e luoghi extra dove iniziano le guide</div></div><span class="rc">›</span></div>
+          <div class="div"></div>
+          <div class="row"><div class="ric">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/></svg>
+            </div><div><div class="rt">Veicoli</div><div class="rd">Gestisci i veicoli della scuola</div></div><span class="rc">›</span></div>
+          <div class="div"></div>
+          <div class="row"><div class="ric">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18.5 19a5.5 5.5 0 0 0-3-4.9"/></svg>
+            </div><div><div class="rt">Panoramica Istruttori</div><div class="rd">Visualizza agenda e gestisci istruttori</div></div><span class="rc">›</span></div>
+        </div>
+
+        <div class="sec">Account</div>
+        <div class="group">
+          <div class="row"><div class="ric">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 13H4.5a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3 1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+            </div><div><div class="rt">Impostazioni</div><div class="rd">Preferenze e configurazione</div></div><span class="rc">›</span></div>
+        </div>
+
+      </div></div>
+    </div>
+
+  </div>
+</body>
+</html>

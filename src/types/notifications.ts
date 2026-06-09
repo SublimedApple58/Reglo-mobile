@@ -80,7 +80,6 @@ export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
   | { kind: 'confirmation'; id: string; data: ConfirmationData }
-  | { kind: 'proposal'; id: string; data: AutoscuolaAppointmentWithRelations }
   | { kind: 'available_slots'; id: string; data: AvailableSlotsData }
   | { kind: 'holiday_declared'; id: string; data: HolidayDeclaredData }
   | { kind: 'weekly_absence'; id: string; data: WeeklyAbsenceData }

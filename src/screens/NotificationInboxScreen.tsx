@@ -43,7 +43,6 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   waitlist: 'time-outline',
   swap: 'swap-horizontal',
   confirmation: 'checkmark-done-outline',
-  proposal: 'document-text-outline',
   available_slots: 'calendar-outline',
   holiday_declared: 'calendar-outline',
   weekly_absence: 'calendar-clear-outline',
@@ -61,7 +60,6 @@ const THEME: Record<NotificationItem['kind'], { bg: string; fg: string }> = {
   swap: { bg: '#E9EBF2', fg: '#14141F' },
   waitlist: { bg: '#DBEAFE', fg: '#2563EB' },
   confirmation: { bg: '#DCFCE7', fg: '#16A34A' },
-  proposal: { bg: '#E0E7FF', fg: '#4F46E5' },
   available_slots: { bg: '#CCFBF1', fg: '#0D9488' },
   holiday_declared: { bg: '#FEE2E2', fg: '#DC2626' },
   weekly_absence: { bg: '#FFEDD5', fg: '#EA580C' },
@@ -83,8 +81,6 @@ const getTitle = (item: PersistedNotification): string => {
       return `${item.data.requestingStudentName} cerca un sostituto`;
     case 'confirmation':
       return `${item.data.acceptedByName} ti sostituisce`;
-    case 'proposal':
-      return 'Nuova proposta di guida';
     case 'available_slots':
       return 'Guide disponibili';
     case 'holiday_declared':
@@ -129,8 +125,6 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `${formatDay(item.data.appointment.startsAt)} · ${formatTime(item.data.appointment.startsAt)}`;
     case 'confirmation':
       return `${item.data.appointmentDate} alle ${item.data.appointmentTime}`;
-    case 'proposal':
-      return `${formatDay(item.data.startsAt)} · ${formatTime(item.data.startsAt)}`;
     case 'available_slots':
       return formatDay(`${item.data.date}T00:00:00Z`);
     case 'holiday_declared':
@@ -174,7 +168,7 @@ const isSwapRelated = (kind: PersistedNotification['kind']): boolean =>
   kind === 'swap' || kind === 'confirmation';
 
 const opensDrawer = (kind: PersistedNotification['kind']): boolean =>
-  kind === 'waitlist' || kind === 'proposal' || kind === 'available_slots';
+  kind === 'waitlist' || kind === 'available_slots';
 
 /* ── Swipeable Card ── */
 

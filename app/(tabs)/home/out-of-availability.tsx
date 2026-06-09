@@ -1,0 +1,122 @@
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { outOfAvailStore } from '../../../src/stores/outOfAvailStore';
+import { regloApi } from '../../../src/services/regloApi';
+import type { OutOfAvailabilityAppointment } from '../../../src/types/regloApi';
+import { Button } from '../../../src/components/Button';
+import { colors } from '../../../src/theme/colors';
+import { spacing } from '../../../src/theme/spacing';
+
+const NAVY = '#1A1A2E';
+const GREY = '#717171';
+const MUTED = '#94A3B8';
+const N100 = '#E9EBF2';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
+const fmtTime = (iso: string) => { const d = new Date(iso); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+const scopeLabel = (scope: ('instructor' | 'vehicle')[]) =>
+  scope.length > 1 ? 'Entrambi' : scope.includes('instructor') ? 'Istruttore' : 'Veicolo';
+
+/* Native content-hugging formSheet — header + list of out-of-availability cards. */
+export default function OutOfAvailabilityScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const data = useSyncExternalStore(outOfAvailStore.subscribe, outOfAvailStore.get);
+
+  const [items, setItems] = useState<OutOfAvailabilityAppointment[]>(data?.appointments ?? []);
+  // Track BOTH the row and which action is running, so the spinner shows on the
+  // exact button the user pressed (not the sibling).
+  const [pending, setPending] = useState<{ id: string; action: 'cancel' | 'approve' } | null>(null);
+
+  useEffect(() => {
+    if (data) setItems(data.appointments);
+  }, [data]);
+
+  if (!data) return <View style={s.root} />;
+
+  const runAction = async (apt: OutOfAvailabilityAppointment, action: 'cancel' | 'approve') => {
+    if (pending) return;
+    setPending({ id: apt.id, action });
+    try {
+      if (action === 'cancel') await regloApi.cancelAppointment(apt.id);
+      else await regloApi.approveAvailabilityOverride(apt.id);
+      const next = items.filter((a) => a.id !== apt.id);
+      setItems(next);
+      data.onChanged();
+      if (next.length === 0) router.back();
+    } catch (err) {
+      Alert.alert('Errore', err instanceof Error ? err.message : "Errore durante l'operazione.");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+      <View style={s.header}>
+        <Text style={s.title} numberOfLines={1}>Guide fuori disponibilità</Text>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+          <Ionicons name="close" size={20} color={NAVY} />
+        </Pressable>
+      </View>
+
+      {items.length === 0 ? (
+        <Text style={s.empty}>Nessuna guida fuori disponibilità.</Text>
+      ) : (
+        <View style={{ gap: 12 }}>
+          {items.map((apt) => {
+            const rowPending = pending?.id === apt.id;
+            const anyPending = pending !== null;
+            return (
+              <View key={apt.id} style={[s.card, rowPending && { opacity: 0.6 }]}>
+                <View style={s.cardHead}>
+                  <Text style={s.studentName} numberOfLines={1}>{apt.studentName}</Text>
+                  <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
+                </View>
+                <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
+                {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
+                {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
+                <View style={s.actions}>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(apt, 'cancel')} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(apt, 'approve')} />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ELEV = {
+  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+} as const;
+
+const s = StyleSheet.create({
+  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
+  title: { flex: 1, fontSize: 22, fontWeight: '600', color: NAVY, letterSpacing: -0.4 },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+
+  empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 40 },
+
+  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, gap: 4, ...ELEV },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
+  studentName: { flex: 1, fontSize: 16, fontWeight: '600', color: NAVY },
+  chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: N100 },
+  chipTxt: { fontSize: 11.5, fontWeight: '600', color: NAVY },
+  time: { fontSize: 13.5, color: GREY, fontWeight: '500' },
+  meta: { fontSize: 13, color: MUTED },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+});

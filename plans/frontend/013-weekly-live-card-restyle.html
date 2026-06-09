@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Card live — restyle nostro stile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy400:#6E7596; --navy300:#AEB4CC; --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --muted:#9CA3AF; --border:#E5E7EB;
+    --green:#16A34A; --greenBg:#F0FDF4; --violetTx:#7C3AED;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#7FA889; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.6; }
+  .lane .cap b { color:#AEB4CC; font-weight:600; }
+  .phone { width:390px; height:760px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 22px 14px; }
+
+  /* ── live card ── */
+  .card { margin:0 22px 14px; background:var(--surface); border-radius:24px; padding:18px; box-shadow:0 10px 26px rgba(26,26,46,.08); }
+  .head { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .dot { width:7px; height:7px; border-radius:4px; }
+  .dot.live { background:var(--green); box-shadow:0 0 0 4px var(--greenBg); }
+  .dot.soon { background:var(--navy300); }
+  .kick { font-size:11px; font-weight:700; letter-spacing:.7px; }
+  .kick.live { color:var(--navy); } .kick.soon { color:var(--navy400); }
+  .kick .sep { color:var(--navy300); font-weight:600; }
+  .top { display:flex; align-items:center; gap:13px; }
+  .av { width:48px; height:48px; border-radius:24px; background:#EEF0F4; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:600; color:var(--navy); flex-shrink:0; }
+  .nm { font-size:17px; font-weight:600; letter-spacing:-.2px; }
+  .mt { font-size:13px; font-weight:400; color:var(--muted); margin-top:3px; }
+  .chev { margin-left:auto; } .chev svg { width:20px; height:20px; stroke:var(--navy300); }
+  /* attendance pill near name (checked-in) */
+  .donepill { display:inline-flex; align-items:center; gap:5px; background:var(--greenBg); border-radius:999px; padding:4px 10px; margin-top:6px; }
+  .donepill svg { width:13px; height:13px; stroke:var(--green); stroke-width:2.6; }
+  .donepill span { font-size:12px; font-weight:600; color:var(--green); }
+  /* actions */
+  .acts { display:flex; gap:10px; margin-top:16px; }
+  .btn { flex:1; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:7px; font-size:14px; font-weight:600; }
+  .present { background:var(--navy); color:#fff; } .present svg { width:17px; height:17px; stroke:#fff; stroke-width:2.4; }
+  .absent { background:transparent; border:1.5px solid #E9EBF2; color:var(--navy400); } .absent svg { width:15px; height:15px; stroke:var(--navy400); stroke-width:2.4; }
+  .ghost { align-self:flex-start; margin-top:14px; display:flex; align-items:center; gap:6px; padding:8px 0; }
+  .ghost svg { width:14px; height:14px; stroke:var(--navy300); stroke-width:2.2; } .ghost span { font-size:13px; font-weight:500; color:var(--navy400); }
+  /* exam variant */
+  .examIc { width:48px; height:48px; }
+  .examKick { font-size:12px; font-weight:600; color:var(--violetTx); }
+
+  /* states gallery */
+  .gallery { display:flex; flex-direction:column; gap:14px; width:390px; }
+  .gtag { font-size:11px; font-weight:600; color:#6E7596; letter-spacing:.5px; text-transform:uppercase; margin:6px 2px -6px; }
+  .gallery .card { margin:0; }
+
+  /* mini week peek under the card in the phone */
+  .panel { background:var(--navy50); padding:14px 22px 16px; }
+  .weekrange { font-size:26px; font-weight:600; letter-spacing:-.5px; } .weekrange .mo { color:var(--navy300); font-weight:400; }
+  .drow { display:flex; align-items:center; gap:15px; padding:15px 22px; border-bottom:1px solid var(--navy100); }
+  .dl { width:40px; text-align:center; } .dl .wd { font-size:11px; font-weight:600; color:var(--navy300); letter-spacing:.6px; } .dl .nwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; margin:3px auto 0; } .dl .n { color:#fff; font-size:16px; font-weight:600; }
+  .dm { flex:1; display:flex; flex-direction:column; gap:10px; } .strip { height:8px; border-radius:4px; background:#EEF0F6; position:relative; overflow:hidden; } .strip i { position:absolute; top:0; bottom:0; border-radius:4px; background:var(--navy); } .dw { font-size:15px; font-weight:600; } .dw .f { font-size:13px; font-weight:400; color:var(--navy400); }
+</style>
+</head>
+<body>
+
+<!-- ════════ In context ════════ -->
+<div class="lane">
+  <h2>In contesto · guida in corso da segnare</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>15:10</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+
+    <div class="card">
+      <div class="head"><span class="dot live"></span><span class="kick live">IN CORSO <span class="sep">· 14:30 – 15:30</span></span></div>
+      <div class="top">
+        <div class="av">AP</div>
+        <div style="flex:1"><div class="nm">Allievo Prova</div><div class="mt">Fiat 500</div></div>
+      </div>
+      <div class="acts">
+        <div class="btn present"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Presente</div>
+        <div class="btn absent"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>Assente</div>
+      </div>
+    </div>
+
+    <div class="panel"><div class="weekrange">8 – 13 <span class="mo">Giugno</span></div></div>
+    <div class="drow">
+      <div class="dl"><div class="wd">VEN</div><div class="nwrap"><div class="n">13</div></div></div>
+      <div class="dm"><div class="strip"><i style="left:30%;width:13%"></i><i style="left:48%;width:13%"></i></div><div class="dw">2 guide <span class="f">· libero 15–18</span></div></div>
+    </div>
+  </div>
+  <div class="cap">Niente rosso: live = <b>dot verde discreto</b> + "IN CORSO" navy. Card più ariosa, due azioni <b>bilanciate</b> (Presente pieno navy · Assente ghost). Sotto, la settimana invariata.</div>
+</div>
+
+<!-- ════════ States gallery ════════ -->
+<div class="lane">
+  <h2>Tutti gli stati</h2>
+  <div class="gallery">
+    <div class="gtag">In corso · già segnato presente</div>
+    <div class="card">
+      <div class="head"><span class="dot live"></span><span class="kick live">IN CORSO <span class="sep">· 14:30 – 15:30</span></span></div>
+      <div class="top">
+        <div class="av">AP</div>
+        <div style="flex:1"><div class="nm">Allievo Prova</div><div class="donepill"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Presente</span></div></div>
+      </div>
+      <div class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg><span>Segna assente</span></div>
+    </div>
+
+    <div class="gtag">Prossima guida di oggi</div>
+    <div class="card">
+      <div class="head"><span class="dot soon"></span><span class="kick soon">TRA 20 MIN</span></div>
+      <div class="top">
+        <div class="av">LB</div>
+        <div style="flex:1"><div class="nm">Luca Bianchi</div><div class="mt">15:00 – 16:00 · Fiat 500</div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+    </div>
+
+    <div class="gtag">Esame (in corso / imminente)</div>
+    <div class="card">
+      <div class="head"><span class="dot live"></span><span class="kick live">IN CORSO <span class="sep">· 15:00 – 16:00</span></span></div>
+      <div class="top">
+        <img class="examIc" src="../../assets/icons/fluent-graduate.png" alt="" />
+        <div style="flex:1"><div class="examKick">Esame di guida</div><div class="nm">2 allievi</div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Lo stato "già presente" non è più un bottone grigio solitario: <b>pill verde "Presente"</b> accanto al nome + link discreto <b>"Segna assente"</b>. Prossima = countdown + chevron. Esame = card con icona Fluent.</div>
+</div>
+
+</body>
+</html>

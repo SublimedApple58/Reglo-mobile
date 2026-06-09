@@ -112,6 +112,11 @@ export default function HoursPeriodScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>Periodo</Text>
 
       {/* Presets */}
@@ -195,6 +200,8 @@ export default function HoursPeriodScreen() {
 const NAVY = '#1A1A2E';
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3, marginBottom: 16 },
 
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },

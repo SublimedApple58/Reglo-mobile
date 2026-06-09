@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home Istruttore — Più Airbnb (celle + ombre + tipografia)</title>
+<style>
+  :root{
+    --bg:#FDFDFD; --navy:#1A1A2E;
+    --n50:#F4F5F9; --n100:#E9EBF2; --n300:#AEB4CC; --n400:#6E7596;
+    --muted:#94A3B8; --muted2:#64748B; --line:#ECECEC; --hair:#EEF0F4;
+    --card:#FFFFFF; --accent:#FACC15; --warnBg:#FEF3C7; --warnTx:#92400E;
+    --panel:#F4F5F9;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:30px;flex-wrap:wrap;padding:42px 18px 60px;}
+  .col{display:flex;flex-direction:column;align-items:center;width:380px;}
+  .label{color:#dff;font-size:13px;text-align:center;margin-bottom:4px;font-weight:700;}
+  .sub{color:#bcd;font-size:11px;text-align:center;margin-bottom:12px;line-height:16px;opacity:.85}
+  .phone{width:380px;height:560px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+  .statusbar{height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font-weight:600;color:var(--navy);font-size:15px;}
+  .statusbar .r{display:flex;gap:6px;align-items:center;font-size:13px}
+  .scroll{height:calc(100% - 50px);overflow-y:auto;}
+  .scroll::-webkit-scrollbar{display:none}
+
+  .eyeWrap{padding:16px 22px 6px;}
+  .eyebrow{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.1px;}
+  .month{font-size:24px;font-weight:800;color:var(--navy);letter-spacing:-.6px;}
+  .month .yr{color:var(--muted);font-weight:600;}
+  .ctrls{display:flex;gap:8px;align-items:center;}
+  .oggi{height:34px;padding:0 15px;border-radius:17px;background:#fff;display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--navy);box-shadow:0 4px 14px rgba(26,26,46,.10);}
+  .ghost{width:38px;height:38px;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,26,46,.10);}
+  .ghost svg{width:19px;height:19px;stroke:var(--navy);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .monthRow{display:flex;align-items:center;justify-content:space-between;}
+  .panel{background:var(--panel);border-radius:28px 28px 0 0;padding:22px 22px 12px;}
+  .strip{display:flex;gap:10px;overflow-x:auto;padding:12px 22px;margin:0 -22px;}
+  .strip::-webkit-scrollbar{display:none}
+  .cell{min-width:58px;height:72px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;position:relative;}
+  .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
+  .num{font-size:20px;font-weight:700;color:var(--navy);}
+  .cell.sel .dow,.cell.sel .num{color:#fff;}
+
+  /* CURRENT (border) */
+  .cur .cell{background:#fff;border:1px solid var(--line);}
+  .cur .cell.today{border:1.5px solid var(--navy);}
+  .cur .cell.sel{background:var(--navy);border:none;box-shadow:0 4px 8px rgba(26,26,46,.22);}
+  .cur .cdot{position:absolute;bottom:8px;width:6px;height:6px;border-radius:3px;background:var(--navy);}
+  .cur .cell.sel .cdot{background:#fff;}
+
+  /* A — Soft tiles (no border, diffuse shadow) */
+  .a .cell{background:#fff;box-shadow:0 4px 14px rgba(26,26,46,.07);}
+  .a .cell.sel{background:var(--navy);box-shadow:0 10px 22px rgba(26,26,46,.22);}
+  .a .cell.today .num{color:var(--navy);}
+  .a .tdot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:3px;background:var(--navy);}
+  .a .cdot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:3px;background:var(--accent);}
+
+  /* B — Minimal (only selected filled) */
+  .b .cell{background:transparent;}
+  .b .num{color:var(--navy);}
+  .b .cell.sel{background:var(--navy);box-shadow:0 10px 22px rgba(26,26,46,.20);}
+  .b .cell.today .num{color:var(--navy);}
+  .b .tdot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:3px;background:var(--navy);}
+  .b .cdot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:3px;background:var(--accent);}
+
+  .cap{color:#9AA1AC;font-size:12.5px;font-weight:500;padding:10px 22px 0;}
+</style>
+</head>
+<body>
+
+<!-- CURRENT -->
+<div class="col">
+  <div class="label">ATTUALE</div>
+  <div class="sub">Celle con bordo 1px, "oggi" = anello, ombre dure. Funziona ma "sa di componente".</div>
+  <div class="phone cur">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="eyeWrap"><div class="eyebrow">Ciao, Tiziano 👋</div></div>
+      <div class="panel">
+        <div class="monthRow"><div class="month">Giugno 2026</div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+        <div class="strip">
+          <div class="cell today"><span class="dow">LUN</span><span class="num">8</span></div>
+          <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+          <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+          <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+          <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+        </div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+    </div>
+  </div>
+</div>
+
+<!-- A -->
+<div class="col">
+  <div class="label">A — Soft tiles</div>
+  <div class="sub">Niente bordi: ogni cella è una tile bianca che "galleggia" su ombra morbida. Selezione navy con ombra diffusa. Oggi = numero navy + puntino (no anello). Anno "2026" più chiaro. Tattile, da app premium.</div>
+  <div class="phone a">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="eyeWrap"><div class="eyebrow">Ciao, Tiziano 👋</div></div>
+      <div class="panel">
+        <div class="monthRow"><div class="month">Giugno <span class="yr">2026</span></div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+        <div class="strip">
+          <div class="cell today"><span class="dow">LUN</span><span class="num">8</span><span class="tdot"></span></div>
+          <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+          <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+          <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+          <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+          <div class="cell"><span class="dow">SAB</span><span class="num">13</span></div>
+        </div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+    </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="col">
+  <div class="label">B — Minimal</div>
+  <div class="sub">Le celle inattive spariscono (solo testo sul pannello), SOLO il selezionato è una tile navy piena. Come il calendario prenotazioni di Airbnb. Il più leggero ed elegante.</div>
+  <div class="phone b">
+    <div class="statusbar"><span>10:15</span><span class="r">···  📶 🔋</span></div>
+    <div class="scroll">
+      <div class="eyeWrap"><div class="eyebrow">Ciao, Tiziano 👋</div></div>
+      <div class="panel">
+        <div class="monthRow"><div class="month">Giugno <span class="yr">2026</span></div><div class="ctrls"><div class="oggi">Oggi</div><div class="ghost"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div></div></div>
+        <div class="strip">
+          <div class="cell today"><span class="dow">LUN</span><span class="num">8</span><span class="tdot"></span></div>
+          <div class="cell"><span class="dow">MAR</span><span class="num">9</span></div>
+          <div class="cell sel"><span class="dow">MER</span><span class="num">10</span><span class="cdot"></span></div>
+          <div class="cell"><span class="dow">GIO</span><span class="num">11</span></div>
+          <div class="cell"><span class="dow">VEN</span><span class="num">12</span></div>
+          <div class="cell"><span class="dow">SAB</span><span class="num">13</span></div>
+        </div>
+      </div>
+      <div class="cap">Mer 10 · 1 guida</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

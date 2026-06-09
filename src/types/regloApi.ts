@@ -137,6 +137,10 @@ export type AutoscuolaVehicle = {
   name: string;
   plate: string | null;
   status: string;
+  // Fixed-vehicle assignment: when set, this vehicle is the instructor's
+  // dedicated car and is auto-used for bookings made with that instructor.
+  assignedInstructorId: Uuid | null;
+  followsInstructorAvailability: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -415,6 +419,8 @@ export type UpdateVehicleInput = {
   name?: string;
   plate?: string | null;
   status?: string;
+  assignedInstructorId?: Uuid | null;
+  followsInstructorAvailability?: boolean;
 };
 
 export type TimeRange = {
@@ -512,12 +518,6 @@ export type CancelAppointmentResult =
   | { rescheduled: true; newStartsAt: IsoDate }
   | { rescheduled: false; broadcasted?: boolean };
 
-export type RepositionAppointmentResult = {
-  queued: true;
-  proposalCreated: boolean;
-  proposalStartsAt?: IsoDate;
-  taskId?: Uuid;
-};
 
 export type RescheduleAppointmentInput = {
   startsAt: IsoDate;

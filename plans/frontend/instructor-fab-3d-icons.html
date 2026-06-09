@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Menu "+" — più Airbnb (icone 3D Fluent)</title>
+<style>
+  :root{ --bg:#FDFDFD; --navy:#1A1A2E; --n50:#F4F5F9; --muted:#94A3B8; --line:#EEF0F4; }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:34px;flex-wrap:wrap;padding:42px 18px 60px;}
+  .col{display:flex;flex-direction:column;align-items:center;width:390px;}
+  .label{color:#dff;font-size:13px;text-align:center;margin-bottom:4px;font-weight:700;}
+  .sub{color:#bcd;font-size:11px;text-align:center;margin-bottom:12px;line-height:16px;opacity:.85}
+  .phone{width:390px;background:#2b3a36;border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+  .sheet{background:var(--bg);border-radius:40px 40px 0 0;padding:8px 0 26px;margin-top:60px;}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 8px;}
+  .htitle{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.4px;}
+  .x{width:34px;height:34px;border-radius:17px;background:#EFF0F3;display:flex;align-items:center;justify-content:center;}
+  .x svg{width:16px;height:16px;stroke:#64748B;stroke-width:2.4;}
+  .row{display:flex;align-items:center;gap:16px;padding:16px 22px;}
+  .rt{flex:1;font-size:16.5px;font-weight:700;color:var(--navy);}
+  .img{width:42px;height:42px;object-fit:contain;flex:0 0 auto;}
+  .chev{color:#CBD2E0;font-size:20px;}
+  .sep{height:1px;background:var(--line);margin:0 22px;}
+  .circle{width:54px;height:54px;border-radius:27px;background:var(--n50);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .circle .img{width:34px;height:34px;}
+
+  /* A: no circle, no chevron, no dividers (whitespace) */
+  .a .row{padding:15px 22px;}
+  /* B: soft circle, light dividers, no chevron */
+  /* C: current-ish (flat-in-circle) for reference is omitted; we compare A vs B */
+</style>
+</head>
+<body>
+
+<!-- A -->
+<div class="col">
+  <div class="label">A — Icona 3D nuda · niente chevron · niente divisori</div>
+  <div class="sub">I 3D galleggiano da soli, separa lo spazio. Il più "Airbnb": pulito, arioso, colore solo dalle icone.</div>
+  <div class="phone">
+    <div class="sheet a">
+      <div class="head"><div class="htitle">Aggiungi</div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-calendar.png"><div class="rt">Prenota guida</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-lock.png"><div class="rt">Blocca slot</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-graduate.png"><div class="rt">Crea esame</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-thermometer.png"><div class="rt">Malattia</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="col">
+  <div class="label">B — Icona 3D in cerchietto neutro · divisori sottili</div>
+  <div class="sub">Cerchietto grigio chiaro dietro l'icona per allineare/ancorare, + hairline tra le righe. Più strutturato, comunque premium.</div>
+  <div class="phone">
+    <div class="sheet">
+      <div class="head"><div class="htitle">Aggiungi</div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+      <div class="row"><div class="circle"><img class="img" src="../../assets/icons/fluent-calendar.png"></div><div class="rt">Prenota guida</div></div>
+      <div class="sep"></div>
+      <div class="row"><div class="circle"><img class="img" src="../../assets/icons/fluent-lock.png"></div><div class="rt">Blocca slot</div></div>
+      <div class="sep"></div>
+      <div class="row"><div class="circle"><img class="img" src="../../assets/icons/fluent-graduate.png"></div><div class="rt">Crea esame</div></div>
+      <div class="sep"></div>
+      <div class="row"><div class="circle"><img class="img" src="../../assets/icons/fluent-thermometer.png"></div><div class="rt">Malattia</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- C: alt malattia icon -->
+<div class="col">
+  <div class="label">C — Come A, ma "Malattia" = faccina 🤒</div>
+  <div class="sub">Variante solo per l'icona malattia: faccina col termometro (più "stai male") vs termometro oggetto. Dimmi quale preferisci.</div>
+  <div class="phone">
+    <div class="sheet a">
+      <div class="head"><div class="htitle">Aggiungi</div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-calendar.png"><div class="rt">Prenota guida</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-lock.png"><div class="rt">Blocca slot</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-graduate.png"><div class="rt">Crea esame</div></div>
+      <div class="row"><img class="img" src="../../assets/icons/fluent-sick-face.png"><div class="rt">Malattia</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

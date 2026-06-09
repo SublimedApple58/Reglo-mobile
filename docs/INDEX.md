@@ -12,8 +12,10 @@
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen`, `InstructorManageScreen` |
+| Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `home/quick-book`, `BookingForm`, `BlockForm` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Locations | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form` |
+| Vehicles | [vehicles.md](features/vehicles.md) | `VehiclesScreen`, `OwnerVehiclesScreen`, `InstructorVehiclesScreen`, `more/vehicle-form` |
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
 | Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |

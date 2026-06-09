@@ -242,16 +242,13 @@ export const TitolareHomeScreen = () => {
 
   const handleOutOfAvailAction = useCallback(async (
     appointmentId: string,
-    action: 'cancel' | 'reposition' | 'approve',
+    action: 'cancel' | 'approve',
   ) => {
     setOutOfAvailActionPending(appointmentId);
     try {
       if (action === 'cancel') {
         await regloApi.cancelAppointment(appointmentId);
         setToast({ text: 'Guida cancellata.', tone: 'success' });
-      } else if (action === 'reposition') {
-        await regloApi.repositionAppointment(appointmentId);
-        setToast({ text: 'Riposizionamento avviato.', tone: 'success' });
       } else {
         await regloApi.approveAvailabilityOverride(appointmentId);
         setToast({ text: 'Guida mantenuta.', tone: 'success' });

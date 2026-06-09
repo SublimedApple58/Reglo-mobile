@@ -1,11 +1,13 @@
 import React, { useSyncExternalStore } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { settingsStore } from '../../../src/stores/settingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
 export default function PaymentScreen() {
+  const router = useRouter();
   const data = useSyncExternalStore(settingsStore.subscribe, settingsStore.get);
 
   if (!data) return <View style={s.root} />;
@@ -16,6 +18,11 @@ export default function PaymentScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>Metodo di pagamento</Text>
 
       {paymentProfile?.blockedByInsoluti ? (
@@ -62,6 +69,8 @@ export default function PaymentScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 14 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
   hint: { fontSize: 14, fontWeight: '400', color: colors.textMuted, lineHeight: 20 },
   warning: { fontSize: 13, fontWeight: '500', color: '#F59E0B' },

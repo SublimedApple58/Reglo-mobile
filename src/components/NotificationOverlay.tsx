@@ -103,13 +103,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
 
-  // ── Proposals (all) ──
-  const [proposals, setProposals] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [pendingProposal, setPendingProposal] = useState<AutoscuolaAppointmentWithRelations | null>(null);
-  const [proposalOpen, setProposalOpen] = useState(false);
-  const [proposalLoading, setProposalLoading] = useState(false);
-  const dismissedProposalId = useRef<string | null>(null);
-
   // ── Available slots (from push notification) ──
   const [availableSlotsDate, setAvailableSlotsDate] = useState<string | null>(null);
   const [availableSlotsList, setAvailableSlotsList] = useState<AvailableSlot[]>([]);
@@ -168,11 +161,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     for (const w of waitlistOffers) {
       items.push({ kind: 'waitlist', id: w.id, data: w });
     }
-    for (const p of proposals) {
-      items.push({ kind: 'proposal', id: p.id, data: p });
-    }
     return items;
-  }, [confirmations, swapOffers, waitlistOffers, proposals]);
+  }, [confirmations, swapOffers, waitlistOffers]);
 
   // ── Persist: merge API items into store whenever they change ──
   const isMerging = useRef(false);
@@ -189,7 +179,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       notificationEvents.emitInboxUpdated();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmations, swapOffers, waitlistOffers, proposals]);
+  }, [confirmations, swapOffers, waitlistOffers]);
 
   // ── Reload inbox when inbox screen marks items as read/dismissed ──
   useEffect(() => {
@@ -329,27 +319,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     }
   }, []);
 
-  const loadProposals = useCallback(async (sid: string) => {
-    try {
-      const now = new Date();
-      const future = new Date();
-      future.setDate(future.getDate() + 30);
-      const appointments = await regloApi.getAppointments({
-        studentId: sid,
-        from: now.toISOString(),
-        to: future.toISOString(),
-        limit: 10,
-        light: true,
-      });
-      const filtered = appointments
-        .filter((a) => (a.status ?? '').trim().toLowerCase() === 'proposal' && new Date(a.startsAt) >= now)
-        .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-      setProposals(filtered);
-    } catch {
-      // silent
-    }
-  }, []);
-
   const loadScheduled = useCallback(async (sid: string) => {
     try {
       const now = new Date();
@@ -370,14 +339,13 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   const loadAll = useCallback(
     (sid: string) => {
       loadWaitlistOffers(sid);
-      loadProposals(sid);
       loadScheduled(sid);
       if (swapEnabled) {
         loadSwapOffers(sid);
         checkMyAcceptedSwaps(sid);
       }
     },
-    [swapEnabled, loadSwapOffers, checkMyAcceptedSwaps, loadWaitlistOffers, loadProposals, loadScheduled],
+    [swapEnabled, loadSwapOffers, checkMyAcceptedSwaps, loadWaitlistOffers, loadScheduled],
   );
 
   // ── Initial load ──
@@ -498,11 +466,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     const unsub = subscribePushIntent((intent, data) => {
       if (intent === 'slot_fill_offer') {
         loadWaitlistOffers(studentId);
-        return;
-      }
-      if (intent === 'appointment_proposal') {
-        loadProposals(studentId);
-        notificationEvents.emitDataChanged();
         return;
       }
       if (intent === 'swap_offer' && swapEnabled) {
@@ -681,7 +644,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       }
     });
     return unsub;
-  }, [loadSwapOffers, loadWaitlistOffers, loadProposals, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
+  }, [loadSwapOffers, loadWaitlistOffers, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
 
   // ── Cold start: consume pending push intent ──
   useEffect(() => {
@@ -710,9 +673,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         }
       } else if (intent === 'slot_fill_offer') {
         loadWaitlistOffers(studentId);
-      } else if (intent === 'appointment_proposal') {
-        loadProposals(studentId);
-        notificationEvents.emitDataChanged();
       } else if (intent === 'swap_offer' && swapEnabled) {
         loadSwapOffers(studentId);
       }
@@ -893,13 +853,12 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     // drawer to open — bail silently. Otherwise the stillAvailable check would always
     // be false (the 3 OR clauses can never match a non-offer kind) and the user would
     // see the misleading "Troppo tardi!" drawer pop up out of nowhere.
-    const isOfferKind = item.kind === 'waitlist' || item.kind === 'proposal';
+    const isOfferKind = item.kind === 'waitlist';
     if (!isOfferKind) return;
 
     // Check if the offer is still in the current API arrays
     const stillAvailable =
-      (item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id)) ||
-      (item.kind === 'proposal' && proposals.some((p) => p.id === item.id));
+      item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id);
 
     if (!stillAvailable) {
       // The offer was taken/expired — light toast instead of a drawer.
@@ -911,8 +870,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     let busy: string | null = null;
     if (item.kind === 'waitlist') {
       busy = checkBusy(item.data.slot.startsAt, item.data.slot.endsAt);
-    } else if (item.kind === 'proposal') {
-      busy = checkBusy(item.data.startsAt, item.data.endsAt);
     }
     setBusySlotLabel(busy);
 
@@ -921,12 +878,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         setWaitlistOffer(item.data);
         setWaitlistOpen(true);
         break;
-      case 'proposal':
-        setPendingProposal(item.data);
-        setProposalOpen(true);
-        break;
     }
-  }, [waitlistOffers, proposals, checkBusy, handleAvailableSlotsNotification]);
+  }, [waitlistOffers, checkBusy, handleAvailableSlotsNotification]);
 
   // ── Listen for openDrawer events from inbox screen ──
   useEffect(() => {
@@ -952,11 +905,10 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
       if (item.kind === 'swap' || item.kind === 'confirmation') return;
 
       // For offer-type items, verify they are still live before auto-opening.
-      const isOfferKind = item.kind === 'waitlist' || item.kind === 'proposal';
+      const isOfferKind = item.kind === 'waitlist';
       if (isOfferKind) {
         const stillAvailable =
-          (item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id)) ||
-          (item.kind === 'proposal' && proposals.some((p) => p.id === item.id));
+          item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id);
         if (!stillAvailable) {
           // Silently mark as read without opening any drawer.
           autoOpenedIds.current.add(item.id);
@@ -980,7 +932,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
         data: item.data,
       } as NotificationItem);
     }
-  }, [inboxItems, openDrawerForItem, waitlistOffers, proposals]);
+  }, [inboxItems, openDrawerForItem, waitlistOffers]);
 
   // ── Bubble animation: >1 unread → show "Hai N novità!" ──
   useEffect(() => {
@@ -1070,62 +1022,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     }
   };
 
-  // ── Handlers: Proposal ──
-
-  const handleAcceptProposal = async () => {
-    if (!pendingProposal || !studentId) return;
-    setProposalLoading(true);
-    setToast(null);
-    try {
-      await regloApi.updateAppointmentStatus(pendingProposal.id, { status: 'scheduled' });
-      markAccepted(pendingProposal.id);
-      setToast({ text: 'Proposta accettata', tone: 'success' });
-      setCelebrationVariant('booking');
-      setCelebrationVisible(false);
-      setTimeout(() => setCelebrationVisible(true), 0);
-      setProposalOpen(false);
-      setProposals((prev) => prev.filter((p) => p.id !== pendingProposal.id));
-      setPendingProposal(null);
-      notificationEvents.emitDataChanged();
-      await loadProposals(studentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante accettazione proposta',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalLoading(false);
-    }
-  };
-
-  const handleDeclineProposal = async () => {
-    if (!pendingProposal || !studentId || proposalLoading) return;
-    setProposalLoading(true);
-    setToast(null);
-    try {
-      await regloApi.cancelAppointment(pendingProposal.id);
-      setToast({ text: 'Proposta rifiutata', tone: 'info' });
-      setProposalOpen(false);
-      setProposals((prev) => prev.filter((p) => p.id !== pendingProposal.id));
-      setPendingProposal(null);
-      notificationEvents.emitDataChanged();
-      await loadProposals(studentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante rifiuto proposta',
-        tone: 'danger',
-      });
-    } finally {
-      setProposalLoading(false);
-    }
-  };
-
-  const handleDismissProposal = () => {
-    if (proposalLoading) return;
-    if (pendingProposal) dismissedProposalId.current = pendingProposal.id;
-    setProposalOpen(false);
-  };
-
   // ── Handle bell tap — navigate to inbox ──
   const handleBellPress = () => {
     bubbleDismissed.current = true;
@@ -1195,110 +1091,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
                 <Text style={styles.waitlistCardIcon}>{'\u23F1'}</Text>
                 <Text style={styles.waitlistCardText}>Durata: 30 min</Text>
               </View>
-            </View>
-          </View>
-        ) : null}
-      </BottomSheet>
-
-      {/* ── Proposal ── */}
-      <BottomSheet
-        visible={isStudent && proposalOpen && !!pendingProposal}
-        onClose={handleDismissProposal}
-        title="Nuova proposta"
-        closeDisabled={proposalLoading}
-        showHandle
-        footer={
-          pendingProposal ? (
-            busySlotLabel ? (
-              <View style={styles.busyFooter}>
-                <View style={styles.busyButton}>
-                  <Text style={styles.busyButtonText}>{busySlotLabel}</Text>
-                </View>
-              </View>
-            ) : (
-            <View style={{ gap: 12 }}>
-              <Pressable
-                onPress={proposalLoading ? undefined : handleAcceptProposal}
-                disabled={proposalLoading}
-                style={[styles.chunkyPinkCta, proposalLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyPinkCtaText}>
-                  {proposalLoading ? 'Attendi...' : `${'\u2705'} Accetta guida`}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={proposalLoading ? undefined : handleDeclineProposal}
-                disabled={proposalLoading}
-                style={[styles.chunkyOutlineBtn, proposalLoading && { opacity: 0.5 }]}
-              >
-                <Text style={styles.chunkyOutlineBtnText}>
-                  {proposalLoading ? 'Attendi...' : `${'\u{1F504}'} Chiedi cambio orario`}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  if (!proposalLoading) handleDeclineProposal();
-                }}
-                disabled={proposalLoading}
-                style={styles.chunkyRedLink}
-              >
-                <Text style={styles.chunkyRedLinkText}>Rifiuta proposta</Text>
-              </Pressable>
-            </View>
-            )
-          ) : undefined
-        }
-      >
-        {pendingProposal ? (
-          <View style={{ gap: 16 }}>
-            <View style={styles.hero}>
-              <Text style={styles.heroEmoji}>{'\u{1F4E9}'}</Text>
-              <Text style={styles.heroName}>Nuova proposta!</Text>
-              <Text style={styles.heroHint}>La tua autoscuola ti ha proposto una guida</Text>
-            </View>
-            <View style={styles.detailsCard}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u{1F4C5}'}</Text>
-                <Text style={styles.detailText}>
-                  {formatDay(pendingProposal.startsAt)} {'\u00B7'} {formatTime(pendingProposal.startsAt)}
-                  {pendingProposal.endsAt ? ` - ${formatTime(pendingProposal.endsAt)}` : ''}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>{'\u23F1'}</Text>
-                <Text style={styles.detailText}>
-                  {Math.max(
-                    30,
-                    Math.round(
-                      ((pendingProposal.endsAt
-                        ? new Date(pendingProposal.endsAt).getTime()
-                        : new Date(pendingProposal.startsAt).getTime() + 30 * 60 * 1000) -
-                        new Date(pendingProposal.startsAt).getTime()) /
-                        60000,
-                    ),
-                  )} min
-                </Text>
-              </View>
-              {pendingProposal.instructor?.name ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F468}\u200D\u{1F3EB}'}</Text>
-                  <Text style={styles.detailText}>{pendingProposal.instructor.name}</Text>
-                </View>
-              ) : null}
-              {pendingProposal.vehicle?.name ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F697}'}</Text>
-                  <Text style={styles.detailText}>{pendingProposal.vehicle.name}</Text>
-                </View>
-              ) : null}
-              {pendingProposal.type ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailIcon}>{'\u{1F4CB}'}</Text>
-                  <Text style={styles.detailText}>
-                    {lessonTypeLabelMap[pendingProposal.type] ?? pendingProposal.type}
-                  </Text>
-                </View>
-              ) : null}
             </View>
           </View>
         ) : null}

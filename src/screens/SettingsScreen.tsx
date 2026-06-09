@@ -934,13 +934,6 @@ export const SettingsScreen = () => {
 
       {initialLoading ? (
         <>
-          <View style={studentStyles.profileCard}>
-            <SkeletonBlock width={60} height={60} radius={30} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <SkeletonBlock width="60%" height={18} />
-              <SkeletonBlock width="40%" height={14} />
-            </View>
-          </View>
           <SkeletonCard>
             <SkeletonBlock width="72%" />
             <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
@@ -948,26 +941,8 @@ export const SettingsScreen = () => {
         </>
       ) : (
         <>
-          {/* 2. Profile card -> sub-page (more/profile-edit) */}
-          <Pressable
-            onPress={() => router.push('/(tabs)/more/profile-edit')}
-            style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
-          >
-            <View style={studentStyles.profileAvatar}>
-              <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
-              <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
-              <View style={studentStyles.profileCompanyPill}>
-                <Ionicons name="business-outline" size={12} color={colors.textMuted} />
-                <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-          </Pressable>
-
-          {/* 3. Preferences — normal rows that open formSheet sub-pages (like student) */}
+          {/* Preferences — normal rows that open formSheet sub-pages (like student).
+              Profile card moved to the "Altro" (More) screen to avoid duplication. */}
           <View style={studentStyles.menuGroup}>
             {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
               <Pressable onPress={() => router.push('/(tabs)/more/agenda-view')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>

@@ -11,7 +11,7 @@ export default function SettingsLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -20,7 +20,7 @@ export default function SettingsLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -29,7 +29,7 @@ export default function SettingsLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -38,7 +38,7 @@ export default function SettingsLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />

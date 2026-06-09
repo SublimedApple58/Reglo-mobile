@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vista settimana — polish Airbnb mono-navy (PRIMA → DOPO)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB; --muted:#9CA3AF;
+    --yellow:#FACC15; --yellow500:#EAB308; --yellowBg:#FEF9C3; --yellowTx:#CA8A04;
+    --teal:#6FDEDE; --tealBg:#E4F7F6; --tealTx:#0E7A7A;
+    --violet:#6D28D9; --violet500:#8B5CF6; --violetBg:#EDE9FE; --orange:#EA580C;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#AEB4CC; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane h2.bad { color:#9A6A6A; } .lane h2.good { color:#7FA889; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.6; }
+  .lane .cap b { color:#AEB4CC; font-weight:600; }
+
+  .phone { width:390px; height:760px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 22px 0; }
+
+  /* ───────── HEADER (tonal panel) ───────── */
+  .panel { background:var(--navy50); margin:8px 0 0; padding:16px 22px 18px; border-radius:0; }
+  .panelRow { display:flex; align-items:center; justify-content:space-between; }
+  .ctrls { display:flex; align-items:center; gap:8px; }
+  .chip { background:var(--surface); border-radius:999px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(26,26,46,.10); }
+  .today-chip { height:34px; padding:0 15px; }
+  .icon-btn { width:38px; height:38px; }
+  .icon-btn svg { width:21px; height:21px; stroke:var(--navy); }
+
+  /* ───────── day rows ───────── */
+  .dlabel { flex-shrink:0; display:flex; flex-direction:column; align-items:center; }
+  .dmid { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .strip { position:relative; overflow:hidden; }
+  .strip i { position:absolute; top:0; bottom:0; }
+  .dwords { display:flex; align-items:baseline; flex-wrap:wrap; }
+  .chev { flex-shrink:0; display:flex; align-items:center; }
+
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:74px; background:rgba(253,253,253,.96); border-top:.5px solid var(--border); display:flex; align-items:flex-start; justify-content:space-around; padding-top:11px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .tab.on { color:var(--navy); font-weight:600; }
+  .tab svg { width:23px; height:23px; }
+
+  /* ════════ STYLE: BEFORE (heavy / off-palette) ════════ */
+  .before .weekrange { font-size:24px; font-weight:800; letter-spacing:-.6px; }
+  .before .weekrange .mo { color:#94A3B8; font-weight:600; }
+  .before .today-chip { font-size:13px; font-weight:700; }
+  .before .days { padding:6px 22px 0; }
+  .before .drow { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:.5px solid var(--border); }
+  .before .drow.today { background:var(--navy50); border-bottom-color:transparent; padding-left:12px; padding-right:12px; margin:0 -12px; border-radius:16px; }
+  .before .dlabel { width:42px; gap:2px; }
+  .before .wd { font-size:10px; font-weight:700; color:var(--navy300); letter-spacing:.4px; }
+  .before .num { font-size:20px; font-weight:700; letter-spacing:-.4px; }
+  .before .today .wd { color:var(--yellowTx); }
+  .before .today .numwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .before .today .num { color:#fff; font-size:17px; }
+  .before .dmid { gap:9px; }
+  .before .strip { height:12px; border-radius:6px; background:var(--navy50); }
+  .before .strip i.b { background:var(--navy); } .before .strip i.e { background:#8B5CF6; }
+  .before .dcount { font-size:15px; font-weight:700; color:var(--navy); }
+  .before .dexam { font-size:13px; font-weight:700; color:#6D28D9; }
+  .before .dfree { font-size:13px; font-weight:500; color:var(--navy300); margin-left:6px; }
+  .before .drest { font-size:14px; font-weight:500; color:var(--navy300); }
+  .before .chev { color:#C7C7CC; } .before .chev svg { width:18px; height:18px; }
+
+  /* ════════ STYLE: AFTER (light / mono-navy) ════════ */
+  .after .weekrange { font-size:26px; font-weight:600; letter-spacing:-.5px; }
+  .after .weekrange .mo { color:var(--navy300); font-weight:400; }
+  .after .today-chip { font-size:13px; font-weight:500; color:var(--navy); }
+  .after .days { padding:4px 22px 0; }
+  .after .drow { display:flex; align-items:center; gap:15px; padding:17px 0; border-bottom:1px solid var(--navy100); }
+  .after .drow.today { background:var(--navy50); border-bottom-color:transparent; padding-left:14px; padding-right:14px; margin:6px -14px; border-radius:20px; }
+  .after .drow.today + .drow { border-top:1px solid var(--navy100); }
+  .after .dlabel { width:40px; gap:3px; }
+  .after .wd { font-size:11px; font-weight:600; color:var(--navy300); letter-spacing:.6px; }
+  .after .num { font-size:19px; font-weight:500; letter-spacing:-.3px; color:var(--navy); }
+  .after .today .wd { color:var(--navy); }
+  .after .today .numwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .after .today .num { color:#fff; font-size:16px; font-weight:600; }
+  .after .rest .wd, .after .rest .num { color:var(--navy200); }
+  .after .dmid { gap:10px; }
+  /* thinner, softer, rounded-cap rhythm strip — clearly secondary */
+  .after .strip { height:8px; border-radius:4px; background:#EEF0F6; }
+  .after .strip i { border-radius:4px; }
+  .after .strip i.b { background:var(--navy); }
+  .after .strip i.e { background:var(--violet500); }    /* esame = violetto (come già usato) */
+  .after .strip i.k { background:var(--navy200); }
+  .after .strip.rest { background:transparent; border:1px dashed var(--navy100); }
+  /* words = the hierarchy */
+  .after .dwords { gap:7px; }
+  .after .dcount { font-size:15px; font-weight:600; color:var(--navy); }
+  .after .dexam { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:600; color:var(--violet); }
+  .after .dexam svg { width:13px; height:13px; }
+  .after .dfree { font-size:13px; font-weight:400; color:var(--navy400); }
+  .after .dfree b { color:var(--navy); font-weight:500; }
+  .after .drest { font-size:14px; font-weight:400; color:var(--navy300); }
+  .after .chev { color:var(--navy200); } .after .chev svg { width:17px; height:17px; }
+
+  /* ════════ day-detail sheet (AFTER) ════════ */
+  .sheet { position:absolute; left:0; right:0; bottom:0; top:64px; background:var(--bg); border-radius:18px 18px 0 0; box-shadow:0 -10px 40px rgba(0,0,0,.18); overflow:hidden; }
+  .sheetGrab { display:none; }
+  .sheetTop { display:flex; align-items:center; gap:12px; padding:18px 22px 12px; }
+  .sheetTitle { font-size:20px; font-weight:600; color:var(--navy); letter-spacing:-.3px; }
+  .sheetSub { font-size:13px; font-weight:400; color:var(--muted); margin-top:3px; }
+  .closeBtn { width:34px; height:34px; border-radius:17px; background:var(--navy100); display:flex; align-items:center; justify-content:center; }
+  .closeBtn svg { width:18px; height:18px; stroke:var(--navy); }
+  /* ── itinerary = IDENTICAL to the daily view (itin* styles) ── */
+  .iti { padding:2px 18px 0; }
+  .ei { display:flex; align-items:stretch; }
+  .erail { width:74px; flex-shrink:0; position:relative; display:flex; flex-direction:column; align-items:center; padding-top:16px; }
+  .erail .lineT { position:absolute; left:36px; top:0; height:12px; width:2px; background:#E6E8EC; border-radius:1px; }
+  .erail .lineB { position:absolute; left:36px; top:46px; bottom:-14px; width:2px; background:#E6E8EC; border-radius:1px; }
+  .erail .pill { min-height:26px; min-width:52px; padding:0 9px; display:flex; align-items:center; justify-content:center; border-radius:13px; background:#EEF0F4; font-size:13px; font-weight:700; color:var(--navy); letter-spacing:-.2px; z-index:1; }
+  .erail .pill.mut { background:#F1F3F7; color:#94A3B8; }
+  .ebody { flex:1; min-width:0; }
+  .emk { padding-top:22px; margin-bottom:14px; font-size:13px; font-weight:700; color:#475569; letter-spacing:.1px; }
+  /* lesson / block card — elevated white, radius 22, navy shadow */
+  .ecard { display:flex; align-items:center; gap:12px; background:#FFFFFF; border-radius:22px; padding:14px; margin-bottom:14px; box-shadow:0 6px 16px rgba(26,26,46,.08); }
+  .ecard .av { width:42px; height:42px; border-radius:21px; background:#EEF0F4; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:var(--navy); flex-shrink:0; }
+  .ecard .nm { font-size:16px; font-weight:700; color:var(--navy); letter-spacing:-.2px; }
+  .ecard .mt { font-size:13px; font-weight:500; color:#94A3B8; margin-top:2px; }
+  .ecard .bd { margin-left:8px; flex-shrink:0; font-size:11.5px; font-weight:700; letter-spacing:.1px; padding:4px 10px; border-radius:999px; }
+  .ecard .bd.sched { background:var(--yellowBg); color:var(--yellowTx); }
+  .ecard .bd.done { background:#EEF0F4; color:#64748B; }
+  .ecard.mut { background:#F7F8FA; box-shadow:none; } .ecard.mut .nm { color:#64748B; } .ecard.mut .av { background:#F1F5F9; }
+  .ecard.mut .av svg { width:17px; height:17px; stroke:#94A3B8; }
+  /* exam card — student-app language, NO right tag, grouped into ONE block */
+  .examcard { display:flex; align-items:center; gap:12px; border-radius:22px; padding:14px; margin-bottom:14px;
+    background:linear-gradient(135deg,#F7F3FF 0%,#F0E9FF 100%); box-shadow:0 6px 16px rgba(139,92,246,.20); }
+  .examcard img { width:42px; height:42px; flex-shrink:0; }
+  .examcard .lbl { font-size:12px; font-weight:600; color:#7C3AED; }
+  .examcard .dt { font-size:16px; font-weight:700; color:var(--navy); letter-spacing:-.2px; margin-top:2px; }
+  /* free band — dashed, "Libero · 2h" + navy round add button */
+  .efree { background:#F7F8FA; border:1.5px dashed var(--navy200); border-radius:22px; padding:16px 16px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; }
+  .efree .l { font-size:15px; font-weight:600; color:var(--navy); } .efree .l span { color:#94A3B8; font-weight:500; }
+  .efree .p { width:38px; height:38px; border-radius:19px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .efree .p svg { width:18px; height:18px; stroke:#fff; stroke-width:2.4; }
+  .ehint { font-size:12.5px; font-weight:500; color:#AEB4CC; margin:2px 0 16px 6px; }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — PRIMA (com'è ora) ════════ -->
+<div class="lane before">
+  <h2 class="bad">Prima · com'è ora</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="panel">
+      <div class="panelRow">
+        <div class="weekrange">8 – 13 <span class="mo">Giugno</span></div>
+        <div class="ctrls">
+          <div class="chip today-chip">Oggi</div>
+          <div class="chip icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <div class="days">
+      <div class="drow">
+        <div class="dlabel"><span class="wd">LUN</span><span class="num">8</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:13%"></i><i class="b" style="left:25%;width:13%"></i><i class="b" style="left:42%;width:13%"></i><i class="b" style="left:59%;width:8%"></i></div><div class="dwords"><span class="dcount">4 guide</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">MAR</span><span class="num">9</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:75%"></i></div><div class="dwords"><span class="dcount">6 guide</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow today">
+        <div class="dlabel today"><span class="wd">MER</span><div class="numwrap"><span class="num">10</span></div></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:13%"></i><i class="b" style="left:33%;width:13%"></i><i class="e" style="left:66%;width:17%"></i></div><div class="dwords"><span class="dexam">Esame 16:00</span><span class="dfree">· 2 guide</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">GIO</span><span class="num">11</span></div>
+        <div class="dmid"><div class="strip"></div><div class="dwords"><span class="drest">Nessuna guida</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">VEN</span><span class="num">12</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:8%"></i><i class="b" style="left:25%;width:8%"></i><i class="e" style="left:50%;width:13%"></i><i class="b" style="left:75%;width:8%"></i></div><div class="dwords"><span class="dcount">3 guide</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">SAB</span><span class="num">13</span></div>
+        <div class="dmid"><div class="strip" style="background:transparent;border:1px solid var(--navy100)"></div><div class="dwords"><span class="drest">Riposo · nessuna disponibilità</span></div></div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Titolo <b>800</b>, label/numeri/conteggi <b>700</b>, esame <b>viola</b>. Tutto "grida" allo stesso volume → meno aria, meno gerarchia. La striscia (12px) compete con le parole.</div>
+</div>
+
+<!-- ════════ LANE 2 — DOPO: settimana ════════ -->
+<div class="lane after">
+  <h2 class="good">Dopo · settimana</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="panel">
+      <div class="panelRow">
+        <div class="weekrange">8 – 13 <span class="mo">Giugno</span></div>
+        <div class="ctrls">
+          <div class="chip today-chip">Oggi</div>
+          <div class="chip icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><rect x="3" y="4" width="18" height="17" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <div class="days">
+      <div class="drow">
+        <div class="dlabel"><span class="wd">LUN</span><span class="num">8</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:13%"></i><i class="b" style="left:25%;width:13%"></i><i class="b" style="left:42%;width:13%"></i><i class="b" style="left:59%;width:8%"></i></div><div class="dwords"><span class="dcount">4 guide</span><span class="dfree">· libero <b>13–17</b></span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">MAR</span><span class="num">9</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:75%"></i></div><div class="dwords"><span class="dcount">6 guide</span><span class="dfree">· giornata piena</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow today">
+        <div class="dlabel today"><span class="wd">MER</span><div class="numwrap"><span class="num">10</span></div></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:13%"></i><i class="b" style="left:33%;width:13%"></i><i class="e" style="left:66%;width:17%"></i></div>
+          <div class="dwords"><span class="dexam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="M6 10.5V15c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-4.5"/></svg>Esame 16:00</span><span class="dfree">· 2 guide</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">GIO</span><span class="num">11</span></div>
+        <div class="dmid"><div class="strip"></div><div class="dwords"><span class="dfree"><b>Libero</b> tutto il giorno · 8h</span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">VEN</span><span class="num">12</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:8%;width:8%"></i><i class="b" style="left:25%;width:8%"></i><i class="e" style="left:50%;width:13%"></i><i class="b" style="left:75%;width:8%"></i></div><div class="dwords"><span class="dcount">3 guide</span><span class="dfree">· libero <b>11–13, 15–17</b></span></div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel rest"><span class="wd">SAB</span><span class="num">13</span></div>
+        <div class="dmid"><div class="strip rest"></div><div class="dwords"><span class="drest">Riposo</span></div></div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Titolo <b>600</b>, numeri <b>500</b>, label <b>600</b>. Esame nel <b>violetto già in uso</b>. Striscia 8px con cap arrotondati = ritmo secondario; le <b>parole</b> guidano, con i <b>buchi liberi</b> evidenziati in navy. +aria verticale, oggi = tile morbido (niente giallo).</div>
+</div>
+
+<!-- ════════ LANE 3 — DOPO: dettaglio giorno (sheet) ════════ -->
+<div class="lane after">
+  <h2 class="good">Dopo · dettaglio giorno</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="sheet">
+      <div class="sheetTop">
+        <div style="flex:1">
+          <div class="sheetTitle">Venerdì 19 Giugno</div>
+          <div class="sheetSub">2 esami · 1 guida</div>
+        </div>
+        <div class="closeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div>
+      </div>
+      <div class="iti">
+        <div class="ei"><div class="erail"><div class="lineB"></div><div class="pill mut">08:00</div></div><div class="ebody"><div class="emk">Inizio disponibilità</div></div></div>
+        <div class="ei"><div class="erail"><div class="lineT"></div><div class="lineB"></div><div class="pill mut">08:00</div></div>
+          <div class="ebody"><div class="efree"><div class="l">Libero <span>· 2h</span></div><div class="p"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div>
+            <div class="ehint">Tieni premuto su uno slot per scegliere l'ora</div></div></div>
+        <div class="ei"><div class="erail"><div class="lineT"></div><div class="lineB"></div><div class="pill">10:00</div></div>
+          <div class="ebody"><div class="ecard"><div class="av">A3</div><div style="flex:1"><div class="nm">Allievo 3</div><div class="mt">60 min</div></div><div class="bd sched">Programmata</div></div></div></div>
+        <div class="ei"><div class="erail"><div class="lineT"></div><div class="lineB"></div><div class="pill mut">11:00</div></div>
+          <div class="ebody"><div class="efree"><div class="l">Libero <span>· 9h</span></div><div class="p"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div></div></div>
+        <!-- 2 esami → UN SOLO blocco, card stile app allievo, niente tag a destra -->
+        <div class="ei"><div class="erail"><div class="lineT"></div><div class="lineB"></div><div class="pill">20:00</div></div>
+          <div class="ebody"><div class="examcard"><img src="../../assets/icons/fluent-graduate.png" alt="" /><div style="flex:1"><div class="lbl">Esame di guida</div><div class="dt">2 allievi · 1h</div></div></div></div></div>
+        <div class="ei"><div class="erail"><div class="lineT" style="height:22px"></div><div class="pill mut">20:00</div></div><div class="ebody"><div class="emk" style="color:var(--navy)">Fine disponibilità</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Card guida e slot Libero <b>identici alla visualizzazione giornaliera</b> (card bianca elevata radius 22 + ombra navy, rail con pill grandi, dashed "Libero · 2h" + tasto navy). Esame = <b>card stile app allievo</b> (viola sfumato + icona Fluent 3D), <b>senza tag a destra</b>, e i <b>2 esami</b> dello stesso slot sono <b>un solo blocco</b> ("2 allievi · 1h"), non più card duplicate.</div>
+</div>
+
+</body>
+</html>

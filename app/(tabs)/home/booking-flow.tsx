@@ -17,6 +17,21 @@ const formatLessonType = (value: string | null | undefined) => {
 
 const BOOKING_WEEKDAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'] as const;
 
+// YYYY-MM-DD (matches the backend date-availability map keys).
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Recompute the visible instructor list from the live date. A missing
+// `instructorsByDate` entry on a LOADED date means no instructor is available
+// that day; a date not yet in `availabilityDates` means "still loading" → all.
+const computeVisibleInstructors = (s: NonNullable<ReturnType<typeof bookingFlowStore.get>>) => {
+  if (!s.canSelectInstructor || !s.instructors.length) return s.instructors;
+  const key = ymd(s.preferredDate);
+  if (!(key in s.availabilityDates)) return s.instructors;
+  const ids = s.instructorsByDate[key] ?? [];
+  return s.instructors.filter((i) => ids.includes(i.id));
+};
+
 export default function BookingFlowScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(bookingFlowStore.subscribe, bookingFlowStore.get);
@@ -24,17 +39,39 @@ export default function BookingFlowScreen() {
   // Don't clear store on unmount — booking-slots reads from it.
   // Store is cleared by onClose callback when navigating back to home.
 
+  // If the selected instructor is no longer available on the chosen date, fall
+  // back to "Tutti" so the search isn't filtered by an unavailable instructor.
+  useEffect(() => {
+    const d = bookingFlowStore.get();
+    if (!d || !d.canSelectInstructor || d.isLockedToInstructor || !d.selectedInstructorId) return;
+    const visibleIds = computeVisibleInstructors(d).map((i) => i.id);
+    if (visibleIds.length && !visibleIds.includes(d.selectedInstructorId)) {
+      bookingFlowStore.set({ selectedInstructorId: null });
+    }
+  }, [
+    data?.preferredDate,
+    data?.instructors,
+    data?.instructorsByDate,
+    data?.availabilityDates,
+    data?.selectedInstructorId,
+    data?.canSelectInstructor,
+    data?.isLockedToInstructor,
+  ]);
+
   if (!data) return <View style={s.root} />;
 
   const {
     step, preferredDate, durationMinutes, selectedLessonTypes, selectedInstructorId,
     slots, slotsLoading, selectedSlot, loading, preferredDateAvailable,
     availableDurations, availableLessonTypes, canSelectLessonType, canSelectInstructor,
-    isLockedToInstructor, assignedInstructorName, visibleInstructors,
+    isLockedToInstructor, assignedInstructorName,
     creditFlowEnabled, creditsAvailable, autoPaymentsEnabled,
     calendarOpen, calendarMonths, bookingMaxDate, bookedDatesSet, unavailableDatesSet,
     onSearchSlots, onConfirmBooking, onClose,
   } = data;
+
+  // Reactive to the in-sheet date — NOT the value seeded when the sheet opened.
+  const visibleInstructors = computeVisibleInstructors(data);
 
   const setField = <K extends keyof typeof data>(key: K, value: (typeof data)[K]) =>
     bookingFlowStore.set({ [key]: value } as any);

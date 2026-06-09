@@ -22,6 +22,11 @@ export default function AvailabilityModeScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>Disponibilità</Text>
       <Text style={s.subtitle}>Come gestisci gli orari in cui sei prenotabile.</Text>
 
@@ -60,6 +65,8 @@ export default function AvailabilityModeScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4, marginBottom: 16 },
   list: { gap: 10, marginBottom: 20 },

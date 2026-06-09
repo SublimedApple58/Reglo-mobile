@@ -1,5 +1,6 @@
 import React, { useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { instructorSettingsStore } from '../../../src/stores/instructorSettingsStore';
@@ -24,6 +25,11 @@ export default function AgendaSettingsScreen() {
 
   return (
     <View style={s.root}>
+      <View style={s.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+          <Ionicons name="close" size={20} color="#1A1A2E" />
+        </Pressable>
+      </View>
       <Text style={s.title}>Agenda</Text>
       <Text style={s.subtitle}>Finestra di prenotazione e promemoria.</Text>
 
@@ -82,6 +88,8 @@ export default function AgendaSettingsScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 18 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: -12 },
   group: { gap: 10 },

@@ -16,7 +16,7 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -25,7 +25,7 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -34,7 +34,7 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -43,7 +43,7 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -52,7 +52,25 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="vehicle-form"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="time-picker"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />
@@ -61,7 +79,7 @@ export default function MoreLayout() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
+          sheetGrabberVisible: false,
           headerShown: false,
         }}
       />

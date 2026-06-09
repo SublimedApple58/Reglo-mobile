@@ -144,8 +144,6 @@ const getAppointmentColors = (
     case 'no_show':
     case 'cancelled':
       return { bg: '#F1F5F9', border: '#94A3B8', text: '#64748B' };
-    case 'proposal':
-      return { bg: '#F5F3FF', border: '#A78BFA', text: '#7C3AED' };
     case 'scheduled':
     case 'confirmed':
     default: {

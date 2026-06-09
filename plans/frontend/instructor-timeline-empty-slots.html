@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Timeline istruttore — slot vuoti</title>
+<style>
+  :root{
+    --navy-700:#0D0D16; --navy-600:#14141F; --navy-500:#1A1A2E;
+    --navy-400:#6E7596; --navy-300:#AEB4CC; --navy-200:#D6D9E6;
+    --navy-100:#E9EBF2; --navy-50:#F4F5F9;
+    --ink:#1A1A2E; --muted:#94A3B8; --marker:#475569;
+    --rail:#E6E8EC; --yellow-bg:#FEF3C7; --yellow-tx:#92703A;
+    --bg:#F7F8FA;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#e9ebf0;font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;color:var(--ink);padding:28px 16px 60px;}
+  h1{font-size:18px;font-weight:600;text-align:center;margin:0 0 4px;}
+  .sub{text-align:center;color:#64748b;font-size:13px;margin:0 0 26px;font-weight:500;}
+  .row{display:flex;gap:18px;justify-content:center;align-items:flex-start;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .tag{font-size:12px;font-weight:600;color:#475569;letter-spacing:.2px;}
+  .tag.bad{color:#b91c1c;}
+  .tag.good{color:#15803d;}
+  .phone{width:330px;background:var(--bg);border-radius:34px;padding:14px 0 0;box-shadow:0 12px 40px rgba(20,20,31,.18);border:1px solid #dfe2ea;overflow:hidden;}
+  .scr{padding:4px 0 18px;}
+
+  /* itinerary rail */
+  .it{position:relative;}
+  .rowi{display:flex;align-items:stretch;}
+  .rail{width:74px;position:relative;display:flex;justify-content:center;padding-top:16px;flex:0 0 74px;}
+  .line{position:absolute;left:36px;width:2px;background:var(--rail);border-radius:1px;}
+  .line.top{top:0;height:12px;}
+  .line.bot{top:46px;bottom:-14px;}
+  .line.full{top:0;bottom:-14px;}
+  .pill{height:26px;padding:0 9px;border-radius:13px;background:#F1F3F7;display:flex;align-items:center;z-index:1;}
+  .pill .t{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .pill.muted{background:#F1F3F7;}
+  .pill.muted .t{color:var(--muted);}
+  .body{flex:1;padding-right:16px;}
+
+  /* marker */
+  .mk{padding-top:20px;padding-bottom:12px;}
+  .mk .txt{font-size:13px;font-weight:600;color:var(--marker);}
+
+  /* booked card */
+  .card{background:#fff;border-radius:16px;padding:14px;box-shadow:0 2px 10px rgba(20,20,31,.06);border:1px solid #f0f1f4;display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .av{width:42px;height:42px;border-radius:21px;background:var(--navy-100);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--navy-500);}
+  .nm{font-size:15px;font-weight:600;}
+  .meta{font-size:12.5px;color:var(--muted);font-weight:500;margin-top:1px;}
+  .badge{margin-left:auto;background:var(--yellow-bg);color:var(--yellow-tx);font-size:11px;font-weight:600;padding:5px 9px;border-radius:9px;white-space:nowrap;}
+
+  /* CURRENT: loud empty card */
+  .empty-loud{background:#fff;border-radius:16px;padding:26px 14px;box-shadow:0 2px 10px rgba(20,20,31,.06);border:1px solid #f0f1f4;display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:14px;}
+  .hand{width:46px;height:46px;border-radius:23px;background:var(--navy-50);display:flex;align-items:center;justify-content:center;}
+  .empty-loud .h{font-size:14.5px;color:var(--navy-400);font-weight:500;}
+
+  /* VARIANT 1: ghost band */
+  .ghost{display:flex;align-items:center;gap:10px;border:1.5px dashed var(--navy-200);background:rgba(244,245,249,.5);border-radius:14px;padding:12px 14px;margin-bottom:14px;}
+  .ghost .lab{font-size:13.5px;font-weight:600;color:var(--navy-400);}
+  .ghost .dur{font-size:12.5px;font-weight:500;color:var(--navy-300);margin-left:2px;}
+  .ghost .plus{margin-left:auto;width:30px;height:30px;border-radius:15px;background:var(--navy-500);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:400;line-height:1;}
+  .hint-once{font-size:11.5px;color:var(--navy-300);font-weight:500;margin:-6px 0 14px 2px;}
+
+  /* VARIANT 2: minimal line */
+  .minline{display:flex;align-items:center;gap:8px;margin:6px 0 16px;}
+  .minline .dash{flex:1;border-top:1.5px dashed var(--navy-200);}
+  .minline .plus{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--navy-300);}
+  .minline .pc{width:18px;height:18px;border-radius:9px;border:1.5px dashed var(--navy-300);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:var(--navy-400);}
+
+  .fab{position:relative;float:right;margin:-54px 18px 0 0;width:54px;height:54px;border-radius:27px;background:var(--navy-500);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300;box-shadow:0 8px 20px rgba(20,20,31,.28);}
+  svg{display:block;}
+</style>
+</head>
+<body>
+  <h1>Vista giorno istruttore · slot liberi</h1>
+  <p class="sub">Giornata con doppia fascia (09–14, 15–20) e una guida alle 17:15</p>
+
+  <div class="row">
+
+    <!-- ============ CURRENT ============ -->
+    <div class="col">
+      <span class="tag bad">● Adesso — CTA ripetuta</span>
+      <div class="phone"><div class="scr"><div class="it">
+
+        <div class="rowi"><div class="rail"><div class="line bot"></div><div class="pill muted"><span class="t">09:00</span></div></div>
+          <div class="body mk"><div class="txt">Inizio disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">09:00</span></div></div>
+          <div class="body"><div class="empty-loud"><div class="hand">✋</div><div class="h">Tieni premuto per prenotare</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">14:00</span></div></div>
+          <div class="body mk"><div class="txt">Pausa</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">15:00</span></div></div>
+          <div class="body mk"><div class="txt">Ripresa disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">15:00</span></div></div>
+          <div class="body"><div class="empty-loud"><div class="hand">✋</div><div class="h">Tieni premuto per prenotare</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill"><span class="t">17:15</span></div></div>
+          <div class="body"><div class="card"><div class="av">A3</div><div><div class="nm">Allievo 3</div><div class="meta">60 min</div></div><div class="badge">Programmata</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">18:15</span></div></div>
+          <div class="body"><div class="empty-loud"><div class="hand">✋</div><div class="h">Tieni premuto per prenotare</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="pill muted"><span class="t">20:00</span></div></div>
+          <div class="body mk"><div class="txt">Fine disponibilità</div></div></div>
+
+      </div><div class="fab">+</div></div></div>
+    </div>
+
+    <!-- ============ VARIANT 1 ============ -->
+    <div class="col">
+      <span class="tag good">● V1 — Slot fantasma + hint una volta</span>
+      <div class="phone"><div class="scr"><div class="it">
+
+        <div class="rowi"><div class="rail"><div class="line bot"></div><div class="pill muted"><span class="t">09:00</span></div></div>
+          <div class="body mk"><div class="txt">Inizio disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line full"></div></div>
+          <div class="body">
+            <div class="ghost"><span class="lab">Libero</span><span class="dur">· 5h</span>
+              <div class="plus">+</div></div>
+            <div class="hint-once">Tieni premuto per scegliere l’ora</div>
+          </div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">14:00</span></div></div>
+          <div class="body mk"><div class="txt">Pausa</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">15:00</span></div></div>
+          <div class="body mk"><div class="txt">Ripresa disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line full"></div></div>
+          <div class="body"><div class="ghost"><span class="lab">Libero</span><span class="dur">· 2h 15min</span><div class="plus">+</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill"><span class="t">17:15</span></div></div>
+          <div class="body"><div class="card"><div class="av">A3</div><div><div class="nm">Allievo 3</div><div class="meta">60 min</div></div><div class="badge">Programmata</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">18:15</span></div></div>
+          <div class="body"><div class="ghost"><span class="lab">Libero</span><span class="dur">· 1h 45min</span><div class="plus">+</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="pill muted"><span class="t">20:00</span></div></div>
+          <div class="body mk"><div class="txt">Fine disponibilità</div></div></div>
+
+      </div><div class="fab">+</div></div></div>
+    </div>
+
+    <!-- ============ VARIANT 2 ============ -->
+    <div class="col">
+      <span class="tag">○ V2 — Linea minimale</span>
+      <div class="phone"><div class="scr"><div class="it">
+
+        <div class="rowi"><div class="rail"><div class="line bot"></div><div class="pill muted"><span class="t">09:00</span></div></div>
+          <div class="body mk"><div class="txt">Inizio disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line full"></div></div>
+          <div class="body"><div class="minline"><span class="dash"></span><span class="plus"><span class="pc">+</span>Libero · 5h</span><span class="dash"></span></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">14:00</span></div></div>
+          <div class="body mk"><div class="txt">Pausa</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">15:00</span></div></div>
+          <div class="body mk"><div class="txt">Ripresa disponibilità</div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line full"></div></div>
+          <div class="body"><div class="minline"><span class="dash"></span><span class="plus"><span class="pc">+</span>Libero · 2h 15min</span><span class="dash"></span></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill"><span class="t">17:15</span></div></div>
+          <div class="body"><div class="card"><div class="av">A3</div><div><div class="nm">Allievo 3</div><div class="meta">60 min</div></div><div class="badge">Programmata</div></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="line bot"></div><div class="pill muted"><span class="t">18:15</span></div></div>
+          <div class="body"><div class="minline"><span class="dash"></span><span class="plus"><span class="pc">+</span>Libero · 1h 45min</span><span class="dash"></span></div></div></div>
+
+        <div class="rowi"><div class="rail"><div class="line top"></div><div class="pill muted"><span class="t">20:00</span></div></div>
+          <div class="body mk"><div class="txt">Fine disponibilità</div></div></div>
+
+      </div><div class="fab">+</div></div></div>
+    </div>
+
+  </div>
+</body>
+</html>
