@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -77,9 +77,9 @@ export default function GroupStudentsScreen() {
   return (
     <View style={s.root}>
       {/* Top bar — close (matches all page sheets) */}
-      <View style={s.topBar}>
+      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
+          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 

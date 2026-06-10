@@ -210,7 +210,8 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
       markedDates,
       editDate: override ? override.date.slice(0, 10) : undefined,
       editRanges: override ? override.ranges : undefined,
-      editIsAbsent: override ? override.ranges.length === 0 : undefined,
+      // A sentinel [{0,0}] override (web "giorno non disponibile") = absent too.
+      editIsAbsent: override ? !override.ranges.some((r) => r.endMinutes > r.startMinutes) : undefined,
       openTimePicker,
       onSaved: () => loadOverrides(),
     });
@@ -301,7 +302,10 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
       ) : upcomingOverrides.length > 0 ? (
         <Animated.View entering={FadeIn.duration(400)} style={styles.list}>
           {upcomingOverrides.map((o, i) => {
-            const absent = o.ranges.length === 0;
+            // Unavailable day = no positive-length range. The web saves a "giorno
+            // non disponibile" as a sentinel [{0,0}] range, so length===0 isn't
+            // enough — treat any all-zero-duration override as absent.
+            const absent = !o.ranges.some((r) => r.endMinutes > r.startMinutes);
             return (
               <Pressable
                 key={o.id}

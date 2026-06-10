@@ -106,6 +106,8 @@ export type AutoscuolaStudent = {
   // Pursued license path (category + transmission). Returned by /api/autoscuole/students.
   licenseCategory?: string | null;
   transmission?: string | null;
+  // Whether the student may participate in group driving lessons (Guide di gruppo).
+  groupLessonsOptIn?: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -186,6 +188,8 @@ export type AutoscuolaAppointment = {
   instructorId: Uuid | null;
   vehicleId: Uuid | null;
   locationId: Uuid | null;
+  // Set when this appointment is a seat of a group lesson (type === "group_lesson").
+  groupLessonId?: Uuid | null;
   notes: string | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;
@@ -200,6 +204,57 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   instructor: AutoscuolaInstructor | null;
   vehicle: AutoscuolaVehicle | null;
   location: AutoscuolaLocation | null;
+};
+
+// ── Group lessons (Guide di gruppo) ──────────────────────────────────
+export type GroupLessonParticipant = {
+  appointmentId: Uuid;
+  studentId: Uuid;
+  studentName: string | null;
+};
+
+export type GroupLesson = {
+  id: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate | null;
+  capacity: number;
+  status: string;
+  priceAmount: number;
+  notes: string | null;
+  instructorId: Uuid | null;
+  instructorName: string | null;
+  vehicleId: Uuid | null;
+  vehicleName: string | null;
+  licenseCategory: string | null;
+  transmission: string | null;
+  filledSeats: number;
+  openSeats: number;
+  participants: GroupLessonParticipant[];
+};
+
+export type GroupLessonInvite = {
+  inviteId: Uuid;
+  groupLessonId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate | null;
+  capacity: number;
+  filledSeats: number;
+  openSeats: number;
+  instructorName: string | null;
+  vehicleName: string | null;
+  notes: string | null;
+  expiresAt: IsoDate;
+};
+
+export type GroupLessonInvitee = { id: Uuid; name: string | null };
+
+export type CreateGroupLessonInput = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  vehicleId?: Uuid | null;
+  instructorId?: Uuid | null;
+  studentIds?: Uuid[];
+  notes?: string;
 };
 
 export type GetAppointmentsParams = {
@@ -614,6 +669,7 @@ export type AutoscuolaSettings = {
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
   vehiclesEnabled?: boolean;
+  groupLessonsEnabled?: boolean;
   quizEnabled?: boolean;
 };
 

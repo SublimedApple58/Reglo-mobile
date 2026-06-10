@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -266,7 +267,7 @@ export default function ManageLessonScreen() {
 
   const {
     studentProgress, stateMeta, stateLabel, durationText, vehiclesEnabled, vehicleText,
-    defaultLocation, showStatusActions, allowPresente, showRating,
+    defaultLocation, showStatusActions, allowPresente, showRating, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation,
   } = data;
 
@@ -346,9 +347,9 @@ export default function ManageLessonScreen() {
   return (
     <View style={s.sheet}>
       {/* Top action bar — X close */}
-      <View style={s.topBar}>
+      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
+          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 
@@ -359,7 +360,7 @@ export default function ManageLessonScreen() {
       >
         {/* Hero */}
         <View style={s.hero}>
-          <Text style={s.heroOverline}>Gestisci guida</Text>
+          <Text style={s.heroOverline}>{readOnly ? 'Dettaglio guida' : 'Gestisci guida'}</Text>
           <Text style={s.heroName}>{studentName}</Text>
           <Text style={s.heroMeta}>
             {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
@@ -417,30 +418,53 @@ export default function ManageLessonScreen() {
           </View>
         )}
 
-        {/* Istruttore + Luogo — righe piatte, auto-save su selezione */}
+        {/* Istruttore + Luogo — righe piatte. Read-only (titolare) = righe statiche
+            senza chevron né navigazione; altrimenti auto-save su selezione. */}
         <View style={s.detailRows}>
-          <Pressable onPress={openInstructorPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-            <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
-            <View style={s.detailBody}>
-              <Text style={s.detailLabel}>Istruttore</Text>
-              <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
+          {readOnly ? (
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Istruttore</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
+              </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-          </Pressable>
+          ) : (
+            <Pressable onPress={openInstructorPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Istruttore</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            </Pressable>
+          )}
           <View style={s.rowDivider} />
-          <Pressable onPress={openLocationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-            <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#1A1A2E" /></View>
-            <View style={s.detailBody}>
-              <Text style={s.detailLabel}>Luogo</Text>
-              <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
-              {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
+          {readOnly ? (
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Luogo</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
+                {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
+              </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-          </Pressable>
+          ) : (
+            <Pressable onPress={openLocationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Luogo</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
+                {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            </Pressable>
+          )}
         </View>
 
-        {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet */}
-        {lesson.type !== 'esame' ? (
+        {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet.
+            Nascosta in read-only (il titolare non modifica tipo/voto/note). */}
+        {!readOnly && lesson.type !== 'esame' ? (
           <Pressable onPress={openDetails} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
             <View style={s.cardIcon}><Ionicons name="create-outline" size={22} color="#1A1A2E" /></View>
             <View style={{ flex: 1, gap: 2 }}>

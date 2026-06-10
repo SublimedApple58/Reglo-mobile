@@ -42,6 +42,8 @@ export type ManageLessonData = {
   vehicleText: string;
   defaultLocation: AutoscuolaLocation | null;
   isDetailsEditable: boolean;
+  /** Owner/titolare view-only: static rows, no edit CTA, no bottom actions. */
+  readOnly?: boolean;
   /** Show the Presente/Assente status row. */
   showStatusActions: boolean;
   /** Whether the "Presente" (check-in) button should appear. */

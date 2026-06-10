@@ -36,6 +36,7 @@ export default function ExamManageScreen() {
   if (!seed) return <View style={s.root} />;
 
   const onChanged = seed.onChanged;
+  const readOnly = seed.readOnly === true;
   const close = () => router.back();
 
   // ── Modifica / Imposta orario → native time picker route ──
@@ -194,9 +195,9 @@ export default function ExamManageScreen() {
 
   return (
     <View style={s.root}>
-      <View style={s.topBar}>
+      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
+          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 
@@ -210,15 +211,25 @@ export default function ExamManageScreen() {
           </View>
         </View>
 
-        {/* Modifica orario — rounded 3D tappable card */}
-        <Pressable onPress={openTimePicker} disabled={busy} style={({ pressed }) => [s.editCard, pressed && s.pressed]}>
-          <View style={s.editIc}><Ionicons name="time-outline" size={19} color="#1A1A2E" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.editTitle}>{endsAt ? 'Modifica orario' : 'Imposta orario'}</Text>
-            <Text style={s.editSub}>{timeLabel}</Text>
+        {/* Orario — card 3D modificabile; in read-only (titolare) riga statica. */}
+        {readOnly ? (
+          <View style={s.editCard}>
+            <View style={s.editIc}><Ionicons name="time-outline" size={19} color="#1A1A2E" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.editTitle}>Orario</Text>
+              <Text style={s.editSub}>{timeLabel}</Text>
+            </View>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
-        </Pressable>
+        ) : (
+          <Pressable onPress={openTimePicker} disabled={busy} style={({ pressed }) => [s.editCard, pressed && s.pressed]}>
+            <View style={s.editIc}><Ionicons name="time-outline" size={19} color="#1A1A2E" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.editTitle}>{endsAt ? 'Modifica orario' : 'Imposta orario'}</Text>
+              <Text style={s.editSub}>{timeLabel}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
+          </Pressable>
+        )}
 
         {/* Accompagnatore — soft inset info card */}
         {seed.instructorName ? (
@@ -232,9 +243,11 @@ export default function ExamManageScreen() {
         {/* Allievi — flat rows (no card), ••• menu, + to add */}
         <View style={s.secRow}>
           <Text style={s.sec}>ALLIEVI · {appts.length}</Text>
-          <Pressable onPress={openAddStudents} hitSlop={8} style={({ pressed }) => [s.add, pressed && { opacity: 0.7 }]}>
-            <Ionicons name="add" size={20} color="#1A1A2E" />
-          </Pressable>
+          {!readOnly && (
+            <Pressable onPress={openAddStudents} hitSlop={8} style={({ pressed }) => [s.add, pressed && { opacity: 0.7 }]}>
+              <Ionicons name="add" size={20} color="#1A1A2E" />
+            </Pressable>
+          )}
         </View>
         {appts.map((a, idx) => (
           <Pressable
@@ -244,9 +257,13 @@ export default function ExamManageScreen() {
           >
             <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
             <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
-            <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#AEB4CC" />
-            </Pressable>
+            {readOnly ? (
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            ) : (
+              <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#AEB4CC" />
+              </Pressable>
+            )}
           </Pressable>
         ))}
 
@@ -259,12 +276,14 @@ export default function ExamManageScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Annulla esame — pinned footer */}
-      <View style={s.footer}>
-        <Pressable onPress={cancelExam} disabled={busy} style={({ pressed }) => [s.cancel, pressed && { opacity: 0.7 }, busy && { opacity: 0.5 }]}>
-          <Text style={s.cancelTx}>Annulla esame</Text>
-        </Pressable>
-      </View>
+      {/* Annulla esame — pinned footer (nascosto in read-only) */}
+      {!readOnly && (
+        <View style={s.footer}>
+          <Pressable onPress={cancelExam} disabled={busy} style={({ pressed }) => [s.cancel, pressed && { opacity: 0.7 }, busy && { opacity: 0.5 }]}>
+            <Text style={s.cancelTx}>Annulla esame</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }

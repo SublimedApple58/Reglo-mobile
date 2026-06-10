@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,13 +52,27 @@ export default function SelectDateScreen() {
   return (
     <View style={s.root}>
       <View style={s.topBar}>
-        <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
-          <Text style={s.todayText}>Oggi</Text>
-        </Pressable>
-        <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        {Platform.OS === 'android' ? (
+          <>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+              <Ionicons name="arrow-back" size={20} color="#1A1A2E" />
+            </Pressable>
+            <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
+            <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
+              <Text style={s.todayText}>Oggi</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
+              <Text style={s.todayText}>Oggi</Text>
+            </Pressable>
+            <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+              <Ionicons name="close" size={20} color="#1A1A2E" />
+            </Pressable>
+          </>
+        )}
       </View>
 
       <View style={s.weekRow}>

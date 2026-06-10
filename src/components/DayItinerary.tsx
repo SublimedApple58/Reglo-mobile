@@ -2,16 +2,18 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BookableBand } from './BookableBand';
-import { fmtClockFull, fmtDuration, type DayExamGroup, type DayPlan } from '../utils/weeklyAgenda';
+import { fmtClockFull, fmtDuration, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
 import { colors } from '../theme';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
+const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
 
 type Seq =
   | { kind: 'marker'; min: number; order: number; text: string }
   | { kind: 'lesson'; min: number; order: number; row: DayPlan['lessons'][number] }
   | { kind: 'examGroup'; min: number; order: number; group: DayExamGroup }
+  | { kind: 'groupLesson'; min: number; order: number; group: DayGroupLessonGroup }
   | { kind: 'block'; min: number; order: number; row: DayPlan['blocks'][number] }
   | { kind: 'free'; min: number; order: number; s: number; e: number };
 
@@ -20,6 +22,7 @@ type Props = {
   onQuickBook: (min: number, ws: number, we: number) => void;
   onOpenLesson: (appt: AutoscuolaAppointmentWithRelations) => void;
   onOpenExam: (appts: AutoscuolaAppointmentWithRelations[]) => void;
+  onOpenGroupLesson: (group: DayGroupLessonGroup) => void;
   onOpenBlock: (block: InstructorBlock) => void;
 };
 
@@ -31,7 +34,7 @@ type Props = {
  * hold-to-scrub quick-book gesture. Pure presentational — actions delegated to
  * the caller. Used inside the day-detail page sheet.
  */
-export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOpenBlock }: Props) => {
+export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOpenGroupLesson, onOpenBlock }: Props) => {
   const seq: Seq[] = [];
   // One start/end marker per availability window (mirrors the daily timeline).
   plan.availWindows.forEach(([ws, we], wi) => {
@@ -40,6 +43,7 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
   });
   plan.lessons.forEach((row) => seq.push({ kind: 'lesson', min: row.startMin, order: 1, row }));
   plan.examGroups.forEach((group) => seq.push({ kind: 'examGroup', min: group.startMin, order: 1, group }));
+  plan.groupLessonGroups.forEach((group) => seq.push({ kind: 'groupLesson', min: group.startMin, order: 1, group }));
   plan.blocks.forEach((row) => seq.push({ kind: 'block', min: row.startMin, order: 1, row }));
   plan.freeWindows.forEach(([s, e]) => seq.push({ kind: 'free', min: s, order: 1, s, e }));
   seq.sort((a, b) => a.min - b.min || a.order - b.order);
@@ -102,6 +106,28 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                 <View style={{ flex: 1 }}>
                   <Text style={styles.examLabel}>Esame di guida</Text>
                   <Text style={styles.examTitle} numberOfLines={1}>{sub}</Text>
+                </View>
+              </Pressable>
+            </View>
+          );
+        }
+
+        if (item.kind === 'groupLesson') {
+          const g = item.group;
+          const sub = `${g.count}/${g.capacity} allievi · ${fmtDuration(g.durationMin)}`;
+          return (
+            <View key={`gl-${g.id}`} style={styles.row}>
+              <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
+              <Pressable onPress={() => onOpenGroupLesson(g)} style={({ pressed }) => [styles.groupCard, pressed && styles.cardPressed]}>
+                <Image source={FLUENT_PEOPLE} style={styles.groupIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.groupLabel}>Guida di gruppo</Text>
+                  <Text style={styles.groupTitle} numberOfLines={1}>{sub}</Text>
+                </View>
+                <View style={styles.seats}>
+                  {Array.from({ length: g.capacity }).map((_, i) => (
+                    <View key={i} style={[styles.seat, i >= g.count && styles.seatEmpty]} />
+                  ))}
                 </View>
               </Pressable>
             </View>
@@ -202,6 +228,15 @@ const styles = StyleSheet.create({
   examIcon: { width: 42, height: 42 },
   examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
   examTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+
+  // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
+  groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ECFDF5', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  groupIcon: { width: 42, height: 42 },
+  groupLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
+  groupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  seats: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 },
+  seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#10B981' },
+  seatEmpty: { backgroundColor: '#BDEAD6' },
 
   freeBody: { flex: 1 },
 

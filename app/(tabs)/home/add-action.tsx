@@ -40,6 +40,7 @@ export default function AddActionScreen() {
     { key: 'book', label: 'Prenota guida', img: require('../../../assets/icons/fluent-calendar.png'), run: data.onBook, show: data.canBook },
     { key: 'block', label: 'Blocca slot', img: require('../../../assets/icons/fluent-lock.png'), run: data.onBlock, show: true },
     { key: 'exam', label: 'Crea esame', img: require('../../../assets/icons/fluent-graduate.png'), run: data.onExam, show: true },
+    { key: 'group', label: 'Guida di gruppo', img: require('../../../assets/icons/fluent-people.png'), run: data.onGroupLesson, show: data.canGroupLesson },
     { key: 'sick', label: 'Malattia', img: require('../../../assets/icons/fluent-thermometer.png'), run: data.onSick, show: true },
   ].filter((r) => r.show);
 

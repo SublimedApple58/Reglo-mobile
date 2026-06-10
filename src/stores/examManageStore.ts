@@ -16,6 +16,8 @@ export type ExamManageData = {
   notes: string | null;
   appointments: AutoscuolaAppointmentWithRelations[];
   onChanged: () => void;
+  /** Owner/titolare view-only: nessuna azione mutante (orario, allievi, annulla). */
+  readOnly?: boolean;
 };
 
 let _data: ExamManageData | null = null;

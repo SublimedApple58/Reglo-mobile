@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
+import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 
 /* ── Icon map: outline (inactive) → filled (active) ── */
 
@@ -20,6 +21,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   notes: 'people-outline',
   payments: 'wallet-outline',
   swaps: 'repeat-outline',
+  inbox: 'file-tray-outline',
   more: 'ellipsis-horizontal',
   settings: 'options-outline',
   quiz: 'school-outline',
@@ -40,9 +42,10 @@ type TabItemProps = {
   isFocused: boolean;
   onPress: () => void;
   iconOverride?: keyof typeof Ionicons.glyphMap;
+  badgeCount?: number;
 };
 
-const TabItem = ({ routeName, label, isFocused, onPress, iconOverride }: TabItemProps) => {
+const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCount = 0 }: TabItemProps) => {
   const progress = useSharedValue(isFocused ? 1 : 0);
 
   useEffect(() => {
@@ -72,6 +75,11 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride }: TabItem
           size={22}
           color={isFocused ? colors.primary : colors.textMuted}
         />
+        {badgeCount > 0 ? (
+          <View style={st.badge}>
+            <Text style={st.badgeText}>{badgeCount > 9 ? '9+' : String(badgeCount)}</Text>
+          </View>
+        ) : null}
       </Animated.View>
       <Text
         style={[
@@ -107,6 +115,7 @@ export const GlassTabBar = ({
   showRoleTab,
 }: BottomTabBarProps & ExtraProps) => {
   const insets = useSafeAreaInsets();
+  const unreadCount = useUnreadNotifications();
 
   const visibleRoutes = state.routes.filter((route) => !hiddenTabs.has(route.name));
 
@@ -161,6 +170,7 @@ export const GlassTabBar = ({
               isFocused={isFocused}
               onPress={onPress}
               iconOverride={tabIconOverride}
+              badgeCount={route.name === 'inbox' ? unreadCount : 0}
             />
           );
         })}
@@ -197,5 +207,25 @@ const st = StyleSheet.create({
   tabLabelActive: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -10,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
 });

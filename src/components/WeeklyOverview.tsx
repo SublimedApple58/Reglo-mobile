@@ -232,6 +232,7 @@ const DensityStrip = ({ plan, spanMin, spanMax }: { plan: DayPlan; spanMin: numb
             styles.stripSeg,
             s.kind === 'booked' && styles.segBooked,
             s.kind === 'exam' && styles.segExam,
+            s.kind === 'group' && styles.segGroup,
             s.kind === 'block' && styles.segBlock,
             { left: left(s.startMin) as unknown as number, width: width(s.startMin, s.endMin) as unknown as number },
           ]}
@@ -312,6 +313,7 @@ const styles = StyleSheet.create({
   stripSeg: { position: 'absolute', top: 0, bottom: 0, borderRadius: 4 },
   segBooked: { backgroundColor: '#1A1A2E' },
   segExam: { backgroundColor: '#8B5CF6' },
+  segGroup: { backgroundColor: '#10B981' },
   segBlock: { backgroundColor: '#D6D9E6' },
 
   words: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 7 },

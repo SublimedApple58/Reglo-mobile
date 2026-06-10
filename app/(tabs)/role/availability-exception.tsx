@@ -8,6 +8,7 @@ import Animated, {
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -111,7 +112,11 @@ export default function AvailabilityExceptionScreen() {
   const [weeks, setWeeks] = useState(4);
   const [absent, setAbsent] = useState<boolean>(data?.editIsAbsent ?? false);
   const [ranges, setRanges] = useState<TimeRange[]>(
-    data?.editRanges && data.editRanges.length ? data.editRanges : [...DEFAULT_RANGES],
+    // Ignore sentinel [{0,0}] (unavailable) ranges → seed a sensible default so
+    // switching to "Disponibile" doesn't show 00:00–00:00.
+    data?.editRanges && data.editRanges.some((r) => r.endMinutes > r.startMinutes)
+      ? data.editRanges
+      : [...DEFAULT_RANGES],
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -237,9 +242,9 @@ export default function AvailabilityExceptionScreen() {
 
   return (
     <View style={s.root}>
-      <View style={s.topBar}>
+      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
+          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 

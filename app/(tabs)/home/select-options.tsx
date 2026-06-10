@@ -51,6 +51,9 @@ export default function SelectOptionsScreen() {
                 onPress={() => (data.multi ? toggleMulti(o.value) : pickSingle(o.value))}
                 style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
               >
+                {o.leadingInitials ? (
+                  <View style={s.avatar}><Text style={s.avatarText}>{o.leadingInitials}</Text></View>
+                ) : null}
                 <View style={s.body}>
                   <Text style={[s.label, on && { fontWeight: '600' }]} numberOfLines={1}>{o.label}</Text>
                   {o.subtitle ? <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text> : null}
@@ -80,6 +83,8 @@ const s = StyleSheet.create({
   list: {},
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, minHeight: 58 },
+  avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 13, backgroundColor: '#F1F2F6', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 13, fontWeight: '600', color: NAVY },
   body: { flex: 1, minWidth: 0, gap: 2 },
   label: { fontSize: 16, fontWeight: '500', color: INK },
   sub: { fontSize: 13, color: MUTED },

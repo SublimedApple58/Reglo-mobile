@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -31,13 +31,20 @@ export default function DayDetailScreen() {
   return (
     <GestureHandlerRootView style={s.root}>
       <View style={s.topBar}>
+        {Platform.OS === 'android' ? (
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          </Pressable>
+        ) : null}
         <View style={{ flex: 1 }}>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
           <Text style={s.subtitle} numberOfLines={1}>{daySummary(plan)}</Text>
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        {Platform.OS !== 'android' ? (
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -46,6 +53,7 @@ export default function DayDetailScreen() {
           onQuickBook={(min, ws, we) => closeThen(() => data.onQuickBook(date, min, ws, we))}
           onOpenLesson={(a) => closeThen(() => data.onOpenLesson(a))}
           onOpenExam={(appts) => closeThen(() => data.onOpenExam(appts))}
+          onOpenGroupLesson={(g) => closeThen(() => data.onOpenGroupLesson(g))}
           onOpenBlock={(b) => closeThen(() => data.onOpenBlock(b))}
         />
       </ScrollView>

@@ -1026,7 +1026,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
   const handleBellPress = () => {
     bubbleDismissed.current = true;
     Animated.timing(bubbleOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start();
-    router.push('/(tabs)/home/notifications');
+    router.push('/(tabs)/inbox');
   };
 
   if (!isStudent && !isInstructor) return null;

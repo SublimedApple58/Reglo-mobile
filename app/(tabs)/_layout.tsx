@@ -42,6 +42,10 @@ export default function TabsLayout() {
   // Quiz tab: hidden for TEORIA students (quiz is integrated into the home).
   // Kept visible only for future phases that may need a standalone quiz tab.
   const showQuizTab = false;
+  // Notifications inbox tab: instructors/owners always; students except those in
+  // AWAITING / PATENTATO (who see only home). Shows a red count pill when unread.
+  const showInboxTab =
+    showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed);
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
@@ -53,6 +57,7 @@ export default function TabsLayout() {
     if (!showMoreTab) set.add('more');
     if (!showPaymentsTab) set.add('payments');
     if (!showQuizTab) set.add('quiz');
+    if (!showInboxTab) set.add('inbox');
     // Settings hidden when "Altro" is shown (accessed from More screen)
     if (showMoreTab) set.add('settings');
     // Awaiting / Licensed students see only home — no settings either.
@@ -64,6 +69,7 @@ export default function TabsLayout() {
     showMoreTab,
     showPaymentsTab,
     showQuizTab,
+    showInboxTab,
     isStudentAwaiting,
     isStudentLicensed,
   ]);
@@ -92,6 +98,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
         <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
+        <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />
       </Tabs>
       <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
     </>

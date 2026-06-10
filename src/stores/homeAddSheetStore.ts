@@ -7,9 +7,12 @@
 export type HomeAddSheetData = {
   /** Whether the "Prenota guida" action is available for this instructor. */
   canBook: boolean;
+  /** Whether the "Guide di gruppo" module is enabled for this company. */
+  canGroupLesson: boolean;
   onBook: () => void;
   onBlock: () => void;
   onExam: () => void;
+  onGroupLesson: () => void;
   onSick: () => void;
 };
 

@@ -57,7 +57,20 @@ export type DayLessonRow = {
   badge: LessonBadge;
 };
 export type DayBlockRow = { block: InstructorBlock; startMin: number; endMin: number; isSick: boolean };
-export type DaySegment = { startMin: number; endMin: number; kind: 'booked' | 'exam' | 'block' };
+export type DaySegment = { startMin: number; endMin: number; kind: 'booked' | 'exam' | 'block' | 'group' };
+
+// Group lessons (Guide di gruppo): participant appointments (type="group_lesson")
+// sharing the same groupLessonId collapse into ONE teal card. Capacity is always 3.
+export type DayGroupLessonGroup = {
+  id: string;
+  startMin: number;
+  endMin: number;
+  durationMin: number;
+  count: number;
+  capacity: number;
+  appts: AutoscuolaAppointmentWithRelations[];
+};
+export const GROUP_LESSON_CAPACITY = 3;
 // Exams sharing the same slot (start|end|instructor) collapse into ONE block,
 // mirroring the daily timeline's examGroup. Rendered as a single rich card.
 export type DayExamGroup = {
@@ -76,10 +89,12 @@ export type DayPlan = {
   availWindows: Interval[];
   availStart: number | null;
   availEnd: number | null;
-  lessons: DayLessonRow[];      // non-exam timed lessons
+  lessons: DayLessonRow[];      // non-exam, non-group timed lessons
   examRows: DayLessonRow[];     // timed exams (flat — used for density strip / counts)
   examGroups: DayExamGroup[];   // timed exams grouped by slot — one card per group
   timelessExamCount: number;    // exams with no time yet (rendered as banners elsewhere)
+  groupLessonGroups: DayGroupLessonGroup[]; // group lessons — one teal card per lesson
+  groupLessonCount: number;     // number of group lessons in the day
   blocks: DayBlockRow[];
   freeWindows: Interval[];
   bookableStarts: number[];
@@ -121,19 +136,45 @@ export function computeDayPlan(
 
   const lessons: DayLessonRow[] = [];
   const examRows: DayLessonRow[] = [];
+  const groupRows: DayLessonRow[] = [];
   let timelessExamCount = 0;
 
   for (const a of appointments) {
     if (norm(a.status) === 'cancelled' || !sameDay(date, a.startsAt)) continue;
     const isExam = a.type === 'esame';
+    const isGroup = a.type === 'group_lesson';
     if (isExam && !a.endsAt) { timelessExamCount += 1; continue; }
     const startMin = startMinutesOf(a.startsAt);
     const durationMin = durationMinutesOf(a);
     const row: DayLessonRow = { appt: a, startMin, endMin: startMin + durationMin, durationMin, badge: lessonBadge(a, completedMinutes) };
-    (isExam ? examRows : lessons).push(row);
+    if (isGroup) groupRows.push(row);
+    else if (isExam) examRows.push(row);
+    else lessons.push(row);
   }
   lessons.sort((a, b) => a.startMin - b.startMin);
   examRows.sort((a, b) => a.startMin - b.startMin);
+  groupRows.sort((a, b) => a.startMin - b.startMin);
+
+  // Group participant rows by their groupLessonId → one card per group lesson.
+  const groupMap = new Map<string, DayLessonRow[]>();
+  for (const r of groupRows) {
+    const key = r.appt.groupLessonId ?? `${r.appt.startsAt}|${r.appt.instructorId ?? ''}`;
+    const list = groupMap.get(key) ?? [];
+    list.push(r);
+    groupMap.set(key, list);
+  }
+  const groupLessonGroups: DayGroupLessonGroup[] = [...groupMap.entries()]
+    .map(([key, rowsG]) => ({
+      id: key,
+      startMin: rowsG[0].startMin,
+      endMin: rowsG[0].endMin,
+      durationMin: rowsG[0].durationMin,
+      // Synthetic empty-lesson rows (id `gl-empty:`) count as 0 participants.
+      count: rowsG.filter((r) => !String(r.appt.id).startsWith('gl-empty:')).length,
+      capacity: GROUP_LESSON_CAPACITY,
+      appts: rowsG.map((r) => r.appt),
+    }))
+    .sort((a, b) => a.startMin - b.startMin);
 
   // Group timed exams by slot (start|end|instructor) — same key as the daily
   // timeline — so a multi-student exam renders as ONE block, not duplicates.
@@ -172,6 +213,7 @@ export function computeDayPlan(
   const occupied: Interval[] = [
     ...lessons.map((r) => [r.startMin, r.endMin] as Interval),
     ...examRows.map((r) => [r.startMin, r.endMin] as Interval),
+    ...groupRows.map((r) => [r.startMin, r.endMin] as Interval),
     ...dayBlocks.map((r) => [r.startMin, r.endMin] as Interval),
   ].sort((a, b) => a[0] - b[0]);
 
@@ -205,6 +247,7 @@ export function computeDayPlan(
   const segments: DaySegment[] = [
     ...lessons.map((r) => ({ startMin: r.startMin, endMin: r.endMin, kind: 'booked' as const })),
     ...examRows.map((r) => ({ startMin: r.startMin, endMin: r.endMin, kind: 'exam' as const })),
+    ...groupRows.map((r) => ({ startMin: r.startMin, endMin: r.endMin, kind: 'group' as const })),
     ...dayBlocks.map((r) => ({ startMin: r.startMin, endMin: r.endMin, kind: 'block' as const })),
   ];
 
@@ -221,6 +264,8 @@ export function computeDayPlan(
     examRows,
     examGroups,
     timelessExamCount,
+    groupLessonGroups,
+    groupLessonCount: groupLessonGroups.length,
     blocks: dayBlocks,
     freeWindows: clampedFree,
     bookableStarts,
@@ -265,9 +310,10 @@ export const daySummary = (plan: DayPlan): string => {
   if (plan.isHoliday) return 'Festivo';
   if (plan.isEmptyAvail) return 'Riposo';
   if (plan.hasFullDaySick) return 'In malattia';
-  if (plan.lessonCount === 0 && plan.examCount === 0) return 'Nessuna guida';
+  if (plan.lessonCount === 0 && plan.examCount === 0 && plan.groupLessonCount === 0) return 'Nessuna guida';
   const parts: string[] = [];
   if (plan.examCount > 0) parts.push(`${plan.examCount} ${plan.examCount === 1 ? 'esame' : 'esami'}`);
+  if (plan.groupLessonCount > 0) parts.push(`${plan.groupLessonCount} ${plan.groupLessonCount === 1 ? 'gruppo' : 'gruppi'}`);
   if (plan.lessonCount > 0) parts.push(`${plan.lessonCount} ${plan.lessonCount === 1 ? 'guida' : 'guide'}`);
   return parts.join(' · ');
 };

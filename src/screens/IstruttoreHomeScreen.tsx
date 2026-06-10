@@ -55,6 +55,7 @@ import { bookingSheetStore, type BookingResultItem } from '../stores/bookingShee
 import { blockSheetStore } from '../stores/blockSheetStore';
 import { sickLeaveSheetStore } from '../stores/sickLeaveSheetStore';
 import { examSheetStore } from '../stores/examSheetStore';
+import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
@@ -66,6 +67,7 @@ import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import { computeDayPlan } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
+import { groupLessonManageStore } from '../stores/groupLessonManageStore';
 import { sessionStorage } from '../services/sessionStorage';
 import { StarRating } from '../components/StarRating';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
@@ -76,6 +78,7 @@ import {
   AutoscuolaInstructor,
   AutoscuolaLocation,
   AutoscuolaSettings,
+  AutoscuolaVehicle,
   InstructorBlock,
   InstructorBookingSuggestion,
   OutOfAvailabilityAppointment,
@@ -584,14 +587,17 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
   );
 };
 
-export const IstruttoreHomeScreen = () => {
+export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolean } = {}) => {
   const router = useRouter();
   const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
-  const canSwitchScope = autoscuolaRole === 'INSTRUCTOR_OWNER';
-  const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>('personal');
-  const effectiveInstructorId = calendarScope === 'all' ? undefined : instructorId;
+  // Owner (titolare puro, senza instructorId) vede la stessa home dell'istruttore
+  // ma in SOLA LETTURA e con scope fisso "tutti gli istruttori": niente FAB,
+  // niente prenotazione/band, niente azioni mutanti sulle guide.
+  const canSwitchScope = !ownerMode && autoscuolaRole === 'INSTRUCTOR_OWNER';
+  const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>(ownerMode ? 'all' : 'personal');
+  const effectiveInstructorId = ownerMode || calendarScope === 'all' ? undefined : instructorId;
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
@@ -708,14 +714,14 @@ export const IstruttoreHomeScreen = () => {
 
   // ── Query hooks for cold-start cache hydration ──
   const bootstrapParams = useMemo(() => {
-    if (!instructorId) return null;
+    if (!instructorId && !ownerMode) return null;
     return {
       ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
       from: loadRange.from,
       to: loadRange.to,
       limit: 400,
     };
-  }, [instructorId, loadRange, effectiveInstructorId]);
+  }, [instructorId, ownerMode, loadRange, effectiveInstructorId]);
 
   const bootstrapCached = useAgendaBootstrap(bootstrapParams);
   const settingsCached = useAutoscuolaSettings();
@@ -815,7 +821,7 @@ export const IstruttoreHomeScreen = () => {
   }, []);
 
   const loadData = useCallback(async (opts?: { force?: boolean }): Promise<AutoscuolaAppointmentWithRelations[]> => {
-    if (!instructorId) return [];
+    if (!instructorId && !ownerMode) return [];
     // force=true (default) bypasses the TanStack cache (staleTime 0) so callers
     // after a mutation / pull-to-refresh always hit the network. The initial
     // mount load and the focus listener pass force=false: if the TanStack cache
@@ -877,9 +883,14 @@ export const IstruttoreHomeScreen = () => {
             queryFn: () => regloApi.getAutoscuolaSettings(),
             staleTime: force ? 0 : STALE_TIMES.settings,
           }),
-          // Lightweight fetch of sick_leave blocks over wide range for calendar dots
+          // Lightweight fetch of sick_leave blocks over wide range for calendar dots.
+          // Owner (no instructorId) → omit it so the API returns all instructors'.
           regloApi.getInstructorBlocks({
-            instructorId: effectiveInstructorId ?? instructorId!,
+            ...(effectiveInstructorId
+              ? { instructorId: effectiveInstructorId }
+              : instructorId
+                ? { instructorId }
+                : {}),
             from: featuredFrom.toISOString(),
             to: featuredTo.toISOString(),
             reason: 'sick_leave',
@@ -955,17 +966,18 @@ export const IstruttoreHomeScreen = () => {
         }
       }
     }
-  }, [loadRange, instructorId, effectiveInstructorId, injectPending, injectPendingBlocks, queryClient, activeCompanyId]);
+  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, injectPending, injectPendingBlocks, queryClient, activeCompanyId]);
 
   const loadOutOfAvailability = useCallback(async () => {
-    if (!instructorId) return;
+    if (!instructorId && !ownerMode) return;
     try {
-      const data = await regloApi.getOutOfAvailabilityAppointments(instructorId);
+      // Owner → no instructorId, so the API returns all instructors' OOB guide.
+      const data = await regloApi.getOutOfAvailabilityAppointments(instructorId ?? undefined);
       setOutOfAvailAppointments(Array.isArray(data) ? data : []);
     } catch {
       // silent
     }
-  }, [instructorId]);
+  }, [instructorId, ownerMode]);
 
   const loadHolidays = useCallback(async () => {
     try {
@@ -1045,7 +1057,7 @@ export const IstruttoreHomeScreen = () => {
   const bookingActors = settings?.appBookingActors ?? 'students';
   const instructorBookingMode = settings?.instructorBookingMode ?? 'manual_engine';
   const canInstructorBook =
-    bookingActors === 'instructors' || bookingActors === 'both';
+    !ownerMode && (bookingActors === 'instructors' || bookingActors === 'both');
   const bookingDurations = useMemo(
     () =>
       (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
@@ -1107,11 +1119,48 @@ export const IstruttoreHomeScreen = () => {
       notes: string | null;
       appointments: AutoscuolaAppointmentWithRelations[];
     }) => {
-      examManageStore.set({ ...g, onChanged: () => { loadData(); } });
+      examManageStore.set({ ...g, readOnly: ownerMode, onChanged: () => { loadData(); } });
       router.push('/(tabs)/home/exam-manage');
     },
-    [loadData, router],
+    [loadData, router, ownerMode],
   );
+
+  // Manage an existing group lesson: open the dedicated "Gestisci guida di
+  // gruppo" page sheet (roster, instructor/vehicle, sposta, annulla). Loads the
+  // instructor + vehicle lists for the in-modal pickers, then seeds the store.
+  const openGroupLessonManage = useCallback(
+    async (groupLessonId: string) => {
+      try {
+        const vehiclesEnabled = settings?.vehiclesEnabled !== false;
+        const [instructorsRes, vehiclesRes] = await Promise.all([
+          regloApi.getInstructors().catch(() => [] as AutoscuolaInstructor[]),
+          vehiclesEnabled
+            ? regloApi.getVehicles().catch(() => [] as AutoscuolaVehicle[])
+            : Promise.resolve([] as AutoscuolaVehicle[]),
+        ]);
+        groupLessonManageStore.set({
+          groupLessonId,
+          instructors: (instructorsRes ?? []).filter((i) => i.status !== 'inactive'),
+          vehicles: (vehiclesRes ?? []).filter((v) => v.status === 'active'),
+          vehiclesEnabled,
+          readOnly: ownerMode,
+          onChanged: () => { loadData(); },
+        });
+        router.push('/(tabs)/home/manage-group-lesson');
+      } catch (e) {
+        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+      }
+    },
+    [loadData, router, settings?.vehiclesEnabled, ownerMode],
+  );
+
+  const openCreateGroupLesson = useCallback(() => {
+    groupLessonSheetStore.set({
+      initialDate: selectedDate.toISOString(),
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+    router.push('/(tabs)/home/create-group-lesson');
+  }, [selectedDate, router]);
 
 
 
@@ -1161,10 +1210,13 @@ export const IstruttoreHomeScreen = () => {
 
   // Timeline items: exams grouped by time; other appointments as-is
   const timelineItems = useMemo(() => {
+    const GROUP_LESSON_CAPACITY = 3;
     const exams: AutoscuolaAppointmentWithRelations[] = [];
+    const groupLessonAppts: AutoscuolaAppointmentWithRelations[] = [];
     const others: AutoscuolaAppointmentWithRelations[] = [];
     for (const appt of timelineAppointments) {
       if (appt.type === 'esame') exams.push(appt);
+      else if (appt.type === 'group_lesson') groupLessonAppts.push(appt);
       else others.push(appt);
     }
     const groupMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
@@ -1174,9 +1226,18 @@ export const IstruttoreHomeScreen = () => {
       list.push(e);
       groupMap.set(key, list);
     }
+    // Collapse group-lesson participant appointments into ONE card per lesson.
+    const glMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
+    for (const a of groupLessonAppts) {
+      const key = a.groupLessonId ?? `${a.startsAt}|${a.endsAt ?? ''}|${a.instructorId ?? ''}`;
+      const list = glMap.get(key) ?? [];
+      list.push(a);
+      glMap.set(key, list);
+    }
     type Item =
       | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
-      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
+      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
     const items: Item[] = [];
     for (const appt of others) {
       items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
@@ -1191,6 +1252,23 @@ export const IstruttoreHomeScreen = () => {
         instructorId: first.instructorId,
         instructorName: first.instructor?.name ?? null,
         notes: first.notes ?? null,
+        appointments: appts,
+        sortKey: getStartsAtTs(first),
+      });
+    }
+    for (const [key, appts] of glMap) {
+      const first = appts[0];
+      // Synthetic empty-lesson rows (id `gl-empty:`) represent 0 participants.
+      const filled = appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length;
+      items.push({
+        kind: 'groupLesson',
+        id: `gl-${key}`,
+        groupLessonId: first.groupLessonId ?? null,
+        startsAt: first.startsAt,
+        endsAt: first.endsAt,
+        vehicleName: first.vehicle?.name ?? null,
+        count: filled,
+        capacity: GROUP_LESSON_CAPACITY,
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });
@@ -1253,6 +1331,9 @@ export const IstruttoreHomeScreen = () => {
 
   // Detect if selected day has a sick leave block + find full contiguous range
   const sickLeaveInfo = useMemo(() => {
+    // Owner vede TUTTI gli istruttori: la malattia di uno non blocca la giornata
+    // (gli altri lavorano). Niente overlay "in malattia" a tutta pagina.
+    if (ownerMode) return null;
     const selKey = dateToKey(selectedDate);
     if (!sickLeaveDateKeys.has(selKey)) return null;
 
@@ -1279,7 +1360,7 @@ export const IstruttoreHomeScreen = () => {
       isHalfDay,
       sickStartHour,
     };
-  }, [instructorBlocks, selectedDate, sickLeaveDateKeys]);
+  }, [instructorBlocks, selectedDate, sickLeaveDateKeys, ownerMode]);
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
   // Stale-while-revalidate: only show the day skeleton when there is genuinely
@@ -1383,6 +1464,10 @@ export const IstruttoreHomeScreen = () => {
     if (type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
       return { border: '#6366F1', badgeBg: '#EEF2FF', badgeText: '#4338CA', label: 'ESAME', isExam: true as const };
     }
+    // Group lesson: teal theme (mirrors the agenda card accent).
+    if (type === 'group_lesson' && s !== 'cancelled' && s !== 'no_show') {
+      return { border: '#10B981', badgeBg: '#D1FAE5', badgeText: '#047857', label: 'GRUPPO', isExam: false as const };
+    }
     if (s === 'pending_review')
       return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare', isExam: false as const };
     if (s === 'checked_in')
@@ -1410,6 +1495,12 @@ export const IstruttoreHomeScreen = () => {
   };
 
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
+    // Group-lesson seats are not managed via the normal "Gestisci guida" modal —
+    // they open the dedicated "Gestisci guida di gruppo" page sheet instead.
+    if (lesson.type === 'group_lesson' && lesson.groupLessonId) {
+      openGroupLessonManage(lesson.groupLessonId);
+      return;
+    }
     setSheetLesson(lesson);
     setSheetStudentProgress(null);
     // Seed the store synchronously so the route paints immediately, then push.
@@ -2269,12 +2360,13 @@ export const IstruttoreHomeScreen = () => {
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
       vehicleText: lesson.vehicle?.name ?? 'Da assegnare',
       defaultLocation,
-      isDetailsEditable: isDetailsEditable(lesson, now),
-      showStatusActions: Boolean(actionAvail.enabled) && status !== 'proposal',
+      isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
+      readOnly: ownerMode,
+      showStatusActions: !ownerMode && Boolean(actionAvail.enabled) && status !== 'proposal',
       allowPresente: status !== 'checked_in',
       showRating: ['checked_in', 'completed', 'no_show'].includes(status),
       pendingAction,
-      menuOptions,
+      menuOptions: ownerMode ? [] : menuOptions,
       onSaveDetails: (input) => saveLessonDetails(lesson, input),
       onChangeInstructor: (instructor) => changeLessonInstructor(lesson, instructor),
       // Uses the captured `lesson` (not sheetLesson): the route closes itself
@@ -2809,9 +2901,9 @@ export const IstruttoreHomeScreen = () => {
     router.push('/(tabs)/home/quick-book');
   }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
 
-  const userName = user?.name?.split(' ')[0] ?? 'Istruttore';
+  const userName = user?.name?.split(' ')[0] ?? (ownerMode ? 'Titolare' : 'Istruttore');
 
-  if (!instructorId) {
+  if (!instructorId && !ownerMode) {
     return (
       <Screen>
         <StatusBar style="dark" />
@@ -2826,6 +2918,23 @@ export const IstruttoreHomeScreen = () => {
     );
   }
 
+  // Scope filter — Airbnb-style chips (same language as the Allievi filters),
+  // replacing the old segmented bar. Shared by the weekly + daily headers.
+  const scopeChips = canSwitchScope ? (
+    <View style={scopeStyles.row}>
+      <SelectableChip
+        label="Le mie guide"
+        active={calendarScope === 'personal'}
+        onPress={() => setCalendarScope('personal')}
+      />
+      <SelectableChip
+        label="Tutti gli istruttori"
+        active={calendarScope === 'all'}
+        onPress={() => setCalendarScope('all')}
+      />
+    </View>
+  ) : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
@@ -2838,22 +2947,7 @@ export const IstruttoreHomeScreen = () => {
               <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'\uD83D\uDC4B'}</Text>
             </View>
 
-            {canSwitchScope && (
-              <View style={scopeStyles.bar}>
-                <Pressable
-                  style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
-                  onPress={() => setCalendarScope('personal')}
-                >
-                  <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
-                </Pressable>
-                <Pressable
-                  style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
-                  onPress={() => setCalendarScope('all')}
-                >
-                  <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
-                </Pressable>
-              </View>
-            )}
+            {scopeChips}
 
             {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -2906,22 +3000,7 @@ export const IstruttoreHomeScreen = () => {
             <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
           </View>
 
-          {canSwitchScope && (
-            <View style={scopeStyles.bar}>
-              <Pressable
-                style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
-                onPress={() => setCalendarScope('personal')}
-              >
-                <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
-              </Pressable>
-              <Pressable
-                style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
-                onPress={() => setCalendarScope('all')}
-              >
-                <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
-              </Pressable>
-            </View>
-          )}
+          {scopeChips}
 
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
@@ -3226,7 +3305,9 @@ export const IstruttoreHomeScreen = () => {
                   <Image source={require('../../assets/icons/fluent-car.png')} style={styles.dayEmptyImg} />
                   <Text style={styles.dayEmptyTitle}>Nessuna guida oggi</Text>
                   <Text style={styles.dayEmptySub}>
-                    {canInstructorBook && !sickLeaveInfo ? 'Tocca un orario libero per prenotare al volo.' : 'Giornata libera — goditi la pausa!'}
+                    {ownerMode
+                      ? 'Nessuna guida in programma per gli istruttori.'
+                      : canInstructorBook && !sickLeaveInfo ? 'Tocca un orario libero per prenotare al volo.' : 'Giornata libera — goditi la pausa!'}
                   </Text>
                   {canInstructorBook && !sickLeaveInfo ? (
                     <Pressable
@@ -3298,6 +3379,7 @@ export const IstruttoreHomeScreen = () => {
               type ItinRow =
                 | { type: 'appointment'; startMin: number; endMin: number; appt: AutoscuolaAppointmentWithRelations }
                 | { type: 'examGroup'; startMin: number; endMin: number; group: Extract<(typeof timelineItems)[number], { kind: 'examGroup' }> }
+                | { type: 'groupLesson'; startMin: number; endMin: number; group: Extract<(typeof timelineItems)[number], { kind: 'groupLesson' }> }
                 | { type: 'cluster'; startMin: number; endMin: number; cluster: Extract<TimelineClusterItem, { kind: 'cluster' }> }
                 | { type: 'block'; startMin: number; endMin: number; block: InstructorBlock };
               const rows: ItinRow[] = [];
@@ -3312,6 +3394,11 @@ export const IstruttoreHomeScreen = () => {
                     const startMin = sd.getHours() * 60 + sd.getMinutes();
                     const endTs = a.endsAt ? new Date(a.endsAt).getTime() : sd.getTime() + 3600000;
                     rows.push({ type: 'appointment', startMin, endMin: startMin + (endTs - sd.getTime()) / 60000, appt: a });
+                  } else if (it.kind === 'groupLesson') {
+                    const sd = new Date(it.startsAt);
+                    const startMin = sd.getHours() * 60 + sd.getMinutes();
+                    const endTs = it.endsAt ? new Date(it.endsAt).getTime() : sd.getTime() + 3600000;
+                    rows.push({ type: 'groupLesson', startMin, endMin: startMin + (endTs - sd.getTime()) / 60000, group: it });
                   } else {
                     if (!it.endsAt) continue; // timeless exams render as banners above
                     const sd = new Date(it.startsAt);
@@ -3455,6 +3542,32 @@ export const IstruttoreHomeScreen = () => {
                     </View>
                   );
                 }
+                if (row.type === 'groupLesson') {
+                  const g = row.group;
+                  // Collapsed group-lesson card — bigger, NO student name. Tap → manage modal.
+                  const sub = [settings?.vehiclesEnabled !== false ? g.vehicleName : null, gapLabel(row.endMin - row.startMin)].filter(Boolean).join(' · ');
+                  return (
+                    <View key={g.id} style={styles.itinRow}>
+                      <Rail time={itFmt(row.startMin)} sub={gapLabel(row.endMin - row.startMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
+                      <Pressable
+                        onPress={() => g.groupLessonId && openGroupLessonManage(g.groupLessonId)}
+                        style={({ pressed }) => [styles.groupLessonCard, pressed && styles.itinCardPressed]}
+                      >
+                        <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupLessonIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.groupLessonLabel}>Guida di gruppo</Text>
+                          <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
+                          <View style={styles.glSeats}>
+                            {Array.from({ length: g.capacity }).map((_, i) => (
+                              <View key={i} style={[styles.glSeat, i >= g.count && styles.glSeatEmpty]} />
+                            ))}
+                            <Text style={styles.glSeatsText}>{g.count}/{g.capacity}</Text>
+                          </View>
+                        </View>
+                      </Pressable>
+                    </View>
+                  );
+                }
                 if (row.type === 'cluster') {
                   const c = row.cluster;
                   const allAppts = c.items.filter((it) => it.kind === 'appointment').map((it) => (it as { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations }).appointment);
@@ -3481,7 +3594,7 @@ export const IstruttoreHomeScreen = () => {
                   <View key={`block-${block.id}`} style={styles.itinRow}>
                     <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} lineState={lineState} />
                     <Pressable
-                      onPress={() => Alert.alert(
+                      onPress={ownerMode ? undefined : () => Alert.alert(
                         isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
                         isSick ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.' : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
                         [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) }],
@@ -3509,9 +3622,22 @@ export const IstruttoreHomeScreen = () => {
               // Availability is stored as many granular (e.g. 30-min) slots —
               // MERGE adjacent/overlapping ones into continuous windows so a free
               // span renders as ONE band, not a 30-min grid.
-              const rawWindows: Array<[number, number]> = availabilitySlots.length
-                ? availabilitySlots.map((s) => [s.startMinutes, s.endMinutes] as [number, number])
-                : [[8 * 60, 20 * 60]];
+              // Loaded with zero availability windows = the day is explicitly
+              // unavailable (e.g. a "giorno non disponibile" override). Only fall
+              // back to the 8–20 canvas WHILE STILL LOADING — never after a load
+              // that genuinely returned no availability.
+              const availLoaded = availabilityCacheRef.current.has(toDateOnlyString(selectedDate));
+              const dayUnavailable = availLoaded && availabilitySlots.length === 0;
+              // Owner has no personal availability → no availability scaffolding
+              // (markers / free bands). The itinerary becomes the pure list of all
+              // instructors' guide, chronologically.
+              const rawWindows: Array<[number, number]> = ownerMode
+                ? []
+                : availabilitySlots.length
+                  ? availabilitySlots.map((s) => [s.startMinutes, s.endMinutes] as [number, number])
+                  : dayUnavailable
+                    ? []
+                    : [[8 * 60, 20 * 60]];
               rawWindows.sort((a, b) => a[0] - b[0]);
               const windows: Array<[number, number]> = [];
               for (const w of rawWindows) {
@@ -3644,7 +3770,9 @@ export const IstruttoreHomeScreen = () => {
               });
               return (
                 <View style={styles.itinerary}>
-                  {rows.length === 0 ? (
+                  {dayUnavailable ? (
+                    <Text style={styles.dayEmptyInline}>Nessuna disponibilità in questa giornata</Text>
+                  ) : rows.length === 0 ? (
                     <Text style={styles.dayEmptyInline}>Nessuna guida oggi · tieni premuto uno slot libero per prenotare</Text>
                   ) : null}
                   {els}
@@ -3745,7 +3873,7 @@ export const IstruttoreHomeScreen = () => {
             const st = normalizeStatus(live.status);
             const isCheckedIn = st === 'checked_in';
             const avail = getActionAvailability(live, now, settings?.autoCheckinEnabled);
-            const showActions = !isExam && inProgress && avail.enabled && st !== 'proposal';
+            const showActions = !ownerMode && !isExam && inProgress && avail.enabled && st !== 'proposal';
             const sameSlot = isExam
               ? today.filter((a) => a.type === 'esame' && a.startsAt === live.startsAt && (a.endsAt ?? '') === (live.endsAt ?? '') && a.instructorId === live.instructorId && normalizeStatus(a.status) !== 'cancelled')
               : [];
@@ -3831,7 +3959,11 @@ export const IstruttoreHomeScreen = () => {
                     appointments: examAppts,
                   });
                 },
-                onOpenBlock: (block) => {
+                onOpenGroupLesson: (group) => {
+                  openGroupLessonManage(group.id);
+                },
+                // Owner (sola lettura): tap su un blocco non offre la rimozione.
+                onOpenBlock: ownerMode ? () => {} : (block) => {
                   const isSick = block.reason === 'sick_leave';
                   Alert.alert(
                     isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
@@ -3853,15 +3985,19 @@ export const IstruttoreHomeScreen = () => {
 
 
 
-      {/* ── FAB Menu ── */}
-      <FabMenu
-        canBook={canInstructorBook}
-        disabled={isPending}
-        onBookLesson={openNewBooking}
-        onBlockSlot={openBlockDrawer}
-        onCreateExam={openCreateExam}
-        onSickLeave={openSickLeaveDrawer}
-      />
+      {/* ── FAB Menu (nascosto per il titolare: home in sola lettura) ── */}
+      {!ownerMode && (
+        <FabMenu
+          canBook={canInstructorBook}
+          canGroupLesson={settings?.groupLessonsEnabled === true}
+          disabled={isPending}
+          onBookLesson={openNewBooking}
+          onBlockSlot={openBlockDrawer}
+          onCreateExam={openCreateExam}
+          onCreateGroupLesson={openCreateGroupLesson}
+          onSickLeave={openSickLeaveDrawer}
+        />
+      )}
 
       {/* Screen-level scrub bubble (follows the finger during hold-to-book) */}
       <ScrubBubble />
@@ -3984,17 +4120,21 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const FabMenu = ({
   canBook,
+  canGroupLesson,
   disabled,
   onBookLesson,
   onBlockSlot,
   onCreateExam,
+  onCreateGroupLesson,
   onSickLeave,
 }: {
   canBook: boolean;
+  canGroupLesson: boolean;
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
   onCreateExam: () => void;
+  onCreateGroupLesson: () => void;
   onSickLeave: () => void;
 }) => {
   const router = useRouter();
@@ -4005,13 +4145,15 @@ const FabMenu = ({
   const openMenu = useCallback(() => {
     homeAddSheetStore.set({
       canBook,
+      canGroupLesson,
       onBook: onBookLesson,
       onBlock: onBlockSlot,
       onExam: onCreateExam,
+      onGroupLesson: onCreateGroupLesson,
       onSick: onSickLeave,
     });
     router.push('/(tabs)/home/add-action');
-  }, [canBook, onBookLesson, onBlockSlot, onCreateExam, onSickLeave, router]);
+  }, [canBook, canGroupLesson, onBookLesson, onBlockSlot, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
 
   return (
     <AnimatedPressable
@@ -4032,37 +4174,11 @@ const LARGE_TITLE_H = 64;
 const PICKER_MAX_H = 460;
 
 const scopeStyles = StyleSheet.create({
-  bar: {
+  row: {
     flexDirection: 'row',
-    backgroundColor: '#EBEBEB',
-    borderRadius: 14,
-    padding: 4,
+    gap: 8,
     marginTop: 14,
     marginBottom: 4,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  tabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  tabTextActive: {
-    color: '#1A1A2E',
-    fontWeight: '700',
   },
 });
 
@@ -5252,6 +5368,19 @@ const styles = StyleSheet.create({
   examGroupIcon: { width: 42, height: 42 },
   examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
   examGroupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  // Group-lesson card — bigger than a normal lesson, teal accent, NO student name.
+  groupLessonCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14,
+    shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  groupLessonIcon: { width: 48, height: 48 },
+  groupLessonLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
+  groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
+  glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
+  glSeatEmpty: { backgroundColor: '#A7D8CE' },
+  glSeatsText: { fontSize: 12, fontWeight: '500', color: '#0F766E', marginLeft: 4 },
   itinTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },

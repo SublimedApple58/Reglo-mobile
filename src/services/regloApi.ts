@@ -14,6 +14,10 @@ import {
   AutoscuolaStudent,
   AutoscuolaVehicle,
   AutoscuolaWaitlistOfferWithSlot,
+  GroupLesson,
+  GroupLessonInvite,
+  GroupLessonInvitee,
+  CreateGroupLessonInput,
   AcceptMobileInviteInput,
   CancelAppointmentResult,
   CreateAppointmentInput,
@@ -206,6 +210,75 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+
+    // ── Group lessons (Guide di gruppo) ──
+    getGroupLessons: async (params?: { from?: string; to?: string }) =>
+      client.request<GroupLesson[]>('/api/autoscuole/group-lessons', { params }),
+    getGroupLesson: async (groupLessonId: string) =>
+      client.request<GroupLesson>(`/api/autoscuole/group-lessons/${groupLessonId}`),
+    updateGroupLesson: async (input: {
+      groupLessonId: string;
+      startsAt?: string;
+      endsAt?: string;
+      instructorId?: string | null;
+      vehicleId?: string | null;
+    }) => {
+      const { groupLessonId, ...body } = input;
+      return client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {
+        method: 'PATCH',
+        body,
+      });
+    },
+    createGroupLesson: async (input: CreateGroupLessonInput) =>
+      client.request<{ groupLessonId: string; participants: number; capacity: number }>(
+        '/api/autoscuole/group-lessons',
+        { method: 'POST', body: input },
+      ),
+    cancelGroupLesson: async (groupLessonId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {
+        method: 'DELETE',
+      }),
+    // Student withdraws themselves from a group lesson they are enrolled in.
+    withdrawFromGroupLesson: async (groupLessonId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/withdraw`, {
+        method: 'POST',
+      }),
+    addGroupLessonParticipant: async (groupLessonId: string, studentId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/participants`, {
+        method: 'POST',
+        body: { studentId },
+      }),
+    removeGroupLessonParticipant: async (groupLessonId: string, studentId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/participants`, {
+        method: 'DELETE',
+        params: { studentId },
+      }),
+    inviteToGroupLesson: async (groupLessonId: string, expiresInHours?: number) =>
+      client.request<{ inviteId: string }>(`/api/autoscuole/group-lessons/${groupLessonId}/invite`, {
+        method: 'POST',
+        body: { expiresInHours },
+      }),
+    getEligibleGroupLessonInvitees: async (groupLessonId: string) =>
+      client.request<GroupLessonInvitee[]>(
+        `/api/autoscuole/group-lessons/${groupLessonId}/eligible-invitees`,
+      ),
+    getGroupLessonInvites: async (studentId: string, limit?: number) =>
+      client.request<GroupLessonInvite[]>('/api/autoscuole/group-lessons/invites', {
+        params: { studentId, limit },
+      }),
+    respondGroupLessonInvite: async (
+      inviteId: string,
+      input: { studentId: string; response: 'accept' | 'decline' },
+    ) =>
+      client.request<{ accepted: boolean; appointmentId?: string }>(
+        `/api/autoscuole/group-lessons/invites/${inviteId}/respond`,
+        { method: 'POST', body: input },
+      ),
+    updateStudentGroupLessonOptIn: async (studentId: string, optIn: boolean) =>
+      client.request<{ groupLessonsOptIn: boolean }>(
+        `/api/autoscuole/students/${studentId}/group-lesson-opt-in`,
+        { method: 'PATCH', body: { optIn } },
+      ),
 
     declareWeeklyAbsence: async (input: { weekStart: string }) =>
       client.request<unknown>('/api/autoscuole/weekly-absence', {

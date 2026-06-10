@@ -5,7 +5,14 @@
  * onConfirm callback, then pushes the route. Single-select applies on tap and
  * pops; multi-select toggles locally and applies on the confirm CTA.
  */
-export type OptionItem = { value: string; label: string; subtitle?: string | null };
+export type OptionItem = {
+  value: string;
+  label: string;
+  subtitle?: string | null;
+  /** When set, the row shows a neutral leading avatar with these initials
+   *  (used by the "Aggiungi allievo" picker to read as a student list). */
+  leadingInitials?: string | null;
+};
 
 export type OptionsPickerData = {
   title: string;

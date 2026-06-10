@@ -41,6 +41,7 @@ const SCROLL_RANGE = 70;
 
 const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap> = {
   waitlist: 'time-outline',
+  group_lesson_invite: 'people-outline',
   swap: 'swap-horizontal',
   confirmation: 'checkmark-done-outline',
   available_slots: 'calendar-outline',
@@ -59,6 +60,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
 const THEME: Record<NotificationItem['kind'], { bg: string; fg: string }> = {
   swap: { bg: '#E9EBF2', fg: '#14141F' },
   waitlist: { bg: '#DBEAFE', fg: '#2563EB' },
+  group_lesson_invite: { bg: '#D1FAE5', fg: '#047857' },
   confirmation: { bg: '#DCFCE7', fg: '#16A34A' },
   available_slots: { bg: '#CCFBF1', fg: '#0D9488' },
   holiday_declared: { bg: '#FEE2E2', fg: '#DC2626' },
@@ -77,6 +79,8 @@ const getTitle = (item: PersistedNotification): string => {
   switch (item.kind) {
     case 'waitlist':
       return 'Slot liberato';
+    case 'group_lesson_invite':
+      return 'Guida di gruppo disponibile';
     case 'swap':
       return `${item.data.requestingStudentName} cerca un sostituto`;
     case 'confirmation':
@@ -121,6 +125,8 @@ const getSubtitle = (item: PersistedNotification): string => {
   switch (item.kind) {
     case 'waitlist':
       return `${formatDay(item.data.slot.startsAt)} · ${formatTime(item.data.slot.startsAt)}`;
+    case 'group_lesson_invite':
+      return `${formatDay(item.data.startsAt)} · ${formatTime(item.data.startsAt)}`;
     case 'swap':
       return `${formatDay(item.data.appointment.startsAt)} · ${formatTime(item.data.appointment.startsAt)}`;
     case 'confirmation':
@@ -169,6 +175,11 @@ const isSwapRelated = (kind: PersistedNotification['kind']): boolean =>
 
 const opensDrawer = (kind: PersistedNotification['kind']): boolean =>
   kind === 'waitlist' || kind === 'available_slots';
+
+// Group-lesson invites open a dedicated join screen (like the "Scambi" section),
+// not the overlay drawer.
+const opensGroupLessonInvites = (kind: PersistedNotification['kind']): boolean =>
+  kind === 'group_lesson_invite';
 
 /* ── Swipeable Card ── */
 
@@ -234,7 +245,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
 
 /* ── Screen ── */
 
-export const NotificationInboxScreen = () => {
+export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } = {}) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<PersistedNotification[]>([]);
@@ -279,9 +290,17 @@ export const NotificationInboxScreen = () => {
       notificationEvents.emitInboxUpdated();
 
       // Swap-related (offer or accepted confirmation) → open the "Scambi"
-      // section (no drawer).
+      // section (no drawer). From the tab we push (keep the tab in the stack);
+      // from the pushed route we replace (don't stack the inbox underneath).
       if (isSwapRelated(item.kind)) {
-        router.replace('/(tabs)/home/swaps');
+        if (asTab) router.push('/(tabs)/home/swaps');
+        else router.replace('/(tabs)/home/swaps');
+        return;
+      }
+
+      if (opensGroupLessonInvites(item.kind)) {
+        if (asTab) router.push('/(tabs)/home/group-lesson-invites');
+        else router.replace('/(tabs)/home/group-lesson-invites');
         return;
       }
 
@@ -291,13 +310,14 @@ export const NotificationInboxScreen = () => {
           id: item.id,
           data: item.data,
         } as NotificationItem;
-        router.back();
+        // On the tab the overlay shows globally — no route to pop.
+        if (!asTab) router.back();
         setTimeout(() => {
           notificationEvents.emitOpenDrawer(notifItem);
         }, 350);
       }
     },
-    [router, updateItems],
+    [router, updateItems, asTab],
   );
 
   const handleDismiss = useCallback(
@@ -361,9 +381,13 @@ export const NotificationInboxScreen = () => {
         )}
         <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, borderStyle]} />
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={14} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
-          </Pressable>
+          {asTab ? (
+            <View style={styles.backBtn} />
+          ) : (
+            <Pressable onPress={() => router.back()} hitSlop={14} style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+            </Pressable>
+          )}
           <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>
             Notifiche
           </Animated.Text>

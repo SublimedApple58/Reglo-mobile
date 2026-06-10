@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>013 — Guida di gruppo (allievo): card home + sheet ritiro</title>
+<style>
+  :root{
+    --navy-500:#1A1A2E; --navy-400:#6E7596; --navy-300:#AEB4CC; --navy-100:#E9EBF2; --navy-50:#F4F5F9;
+    --muted:#9CA3AF; --sec:#6B7280; --meta:#717171; --hairline:#EBEBEB;
+    --bg:#FDFDFD; --surface:#FFFFFF;
+    /* teal group accents (from instructor agenda card) */
+    --teal-surface:#ECFDF5; --teal-label:#0F766E; --teal-dot:#10B981; --teal-dot-empty:#BDEAD6;
+    --teal-badge-bg:#D1FAE5; --teal-badge-fg:#047857;
+    --danger:#E5484D;
+  }
+  *{box-sizing:border-box; -webkit-font-smoothing:antialiased;}
+  body{margin:0; background:#C9CDD6; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; color:var(--navy-500); padding:32px 16px 64px;}
+  .wrap{display:flex; gap:36px; justify-content:center; flex-wrap:wrap; align-items:flex-start;}
+  .col{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  .caption{font-size:13px; font-weight:600; color:#3a3a4a; letter-spacing:.2px;}
+  .sub{font-size:11.5px; color:#5b5b6b; max-width:360px; text-align:center; line-height:1.5;}
+  /* phone */
+  .phone{width:390px; height:760px; background:var(--bg); border-radius:46px; box-shadow:0 24px 60px rgba(0,0,0,.28); overflow:hidden; position:relative; border:1px solid rgba(0,0,0,.06);}
+  .notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px; background:#000; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:30;}
+  .scroll{position:absolute; inset:0; overflow:hidden; padding:54px 20px 20px;}
+
+  /* ===== HOME (student) ===== */
+  .home-h1{font-size:28px; font-weight:600; letter-spacing:-.6px; margin:6px 2px 2px;}
+  .home-sub{font-size:14px; color:var(--meta); margin:0 2px 18px; font-weight:400;}
+  .sectlabel{font-size:12px; font-weight:600; letter-spacing:.7px; color:var(--muted); text-transform:uppercase; margin:22px 4px 10px;}
+
+  /* normal hero card (for context) */
+  .heroCard{background:var(--surface); border-radius:26px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,.12); margin-bottom:14px;}
+  .heroTop{display:flex; align-items:center; gap:12px;}
+  .heroPill{display:inline-block; border:1px solid var(--navy-300); border-radius:999px; padding:3px 11px; font-size:11px; font-weight:700; color:#14141F; margin-bottom:6px;}
+  .heroTime{font-size:30px; font-weight:600; letter-spacing:-.8px; line-height:36px; color:var(--navy-500);}
+  .heroDate{font-size:14px; font-weight:500; color:var(--muted); margin-top:2px;}
+  .heroIcon{width:64px; height:64px; margin-left:auto; display:flex; align-items:center; justify-content:center; font-size:40px;}
+  .heroFooter{display:flex; gap:8px; border-top:1px solid var(--border,#E5E7EB); padding-top:12px; margin-top:14px;}
+  .heroChip{display:flex; align-items:center; gap:5px; background:#F3F4F6; border-radius:10px; padding:5px 10px; font-size:12px; font-weight:600; color:var(--sec);}
+
+  /* ===== STUDENT GROUP-LESSON CARD (teal, modelled on instructor agenda card) ===== */
+  .glCard{display:flex; align-items:center; gap:14px; background:var(--teal-surface); border-radius:22px; padding:16px 16px;
+          box-shadow:0 5px 16px rgba(16,185,129,.22); margin-bottom:14px; cursor:pointer;}
+  .glIcon{width:46px; height:46px; border-radius:14px; background:rgba(16,185,129,.14); display:flex; align-items:center; justify-content:center; font-size:26px;}
+  .glBody{flex:1; min-width:0;}
+  .glLabel{font-size:12px; font-weight:600; color:var(--teal-label); letter-spacing:.2px;}
+  .glTime{font-size:22px; font-weight:600; letter-spacing:-.4px; color:var(--navy-500); margin-top:3px; line-height:26px;}
+  .glDate{font-size:13px; font-weight:400; color:var(--meta); margin-top:2px;}
+  .seats{display:flex; align-items:center; gap:4px; margin-left:6px;}
+  .seat{width:10px; height:10px; border-radius:3px; background:var(--teal-dot);}
+  .seat.empty{background:var(--teal-dot-empty);}
+
+  /* ===== SHEET (student withdraw) ===== */
+  .sheetTop{display:flex; justify-content:flex-end; padding:8px 0 4px;}
+  .iconBtn{width:34px; height:34px; border-radius:17px; background:#EFEFF1; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--navy-500); cursor:pointer;}
+  .hero{margin-top:2px;}
+  .heroOverline{font-size:13px; font-weight:500; color:#94A3B8; letter-spacing:.2px;}
+  .heroName{font-size:24px; font-weight:600; letter-spacing:-.4px; margin-top:2px;}
+  .heroMeta{font-size:14px; font-weight:400; color:var(--meta); margin-top:4px;}
+  .statePill{display:inline-block; margin-top:12px; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; background:var(--teal-badge-bg); color:var(--teal-badge-fg);}
+
+  /* big seats block */
+  .seatsBlock{display:flex; flex-direction:column; align-items:center; gap:12px; padding:26px 0 6px;}
+  .seatsBig{display:flex; gap:12px;}
+  .seatBig{width:46px; height:46px; border-radius:16px; background:var(--teal-dot); display:flex; align-items:center; justify-content:center; font-size:22px;}
+  .seatBig.empty{background:var(--teal-surface); border:2px dashed var(--teal-dot-empty);}
+  .seatsCaption{font-size:13px; font-weight:500; color:var(--navy-400);}
+
+  /* flat detail rows */
+  .detailRows{margin-top:22px;}
+  .detailRow{display:flex; align-items:center; gap:16px; padding:14px 0;}
+  .detailIcon{width:28px; text-align:center; font-size:20px;}
+  .detailBody{flex:1;}
+  .detailLabel{font-size:15px; font-weight:600; color:var(--navy-500);}
+  .detailValue{font-size:14px; font-weight:400; color:var(--meta); margin-top:1px;}
+  .rowDivider{height:1px; background:var(--hairline); margin-left:44px;}
+
+  /* reassurance banner */
+  .banner{margin-top:20px; background:var(--navy-50); border-radius:16px; padding:14px 16px; display:flex; gap:10px; align-items:flex-start;}
+  .bannerIcon{font-size:18px;}
+  .bannerText{font-size:13px; font-weight:400; color:var(--navy-400); line-height:1.5;}
+
+  /* floating withdraw */
+  .floatWrap{position:absolute; left:0; right:0; bottom:0; padding:0 20px 26px; display:flex; justify-content:center;}
+  .withdrawPill{width:100%; height:54px; border-radius:27px; background:#FFF; border:1px solid #F1D5D6;
+                display:flex; align-items:center; justify-content:center; gap:9px; box-shadow:0 4px 14px rgba(0,0,0,.10); cursor:pointer;}
+  .withdrawText{font-size:15.5px; font-weight:600; color:var(--danger); letter-spacing:-.2px;}
+  .floatWrap2{position:absolute; left:0; right:0; bottom:88px; padding:0 24px; text-align:center;}
+  .penaltyHint{font-size:12px; font-weight:500; color:#B4530F; background:#FFF4E5; display:inline-block; padding:6px 12px; border-radius:999px;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- SCREEN 1 — student home with the new teal group-lesson card -->
+    <div class="col">
+      <div class="caption">1 · Home allievo — card guida di gruppo</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="scroll">
+          <div class="home-h1">Ciao, Luca</div>
+          <div class="home-sub">La tua prossima guida</div>
+
+          <!-- normal next lesson (context) -->
+          <div class="heroCard">
+            <div class="heroTop">
+              <div>
+                <span class="heroPill">tra 2 giorni</span>
+                <div class="heroTime">09:00 – 10:00</div>
+                <div class="heroDate">Giovedì 12 giugno</div>
+              </div>
+              <div class="heroIcon">🏎️</div>
+            </div>
+            <div class="heroFooter">
+              <div class="heroChip">👤 Marco Rossi</div>
+              <div class="heroChip">🚩 Autostrada</div>
+            </div>
+          </div>
+
+          <div class="sectlabel">In arrivo</div>
+
+          <!-- NEW teal group lesson card -->
+          <div class="glCard">
+            <div class="glIcon">👥</div>
+            <div class="glBody">
+              <div class="glLabel">Guida di gruppo</div>
+              <div class="glTime">15:00 – 18:00</div>
+              <div class="glDate">Sabato 14 giugno</div>
+            </div>
+            <div class="seats">
+              <div class="seat"></div><div class="seat"></div><div class="seat empty"></div>
+            </div>
+          </div>
+
+          <!-- another normal mini lesson for rhythm -->
+          <div class="heroCard" style="padding:16px;">
+            <div class="heroTop">
+              <div>
+                <div class="heroTime" style="font-size:22px; line-height:26px;">11:30 – 12:30</div>
+                <div class="heroDate">Lunedì 16 giugno</div>
+              </div>
+              <div class="heroIcon" style="font-size:30px; width:46px; height:46px;">🏎️</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sub">Card teal modellata sulla card guida-di-gruppo dell'agenda istruttore (#ECFDF5, label teal, pallini posti). Time-forward come le altre card allievo. Tap → sheet 2.</div>
+    </div>
+
+    <!-- SCREEN 2 — student group-lesson detail / withdraw sheet -->
+    <div class="col">
+      <div class="caption">2 · Sheet guida di gruppo (allievo) — ritiro</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="scroll">
+          <div class="sheetTop"><div class="iconBtn">✕</div></div>
+
+          <div class="hero">
+            <div class="heroOverline">La tua iscrizione</div>
+            <div class="heroName">Guida di gruppo</div>
+            <div class="heroMeta">Sabato 14 giugno · 15:00 · 3h · Fiat Panda</div>
+            <span class="statePill">GRUPPO · 1 posto libero</span>
+          </div>
+
+          <!-- seats, anonymous (no names) -->
+          <div class="seatsBlock">
+            <div class="seatsBig">
+              <div class="seatBig">🧑</div>
+              <div class="seatBig">🧑</div>
+              <div class="seatBig empty"></div>
+            </div>
+            <div class="seatsCaption">2 su 3 posti occupati</div>
+          </div>
+
+          <div class="detailRows">
+            <div class="detailRow">
+              <div class="detailIcon">👤</div>
+              <div class="detailBody">
+                <div class="detailLabel">Istruttore</div>
+                <div class="detailValue">Marco Rossi</div>
+              </div>
+            </div>
+            <div class="rowDivider"></div>
+            <div class="detailRow">
+              <div class="detailIcon">🚗</div>
+              <div class="detailBody">
+                <div class="detailLabel">Veicolo</div>
+                <div class="detailValue">Fiat Panda · AB 123 CD</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="banner">
+            <div class="bannerIcon">✅</div>
+            <div class="bannerText">Non scala i tuoi crediti. La guida di gruppo viene addebitata a parte al prezzo guida standard.</div>
+          </div>
+
+          <div class="floatWrap2">
+            <span class="penaltyHint">Mancano meno di 24h: ritirandoti potresti essere addebitato</span>
+          </div>
+          <div class="floatWrap">
+            <div class="withdrawPill">
+              <span style="font-size:17px;">🗑️</span>
+              <span class="withdrawText">Ritira iscrizione</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sub">Stile clonato dallo sheet "Gestisci guida" istruttore (hero overline+nome+meta, pill teal, righe piatte istruttore/veicolo). Niente prezzo, posti anonimi a pallini, "non scala crediti". CTA ritiro destructive in basso; pill arancione di penale solo entro il cutoff.</div>
+    </div>
+
+  </div>
+</body>
+</html>

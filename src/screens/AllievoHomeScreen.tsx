@@ -59,6 +59,7 @@ import {
 } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
 import { lessonDetailStore } from '../stores/lessonDetailStore';
+import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
 import { allLessonsStore } from '../stores/allLessonsStore';
 import { examDetailStore } from '../stores/examDetailStore';
 import { bookingFlowStore } from '../stores/bookingFlowStore';
@@ -242,6 +243,8 @@ export const AllievoHomeScreen = () => {
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
   const [swapOffersCount, setSwapOffersCount] = useState<number | null>(null);
+  // Open group-lesson invites available to this student (for the home CTA badge).
+  const [groupInvitesCount, setGroupInvitesCount] = useState<number | null>(null);
   // My active swap requests: appointmentId → offerId (for the home marker + revoke).
   const [mySwapByAppointment, setMySwapByAppointment] = useState<Map<string, string>>(new Map());
 
@@ -655,6 +658,9 @@ export const AllievoHomeScreen = () => {
   const assignedInstructorPhone = bookingOptions?.assignedInstructorPhone ?? null;
   const weeklyAbsenceEnabled = bookingOptions?.weeklyAbsenceEnabled === true;
   const swapEnabled = (bookingOptions?.swapEnabled ?? settings?.swapEnabled) === true;
+  // Group lessons: feature on for the school AND this student opted in.
+  const groupLessonsEligible =
+    settings?.groupLessonsEnabled === true && selectedStudent?.groupLessonsOptIn === true;
   const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
   const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   // Prefer cluster-resolved setting over company default.
@@ -834,6 +840,27 @@ export const AllievoHomeScreen = () => {
     };
   }, [swapEnabled, selectedStudentId]);
 
+  // Open group-lesson invites count for the home "Guide di gruppo" CTA
+  // (background, non-blocking). Only when the student is eligible.
+  useEffect(() => {
+    if (!groupLessonsEligible || !selectedStudentId) {
+      setGroupInvitesCount(null);
+      return;
+    }
+    let cancelled = false;
+    regloApi
+      .getGroupLessonInvites(selectedStudentId, 20)
+      .then((list) => {
+        if (!cancelled) setGroupInvitesCount(Array.isArray(list) ? list.length : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setGroupInvitesCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [groupLessonsEligible, selectedStudentId]);
+
   // My active swap requests (background): mark the lessons I asked to swap.
   const refreshMySwaps = useCallback(async () => {
     if (!swapEnabled || !selectedStudentId) {
@@ -902,8 +929,12 @@ export const AllievoHomeScreen = () => {
       return upcomingConfirmedStatuses.has(status);
     });
 
-    // Exclude exams from the lesson list
-    const lessons = confirmed.filter((item) => (item.type ?? '').trim().toLowerCase() !== 'esame');
+    // Exclude exams and group lessons — group lessons render in their own
+    // teal section (see `upcomingGroupLessons`), not the hero/mini cards.
+    const lessons = confirmed.filter((item) => {
+      const t = (item.type ?? '').trim().toLowerCase();
+      return t !== 'esame' && t !== 'group_lesson';
+    });
 
     // First: find any lesson currently in progress (startsAt <= now < endsAt)
     const inProgress = lessons
@@ -924,6 +955,56 @@ export const AllievoHomeScreen = () => {
     // In-progress first, then future
     return [...inProgress, ...future];
   }, [appointments]);
+
+  // Upcoming group lessons the student is enrolled in (own teal section).
+  const upcomingGroupLessons = useMemo(() => {
+    const now = new Date();
+    return appointments
+      .filter((item) => {
+        const status = (item.status ?? '').trim().toLowerCase();
+        const isGroup = (item.type ?? '').trim().toLowerCase() === 'group_lesson';
+        return isGroup && upcomingConfirmedStatuses.has(status) && !!item.groupLessonId;
+      })
+      .filter((item) => {
+        const start = new Date(item.startsAt);
+        const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+        return now < end; // keep in-progress + future
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [appointments]);
+
+  // Seat counts for the upcoming group lessons (student-safe; names hidden).
+  const [groupSeats, setGroupSeats] = useState<Record<string, { filled: number; capacity: number }>>({});
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(upcomingGroupLessons.map((a) => a.groupLessonId).filter(Boolean)),
+    ) as string[];
+    if (!ids.length) {
+      setGroupSeats({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const gl = await regloApi.getGroupLesson(id);
+            if (gl) return [id, { filled: gl.filledSeats, capacity: gl.capacity }] as const;
+          } catch {
+            // ignore — render the card without dots
+          }
+          return null;
+        }),
+      );
+      if (cancelled) return;
+      const map: Record<string, { filled: number; capacity: number }> = {};
+      for (const e of entries) if (e) map[e[0]] = e[1];
+      setGroupSeats(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [upcomingGroupLessons]);
 
   const paymentByAppointmentId = useMemo(
     () => new Map(paymentHistory.map((item) => [item.appointmentId, item])),
@@ -1700,6 +1781,17 @@ export const AllievoHomeScreen = () => {
     router.push('/(tabs)/home/lesson-detail');
   }, [paymentByAppointmentId, bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
 
+  const openGroupLessonDetail = useCallback((appt: AutoscuolaAppointmentWithRelations) => {
+    if (!appt.groupLessonId) return;
+    groupLessonStudentStore.set({
+      groupLessonId: appt.groupLessonId,
+      cutoffHours: settings?.penaltyCutoffHoursPreset ?? 0,
+      penaltyEnabled: !!(settings?.autoPaymentsEnabled || settings?.lessonCreditFlowEnabled),
+      onChanged: invalidateAllData,
+    });
+    router.push('/(tabs)/home/group-lesson-detail');
+  }, [settings, invalidateAllData, router]);
+
   const formatInstructorInitials = (name: string | null | undefined) => {
     if (!name) return 'Da assegnare';
     const parts = name.trim().split(/\s+/);
@@ -2043,6 +2135,43 @@ export const AllievoHomeScreen = () => {
           </Animated.View>
         )}
 
+        {/* ── Guide di gruppo — teal section (enrolled, tap → withdraw sheet) ── */}
+        {upcomingGroupLessons.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(160).duration(280).springify()}>
+            <Text style={styles.glSectionLabel}>Guide di gruppo</Text>
+            {upcomingGroupLessons.map((appt) => {
+              const seats = appt.groupLessonId ? groupSeats[appt.groupLessonId] : undefined;
+              const capacity = seats?.capacity ?? 3;
+              const filled = seats?.filled ?? 0;
+              return (
+                <Pressable
+                  key={appt.id}
+                  onPress={() => openGroupLessonDetail(appt)}
+                  style={({ pressed }) => [styles.glCard, pressed && styles.ctaPressed]}
+                >
+                  <View style={styles.glIcon}>
+                    <Ionicons name="people" size={24} color="#0F766E" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.glLabel}>Guida di gruppo</Text>
+                    <Text style={styles.glTime} numberOfLines={1}>
+                      {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
+                    </Text>
+                    <Text style={styles.glDate} numberOfLines={1}>{formatDay(appt.startsAt)}</Text>
+                  </View>
+                  {seats ? (
+                    <View style={styles.glSeats}>
+                      {Array.from({ length: capacity }).map((_, i) => (
+                        <View key={i} style={[styles.glSeat, i >= filled && styles.glSeatEmpty]} />
+                      ))}
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        )}
+
         {/* ── Scambi — open swap offers from other students ── */}
         {swapEnabled && (
           <Animated.View entering={FadeInUp.delay(180).duration(280).springify()}>
@@ -2064,6 +2193,34 @@ export const AllievoHomeScreen = () => {
               {swapOffersCount != null && swapOffersCount > 0 && (
                 <View style={styles.swapBadge}>
                   <Text style={styles.swapBadgeText}>{swapOffersCount}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── Guide di gruppo — open invites for opted-in students ── */}
+        {groupLessonsEligible && (
+          <Animated.View entering={FadeInUp.delay(200).duration(280).springify()}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/home/group-lesson-invites')}
+              style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
+            >
+              <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupIcon} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.swapTitle}>Guide di gruppo</Text>
+                <Text style={styles.swapSub} numberOfLines={1}>
+                  {groupInvitesCount == null
+                    ? 'Guide in compagnia di altri allievi'
+                    : groupInvitesCount > 0
+                      ? `${groupInvitesCount} ${groupInvitesCount === 1 ? 'posto libero' : 'posti liberi'} per te`
+                      : 'Nessun invito al momento'}
+                </Text>
+              </View>
+              {groupInvitesCount != null && groupInvitesCount > 0 && (
+                <View style={styles.groupBadge}>
+                  <Text style={styles.swapBadgeText}>{groupInvitesCount}</Text>
                 </View>
               )}
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -2173,6 +2330,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
   },
   swapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  groupIcon: { width: 36, height: 36 },
+  groupBadge: {
+    backgroundColor: '#0F766E', borderRadius: 12, minWidth: 22, height: 22,
+    paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
+  },
 
   /* ── Segnala assenza — slim row ── */
   absenceRow: {
@@ -2262,6 +2424,27 @@ const styles = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12, backgroundColor: '#E9EBF2',
     alignItems: 'center', justifyContent: 'center',
   },
+
+  /* ── Guide di gruppo — teal card (modelled on the instructor agenda card) ── */
+  glSectionLabel: {
+    fontSize: 12, fontWeight: '600', letterSpacing: 0.7, color: colors.textMuted,
+    textTransform: 'uppercase', marginTop: 22, marginBottom: 10, marginLeft: 4,
+  },
+  glCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#ECFDF5', borderRadius: 22, padding: 16, marginBottom: 12,
+    shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  glIcon: {
+    width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(16,185,129,0.14)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E', letterSpacing: 0.2 },
+  glTime: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginTop: 3 },
+  glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
+  glSeats: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6 },
+  glSeat: { width: 10, height: 10, borderRadius: 3, backgroundColor: '#10B981' },
+  glSeatEmpty: { backgroundColor: '#BDEAD6' },
   seeAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 4,

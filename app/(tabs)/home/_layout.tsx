@@ -28,6 +28,25 @@ export default function HomeLayout() {
       <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="day-detail" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="exam-manage" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="manage-group-lesson" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen
+        name="group-lesson-detail"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="manage-group-lesson-participants"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen name="student-detail" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="new-booking" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen
@@ -59,6 +78,15 @@ export default function HomeLayout() {
       />
       <Stack.Screen
         name="create-exam"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="create-group-lesson"
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: 'fitToContents',
@@ -201,6 +229,7 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen name="swaps" options={{ headerShown: false }} />
+      <Stack.Screen name="group-lesson-invites" options={{ headerShown: false }} />
       <Stack.Screen
         name="swap-detail"
         options={{

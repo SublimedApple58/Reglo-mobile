@@ -2,6 +2,7 @@ import {
   AutoscuolaSwapOfferWithDetails,
   AutoscuolaWaitlistOfferWithSlot,
   AutoscuolaAppointmentWithRelations,
+  GroupLessonInvite,
 } from './regloApi';
 
 export type ConfirmationData = {
@@ -78,6 +79,7 @@ export type StudentPhaseChangeData = {
 
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
+  | { kind: 'group_lesson_invite'; id: string; data: GroupLessonInvite }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
   | { kind: 'confirmation'; id: string; data: ConfirmationData }
   | { kind: 'available_slots'; id: string; data: AvailableSlotsData }

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guide di gruppo — Airbnb redesign · preview 012</title>
+<style>
+  :root{
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --teal:#0F766E; --teal-bg:#ECFDF5; --teal-soft:#0F766E;
+    --muted:#94A3B8; --bg:#F5F6FA; --white:#fff;
+    --yellow:#FACC15;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    background:#0c0c14;color:var(--navy);
+    display:flex;flex-wrap:wrap;gap:48px;justify-content:center;
+    padding:56px 24px;
+  }
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .col h2{color:#9da3bb;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+  .phone{
+    width:390px;height:844px;background:var(--bg);border-radius:54px;
+    border:11px solid #000;position:relative;overflow:hidden;
+    box-shadow:0 40px 90px rgba(0,0,0,.55);
+  }
+  .notch{position:absolute;top:13px;left:50%;transform:translateX(-50%);
+    width:120px;height:34px;background:#000;border-radius:20px;z-index:50;}
+  .status{position:absolute;top:0;left:0;right:0;height:54px;display:flex;
+    align-items:center;justify-content:space-between;padding:0 30px 0 34px;
+    font-size:15px;font-weight:600;z-index:40;}
+  .scroll{position:absolute;inset:0;padding-top:54px;overflow-y:auto;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* generic */
+  .ico{display:inline-flex;align-items:center;justify-content:center;}
+  .people{width:44px;height:44px;border-radius:14px;background:var(--teal-bg);
+    display:flex;align-items:center;justify-content:center;font-size:22px;}
+
+  /* ============ SCREEN HEADER ============ */
+  .navbar{display:flex;align-items:center;justify-content:space-between;
+    padding:6px 18px 14px;}
+  .navbar .back{width:34px;height:34px;border-radius:17px;background:var(--navy50);
+    display:flex;align-items:center;justify-content:center;}
+  .navbar .title{font-size:17px;font-weight:600;color:var(--navy);}
+  .navbar svg{stroke:var(--navy);}
+
+  /* large title variant */
+  .largeTitle{padding:4px 22px 10px;}
+  .largeTitle .lt{font-size:30px;font-weight:600;letter-spacing:-.6px;color:var(--navy);}
+  .largeTitle .ltsub{font-size:14px;color:var(--navy400);margin-top:4px;font-weight:400;}
+
+  /* ============ INVITE CARD (Airbnb) ============ */
+  .list{padding:6px 18px 40px;display:flex;flex-direction:column;gap:18px;}
+  .card{background:var(--white);border-radius:26px;padding:20px 20px 18px;
+    box-shadow:0 10px 30px rgba(26,26,46,.07);}
+  .kick{display:flex;align-items:center;gap:9px;margin-bottom:14px;}
+  .kick .people{width:40px;height:40px;border-radius:13px;font-size:20px;}
+  .kick .ktxt{font-size:11.5px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--teal);}
+  .when{font-size:23px;font-weight:600;letter-spacing:-.5px;color:var(--navy);line-height:1.15;}
+  .whenSub{font-size:14.5px;font-weight:400;color:var(--navy400);margin-top:3px;}
+
+  .meta{margin-top:16px;border-top:1px solid var(--navy100);padding-top:6px;}
+  .mrow{display:flex;align-items:center;gap:12px;padding:11px 0;
+    border-bottom:1px solid var(--navy100);}
+  .mrow:last-child{border-bottom:none;}
+  .mrow .mi{width:26px;height:26px;border-radius:9px;background:var(--navy50);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .mrow .mi svg{stroke:var(--navy400);}
+  .mrow .ml{font-size:15px;font-weight:400;color:var(--navy);flex:1;}
+  /* seats dots */
+  .seats{display:flex;align-items:center;gap:12px;padding:13px 0 4px;}
+  .dots{display:flex;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:5px;background:var(--navy200);}
+  .dot.on{background:var(--teal);}
+  .seatsTxt{font-size:13.5px;font-weight:400;color:var(--navy400);}
+
+  .reassure{font-size:13px;font-weight:400;color:var(--navy400);
+    margin-top:14px;display:flex;align-items:center;gap:7px;}
+  .reassure svg{stroke:var(--teal);}
+
+  .cta{margin-top:16px;}
+  .btnPrimary{height:54px;border-radius:27px;background:var(--navy);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 20px rgba(26,26,46,.22);}
+  .btnPrimary span{color:#fff;font-size:16px;font-weight:600;}
+  .ghost{height:48px;display:flex;align-items:center;justify-content:center;margin-top:6px;}
+  .ghost span{color:var(--navy400);font-size:15px;font-weight:500;}
+
+  /* ============ TAB BAR ============ */
+  .tabbar{position:absolute;bottom:0;left:0;right:0;height:88px;
+    background:rgba(255,255,255,.93);backdrop-filter:blur(18px);
+    border-top:1px solid var(--navy100);display:flex;padding:10px 8px 0;z-index:30;}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .tab svg{stroke:var(--navy300);}
+  .tab.active svg{stroke:var(--navy);}
+  .tab span{font-size:10.5px;color:var(--navy300);font-weight:500;}
+  .tab.active span{color:var(--navy);font-weight:600;}
+
+  /* ============ HOME ============ */
+  .home{padding:10px 22px 0;}
+  .hHi{font-size:30px;font-weight:600;letter-spacing:-.6px;color:var(--navy);}
+  .hRow{display:flex;align-items:center;gap:8px;margin-top:6px;}
+  .hSchool{font-size:15px;color:var(--navy400);font-weight:400;}
+  .pill{background:var(--navy50);border-radius:999px;padding:4px 11px;
+    font-size:12px;font-weight:500;color:var(--navy400);}
+  .nextCard{margin:20px 22px 0;background:#fff;border-radius:26px;padding:20px;
+    box-shadow:0 10px 30px rgba(26,26,46,.07);}
+  .nbadge{display:inline-block;border:1px solid var(--navy200);border-radius:999px;
+    padding:5px 13px;font-size:12.5px;font-weight:600;color:var(--navy);}
+  .ntime{font-size:33px;font-weight:600;letter-spacing:-1px;color:var(--navy);margin-top:14px;}
+  .nday{font-size:15px;color:var(--navy400);font-weight:400;margin-top:2px;}
+  .ninstr{margin-top:16px;border-top:1px solid var(--navy100);padding-top:14px;
+    display:flex;align-items:center;gap:9px;}
+  .nchip{background:var(--navy50);border-radius:999px;padding:7px 13px;
+    font-size:13.5px;font-weight:500;color:var(--navy);display:flex;gap:7px;align-items:center;}
+
+  .bookCard{margin:18px 22px 0;width:172px;background:#fff;border-radius:24px;
+    padding:20px;box-shadow:0 8px 24px rgba(26,26,46,.06);}
+  .plus{width:42px;height:42px;border-radius:21px;border:1.5px dashed var(--navy300);
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+  .plus svg{stroke:var(--navy400);}
+  .bTitle{font-size:18px;font-weight:600;color:var(--navy);}
+  .bSub{font-size:14px;color:var(--navy400);font-weight:400;margin-top:2px;}
+
+  /* flat CTA rows (Scambi + Guide di gruppo) */
+  .rowCard{margin:14px 22px 0;background:#fff;border-radius:22px;padding:15px 16px;
+    display:flex;align-items:center;gap:13px;box-shadow:0 8px 22px rgba(26,26,46,.05);}
+  .rowIco{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;
+    justify-content:center;font-size:21px;flex-shrink:0;}
+  .rowIco.swap{background:#EEF2FF;}
+  .rowIco.group{background:var(--teal-bg);}
+  .rowTxt{flex:1;min-width:0;}
+  .rTitle{font-size:15px;font-weight:600;color:var(--navy);letter-spacing:-.2px;}
+  .rSub{font-size:12.5px;color:var(--navy400);font-weight:400;margin-top:2px;}
+  .badge{min-width:24px;height:24px;border-radius:12px;background:var(--navy);
+    display:flex;align-items:center;justify-content:center;padding:0 7px;}
+  .badge span{color:#fff;font-size:12px;font-weight:600;}
+  .badge.teal{background:var(--teal);}
+  .chev svg{stroke:var(--navy300);}
+
+  .note{max-width:390px;color:#aeb4cc;font-size:12.5px;line-height:1.6;text-align:left;}
+  .note b{color:#d6d9e6;}
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1 : redesigned Guide di gruppo ============ -->
+<div class="col">
+  <h2>1 · Guide di gruppo (redesign Airbnb, no prezzo)</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><span>11:21</span><span>&#9679;&#9679;&#9679; &#9679; ▾</span></div>
+    <div class="scroll">
+      <div class="navbar">
+        <div class="back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </div>
+        <div class="title">Guide di gruppo</div>
+        <div style="width:34px"></div>
+      </div>
+
+      <div class="largeTitle">
+        <div class="ltsub">2 inviti aperti per te. Scegli quando salire in auto.</div>
+      </div>
+
+      <div class="list">
+        <!-- card 1 -->
+        <div class="card">
+          <div class="kick">
+            <div class="people">👥</div>
+            <div class="ktxt">Guida di gruppo · 2 posti liberi</div>
+          </div>
+          <div class="when">Venerdì 12 giugno</div>
+          <div class="whenSub">11:00 – 14:00 · 3 ore</div>
+
+          <div class="meta">
+            <div class="mrow">
+              <div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="ml">Tiziano Nuovo 1</div>
+            </div>
+            <div class="mrow">
+              <div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2v-3l2-5h12l2 5v3a2 2 0 0 1-2 2M7 17v2M17 17v2"/></svg></div>
+              <div class="ml">Veicolo 3</div>
+            </div>
+            <div class="seats">
+              <div class="dots"><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+              <div class="seatsTxt">1 posto occupato su 3</div>
+            </div>
+          </div>
+
+          <div class="reassure">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Non scala i tuoi crediti guida
+          </div>
+
+          <div class="cta">
+            <div class="btnPrimary"><span>Iscrivimi</span></div>
+            <div class="ghost"><span>Non mi interessa</span></div>
+          </div>
+        </div>
+
+        <!-- card 2 -->
+        <div class="card">
+          <div class="kick">
+            <div class="people">👥</div>
+            <div class="ktxt">Guida di gruppo · 3 posti liberi</div>
+          </div>
+          <div class="when">Giovedì 11 giugno</div>
+          <div class="whenSub">13:00 – 16:00 · 3 ore</div>
+          <div class="meta">
+            <div class="mrow">
+              <div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="ml">Tiziano Nuovo 1</div>
+            </div>
+            <div class="mrow">
+              <div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2v-3l2-5h12l2 5v3a2 2 0 0 1-2 2M7 17v2M17 17v2"/></svg></div>
+              <div class="ml">Veicolo 3</div>
+            </div>
+            <div class="seats">
+              <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+              <div class="seatsTxt">Nessun posto occupato</div>
+            </div>
+          </div>
+          <div class="reassure">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Non scala i tuoi crediti guida
+          </div>
+          <div class="cta">
+            <div class="btnPrimary"><span>Iscrivimi</span></div>
+            <div class="ghost"><span>Non mi interessa</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2 : home with CTA ============ -->
+<div class="col">
+  <h2>2 · Home allievo abilitato — nuova CTA</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><span>11:21</span><span>&#9679;&#9679;&#9679; &#9679; ▾</span></div>
+    <div class="scroll">
+      <div class="home">
+        <div class="hHi">Ciao, Allievo</div>
+        <div class="hRow">
+          <span class="hSchool">📍 Reglo srl</span>
+          <span class="pill">B · Manuale</span>
+        </div>
+      </div>
+
+      <div class="nextCard">
+        <div class="nbadge">Domani</div>
+        <div class="ntime">11:30 – 12:00</div>
+        <div class="nday">gio 11 giu</div>
+        <div class="ninstr">
+          <div class="nchip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Tiziano Istruttore 2</div>
+        </div>
+      </div>
+
+      <div class="bookCard">
+        <div class="plus"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="bTitle">Prenota</div>
+        <div class="bSub">una guida</div>
+      </div>
+
+      <!-- Scambi (existing) -->
+      <div class="rowCard">
+        <div class="rowIco swap">🔄</div>
+        <div class="rowTxt">
+          <div class="rTitle">Scambi</div>
+          <div class="rSub">1 guida disponibile da altri allievi</div>
+        </div>
+        <div class="badge"><span>1</span></div>
+        <div class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+
+      <!-- Guide di gruppo (NEW) -->
+      <div class="rowCard">
+        <div class="rowIco group">👥</div>
+        <div class="rowTxt">
+          <div class="rTitle">Guide di gruppo</div>
+          <div class="rSub">2 posti liberi per te</div>
+        </div>
+        <div class="badge teal"><span>2</span></div>
+        <div class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+
+    <!-- tab bar -->
+    <div class="tabbar">
+      <div class="tab active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2v-3l2-5h12l2 5v3a2 2 0 0 1-2 2M7 11h10"/></svg><span>Home</span></div>
+      <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 0"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Note</span></div>
+      <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span>Impostazioni</span></div>
+      <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span>Notifiche</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Cosa cambia vs. attuale</b><br/>
+  • Screen: via la <b>price band verde</b> e il <b>€ 50.00</b>. Data in primo piano (stile itinerario Airbnb), istruttore/veicolo come meta-righe leggere, posti come <b>pallini</b>. Titolo card pesi 600 (mai 700+). Resta "Non scala crediti" come rassicurazione testuale.<br/>
+  • Home: nuova riga-CTA <b>Guide di gruppo</b> (accento teal, gemella di "Scambi") con badge conteggio inviti. Mostrata <b>solo</b> se <code>settings.groupLessonsEnabled</code> &amp;&amp; <code>student.groupLessonsOptIn</code>.
+</div>
+
+</body>
+</html>

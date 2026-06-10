@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,10 +59,17 @@ export default function SelectExamStudentsScreen() {
   return (
     <View style={[s.root, { paddingTop: 14 }]}>
       <View style={s.topbar}>
+        {Platform.OS === 'android' ? (
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="arrow-back" size={22} color={NAVY} />
+          </Pressable>
+        ) : null}
         <Text style={s.title} numberOfLines={1}>Allievi all&apos;esame</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        {Platform.OS !== 'android' ? (
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={s.searchWrap}>

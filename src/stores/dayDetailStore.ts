@@ -1,4 +1,4 @@
-import type { DayPlan } from '../utils/weeklyAgenda';
+import type { DayPlan, DayGroupLessonGroup } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
 // Drives the home/day-detail page sheet. The weekly overview (via the screen)
@@ -10,6 +10,7 @@ export type DayDetailStoreData = {
   onQuickBook: (date: Date, startMin: number, windowStart: number, windowEnd: number) => void;
   onOpenLesson: (appt: AutoscuolaAppointmentWithRelations) => void;
   onOpenExam: (appts: AutoscuolaAppointmentWithRelations[]) => void;
+  onOpenGroupLesson: (group: DayGroupLessonGroup) => void;
   onOpenBlock: (block: InstructorBlock) => void;
 };
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StarRating } from '../components/StarRating';
+import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
@@ -23,6 +25,7 @@ import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
+const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
 const REQUIRED_LESSONS = 6;
 
 const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
@@ -48,24 +51,32 @@ export const StudentNotesDetailScreen = () => {
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
+  const [groupEnabled, setGroupEnabled] = useState(false);
+  const [groupOptIn, setGroupOptIn] = useState(false);
+  const [groupSaving, setGroupSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!studentId) return;
     try {
-      const [appts, allCases, students] = await Promise.all([
+      const [appts, allCases, students, settings] = await Promise.all([
         regloApi.getAppointments({ studentId, limit: 500 }),
         regloApi.getCases().catch(() => [] as AutoscuolaCase[]),
         regloApi.getStudents(typeof name === 'string' ? name : undefined).catch(() => []),
+        regloApi.getAutoscuolaSettings().catch(() => null),
       ]);
       const filtered = appts
         .filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled')
         .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
       setAppointments(filtered);
       setCases(allCases.filter((c) => c.studentId === studentId));
+      setGroupEnabled(settings?.groupLessonsEnabled === true);
       const me = students.find((stu) => stu.id === studentId);
-      if (me) setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
+      if (me) {
+        setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
+        setGroupOptIn(me.groupLessonsOptIn ?? false);
+      }
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
     } finally {
@@ -152,9 +163,9 @@ export const StudentNotesDetailScreen = () => {
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       {/* Top bar — close */}
-      <View style={s.topBar}>
+      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
+          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 
@@ -253,6 +264,36 @@ export const StudentNotesDetailScreen = () => {
               </Animated.View>
             )}
           </View>
+
+          {/* Guide di gruppo — opt-in toggle (instructor/owner) */}
+          {!loading && groupEnabled ? (
+            <Animated.View entering={FadeIn.duration(350)} style={s.groupOptBlock}>
+              <Image source={FLUENT_PEOPLE} style={s.groupOptIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.groupOptTitle}>Guide di gruppo</Text>
+                <Text style={s.groupOptSub}>
+                  {groupOptIn ? 'Può partecipare' : 'Non può partecipare'}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={groupOptIn}
+                disabled={groupSaving}
+                onValueChange={async (next) => {
+                  setGroupOptIn(next);
+                  setGroupSaving(true);
+                  try {
+                    await regloApi.updateStudentGroupLessonOptIn(String(studentId), next);
+                    setToast({ text: next ? 'Abilitato alle guide di gruppo.' : 'Disabilitato dalle guide di gruppo.', tone: 'success' });
+                  } catch (e) {
+                    setGroupOptIn(!next);
+                    setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+                  } finally {
+                    setGroupSaving(false);
+                  }
+                }}
+              />
+            </Animated.View>
+          ) : null}
 
           {/* Exam — flat icon row */}
           {!loading && upcomingExam ? (
@@ -410,6 +451,10 @@ const s = StyleSheet.create({
 
   examRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
   examIcon: { width: 40, height: 40 },
+  groupOptBlock: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
+  groupOptIcon: { width: 40, height: 40 },
+  groupOptTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  groupOptSub: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginTop: 1 },
   examTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   examDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   examBadge: { backgroundColor: '#EDE9FE', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },

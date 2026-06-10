@@ -8,11 +8,11 @@ When modifying a feature, read its connected features to verify nothing breaks.
 |-----------|----------------|-------|
 | `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, LocationPickerSheet, NotificationOverlay, OwnerInstructor, RescheduleAppointmentSheet, TitolareHome (9) | iOS + Android separate implementations. ClusterSettings + Vehicles migrated to formSheet routes. |
 | `TimePickerDrawer` | CreateExam, InstructorManage, OwnerInstructor, PublicationModeEditor, RescheduleAppointmentSheet, Settings (6) | Depends on BottomSheet. ClusterSettings + Vehicles now use the formSheet `time-picker` route (timePickerStore). |
-| `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome, TitolareHome (4) | Depends on MiniCalendar + BottomSheet |
+| `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome (3) | Depends on MiniCalendar + BottomSheet. (TitolareHome ora è un wrapper di IstruttoreHome.) |
 | `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor, DefaultAvailabilityEditor, role/availability-exception (5) | Time range format changes break all availability UIs. Navy clock circle (no pink). |
 | `SelectableChip` | CalendarNavigator, ClusterSettings, InstructorManage, Settings (4) | |
-| `WeeklyAgendaView` | TitolareHome (1) | Hour-grid week view. **IstruttoreHome migrated off it** → `WeeklyOverview` (words-first). Still used by the owner home. |
-| `WeeklyOverview` | IstruttoreHome (1) | "Control in words" week view (preview 008): density strip + per-day textual summary + tap-to-expand inline `DayItinerary`. Uses `computeDayPlan` (`src/utils/weeklyAgenda.ts`) + `BookableBand` (quick-book preserved). |
+| `WeeklyAgendaView` | — (0, orfano) | Hour-grid week view. **Non più usato**: IstruttoreHome e TitolareHome usano `WeeklyOverview`. Componente lasciato in repo ma senza consumer. |
+| `WeeklyOverview` | IstruttoreHome (anche TitolareHome via `ownerMode`) (1) | "Control in words" week view (preview 008): density strip + per-day textual summary + tap-to-expand inline `DayItinerary`. Uses `computeDayPlan` (`src/utils/weeklyAgenda.ts`) + `BookableBand` (quick-book, nascosto in `ownerMode`). |
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
@@ -70,6 +70,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Booking Flow**: exam is a special appointment type
 - → **Settings**: reads cluster config for student grouping
 - → **Backend**: `createExam()`, `getStudents()`, `getInstructorSettings()`
+
+### Group Lessons (manage)
+- → **IstruttoreHome**: `openGroupLessonManage(groupLessonId)` opens `home/manage-group-lesson` (page sheet) from both the day-detail card and the hour-grid card (`openLessonDrawer` short-circuit on `type==='group_lesson'`). Refreshes via `loadData()` on `onChanged`.
+- → **Pickers (reused)**: `manage-lesson-instructor` (instructorPickerStore), `select-options` (optionsPickerStore — veicolo / durata / aggiungi-allievo), `select-date` (dayPickerStore), `time-picker` (timePickerStore). Changing any of these shared picker stores/routes affects this modal too.
+- → **Backend**: `getGroupLesson` (GET), `updateGroupLesson` (PATCH — applies to all participants), `cancelGroupLesson`, `add/removeGroupLessonParticipant`, `inviteToGroupLesson`, `getEligibleGroupLessonInvitees`, `getInstructors`, `getVehicles`.
+- → **Vehicles**: vehicle picker subtitle uses `plate` + `licenseCategory`; gated on `settings.vehiclesEnabled`.
 
 ### Instructor Manage
 - → **Availability Editor**: overlaps in override management (MiniCalendar, RangesEditor)
