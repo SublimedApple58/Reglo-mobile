@@ -66,6 +66,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 import { formatDay, formatTime } from '../utils/date';
+import { transmissionLabel } from '../utils/license';
 import {
   invoiceStatusLabel,
   paymentEventStatusLabel,
@@ -190,7 +191,15 @@ export const AllievoHomeScreen = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user, activeCompanyId, companies } = useSession();
   const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name ?? null;
-  const { phase: studentPhase, theoryExamAt: studentTheoryExamAt } = useStudentPhase();
+  const {
+    phase: studentPhase,
+    theoryExamAt: studentTheoryExamAt,
+    licenseCategory: studentLicenseCategory,
+    transmission: studentTransmission,
+  } = useStudentPhase();
+  const studentLicenseLabel = studentLicenseCategory
+    ? `${studentLicenseCategory} · ${transmissionLabel(studentTransmission)}`
+    : null;
   const queryClient = useQueryClient();
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
@@ -1776,7 +1785,12 @@ export const AllievoHomeScreen = () => {
           {activeCompanyName ? (
             <View style={styles.largeTitleSchoolRow}>
               <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.largeTitleSchoolIcon} />
-              <Text style={styles.largeTitleSub} numberOfLines={1}>{activeCompanyName}</Text>
+              <Text style={[styles.largeTitleSub, { flexShrink: 1 }]} numberOfLines={1}>{activeCompanyName}</Text>
+              {studentLicenseLabel ? (
+                <View style={styles.licensePill}>
+                  <Text style={styles.licensePillText}>{studentLicenseLabel}</Text>
+                </View>
+              ) : null}
             </View>
           ) : (
             <Text style={styles.largeTitleSub}>Le tue guide</Text>
@@ -2141,6 +2155,8 @@ const styles = StyleSheet.create({
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   largeTitleSchoolIcon: { width: 16, height: 16 },
+  licensePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#EEF0F4' },
+  licensePillText: { fontSize: 11, fontWeight: '600', color: '#475569', letterSpacing: -0.1 },
 
   /* ── Scambi (swap offers) slot ── */
   swapCard: {

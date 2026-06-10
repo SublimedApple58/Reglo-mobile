@@ -59,9 +59,10 @@ export default function MoreLayout() {
       <Stack.Screen
         name="vehicle-form"
         options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
+          // Full page sheet (not formSheet/fitToContents): the form is long and
+          // variable-length (license + assignment + availability), so it must
+          // scroll. Page sheet gives a tall sheet with a scrollable body.
+          presentation: 'modal',
           headerShown: false,
         }}
       />

@@ -23,6 +23,9 @@ type UseStudentPhaseResult = {
    * Read-only from mobile (managed by the owner). False for non-students.
    */
   autoAssignQuizOnSignup: boolean;
+  /** Pursued license path (category + transmission). Null until data loads / non-students. */
+  licenseCategory: string | null;
+  transmission: string | null;
   loading: boolean;
 };
 
@@ -39,6 +42,8 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
       phasesEnabled: null,
       hasQuizAccess: false,
       autoAssignQuizOnSignup: false,
+      licenseCategory: null,
+      transmission: null,
       loading: false,
     };
   }
@@ -50,6 +55,8 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
     phasesEnabled: data?.phasesEnabled ?? ['PRATICA'],
     hasQuizAccess: Boolean(data?.hasQuizAccess),
     autoAssignQuizOnSignup: Boolean(data?.autoAssignQuizOnSignup),
+    licenseCategory: data?.licenseCategory ?? null,
+    transmission: data?.transmission ?? null,
     loading: isLoading,
   };
 };

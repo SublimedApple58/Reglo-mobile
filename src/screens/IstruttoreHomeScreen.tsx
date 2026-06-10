@@ -597,7 +597,7 @@ export const IstruttoreHomeScreen = () => {
     AutoscuolaAppointmentWithRelations[]
   >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
@@ -2464,7 +2464,7 @@ export const IstruttoreHomeScreen = () => {
         case: null,
         instructor: null,
         vehicle: veh
-          ? { id: veh.id, companyId: '', name: veh.name, plate: null, status: 'active', assignedInstructorId: veh.assignedInstructorId ?? null, followsInstructorAvailability: true, createdAt: nowIso, updatedAt: nowIso }
+          ? { id: veh.id, companyId: '', name: veh.name, plate: null, status: 'active', assignedInstructorId: veh.assignedInstructorId ?? null, followsInstructorAvailability: true, licenseCategory: veh.licenseCategory ?? 'B', transmission: veh.transmission ?? 'manual', createdAt: nowIso, updatedAt: nowIso }
           : null,
         location: item.locationId
           ? { id: item.locationId, companyId: '', createdByUserId: null, name: item.locationName ?? '', address: item.locationAddress ?? null, latitude: null, longitude: null, placeId: null, isDefault: false, isPrecise: false }

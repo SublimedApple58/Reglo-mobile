@@ -5,11 +5,13 @@ import {
   Alert,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
@@ -18,6 +20,13 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { useSession } from '../../../src/context/SessionContext';
 import { isOwner } from '../../../src/utils/roles';
+import {
+  LICENSE_CATEGORIES,
+  LICENSE_CATEGORY_LABELS,
+  TRANSMISSIONS,
+  TRANSMISSION_LABELS,
+} from '../../../src/utils/license';
+import type { LicenseCategory, Transmission } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -31,6 +40,7 @@ const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.get
 
 export default function VehicleFormScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(vehicleFormStore.subscribe, vehicleFormStore.get);
   const initial = data?.initial ?? null;
   const isEdit = Boolean(initial);
@@ -49,6 +59,13 @@ export default function VehicleFormScreen() {
   const [name, setName] = useState(initial?.name ?? '');
   const [plate, setPlate] = useState(initial?.plate ?? '');
   const [active, setActive] = useState(initial ? initial.status !== 'inactive' : true);
+  // License category + transmission this vehicle serves (Vehicles module).
+  const [licenseCategory, setLicenseCategory] = useState<LicenseCategory>(
+    (initial?.licenseCategory as LicenseCategory) ?? 'B',
+  );
+  const [transmission, setTransmission] = useState<Transmission>(
+    (initial?.transmission as Transmission) ?? 'manual',
+  );
   // Fixed-vehicle assignment (owner-managed here; instructors self-assign from
   // their own settings). When set, the vehicle is auto-used for that instructor.
   const [assignedInstructorId, setAssignedInstructorId] = useState<string>(
@@ -111,6 +128,52 @@ export default function VehicleFormScreen() {
     }
   }, [instructors, assignedInstructorId]);
 
+  const openCategoryPicker = useCallback(() => {
+    const labels = LICENSE_CATEGORIES.map((c) =>
+      c === licenseCategory ? `✓ ${LICENSE_CATEGORY_LABELS[c]}` : LICENSE_CATEGORY_LABELS[c],
+    );
+    if (Platform.OS === 'ios') {
+      const options = [...labels, 'Annulla'];
+      const cancelButtonIndex = options.length - 1;
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: 'Categoria patente', options, cancelButtonIndex },
+        (i) => {
+          if (i === cancelButtonIndex) return;
+          const cat = LICENSE_CATEGORIES[i];
+          if (cat) setLicenseCategory(cat);
+        },
+      );
+    } else {
+      Alert.alert('Categoria patente', undefined, [
+        ...LICENSE_CATEGORIES.map((cat, i) => ({ text: labels[i], onPress: () => setLicenseCategory(cat) })),
+        { text: 'Annulla', style: 'cancel' as const },
+      ]);
+    }
+  }, [licenseCategory]);
+
+  const openTransmissionPicker = useCallback(() => {
+    const labels = TRANSMISSIONS.map((t) =>
+      t === transmission ? `✓ ${TRANSMISSION_LABELS[t]}` : TRANSMISSION_LABELS[t],
+    );
+    if (Platform.OS === 'ios') {
+      const options = [...labels, 'Annulla'];
+      const cancelButtonIndex = options.length - 1;
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: 'Cambio', options, cancelButtonIndex },
+        (i) => {
+          if (i === cancelButtonIndex) return;
+          const t = TRANSMISSIONS[i];
+          if (t) setTransmission(t);
+        },
+      );
+    } else {
+      Alert.alert('Cambio', undefined, [
+        ...TRANSMISSIONS.map((t, i) => ({ text: labels[i], onPress: () => setTransmission(t) })),
+        { text: 'Annulla', style: 'cancel' as const },
+      ]);
+    }
+  }, [transmission]);
+
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [start, setStart] = useState(buildTime(9, 0));
   const [end, setEnd] = useState(buildTime(18, 0));
@@ -168,7 +231,12 @@ export default function VehicleFormScreen() {
     if (!name.trim()) { setError('Il nome del veicolo è obbligatorio.'); return; }
     setSaving(true); setError(null);
     try {
-      await regloApi.createVehicle({ name: name.trim(), plate: plate.trim() || undefined });
+      await regloApi.createVehicle({
+        name: name.trim(),
+        plate: plate.trim() || undefined,
+        licenseCategory,
+        transmission,
+      });
       await data?.onChanged();
       router.back();
     } catch (err) {
@@ -191,9 +259,13 @@ export default function VehicleFormScreen() {
         status?: string;
         followsInstructorAvailability?: boolean;
         assignedInstructorId?: string | null;
+        licenseCategory?: LicenseCategory;
+        transmission?: Transmission;
       } = {
         name: name.trim(),
         plate: plate.trim() || null,
+        licenseCategory,
+        transmission,
       };
       if (active) patch.status = 'active';
       if (isAssigned) patch.followsInstructorAvailability = followsAvail;
@@ -248,6 +320,12 @@ export default function VehicleFormScreen() {
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
       <Text style={s.title}>{isEdit ? 'Modifica veicolo' : 'Nuovo veicolo'}</Text>
 
       <Text style={s.label}>Nome del veicolo</Text>
@@ -270,6 +348,29 @@ export default function VehicleFormScreen() {
         autoCapitalize="characters"
         maxLength={16}
       />
+
+      <View style={s.licenseRow}>
+        <Pressable
+          onPress={openCategoryPicker}
+          style={({ pressed }) => [s.licenseCard, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={s.timeLabel}>Categoria patente</Text>
+          <View style={s.timeValRow}>
+            <Ionicons name="card-outline" size={17} color="#1A1A2E" />
+            <Text style={s.timeVal}>{licenseCategory}</Text>
+          </View>
+        </Pressable>
+        <Pressable
+          onPress={openTransmissionPicker}
+          style={({ pressed }) => [s.licenseCard, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={s.timeLabel}>Cambio</Text>
+          <View style={s.timeValRow}>
+            <Ionicons name="settings-outline" size={17} color="#1A1A2E" />
+            <Text style={s.timeVal}>{TRANSMISSION_LABELS[transmission]}</Text>
+          </View>
+        </Pressable>
+      </View>
 
       {isEdit ? (
         <>
@@ -384,24 +485,30 @@ export default function VehicleFormScreen() {
       ) : null}
 
       {error ? <Text style={s.error}>{error}</Text> : null}
+      </ScrollView>
 
-      <Pressable
-        onPress={saving ? undefined : (isEdit ? handleSaveEdit : handleCreate)}
-        disabled={saving || (isEdit && availabilityLoading)}
-        style={({ pressed }) => [
-          s.cta,
-          (saving || (isEdit && availabilityLoading)) && { opacity: 0.5 },
-          pressed && { opacity: 0.9 },
-        ]}
-      >
-        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>{isEdit ? 'Salva' : 'Crea veicolo'}</Text>}
-      </Pressable>
+      <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <Pressable
+          onPress={saving ? undefined : (isEdit ? handleSaveEdit : handleCreate)}
+          disabled={saving || (isEdit && availabilityLoading)}
+          style={({ pressed }) => [
+            s.cta,
+            (saving || (isEdit && availabilityLoading)) && { opacity: 0.5 },
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>{isEdit ? 'Salva' : 'Crea veicolo'}</Text>}
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
+  root: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg },
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 16 },
+  footer: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEF0F4', backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginBottom: 6 },
@@ -430,6 +537,8 @@ const s = StyleSheet.create({
   dayTextOff: { color: '#6E7596' },
 
   times: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  licenseRow: { flexDirection: 'row', gap: 12, marginTop: 22 },
+  licenseCard: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
   timeCard: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
   timeLabel: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase' },
   timeValRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
@@ -437,7 +546,7 @@ const s = StyleSheet.create({
 
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {
-    backgroundColor: colors.primary, height: 54, borderRadius: 27, marginTop: 30,
+    backgroundColor: colors.primary, height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.24, shadowRadius: 14, elevation: 6,

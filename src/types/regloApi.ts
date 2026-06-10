@@ -31,6 +31,12 @@ export type StudentPhasePayload = {
    * Absent on legacy backends → assume false.
    */
   autoAssignQuizOnSignup?: boolean;
+  /**
+   * License path the student is pursuing in PRATICA (category + transmission).
+   * Set by the owner from the web app. Absent on legacy backends → treat as null.
+   */
+  licenseCategory?: string | null;
+  transmission?: string | null;
 };
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
@@ -97,6 +103,9 @@ export type AutoscuolaStudent = {
   status: string;
   notes: string | null;
   assignedInstructorId?: Uuid | null;
+  // Pursued license path (category + transmission). Returned by /api/autoscuole/students.
+  licenseCategory?: string | null;
+  transmission?: string | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -141,6 +150,10 @@ export type AutoscuolaVehicle = {
   // dedicated car and is auto-used for bookings made with that instructor.
   assignedInstructorId: Uuid | null;
   followsInstructorAvailability: boolean;
+  // License category (B | AM | A1 | A2 | A) + transmission (manual | automatic)
+  // this vehicle serves. Drives category-aware matching (Vehicles module).
+  licenseCategory: string;
+  transmission: string;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -408,7 +421,14 @@ export type CreateLocationInput = {
 export type UpdateLocationInput = Partial<CreateLocationInput>;
 
 export type CreateInstructorInput = { name: string; phone?: string };
-export type CreateVehicleInput = { name: string; plate?: string };
+export type LicenseCategory = "B" | "AM" | "A1" | "A2" | "A";
+export type Transmission = "manual" | "automatic";
+export type CreateVehicleInput = {
+  name: string;
+  plate?: string;
+  licenseCategory?: LicenseCategory;
+  transmission?: Transmission;
+};
 export type UpdateInstructorInput = {
   name?: string;
   phone?: string | null;
@@ -421,6 +441,8 @@ export type UpdateVehicleInput = {
   status?: string;
   assignedInstructorId?: Uuid | null;
   followsInstructorAvailability?: boolean;
+  licenseCategory?: LicenseCategory;
+  transmission?: Transmission;
 };
 
 export type TimeRange = {

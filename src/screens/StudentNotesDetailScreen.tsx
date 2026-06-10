@@ -20,6 +20,7 @@ import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
+import { transmissionLabel } from '../utils/license';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const REQUIRED_LESSONS = 6;
@@ -46,27 +47,31 @@ export const StudentNotesDetailScreen = () => {
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
+  const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!studentId) return;
     try {
-      const [appts, allCases] = await Promise.all([
+      const [appts, allCases, students] = await Promise.all([
         regloApi.getAppointments({ studentId, limit: 500 }),
         regloApi.getCases().catch(() => [] as AutoscuolaCase[]),
+        regloApi.getStudents(typeof name === 'string' ? name : undefined).catch(() => []),
       ]);
       const filtered = appts
         .filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled')
         .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
       setAppointments(filtered);
       setCases(allCases.filter((c) => c.studentId === studentId));
+      const me = students.find((stu) => stu.id === studentId);
+      if (me) setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
     } finally {
       setLoading(false);
     }
-  }, [studentId]);
+  }, [studentId, name]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -123,6 +128,9 @@ export const StudentNotesDetailScreen = () => {
   const email = student?.email ?? null;
   const initials = (firstName[0] ?? displayName[0] ?? '?').toUpperCase();
   const cleanPhone = phone?.replace(/\s+/g, '').replace(/^\+/, '');
+  const licenseLabel = license?.category
+    ? `${license.category} · ${transmissionLabel(license.transmission)}`
+    : null;
 
   // Flip card (front = summary, back = personal info)
   const flip = useSharedValue(0);
@@ -161,6 +169,12 @@ export const StudentNotesDetailScreen = () => {
             <View style={s.profileLeft}>
               <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
               <Text style={s.profileName} numberOfLines={1}>{firstName}</Text>
+              {licenseLabel ? (
+                <View style={s.licenseChip}>
+                  <Ionicons name="card-outline" size={11} color="#475569" />
+                  <Text style={s.licenseChipText}>{licenseLabel}</Text>
+                </View>
+              ) : null}
             </View>
             {loading ? (
               <View style={s.profileStats}>
@@ -200,6 +214,10 @@ export const StudentNotesDetailScreen = () => {
             <View style={s.backRow}>
               <Ionicons name="call-outline" size={16} color="#94A3B8" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Telefono</Text><Text style={s.backValue} numberOfLines={1}>{phone ?? '—'}</Text></View>
+            </View>
+            <View style={s.backRow}>
+              <Ionicons name="card-outline" size={16} color="#94A3B8" />
+              <View style={{ flex: 1 }}><Text style={s.backLabel}>Percorso patente</Text><Text style={s.backValue} numberOfLines={1}>{licenseLabel ?? '—'}</Text></View>
             </View>
             <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#CBD5E1" /></View>
           </Animated.View>
@@ -362,6 +380,8 @@ const s = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   avatarText: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
+  licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F1F5F9' },
+  licenseChipText: { fontSize: 12, fontWeight: '600', color: '#475569', letterSpacing: -0.1 },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
   statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },

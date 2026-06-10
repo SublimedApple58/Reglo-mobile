@@ -26,6 +26,8 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { vehicleFormStore } from '../stores/vehicleFormStore';
 import { AutoscuolaVehicle, AutoscuolaSettings } from '../types/regloApi';
+import { transmissionLabel } from '../utils/license';
+import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
 
 const H_PAD = 22;
@@ -35,6 +37,7 @@ const LARGE_TITLE_H = 56;
 export const VehiclesScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { instructorId } = useSession();
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,9 +214,11 @@ export const VehiclesScreen = () => {
         ) : (
           vehicles.map((vehicle, i) => {
             const isActive = vehicle.status !== 'inactive';
+            const isMine = !!instructorId && vehicle.assignedInstructorId === instructorId;
+            const licenseLabel = `${vehicle.licenseCategory} · ${transmissionLabel(vehicle.transmission)}`;
             const sub = isActive
-              ? vehicle.plate ?? null
-              : vehicle.plate ? `${vehicle.plate} · Inattivo` : 'Inattivo';
+              ? [vehicle.plate, licenseLabel].filter(Boolean).join(' · ')
+              : [vehicle.plate, licenseLabel, 'Inattivo'].filter(Boolean).join(' · ');
             return (
               <React.Fragment key={vehicle.id}>
                 {i > 0 ? <View style={styles.divider} /> : null}
@@ -222,10 +227,18 @@ export const VehiclesScreen = () => {
                   style={({ pressed }) => [styles.row, !isActive && styles.rowInactive, pressed && styles.rowPressed]}
                 >
                   <View style={styles.vIcon}>
-                    <Ionicons name="car-outline" size={24} color="#1A1A2E" />
+                    <Ionicons name={isMine ? 'car-sport' : 'car-outline'} size={24} color="#1A1A2E" />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.vName} numberOfLines={1}>{vehicle.name}</Text>
+                    <View style={styles.vNameRow}>
+                      <Text style={styles.vName} numberOfLines={1}>{vehicle.name}</Text>
+                      {isMine ? (
+                        <View style={styles.minePill}>
+                          <Ionicons name="person" size={10} color="#FFFFFF" />
+                          <Text style={styles.minePillText}>Il tuo</Text>
+                        </View>
+                      ) : null}
+                    </View>
                     {sub ? <Text style={styles.vSub} numberOfLines={1}>{sub}</Text> : null}
                   </View>
                   <Pressable onPress={() => openActions(vehicle)} hitSlop={12} style={styles.ellipsisBtn}>
@@ -262,7 +275,10 @@ const styles = StyleSheet.create({
   rowPressed: { opacity: 0.55 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 40 },
   vIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
-  vName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1 },
+  vNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  vName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1, flexShrink: 1 },
+  minePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#1A1A2E' },
+  minePillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
   vSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
   ellipsisBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
 
