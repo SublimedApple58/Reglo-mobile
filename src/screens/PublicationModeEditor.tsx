@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastTone } from '../components/ToastNotice';

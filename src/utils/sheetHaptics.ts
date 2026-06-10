@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import * as Haptics from './haptics';
 
 // Light tactile tick whenever a screen finishes closing (X, CTA back, or
 // swipe-down dismiss of a formSheet / page sheet). Wire into a Stack via

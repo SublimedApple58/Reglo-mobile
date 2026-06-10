@@ -18,7 +18,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/haptics';
 import { usePathname, useRouter } from 'expo-router';
 import { quizHintStore } from '../stores/quizHintStore';
 import RenderHtml from 'react-native-render-html';

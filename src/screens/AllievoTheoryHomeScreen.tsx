@@ -19,7 +19,6 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStudentPhase } from '../hooks/useStudentPhase';
@@ -66,16 +65,15 @@ const computeDaysLeft = (iso: string | null): number | null => {
 
 type LastTopic = { id: string; chapterNumber: number; description: string };
 
+// OTA-safe: the production binary doesn't bundle async-storage's native module,
+// so "last topic" persists in-memory (per session) until the next native build.
+let lastTopicMem: LastTopic | null = null;
+
 const saveLastTopic = async (topic: LastTopic) => {
-  try { await AsyncStorage.setItem(LAST_TOPIC_KEY, JSON.stringify(topic)); } catch { /* silent */ }
+  lastTopicMem = topic;
 };
 
-const loadLastTopic = async (): Promise<LastTopic | null> => {
-  try {
-    const raw = await AsyncStorage.getItem(LAST_TOPIC_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
+const loadLastTopic = async (): Promise<LastTopic | null> => lastTopicMem;
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */

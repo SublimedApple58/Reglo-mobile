@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/haptics';
 
 import { scrubActive, scrubLabel, scrubX, scrubY } from '../stores/scrubOverlay';
 
