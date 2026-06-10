@@ -1133,9 +1133,9 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   instructorCardSelected: {
-    borderColor: '#EC4899',
+    borderColor: '#1A1A2E',
     borderWidth: 2,
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 4,
@@ -1202,14 +1202,14 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#E9EBF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailAvatarInitials: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
   },
   detailInfo: {
     flex: 1,
@@ -1302,7 +1302,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: radii.sm,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1439,7 +1439,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   calBtnPrimary: {
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   calBtnPrimaryText: {
     fontSize: 14,

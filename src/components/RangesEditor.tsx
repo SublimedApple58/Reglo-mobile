@@ -23,41 +23,48 @@ export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange,
     <View style={styles.container}>
       {ranges.map((range, index) => (
         <Animated.View key={index} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.row}>
-          {/* Pink circle clock icon */}
-          <View style={styles.clockCircle}>
-            <Ionicons name="time" size={18} color="#EC4899" />
-          </View>
-
-          {/* Start time — tappable */}
-          <Pressable onPress={() => onPickTime(index, 'start')} disabled={disabled} hitSlop={6}>
-            <Text style={styles.timeText}>{fmtMin(range.startMinutes)}</Text>
+          {/* Inizio */}
+          <Pressable
+            style={({ pressed }) => [styles.field, pressed && styles.fieldPressed]}
+            onPress={() => onPickTime(index, 'start')}
+            disabled={disabled}
+          >
+            <Text style={styles.fieldLabel}>Inizio</Text>
+            <Text style={styles.fieldValue}>{fmtMin(range.startMinutes)}</Text>
           </Pressable>
 
-          <Text style={styles.dash}> – </Text>
+          <Ionicons name="arrow-forward" size={15} color="#C0C4CC" style={styles.arrow} />
 
-          {/* End time — tappable */}
-          <Pressable onPress={() => onPickTime(index, 'end')} disabled={disabled} hitSlop={6}>
-            <Text style={styles.timeText}>{fmtMin(range.endMinutes)}</Text>
+          {/* Fine */}
+          <Pressable
+            style={({ pressed }) => [styles.field, pressed && styles.fieldPressed]}
+            onPress={() => onPickTime(index, 'end')}
+            disabled={disabled}
+          >
+            <Text style={styles.fieldLabel}>Fine</Text>
+            <Text style={styles.fieldValue}>{fmtMin(range.endMinutes)}</Text>
           </Pressable>
 
-          <View style={{ flex: 1 }} />
-
-          {/* Trash */}
           {canRemove ? (
-            <Pressable onPress={() => onChange(ranges.filter((_, i) => i !== index))} disabled={disabled} hitSlop={10}>
-              <Ionicons name="trash-outline" size={18} color="#94A3B8" />
+            <Pressable
+              onPress={() => onChange(ranges.filter((_, i) => i !== index))}
+              disabled={disabled}
+              hitSlop={8}
+              style={styles.removeBtn}
+            >
+              <Ionicons name="close" size={16} color="#9CA3AF" />
             </Pressable>
           ) : null}
         </Animated.View>
       ))}
 
-      {/* Add range — dashed border pill */}
+      {/* Aggiungi fascia — filled light button (no dashed border) */}
       <Pressable
         style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
         onPress={onAddRange}
         disabled={disabled}
       >
-        <Ionicons name="add-circle" size={18} color="#64748B" />
+        <Ionicons name="add" size={18} color="#1A1A2E" />
         <Text style={styles.addText}>Aggiungi fascia</Text>
       </Pressable>
     </View>
@@ -66,54 +73,39 @@ export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange,
 
 const styles = StyleSheet.create({
   container: { gap: 10 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+
+  field: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    paddingVertical: 14,
-    paddingLeft: 14,
-    paddingRight: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 2,
+    shadowColor: '#1A1A2E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  clockCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FDF2F8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  timeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    textDecorationLine: 'underline',
-    textDecorationColor: '#E2E8F0',
-  },
-  dash: {
-    fontSize: 15,
-    color: '#94A3B8',
-  },
+  fieldPressed: { transform: [{ scale: 0.98 }], shadowOpacity: 0.05 },
+  fieldLabel: { fontSize: 11.5, fontWeight: '700', color: '#9AA1AC', letterSpacing: 0.4, textTransform: 'uppercase' },
+  fieldValue: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+
+  arrow: { width: 16, textAlign: 'center' },
+
+  removeBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    gap: 6,
+    paddingVertical: 15,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCDFE4',
   },
-  addText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#64748B',
-  },
+  addText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
 });

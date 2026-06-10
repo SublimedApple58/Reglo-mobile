@@ -21,8 +21,8 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 | Kind | UI | Action |
 |------|-----|--------|
 | `waitlist` | BottomSheet | `respondWaitlistOffer()` accept/decline |
-| `swap` | BottomSheet | `respondSwapOffer()` accept |
-| `confirmation` | Toast | Dismiss |
+| `swap` | **Navigates to `/(tabs)/home/swaps`** (no drawer) | Handled in the Scambi section |
+| `confirmation` | **Navigates to `/(tabs)/home/swaps`** (no drawer) | Swap-accepted; tracked for inbox/badge only |
 | `proposal` | BottomSheet | `updateAppointmentStatus()` accept/reject |
 | `available_slots` | Modal | Route to booking |
 | `holiday_declared` | Toast | Acknowledge |
@@ -33,15 +33,24 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 | `availability_published` | Toast + route | Route to home/booking |
 
 ## Inbox features
+- Design-system layout: sticky blur header (back + "Notifiche" + "Segna tutte"), off-white, `Animated.FlatList`, per-kind tinted icon chips (`THEME` map), Fluent `fluent-bell.png` empty state. No beige.
+- Tap routing: swap → `/(tabs)/home/swaps`; `opensDrawer()` kinds (waitlist/proposal/confirmation/available_slots) still `emitOpenDrawer`.
 - Swipeable cards (right-swipe dismisses)
 - Mark as read / mark all read
 - 30-day expiry with optional expiresAt override
 - Per-user scoped in SecureStore
 
+## Removed overlay drawers (gradual BottomSheet phase-out)
+- **Swap drawer** + **"Affare fatto!" (swap-accepted confirmation) drawer** removed from `NotificationOverlay`. Both `swap` and `confirmation` are swap-related → inbox tap routes to `/(tabs)/home/swaps`, never a drawer. `openDrawerForItem`/auto-open early-return on `swap`/`confirmation`. `confirmations` list is kept (inbox/badge only).
+- **"Troppo tardi!" (expired)** drawer removed — a taken/expired waitlist/proposal now shows a toast ("Offerta non più disponibile"). `staleDrawerKind` is now `'accepted' | null`.
+
+## Remaining custom BottomSheets (allievo) — to migrate later
+Still custom `BottomSheet` in `NotificationOverlay`, shown to students: **Waitlist** ("Slot liberato"), **Proposal** ("Nuova proposta"), **Available slots** ("Scegli un orario"), **"Già fatto!"** (already-accepted, waitlist/proposal). All backend kinds are live/reachable. `AllievoPaymentsScreen` "Dettaglio transazione" and `CalendarDrawer` (custom Modal) are also pending. Time picker (allievo Disponibilità): migrated to a **formSheet route** `app/(tabs)/settings/time-picker.tsx` (fitToContents, `timePickerStore`-driven), no duck mascot, pink selection. The legacy `TimePickerDrawer` component (instructor screens) now uses a native pageSheet Modal, duck removed — to be route-migrated with the instructor app.
+
 ## Adding a new notification kind (full checklist)
 1. `src/types/notifications.ts` — add to NotificationItem union + standalone data type
 2. `src/components/NotificationOverlay.tsx` — add handler in subscribePushIntent
-3. `src/screens/NotificationInboxScreen.tsx` — add to ICON_MAP, getTitle(), getSubtitle(), ICON_COLOR_MAP, isInteractive()
+3. `src/screens/NotificationInboxScreen.tsx` — add to ICON_MAP, THEME, getTitle(), getSubtitle(), and opensDrawer() if it should open a drawer
 4. `../reglo/app/api/autoscuole/notifications/route.ts` — add recovery query
 5. `../reglo/` action file — add `sendAutoscuolaPushToUsers()` call
 

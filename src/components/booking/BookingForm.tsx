@@ -1,0 +1,565 @@
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { bookingSheetStore, type BookingResultItem } from '../../stores/bookingSheetStore';
+import { timePickerStore } from '../../stores/timePickerStore';
+import { dayPickerStore } from '../../stores/dayPickerStore';
+import { studentPickerStore } from '../../stores/studentPickerStore';
+import { locationPickerStore } from '../../stores/locationPickerStore';
+import { locationFormStore } from '../../stores/locationFormStore';
+import { optionsPickerStore } from '../../stores/optionsPickerStore';
+import { regloApi } from '../../services/regloApi';
+import type { MobileBookingOptions, AutoscuolaAppointment } from '../../types/regloApi';
+import { ToggleSwitch } from '../ToggleSwitch';
+import { Button } from '../Button';
+import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+
+type Entry = { id: string; date: Date; startTime: Date; duration: number };
+
+const NAVY = '#1A1A2E';
+const INK = '#1E293B';
+const GREY = '#717171';
+const MUTED = '#94A3B8';
+const N50 = '#F4F5F9';
+const N100 = '#E9EBF2';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const normalizeToQuarter = (value: Date) => {
+  const next = new Date(value);
+  next.setSeconds(0, 0);
+  const rounded = Math.ceil(next.getMinutes() / 15) * 15;
+  if (rounded === 60) next.setHours(next.getHours() + 1, 0, 0, 0);
+  else next.setMinutes(rounded, 0, 0);
+  return next;
+};
+
+/** Build a Date on `isoDay` at `minutes` from midnight (for the gesture preset). */
+const dateAtMinutes = (isoDay: string, minutes: number) => {
+  const d = new Date(isoDay);
+  d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return d;
+};
+
+const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+/** bookedDateKeys arrive as `${y}-${monthIndex}-${day}` (0-based, unpadded). */
+const bookedKeyToYMD = (k: string) => { const [y, m, d] = k.split('-'); return `${y}-${pad2(Number(m) + 1)}-${pad2(Number(d))}`; };
+
+const initialsOf = (name: string) =>
+  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
+
+const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
+const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+/** Start (ms) of the ISO week (Mon-Sun, UTC) containing `d` — mirrors the BE. */
+const isoWeekStartUTC = (d: Date) => {
+  const x = new Date(d);
+  const dow = x.getUTCDay();
+  x.setUTCDate(x.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  x.setUTCHours(0, 0, 0, 0);
+  return x.getTime();
+};
+
+/* ───────── Flat row inside an elevated card (icon · label · value · chevron) ───────── */
+const Row = ({ icon, leading, label, value, valueSub, placeholder, onPress, disabled }: {
+  icon?: keyof typeof Ionicons.glyphMap; leading?: React.ReactNode; label: string;
+  value?: string | null; valueSub?: string | null; placeholder?: string;
+  onPress: () => void; disabled?: boolean;
+}) => (
+  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
+    {leading ?? <View style={s.rowIcon}><Ionicons name={icon ?? 'ellipse-outline'} size={22} color={NAVY} /></View>}
+    <View style={s.rowBody}>
+      <Text style={s.rowLabel}>{label}</Text>
+      {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>}
+      {valueSub ? <Text style={s.rowValueSub} numberOfLines={1}>{valueSub}</Text> : null}
+    </View>
+    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+  </Pressable>
+);
+
+/* ───────── Shared booking form (used by the new-booking route + quick-book) ─────────
+ * `embedded` hides the route shell (topbar X + hero) so the parent — e.g. the
+ * quick-book sheet — can render its own header (Airbnb segmented). When the store
+ * carries `presetStartMinutes` (released-scrub position), the start time is seeded
+ * to it instead of the current clock time. */
+export function BookingForm({ embedded = false }: { embedded?: boolean }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const data = useSyncExternalStore(bookingSheetStore.subscribe, bookingSheetStore.get);
+
+  const [studentId, setStudentId] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const [lessonTypes, setLessonTypes] = useState<string[]>(['guida']);
+  const [date, setDate] = useState<Date>(() => new Date());
+  const [startTime, setStartTime] = useState<Date>(() => normalizeToQuarter(new Date()));
+  const [duration, setDuration] = useState(60);
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [locationAddress, setLocationAddress] = useState<string | null>(null);
+  const [multiMode, setMultiMode] = useState(false);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [pending, setPending] = useState(false);
+  // Prefetched so we can warn about the weekly limit *before* dismissing the
+  // sheet (no flash). Reflects the CURRENT week only — bookings in other weeks
+  // fall back to the background WEEKLY_LIMIT_CONFIRM handling in runOptimistic.
+  const [weeklyLimit, setWeeklyLimit] = useState<MobileBookingOptions['weeklyBookingLimit'] | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    setStudentId('');
+    setVehicleId(data.defaultVehicleId);
+    setLessonTypes(['guida']);
+    setDate(new Date(data.initialDate));
+    setStartTime(
+      data.presetStartMinutes != null
+        ? dateAtMinutes(data.initialDate, data.presetStartMinutes)
+        : normalizeToQuarter(new Date()),
+    );
+    setDuration(data.durations.includes(data.defaultDuration) ? data.defaultDuration : (data.durations[0] ?? 60));
+    setLocationId(data.defaultLocation?.id ?? null);
+    setLocationName(data.defaultLocation?.name ?? null);
+    setLocationAddress(data.defaultLocation?.address ?? null);
+    setMultiMode(false);
+    setEntries([]);
+    setPending(false);
+  }, [data]);
+
+  // Prefetch the student's weekly-limit status (current week) on selection.
+  useEffect(() => {
+    if (!studentId) { setWeeklyLimit(null); return; }
+    let active = true;
+    regloApi.getBookingOptions(studentId)
+      .then((opts) => { if (active) setWeeklyLimit(opts?.weeklyBookingLimit ?? null); })
+      .catch(() => { if (active) setWeeklyLimit(null); });
+    return () => { active = false; };
+  }, [studentId]);
+
+  const markedDates = useMemo(
+    () => new Set((data?.bookedDateKeys ?? []).map(bookedKeyToYMD)),
+    [data?.bookedDateKeys],
+  );
+  const monthsCount = useMemo(
+    () => Math.max(2, Math.ceil((data?.availabilityWeeks ?? 4) / 4) + 1),
+    [data?.availabilityWeeks],
+  );
+  const selectedStudentLabel = useMemo(
+    () => data?.studentOptions.find((o) => o.value === studentId)?.label ?? null,
+    [data?.studentOptions, studentId],
+  );
+  const selectedStudentSubtitle = useMemo(
+    () => data?.studentOptions.find((o) => o.value === studentId)?.subtitle ?? null,
+    [data?.studentOptions, studentId],
+  );
+
+  if (!data) return <View style={s.root} />;
+  const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId } = data;
+
+  const typesPayload = lessonTypes.length && !(lessonTypes.length === 1 && lessonTypes[0] === 'guida')
+    ? { lessonType: lessonTypes[0], types: lessonTypes }
+    : {};
+
+  const setMulti = (val: boolean) => {
+    setMultiMode(val);
+    if (val) setEntries([{ id: String(date.getTime()), date: new Date(date), startTime: new Date(startTime), duration }]);
+    else setEntries([]);
+  };
+
+  const openStudentPicker = () => {
+    studentPickerStore.set({ selectedId: studentId || null, options: studentOptions, onSelect: (v) => setStudentId(v) });
+    router.push('/(tabs)/home/select-student');
+  };
+
+  const openTimePicker = (current: Date, onConfirm: (date: Date) => void) => {
+    timePickerStore.set({ selectedTime: current, onConfirm });
+    router.push('/(tabs)/home/time-picker');
+  };
+
+  const openDatePicker = (current: Date, onSelect: (date: Date) => void) => {
+    dayPickerStore.set({
+      selectedDate: toYMD(current), markedDates, monthsBack: 0, monthsCount,
+      allowPast: false, title: 'Seleziona data', onSelect: (ymd) => onSelect(fromYMD(ymd)),
+    });
+    router.push('/(tabs)/home/select-date');
+  };
+
+  const openLocationPicker = () => {
+    locationPickerStore.set({
+      selectedLocationId: locationId ?? defaultLocation?.id ?? null,
+      onSelect: (loc) => { setLocationId(loc.id); setLocationName(loc.name); setLocationAddress(loc.address ?? null); },
+      onRequestCreate: () => {
+        locationFormStore.set({ initial: null, onSubmit: async (values) => { await regloApi.createLocation(values); } });
+        router.push('/(tabs)/home/manage-lesson-location-form');
+      },
+    });
+    router.push('/(tabs)/home/manage-lesson-location');
+  };
+
+  const openDuration = () => {
+    optionsPickerStore.set({
+      title: 'Durata', multi: false, selected: [String(duration)],
+      options: durations.map((d) => ({ value: String(d), label: `${d} min` })),
+      onConfirm: (v) => { const n = Number(v[0]); if (!Number.isNaN(n)) setDuration(n); },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openVehicle = () => {
+    optionsPickerStore.set({
+      title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
+      options: vehicles.map((v) => ({ value: v.id, label: v.name })),
+      onConfirm: (v) => setVehicleId(v[0] ?? ''),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openType = () => {
+    optionsPickerStore.set({
+      title: 'Tipo di guida', multi: true, selected: lessonTypes,
+      options: LESSON_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+      onConfirm: (vs) => setLessonTypes(vs.length ? vs : ['guida']),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  // Truly-optimistic: insert the provisional row(s) and dismiss the sheet BEFORE
+  // the network call (instant feel, like the student flow), then resolve in the
+  // background — reconcile on success, roll the row(s) back on failure / cancel.
+  const runOptimistic = (
+    items: BookingResultItem[],
+    doBook: (skip?: boolean) => Promise<unknown>,
+    onSuccess: (result: unknown, ids: string[]) => void,
+    initialSkip = false,
+  ) => {
+    const ids = items.map((i) => i.id);
+    data.onOptimisticInsert(items);
+    router.back();
+    const settle = async (skip = false) => {
+      try {
+        const result = await doBook(skip);
+        onSuccess(result, ids);
+      } catch (err: unknown) {
+        const payload = (err as { payload?: Record<string, unknown> })?.payload;
+        if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
+          const msg = typeof payload.message === 'string' ? payload.message : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
+          Alert.alert('Limite settimanale', msg, [
+            { text: 'Annulla', style: 'cancel', onPress: () => data.onOptimisticRemove(ids) },
+            { text: 'Procedi', onPress: () => { void settle(true); } },
+          ]);
+          return;
+        }
+        data.onOptimisticRemove(ids);
+        Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella prenotazione');
+      }
+    };
+    void settle(initialSkip);
+  };
+
+  /**
+   * If the prefetched (current-week) status says these `adds` bookings in the
+   * current week would hit the limit, ask for confirmation *before* dismissing.
+   * Returns true if it showed the dialog (caller should stop). Bookings in other
+   * weeks return false here and rely on runOptimistic's background fallback.
+   */
+  const confirmWeeklyLimitIfNeeded = (
+    currentWeekAdds: number,
+    proceed: () => void,
+  ): boolean => {
+    const w = weeklyLimit;
+    if (!w?.enabled || w.examPriority?.active || currentWeekAdds <= 0) return false;
+    if ((w.current ?? 0) + currentWeekAdds <= (w.limit ?? 0)) return false;
+    Alert.alert(
+      'Limite settimanale',
+      `L'allievo ha già ${w.current ?? 0} guide questa settimana. Con queste ${currentWeekAdds === 1 ? 'una nuova' : `${currentWeekAdds} nuove`} si supera il limite di ${w.limit ?? 0}. Vuoi procedere comunque?`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Procedi', onPress: proceed },
+      ],
+    );
+    return true;
+  };
+
+  const confirmSingle = () => {
+    if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
+    if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
+    const end = new Date(start.getTime() + duration * 60 * 1000);
+    const item: BookingResultItem = {
+      id: `provisional-${start.getTime()}`,
+      studentId, startsAt: start.toISOString(), endsAt: end.toISOString(),
+      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, locationName, locationAddress,
+      type: lessonTypes[0] ?? 'guida', types: lessonTypes,
+    };
+    const book = (skip = false) => runOptimistic([item], (s2) => regloApi.confirmInstructorBooking({
+      studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
+      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, ...typesPayload,
+      ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
+    }), (result, ids) => {
+      // Single booking returns the real appointment → swap the provisional row in
+      // place (no full refetch ⇒ no "scatto"/remount). Toast only.
+      data.onOptimisticReplace(ids[0], result as AutoscuolaAppointment);
+      data.onDone('Guida prenotata.');
+    }, skip);
+    const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
+    if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
+    book();
+  };
+
+  const confirmMulti = () => {
+    if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
+    if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    if (!entries.length) { Alert.alert('Nessuna guida', 'Aggiungi almeno una guida.'); return; }
+    const payloadEntries = entries.map((entry) => {
+      const start = new Date(entry.date);
+      start.setHours(entry.startTime.getHours(), entry.startTime.getMinutes(), 0, 0);
+      const end = new Date(start.getTime() + entry.duration * 60 * 1000);
+      return { startsAt: start.toISOString(), endsAt: end.toISOString() };
+    });
+    // Batch endpoint returns only a count (no ids), so insert provisional rows.
+    const items: BookingResultItem[] = payloadEntries.map((e, i) => ({
+      id: `provisional-${new Date(e.startsAt).getTime()}-${i}`,
+      studentId, startsAt: e.startsAt, endsAt: e.endsAt,
+      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, locationName, locationAddress,
+      type: lessonTypes[0] ?? 'guida', types: lessonTypes,
+    }));
+    const book = (skip = false) => runOptimistic(items, (s2) => regloApi.confirmInstructorBookingBatch({
+      studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null, ...typesPayload,
+      ...(s2 ? { skipWeeklyLimitCheck: true } : {}), entries: payloadEntries,
+    }), (result, ids) => {
+      // Batch returns only a count (no ids) → lightweight agenda refetch that
+      // merges the real rows over the provisionals in place (matched by identity).
+      data.onReconcile(ids);
+      data.onDone(`${(result as { created: number }).created} guide prenotate.`);
+    }, skip);
+    const nowWeek = isoWeekStartUTC(new Date());
+    const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
+    if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;
+    book();
+  };
+
+  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && (multiMode ? entries.length > 0 : true);
+
+  const summaryMain = multiMode
+    ? `${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
+    : `${fmtDay(date)} · ${fmtTime(startTime)}`;
+  const summarySub = multiMode ? null : `${duration} min`;
+  const ctaLabel = multiMode
+    ? `Prenota ${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
+    : 'Prenota guida';
+
+  const typeValue = lessonTypes
+    .map((v) => LESSON_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? null)
+    .filter(Boolean)
+    .join(', ') || 'Guida';
+  const vehicleValue = vehicles.find((v) => v.id === vehicleId)?.name ?? null;
+
+  // Embedded (quick-book formSheet, fitToContents) hugs its content → plain View,
+  // no flex ScrollView (a flex ScrollView would collapse to 0 inside a content-
+  // hugging sheet). The standalone route fills the screen → scrollable.
+  const Wrapper: React.ComponentType<any> = embedded ? View : ScrollView;
+  const wrapperProps = embedded
+    ? { style: s.content }
+    : { style: { flex: 1 }, contentContainerStyle: s.content, keyboardShouldPersistTaps: 'handled' as const, showsVerticalScrollIndicator: false };
+
+  return (
+    <View style={embedded ? s.rootHug : [s.root, { paddingTop: 14 }]}>
+      {!embedded && (
+        <View style={s.topbar}>
+          <View style={{ flex: 1 }} />
+          <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </View>
+      )}
+
+      <Wrapper {...wrapperProps}>
+        {/* Hero */}
+        {!embedded && (
+          <View style={s.hero}>
+            <Text style={s.heroTitle}>Nuova prenotazione</Text>
+          </View>
+        )}
+
+        {/* Allievo — priorità massima, card singola e slegata */}
+        <View style={s.group}>
+          <Row
+            label="Allievo"
+            value={selectedStudentLabel}
+            valueSub={selectedStudentLabel ? selectedStudentSubtitle : null}
+            placeholder="Seleziona allievo"
+            onPress={openStudentPicker}
+            disabled={pending || !studentOptions.length}
+            leading={
+              selectedStudentLabel
+                ? <View style={s.avatar}><Text style={s.avatarTxt}>{initialsOf(selectedStudentLabel)}</Text></View>
+                : <View style={s.rowIcon}><Ionicons name="person-outline" size={22} color={NAVY} /></View>
+            }
+          />
+        </View>
+
+        {/* Prenotazione multipla — optional, banner leggero (non un input primario) */}
+        <View style={s.optBanner}>
+          <View style={s.optIcon}><Ionicons name="layers-outline" size={18} color={NAVY} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.optTitle}>Prenotazione multipla</Text>
+            <Text style={s.optSub}>Aggiungi più guide insieme</Text>
+          </View>
+          <ToggleSwitch value={multiMode} onValueChange={setMulti} disabled={pending} />
+        </View>
+
+        {/* Quando + Durata (single) — priorità alta */}
+        {!multiMode && (
+          <View style={s.group}>
+            <Row icon="calendar-outline" label="Giorno" value={fmtDay(date)} onPress={() => openDatePicker(date, setDate)} disabled={pending} />
+            <View style={s.divider} />
+            <Row icon="time-outline" label="Ora" value={fmtTime(startTime)} onPress={() => openTimePicker(startTime, setStartTime)} disabled={pending} />
+            <View style={s.divider} />
+            <Row icon="hourglass-outline" label="Durata" value={`${duration} min`} onPress={openDuration} disabled={pending} />
+          </View>
+        )}
+
+        {/* Guide (multi) */}
+        {multiMode && (
+          <>
+            {entries.map((entry) => (
+              <View key={entry.id} style={s.entryCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable style={s.chip} onPress={() => openDatePicker(entry.date, (d) => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, date: d } : e)))} disabled={pending}>
+                    <Ionicons name="calendar-outline" size={15} color={NAVY} />
+                    <Text style={s.chipTxt}>{fmtDay(entry.date)}</Text>
+                  </Pressable>
+                  <Pressable style={[s.chip, { marginLeft: 8 }]} onPress={() => openTimePicker(entry.startTime, (d) => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, startTime: d } : e)))} disabled={pending}>
+                    <Ionicons name="time-outline" size={15} color={NAVY} />
+                    <Text style={s.chipTxt}>{fmtTime(entry.startTime)}</Text>
+                  </Pressable>
+                  <View style={{ flex: 1 }} />
+                  {entries.length > 1 ? (
+                    <Pressable hitSlop={8} onPress={() => setEntries((p) => p.filter((e) => e.id !== entry.id))} disabled={pending}>
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    </Pressable>
+                  ) : null}
+                </View>
+                <View style={s.durRow}>
+                  {durations.map((dur) => { const active = entry.duration === dur; return (
+                    <Pressable key={dur} onPress={() => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, duration: dur } : e))} style={[s.durPill, active && s.durPillOn]} disabled={pending}>
+                      <Text style={[s.durPillTxt, active && s.durPillTxtOn]}>{dur} min</Text>
+                    </Pressable>
+                  ); })}
+                </View>
+              </View>
+            ))}
+            {entries.length < 20 ? (
+              <Pressable onPress={() => {
+                const last = entries[entries.length - 1];
+                const lastDuration = last?.duration ?? duration;
+                const newDate = last ? new Date(last.date) : new Date(date);
+                const newTime = last ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000) : normalizeToQuarter(new Date());
+                setEntries((p) => [...p, { id: String(p.length) + '-' + newDate.getTime(), date: newDate, startTime: newTime, duration: lastDuration }]);
+              }} style={({ pressed }) => [s.addGuide, pressed && { opacity: 0.7 }]} disabled={pending}>
+                <Ionicons name="add-circle-outline" size={20} color={NAVY} />
+                <Text style={s.addGuideTxt}>Aggiungi guida</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+
+        {/* Secondari — stile lista piatta, priorità inferiore */}
+        <Text style={s.listCaption}>Dettagli</Text>
+        <View style={s.list}>
+          <Row icon="location-outline" label="Luogo" value={locationName ?? "Sede dell'autoscuola"} valueSub={locationAddress} onPress={openLocationPicker} disabled={pending} />
+          {vehiclesEnabled ? (
+            <>
+              <View style={s.divider} />
+              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !vehicles.length} />
+            </>
+          ) : null}
+          <View style={s.divider} />
+          <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
+        </View>
+      </Wrapper>
+
+      <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+          <Text style={s.sumKey}>Riepilogo</Text>
+          <Text style={s.sumVal} numberOfLines={1}>{summaryMain}</Text>
+          {summarySub ? <Text style={s.sumSub} numberOfLines={1}>{summarySub}</Text> : null}
+        </View>
+        <View style={{ flexShrink: 0 }}>
+          <Button label={ctaLabel} tone="primary" loading={pending} disabled={!canConfirm} onPress={multiMode ? confirmMulti : confirmSingle} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const ELEV = {
+  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+} as const;
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  rootHug: { backgroundColor: colors.background },
+  topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 2 },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xl },
+
+  hero: { marginBottom: 18 },
+  heroTitle: { fontSize: 27, fontWeight: '600', color: NAVY, letterSpacing: -0.6 },
+
+  /* elevated card group (priority items) */
+  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
+
+  /* optional multi-booking banner — light tinted, clearly secondary */
+  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
+  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
+  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
+
+  /* secondary flat list */
+  listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 2, marginLeft: 6 },
+  list: { paddingHorizontal: 6, marginBottom: 4 },
+
+  /* row */
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
+  rowIcon: { width: 26, alignItems: 'center' },
+  rowBody: { flex: 1, minWidth: 0, gap: 1 },
+  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
+  rowValue: { fontSize: 14, color: GREY },
+  rowValueSub: { fontSize: 13, color: '#9CA3AF' },
+  rowPlaceholder: { fontSize: 14, color: MUTED },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+
+  /* avatar (allievo) */
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },
+
+  /* multi entries */
+  entryCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, ...ELEV },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: N50 },
+  chipTxt: { fontSize: 14, fontWeight: '500', color: INK },
+  durRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  durPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F1F2F4' },
+  durPillOn: { backgroundColor: NAVY },
+  durPillTxt: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  durPillTxtOn: { color: '#FFFFFF' },
+  addGuide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 16, marginBottom: 14, ...ELEV },
+  addGuideTxt: { color: NAVY, fontSize: 15, fontWeight: '600' },
+
+  /* footer */
+  footer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: '#fff' },
+  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
+  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
+  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
+});

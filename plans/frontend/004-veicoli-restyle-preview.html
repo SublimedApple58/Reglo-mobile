@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Veicoli — Preview restyle (Airbnb / mono-navy)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy200:#D6D9E6;
+    --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB;
+    --muted:#9CA3AF; --muted2:#6B7280; --hair:rgba(0,0,0,0.08);
+    --e2e8f0:#E2E8F0;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body {
+    font-family:'Inter',system-ui,sans-serif; background:#0d0d16;
+    display:flex; flex-wrap:wrap; gap:42px; justify-content:center;
+    padding:48px 24px 80px; color:var(--navy);
+  }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#AEB4CC; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:330px; text-align:center; line-height:1.5; }
+
+  /* iPhone frame */
+  .phone {
+    width:375px; height:812px; background:var(--bg); border-radius:46px;
+    border:11px solid #000; position:relative; overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.5);
+  }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:148px; height:30px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 28px 6px; font-size:14px; font-weight:600; color:var(--navy); }
+
+  /* ── Collapsible large-title header (compact bar shown sticky) ── */
+  .navbar {
+    height:54px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; position:relative;
+  }
+  .icon-btn { width:40px; height:40px; border-radius:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .icon-btn svg { width:26px; height:26px; }
+  .navbar .add svg { width:27px; height:27px; }
+
+  .scroll { height:calc(812px - 54px - 54px); overflow-y:auto; padding:0 22px 120px; }
+  .scroll::-webkit-scrollbar { display:none; }
+
+  .large-title { font-size:32px; font-weight:600; letter-spacing:-.5px; color:var(--navy); margin-top:6px; }
+  .page-desc { font-size:14px; color:var(--muted); line-height:1.45; margin-top:6px; margin-bottom:14px; }
+  .role-badge { display:inline-flex; align-items:center; gap:6px; background:var(--navy50); border:1px solid var(--navy100); color:var(--navy400); font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px; margin-bottom:16px; }
+
+  /* ── Flat vehicle rows ── */
+  .row {
+    display:flex; align-items:center; gap:16px; padding:16px 0; min-height:64px; cursor:pointer;
+  }
+  .row + .row, .row.div { border-top:.5px solid var(--border); }
+  .divider { height:.5px; background:var(--border); margin-left:40px; }
+  .v-icon { width:24px; display:flex; align-items:center; justify-content:center; color:var(--navy); }
+  .v-icon svg { width:24px; height:24px; }
+  .v-main { flex:1; min-width:0; }
+  .v-name { font-size:16px; font-weight:600; color:var(--navy); letter-spacing:-.1px; }
+  .v-sub { font-size:13px; font-weight:400; color:var(--muted); margin-top:2px; }
+  .v-inactive-tag { font-size:13px; font-weight:400; color:var(--muted); }
+  .row.inactive { opacity:.5; }
+  .ellipsis { width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:#C7C7CC; cursor:pointer; }
+  .ellipsis svg { width:22px; height:22px; }
+
+  /* section label */
+  .sec-label { font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; margin:26px 0 4px; }
+
+  /* empty state */
+  .empty { display:flex; flex-direction:column; align-items:center; padding:54px 24px; text-align:center; }
+  .empty .circle { width:88px; height:88px; border-radius:44px; background:var(--surface); display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px var(--hair); margin-bottom:16px; }
+  .empty .circle svg { width:42px; height:42px; color:var(--navy400); }
+  .empty .t { font-size:16px; font-weight:600; color:var(--navy); }
+  .empty .s { font-size:13px; font-weight:400; color:var(--muted); margin-top:4px; line-height:1.45; max-width:240px; }
+
+  /* ── Form sheet ── */
+  .sheet-scrim { position:absolute; inset:0; background:rgba(0,0,0,.28); z-index:40; }
+  .sheet {
+    position:absolute; left:0; right:0; bottom:0; background:var(--bg);
+    border-radius:14px 14px 0 0; z-index:50; padding:20px 22px 30px;
+    box-shadow:0 -8px 40px rgba(0,0,0,.18);
+  }
+  .sheet .topbar { display:flex; justify-content:flex-end; margin-right:-4px; margin-bottom:-2px; }
+  .sheet .x { width:34px; height:34px; border-radius:17px; background:var(--e2e8f0); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .sheet .x svg { width:20px; height:20px; color:var(--navy); }
+  .sheet-title { font-size:22px; font-weight:600; color:var(--navy); letter-spacing:-.4px; margin-bottom:6px; }
+  .sheet-sub { font-size:14px; font-weight:400; color:var(--muted); line-height:1.45; }
+
+  .field-label { font-size:14px; font-weight:600; color:var(--navy); margin-top:22px; margin-bottom:10px; }
+  .input {
+    border:1px solid var(--border); border-radius:14px; padding:15px 16px;
+    font-size:16px; font-weight:400; color:var(--navy); background:#fff;
+  }
+  .input.ph { color:var(--muted); }
+  .col { display:flex; flex-direction:column; }
+
+  /* toggle row */
+  .toggle-row { display:flex; align-items:center; gap:14px; margin-top:24px; padding:4px 0; }
+  .toggle-row .tt { font-size:16px; font-weight:600; color:var(--navy); }
+  .toggle-row .ts { font-size:13px; font-weight:400; color:var(--muted); margin-top:3px; line-height:1.4; }
+  .switch { width:48px; height:30px; border-radius:15px; padding:3px; flex-shrink:0; display:flex; transition:.2s; }
+  .switch.on { background:var(--navy); justify-content:flex-end; }
+  .switch.off { background:#D6D9E6; justify-content:flex-start; }
+  .switch .knob { width:24px; height:24px; border-radius:12px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+
+  .sub-sec { margin-top:26px; padding-top:22px; border-top:.5px solid var(--border); }
+  .sub-label { font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; margin-bottom:14px; }
+
+  .days { display:flex; gap:8px; }
+  .day { width:38px; height:38px; border-radius:19px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; }
+  .day.on { background:var(--navy); color:#fff; }
+  .day.off { background:var(--navy50); color:var(--navy400); }
+
+  .times { display:flex; gap:12px; margin-top:16px; }
+  .timecard { flex:1; border:1px solid var(--border); border-radius:14px; padding:13px 15px; background:#fff; cursor:pointer; }
+  .timecard .l { font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.5px; text-transform:uppercase; }
+  .timecard .v { display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .timecard .v svg { width:17px; height:17px; color:var(--navy); }
+  .timecard .v span { font-size:16px; font-weight:600; color:var(--navy); }
+
+  .cta {
+    height:54px; border-radius:27px; background:var(--navy); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:600;
+    letter-spacing:-.2px; margin-top:30px; box-shadow:0 6px 16px rgba(26,26,46,.26); cursor:pointer;
+  }
+
+  /* native action sheet mock */
+  .as { position:absolute; left:8px; right:8px; bottom:10px; z-index:50; }
+  .as-group { background:rgba(248,248,250,.94); backdrop-filter:blur(20px); border-radius:14px; overflow:hidden; margin-bottom:8px; }
+  .as-title { text-align:center; font-size:13px; color:var(--muted2); padding:16px; border-bottom:.5px solid rgba(0,0,0,.1); }
+  .as-item { text-align:center; font-size:20px; color:#007aff; padding:17px; border-bottom:.5px solid rgba(0,0,0,.08); cursor:pointer; }
+  .as-item.last { border-bottom:none; }
+  .as-item.danger { color:#FF3B30; }
+  .as-cancel { background:#fff; border-radius:14px; text-align:center; font-size:20px; font-weight:600; color:#007aff; padding:17px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LANE 1 — Lista (Owner) ═══════════════ -->
+<div class="lane">
+  <h2>1 · Lista veicoli — Titolare</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>􀫦 􀙇 􀛨</span></div>
+
+    <div class="navbar">
+      <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+      <div class="icon-btn add"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+
+    <div class="scroll">
+      <div class="large-title">Veicoli</div>
+      <div class="page-desc">I mezzi dell'autoscuola disponibili per le guide.</div>
+
+      <!-- rows -->
+      <div class="row">
+        <div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7" cy="14" r="1"/><circle cx="17" cy="14" r="1"/></svg></div>
+        <div class="v-main"><div class="v-name">Fiat Panda</div><div class="v-sub">GA 472 KP</div></div>
+        <div class="ellipsis"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7" cy="14" r="1"/><circle cx="17" cy="14" r="1"/></svg></div>
+        <div class="v-main"><div class="v-name">VW Polo</div><div class="v-sub">FH 908 ZT</div></div>
+        <div class="ellipsis"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="divider"></div>
+      <!-- inactive -->
+      <div class="row inactive">
+        <div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7" cy="14" r="1"/><circle cx="17" cy="14" r="1"/></svg></div>
+        <div class="v-main"><div class="v-name">Renault Clio</div><div class="v-sub">In manutenzione · Inattivo</div></div>
+        <div class="ellipsis"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Riga flat: icona navy · nome (600) · targa muted. Tap riga → modifica. ••• → menu nativo (lane 4). Inattivo = riga attenuata + label muted, niente badge colorati.</div>
+</div>
+
+<!-- ═══════════════ LANE 2 — Form Crea ═══════════════ -->
+<div class="lane">
+  <h2>2 · Form sheet — Nuovo veicolo</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>􀫦 􀙇 􀛨</span></div>
+    <div class="navbar">
+      <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+      <div class="icon-btn add"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+    <div class="scroll" style="opacity:.4">
+      <div class="large-title">Veicoli</div>
+      <div class="page-desc">I mezzi dell'autoscuola disponibili per le guide.</div>
+    </div>
+
+    <div class="sheet-scrim"></div>
+    <div class="sheet">
+      <div class="topbar"><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div></div>
+      <div class="sheet-title">Nuovo veicolo</div>
+      <div class="col"><div class="field-label">Nome del veicolo</div><div class="input ph">Es. Fiat Panda</div></div>
+      <div class="col"><div class="field-label">Targa</div><div class="input ph">Es. GA 472 KP</div></div>
+      <div class="cta">Crea veicolo</div>
+    </div>
+  </div>
+  <div class="cap">Creazione = X in alto a destra (no grabber), content-hugging. Solo nome + targa, CTA navy.</div>
+</div>
+
+<!-- ═══════════════ LANE 3 — Form Modifica ═══════════════ -->
+<div class="lane">
+  <h2>3 · Form sheet — Modifica veicolo</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>􀫦 􀙇 􀛨</span></div>
+    <div class="navbar">
+      <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+      <div class="icon-btn add"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+    <div class="scroll" style="opacity:.4">
+      <div class="large-title">Veicoli</div>
+    </div>
+
+    <div class="sheet-scrim"></div>
+    <div class="sheet" style="padding-bottom:26px">
+      <div class="topbar"><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div></div>
+      <div class="sheet-title">Modifica veicolo</div>
+
+      <div class="col"><div class="field-label">Nome del veicolo</div><div class="input">Fiat Panda</div></div>
+      <div class="col"><div class="field-label">Targa</div><div class="input">GA 472 KP</div></div>
+
+      <div class="toggle-row">
+        <div style="flex:1"><div class="tt">Veicolo attivo</div><div class="ts">Se disattivato, non è prenotabile per le guide.</div></div>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+
+      <div class="sub-sec">
+        <div class="sub-label">Disponibilità</div>
+        <div class="days">
+          <div class="day off">D</div><div class="day on">L</div><div class="day on">M</div>
+          <div class="day on">M</div><div class="day on">G</div><div class="day on">V</div><div class="day off">S</div>
+        </div>
+        <div class="times">
+          <div class="timecard"><div class="l">Inizio</div><div class="v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>09:00</span></div></div>
+          <div class="timecard"><div class="l">Fine</div><div class="v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>18:00</span></div></div>
+        </div>
+      </div>
+
+      <div class="cta">Salva</div>
+    </div>
+  </div>
+  <div class="cap">Modifica: nome/targa rinominabili · ToggleSwitch attivo/inattivo · disponibilità (giorni navy + time-card → route time-picker con X). Niente più info-box read-only né badge.</div>
+</div>
+
+<!-- ═══════════════ LANE 4 — ActionSheet + Empty ═══════════════ -->
+<div class="lane">
+  <h2>4 · ••• menu nativo · empty state</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>9:41</span><span>􀫦 􀙇 􀛨</span></div>
+    <div class="navbar">
+      <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+      <div class="icon-btn add"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+    <div class="scroll" style="opacity:.45">
+      <div class="large-title">Veicoli</div>
+      <div class="page-desc">I mezzi dell'autoscuola disponibili per le guide.</div>
+      <div class="row"><div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7" cy="14" r="1"/><circle cx="17" cy="14" r="1"/></svg></div><div class="v-main"><div class="v-name">Fiat Panda</div><div class="v-sub">GA 472 KP</div></div></div>
+    </div>
+
+    <div class="sheet-scrim"></div>
+    <div class="as">
+      <div class="as-group">
+        <div class="as-title">Fiat Panda · GA 472 KP</div>
+        <div class="as-item danger last">Disattiva veicolo</div>
+      </div>
+      <div class="as-cancel">Annulla</div>
+    </div>
+  </div>
+  <div class="cap">••• apre ActionSheet nativo. Azione = Disattiva / Riattiva. (Non c'è hard-delete: l'API disattiva soltanto.)</div>
+
+  <!-- empty state mini -->
+  <div class="phone" style="height:380px">
+    <div class="empty" style="padding-top:54px">
+      <div class="circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7" cy="14" r="1"/><circle cx="17" cy="14" r="1"/></svg></div>
+      <div class="t">Nessun veicolo</div>
+      <div class="s">Aggiungi i mezzi dell'autoscuola con il + in alto a destra.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

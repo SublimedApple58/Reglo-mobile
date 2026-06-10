@@ -18,19 +18,22 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Screen } from '../components/Screen';
 import { useQuiz } from '../context/QuizContext';
-import { colors, pink, yellow, spacing } from '../theme';
+import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import type { QuizSessionResult } from '../types/regloApi';
 
 export const QuizResultsScreen = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isHomeStack = pathname.includes('/home/');
+  const sessionRoute = isHomeStack ? '/(tabs)/home/quiz-session' : '/(tabs)/quiz/session';
+  const homeRoute = isHomeStack ? '/(tabs)/home' : '/(tabs)/quiz';
   const { width } = useWindowDimensions();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const { clearSession, startSession } = useQuiz();
@@ -59,13 +62,13 @@ export const QuizResultsScreen = () => {
     transform: [{ scale: heroScale.value }], opacity: heroOpacity.value,
   }));
 
-  const handleStart = async (mode: 'EXAM' | 'REVIEW') => {
+  const handleStart = async (mode: 'EXAM' | 'PRACTICE' | 'REVIEW') => {
     if (starting) return;
     setStarting(true);
     try {
       const d = await regloApi.startQuizSession({ mode });
       startSession({ sessionId: d.sessionId, questions: d.questions, mode, timeLimitSec: d.timeLimitSec });
-      router.replace('/(tabs)/quiz/session');
+      router.replace(sessionRoute as never);
     } catch {} finally { setStarting(false); }
   };
 
@@ -73,41 +76,57 @@ export const QuizResultsScreen = () => {
     setExpanded((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
-  if (loading) return <Screen gradient><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
+  if (loading) return <Screen><View style={st.center}><ActivityIndicator size="large" color={colors.primary} /></View></Screen>;
 
   if (!result) return (
-    <Screen gradient><View style={st.center}>
+    <Screen><View style={st.center}>
       <Ionicons name="alert-circle-outline" size={44} color={colors.textMuted} />
       <Text style={st.emptyText}>Risultato non trovato</Text>
-      <Pressable style={st.emptyBtn} onPress={() => router.replace('/(tabs)/quiz')}>
+      <Pressable style={st.emptyBtn} onPress={() => router.replace(homeRoute as never)}>
         <Text style={st.emptyBtnText}>Torna ai quiz</Text>
       </Pressable>
     </View></Screen>
   );
 
   const passed = result.passed;
+  const isScheda = result.mode === 'SCHEDA';
+  const isSchedaEsame = result.mode === 'SCHEDA_ESAME';
   const scorePct = result.totalQuestions > 0
     ? Math.round((result.correctCount / result.totalQuestions) * 100) : 0;
-  const timeSec = result.startedAt && result.completedAt
-    ? Math.round((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000) : null;
+  const timeSec = result.durationSec ?? (
+    result.startedAt && result.completedAt
+      ? Math.round((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000) : null
+  );
+  const skippedCount = result.skippedCount ?? (result.totalQuestions - result.correctCount - result.wrongCount);
+  const repeatedErrorCount = result.wrongAnswers.filter((q) => q.wrongCount != null && q.wrongCount > 1).length;
 
   return (
-    <Screen gradient>
+    <Screen>
       <ScrollView contentContainerStyle={st.scroll} bounces={false} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero ── */}
         <Animated.View style={heroStyle}>
           <View style={st.heroCard}>
             {/* Big circle icon */}
-            <View style={[st.heroCircle, passed === true ? st.heroCirclePass : passed === false ? st.heroCircleFail : st.heroCircleNeutral]}>
+            <View style={[st.heroCircle, result.mode === 'PRACTICE' ? st.heroCirclePractice : passed === true ? st.heroCirclePass : passed === false ? st.heroCircleFail : st.heroCircleNeutral]}>
               <Ionicons
-                name={passed === true ? 'checkmark' : passed === false ? 'close' : 'remove'}
+                name={result.mode === 'PRACTICE' ? 'school' : passed === true ? 'checkmark' : passed === false ? 'close' : 'remove'}
                 size={40} color="#FFFFFF"
               />
             </View>
 
+            {isScheda && result.schedaNumber != null && (
+              <Text style={st.schedaLabel}>Scheda {result.schedaNumber}{result.chapterDescription ? ` \u2014 ${result.chapterDescription}` : ''}</Text>
+            )}
+
+            {isSchedaEsame && result.schedaNumber != null && (
+              <Text style={st.schedaLabel}>Scheda d'Esame {result.schedaNumber}</Text>
+            )}
+
             <Text style={st.heroTitle}>
-              {passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
+              {isScheda || isSchedaEsame
+                ? (passed === true ? 'IDONEO' : 'NON IDONEO')
+                : result.mode === 'PRACTICE' ? 'Esercitazione completata' : passed === true ? 'Promosso!' : passed === false ? 'Non superato' : 'Completato'}
             </Text>
 
             {/* Score */}
@@ -120,18 +139,24 @@ export const QuizResultsScreen = () => {
             {/* Meta pills */}
             <View style={st.metaRow}>
               <View style={st.metaPill}>
-                <Ionicons name="checkmark-circle" size={13} color="#16A34A" />
-                <Text style={st.metaPillText}>{result.correctCount} corrette</Text>
+                <Ionicons name="close-circle" size={13} color={colors.destructive} />
+                <Text style={st.metaPillText}>{result.wrongCount} sbagliate</Text>
               </View>
               <View style={st.metaPill}>
-                <Ionicons name="close-circle" size={13} color={colors.destructive} />
-                <Text style={st.metaPillText}>{result.wrongCount} errori</Text>
+                <Ionicons name="checkmark-circle" size={13} color="#16A34A" />
+                <Text style={st.metaPillText}>{result.correctCount} giuste</Text>
               </View>
+              {skippedCount > 0 && (
+                <View style={st.metaPill}>
+                  <Ionicons name="remove-circle" size={13} color={colors.textMuted} />
+                  <Text style={st.metaPillText}>{skippedCount} saltate</Text>
+                </View>
+              )}
               {timeSec !== null && (
                 <View style={st.metaPill}>
                   <Ionicons name="time-outline" size={13} color={colors.textMuted} />
                   <Text style={st.metaPillText}>
-                    {Math.floor(timeSec / 60)}:{String(timeSec % 60).padStart(2, '0')}
+                    {String(Math.floor(timeSec / 60)).padStart(2, '0')}'{String(timeSec % 60).padStart(2, '0')}''
                   </Text>
                 </View>
               )}
@@ -168,6 +193,14 @@ export const QuizResultsScreen = () => {
             <Text style={st.secTitle}>
               {result.wrongAnswers.length} rispost{result.wrongAnswers.length === 1 ? 'a errata' : 'e errate'}
             </Text>
+            {repeatedErrorCount > 0 && (
+              <View style={st.repeatedBanner}>
+                <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+                <Text style={st.repeatedBannerText}>
+                  {repeatedErrorCount} error{repeatedErrorCount === 1 ? 'e' : 'i'} ancora da correggere
+                </Text>
+              </View>
+            )}
             {result.wrongAnswers.map((q) => {
               const open = expanded.has(q.id);
               return (
@@ -179,6 +212,11 @@ export const QuizResultsScreen = () => {
                   <View style={st.wrongCorrectRow}>
                     <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
                     <Text style={st.wrongCorrectText}>{q.correctAnswer ? 'VERO' : 'FALSO'}</Text>
+                    {q.wrongCount != null && q.wrongCount > 1 && (
+                      <View style={st.wrongCountBadge}>
+                        <Text style={st.wrongCountText}>Sbagliato {q.wrongCount}x</Text>
+                      </View>
+                    )}
                   </View>
                   {open && (
                     <>
@@ -190,7 +228,7 @@ export const QuizResultsScreen = () => {
                       {q.hint && (
                         <View style={st.wrongHint}>
                           <View style={st.wrongHintHeader}>
-                            <Ionicons name="bulb-outline" size={14} color={pink[600]} />
+                            <Ionicons name="bulb-outline" size={14} color={colors.textSecondary} />
                             <Text style={st.wrongHintTitle}>{q.hint.title}</Text>
                           </View>
                           <RenderHtml contentWidth={width - spacing.md * 6} source={{ html: q.hint.descriptionHtml }} baseStyle={st.wrongHintHtml as any} />
@@ -206,21 +244,39 @@ export const QuizResultsScreen = () => {
 
         {/* ── Actions ── */}
         <Animated.View entering={FadeInUp.delay(500).duration(300)} style={st.actions}>
-          {result.mode === 'EXAM' && (
-            <Pressable onPress={() => handleStart('EXAM')} disabled={starting} style={({ pressed }) => [pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}>
-              <LinearGradient colors={[pink[400], pink[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.actPrimary}>
-                <Ionicons name="play" size={18} color="#FFFFFF" />
-                <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : 'Nuova simulazione'}</Text>
-              </LinearGradient>
+          {isScheda ? (
+            <Pressable onPress={() => router.back()} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+              <Ionicons name="grid" size={18} color="#FFFFFF" />
+              <Text style={st.actPrimaryText}>Torna alle schede</Text>
             </Pressable>
-          )}
-          {result.wrongAnswers.length > 0 && (
-            <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actSecondary, pressed && { opacity: 0.7 }]}>
-              <Ionicons name="refresh" size={15} color={colors.primary} />
-              <Text style={st.actSecondaryText}>Ripeti errori</Text>
+          ) : isSchedaEsame ? (
+            <Pressable onPress={() => router.back()} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+              <Ionicons name="grid" size={18} color="#FFFFFF" />
+              <Text style={st.actPrimaryText}>Torna alle schede d'esame</Text>
             </Pressable>
+          ) : (
+            <>
+              {(result.mode === 'EXAM' || result.mode === 'PRACTICE') && (
+                <Pressable onPress={() => handleStart(result.mode as 'EXAM' | 'PRACTICE')} disabled={starting} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+                  <Ionicons name="play" size={18} color="#FFFFFF" />
+                  <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : result.mode === 'PRACTICE' ? 'Nuova esercitazione' : 'Nuova simulazione'}</Text>
+                </Pressable>
+              )}
+              {result.mode === 'REVIEW' && result.wrongAnswers.length > 0 && (
+                <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+                  <Ionicons name="flash" size={18} color="#FFFFFF" />
+                  <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : 'Ripassa ancora'}</Text>
+                </Pressable>
+              )}
+              {result.mode !== 'REVIEW' && result.wrongAnswers.length > 0 && (
+                <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actSecondary, pressed && { opacity: 0.7 }]}>
+                  <Ionicons name="refresh" size={15} color={colors.textPrimary} />
+                  <Text style={st.actSecondaryText}>Ripeti errori</Text>
+                </Pressable>
+              )}
+            </>
           )}
-          <Pressable onPress={() => router.replace('/(tabs)/quiz')} style={({ pressed }) => [st.actGhost, pressed && { opacity: 0.4 }]}>
+          <Pressable onPress={() => router.replace(homeRoute as never)} style={({ pressed }) => [st.actGhost, pressed && { opacity: 0.4 }]}>
             <Text style={st.actGhostText}>Torna alla home</Text>
           </Pressable>
         </Animated.View>
@@ -232,25 +288,28 @@ export const QuizResultsScreen = () => {
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: pink[50] },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
   scroll: { padding: spacing.md, gap: 20, paddingBottom: 120 },
 
   // Hero
   heroCard: {
     borderRadius: 28, padding: 28, alignItems: 'center', gap: 10,
-    backgroundColor: pink[50], borderWidth: 1, borderColor: pink[100],
-    shadowColor: pink[300], shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15, shadowRadius: 16, elevation: 5,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 14, elevation: 5,
   },
   heroCircle: {
     width: 72, height: 72, borderRadius: 36,
     alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
   },
-  heroCirclePass: { backgroundColor: '#16A34A', shadowColor: '#16A34A' },
-  heroCircleFail: { backgroundColor: colors.destructive, shadowColor: colors.destructive },
-  heroCircleNeutral: { backgroundColor: colors.textMuted, shadowColor: colors.textMuted },
+  heroCirclePass: { backgroundColor: '#16A34A' },
+  heroCircleFail: { backgroundColor: colors.destructive },
+  heroCircleNeutral: { backgroundColor: colors.textMuted },
+  heroCirclePractice: { backgroundColor: colors.primary },
+  schedaLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   scoreBig: { fontSize: 48, fontWeight: '800', color: '#1A1A2E', letterSpacing: -3 },
@@ -260,7 +319,7 @@ const st = StyleSheet.create({
   metaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F3F4F6',
   },
   metaPillText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
@@ -272,11 +331,11 @@ const st = StyleSheet.create({
   bRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   bBadge: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: pink[50], alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
   },
-  bBadgeText: { fontSize: 11, fontWeight: '800', color: pink[500] },
+  bBadgeText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
   bBarWrap: { flex: 1 },
-  bTrack: { height: 5, borderRadius: 2.5, backgroundColor: pink[50], overflow: 'hidden' },
+  bTrack: { height: 5, borderRadius: 2.5, backgroundColor: '#F0F0F5', overflow: 'hidden' },
   bFill: { height: '100%', borderRadius: 2.5 },
   fG: { backgroundColor: '#16A34A' }, fY: { backgroundColor: '#EAB308' }, fR: { backgroundColor: colors.destructive },
   bPct: { fontSize: 12, fontWeight: '800', width: 34, textAlign: 'right' },
@@ -284,7 +343,7 @@ const st = StyleSheet.create({
 
   // Wrong answers
   wrongCard: {
-    padding: 16, borderRadius: 22, backgroundColor: '#FFFFFF',
+    padding: 16, borderRadius: 24, backgroundColor: '#FFFFFF',
     borderWidth: 1, borderColor: '#FECACA', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
@@ -293,36 +352,48 @@ const st = StyleSheet.create({
   wrongQ: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A1A2E', lineHeight: 20 },
   wrongCorrectRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wrongCorrectText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
+  wrongCountBadge: {
+    marginLeft: 'auto',
+    paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  wrongCountText: { fontSize: 11, fontWeight: '700', color: colors.destructive },
+  repeatedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 16,
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7',
+  },
+  repeatedBannerText: { fontSize: 13, fontWeight: '600', color: '#92400E' },
   wrongImageWrap: { backgroundColor: '#1A1A2E', borderRadius: 12, padding: 12, alignItems: 'center' },
   wrongImg: { width: '80%', height: 100 },
   wrongHint: {
-    padding: 14, borderRadius: 20,
-    backgroundColor: pink[50], gap: 6,
-    borderWidth: 1, borderColor: pink[100],
-    shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
+    padding: 14, borderRadius: 24,
+    backgroundColor: colors.background, gap: 6,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   wrongHintHeader: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  wrongHintTitle: { fontSize: 13, fontWeight: '700', color: pink[700] },
+  wrongHintTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   wrongHintHtml: { fontSize: 12, color: '#4A4458', lineHeight: 17 },
 
   // Actions
   actions: { gap: 10, marginTop: 4 },
   actPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 22,
-    shadowColor: pink[400], shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+    paddingVertical: 16, borderRadius: 26, backgroundColor: colors.primary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },
   actPrimaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   actSecondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 13, borderRadius: 22,
-    borderWidth: 1.5, borderColor: pink[100], backgroundColor: pink[50],
-    shadowColor: pink[200], shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
+    paddingVertical: 13, borderRadius: 24,
+    borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
-  actSecondaryText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  actSecondaryText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   actGhost: { alignItems: 'center', paddingVertical: 10 },
   actGhostText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 });

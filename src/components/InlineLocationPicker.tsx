@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,8 +8,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
 import { regloApi } from '../services/regloApi';
 import type { AutoscuolaLocation } from '../types/regloApi';
 
@@ -17,66 +18,75 @@ type Props = {
   selectedLocationId: string | null;
   onSelect: (location: AutoscuolaLocation) => void;
   onRequestCreate: () => void;
+  /** Hide the search field (e.g. inside a compact bottom formsheet). */
+  showSearch?: boolean;
 };
 
 export const InlineLocationPicker = ({
   selectedLocationId,
   onSelect,
   onRequestCreate,
+  showSearch = true,
 }: Props) => {
   const [locations, setLocations] = useState<AutoscuolaLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    regloApi
-      .getLocations()
-      .then((data) => {
-        if (!cancelled) setLocations(data ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setLocations([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Refetch whenever the picker regains focus, so a location created in the
+  // (separately routed) form sheet shows up on return without a manual reload.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+      regloApi
+        .getLocations()
+        .then((data) => {
+          if (!cancelled) setLocations(data ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setLocations([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const filtered = useMemo(() => {
     const sorted = [...locations].sort((a, b) => {
       if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
-    if (!search.trim()) return sorted;
+    if (!showSearch || !search.trim()) return sorted;
     const q = search.trim().toLowerCase();
     return sorted.filter(
       (l) =>
         l.name.toLowerCase().includes(q) ||
         (l.address ?? '').toLowerCase().includes(q),
     );
-  }, [locations, search]);
+  }, [locations, search, showSearch]);
 
   return (
     <View style={{ paddingTop: 4 }}>
-      <View style={styles.searchRow}>
-        <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Cerca per nome o indirizzo"
-          placeholderTextColor={colors.textSecondary}
-        />
-      </View>
+      {showSearch ? (
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Cerca per nome o indirizzo"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color="#1A1A2E" />
         </View>
       ) : filtered.length === 0 ? (
         <Text style={styles.empty}>Nessun luogo trovato.</Text>
@@ -84,56 +94,38 @@ export const InlineLocationPicker = ({
         <View style={styles.list}>
           {filtered.map((item, index) => {
             const selected = item.id === selectedLocationId;
+            const iconName: keyof typeof Ionicons.glyphMap = item.isDefault
+              ? 'business'
+              : item.isPrecise
+                ? 'location'
+                : 'location-outline';
             return (
-              <Pressable
-                key={item.id}
-                onPress={() => onSelect(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  index !== 0 && styles.rowBorderTop,
-                  selected && styles.rowSelected,
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.iconWrap,
-                    item.isPrecise ? styles.iconWrapPrecise : styles.iconWrapGeneric,
-                  ]}
+              <View key={item.id}>
+                {index !== 0 ? <View style={styles.divider} /> : null}
+                <Pressable
+                  onPress={() => onSelect(item)}
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
                 >
-                  <Ionicons
-                    name={item.isPrecise ? 'location' : 'pricetag-outline'}
-                    size={18}
-                    color={item.isPrecise ? '#16A34A' : '#6B7280'}
-                  />
-                </View>
-                <View style={styles.textWrap}>
-                  <View style={styles.nameRow}>
+                  <View style={styles.iconCol}>
+                    <Ionicons name={iconName} size={22} color="#1A1A2E" />
+                  </View>
+                  <View style={styles.textWrap}>
                     <Text style={styles.name} numberOfLines={1}>
                       {item.name}
                     </Text>
-                    {item.isDefault ? (
-                      <View style={styles.sedeBadge}>
-                        <Text style={styles.sedeBadgeText}>Sede</Text>
-                      </View>
-                    ) : null}
+                    {item.address ? (
+                      <Text style={styles.address} numberOfLines={1}>
+                        {item.address}
+                      </Text>
+                    ) : (
+                      <Text style={styles.addressMuted}>Luogo generico</Text>
+                    )}
                   </View>
-                  {item.address ? (
-                    <Text style={styles.address} numberOfLines={1}>
-                      {item.address}
-                    </Text>
-                  ) : (
-                    <Text style={styles.addressMuted}>
-                      {item.isPrecise ? '' : 'Luogo generico'}
-                    </Text>
-                  )}
-                </View>
-                {selected ? (
-                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                )}
-              </Pressable>
+                  {selected ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#1A1A2E" />
+                  ) : null}
+                </Pressable>
+              </View>
             );
           })}
         </View>
@@ -141,10 +133,10 @@ export const InlineLocationPicker = ({
 
       <Pressable
         onPress={onRequestCreate}
-        style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.5 }]}
       >
-        <View style={styles.addIcon}>
-          <Ionicons name="add" size={20} color={colors.primary} />
+        <View style={styles.iconCol}>
+          <Ionicons name="add" size={22} color="#1A1A2E" />
         </View>
         <Text style={styles.addText}>Aggiungi nuovo luogo</Text>
       </Pressable>
@@ -159,7 +151,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
     marginBottom: spacing.md,
   },
@@ -175,67 +167,31 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     paddingVertical: spacing.lg,
   },
-  list: {
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-  },
+  list: { marginBottom: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 12,
     paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    minHeight: 64,
+    minHeight: 60,
   },
-  rowBorderTop: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  rowSelected: { backgroundColor: '#FDF2F8' },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#EBEDF0',
+    marginLeft: 40,
   },
-  iconWrapPrecise: { backgroundColor: '#DCFCE7' },
-  iconWrapGeneric: { backgroundColor: '#F3F4F6' },
+  iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   textWrap: { flex: 1, gap: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { ...typography.body, fontWeight: '600', color: colors.textPrimary, flexShrink: 1 },
-  address: { ...typography.caption, color: colors.textSecondary },
-  addressMuted: { ...typography.caption, color: colors.textMuted, fontStyle: 'italic' },
-  sedeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: '#FCE7F3',
-  },
-  sedeBadgeText: { fontSize: 10, fontWeight: '700', color: '#BE185D' },
+  name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  address: { fontSize: 13, color: '#94A3B8' },
+  addressMuted: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 12,
     paddingVertical: 14,
-    paddingHorizontal: spacing.md,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FBCFE8',
-    borderStyle: 'dashed',
-    backgroundColor: '#FDF2F8',
-    minHeight: 56,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#EBEDF0',
   },
-  addIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FBCFE8',
-  },
-  addText: { ...typography.body, color: colors.primary, fontWeight: '700' },
+  addText: { fontSize: 15, color: '#1A1A2E', fontWeight: '600' },
 });

@@ -13,13 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  Easing,
-  interpolate,
-} from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -30,65 +24,18 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
-import { SelectableChip } from '../components/SelectableChip';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent, MobileStudentPaymentProfile } from '../types/regloApi';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
+import { settingsStore, SlotTarget } from '../stores/settingsStore';
+import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
 import { isInstructor, isOwner, isStudent } from '../utils/roles';
-
-type AnimatedChevronProps = { expanded: boolean };
-const AnimatedChevron = ({ expanded }: AnimatedChevronProps) => {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    rotation.value = withTiming(expanded ? 1 : 0, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [expanded, rotation]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 90])}deg` }],
-  }));
-
-  return (
-    <Animated.View style={[{ marginLeft: 8, width: 20, alignItems: 'center' }, animatedStyle]}>
-      <Text style={{ fontSize: 20, color: '#9CA3AF' }}>{'\u203A'}</Text>
-    </Animated.View>
-  );
-};
-
-type AnimatedSectionProps = { expanded: boolean; children: React.ReactNode };
-const AnimatedSection = ({ expanded, children }: AnimatedSectionProps) => {
-  const [contentHeight, setContentHeight] = useState(0);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withTiming(expanded ? 1 : 0, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [expanded, progress]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    height: contentHeight > 0 ? interpolate(progress.value, [0, 1], [0, contentHeight]) : expanded ? undefined : 0,
-    opacity: interpolate(progress.value, [0, 0.3, 1], [0, 0, 1]),
-    overflow: 'hidden' as const,
-  }));
-
-  return (
-    <Animated.View style={containerStyle}>
-      <View onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)} style={{ position: contentHeight > 0 ? 'relative' : 'absolute', width: '100%' }}>
-        {children}
-      </View>
-    </Animated.View>
-  );
-};
+import { useAutoPaymentsEnabled } from '../hooks/useAutoPaymentsEnabled';
 
 const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
   const normalized = (message ?? '').toLowerCase();
@@ -96,12 +43,6 @@ const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
 };
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
-const weekPresets = [2, 4, 6, 8, 12] as const;
-
-const toReminderLabel = (minutes: number) => {
-  if (minutes === 120) return '2h';
-  return `${minutes}m`;
-};
 
 const roleLabelMap: Record<string, string> = {
   STUDENT: 'Allievo',
@@ -255,6 +196,12 @@ export const SettingsScreen = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  // Loads after initialLoading (background) — gates only the availability hint.
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  // Instructor/owner: gates only the settings-dependent row hints (Disponibilità
+  // mode, Agenda weeks) while they load in the background. The screen renders
+  // immediately from the session — never blocked on these network calls.
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [morningActive, setMorningActive] = useState(false);
   const [afternoonActive, setAfternoonActive] = useState(false);
   const [morningStart, setMorningStart] = useState(buildTime(8, 0));
@@ -264,7 +211,6 @@ export const SettingsScreen = () => {
   const [slotTimePickerTarget, setSlotTimePickerTarget] = useState<
     'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
   >(null);
-  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
 
@@ -292,8 +238,12 @@ export const SettingsScreen = () => {
   const paymentStatusText = paymentProfile?.hasPaymentMethod
     ? 'Metodo di pagamento configurato'
     : 'Nessun metodo configurato';
+  // Presence of the payment row comes from the cached settings query (instant
+  // after first load) so the row renders immediately; only its summary value
+  // waits on the payment profile.
+  const autoPayments = useAutoPaymentsEnabled();
   const showStudentPaymentCard =
-    isStudent(autoscuolaRole) && paymentProfile?.autoPaymentsEnabled === true;
+    autoPayments.enabled || paymentProfile?.autoPaymentsEnabled === true;
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -361,29 +311,35 @@ export const SettingsScreen = () => {
   const loadStudentAvailabilityPreset = useCallback(async (studentId: string) => {
     const anchor = new Date();
     anchor.setHours(0, 0, 0, 0);
-    const dates = Array.from({ length: 7 }, (_, index) => addDays(anchor, index));
-    const responses = await Promise.all(
-      dates.map((day) =>
-        regloApi.getAvailabilitySlots({
-          ownerType: 'student',
-          ownerId: studentId,
-          date: toDateString(day),
-        })
-      )
-    );
+    // Single range request for the whole week (was 7 separate per-day calls).
+    const slots = await regloApi.getAvailabilitySlots({
+      ownerType: 'student',
+      ownerId: studentId,
+      from: toDateString(anchor),
+      to: toDateString(addDays(anchor, 6)),
+    });
+
+    // Group the week's slots by calendar day.
+    const byDay = new Map<string, typeof slots>();
+    (slots ?? []).forEach((slot) => {
+      if (slot.status === 'cancelled') return;
+      const key = toDateString(new Date(slot.startsAt));
+      const arr = byDay.get(key);
+      if (arr) arr.push(slot);
+      else byDay.set(key, [slot]);
+    });
 
     const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
-    responses.forEach((response, index) => {
-      if (!response || response.length === 0) return;
-      const usableSlots = response
-        .filter((slot) => slot.status !== 'cancelled')
+    byDay.forEach((daySlots) => {
+      if (!daySlots.length) return;
+      const sorted = daySlots
+        .slice()
         .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-      if (!usableSlots.length) return;
-      const first = new Date(usableSlots[0].startsAt);
-      const last = new Date(usableSlots[usableSlots.length - 1].endsAt);
+      const first = new Date(sorted[0].startsAt);
+      const last = new Date(sorted[sorted.length - 1].endsAt);
       const startMin = first.getHours() * 60 + first.getMinutes();
       const endMin = last.getHours() * 60 + last.getMinutes();
-      ranges.push({ dayIndex: dates[index].getDay(), startMin, endMin });
+      ranges.push({ dayIndex: first.getDay(), startMin, endMin });
     });
 
     if (!ranges.length) {
@@ -410,26 +366,39 @@ export const SettingsScreen = () => {
       const savedViewMode = await sessionStorage.getAgendaViewMode();
       setAgendaViewMode(savedViewMode);
       if (isOwner(autoscuolaRole) || isInstructor(autoscuolaRole)) {
-        try {
-          const settings = await regloApi.getAutoscuolaSettings();
-          setAvailabilityWeeks(String(settings.availabilityWeeks));
-          setStudentReminderMinutes(String(settings.studentReminderMinutes));
-          setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
-          setAppBookingActors(settings.appBookingActors ?? 'students');
-          setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
-        } catch (settingsErr) {
-          if (isOwner(autoscuolaRole)) {
-            throw settingsErr;
-          }
-        }
+        // Render immediately — the profile card + Vista agenda (local storage)
+        // need no network. The settings feeding the Disponibilità / Agenda row
+        // hints load in the background, in parallel, gated by settingsLoading.
+        setInitialLoading(false);
+        setSettingsLoading(true);
+        const tasks: Promise<void>[] = [];
+        tasks.push(
+          regloApi.getAutoscuolaSettings()
+            .then((settings) => {
+              setAvailabilityWeeks(String(settings.availabilityWeeks));
+              setStudentReminderMinutes(String(settings.studentReminderMinutes));
+              setInstructorReminderMinutes(String(settings.instructorReminderMinutes));
+              setAppBookingActors(settings.appBookingActors ?? 'students');
+              setInstructorBookingMode(settings.instructorBookingMode ?? 'manual_engine');
+            })
+            .catch((settingsErr) => {
+              if (isOwner(autoscuolaRole)) {
+                setError(settingsErr instanceof Error ? settingsErr.message : 'Errore caricando impostazioni');
+              }
+            }),
+        );
         if (isInstructor(autoscuolaRole)) {
-          try {
-            const instrSettings = await regloApi.getInstructorSettings();
-            if (instrSettings.settings?.availabilityMode) {
-              setInstrAvailabilityMode(instrSettings.settings.availabilityMode);
-            }
-          } catch {}
+          tasks.push(
+            regloApi.getInstructorSettings()
+              .then((instrSettings) => {
+                if (instrSettings.settings?.availabilityMode) {
+                  setInstrAvailabilityMode(instrSettings.settings.availabilityMode);
+                }
+              })
+              .catch(() => {}),
+          );
         }
+        Promise.all(tasks).finally(() => setSettingsLoading(false));
       }
 
       if (isStudent(autoscuolaRole)) {
@@ -444,8 +413,18 @@ export const SettingsScreen = () => {
         }
         const linkedStudent = findLinkedStudent(studentsList, user);
         setStudentProfile(linkedStudent);
+        // Unblock the screen immediately: the profile card needs no network
+        // and payment is already loaded. The availability preset only feeds
+        // the Disponibilità sub-page + its summary row, so load it in the
+        // background instead of blocking the whole screen on 7 slot calls.
+        setInitialLoading(false);
         if (linkedStudent?.id) {
-          await loadStudentAvailabilityPreset(linkedStudent.id);
+          setAvailabilityLoading(true);
+          loadStudentAvailabilityPreset(linkedStudent.id)
+            .catch(() => {})
+            .finally(() => setAvailabilityLoading(false));
+        } else {
+          setAvailabilityLoading(false);
         }
       } else {
         setPaymentProfile(null);
@@ -772,29 +751,74 @@ export const SettingsScreen = () => {
     );
   };
 
-  const handleOpenInstructorManage = () => {
-    router.push('/(tabs)/role');
-  };
-
-  const toggleSection = (key: string) =>
-    setActiveSection((prev) => (prev === key ? null : key));
-
   const paymentSubtitle = paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod
     ? `${paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022${paymentProfile.paymentMethod.last4} configurata`
     : 'Nessun metodo configurato';
 
   /* \u2500\u2500\u2500 Student-specific render \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  const availabilitySummary = availabilityDays.length > 0
+    ? availabilityDays.map((d) => dayLetters[d]).join(', ') + (morningActive && afternoonActive ? ' \u2022 Tutto il giorno' : morningActive ? ' \u2022 Mattina' : afternoonActive ? ' \u2022 Pomeriggio' : '')
+    : 'Non configurata';
+
+  const paymentSummary = paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod
+    ? `${paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022${paymentProfile.paymentMethod.last4}`
+    : 'Non configurato';
+
+  const onPickSlotTime = (target: SlotTarget, date: Date) => {
+    if (target === 'morningStart') setMorningStart(date);
+    else if (target === 'morningEnd') setMorningEnd(date);
+    else if (target === 'afternoonStart') setAfternoonStart(date);
+    else if (target === 'afternoonEnd') setAfternoonEnd(date);
+  };
+
+  // Publish edit state + handlers to the store so dedicated sub-pages
+  // (profile-edit, availability, payment) can bind to them. Published for
+  // every role: instructors/owners reach profile-edit from the "Altro" stack
+  // (more/profile-edit); availability/payment remain student-only routes.
+  useEffect(() => {
+    settingsStore.set({
+      name, phone, saving, setName, setPhone, onSaveProfile: handleSaveProfile,
+      hasProfile: !!studentProfile, weeks: Number(availabilityWeeks) || 4,
+      availabilityDays, toggleDay: toggleAvailabilityDay,
+      morningActive, afternoonActive, toggleMorning, toggleAfternoon,
+      morningStart, morningEnd, afternoonStart, afternoonEnd,
+      onPickSlotTime, availabilitySaving, onSaveAvailability: handleSaveStudentAvailability,
+      paymentProfile, paymentLoading,
+      onConfigurePayment: handleConfigurePaymentMethod, onRemovePayment: handleRemovePaymentMethod,
+    });
+  });
+
+  // Publish instructor/owner settings so the "Altro" formSheet sub-pages
+  // (agenda-view, availability-mode, agenda-settings) can bind to live state.
+  useEffect(() => {
+    if (isStudent(autoscuolaRole)) return;
+    instructorSettingsStore.set({
+      agendaViewMode,
+      onPickAgendaView: async (m) => {
+        setAgendaViewMode(m);
+        await sessionStorage.setAgendaViewMode(m);
+      },
+      availabilityMode: instrAvailabilityMode,
+      onPickAvailabilityMode: async (m) => {
+        const prev = instrAvailabilityMode;
+        setInstrAvailabilityMode(m);
+        try { await regloApi.updateInstructorSettings({ availabilityMode: m }); }
+        catch { setInstrAvailabilityMode(prev); }
+      },
+      availabilityWeeks,
+      setAvailabilityWeeks,
+      studentReminderMinutes,
+      setStudentReminderMinutes,
+      instructorReminderMinutes,
+      setInstructorReminderMinutes,
+      savingSettings,
+      onSaveOwnerSettings: handleSaveOwnerSettings,
+    });
+  });
+
   const renderStudentContent = () => (
     <>
-      {/* 1. Title */}
-      {router.canGoBack() ? (
-        <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1a120a" />
-          <Text style={studentStyles.title}>Impostazioni</Text>
-        </Pressable>
-      ) : (
-        <Text style={studentStyles.title}>Impostazioni</Text>
-      )}
+      <Animated.Text entering={FadeInUp.duration(400).springify()} style={studentStyles.pageTitle}>Profilo</Animated.Text>
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -803,359 +827,88 @@ export const SettingsScreen = () => {
         </View>
       ) : null}
 
-      {initialLoading ? (
-        <>
-          <View style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <SkeletonBlock width={56} height={56} radius={28} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <SkeletonBlock width="60%" height={18} />
-                <SkeletonBlock width="40%" height={14} />
-              </View>
+      {/* Profile card -> opens profile-edit page. Name/email/company come from
+          the session, so they render instantly with no skeleton. */}
+      <Animated.View entering={FadeInUp.delay(70).duration(420).springify()}>
+        <Pressable
+          onPress={() => router.push('/(tabs)/settings/profile-edit')}
+          style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
+        >
+          <View style={studentStyles.profileAvatar}>
+            <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
+            <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
+            <View style={studentStyles.profileCompanyPill}>
+              <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+              <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
             </View>
           </View>
-          <View style={studentStyles.menuCard}>
-            <SkeletonCard>
-              <SkeletonBlock width="72%" />
-              <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
-            </SkeletonCard>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        </Pressable>
+      </Animated.View>
+
+      {/* Menu group: preferences */}
+      <Animated.View entering={FadeInUp.delay(140).duration(420).springify()} style={studentStyles.menuGroup}>
+        <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.rowLabel}>Disponibilità</Text>
+            {availabilityLoading ? (
+              <SkeletonBlock width={130} height={11} radius={6} style={{ marginTop: 5 }} />
+            ) : (
+              <Text style={studentStyles.rowHint} numberOfLines={1}>{availabilitySummary}</Text>
+            )}
           </View>
-        </>
-      ) : (
-        <>
-          {/* 2. Profile Hero Card */}
-          <Pressable onPress={() => toggleSection('profile')} style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <View style={studentStyles.heroAvatar}>
-                <Text style={studentStyles.heroAvatarText}>{userInitials}</Text>
-              </View>
-              <View style={studentStyles.heroMeta}>
-                <Text style={studentStyles.heroName}>{user?.name ?? 'Utente'}</Text>
-                <Text style={studentStyles.heroEmail}>{user?.email ?? 'Email non disponibile'}</Text>
-              </View>
-              <AnimatedChevron expanded={activeSection === 'profile'} />
-            </View>
-            <View style={studentStyles.heroDivider} />
-            <View style={studentStyles.heroCompanyRow}>
-              <View style={studentStyles.yellowDot} />
-              <Text style={studentStyles.heroCompanyName}>{activeCompany?.name ?? 'Nessuna autoscuola'}</Text>
-            </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
 
-            {/* Expanded: profile edit */}
-            <AnimatedSection expanded={activeSection === 'profile'}>
-              <View style={studentStyles.expandedContent}>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Nome completo</Text>
-                  <Input placeholder="Nome" value={name} onChangeText={setName} />
-                </View>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Numero di cellulare</Text>
-                  <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-                </View>
-                <Pressable
-                  onPress={handleSaveProfile}
-                  disabled={saving}
-                  style={({ pressed }) => [
-                    studentStyles.pinkCta,
-                    pressed && { opacity: 0.85 },
-                    saving && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text style={studentStyles.pinkCtaText}>
-                    {saving ? 'Salvataggio...' : 'Salva profilo'}
-                  </Text>
-                </Pressable>
-              </View>
-            </AnimatedSection>
-          </Pressable>
-
-          {/* 3. Settings Menu Card */}
-          <View style={studentStyles.menuCard}>
-            {/* a. Disponibilità */}
-            <Pressable onPress={() => toggleSection('availability')} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
-                <Ionicons name="calendar-outline" size={20} color="#b8860b" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.menuTitle}>Disponibilità</Text>
-                <Text style={studentStyles.menuSubtitle}>Giorni e orari preferiti per le guide</Text>
-              </View>
-              <AnimatedChevron expanded={activeSection === 'availability'} />
-            </Pressable>
-
-            <AnimatedSection expanded={activeSection === 'availability'}>
-              <View style={studentStyles.expandedContent}>
-                {!studentProfile ? (
-                  <Text style={studentStyles.expandedHint}>
-                    Profilo allievo non collegato alla company attiva.
-                  </Text>
+        {showStudentPaymentCard && (
+          <>
+            <View style={studentStyles.rowDivider} />
+            <Pressable onPress={() => router.push('/(tabs)/settings/payment')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="card-outline" size={23} color="#1A1A2E" />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={studentStyles.rowLabel}>Metodo di pagamento</Text>
+                {initialLoading ? (
+                  <SkeletonBlock width={110} height={11} radius={6} style={{ marginTop: 5 }} />
                 ) : (
-                  <>
-                    <Text style={studentStyles.expandedHint}>
-                      Ripetizione ogni {Number(availabilityWeeks) || 4} settimane
-                    </Text>
-
-                    {/* Day circles */}
-                    <View style={studentStyles.dayRow}>
-                      {[1, 2, 3, 4, 5, 6].map((dayIndex) => {
-                        const isActive = availabilityDays.includes(dayIndex);
-                        return (
-                          <Pressable
-                            key={dayIndex}
-                            onPress={() => toggleAvailabilityDay(dayIndex)}
-                            style={[
-                              studentStyles.dayCircle,
-                              isActive ? studentStyles.dayCircleActive : studentStyles.dayCircleInactive,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                studentStyles.dayCircleText,
-                                isActive ? studentStyles.dayCircleTextActive : studentStyles.dayCircleTextInactive,
-                              ]}
-                            >
-                              {dayLetters[dayIndex]}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
-                    {/* Time slot toggles with editable ranges */}
-                    <View style={studentStyles.slotsContainer}>
-                      {/* Morning slot */}
-                      <View style={studentStyles.slotBlock}>
-                        <Pressable onPress={toggleMorning} style={studentStyles.slotRow}>
-                          <Text
-                            style={[
-                              studentStyles.slotLabel,
-                              morningActive ? studentStyles.slotLabelActive : studentStyles.slotLabelInactive,
-                            ]}
-                          >
-                            Mattina
-                          </Text>
-                          <View
-                            style={[
-                              studentStyles.slotDot,
-                              morningActive ? studentStyles.slotDotActive : studentStyles.slotDotInactive,
-                            ]}
-                          />
-                        </Pressable>
-                        {morningActive ? (
-                          <View style={studentStyles.slotTimeRow}>
-                            <Pressable
-                              style={studentStyles.slotTimeCard}
-                              onPress={() => setSlotTimePickerTarget('morningStart')}
-                            >
-                              <Ionicons name="time-outline" size={16} color="#EC4899" />
-                              <Text style={studentStyles.slotTimeText}>{toTimeStr(morningStart)}</Text>
-                            </Pressable>
-                            <Text style={studentStyles.slotTimeSep}>—</Text>
-                            <Pressable
-                              style={studentStyles.slotTimeCard}
-                              onPress={() => setSlotTimePickerTarget('morningEnd')}
-                            >
-                              <Ionicons name="time-outline" size={16} color="#EC4899" />
-                              <Text style={studentStyles.slotTimeText}>{toTimeStr(morningEnd)}</Text>
-                            </Pressable>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      {/* Afternoon slot */}
-                      <View style={studentStyles.slotBlock}>
-                        <Pressable onPress={toggleAfternoon} style={studentStyles.slotRow}>
-                          <Text
-                            style={[
-                              studentStyles.slotLabel,
-                              afternoonActive ? studentStyles.slotLabelActive : studentStyles.slotLabelInactive,
-                            ]}
-                          >
-                            Pomeriggio
-                          </Text>
-                          <View
-                            style={[
-                              studentStyles.slotDot,
-                              afternoonActive ? studentStyles.slotDotActive : studentStyles.slotDotInactive,
-                            ]}
-                          />
-                        </Pressable>
-                        {afternoonActive ? (
-                          <View style={studentStyles.slotTimeRow}>
-                            <Pressable
-                              style={studentStyles.slotTimeCard}
-                              onPress={() => setSlotTimePickerTarget('afternoonStart')}
-                            >
-                              <Ionicons name="time-outline" size={16} color="#EC4899" />
-                              <Text style={studentStyles.slotTimeText}>{toTimeStr(afternoonStart)}</Text>
-                            </Pressable>
-                            <Text style={studentStyles.slotTimeSep}>—</Text>
-                            <Pressable
-                              style={studentStyles.slotTimeCard}
-                              onPress={() => setSlotTimePickerTarget('afternoonEnd')}
-                            >
-                              <Ionicons name="time-outline" size={16} color="#EC4899" />
-                              <Text style={studentStyles.slotTimeText}>{toTimeStr(afternoonEnd)}</Text>
-                            </Pressable>
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-
-                    {/* Save CTA */}
-                    <Pressable
-                      onPress={handleSaveStudentAvailability}
-                      disabled={availabilitySaving}
-                      style={({ pressed }) => [
-                        studentStyles.pinkCta,
-                        pressed && { opacity: 0.85 },
-                        availabilitySaving && { opacity: 0.6 },
-                      ]}
-                    >
-                      <Text style={studentStyles.pinkCtaText}>
-                        {availabilitySaving ? 'Salvataggio...' : 'Salva Modifiche'}
-                      </Text>
-                    </Pressable>
-                  </>
+                  <Text style={studentStyles.rowHint} numberOfLines={1}>{paymentSummary}</Text>
                 )}
               </View>
-            </AnimatedSection>
-
-            {/* Divider */}
-            {showStudentPaymentCard ? <View style={studentStyles.menuDivider} /> : null}
-
-            {/* b. Metodo di pagamento */}
-            {showStudentPaymentCard ? (
-              <>
-                <Pressable onPress={() => toggleSection('payment')} style={studentStyles.menuRow}>
-                  <View style={[studentStyles.menuIcon, { backgroundColor: '#FCE7F3' }]}>
-                    <Ionicons name="card-outline" size={20} color="#EC4899" />
-                  </View>
-                  <View style={studentStyles.menuTextWrap}>
-                    <Text style={studentStyles.menuTitle}>Metodo di pagamento</Text>
-                    <Text style={studentStyles.menuSubtitle}>{paymentSubtitle}</Text>
-                  </View>
-                  <AnimatedChevron expanded={activeSection === 'payment'} />
-                </Pressable>
-
-                <AnimatedSection expanded={activeSection === 'payment'}>
-                  <View style={studentStyles.expandedContent}>
-                    <View style={studentStyles.expandedStatusRow}>
-                      <View
-                        style={[
-                          studentStyles.expandedStatusDot,
-                          paymentProfile?.hasPaymentMethod
-                            ? studentStyles.expandedStatusDotOk
-                            : studentStyles.expandedStatusDotNeutral,
-                        ]}
-                      />
-                      <Text style={studentStyles.expandedStatusText}>{paymentStatusText}</Text>
-                    </View>
-
-                    {paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod ? (
-                      <View style={studentStyles.paymentMethodRow}>
-                        <Ionicons name="card-outline" size={18} color="#9CA3AF" />
-                        <Text style={studentStyles.paymentMethodText}>
-                          {paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022{paymentProfile.paymentMethod.last4}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={studentStyles.expandedHint}>
-                        Aggiungi una carta per prenotare e pagare senza attriti.
-                      </Text>
-                    )}
-
-                    {paymentProfile?.blockedByInsoluti ? (
-                      <Text style={studentStyles.warningText}>Hai pagamenti insoluti. Salda dalla Home.</Text>
-                    ) : null}
-
-                    <Pressable
-                      onPress={handleConfigurePaymentMethod}
-                      disabled={paymentLoading}
-                      style={({ pressed }) => [
-                        studentStyles.pinkCta,
-                        pressed && { opacity: 0.85 },
-                        paymentLoading && { opacity: 0.6 },
-                      ]}
-                    >
-                      <Text style={studentStyles.pinkCtaText}>
-                        {paymentLoading
-                          ? 'Attendi...'
-                          : paymentProfile?.hasPaymentMethod
-                            ? 'Aggiorna metodo'
-                            : 'Aggiungi metodo'}
-                      </Text>
-                    </Pressable>
-
-                    {paymentProfile?.hasPaymentMethod ? (
-                      <Pressable
-                        onPress={handleRemovePaymentMethod}
-                        disabled={paymentLoading}
-                        style={({ pressed }) => [
-                          studentStyles.dangerCta,
-                          pressed && { opacity: 0.85 },
-                          paymentLoading && { opacity: 0.6 },
-                        ]}
-                      >
-                        <Text style={studentStyles.dangerCtaText}>
-                          {paymentLoading ? 'Attendi...' : 'Rimuovi metodo'}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </AnimatedSection>
-              </>
-            ) : null}
-
-            {/* Divider */}
-            <View style={studentStyles.menuDivider} />
-
-            {/* c. Notifiche */}
-            <Pressable onPress={handleNotificationsTap} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: notificationsEnabled ? '#FCE7F3' : '#FEF2F2' }]}>
-                <Ionicons
-                  name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
-                  size={20}
-                  color={notificationsEnabled ? '#ec4899' : '#EF4444'}
-                />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.menuTitle}>Notifiche</Text>
-                <Text style={[studentStyles.menuSubtitle, !notificationsEnabled && { color: '#EF4444' }]}>
-                  {notificationsEnabled ? 'Attive — riceverai promemoria guide' : 'Disattivate — attivale per non perdere le guide'}
-                </Text>
-              </View>
-              <View style={[studentStyles.notifDot, notificationsEnabled ? studentStyles.notifDotOn : studentStyles.notifDotOff]} />
+              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
             </Pressable>
+          </>
+        )}
+
+        <View style={studentStyles.rowDivider} />
+        <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#1A1A2E" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.rowLabel}>Notifiche</Text>
+            <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
+              {notificationsEnabled ? 'Attive' : 'Disattivate'}
+            </Text>
           </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
+      </Animated.View>
 
-          {/* 4. Danger Zone Card */}
-          <View style={studentStyles.dangerCard}>
-            <Pressable onPress={handleSignOut} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Logout</Text>
-              </View>
-            </Pressable>
+      {/* Menu group: account */}
+      <Animated.View entering={FadeInUp.delay(210).duration(420).springify()} style={studentStyles.menuGroup}>
+        <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+          <Text style={studentStyles.rowLabelFlex}>Esci</Text>
+        </Pressable>
+        <View style={studentStyles.rowDivider} />
+        <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="trash-outline" size={23} color="#DC2626" />
+          <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
+        </Pressable>
+      </Animated.View>
 
-            <View style={studentStyles.menuDivider} />
-
-            <Pressable onPress={handleDeleteAccount} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Elimina account</Text>
-              </View>
-            </Pressable>
-          </View>
-
-          {/* 5. Footer */}
-          <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
-        </>
-      )}
+      <Animated.Text entering={FadeInUp.delay(280).duration(420).springify()} style={studentStyles.footer}>Reglo v1.0.0</Animated.Text>
     </>
   );
 
@@ -1165,7 +918,7 @@ export const SettingsScreen = () => {
       {/* 1. Title */}
       {router.canGoBack() ? (
         <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1a120a" />
+          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
           <Text style={studentStyles.title}>Impostazioni</Text>
         </Pressable>
       ) : (
@@ -1181,268 +934,100 @@ export const SettingsScreen = () => {
 
       {initialLoading ? (
         <>
-          <View style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <SkeletonBlock width={56} height={56} radius={28} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <SkeletonBlock width="60%" height={18} />
-                <SkeletonBlock width="40%" height={14} />
-              </View>
-            </View>
-          </View>
-          <View style={studentStyles.menuCard}>
-            <SkeletonCard>
-              <SkeletonBlock width="72%" />
-              <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
-            </SkeletonCard>
-          </View>
+          <SkeletonCard>
+            <SkeletonBlock width="72%" />
+            <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
+          </SkeletonCard>
         </>
       ) : (
         <>
-          {/* 2. Profile Hero Card */}
-          <Pressable onPress={() => toggleSection('profile')} style={studentStyles.heroCard}>
-            <View style={studentStyles.heroRow}>
-              <View style={studentStyles.heroAvatar}>
-                <Text style={studentStyles.heroAvatarText}>{userInitials}</Text>
-              </View>
-              <View style={studentStyles.heroMeta}>
-                <Text style={studentStyles.heroName}>{user?.name ?? 'Utente'}</Text>
-                <Text style={studentStyles.heroEmail}>{user?.email ?? 'Email non disponibile'}</Text>
-              </View>
-              <AnimatedChevron expanded={activeSection === 'profile'} />
-            </View>
-            <View style={studentStyles.heroDivider} />
-            <View style={studentStyles.heroCompanyRow}>
-              <View style={studentStyles.yellowDot} />
-              <Text style={studentStyles.heroCompanyName}>{activeCompany?.name ?? 'Nessuna autoscuola'}</Text>
-            </View>
-
-            {/* Expanded: profile edit */}
-            <AnimatedSection expanded={activeSection === 'profile'}>
-              <View style={studentStyles.expandedContent}>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Nome completo</Text>
-                  <Input placeholder="Nome" value={name} onChangeText={setName} />
-                </View>
-                <View style={studentStyles.fieldGroup}>
-                  <Text style={studentStyles.fieldLabel}>Numero di cellulare</Text>
-                  <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-                </View>
-                <Pressable
-                  onPress={handleSaveProfile}
-                  disabled={saving}
-                  style={({ pressed }) => [
-                    studentStyles.pinkCta,
-                    pressed && { opacity: 0.85 },
-                    saving && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text style={studentStyles.pinkCtaText}>
-                    {saving ? 'Salvataggio...' : 'Salva profilo'}
+          {/* Preferences — normal rows that open formSheet sub-pages (like student).
+              Profile card moved to the "Altro" (More) screen to avoid duplication. */}
+          <View style={studentStyles.menuGroup}>
+            {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
+              <Pressable onPress={() => router.push('/(tabs)/more/agenda-view')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                <Ionicons name="grid-outline" size={23} color="#1A1A2E" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={studentStyles.rowLabel}>Vista agenda</Text>
+                  <Text style={studentStyles.rowHint} numberOfLines={1}>
+                    {agendaViewMode === 'day' ? 'Giornaliera' : 'Settimanale'}
                   </Text>
-                </Pressable>
-              </View>
-            </AnimatedSection>
-          </Pressable>
-
-          {/* 3. Settings sections */}
-
-          {/* Vista agenda */}
-          {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
-            <View style={studentStyles.menuCard}>
-              <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, marginBottom: 12, textTransform: 'uppercase' }}>
-                  VISTA AGENDA
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable
-                    onPress={async () => { setAgendaViewMode('day'); await sessionStorage.setAgendaViewMode('day'); }}
-                    style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnActive]}
-                  >
-                    <Ionicons name="calendar-outline" size={18} color={agendaViewMode === 'day' ? '#A16207' : '#9CA3AF'} />
-                    <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'day' && settingsCardStyles.viewModeBtnTextActive]}>
-                      Giornaliera
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={async () => { setAgendaViewMode('week'); await sessionStorage.setAgendaViewMode('week'); }}
-                    style={[settingsCardStyles.viewModeBtn, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnActive]}
-                  >
-                    <Ionicons name="grid-outline" size={18} color={agendaViewMode === 'week' ? '#A16207' : '#9CA3AF'} />
-                    <Text style={[settingsCardStyles.viewModeBtnText, agendaViewMode === 'week' && settingsCardStyles.viewModeBtnTextActive]}>
-                      Settimanale
-                    </Text>
-                  </Pressable>
                 </View>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Disponibilità (instructor) */}
-          {isInstructor(autoscuolaRole) ? (
-            <View style={studentStyles.menuCard}>
-              <View style={{ paddingHorizontal: 20, paddingVertical: 18, gap: 14 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#EC4899', letterSpacing: 1.4, textTransform: 'uppercase' }}>
-                  DISPONIBILITA
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <SelectableChip
-                    label="Predefinita"
-                    active={instrAvailabilityMode === 'default'}
-                    onPress={async () => {
-                      setInstrAvailabilityMode('default');
-                      try { await regloApi.updateInstructorSettings({ availabilityMode: 'default' }); }
-                      catch { setInstrAvailabilityMode('publication'); }
-                    }}
-                  />
-                  <SelectableChip
-                    label="Pubblicazione"
-                    active={instrAvailabilityMode === 'publication'}
-                    onPress={async () => {
-                      setInstrAvailabilityMode('publication');
-                      try { await regloApi.updateInstructorSettings({ availabilityMode: 'publication' }); }
-                      catch { setInstrAvailabilityMode('default'); }
-                    }}
-                  />
-                </View>
-                {instrAvailabilityMode === 'publication' ? (
-                  <Text style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 16 }}>
-                    Compili e pubblichi settimana per settimana.
-                  </Text>
-                ) : null}
-                <Pressable
-                  onPress={handleOpenInstructorManage}
-                  style={({ pressed }) => [
-                    studentStyles.pinkCta,
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <Text style={studentStyles.pinkCtaText}>Gestisci disponibilità</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Agenda settings (owner) */}
-          {isOwner(autoscuolaRole) ? (
-            <View style={studentStyles.menuCard}>
-              <Pressable onPress={() => toggleSection('agenda')} style={studentStyles.menuRow}>
-                <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF9C3' }]}>
-                  <Ionicons name="calendar-outline" size={20} color="#CA8A04" />
-                </View>
-                <View style={studentStyles.menuTextWrap}>
-                  <Text style={studentStyles.menuTitle}>Agenda</Text>
-                  <Text style={studentStyles.menuSubtitle}>{availabilityWeeks} settimane prenotabili</Text>
-                </View>
-                <AnimatedChevron expanded={activeSection === 'agenda'} />
+                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
               </Pressable>
+            ) : null}
 
-              <AnimatedSection expanded={activeSection === 'agenda'}>
-                <View style={studentStyles.expandedContent}>
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Settimane prenotabili</Text>
-                    <View style={styles.chipRow}>
-                      {weekPresets.map((weeks) => (
-                        <SelectableChip
-                          key={weeks}
-                          label={`${weeks}w`}
-                          active={availabilityWeeks === String(weeks)}
-                          onPress={() => setAvailabilityWeeks(String(weeks))}
-                        />
-                      ))}
-                    </View>
+            {isInstructor(autoscuolaRole) ? (
+              <>
+                <View style={studentStyles.rowDivider} />
+                <Pressable onPress={() => router.push('/(tabs)/more/availability-mode')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                  <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={studentStyles.rowLabel}>Disponibilità</Text>
+                    {settingsLoading ? (
+                      <SkeletonBlock width={90} height={11} radius={6} style={{ marginTop: 5 }} />
+                    ) : (
+                      <Text style={studentStyles.rowHint} numberOfLines={1}>
+                        {instrAvailabilityMode === 'publication' ? 'Pubblicazione' : 'Predefinita'}
+                      </Text>
+                    )}
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+                </Pressable>
+              </>
+            ) : null}
 
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Promemoria allievo</Text>
-                    <View style={styles.chipRow}>
-                      {reminderOptions.map((minutes) => (
-                        <SelectableChip
-                          key={`student-${minutes}`}
-                          label={toReminderLabel(minutes)}
-                          active={studentReminderMinutes === String(minutes)}
-                          onPress={() => setStudentReminderMinutes(String(minutes))}
-                        />
-                      ))}
-                    </View>
+            {isOwner(autoscuolaRole) ? (
+              <>
+                <View style={studentStyles.rowDivider} />
+                <Pressable onPress={() => router.push('/(tabs)/more/agenda-settings')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+                  <Ionicons name="time-outline" size={23} color="#1A1A2E" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={studentStyles.rowLabel}>Agenda</Text>
+                    {settingsLoading ? (
+                      <SkeletonBlock width={120} height={11} radius={6} style={{ marginTop: 5 }} />
+                    ) : (
+                      <Text style={studentStyles.rowHint} numberOfLines={1}>
+                        {availabilityWeeks} settimane prenotabili
+                      </Text>
+                    )}
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+                </Pressable>
+              </>
+            ) : null}
 
-                  <View style={studentStyles.fieldGroup}>
-                    <Text style={studentStyles.fieldLabel}>Promemoria istruttore</Text>
-                    <View style={styles.chipRow}>
-                      {reminderOptions.map((minutes) => (
-                        <SelectableChip
-                          key={`instructor-${minutes}`}
-                          label={toReminderLabel(minutes)}
-                          active={instructorReminderMinutes === String(minutes)}
-                          onPress={() => setInstructorReminderMinutes(String(minutes))}
-                        />
-                      ))}
-                    </View>
-                  </View>
-
-                  <Pressable
-                    onPress={handleSaveOwnerSettings}
-                    disabled={savingSettings}
-                    style={({ pressed }) => [
-                      studentStyles.pinkCta,
-                      pressed && { opacity: 0.85 },
-                      savingSettings && { opacity: 0.6 },
-                    ]}
-                  >
-                    <Text style={studentStyles.pinkCtaText}>
-                      {savingSettings ? 'Salvataggio...' : 'Salva'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </AnimatedSection>
-            </View>
-          ) : null}
-
-          {/* Notifiche */}
-          <View style={studentStyles.menuCard}>
-            <Pressable onPress={handleNotificationsTap} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: notificationsEnabled ? '#ECFDF5' : '#FEF2F2' }]}>
-                <Ionicons
-                  name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
-                  size={20}
-                  color={notificationsEnabled ? '#10B981' : '#EF4444'}
-                />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.menuTitle}>Notifiche</Text>
-                <Text style={[studentStyles.menuSubtitle, !notificationsEnabled && { color: '#EF4444' }]}>
+            <View style={studentStyles.rowDivider} />
+            <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons
+                name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
+                size={23}
+                color="#1A1A2E"
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={studentStyles.rowLabel}>Notifiche</Text>
+                <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
                   {notificationsEnabled ? 'Attive' : 'Disattivate'}
                 </Text>
               </View>
-              <View style={[studentStyles.notifDot, notificationsEnabled ? studentStyles.notifDotOn : studentStyles.notifDotOff]} />
+              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
             </Pressable>
           </View>
 
-          {/* 4. Danger Zone Card */}
-          <View style={studentStyles.dangerCard}>
-            <Pressable onPress={handleSignOut} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Logout</Text>
-              </View>
+          {/* Account (flat menu group, like student) */}
+          <View style={studentStyles.menuGroup}>
+            <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+              <Text style={studentStyles.rowLabelFlex}>Esci</Text>
             </Pressable>
-
-            <View style={studentStyles.menuDivider} />
-
-            <Pressable onPress={handleDeleteAccount} style={studentStyles.menuRow}>
-              <View style={[studentStyles.menuIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              </View>
-              <View style={studentStyles.menuTextWrap}>
-                <Text style={studentStyles.dangerTitle}>Elimina account</Text>
-              </View>
+            <View style={studentStyles.rowDivider} />
+            <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+              <Ionicons name="trash-outline" size={23} color="#DC2626" />
+              <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
             </Pressable>
           </View>
 
-          {/* 5. Footer */}
+          {/* Footer */}
           <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
         </>
       )}
@@ -1451,7 +1036,7 @@ export const SettingsScreen = () => {
 
 
   return (
-    <Screen gradient>
+    <Screen>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
@@ -1488,357 +1073,105 @@ export const SettingsScreen = () => {
 /* \u2500\u2500\u2500 Student-specific styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 const studentStyles = StyleSheet.create({
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a120a',
+    fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E',
   },
 
-  /* Hero Card */
-  heroCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.10)',
-    padding: 20,
-    shadowColor: '#9c8a76',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FCE7F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroAvatarText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#EC4899',
-  },
-  heroMeta: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  heroName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  heroEmail: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginTop: 2,
-  },
-  heroDivider: {
-    height: 1,
-    backgroundColor: 'rgba(26,18,10,0.08)',
-    marginVertical: 14,
-  },
-  heroCompanyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  yellowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FACC15',
-  },
-  heroCompanyName: {
-    fontSize: 13,
-    color: '#9CA3AF',
+  pageTitle: {
+    fontSize: 30, fontWeight: '600', letterSpacing: -0.5, color: '#1A1A2E',
+    marginBottom: 4,
   },
 
-  /* Menu Card */
-  menuCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.10)',
-    shadowColor: '#9c8a76',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-    overflow: 'hidden',
+  /* Profile card (Airbnb-style: avatar + info + chevron) */
+  profileCard: {
+    backgroundColor: colors.surface, borderRadius: 22,
+    padding: 18, flexDirection: 'row', alignItems: 'center', gap: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10, shadowRadius: 10, elevation: 4,
   },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  profileAvatar: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: '#E9EBF2',
+    alignItems: 'center', justifyContent: 'center',
   },
-  menuIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  profileAvatarText: {
+    fontSize: 22, fontWeight: '800', color: colors.primary,
   },
-  menuTextWrap: {
-    flex: 1,
-    marginLeft: 14,
+  profileName: {
+    fontSize: 18, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2,
   },
-  menuTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a120a',
+  profileEmail: {
+    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1,
   },
-  menuSubtitle: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 2,
+  profileCompanyPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: '#F3F4F6', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8,
   },
-  menuDivider: {
-    height: 1,
-    backgroundColor: 'rgba(26,18,10,0.08)',
-    marginHorizontal: 20,
+  profileCompanyText: {
+    fontSize: 12, fontWeight: '600', color: colors.textSecondary,
   },
 
-  /* Expanded content */
-  expandedContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 12,
-  },
-  expandedHint: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginBottom: 12,
-  },
-  expandedStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  expandedStatusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  expandedStatusDotOk: {
-    backgroundColor: '#22C55E',
-  },
-  expandedStatusDotNeutral: {
-    backgroundColor: '#9CA3AF',
-  },
-  expandedStatusText: {
-    fontSize: 14,
-    color: '#1a120a',
-  },
-
-  /* Availability day circles */
-  dayRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  dayCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCircleActive: {
-    backgroundColor: '#FACC15',
-  },
-  dayCircleInactive: {
-    backgroundColor: 'rgba(26,18,10,0.06)',
-  },
-  dayCircleText: {
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  dayCircleTextActive: {
-    color: '#FFFFFF',
-  },
-  dayCircleTextInactive: {
-    color: '#9CA3AF',
-  },
-
-  /* Slot toggles */
-  slotsContainer: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  slotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.15)',
-    padding: 16,
-  },
-  slotLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  slotLabelActive: {
-    color: '#1a120a',
-  },
-  slotLabelInactive: {
-    color: '#9CA3AF',
-  },
-  slotDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  slotDotActive: {
-    backgroundColor: '#22C55E',
-  },
-  slotDotInactive: {
-    backgroundColor: '#9CA3AF',
-  },
-  slotBlock: {
-    gap: 8,
-  },
-  slotTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: 4,
-  },
-  slotTimeCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(26,18,10,0.03)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.15)',
-    paddingVertical: 10,
+  /* Menu group: flat rows grouped, hairline dividers */
+  menuGroup: {
+    gap: 0,
     paddingHorizontal: 14,
   },
-  slotTimeText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a120a',
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    paddingVertical: 16, minHeight: 60,
   },
-  slotTimeSep: {
-    fontSize: 14,
-    color: '#9CA3AF',
+  rowPressed: {
+    opacity: 0.55,
   },
-
-  /* Payment method row inside expanded */
-  paymentMethodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.10)',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
+  rowLabel: {
+    fontSize: 16, fontWeight: '500', color: '#1A1A2E',
   },
-  paymentMethodText: {
-    fontSize: 14,
-    color: '#1a120a',
-    flex: 1,
+  rowLabelFlex: {
+    fontSize: 16, fontWeight: '500', color: '#1A1A2E', flex: 1,
   },
-  warningText: {
-    fontSize: 12,
-    color: '#F59E0B',
-    marginBottom: 12,
+  rowHint: {
+    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2,
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 39,
   },
 
-  /* CTA Buttons */
+  /* ── Payment ── */
+  warningText: { fontSize: 12, fontWeight: '500', color: '#F59E0B', marginBottom: 12 },
+
+  /* ── CTA Buttons ── */
   pinkCta: {
-    backgroundColor: '#EC4899',
-    minHeight: 52,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.primary, minHeight: 50, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
   },
-  pinkCtaText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  pinkCtaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   dangerCta: {
-    backgroundColor: '#FFFFFF',
-    minHeight: 52,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
+    backgroundColor: '#FEE2E2', minHeight: 50, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center', marginTop: 10,
   },
-  dangerCtaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
+  dangerCtaText: { fontSize: 16, fontWeight: '600', color: '#DC2626' },
 
-  /* Field group */
-  fieldGroup: {
-    gap: 10,
-    marginBottom: 14,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
+  /* ── Field group ── */
+  fieldGroup: { gap: 8, marginBottom: 14 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
-  /* Notification dot */
-  notifDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  notifDotOn: {
-    backgroundColor: '#22C55E',
-  },
-  notifDotOff: {
-    backgroundColor: '#9CA3AF',
-  },
-
-  /* Danger Zone Card */
-  dangerCard: {
-    backgroundColor: '#FFFBFB',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.1)',
-    overflow: 'hidden',
-  },
-  dangerTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-
-  /* Footer */
+  /* ── Footer ── */
   footer: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 20,
+    textAlign: 'center', fontSize: 11, fontWeight: '500',
+    color: colors.textMuted, marginTop: 12,
   },
+
 });
 
 /* \u2500\u2500\u2500 Shared / non-student styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 const styles = StyleSheet.create({
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: 24,
     paddingBottom: spacing.xxl * 2 + spacing.md,
   },
   headerBlock: {
@@ -1847,7 +1180,7 @@ const styles = StyleSheet.create({
   rolePill: {
     alignSelf: 'flex-start',
     borderRadius: 999,
-    backgroundColor: colors.pink[50],
+    backgroundColor: colors.navy[50],
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
@@ -1895,7 +1228,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.pink[50],
+    backgroundColor: colors.navy[50],
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -2060,32 +1393,5 @@ const styles = StyleSheet.create({
   pickerTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,
-  },
-});
-
-const settingsCardStyles = StyleSheet.create({
-  viewModeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    backgroundColor: 'rgba(26,18,10,0.03)',
-    borderColor: 'rgba(26,18,10,0.10)',
-  },
-  viewModeBtnActive: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE047',
-  },
-  viewModeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  viewModeBtnTextActive: {
-    color: '#A16207',
   },
 });

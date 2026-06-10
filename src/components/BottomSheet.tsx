@@ -258,7 +258,7 @@ export const BottomSheet = ({
         >
           {gradient && (
             <LinearGradient
-              colors={['#FAE0EF', '#F8F7F4']}
+              colors={['#ECEEF4', colors.background]}
               locations={[0, 1]}
               style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}
               pointerEvents="none"

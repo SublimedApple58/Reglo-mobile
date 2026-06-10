@@ -7,6 +7,38 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUDENT";
 
+export type AutoscuolaStudentPhase = "AWAITING" | "TEORIA" | "PRATICA" | "PATENTATO";
+
+export type StudentPhasePayload = {
+  phase: AutoscuolaStudentPhase;
+  theoryExamAt: IsoDate | null;
+  drivingExamAt: IsoDate | null;
+  /**
+   * Active phases at the autoscuola level. New since the quiz-seats /
+   * student-phase commercial rollout. Older backend versions may not return
+   * this field — treat as `['PRATICA']` when absent.
+   */
+  phasesEnabled?: Array<"TEORIA" | "PRATICA">;
+  /**
+   * True when the student has been granted a nominal quiz license seat
+   * (CompanyMember.quizSeatGrantedAt != null). Drives the quiz tab
+   * visibility on mobile. Absent on legacy backends → assume false.
+   */
+  hasQuizAccess?: boolean;
+  /**
+   * Whether the autoscuola auto-assigns a quiz seat to every new student
+   * at registration. Read-only on mobile (managed from the owner web app).
+   * Absent on legacy backends → assume false.
+   */
+  autoAssignQuizOnSignup?: boolean;
+  /**
+   * License path the student is pursuing in PRATICA (category + transmission).
+   * Set by the owner from the web app. Absent on legacy backends → treat as null.
+   */
+  licenseCategory?: string | null;
+  transmission?: string | null;
+};
+
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
 export type CompanyServiceStatus = "ACTIVE" | "DISABLED";
 
@@ -71,6 +103,11 @@ export type AutoscuolaStudent = {
   status: string;
   notes: string | null;
   assignedInstructorId?: Uuid | null;
+  // Pursued license path (category + transmission). Returned by /api/autoscuole/students.
+  licenseCategory?: string | null;
+  transmission?: string | null;
+  // Whether the student may participate in group driving lessons (Guide di gruppo).
+  groupLessonsOptIn?: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -111,6 +148,14 @@ export type AutoscuolaVehicle = {
   name: string;
   plate: string | null;
   status: string;
+  // Fixed-vehicle assignment: when set, this vehicle is the instructor's
+  // dedicated car and is auto-used for bookings made with that instructor.
+  assignedInstructorId: Uuid | null;
+  followsInstructorAvailability: boolean;
+  // License category (B | AM | A1 | A2 | A) + transmission (manual | automatic)
+  // this vehicle serves. Drives category-aware matching (Vehicles module).
+  licenseCategory: string;
+  transmission: string;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -143,6 +188,8 @@ export type AutoscuolaAppointment = {
   instructorId: Uuid | null;
   vehicleId: Uuid | null;
   locationId: Uuid | null;
+  // Set when this appointment is a seat of a group lesson (type === "group_lesson").
+  groupLessonId?: Uuid | null;
   notes: string | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;
@@ -157,6 +204,57 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   instructor: AutoscuolaInstructor | null;
   vehicle: AutoscuolaVehicle | null;
   location: AutoscuolaLocation | null;
+};
+
+// ── Group lessons (Guide di gruppo) ──────────────────────────────────
+export type GroupLessonParticipant = {
+  appointmentId: Uuid;
+  studentId: Uuid;
+  studentName: string | null;
+};
+
+export type GroupLesson = {
+  id: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate | null;
+  capacity: number;
+  status: string;
+  priceAmount: number;
+  notes: string | null;
+  instructorId: Uuid | null;
+  instructorName: string | null;
+  vehicleId: Uuid | null;
+  vehicleName: string | null;
+  licenseCategory: string | null;
+  transmission: string | null;
+  filledSeats: number;
+  openSeats: number;
+  participants: GroupLessonParticipant[];
+};
+
+export type GroupLessonInvite = {
+  inviteId: Uuid;
+  groupLessonId: Uuid;
+  startsAt: IsoDate;
+  endsAt: IsoDate | null;
+  capacity: number;
+  filledSeats: number;
+  openSeats: number;
+  instructorName: string | null;
+  vehicleName: string | null;
+  notes: string | null;
+  expiresAt: IsoDate;
+};
+
+export type GroupLessonInvitee = { id: Uuid; name: string | null };
+
+export type CreateGroupLessonInput = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  vehicleId?: Uuid | null;
+  instructorId?: Uuid | null;
+  studentIds?: Uuid[];
+  notes?: string;
 };
 
 export type GetAppointmentsParams = {
@@ -378,7 +476,14 @@ export type CreateLocationInput = {
 export type UpdateLocationInput = Partial<CreateLocationInput>;
 
 export type CreateInstructorInput = { name: string; phone?: string };
-export type CreateVehicleInput = { name: string; plate?: string };
+export type LicenseCategory = "B" | "AM" | "A1" | "A2" | "A";
+export type Transmission = "manual" | "automatic";
+export type CreateVehicleInput = {
+  name: string;
+  plate?: string;
+  licenseCategory?: LicenseCategory;
+  transmission?: Transmission;
+};
 export type UpdateInstructorInput = {
   name?: string;
   phone?: string | null;
@@ -389,6 +494,10 @@ export type UpdateVehicleInput = {
   name?: string;
   plate?: string | null;
   status?: string;
+  assignedInstructorId?: Uuid | null;
+  followsInstructorAvailability?: boolean;
+  licenseCategory?: LicenseCategory;
+  transmission?: Transmission;
 };
 
 export type TimeRange = {
@@ -436,6 +545,17 @@ export type CreateAvailabilitySlotsInput = {
   daysOfWeek?: number[];
   weeks?: number;
   ranges?: TimeRange[];
+  // Per-weekday schedule (0=Sun..6=Sat). When present the backend persists it as
+  // authoritative and derives the flat fields above from a representative day.
+  scheduleByDay?: Record<number, TimeRange[]>;
+};
+
+// Returned by getDefaultAvailability. `scheduleByDay` is always present (legacy
+// shared records are projected onto each active day server-side).
+export type DefaultAvailability = {
+  daysOfWeek: number[];
+  ranges: TimeRange[];
+  scheduleByDay: Record<number, TimeRange[]>;
 };
 
 export type CreateBookingRequestInput = {
@@ -475,12 +595,6 @@ export type CancelAppointmentResult =
   | { rescheduled: true; newStartsAt: IsoDate }
   | { rescheduled: false; broadcasted?: boolean };
 
-export type RepositionAppointmentResult = {
-  queued: true;
-  proposalCreated: boolean;
-  proposalStartsAt?: IsoDate;
-  taskId?: Uuid;
-};
 
 export type RescheduleAppointmentInput = {
   startsAt: IsoDate;
@@ -555,6 +669,7 @@ export type AutoscuolaSettings = {
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
   vehiclesEnabled?: boolean;
+  groupLessonsEnabled?: boolean;
   quizEnabled?: boolean;
 };
 
@@ -840,6 +955,30 @@ export type InstructorHoursEntry = {
 
 export type InstructorHoursResponse = InstructorHoursEntry[];
 
+// Range-based reporting (period selector). Buckets = days (span ≤ 14) or weeks.
+export type InstructorHoursBucket = {
+  key: string;
+  label: string;
+  startDate: string; // ISO YYYY-MM-DD (day, or week Monday)
+  totalMinutes: number;
+  outsideWorkingHoursMinutes: number;
+  appointmentCount: number;
+};
+
+export type InstructorHoursRange = {
+  instructorId: string;
+  instructorName: string;
+  workingHoursStart: string | null;
+  workingHoursEnd: string | null;
+  rangeStart: string; // ISO YYYY-MM-DD inclusive
+  rangeEnd: string; // ISO YYYY-MM-DD inclusive
+  granularity: 'day' | 'week';
+  total: { totalMinutes: number; outsideWorkingHoursMinutes: number; appointmentCount: number };
+  buckets: InstructorHoursBucket[];
+};
+
+export type InstructorHoursRangeResponse = InstructorHoursRange[];
+
 export type CompanyBookingDefaults = {
   bookingSlotDurations: number[];
   roundedHoursOnly: boolean;
@@ -864,7 +1003,7 @@ export type CompanyBookingDefaults = {
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────
 
-export type QuizSessionMode = 'EXAM' | 'CHAPTER' | 'REVIEW';
+export type QuizSessionMode = 'EXAM' | 'PRACTICE' | 'CHAPTER' | 'REVIEW' | 'SCHEDA' | 'SCHEDA_ESAME';
 
 export type QuizChapterProgress = {
   id: Uuid;
@@ -885,6 +1024,9 @@ export type QuizQuestion = {
 export type QuizQuestionWithAnswer = QuizQuestion & {
   correctAnswer: boolean;
   hint: { title: string; descriptionHtml: string } | null;
+  wrongCount?: number;
+  timesAnswered?: number;
+  correctRate?: number;
 };
 
 export type StartQuizSessionInput = {
@@ -916,9 +1058,13 @@ export type QuizSessionResult = {
   totalQuestions: number;
   correctCount: number;
   wrongCount: number;
+  skippedCount: number;
+  durationSec: number | null;
   startedAt: IsoDate;
   completedAt: IsoDate | null;
   timeLimitSec: number | null;
+  schedaNumber: number | null;
+  chapterDescription: string | null;
   chaptersBreakdown: Array<{
     chapterNumber: number;
     description: string;
@@ -950,4 +1096,80 @@ export type QuizStudentStats = {
     description: string;
     correctRate: number;
   }>;
+};
+
+// ── Quiz Schede ──────────────────────────────────────────────────────────────
+
+export type QuizChapterSchedeProgress = {
+  id: Uuid;
+  chapterNumber: number;
+  description: string;
+  totalSchede: number;
+  completedSchede: number;
+  passedSchede: number;
+  failedSchede: number;
+  correctRate: number;
+};
+
+export type QuizSchedaSummary = {
+  id: Uuid;
+  schedaNumber: number;
+  totalQuestions: number;
+  status: 'not_started' | 'in_progress' | 'passed' | 'failed';
+  errorCount: number | null;
+  correctCount: number | null;
+  completedAt: IsoDate | null;
+  sessionId: Uuid | null;
+};
+
+export type QuizChapterSchedeResponse = {
+  chapter: { id: Uuid; chapterNumber: number; description: string };
+  schede: QuizSchedaSummary[];
+  summary: {
+    totalSchede: number;
+    completedCount: number;
+    passedCount: number;
+    failedCount: number;
+    correctRate: number;
+  };
+};
+
+export type QuizSchedaQuestionWithAnswer = QuizQuestionWithAnswer & {
+  answered: { studentAnswer: boolean; isCorrect: boolean } | null;
+};
+
+export type StartSchedaSessionResult = {
+  sessionId: Uuid;
+  questions: QuizSchedaQuestionWithAnswer[];
+  timeLimitSec: null;
+  totalQuestions: number;
+  schedaNumber: number;
+  chapterDescription: string;
+  resuming: boolean;
+  correctCount: number;
+  wrongCount: number;
+};
+
+// ── Exam Schede ─────────────────────────────────────────────────────────────
+
+export type ExamSchedeProgressResponse = {
+  schede: QuizSchedaSummary[];
+  summary: {
+    totalSchede: number;
+    completedCount: number;
+    passedCount: number;
+    failedCount: number;
+    correctRate: number;
+  };
+};
+
+export type StartExamSchedaSessionResult = {
+  sessionId: Uuid;
+  questions: QuizSchedaQuestionWithAnswer[];
+  timeLimitSec: number;
+  totalQuestions: number;
+  schedaNumber: number;
+  resuming: boolean;
+  correctCount: number;
+  wrongCount: number;
 };

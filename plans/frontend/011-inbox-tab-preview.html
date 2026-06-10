@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab Notifiche — preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#1A1A2E;--muted:#94A3B8;--bg:#FBFBFD;--line:#E6E8EC;--red:#EF4444;}
+  *{box-sizing:border-box;font-family:Inter,sans-serif;}
+  body{margin:0;background:#0D0D16;padding:40px 24px;color:#fff;}
+  h1{font-size:18px;font-weight:700;margin:0 0 4px;}
+  p.s{color:#8C92AD;font-size:13px;margin:0 0 24px;}
+  .label{color:#8C92AD;font-size:12px;font-weight:600;margin:22px 0 8px;}
+  .phone{width:390px;background:#fff;border-radius:30px;overflow:hidden;border:1px solid #23232f;}
+  .screen{height:120px;background:var(--bg);display:flex;align-items:flex-end;}
+  .bar{width:100%;background:var(--bg);border-top:1px solid var(--line);padding:8px 0 18px;display:flex;}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .ic{position:relative;}
+  svg{display:block;}
+  .t{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.1px;}
+  .t.on{color:var(--navy);font-weight:700;}
+  .badge{position:absolute;top:-5px;right:-10px;min-width:17px;height:17px;border-radius:9px;padding:0 4px;background:var(--red);border:1.5px solid var(--bg);display:flex;align-items:center;justify-content:center;}
+  .badge span{font-size:10px;font-weight:700;color:#fff;}
+</style></head>
+<body>
+  <h1>Tab "Notifiche" — icona vassoio (inbox) + pill rossa</h1>
+  <p class="s">Niente campanella in alto. Tab in basso, badge rosso col numero di non lette (cap "9+").</p>
+
+  <div class="label">App istruttore</div>
+  <div class="phone"><div class="screen"></div>
+    <div class="bar">
+      <div class="tab"><div class="ic">${ICON('car-sport', '#1A1A2E')}</div><div class="t on">Home</div></div>
+      <div class="tab"><div class="ic">${ICON('time', '#94A3B8')}</div><div class="t">Disponibilità</div></div>
+      <div class="tab"><div class="ic">${ICON('people', '#94A3B8')}</div><div class="t">Allievi</div></div>
+      <div class="tab"><div class="ic">${ICON('dots', '#94A3B8')}</div><div class="t">Altro</div></div>
+      <div class="tab"><div class="ic">${ICON('tray', '#94A3B8')}<div class="badge"><span>3</span></div></div><div class="t">Notifiche</div></div>
+    </div>
+  </div>
+
+  <div class="label">App allievo (pratica)</div>
+  <div class="phone"><div class="screen"></div>
+    <div class="bar">
+      <div class="tab"><div class="ic">${ICON('car-sport', '#1A1A2E')}</div><div class="t on">Home</div></div>
+      <div class="tab"><div class="ic">${ICON('people', '#94A3B8')}</div><div class="t">Note</div></div>
+      <div class="tab"><div class="ic">${ICON('wallet', '#94A3B8')}</div><div class="t">Pagamenti</div></div>
+      <div class="tab"><div class="ic">${ICON('tray', '#94A3B8')}<div class="badge"><span>9+</span></div></div><div class="t">Notifiche</div></div>
+    </div>
+  </div>
+
+  <script>
+    function ICON(name,c){
+      const p={
+        'car-sport':'<path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11M5 11h14a2 2 0 0 1 2 2v3H3v-3a2 2 0 0 1 2-2z"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/>',
+        'time':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        'people':'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',
+        'dots':'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+        'wallet':'<rect x="2" y="6" width="20" height="14" rx="3"/><path d="M16 13h2"/>',
+        'tray':'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.5z"/>'
+      }[name];
+      return '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+    }
+    document.body.innerHTML = document.body.innerHTML.replace(/\$\{ICON\('([^']+)',\s*'([^']+)'\)\}/g,(m,n,c)=>ICON(n,c));
+  </script>
+</body></html>

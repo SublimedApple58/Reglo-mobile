@@ -37,3 +37,22 @@ export const formatLessonType = (type: string): string =>
 
 export const formatMultipleTypes = (types: string[]): string =>
   types.map(formatLessonType).join(', ');
+
+export const normalizeLessonType = (value: string | null | undefined) =>
+  (value ?? '').trim().toLowerCase();
+
+const resolveInitialLessonType = (value: string | null | undefined) => {
+  const normalized = normalizeLessonType(value);
+  const match = LESSON_TYPE_OPTIONS.find((option) => option.value === normalized);
+  return match?.value ?? '';
+};
+
+export const resolveInitialLessonTypes = (
+  lesson: Pick<AutoscuolaAppointment, 'type' | 'types'>,
+): string[] => {
+  if (lesson.types && lesson.types.length > 0) {
+    return lesson.types.map((t) => normalizeLessonType(t)).filter(Boolean);
+  }
+  const single = resolveInitialLessonType(lesson.type);
+  return single ? [single] : [];
+};

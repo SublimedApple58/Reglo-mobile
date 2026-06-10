@@ -13,7 +13,7 @@ Definiti in `src/theme/colors.ts` → oggetto `colors`:
 
 | Token | Hex | Uso |
 |---|---|---|
-| `colors.primary` | `#EC4899` | CTA principali, bottoni primari, tint tab bar, focus input, dot calendario, ombra CTA |
+| `colors.primary` | `#1A1A2E` | CTA principali, bottoni primari, tint tab bar, focus input, dot calendario, ombra CTA |
 | `colors.accent` | `#FACC15` | Card "prossima guida", day pill selezionato, chip attivi, border today calendario |
 | `colors.destructive` | `#EF4444` | Errori, annullamenti, azioni distruttive, toast danger |
 | `colors.positive` | `#22C55E` | Successo, conferme, stati completati, toast success, icona celebrazione |
@@ -22,30 +22,30 @@ Definiti in `src/theme/colors.ts` → oggetto `colors`:
 | `colors.textMuted` | `#9CA3AF` | Placeholder, label terziarie, weekday calendar headers |
 | `colors.border` | `#E5E7EB` | Bordi card, separatori, bordi pulsanti freccia |
 | `colors.surface` | `#FFFFFF` | Sfondo card |
-| `colors.background` | `#FFFFFF` | Sfondo pagina |
+| `colors.background` | `#FDFDFD` | Sfondo pagina + tab bar (off-white che sfiora il bianco, mai bianco puro). Tab bar (`GlassTabBar`) e fallback Android degli header blur (`rgba(253,253,253,…)`) usano lo stesso valore. |
 | `colors.shadow` | `rgba(0, 0, 0, 0.08)` | Ombra base generica |
 
 ### 1.2 Regola d'oro: **70 / 20 / 10**
 
 - **70% neutri** — bianco, grigi, testo scuro
-- **20% rosa** — CTA, accenti interattivi, focus state
+- **20% navy** — CTA, accenti interattivi, focus state
 - **10% giallo** — highlight informativi, prossima guida, selezioni temporali
 
 ### 1.3 Scale Colori
 
-Accesso diretto via `colors.pink[shade]` e `colors.yellow[shade]`:
+Accesso diretto via `colors.navy[shade]` e `colors.yellow[shade]`:
 
-**Rosa (Pink)**
+**Navy (mono)**
 | Shade | Hex | Uso principale |
 |---|---|---|
-| `50` | `#FDF2F8` | Badge default bg, clock circle bg (RangesEditor), ring celebrazione |
-| `100` | `#FCE7F3` | — |
-| `200` | `#FBCFE8` | Badge default border, ring BookingCelebration |
-| `300` | `#F9A8D4` | — |
-| `400` | `#F472B6` | — |
-| `500` | `#EC4899` | = `colors.primary` |
-| `600` | `#DB2777` | — |
-| `700` | `#BE185D` | — |
+| `50` | `#F4F5F9` | Badge default bg, clock circle bg (RangesEditor), ring celebrazione |
+| `100` | `#E9EBF2` | — |
+| `200` | `#D6D9E6` | Badge default border, ring BookingCelebration |
+| `300` | `#AEB4CC` | — |
+| `400` | `#6E7596` | — |
+| `500` | `#1A1A2E` | = `colors.primary` |
+| `600` | `#14141F` | — |
+| `700` | `#0D0D16` | — |
 
 **Giallo (Yellow)**
 | Shade | Hex | Uso principale |
@@ -93,14 +93,7 @@ Usati direttamente negli stili dei componenti:
 
 ### 1.6 Token Deprecati
 
-In `colors.ts`, usati **solo** da `GlassTabBar.ios.tsx`:
-
-| Token | Valore | Sostituzione |
-|---|---|---|
-| `colors.navy` | `#EC4899` | `colors.primary` |
-| `colors.glass` | `#FFFFFF` | `colors.surface` |
-| `colors.glassStrong` | `#FFFFFF` | `colors.surface` |
-| `colors.glassBorder` | `#E5E7EB` | `colors.border` |
+Gli alias deprecati (`colors.navy` stringa, `colors.glass`, `colors.glassStrong`, `colors.glassBorder`) sono stati **rimossi** da `colors.ts`: erano inutilizzati. `colors.navy` ora è la **scala navy** (oggetto `50…700`), non più una stringa. Usare `colors.primary` / `colors.surface` / `colors.border`.
 
 ---
 
@@ -171,45 +164,109 @@ Definiti in `src/theme/spacing.ts` → `radii`:
 | Valore | Contesto |
 |---|---|
 | `999` | Badge pill, SelectableChip, action pill SectionHeader, RangesEditor row, add button |
+| **`26`** | **CTA card (Airbnb-style)** — Simulazione, Esercitazione, Continua a studiare, Ripassa errori, card capitolo in topic list |
 | `24` | Modal card centrata, BottomSheet top radius |
 | `28` | CalendarDrawer top radius |
 | `22` | BookingCelebration card |
-| `18` | Frecce navigazione mese (circle 36x36) |
+| **`20`** | **Stats inset card** (informativa), card deboli, card sessioni |
+| **`18`** | **Schede tile** (griglia schede capitolo e esame), frecce navigazione mese |
 | `17` | Frecce CalendarNavigator (circle 34x34) |
-| `16` | Card base default, info card modale, scroll container time picker |
+| **`16`** | **Bottoni VERO/FALSO quiz**, card base default, info card modale |
 | `12` | Item time picker |
 | `10` | SkeletonBlock default |
 | `CELL_SIZE/2` | Day cell calendario (cerchio perfetto) |
 
-**Regola**: contenitore grande → `radii.lg`. Controllo interattivo inline → `radii.sm`. Pill/chip → `999`. Cerchi → dimensione/2.
+**Regola**: CTA card → `26`. Info card → `20`. Tile griglia → `18`. Bottoni inline → `16`. Pill/chip → `999`. Cerchi → dimensione/2.
 
 ---
 
 ## 5. Ombre (Shadow Presets)
 
-### 5.1 Ombra Base Generica
+### 5.0 Principio: Raised vs Recessed
 
-Usata da: Card default, Button, ScrollHintFab, action pill SectionHeader
+Le ombre comunicano la gerarchia interattiva:
+- **Ombra esterna (raised)** = tappabile, azione. L'elemento "galleggia" sopra la pagina.
+- **Ombra interna (inset/recessed)** = informativo, non tappabile. L'elemento e' "incassato" nella pagina.
+
+**Mai** dare ombra esterna a card informative. **Mai** dare inset shadow a CTA.
+
+### 5.1 CTA Card — Ombra Concentrata (v3)
+
+Usata da: card Simulazione, Esercitazione, Ripassa errori, card capitolo (topic list), tile schede.
+L'ombra e' stretta e vicina alla card → effetto "oggetto sollevato dal tavolo", non alone diffuso.
 
 ```ts
-shadowColor: 'rgba(0, 0, 0, 0.08)',
-shadowOpacity: 0.08,
-shadowRadius: 4–8,
+shadowColor: '#000',
+shadowOffset: { width: 0, height: 3 },
+shadowOpacity: 0.14,
+shadowRadius: 6,
+elevation: 5,
+```
+
+**Press state:**
+```ts
+opacity: 0.9,
+transform: [{ scale: 0.96 }],
+```
+
+### 5.2 CTA Navy Primary (Bottone Hero — no shadow)
+
+Il colore pieno fa tutto il lavoro. Nessuna ombra necessaria.
+
+```ts
+backgroundColor: colors.primary,
+borderRadius: 26,
+padding: 16,
+// NO shadowColor/shadowOffset/shadowOpacity
+```
+
+**Press state:**
+```ts
+opacity: 0.95,
+transform: [{ scale: 0.97 }],
+```
+
+### 5.3 Tile Schede — Ombra Leggera
+
+Usata da: griglia schede capitolo, griglia schede esame.
+
+```ts
+shadowColor: '#000',
+shadowOffset: { width: 0, height: 3 },
+shadowOpacity: 0.1,
+shadowRadius: 5,
+elevation: 3,
+```
+
+### 5.4 Card Informativa — Inset Shadow (v3)
+
+Usata da: stats home, stats topic list, stats scheda grid, stats exam schede.
+Usa `boxShadow` nativo di React Native 0.81+ con `inset: true`.
+
+```ts
+backgroundColor: '#EEEDEB',
+borderRadius: 20,
+boxShadow: [
+  { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+  { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+],
+```
+
+Due layer: uno morbido (blur 6) + uno nitido (blur 2) per profondita' realistica.
+
+### 5.5 Card Secondaria — Ombra Leggera
+
+Usata da: countdown esame, capitoli da migliorare, card generiche non-CTA.
+
+```ts
+shadowColor: '#000',
 shadowOffset: { width: 0, height: 2 },
+shadowOpacity: 0.06,
+shadowRadius: 10,
 elevation: 2,
 ```
 
-### 5.2 Card Primary
-
-```ts
-shadowColor: 'rgba(0, 0, 0, 0.08)',
-shadowOpacity: 0.12,
-shadowRadius: 12,
-shadowOffset: { width: 0, height: 4 },
-elevation: 4,
-```
-
-### 5.3 BottomSheet / CalendarDrawer
+### 5.6 BottomSheet / CalendarDrawer
 
 ```ts
 shadowColor: 'rgba(0, 0, 0, 0.08)',
@@ -219,27 +276,7 @@ shadowOffset: { width: 0, height: -6 },
 elevation: 6,
 ```
 
-### 5.4 CTA Rosa (Bottone Hero / Confirm Drawer)
-
-```ts
-shadowColor: '#EC4899',
-shadowOpacity: 0.3,
-shadowRadius: 10–12,
-shadowOffset: { width: 0, height: 5–6 },
-elevation: 5–6,
-```
-
-### 5.5 Card Accent / Prossima Guida (Ombra Ambra)
-
-```ts
-shadowColor: '#B45309',
-shadowOpacity: 0.35,
-shadowRadius: 20,
-shadowOffset: { width: 0, height: 10 },
-elevation: 10,
-```
-
-### 5.6 Day Pill Calendario (Selezionato)
+### 5.7 Day Pill Calendario (Selezionato)
 
 ```ts
 shadowColor: '#D97706',
@@ -357,12 +394,17 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `tone` | `'standard' \| 'primary' \| 'danger' \| 'secondary'` | `'standard'` | Tono visivo |
 | `disabled` | `boolean` | `false` | Stato disabilitato |
 | `fullWidth` | `boolean` | `false` | Larghezza piena |
+| `loading` | `boolean` | `false` | Mostra `ActivityIndicator` al posto della label |
 
 **Stili base:** `borderRadius: radii.sm` (20), `borderWidth: 1`, `minHeight: 48`, `paddingVertical: spacing.sm`, `paddingHorizontal: spacing.lg`.
 
+**Loading:** quando `loading` è `true` il bottone mostra uno **spinner** (`ActivityIndicator`, colore = `text` del tone) **al posto della label, che NON cambia testo** (no "Salvataggio…/Prenotazione…/Spostando…"). Il press è disabilitato. Regola di prodotto: per azioni async usare **sempre** lo spinner, mai lo swap di label. Vale anche per le pill custom (CTA picker, conferme): `pending ? <ActivityIndicator color="#fff" /> : <Text>label</Text>`.
+
+**Spinner sul bottone CLICCATO:** se più bottoni async convivono (es. Cancella/Mantieni in una card), lo spinner deve apparire **sul bottone effettivamente premuto**, non su un fratello. Non basta un flag per-riga: tracciare `{ id, action }` e mettere `loading` solo sul match; gli altri restano `disabled`.
+
 | Tone | bg | border | text |
 |---|---|---|---|
-| `primary` | `#EC4899` | `#EC4899` | `#FFFFFF` |
+| `primary` | `#1A1A2E` | `#1A1A2E` | `#FFFFFF` |
 | `standard` | `#FFFFFF` | `colors.border` | `colors.textPrimary` |
 | `danger` | `#FFFFFF` | `#EF4444` | `#EF4444` |
 | `secondary` | `#FFFFFF` | `#FACC15` | `#A16207` |
@@ -385,7 +427,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 | Tone | bg | text | border |
 |---|---|---|---|
-| `default` | `pink[50]` (`#FDF2F8`) | `colors.primary` (`#EC4899`) | `pink[200]` (`#FBCFE8`) |
+| `default` | `navy[50]` (`#F4F5F9`) | `colors.primary` (`#1A1A2E`) | `navy[200]` (`#D6D9E6`) |
 | `success` | `#F0FDF4` | `#16A34A` | `#BBF7D0` |
 | `warning` | `#FEFCE8` | `#CA8A04` | `#FEF08A` |
 | `danger` | `#FEF2F2` | `#DC2626` | `#FECACA` |
@@ -404,7 +446,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 **Stili wrapper:**
 - Default: `borderRadius: radii.sm`, `borderWidth: 1`, `borderColor: #E2E8F0`, `bg: #F8FAFC`
-- Focused: `borderColor: colors.primary` (`#EC4899`), `bg: #FFFFFF`
+- Focused: `borderColor: colors.primary` (`#1A1A2E`), `bg: #FFFFFF`
 
 **Stili input:** `typography.body`, `color: colors.textPrimary`, `paddingHorizontal: 18`, `paddingVertical: 14`. Placeholder color: `colors.textMuted`.
 
@@ -527,7 +569,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 |---|---|---|---|---|---|
 | Default | — | — | — | `#1E293B` | `'600'` |
 | Today | — | 2 | `#FACC15` | `#1E293B` | `'700'` |
-| Selected | `#EC4899` | — | — | `#FFFFFF` | `'700'` |
+| Selected | `#1A1A2E` | — | — | `#FFFFFF` | `'700'` |
 | Unavailable | — | — | — | `#CBD5E1` | `'600'` |
 | Other month | — | — | — | `#E2E8F0` | `'600'` |
 
@@ -550,8 +592,8 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `maxWeeks` | `number` | `12` | Settimane navigabili |
 
 **Day cell:** `40x40px`, `borderRadius: 20`. Day text: `fontSize: 14`.
-**Stato `selectedToday`:** bg rosa + border giallo (combinazione).
-**Marked dot:** cerchio `5x5px`, `bg: #EC4899`, posizione `absolute bottom: 4`.
+**Selezionato:** `bg: #1A1A2E` (navy), testo bianco. **Today:** border 2 `#1A1A2E`. **`selectedToday`:** fill navy (la selezione domina). No giallo.
+**Marked dot:** cerchio `5x5px`, `bg: #1A1A2E`, posizione `absolute bottom: 4`.
 **Fade transition:** `Animated.timing` 220ms su opacity al cambio mese.
 **LayoutAnimation:** attivato su Android per transizioni mese (`easeInEaseOut`).
 
@@ -574,7 +616,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 **Item selezionato:** `bg: #FACC15`, `fontWeight: '700'`, `color: #92400E`.
 **Item non selezionato:** `color: #64748B`, `fontWeight: '500'`.
 **Label colonne:** `fontSize: 12`, `fontWeight: '700'`, `color: #94A3B8`, uppercase.
-**CTA footer:** `bg: #EC4899`, `borderRadius: radii.sm`, `minHeight: 52`, ombra rosa.
+**CTA footer:** `bg: #1A1A2E`, `borderRadius: radii.sm`, `minHeight: 52`, ombra navy.
 **Mascotte:** `duck-clock.png` (100x73px).
 **Auto-scroll:** scroll al valore selezionato al mount con `setTimeout` 100ms.
 
@@ -594,7 +636,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `disabled` | `boolean` | `false` | Stato disabilitato |
 
 **Row:** `borderRadius: 999`, `bg: #FFFFFF`, `paddingVertical: 14`. Ombra leggera (`shadowOpacity: 0.05`).
-**Clock icon circle:** `36x36`, `borderRadius: 18`, `bg: #FDF2F8` (pink[50]), icona `time` color `#EC4899`.
+**Clock icon circle:** `36x36`, `borderRadius: 18`, `bg: #EEF0F4` (navy tint), icona `time` color `#1A1A2E`.
 **Time text:** `fontSize: 16`, `fontWeight: '600'`, `color: #1E293B`, `textDecorationLine: 'underline'`, underline color `#E2E8F0`.
 **Add button:** `borderRadius: 999`, `borderWidth: 1.5`, `borderStyle: 'dashed'`, `borderColor: #CBD5E1`. Testo `fontSize: 14`, `color: #64748B`.
 **Animazioni:** `FadeIn.duration(200)` / `FadeOut.duration(150)` (react-native-reanimated).
@@ -621,7 +663,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 **Input wrapper:** come `Input` (`borderRadius: radii.sm`, bordo `#E2E8F0` / focus `colors.primary`), con icona search (`Ionicons search`, 20px, `#94A3B8`).
 **Dropdown:** `position: absolute`, `top: 100%`, `marginTop: spacing.xs`, `borderRadius: radii.sm`, `bg: #FFFFFF`, `maxHeight: 220`, `zIndex: 200`.
-**Option selezionata:** `bg: pink[50]`. **Option pressed:** `opacity: 0.72`.
+**Option selezionata:** `bg: navy[50]`. **Option pressed:** `opacity: 0.72`.
 **Animazione apertura:** timing 180ms `opacity` + `translateY` (-6 → 0) + `scale` (0.98 → 1).
 
 ---
@@ -675,7 +717,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 | `onHidden` | `() => void?` | — | Callback fine animazione |
 
 **Durata totale:** ~1550ms (1450ms animazione + 100ms hold).
-**Elementi:** backdrop fade, ring espansione (`pink[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
+**Elementi:** backdrop fade, ring espansione (`navy[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
 **Card:** `minWidth: 248`, `borderRadius: 22`, `bg: #FFFFFF`. Icona: `checkmark-circle` 46px `colors.positive` in cerchio 66px con `bg: rgba(34,197,94,0.12)`, `border: rgba(34,197,94,0.35)`.
 **Testo:** "Prenotazione confermata", `typography.subtitle`.
 
@@ -704,7 +746,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 **Scopo:** Tab bar personalizzata.
 
 - **iOS:** usa token deprecati `glass*` + `BlurView` nativo per effetto vetro.
-- **Android:** tab bar custom con `bg: #FFFFFF`, highlight rosa.
+- **Android:** tab bar custom con `bg: #FFFFFF`, highlight navy.
 
 ---
 
@@ -748,9 +790,9 @@ Per azioni rapide (proposte, conferme, form brevi). **Preferire sempre rispetto 
 
 Il wrapper esterno porta l'ombra ambra (§5.5), il gradient interno ha `overflow: 'hidden'` e `borderRadius: radii.lg`.
 
-### 7.3 CTA Hero (Bottone Grande Rosa)
+### 7.3 CTA Hero (Bottone Grande Navy)
 
-`Pressable` custom (non il componente `Button`) con `minHeight: 58`, `fontSize: 18`, `fontWeight: '700'`, `borderRadius: radii.sm`, ombra rosa (§5.4). **Pressed:** `scale: 0.98`, `opacity: 0.85`.
+`Pressable` custom (non il componente `Button`) con `minHeight: 58`, `fontSize: 18`, `fontWeight: '700'`, `borderRadius: radii.sm`, ombra navy (§5.4). **Pressed:** `scale: 0.98`, `opacity: 0.85`.
 
 ### 7.4 Mascotte (Duck)
 
@@ -758,6 +800,60 @@ Pattern ricorrente nei drawer:
 - `duck-calendar.png` in CalendarDrawer (120x85px)
 - `duck-clock.png` in TimePickerDrawer (100x73px)
 - Posizionata in sezione centrata con caption e hint text sotto
+
+### 7.5 Form a Card — Gerarchia Input (3D primario vs Lista secondario)
+
+Pattern di riferimento: **`app/(tabs)/home/new-booking.tsx`** ("Nuova prenotazione", rifatta 2026-06-08) + **`manage-lesson.tsx`** ("Gestisci guida"). Regola: la **gerarchia visiva comunica la priorità del dato**. Niente bordi sui campi — solo superfici bianche + ombra, oppure righe piatte.
+
+**Titolo pagina** = hero (vedi §12.7), **senza divider sotto**.
+
+**① Input PRIMARI → righe in card bianca elevata (3D, NO bordi).** Per i dati più importanti (es. allievo, giorno, ora, durata).
+```tsx
+// card group
+group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14,
+  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 }
+// riga dentro la card: icona outline (26w) + label + valore + chevron
+row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 }
+rowLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' }   // nome campo
+rowValue: { fontSize: 14, color: '#717171' }                     // selezione corrente
+rowPlaceholder: { fontSize: 14, color: '#94A3B8' }               // quando vuoto
+divider: { height: hairline, backgroundColor: '#EFF0F3' }        // SOLO tra righe interne
+chevron: 'chevron-forward' 18 '#C7CBD1'
+```
+Più righe correlate possono stare nella stessa card (es. Giorno + Ora + Durata). L'allievo usa un **avatar a iniziali** (44, `backgroundColor: N100`) al posto dell'icona.
+
+**② Input SECONDARI → righe piatte a lista (NO card, NO ombra).** Per i dati meno prioritari (es. luogo, veicolo, tipo). Stesso markup `row` ma su sfondo trasparente, preceduti da una caption.
+```tsx
+listCaption: { fontSize: 12, fontWeight: '600', color: '#94A3B8', letterSpacing: 0.4,
+  textTransform: 'uppercase', marginLeft: 6 }   // es. "DETTAGLI"
+list: { paddingHorizontal: 6 }                   // righe + divider tra loro, niente superficie
+```
+
+**③ Opzioni OPTIONAL → banner tinto leggero (NO ombra).** Per un extra non necessario (es. "Prenotazione multipla"): si distingue dalle card bianche, legge come secondario.
+```tsx
+optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F4F5F9',
+  borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14 }   // N50, flat
+optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF' }  // icona in cerchio bianco
+```
+
+**④ CTA footer** = riepilogo a sinistra (label muted + valore navy, la durata va a capo se la riga è lunga) + `Button tone="primary"` a destra. **In loading mostra lo spinner, NON cambia label** (`<Button loading={pending} .../>`, vedi §6.3).
+
+Sintesi gerarchia: **card 3D bianca = primario · lista piatta = secondario · banner tinto = optional**.
+
+### 7.6 Picker via Form Sheet Nativa (store seed-and-callback)
+
+Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo Router), seminata via store + callback. Pattern: il parent fa `store.set({ ...dati, onConfirm/onSelect })` poi `router.push('/(tabs)/home/<route>')`; la route legge lo store con `useSyncExternalStore`, e su conferma chiama la callback e fa `router.back()`. Vedi [[reference_native_formsheet]].
+
+| Cosa | Route | Store | Presentazione |
+|------|-------|-------|--------------|
+| Data (calendario mesi) | `select-date` | `dayPickerStore` | `modal` |
+| Ora (ruota) | `time-picker` | `timePickerStore` | `formSheet` + `fitToContents` |
+| Allievo (ricerca + lista, single) | `select-student` | `studentPickerStore` | `modal` |
+| Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
+| Durata / Veicolo / Tipo | `select-options` (single/multi) | `optionsPickerStore` | `formSheet` + `fitToContents` |
+| Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
+
+Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).
 
 ---
 
@@ -1035,7 +1131,7 @@ opacity: loop(
 #### Spinner / Activity Indicator
 
 Se serve un loading puntuale (non skeleton), usare un cerchio che ruota con:
-- Colore: `colors.primary` (#EC4899)
+- Colore: `colors.primary` (#1A1A2E)
 - Size: 24px (inline), 40px (centrato in pagina)
 - Animazione: rotazione continua `withRepeat(withTiming(360deg, { duration: 800 }), -1)`
 
@@ -1054,7 +1150,7 @@ Animazioni non obbligatorie ma che aggiungono personalita:
 #### Confetti / Sparkle
 
 Dopo un pagamento completato o un traguardo raggiunto. Pattern come `BookingCelebration` ma con variazioni:
-- Particelle piu piccole e colorate (rosa + giallo + verde)
+- Particelle piu piccole e colorate (navy + giallo + verde)
 - Burst radiale piu ampio
 - Durata: 1200–1800ms
 
@@ -1149,7 +1245,7 @@ Quando queste animazioni vengono portate sulla web app:
 
 | Aspetto | iOS | Android |
 |---|---|---|
-| Tab bar | `GlassTabBar.ios.tsx` — BlurView nativo, effetto vetro | `GlassTabBar.tsx` — custom, bg bianco, highlight rosa |
+| Tab bar | `GlassTabBar.ios.tsx` — BlurView nativo, effetto vetro | `GlassTabBar.tsx` — custom, bg bianco, highlight navy |
 | Tabs | `NativeTabs` (Expo Router) | Custom tab bar |
 | BottomSheet | `BottomSheet.ios.tsx` (implementazione specifica) | `BottomSheet.tsx` |
 | Keyboard handling | `keyboardWillShow` + `keyboardWillChangeFrame` + `keyboardDidShow` | `keyboardDidShow` / `keyboardDidHide` |
@@ -1162,9 +1258,11 @@ Quando queste animazioni vengono portate sulla web app:
 
 ## 10. Icone
 
+### 10.1 Icone Vettoriali (UI funzionale)
+
 Libreria: **`@expo/vector-icons` → `Ionicons`**
 
-Icone usate nel design system:
+Uso: navigazione, bottoni, badge di stato, indicatori. Sempre monocromatiche.
 
 | Icona | Size | Contesto |
 |---|---|---|
@@ -1177,6 +1275,41 @@ Icone usate nel design system:
 | `alert-circle` | 22 | ToastNotice danger |
 | `sparkles` | 18 | BookingCelebration burst |
 | `chevron-down` | 19 | ScrollHintFab |
+
+### 10.2 Icone 3D (elementi decorativi e identita visiva)
+
+Libreria: **Microsoft Fluent Emoji 3D** (`assets/icons/`)
+
+Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA, statistiche e sezioni tematiche. **Mai** per navigazione o bottoni funzionali piccoli.
+
+**Source:** [github.com/microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) — cartella `assets/{Nome}/3D/` — PNG 256x256 con trasparenza RGBA.
+
+**Dimensioni standard:**
+
+| Contesto | Size (px) | Esempio |
+|---|---|---|
+| CTA card (azione principale) | 44x44 | Simulazione, Esercitazione |
+| Stat tile (dato numerico) | 32x32 | Accuratezza, Quiz fatti |
+| Inline tag / subtitle | 16x16 | "Percorso teoria" sotto il greeting |
+| Card navigazione (topic list) | 52x52 | Capitolo nell'elenco argomenti |
+| Banner / card orizzontale | 36x36 | Ripassa errori, countdown esame |
+
+**Icone attualmente in uso:**
+
+| File | Emoji | Contesto |
+|---|---|---|
+| `stat-accuracy.png` | Bullseye | Stat accuratezza risposte |
+| `stat-quizzes.png` | Memo | Stat quiz completati |
+| `stat-topics.png` | Books | Stat argomenti studiati |
+| `stat-countdown.png` | Alarm clock | Countdown esame |
+| `cta-exam.png` | Clipboard | CTA Simulazione esame |
+| `cta-practice.png` | Graduation cap | CTA Esercitazione |
+| `review-retry.png` | Counterclockwise arrows | Ripassa errori |
+| `study-books.png` | Books (colorati) | Sfoglia argomenti |
+| `tag-theory.png` | Open book | Tag "Percorso teoria" |
+| `chapters/chapter-XX.png` | Vari (25 icone) | Icona per capitolo nella lista argomenti |
+
+**Regola:** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
 
 ---
 
@@ -1191,25 +1324,196 @@ Icone usate nel design system:
 
 ---
 
-## 12. Regole e Divieti
+## 12. Gerarchia Visiva — CTA vs Informazioni
+
+### 12.1 Principio Fondamentale
+
+**Le azioni devono essere "forti", i dati devono essere "silenziosi".**
+
+L'utente deve capire a colpo d'occhio cosa e tappabile e cosa e informativo. Mai confondere card azione con card dato — devono essere visivamente opposte.
+
+### 12.2 Card Azione (CTA)
+
+Le CTA usano **ombre esterne concentrate** per sembrare "sollevate" dalla pagina. Invitano al tap.
+
+| Livello | Aspetto | Ombra | Esempio |
+|---|---|---|---|
+| **CTA Primaria** | `bg: colors.primary`, testo bianco, `borderRadius: 26` | **Nessuna ombra** — il colore pieno fa il lavoro | "Continua a studiare" |
+| **CTA Card** | `bg: colors.surface` o `#1A1A2E` (dark), icona 3D 44px, `borderRadius: 26` | `shadowOpacity: 0.14, shadowRadius: 6, height: 3` (concentrata) | Simulazione, Esercitazione |
+| **CTA Secondaria** | `bg: colors.surface`, icona 3D 36px, layout orizzontale, `borderRadius: 26` | `shadowOpacity: 0.14, shadowRadius: 6, height: 3` (concentrata) | Ripassa errori |
+| **Tile Schede** | bg colorato per stato, `borderRadius: 18` | `shadowOpacity: 0.1, shadowRadius: 5, height: 3` | Griglia schede |
+
+**Press state CTA:** `opacity: 0.9, transform: [{ scale: 0.96 }]`
+
+Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota.
+
+**Principio ombre concentrate:** `shadowRadius` basso (5-6) + `shadowOffset.height` corto (3) = ombra stretta vicino alla card → effetto 3D "sollevato dal tavolo". Evitare `shadowRadius` > 10 sulle CTA (troppo disperso, sembra alone).
+
+### 12.3 Card Informativa (Stat/Dato)
+
+Le card informative usano **ombre interne (inset shadow)** per sembrare "incassate" nella pagina. Non invitano al tap.
+
+```ts
+// Inset shadow nativo (React Native 0.81+)
+boxShadow: [
+  { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+  { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+],
+backgroundColor: '#EEEDEB',  // leggermente piu scuro del background
+borderRadius: 20,
+```
+
+Stat con icone 3D (32px), numeri grossi (`fontSize: 20, fontWeight: 800`), label muted. Layout orizzontale con divider hairline tra le stat.
+
+### 12.4 Confronto Visivo
+
+| Proprieta | CTA (Azione) | Info (Dato) |
+|---|---|---|
+| Ombra | **Esterna concentrata** (radius 6, height 3) | **Interna/inset** (boxShadow inset) |
+| Background | Bianco o dark (#1A1A2E) | Grigio caldo (#EEEDEB) |
+| Border Radius | **26** | **20** |
+| Icone 3D | 44px, prominenti | 32-34px, decorative |
+| Testo valori | 15px, bold | 14-15px, bold |
+| Testo label | 12px, muted | 10px, muted |
+| Tappabile | Si | No |
+
+### 12.5 Sezioni e Label
+
+Le sezioni usano label uppercase muted per introdurre gruppi di CTA:
+
+```ts
+sectionLabel: {
+  fontSize: 13, fontWeight: '700', color: colors.textMuted,
+  letterSpacing: 0.5, textTransform: 'uppercase',
+  marginBottom: 10,
+}
+```
+
+Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
+
+### 12.6 Ordine Gerarchia Home (Top → Bottom)
+
+1. **Greeting** — "Ciao, {nome}" (24px) con subtitle "Percorso teoria" + icona 3D libro (16px)
+2. **CTA Primaria** — "Continua a studiare" (navy, full-width, borderRadius 26, **no shadow**)
+3. **CTA Card** — Simulazione (dark) + Esercitazione (bianca) affiancate (borderRadius 26, shadow concentrata)
+4. **CTA Secondaria** — "Ripassa i tuoi errori" (borderRadius 26, shadow concentrata)
+5. **Stats inset** — Accuratezza / Quiz fatti / Argomenti (borderRadius 20, inset shadow, icone 3D 34px, valori 15px)
+6. **Countdown** — Esame teoria (se data impostata)
+7. **Sezione azionabile** — "Da migliorare" con capitoli deboli (tappabili)
+
+### 12.7 Titoli Pagina
+
+| Schermata | fontSize | fontWeight | letterSpacing |
+|---|---|---|---|
+| Home quiz ("Ciao, {nome}") | 24 | 600 | -0.3 |
+| Lista argomenti ("Studio per Argomento") | 24 | 600 | -0.3 |
+| Schede esame ("Schede d'Esame") | 24 | 600 | -0.3 |
+| Sezione capitolo ("4. Segnali di obbligo") | 22 | 600 | -0.3 |
+
+**Regola peso:** i titoli grandi/pagina/header/sheet usano **`fontWeight: '600'`** — NON 800 (l'800 risultava un grassetto troppo pronunciato). Vale **ovunque** (large title, header schermate, titoli dei formSheet). I numeri grandi decorativi (countdown esame, valori stat, badge) restano 800. `compactTitle` 600, sottotitoli 500.
+**Regola size:** titoli pagina top-level a 24px. Sotto-pagine / titoli sheet a 20-22px. Mai superare 24px per i large title.
+
+---
+
+## 13. Pattern Nativi iOS
+
+### 13.1 iOS Large Title con BlurView
+
+Pattern per schermate con lista scrollabile. Il titolo grande scompare nello scroll e il titolo compatto appare nella barra blur.
+
+```ts
+// Header sticky
+headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }
+// iOS: BlurView intensity={80} tint="systemChromeMaterialLight"
+// Android: View con backgroundColor rgba(255,255,255,0.92)
+
+// Large title: opacity e translateY interpolati su scrollY
+// Compact title: opacity interpolata (appare quando large title scompare)
+// Border: hairline che appare con lo scroll
+```
+
+Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
+
+### 13.2 Native FormSheet (Expo Router)
+
+Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'` + `sheetGrabberVisible: true`. Lo sheet si adatta all'altezza del contenuto e mostra il grabber nativo iOS.
+
+```tsx
+// app/(tabs)/home/_layout.tsx
+<Stack.Screen
+  name="my-sheet"
+  options={{
+    presentation: 'formSheet',
+    sheetAllowedDetents: 'fitToContents',
+    sheetGrabberVisible: true,
+    headerShown: false,
+  }}
+/>
+```
+
+Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` con `useSyncExternalStore`.
+
+**IMPORTANTE:** con `fitToContents` non usare `flex: 1` ne' `ScrollView` nel root — il contenuto deve avere altezza esplicita. Usare `View` per contenuto fisso, `ScrollView` solo per contenuto lungo con detent fissi (es. `[0.7, 0.95]`).
+
+**Schermi migrati a formSheet:**
+- `lesson-detail` — dettaglio guida (fitToContents)
+- `booking-flow` — prenotazione guida 2 step (fitToContents)
+- `quiz-hint` — hint quiz con HTML (fitToContents)
+
+### 13.3 Haptic Feedback
+
+Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
+
+| Azione | Haptic | Quando |
+|---|---|---|
+| Risposta quiz corretta | `notificationAsync(Success)` | Swipe/tap VERO/FALSO |
+| Risposta quiz sbagliata | `notificationAsync(Error)` | Swipe/tap VERO/FALSO |
+| Tap bottone generico | `impactAsync(Light)` | Ogni CTA |
+| Swipe card | `impactAsync(Light)` | Al rilascio swipe |
+
+---
+
+## 14. Regole e Divieti
 
 ### Da fare
 
 - Usare **sempre** i token da `src/theme/` per colori, tipografia, spacing, radii
 - Usare i componenti esistenti in `src/components/` — comporli, non duplicarli
-- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili complessi: **BottomSheet**
+- Per azioni rapide: **Modal centrata**. Per contenuti scrollabili: **FormSheet nativo** via Expo Router (`presentation: 'formSheet'`)
+- Per hint/dettagli scrollabili: **FormSheet nativo** (mai BottomSheet custom, mai `<Modal>` inline)
 - Avvolgere card con gradient in un `View` wrapper per l'ombra (l'ombra non funziona con `overflow: 'hidden'`)
 - Touch target minimo: **44x44px** (rispettato da day cell calendario, bottoni freccia, chip)
 - Animazioni: usare `useNativeDriver: true` dove possibile
 - Ombre: specificare sempre **sia** `shadowColor/Opacity/Radius/Offset` (iOS) **sia** `elevation` (Android)
+- **Icone 3D Fluent** per elementi decorativi: CTA card, stat, sezioni tematiche, topic list
+- **Icone Ionicons** per UI funzionale: navigazione, bottoni, badge stato
+- **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
+- **Ombre esterne** per CTA e card tappabili
+- **Gerarchia CTA chiara**: la distanza visiva tra azioni e informazioni deve essere evidente (vedi sezione 12)
+- **Colore Reglo solo per CTA**: navy (#1A1A2E) riservato a bottoni primari, tab bar attiva, piccoli tag. Mai per sfondi grandi o card informative
+- **iOS Large Title** per schermate con lista: BlurView header + titolo che collassa
+- **FormSheet nativi = niente grabber, X in alto a destra.** Nel route: `sheetGrabberVisible: false`. Nello screen, come PRIMO figlio del root: un `topBar` con la pill X (`closeBtn` 34×34, bg `#E2E8F0`, `Ionicons name="close"` → `router.back()`). Pattern di riferimento: `app/(tabs)/home/swap-lesson.tsx`. Vale per TUTTI i formSheet (mai l'handle nativo).
+- **Liste = righe FLAT sullo sfondo** (icona + testo + chevron/`•••`), separate da divider hairline. La card si usa **solo per elementi singoli/standalone** (es. hero profilo, "Sede principale"). Vedi `MoreScreen.tsx`, `LocationsScreen.tsx`.
+- **Azioni per riga in un menu nativo** (`ActionSheetIOS` / `Alert` su Android), non bottoni inline dentro la riga — la riga resta pulita. **Tap sulla riga = azione primaria** (es. apri il formsheet di modifica); il `•••` apre il menu secondario (Maps/Elimina).
+- **"Aggiungi" / "Nuovo" = icona `+` nell'header** (alto a destra), pattern mobile nativo. Mai un bottone "Aggiungi" piazzato in mezzo alla pagina.
+- **Testo visivamente leggero**: righe di lista / voci / body → `'400'`; titoli e nomi → `'500'`–`'600'` max. Mai `'700'`/`'800'` (vedi §2). Confronto di riferimento: Airbnb.
 
 ### Da NON fare
 
-- **Non** usare `BlurView` / `expo-blur` (rimosso dal design system, eccetto `GlassTabBar.ios.tsx`)
+- **Non** wrappare una **lista in una card** (card bianca con dentro N righe). Le liste vanno flat sullo sfondo con divider hairline; la card è solo per item singoli/standalone.
+- **Non** mettere bottoni di azione inline dentro ogni riga di lista (Maps/Modifica/Elimina ecc.) — usare un menu nativo aperto dalla riga.
+- **Non** usare font-weight pesanti (`700`/`800`) né `600` su righe di lista/body — l'utente vuole leggerezza visiva.
+
+- **Non** usare `BlurView` / `expo-blur` eccetto negli header sticky (iOS Large Title pattern) e `GlassTabBar.ios.tsx`
 - **Non** creare nuovi primitivi — estendi quelli esistenti
 - **Non** hardcodare colori senza motivo — usa i token da `colors.ts`
 - **Non** usare radii arbitrari — segui la scala: `radii.sm` (20), `radii.lg` (35), `999` (pill), o valori inline documentati
-- **Non** usare BottomSheet per azioni rapide — preferisci modali centrate
+- **Non** usare BottomSheet per contenuti read-only — preferisci PageSheet nativo
 - **Non** approssimare i valori Figma — riproduci esattamente dimensioni, colori, spacing
 - **Non** usare class component — solo functional component con hooks
 - **Non** animare `width`/`height` — usare `transform` e `opacity` per performance
+- **Non** usare Ionicons dove serve personalita visiva — usa icone 3D Fluent
+- **Non** usare icone 3D Fluent per bottoni funzionali piccoli (nav, close, chevron)
+- **Non** dare ombre esterne a card informative — usare inset shadow
+- **Non** dare inset shadow a CTA — usare ombre esterne
+- **Non** usare colore navy per sfondi grandi, card informative, o elementi non interattivi

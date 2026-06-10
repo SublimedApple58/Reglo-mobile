@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vista settimana — card LIVE (Adesso / Prossima)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy400:#6E7596; --navy300:#AEB4CC; --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --muted:#9CA3AF; --border:#E5E7EB;
+    --live:#EF4444; --liveBg:#FEF2F2; --green:#16A34A; --violet:#6D28D9;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#7FA889; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.6; }
+  .lane .cap b { color:#AEB4CC; font-weight:600; }
+  .phone { width:390px; height:760px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 22px 12px; }
+
+  /* ── LIVE card ── */
+  .live { margin:0 22px 16px; background:var(--surface); border-radius:22px; padding:16px; box-shadow:0 8px 22px rgba(26,26,46,.10); }
+  .live.now { border:1px solid #FCE3E3; }
+  .liveHead { display:flex; align-items:center; gap:7px; margin-bottom:12px; }
+  .dot { width:8px; height:8px; border-radius:4px; background:var(--live); box-shadow:0 0 0 4px var(--liveBg); }
+  .liveLabel { font-size:11px; font-weight:700; letter-spacing:.6px; color:var(--live); }
+  .liveLabel.soon { color:var(--navy400); }
+  .liveLabel.soon .dot { background:var(--navy300); }
+  .liveTop { display:flex; align-items:center; gap:12px; }
+  .av { width:46px; height:46px; border-radius:23px; background:#EEF0F4; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:600; color:var(--navy); flex-shrink:0; }
+  .nm { font-size:17px; font-weight:600; color:var(--navy); letter-spacing:-.2px; }
+  .mt { font-size:13px; font-weight:400; color:var(--muted); margin-top:2px; }
+  .chev { margin-left:auto; } .chev svg { width:20px; height:20px; stroke:var(--navy300); }
+  .acts { display:flex; gap:10px; margin-top:14px; }
+  .btn { flex:1; min-height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; gap:7px; font-size:14px; font-weight:600; }
+  .btn.present { background:var(--navy); color:#fff; }
+  .btn.present svg { width:17px; height:17px; stroke:#fff; stroke-width:2.4; }
+  .btn.absent { background:#F1F5F9; color:#64748B; }
+  .btn.absent svg { width:16px; height:16px; stroke:#64748B; stroke-width:2.4; }
+
+  /* ── week header + days (compact, unchanged) ── */
+  .panel { background:var(--navy50); margin:0 0 4px; padding:14px 22px 16px; }
+  .panelRow { display:flex; align-items:center; justify-content:space-between; }
+  .weekrange { font-size:26px; font-weight:600; letter-spacing:-.5px; } .weekrange .mo { color:var(--navy300); font-weight:400; }
+  .ctrls { display:flex; gap:8px; }
+  .chip { height:34px; padding:0 15px; border-radius:17px; background:#fff; display:flex; align-items:center; font-size:13px; font-weight:500; box-shadow:0 4px 12px rgba(26,26,46,.10); }
+  .ic { width:38px; height:38px; border-radius:19px; background:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(26,26,46,.10); }
+  .ic svg { width:21px; height:21px; stroke:var(--navy); }
+  .days { padding:2px 22px 0; }
+  .drow { display:flex; align-items:center; gap:15px; padding:15px 0; border-bottom:1px solid var(--navy100); }
+  .drow.today { background:var(--navy50); border-bottom-color:transparent; border-radius:20px; padding:14px; margin:4px -14px; }
+  .dlabel { width:40px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .wd { font-size:11px; font-weight:600; color:var(--navy300); letter-spacing:.6px; }
+  .num { font-size:19px; font-weight:500; }
+  .today .numwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .today .num { color:#fff; font-size:16px; font-weight:600; }
+  .dmid { flex:1; display:flex; flex-direction:column; gap:10px; }
+  .strip { height:8px; border-radius:4px; background:#EEF0F6; position:relative; overflow:hidden; }
+  .strip i { position:absolute; top:0; bottom:0; border-radius:4px; } .strip i.b { background:var(--navy); } .strip i.e { background:#8B5CF6; }
+  .dw { font-size:15px; font-weight:600; } .dw .f { font-size:13px; font-weight:400; color:var(--navy400); }
+  .dchev svg { width:17px; height:17px; stroke:var(--navy200); }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — Guida IN CORSO ════════ -->
+<div class="lane">
+  <h2>1 · Guida in corso → Presente / Assente inline</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>13:24</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+
+    <div class="live now">
+      <div class="liveHead"><span class="dot"></span><span class="liveLabel">ADESSO · IN CORSO</span></div>
+      <div class="liveTop">
+        <div class="av">MR</div>
+        <div style="flex:1"><div class="nm">Mario Rossi</div><div class="mt">13:00 – 14:00 · Fiat 500</div></div>
+      </div>
+      <div class="acts">
+        <div class="btn present"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Presente</div>
+        <div class="btn absent"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>Assente</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panelRow">
+        <div class="weekrange">8 – 13 <span class="mo">Giugno</span></div>
+        <div class="ctrls"><div class="chip">Oggi</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><rect x="3" y="4" width="18" height="17" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div></div>
+      </div>
+    </div>
+    <div class="days">
+      <div class="drow today">
+        <div class="dlabel today"><span class="wd">VEN</span><div class="numwrap"><span class="num">13</span></div></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:30%;width:13%"></i><i class="b" style="left:48%;width:13%"></i></div><div class="dw">2 guide <span class="f">· libero 15–18</span></div></div>
+        <div class="dchev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">SAB</span><span class="num">14</span></div>
+        <div class="dmid"><div class="strip"></div><div class="dw" style="font-weight:400;color:var(--navy300)">Riposo</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">La card <b>ADESSO</b> compare in cima quando una guida è in corso: <b>Presente / Assente</b> direttamente lì (riusa il check-in esistente). Zero drill-down. La settimana sotto resta identica.</div>
+</div>
+
+<!-- ════════ LANE 2 — Guida IMMINENTE ════════ -->
+<div class="lane">
+  <h2>2 · Guida imminente → countdown + tap</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>14:40</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+
+    <div class="live">
+      <div class="liveHead"><span class="liveLabel soon"><span class="dot"></span>TRA 20 MIN</span></div>
+      <div class="liveTop">
+        <div class="av">LB</div>
+        <div style="flex:1"><div class="nm">Luca Bianchi</div><div class="mt">15:00 – 16:00 · Fiat 500</div></div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panelRow">
+        <div class="weekrange">8 – 13 <span class="mo">Giugno</span></div>
+        <div class="ctrls"><div class="chip">Oggi</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9"><rect x="3" y="4" width="18" height="17" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div></div>
+      </div>
+    </div>
+    <div class="days">
+      <div class="drow today">
+        <div class="dlabel today"><span class="wd">VEN</span><div class="numwrap"><span class="num">13</span></div></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:48%;width:13%"></i><i class="e" style="left:70%;width:13%"></i></div><div class="dw">1 guida <span class="f">· 1 esame</span></div></div>
+        <div class="dchev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><span class="wd">SAB</span><span class="num">14</span></div>
+        <div class="dmid"><div class="strip"><i class="b" style="left:20%;width:60%"></i></div><div class="dw">5 guide <span class="f">· giornata piena</span></div></div>
+        <div class="dchev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Quando non c'è nulla in corso ma la prossima è vicina: <b>countdown</b> ("tra 20 min") + tap per aprire il dettaglio. Fuori dalla finestra check-in niente bottoni presenza. Se non c'è nulla di imminente, la card <b>sparisce</b> del tutto.</div>
+</div>
+
+</body>
+</html>

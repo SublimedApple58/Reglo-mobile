@@ -49,6 +49,40 @@ export const SkeletonBlock = ({
   );
 };
 
+export const SkeletonRing = ({
+  size = 84,
+  stroke = 9,
+}: {
+  size?: number;
+  stroke?: number;
+}) => {
+  const opacity = useRef(new Animated.Value(0.42)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.9, duration: 760, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.42, duration: 760, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: stroke,
+        borderColor: 'rgba(0, 0, 0, 0.08)',
+        opacity,
+      }}
+    />
+  );
+};
+
 export const SkeletonCard = ({
   children,
   style,

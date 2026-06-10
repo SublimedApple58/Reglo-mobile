@@ -1,10 +1,6 @@
 import { Stack } from 'expo-router';
-import { QuizProvider } from '../../../src/context/QuizContext';
+import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
 
 export default function QuizLayout() {
-  return (
-    <QuizProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </QuizProvider>
-  );
+  return <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false }} />;
 }

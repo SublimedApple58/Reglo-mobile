@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home Istruttore — Menu "+" come action sheet Airbnb</title>
+<style>
+  :root{
+    --bg:#FDFDFD; --navy:#1A1A2E;
+    --n50:#F4F5F9; --n100:#E9EBF2; --n300:#AEB4CC;
+    --muted:#94A3B8; --muted2:#64748B; --line:#EEF0F4; --hair:#F1F3F7;
+    --card:#FFFFFF; --accent:#FACC15;
+    --amber50:#FEF3C7; --amber:#D97706; --red50:#FEF2F2; --red:#DC2626; --slate100:#F1F5F9; --slate:#64748B;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:#2b3a36;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;gap:34px;flex-wrap:wrap;padding:42px 18px 60px;}
+  .col{display:flex;flex-direction:column;align-items:center;width:390px;}
+  .label{color:#dff;font-size:13px;text-align:center;margin-bottom:4px;font-weight:700;}
+  .sub{color:#bcd;font-size:11px;text-align:center;margin-bottom:12px;line-height:16px;opacity:.85}
+  .phone{width:390px;height:760px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;border:10px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+
+  /* faint timeline behind */
+  .behind{position:absolute;inset:0;padding:60px 20px;opacity:.5;filter:saturate(.6);}
+  .brow{display:flex;gap:14px;margin-bottom:22px;align-items:center}
+  .bt{width:54px;height:22px;border-radius:11px;background:#eef0f4}
+  .bc{flex:1;height:54px;border-radius:18px;background:#fff;box-shadow:0 6px 16px rgba(26,26,46,.06)}
+
+  .scrim{position:absolute;inset:0;background:rgba(15,18,30,.42);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.18);padding-bottom:30px;}
+  .grab{display:none}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 6px;}
+  .htitle{font-size:20px;font-weight:800;color:var(--navy);letter-spacing:-.4px;}
+  .x{width:32px;height:32px;border-radius:16px;background:var(--n50);display:flex;align-items:center;justify-content:center;}
+  .x svg{width:16px;height:16px;stroke:var(--muted2);stroke-width:2.4;}
+
+  .row{display:flex;align-items:center;gap:14px;padding:14px 22px;}
+  .row:active{background:var(--hair)}
+  .ic{width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .ic svg{width:22px;height:22px;fill:none;stroke-width:2;}
+  .rtxt{flex:1;min-width:0;}
+  .rt{font-size:16px;font-weight:700;color:var(--navy);}
+  .rs{font-size:13px;color:var(--muted2);margin-top:2px;line-height:17px;}
+  .chev{color:var(--n300);font-size:20px;}
+  .sep{height:1px;background:var(--line);margin:0 22px;}
+
+  .i-book{background:var(--n50);} .i-book svg{stroke:var(--navy);}
+  .i-block{background:var(--slate100);} .i-block svg{stroke:var(--slate);}
+  .i-exam{background:var(--amber50);} .i-exam svg{stroke:var(--amber);}
+  .i-sick{background:var(--red50);} .i-sick svg{stroke:var(--red);}
+
+  /* compact variant */
+  .compact .row{padding:16px 22px;}
+  .compact .rs{display:none}
+  .compact .rt{font-size:16px;}
+</style>
+</head>
+<body>
+
+<!-- A — rich rows -->
+<div class="col">
+  <div class="label">A — Righe ricche (icona + titolo + sottotitolo)</div>
+  <div class="sub">Bottom sheet che sale dal fondo, copre la tab bar. Ogni azione è una riga full-width con descrizione: chiaro e premium. X in alto a destra (come gli altri sheet).</div>
+  <div class="phone">
+    <div class="behind">
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="head"><div class="htitle">Aggiungi</div><div class="x"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+      <div class="row">
+        <div class="ic i-book"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        <div class="rtxt"><div class="rt">Prenota guida</div><div class="rs">Aggiungi una guida per un allievo</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-block"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg></div>
+        <div class="rtxt"><div class="rt">Blocca slot</div><div class="rs">Rendi non prenotabile una fascia oraria</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-exam"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11v5c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-5"/></svg></div>
+        <div class="rtxt"><div class="rt">Crea esame</div><div class="rs">Programma un esame per i tuoi allievi</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-sick"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M9 6V4h6v2M12 11v5M9.5 13.5h5"/></svg></div>
+        <div class="rtxt"><div class="rt">Malattia</div><div class="rs">Segnala assenza, le guide vengono annullate</div></div>
+        <div class="chev">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B — compact -->
+<div class="col">
+  <div class="label">B — Compatto (icona + titolo)</div>
+  <div class="sub">Stesso sheet ma senza sottotitoli: più corto e diretto. Pulito, meno testo.</div>
+  <div class="phone">
+    <div class="behind">
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+      <div class="brow"><div class="bt"></div><div class="bc"></div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet compact">
+      <div class="head"><div class="htitle">Aggiungi</div><div class="x"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div>
+      <div class="row">
+        <div class="ic i-book"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+        <div class="rtxt"><div class="rt">Prenota guida</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-block"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg></div>
+        <div class="rtxt"><div class="rt">Blocca slot</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-exam"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11v5c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-5"/></svg></div>
+        <div class="rtxt"><div class="rt">Crea esame</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="ic i-sick"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M9 6V4h6v2M12 11v5M9.5 13.5h5"/></svg></div>
+        <div class="rtxt"><div class="rt">Malattia</div></div>
+        <div class="chev">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

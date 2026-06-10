@@ -14,10 +14,15 @@ import {
   AutoscuolaStudent,
   AutoscuolaVehicle,
   AutoscuolaWaitlistOfferWithSlot,
+  GroupLesson,
+  GroupLessonInvite,
+  GroupLessonInvitee,
+  CreateGroupLessonInput,
   AcceptMobileInviteInput,
   CancelAppointmentResult,
   CreateAppointmentInput,
   CreateAvailabilitySlotsInput,
+  DefaultAvailability,
   CreateBookingRequestInput,
   CreateBookingRequestResult,
   CreateCaseInput,
@@ -39,7 +44,6 @@ import {
   RespondSwapOfferResult,
   InstructorSwapInput,
   RegisterPushTokenInput,
-  RepositionAppointmentResult,
   MobileStudentPaymentProfile,
   MobileSetupIntentPayload,
   MobileConfirmPaymentMethodPayload,
@@ -83,15 +87,22 @@ import {
   InstructorClusterSettings,
   CompanyBookingDefaults,
   InstructorHoursResponse,
+  InstructorHoursRangeResponse,
   QuizChapterProgress,
   StartQuizSessionInput,
   StartQuizSessionResult,
   SubmitQuizAnswerResult,
   QuizSessionResult,
   QuizStudentStats,
+  QuizChapterSchedeProgress,
+  QuizChapterSchedeResponse,
+  StartSchedaSessionResult,
+  ExamSchedeProgressResponse,
+  StartExamSchedaSessionResult,
   AutoscuolaLocation,
   CreateLocationInput,
   UpdateLocationInput,
+  StudentPhasePayload,
   CheckInstructorAvailabilityInput,
   InstructorAvailabilityResult,
 } from '../types/regloApi';
@@ -162,6 +173,8 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     getAutoscuolaSettings: async () =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings'),
+    getMyPhase: async () =>
+      client.request<StudentPhasePayload>('/api/autoscuole/me'),
     updateAutoscuolaSettings: async (input: AutoscuolaSettings) =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',
@@ -197,6 +210,75 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+
+    // ── Group lessons (Guide di gruppo) ──
+    getGroupLessons: async (params?: { from?: string; to?: string }) =>
+      client.request<GroupLesson[]>('/api/autoscuole/group-lessons', { params }),
+    getGroupLesson: async (groupLessonId: string) =>
+      client.request<GroupLesson>(`/api/autoscuole/group-lessons/${groupLessonId}`),
+    updateGroupLesson: async (input: {
+      groupLessonId: string;
+      startsAt?: string;
+      endsAt?: string;
+      instructorId?: string | null;
+      vehicleId?: string | null;
+    }) => {
+      const { groupLessonId, ...body } = input;
+      return client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {
+        method: 'PATCH',
+        body,
+      });
+    },
+    createGroupLesson: async (input: CreateGroupLessonInput) =>
+      client.request<{ groupLessonId: string; participants: number; capacity: number }>(
+        '/api/autoscuole/group-lessons',
+        { method: 'POST', body: input },
+      ),
+    cancelGroupLesson: async (groupLessonId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {
+        method: 'DELETE',
+      }),
+    // Student withdraws themselves from a group lesson they are enrolled in.
+    withdrawFromGroupLesson: async (groupLessonId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/withdraw`, {
+        method: 'POST',
+      }),
+    addGroupLessonParticipant: async (groupLessonId: string, studentId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/participants`, {
+        method: 'POST',
+        body: { studentId },
+      }),
+    removeGroupLessonParticipant: async (groupLessonId: string, studentId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/participants`, {
+        method: 'DELETE',
+        params: { studentId },
+      }),
+    inviteToGroupLesson: async (groupLessonId: string, expiresInHours?: number) =>
+      client.request<{ inviteId: string }>(`/api/autoscuole/group-lessons/${groupLessonId}/invite`, {
+        method: 'POST',
+        body: { expiresInHours },
+      }),
+    getEligibleGroupLessonInvitees: async (groupLessonId: string) =>
+      client.request<GroupLessonInvitee[]>(
+        `/api/autoscuole/group-lessons/${groupLessonId}/eligible-invitees`,
+      ),
+    getGroupLessonInvites: async (studentId: string, limit?: number) =>
+      client.request<GroupLessonInvite[]>('/api/autoscuole/group-lessons/invites', {
+        params: { studentId, limit },
+      }),
+    respondGroupLessonInvite: async (
+      inviteId: string,
+      input: { studentId: string; response: 'accept' | 'decline' },
+    ) =>
+      client.request<{ accepted: boolean; appointmentId?: string }>(
+        `/api/autoscuole/group-lessons/invites/${inviteId}/respond`,
+        { method: 'POST', body: input },
+      ),
+    updateStudentGroupLessonOptIn: async (studentId: string, optIn: boolean) =>
+      client.request<{ groupLessonsOptIn: boolean }>(
+        `/api/autoscuole/students/${studentId}/group-lesson-opt-in`,
+        { method: 'PATCH', body: { optIn } },
+      ),
 
     declareWeeklyAbsence: async (input: { weekStart: string }) =>
       client.request<unknown>('/api/autoscuole/weekly-absence', {
@@ -331,12 +413,11 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'POST',
         }
       ),
-    repositionAppointment: async (appointmentId: string, reason?: string) =>
-      client.request<RepositionAppointmentResult>(
-        `/api/autoscuole/appointments/${appointmentId}/reposition`,
+    permanentlyCancelAppointment: async (appointmentId: string) =>
+      client.request<{ success: boolean; message?: string }>(
+        `/api/autoscuole/appointments/${appointmentId}/permanent-cancel`,
         {
           method: 'POST',
-          body: reason ? { reason } : {},
         }
       ),
     rescheduleAppointment: async (
@@ -407,7 +488,11 @@ export const createRegloApi = (baseUrl?: string) => {
     getAvailabilitySlots: async (params: {
       ownerType: string;
       ownerId: string;
-      date: string;
+      date?: string;
+      // Inclusive date range — when both are set the backend returns slots for
+      // every day in [from, to] in one response (one round-trip for a week).
+      from?: string;
+      to?: string;
     }) =>
       client.request<AutoscuolaAvailabilitySlot[]>('/api/autoscuole/availability/slots', {
         params,
@@ -431,7 +516,7 @@ export const createRegloApi = (baseUrl?: string) => {
       ownerType: string;
       ownerId: string;
     }) =>
-      client.request<{ daysOfWeek: number[]; ranges: TimeRange[] } | null>('/api/autoscuole/availability/default', {
+      client.request<DefaultAvailability | null>('/api/autoscuole/availability/default', {
         params,
       }),
     getDailyAvailabilityOverrides: async (params: {
@@ -535,6 +620,18 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaSwapOfferWithDetails[]>('/api/autoscuole/swap/offers', {
         params: { studentId, limit },
       }),
+    getMySwapOffers: async (studentId: string) =>
+      client.request<AutoscuolaSwapOfferWithDetails[]>('/api/autoscuole/swap/my-offers', {
+        params: { studentId },
+      }),
+    cancelSwapOffer: async (offerId: string, studentId: string) =>
+      client.request<{ cancelled: boolean }>(
+        `/api/autoscuole/swap/offers/${offerId}/cancel`,
+        {
+          method: 'POST',
+          body: { studentId },
+        },
+      ),
     getMyAcceptedSwaps: async (studentId: string) =>
       client.request<Array<{
         id: string;
@@ -628,6 +725,12 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/instructor-hours?${qs.toString()}`
       );
     },
+    getInstructorHoursRange: async (params: { from: string; to: string }) => {
+      const qs = new URLSearchParams({ from: params.from, to: params.to });
+      return client.request<InstructorHoursRangeResponse>(
+        `/api/autoscuole/instructor-hours?${qs.toString()}`
+      );
+    },
 
     // ── Quiz ──────────────────────────────────────────────────────
     getQuizChapters: async () =>
@@ -661,6 +764,28 @@ export const createRegloApi = (baseUrl?: string) => {
       ),
     getQuizStudentStats: async () =>
       client.request<QuizStudentStats>('/api/autoscuole/quiz/stats'),
+
+    // ── Quiz Schede ──────────────────────────────────────────────
+    getChaptersWithSchedeProgress: async () =>
+      client.request<QuizChapterSchedeProgress[]>('/api/autoscuole/quiz/chapters-schede'),
+    getChapterSchede: async (chapterId: string) =>
+      client.request<QuizChapterSchedeResponse>(
+        `/api/autoscuole/quiz/chapters/${chapterId}/schede`,
+      ),
+    startSchedaSession: async (schedaId: string) =>
+      client.request<StartSchedaSessionResult>(
+        `/api/autoscuole/quiz/schede/${schedaId}/start`,
+        { method: 'POST' },
+      ),
+
+    // ── Exam Schede ────────────────────────────────────────────────
+    getExamSchedeProgress: async () =>
+      client.request<ExamSchedeProgressResponse>('/api/autoscuole/quiz/exam-schede'),
+    startExamSchedaSession: async (schedaId: string) =>
+      client.request<StartExamSchedaSessionResult>(
+        `/api/autoscuole/quiz/exam-schede/${schedaId}/start`,
+        { method: 'POST' },
+      ),
   };
 };
 

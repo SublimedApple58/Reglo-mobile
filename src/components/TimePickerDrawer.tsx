@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BottomSheet } from './BottomSheet';
-import { radii, spacing } from '../theme';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
 
 type TimePickerDrawerProps = {
   visible: boolean;
@@ -26,6 +28,7 @@ export const TimePickerDrawer = ({
   onSelectTime,
   selectedTime,
 }: TimePickerDrawerProps) => {
+  const insets = useSafeAreaInsets();
   const [hour, setHour] = useState(() => selectedTime.getHours());
   const [minute, setMinute] = useState(() => {
     const m = selectedTime.getMinutes();
@@ -73,91 +76,107 @@ export const TimePickerDrawer = ({
   };
 
   return (
-    <BottomSheet
+    <Modal
       visible={visible}
-      onClose={handleClose}
-      onClosed={onClosed}
-      title="Seleziona orario"
-      showHandle
-      footer={
-        <Pressable
-          onPress={handleClose}
-          style={({ pressed }) => [styles.confirmCta, pressed && styles.confirmCtaPressed]}
-        >
-          <Text style={styles.confirmCtaText}>Conferma {padTwo(hour)}:{padTwo(minute)}</Text>
-        </Pressable>
-      }
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
+      onDismiss={onClosed}
     >
-      <View style={styles.columnsRow}>
-        {/* Hours column */}
-        <View style={styles.column}>
-          <Text style={styles.columnLabel}>Ore</Text>
-          <View style={styles.scrollContainer}>
-            <ScrollView
-              ref={hourScrollRef}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-            >
-              {HOURS.map((h) => {
-                const isSelected = h === hour;
-                return (
-                  <Pressable
-                    key={`hour-${h}`}
-                    onPress={() => setHour(h)}
-                    style={[styles.item, isSelected && styles.itemSelected]}
-                  >
-                    <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
-                      {padTwo(h)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+      <View style={[styles.sheet, Platform.OS === 'android' && { paddingTop: insets.top }]}>
+        <View style={styles.tpHeader}>
+          <Text style={styles.title}>Seleziona orario</Text>
+          <Pressable onPress={handleClose} hitSlop={10} style={styles.tpClose}>
+            <Ionicons name="close" size={22} color="#1A1A2E" />
+          </Pressable>
+        </View>
+
+        <View style={styles.body}>
+          <View style={styles.columnsRow}>
+            {/* Hours column */}
+            <View style={styles.column}>
+              <Text style={styles.columnLabel}>Ore</Text>
+              <View style={styles.scrollContainer}>
+                <ScrollView
+                  ref={hourScrollRef}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.scrollContent}
+                >
+                  {HOURS.map((h) => {
+                    const isSelected = h === hour;
+                    return (
+                      <Pressable
+                        key={`hour-${h}`}
+                        onPress={() => setHour(h)}
+                        style={[styles.item, isSelected && styles.itemSelected]}
+                      >
+                        <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
+                          {padTwo(h)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Minutes column */}
+            <View style={styles.column}>
+              <Text style={styles.columnLabel}>Minuti</Text>
+              <View style={styles.scrollContainer}>
+                <ScrollView
+                  ref={minuteScrollRef}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.scrollContent}
+                >
+                  {MINUTES.map((m) => {
+                    const isSelected = m === minute;
+                    return (
+                      <Pressable
+                        key={`minute-${m}`}
+                        onPress={() => setMinute(m)}
+                        style={[styles.item, isSelected && styles.itemSelected]}
+                      >
+                        <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
+                          {padTwo(m)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Minutes column */}
-        <View style={styles.column}>
-          <Text style={styles.columnLabel}>Minuti</Text>
-          <View style={styles.scrollContainer}>
-            <ScrollView
-              ref={minuteScrollRef}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-            >
-              {MINUTES.map((m) => {
-                const isSelected = m === minute;
-                return (
-                  <Pressable
-                    key={`minute-${m}`}
-                    onPress={() => setMinute(m)}
-                    style={[styles.item, isSelected && styles.itemSelected]}
-                  >
-                    <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
-                      {padTwo(m)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
+        {/* Footer CTA */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
+          <Pressable
+            onPress={handleClose}
+            style={({ pressed }) => [styles.confirmCta, pressed && styles.confirmCtaPressed]}
+          >
+            <Text style={styles.confirmCtaText}>Conferma {padTwo(hour)}:{padTwo(minute)}</Text>
+          </Pressable>
         </View>
       </View>
-
-      {/* Duck mascot */}
-      <View style={styles.mascotSection}>
-        <Image
-          source={require('../../assets/duck-clock.png')}
-          style={styles.mascotImage}
-          resizeMode="contain"
-        />
-        <Text style={styles.mascotText}>Scegli l'ora della guida</Text>
-      </View>
-    </BottomSheet>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  sheet: { flex: 1, backgroundColor: colors.background },
+  tpHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg, paddingTop: 16, paddingBottom: 6,
+  },
+  tpClose: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F2F4',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: {
+    fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3,
+  },
+  body: { flex: 1, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   columnsRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -194,7 +213,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemSelected: {
-    backgroundColor: '#FACC15',
+    backgroundColor: '#E9EBF2',
   },
   itemText: {
     fontSize: 18,
@@ -203,12 +222,11 @@ const styles = StyleSheet.create({
   },
   itemTextSelected: {
     fontWeight: '700',
-    color: '#92400E',
+    color: '#14141F',
   },
   mascotSection: {
     alignItems: 'center',
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.md,
     gap: 4,
   },
   mascotImage: {
@@ -220,17 +238,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
   },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: 8,
+  },
   confirmCta: {
-    backgroundColor: '#EC4899',
-    borderRadius: radii.sm,
-    minHeight: 52,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 27,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
   confirmCtaPressed: {
     opacity: 0.85,
@@ -240,5 +262,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
 });

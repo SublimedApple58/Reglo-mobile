@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vista settimana → itinerario (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB; --muted:#9CA3AF;
+    --yellowBg:#FEF9C3; --yellowTx:#CA8A04;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#AEB4CC; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:360px; text-align:center; line-height:1.55; }
+
+  .phone { width:390px; height:844px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+
+  /* greeting + week header */
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 24px 0; }
+  .weekhead { display:flex; align-items:center; justify-content:space-between; padding:14px 24px 16px; }
+  .weekrange { font-size:24px; font-weight:700; letter-spacing:-.4px; }
+  .weekrange .mo { color:var(--navy300); font-weight:600; }
+  .weekhead .ctrls { display:flex; align-items:center; gap:8px; }
+  .today-chip { background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:8px 15px; font-size:14px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow { width:40px; height:40px; border-radius:20px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow svg { width:18px; height:18px; stroke:var(--navy); }
+
+  .scroll { height:calc(844px - 54px - 27px - 80px - 64px); overflow-y:auto; padding:4px 0 40px; }
+  .scroll::-webkit-scrollbar { display:none; }
+
+  /* ── Day section header (sticky look) ── */
+  .day-h { display:flex; align-items:baseline; gap:9px; padding:18px 24px 6px; background:rgba(253,253,253,.94); backdrop-filter:blur(8px); }
+  .day-h.first { padding-top:6px; }
+  .day-h .wd { font-size:18px; font-weight:700; letter-spacing:-.3px; }
+  .day-h .num { font-size:18px; font-weight:600; color:var(--navy300); }
+  .day-h.past .wd, .day-h.past .num { color:var(--navy300); }
+  .day-h .today-tag { margin-left:auto; font-size:11px; font-weight:700; color:var(--yellowTx); background:var(--yellowBg); padding:4px 9px; border-radius:999px; letter-spacing:.3px; }
+  .day-sep { height:.5px; background:var(--border); margin:0 24px; }
+
+  /* ── Itinerary rail ── */
+  .itin { padding:2px 24px 6px; }
+  .row { display:flex; gap:14px; }
+  .rail { width:54px; flex-shrink:0; position:relative; display:flex; flex-direction:column; align-items:center; }
+  .rail .line { position:absolute; top:0; bottom:0; width:1.5px; background:var(--border); }
+  .rail .pill { position:relative; margin-top:14px; background:var(--navy50); border-radius:9px; padding:4px 8px; font-size:12px; font-weight:600; color:var(--navy400); z-index:1; }
+  .rail .pill.end { background:transparent; color:var(--navy400); font-weight:700; padding-left:0; }
+  .rail .sub { font-size:10px; color:var(--muted); margin-top:3px; z-index:1; }
+  .body { flex:1; min-width:0; padding:12px 0 8px; }
+
+  /* marker (Inizio/Fine disponibilità) */
+  .marker { font-size:15px; font-weight:600; color:var(--navy); padding-top:2px; }
+  .marker.muted { color:var(--navy400); font-weight:500; }
+
+  /* free band */
+  .free { border:1.5px dashed var(--navy200); border-radius:16px; padding:16px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .free .lbl { font-size:15px; font-weight:500; color:var(--navy400); }
+  .free .lbl b { font-weight:600; color:var(--navy); }
+  .free .add { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .free .add svg { width:18px; height:18px; stroke:#fff; stroke-width:2.4; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+
+  /* lesson card */
+  .card { background:var(--surface); border-radius:18px; padding:15px 16px; display:flex; align-items:center; gap:13px; box-shadow:0 4px 16px rgba(0,0,0,.07); }
+  .card .av { width:46px; height:46px; border-radius:23px; background:var(--navy100); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:var(--navy); flex-shrink:0; }
+  .card .av.exam { background:#EDE9FE; }
+  .card .av.exam svg { width:22px; height:22px; stroke:#6D28D9; }
+  .card .nm { font-size:17px; font-weight:700; letter-spacing:-.2px; }
+  .card .mt { font-size:14px; color:var(--muted); margin-top:2px; }
+  .card .badge { margin-left:auto; font-size:12px; font-weight:700; padding:6px 11px; border-radius:999px; }
+  .badge.prog { background:var(--yellowBg); color:var(--yellowTx); }
+  .badge.exam { background:#EDE9FE; color:#6D28D9; }
+
+  /* block */
+  .block { background:var(--navy50); border-left:3px solid var(--navy300); border-radius:10px; padding:12px 14px; }
+  .block .t { font-size:14px; font-weight:600; color:var(--navy400); }
+  .block .s { font-size:12px; color:var(--muted); margin-top:2px; }
+
+  /* empty day */
+  .empty-day { padding:14px 24px 16px; display:flex; align-items:center; gap:10px; }
+  .empty-day .d { font-size:14px; color:var(--muted); }
+
+  .stack > .body, .body > * + * { margin-top:0; }
+  .body .free + .hint { margin-top:8px; }
+  .gap { height:12px; }
+
+  /* FAB + tab bar */
+  .fab { position:absolute; right:22px; bottom:96px; width:60px; height:60px; border-radius:30px; background:var(--navy); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(26,26,46,.4); z-index:30; }
+  .fab svg { width:26px; height:26px; stroke:#fff; stroke-width:2.4; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:80px; background:rgba(253,253,253,.96); border-top:.5px solid var(--border); display:flex; align-items:flex-start; justify-content:space-around; padding-top:12px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .tab.on { color:var(--navy); font-weight:600; }
+  .tab svg { width:24px; height:24px; }
+
+  /* scrub bubble (gesture) */
+  .scrubwrap { position:absolute; inset:0; z-index:40; }
+  .scrub-band { position:absolute; left:62px; right:24px; top:430px; height:74px; border:1.5px dashed var(--navy); border-radius:16px; background:rgba(26,26,46,.04); }
+  .scrub-bubble { position:absolute; left:150px; top:392px; background:var(--navy); color:#fff; border-radius:16px; padding:12px 16px; box-shadow:0 12px 30px rgba(0,0,0,.35); display:flex; align-items:center; gap:10px; }
+  .scrub-bubble .tm { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+  .scrub-bubble .dr { font-size:13px; color:var(--navy300); }
+  .finger { position:absolute; left:200px; top:470px; width:46px; height:46px; border-radius:23px; background:rgba(26,26,46,.12); border:2px solid rgba(26,26,46,.25); }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — Agenda settimana ════════ -->
+<div class="lane">
+  <h2>1 · Settimana → agenda itinerario</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls">
+        <div class="today-chip">Oggi</div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <!-- LUN 8 (passato, una guida) -->
+      <div class="day-h past first"><span class="wd">Lunedì</span><span class="num">8</span></div>
+      <div class="itin">
+        <div class="row">
+          <div class="rail"><div class="line" style="top:26px"></div><div class="pill">15:00</div><div class="sub">60 min</div></div>
+          <div class="body" style="padding-top:8px">
+            <div class="card"><div class="av">MR</div><div><div class="nm">Marco Rossi</div><div class="mt">Guida · 60 min</div></div><div class="badge prog" style="background:#F4F5F9;color:#6E7596">Completata</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="day-sep"></div>
+
+      <!-- MAR 9 (un blocco) -->
+      <div class="day-h past"><span class="wd">Martedì</span><span class="num">9</span></div>
+      <div class="itin">
+        <div class="row">
+          <div class="rail"><div class="line" style="top:26px"></div><div class="pill">10:00</div><div class="sub">1h</div></div>
+          <div class="body" style="padding-top:8px">
+            <div class="block"><div class="t">Bloccato</div><div class="s">10:00 – 11:00</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="day-sep"></div>
+
+      <!-- MER 10 (oggi, completo) -->
+      <div class="day-h"><span class="wd">Mercoledì</span><span class="num">10</span><span class="today-tag">OGGI</span></div>
+      <div class="itin">
+        <!-- Inizio disponibilità -->
+        <div class="row">
+          <div class="rail"><div class="line" style="top:26px;bottom:0"></div><div class="pill end">09:00</div></div>
+          <div class="body"><div class="marker">Inizio disponibilità</div></div>
+        </div>
+        <!-- Libero -->
+        <div class="row">
+          <div class="rail"><div class="line"></div></div>
+          <div class="body" style="padding-top:6px">
+            <div class="free"><div class="lbl"><b>Libero</b> · 3h</div><div class="add"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div>
+            <div class="hint">Tieni premuto su uno slot per scegliere l'ora</div>
+          </div>
+        </div>
+        <!-- Lezione 12:00 -->
+        <div class="row">
+          <div class="rail"><div class="line"></div><div class="pill">12:00</div><div class="sub">60 min</div></div>
+          <div class="body" style="padding-top:6px">
+            <div class="card"><div class="av">AP</div><div><div class="nm">Allievo Prova</div><div class="mt">Guida · 60 min</div></div><div class="badge prog">Programmata</div></div>
+          </div>
+        </div>
+        <!-- Libero -->
+        <div class="row">
+          <div class="rail"><div class="line"></div></div>
+          <div class="body" style="padding-top:6px">
+            <div class="free"><div class="lbl"><b>Libero</b> · 4h</div><div class="add"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div>
+          </div>
+        </div>
+        <!-- Fine disponibilità -->
+        <div class="row">
+          <div class="rail"><div class="line" style="bottom:auto;top:0;height:26px"></div><div class="pill end">17:00</div></div>
+          <div class="body"><div class="marker muted">Fine disponibilità</div></div>
+        </div>
+      </div>
+      <div class="day-sep"></div>
+
+      <!-- GIO 11 (solo libero) -->
+      <div class="day-h"><span class="wd">Giovedì</span><span class="num">11</span></div>
+      <div class="itin">
+        <div class="row">
+          <div class="rail"><div class="line" style="top:26px"></div><div class="pill end">09:00</div></div>
+          <div class="body"><div class="marker">Inizio disponibilità</div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="line"></div></div>
+          <div class="body" style="padding-top:6px">
+            <div class="free"><div class="lbl"><b>Libero</b> · 8h</div><div class="add"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">La griglia oraria sparisce: ogni giorno della settimana è una sezione-itinerario (marker disponibilità · card lezioni · band <b>Libero · Xh</b>). Header settimana con range + ‹ › + Oggi; le intestazioni-giorno fanno da indice. Scorri tutta la settimana invece di leggere una griglia.</div>
+</div>
+
+<!-- ════════ LANE 2 — Gesture quick-book preservata ════════ -->
+<div class="lane">
+  <h2>2 · Long-press quick-book (preservata)</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls"><div class="today-chip">Oggi</div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+    </div>
+
+    <div class="scroll" style="overflow:hidden">
+      <div class="day-h first"><span class="wd">Mercoledì</span><span class="num">10</span><span class="today-tag">OGGI</span></div>
+      <div class="itin">
+        <div class="row">
+          <div class="rail"><div class="line" style="top:26px;bottom:0"></div><div class="pill end">09:00</div></div>
+          <div class="body"><div class="marker">Inizio disponibilità</div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="line"></div></div>
+          <div class="body" style="padding-top:6px"><div class="free" style="opacity:.35"><div class="lbl"><b>Libero</b> · 8h</div><div class="add"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div></div></div>
+        </div>
+        <div class="row">
+          <div class="rail"><div class="line" style="bottom:auto;top:0;height:26px"></div><div class="pill end">17:00</div></div>
+          <div class="body"><div class="marker muted">Fine disponibilità</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- scrub overlay -->
+    <div class="scrubwrap">
+      <div class="scrub-band"></div>
+      <div class="scrub-bubble"><span class="tm">12:15</span><span class="dr">· 60 min</span></div>
+      <div class="finger"></div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Stessa identica gesture di oggi (<code>BookableBand</code>): tieni premuto una band <b>Libero</b>, scrub verticale a step di 15′, la bubble segue il dito; al rilascio apre il quick-book seminato con <b>data del giorno + ora</b>. Zero regressioni sul flusso.</div>
+</div>
+
+</body>
+</html>

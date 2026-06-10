@@ -2,6 +2,7 @@ import {
   AutoscuolaSwapOfferWithDetails,
   AutoscuolaWaitlistOfferWithSlot,
   AutoscuolaAppointmentWithRelations,
+  GroupLessonInvite,
 } from './regloApi';
 
 export type ConfirmationData = {
@@ -62,11 +63,25 @@ export type AppointmentLocationChangedData = {
   newLocationName: string;
 };
 
+export type TheoryExamCountdownData = {
+  offsetDays: 7 | 3 | 1 | number;
+  theoryExamAt: string | null;
+};
+
+export type TheoryQuizInactivityData = {
+  inactiveDays: number;
+};
+
+export type StudentPhaseChangeData = {
+  fromPhase: 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO';
+  toPhase: 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO';
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
+  | { kind: 'group_lesson_invite'; id: string; data: GroupLessonInvite }
   | { kind: 'swap'; id: string; data: AutoscuolaSwapOfferWithDetails }
   | { kind: 'confirmation'; id: string; data: ConfirmationData }
-  | { kind: 'proposal'; id: string; data: AutoscuolaAppointmentWithRelations }
   | { kind: 'available_slots'; id: string; data: AvailableSlotsData }
   | { kind: 'holiday_declared'; id: string; data: HolidayDeclaredData }
   | { kind: 'weekly_absence'; id: string; data: WeeklyAbsenceData }
@@ -74,7 +89,10 @@ export type NotificationItem =
   | { kind: 'appointment_rescheduled'; id: string; data: AppointmentRescheduledData }
   | { kind: 'appointment_cancelled'; id: string; data: AppointmentCancelledData }
   | { kind: 'availability_published'; id: string; data: AvailabilityPublishedData }
-  | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData };
+  | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData }
+  | { kind: 'theory_exam_countdown'; id: string; data: TheoryExamCountdownData }
+  | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData }
+  | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Screen } from '../components/Screen';
 import { Input } from '../components/Input';
@@ -38,13 +38,8 @@ export const LoginScreen = ({ onSignup }: LoginScreenProps) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
-        {/* Logo + Duck + Title */}
+        {/* Title */}
         <View style={styles.hero}>
-          <Image
-            source={require('../../assets/duck_login.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
           <Text style={styles.title}>Reglo</Text>
           <Text style={styles.subtitle}>Accedi alla tua autoscuola</Text>
         </View>
@@ -111,12 +106,6 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 8,
-  },
-  logo: {
-    width: 110,
-    height: 154,
-    alignSelf: 'center',
-    marginBottom: 4,
   },
   title: {
     fontSize: 32,

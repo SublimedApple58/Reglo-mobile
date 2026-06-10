@@ -1,8 +1,9 @@
 import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
@@ -158,9 +159,9 @@ export default function RootLayout() {
       persistOptions={{ persister: fileSystemPersister, maxAge: 24 * 60 * 60 * 1000 }}
     >
       <SessionProvider>
-        <View style={styles.root}>
+        <GestureHandlerRootView style={styles.root}>
           <AuthGate />
-        </View>
+        </GestureHandlerRootView>
       </SessionProvider>
     </PersistQueryClientProvider>
   );

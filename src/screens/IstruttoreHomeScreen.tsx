@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Image,
@@ -8,7 +9,6 @@ import {
   KeyboardEvent,
   Linking,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -16,7 +16,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -25,8 +24,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  interpolate,
-  Easing,
+  Extrapolation,
+  useAnimatedScrollHandler,
   FadeInLeft,
   FadeInRight,
   FadeOutLeft,
@@ -34,6 +33,7 @@ import Animated, {
   Layout,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,16 +43,31 @@ import { Screen } from '../components/Screen';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
-import { BottomSheet } from '../components/BottomSheet';
+import { NativePageSheet } from '../components/NativePageSheet';
+import { manageLessonStore, type ManageLessonData, type ManageLessonDetailsPayload } from '../stores/manageLessonStore';
+import { swapStore } from '../stores/swapStore';
+import { rescheduleStore } from '../stores/rescheduleStore';
 import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
-import { RescheduleAppointmentSheet } from '../components/RescheduleAppointmentSheet';
+import { dayPickerStore } from '../stores/dayPickerStore';
+import { homeAddSheetStore } from '../stores/homeAddSheetStore';
+import { bookingSheetStore, type BookingResultItem } from '../stores/bookingSheetStore';
+import { blockSheetStore } from '../stores/blockSheetStore';
+import { sickLeaveSheetStore } from '../stores/sickLeaveSheetStore';
+import { examSheetStore } from '../stores/examSheetStore';
+import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
+import { outOfAvailStore } from '../stores/outOfAvailStore';
+import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
 import { InlineLocationForm } from '../components/InlineLocationForm';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
-import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectableChip } from '../components/SelectableChip';
-import WeeklyAgendaView from '../components/WeeklyAgendaView';
+import { WeeklyOverview } from '../components/WeeklyOverview';
+import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
+import { computeDayPlan } from '../utils/weeklyAgenda';
+import { dayDetailStore } from '../stores/dayDetailStore';
+import { examManageStore } from '../stores/examManageStore';
+import { groupLessonManageStore } from '../stores/groupLessonManageStore';
 import { sessionStorage } from '../services/sessionStorage';
 import { StarRating } from '../components/StarRating';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
@@ -63,6 +78,7 @@ import {
   AutoscuolaInstructor,
   AutoscuolaLocation,
   AutoscuolaSettings,
+  AutoscuolaVehicle,
   InstructorBlock,
   InstructorBookingSuggestion,
   OutOfAvailabilityAppointment,
@@ -75,9 +91,10 @@ import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { useInstructorSettings } from '../hooks/queries/useInstructorSettings';
 import { useAgendaBootstrap } from '../hooks/queries/useAgendaBootstrap';
 import { useHolidays } from '../hooks/queries/useHolidays';
+import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
-type DrawerAction = InstructorActionStatus | 'save_details' | 'reposition';
+type DrawerAction = InstructorActionStatus | 'save_details';
 type BookingDrawerAction = 'suggest' | 'confirm' | 'create' | null;
 type LessonTypeOption = {
   value: string;
@@ -167,6 +184,19 @@ const getLessonIdentityKey = (lesson: AutoscuolaAppointmentWithRelations) => {
     lesson.endsAt ?? '',
   ].join(':');
 };
+
+// Loose identity used to match a provisional (optimistic) booking against the
+// real row the BE returns — ignores slotId (the provisional has none) and rounds
+// startsAt to the minute. Used to re-inject still-in-flight bookings into any
+// refetch so a concurrent loadData() (e.g. the screen-focus listener firing when
+// the booking modal closes) can never wipe a guida that isn't committed yet.
+// Same idea as looseIdentityKey but for instructor blocks (provisional block has
+// no real id yet): match by instructor + startsAt-to-the-minute.
+const looseBlockKey = (b: { instructorId: string; startsAt: string }) =>
+  `${b.instructorId}:${Math.floor(new Date(b.startsAt).getTime() / 60000)}`;
+
+const looseIdentityKey = (a: { studentId: string; startsAt: string }) =>
+  `${a.studentId}:${Math.floor(new Date(a.startsAt).getTime() / 60000)}`;
 
 const dedupeAppointments = (items: AutoscuolaAppointmentWithRelations[]) => {
   const map = new Map<string, AutoscuolaAppointmentWithRelations>();
@@ -298,9 +328,6 @@ const getLessonStateMeta = (lesson: AutoscuolaAppointmentWithRelations, now: Dat
   if (status === 'checked_in') {
     return { label: 'Confermata', tone: 'confirmed' as const };
   }
-  if (status === 'proposal') {
-    return { label: 'Proposta', tone: 'pending_review' as const };
-  }
   return { label: 'Programmata', tone: 'scheduled' as const };
 };
 
@@ -338,15 +365,6 @@ const getCheckinStateText = (lesson: AutoscuolaAppointmentWithRelations, now: Da
 const getLessonStateLabel = (lesson: AutoscuolaAppointmentWithRelations, now: Date) => {
   const meta = getLessonStateMeta(lesson, now);
   return meta?.label ?? lesson.status;
-};
-
-const canOperationalReposition = (
-  lesson: AutoscuolaAppointmentWithRelations,
-  now: Date,
-) => {
-  const status = normalizeStatus(lesson.status);
-  if (CLOSED_ACTION_STATUSES.has(status)) return false;
-  return new Date(lesson.startsAt).getTime() > now.getTime();
 };
 
 const pickFeaturedLesson = (
@@ -466,99 +484,6 @@ const calMondayBefore = (d: Date) => { const r = new Date(d); const day = r.getD
 const calSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const calSameMonth = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
-const InlineCalendarPicker = ({ selectedDate, maxWeeks = 4, onSelectDate, bookedDates }: {
-  selectedDate: Date;
-  maxWeeks?: number;
-  onSelectDate: (date: Date) => void;
-  bookedDates?: Set<string>;
-}) => {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
-  const [month, setMonth] = useState(() => calFirstOfMonth(selectedDate));
-  const maxDate = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() + maxWeeks * 7); return d; }, [today, maxWeeks]);
-  const minMonth = useMemo(() => calFirstOfMonth(today), [today]);
-  const maxMonth = useMemo(() => calFirstOfMonth(maxDate), [maxDate]);
-  const canPrev = month.getTime() > minMonth.getTime();
-  const canNext = month.getTime() < maxMonth.getTime();
-  const cells = useMemo(() => {
-    const start = calMondayBefore(calFirstOfMonth(month));
-    return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); d.setHours(0,0,0,0); return d; });
-  }, [month]);
-
-  return (
-    <View style={{ paddingVertical: 4 }}>
-      {/* Month navigation */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-        <Pressable
-          onPress={() => canPrev && setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-          disabled={!canPrev}
-          style={[{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, !canPrev && { opacity: 0.35 }]}
-        >
-          <Text style={{ fontSize: 22, color: '#1E293B', lineHeight: 26 }}>{'\u2039'}</Text>
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1E293B' }}>{CAL_MONTHS[month.getMonth()]} {month.getFullYear()}</Text>
-        <Pressable
-          onPress={() => canNext && setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-          disabled={!canNext}
-          style={[{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, !canNext && { opacity: 0.35 }]}
-        >
-          <Text style={{ fontSize: 22, color: '#1E293B', lineHeight: 26 }}>{'\u203A'}</Text>
-        </Pressable>
-      </View>
-      {/* Weekday headers */}
-      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-        {CAL_WEEKDAYS.map((wd) => (
-          <View key={wd} style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>{wd}</Text>
-          </View>
-        ))}
-      </View>
-      {/* Grid */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {cells.map((date, idx) => {
-          const inMonth = calSameMonth(date, month);
-          const isToday = calSameDay(date, today);
-          const isSelected = calSameDay(date, selectedDate) && !isToday;
-          const inRange = date >= today && date <= maxDate;
-          const tappable = inMonth && inRange;
-          const hasBooking = inMonth && bookedDates?.has(
-            `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-          );
-          return (
-            <Pressable key={idx} onPress={tappable ? () => onSelectDate(date) : undefined} disabled={!tappable}
-              style={{ width: '14.2857%', alignItems: 'center', justifyContent: 'center', paddingVertical: 3 }}>
-              <View style={[
-                { width: CAL_CELL, height: CAL_CELL, borderRadius: CAL_CELL / 2, alignItems: 'center', justifyContent: 'center' },
-                isToday && { borderWidth: 2, borderColor: '#FACC15' },
-                isSelected && { backgroundColor: '#EC4899' },
-              ]}>
-                <Text style={[
-                  { fontSize: 15, fontWeight: '600', color: '#1E293B' },
-                  !inMonth && { color: '#E2E8F0' },
-                  isToday && { fontWeight: '700' },
-                  isSelected && { color: '#FFFFFF', fontWeight: '700' },
-                  (inMonth && !inRange) && { color: '#CBD5E1' },
-                ]}>{date.getDate()}</Text>
-              </View>
-              {hasBooking ? (
-                <View style={[
-                  { position: 'absolute', bottom: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: '#EC4899' },
-                  (isSelected || isToday) && { backgroundColor: '#FACC15' },
-                ]} />
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
-      {/* Duck mascot */}
-      <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.md, gap: 4 }}>
-        <Image source={require('../../assets/duck-calendar.png')} style={{ width: 120, height: 85, marginBottom: 4 }} resizeMode="contain" />
-        <Text style={{ fontSize: 14, color: '#94A3B8' }}>
-          Puoi navigare fino a {maxWeeks} settimane
-        </Text>
-      </View>
-    </View>
-  );
-};
 
 /* ── Inline Time Picker (no Modal, renders inside BottomSheet) ── */
 const TP_HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -629,12 +554,11 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
           </View>
         </View>
       </View>
-      {/* Duck mascot */}
       <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 4 }}>
-        <View style={{ width: 110, height: 110, borderRadius: 55, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}>
-          <Image source={require('../../assets/duck-clock.png')} style={{ width: 80, height: 58 }} resizeMode="contain" />
+        <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="time-outline" size={44} color="#1A1A2E" />
         </View>
-        <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>Scegli l'ora della guida</Text>
+        <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 8 }}>Scegli l'ora della guida</Text>
       </View>
       {/* Confirm CTA */}
       <Pressable
@@ -645,8 +569,8 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
           onSelectTime(result);
         }}
         style={({ pressed }) => [
-          { backgroundColor: '#EC4899', borderRadius: radii.sm, minHeight: 52, alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#EC4899', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+          { backgroundColor: '#1A1A2E', borderRadius: radii.sm, minHeight: 52, alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#1A1A2E', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
           pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
           loading && { opacity: 0.6 },
         ]}
@@ -663,23 +587,40 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
   );
 };
 
-export const IstruttoreHomeScreen = () => {
+export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolean } = {}) => {
   const router = useRouter();
-  const { instructorId, user, autoscuolaRole } = useSession();
+  const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
-  const canSwitchScope = autoscuolaRole === 'INSTRUCTOR_OWNER';
-  const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>('personal');
-  const effectiveInstructorId = calendarScope === 'all' ? undefined : instructorId;
+  // Owner (titolare puro, senza instructorId) vede la stessa home dell'istruttore
+  // ma in SOLA LETTURA e con scope fisso "tutti gli istruttori": niente FAB,
+  // niente prenotazione/band, niente azioni mutanti sulle guide.
+  const canSwitchScope = !ownerMode && autoscuolaRole === 'INSTRUCTOR_OWNER';
+  const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>(ownerMode ? 'all' : 'personal');
+  const effectiveInstructorId = ownerMode || calendarScope === 'all' ? undefined : instructorId;
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
+  // Fetch window, DECOUPLED from the displayed day. loadData fetches this whole
+  // window in one bootstrap call; the timeline then filters it client-side to
+  // `selectedDate`. Selecting another day inside the window costs zero network
+  // and shows no skeleton (data is already loaded). The window only recenters
+  // when selectedDate approaches an edge → effectively prefetches neighbours.
+  const [loadRange, setLoadRange] = useState<{ from: string; to: string }>(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 7);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date();
+    to.setDate(to.getDate() + 21);
+    to.setHours(23, 59, 59, 999);
+    return { from: from.toISOString(), to: to.toISOString() };
+  });
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
   const [rangeLoading, setRangeLoading] = useState(true);
@@ -694,18 +635,6 @@ export const IstruttoreHomeScreen = () => {
   const [swapSourceLesson, setSwapSourceLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [rescheduleLesson, setRescheduleLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const pendingRescheduleRef = useRef<AutoscuolaAppointmentWithRelations | null>(null);
-  const [examDrawerGroup, setExamDrawerGroup] = useState<{
-    id: string;
-    startsAt: string;
-    endsAt: string | null;
-    instructorId: string | null;
-    instructorName: string | null;
-    notes: string | null;
-    appointments: AutoscuolaAppointmentWithRelations[];
-  } | null>(null);
-  const [examActionPending, setExamActionPending] = useState<string | null>(null); // appointmentId being processed | 'all'
-  const [examDrawerMode, setExamDrawerMode] = useState<'details' | 'timepicker'>('details');
-  const [examTimeSaving, setExamTimeSaving] = useState(false);
   const [clusterDrawerAppts, setClusterDrawerAppts] = useState<AutoscuolaAppointmentWithRelations[] | null>(null);
   const [sheetScrollAtBottom, setSheetScrollAtBottom] = useState(false);
   const [sheetScrollAtTop, setSheetScrollAtTop] = useState(true);
@@ -714,43 +643,8 @@ export const IstruttoreHomeScreen = () => {
   const [lessonNotes, setLessonNotes] = useState('');
   const [pendingAction, setPendingAction] = useState<DrawerAction | null>(null);
   const [instructorBlocks, setInstructorBlocks] = useState<InstructorBlock[]>([]);
-  const [blockSheetOpen, setBlockSheetOpen] = useState(false);
-  const [blockDate, setBlockDate] = useState<Date>(() => new Date());
-  const [blockStartTime, setBlockStartTime] = useState<Date>(() => new Date());
-  const [blockEndTime, setBlockEndTime] = useState<Date>(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 60);
-    return d;
-  });
-  const [blockReason, setBlockReason] = useState('');
-  const [blockRecurring, setBlockRecurring] = useState(false);
-  const [blockRecurringWeeks, setBlockRecurringWeeks] = useState(4);
-  const [blockPending, setBlockPending] = useState(false);
-  const [blockSheetMode, setBlockSheetMode] = useState<'form' | 'calendar' | 'startTime' | 'endTime'>('form');
-  // Sick leave state
-  const [sickSheetOpen, setSickSheetOpen] = useState(false);
-  const [sickStartDate, setSickStartDate] = useState<Date>(() => new Date());
-  const [sickEndDate, setSickEndDate] = useState<Date>(() => new Date());
-  const [sickMultiDay, setSickMultiDay] = useState(false);
-  const [sickHalfDay, setSickHalfDay] = useState(false);
-  const [sickStartTime, setSickStartTime] = useState<Date>(() => { const d = new Date(); d.setHours(14, 0, 0, 0); return d; });
-  const [sickPending, setSickPending] = useState(false);
-  const [sickSheetMode, setSickSheetMode] = useState<'form' | 'startCalendar' | 'endCalendar' | 'timePicker'>('form');
-  const [bookingSheetOpen, setBookingSheetOpen] = useState(false);
-  const [bookingPendingAction, setBookingPendingAction] = useState<BookingDrawerAction>(null);
-  const [bookingStudentId, setBookingStudentId] = useState<string>('');
-  const [bookingVehicleId, setBookingVehicleId] = useState<string>('');
-  const [bookingLessonTypes, setBookingLessonTypes] = useState<string[]>(['guida']);
-  const [bookingDate, setBookingDate] = useState<Date>(() => new Date());
-  const [bookingStartTime, setBookingStartTime] = useState<Date>(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 30 - (now.getMinutes() % 30), 0, 0);
-    return now;
-  });
-  const [bookingDuration, setBookingDuration] = useState<number>(60);
-  const [bookingLocationId, setBookingLocationId] = useState<string | null>(null);
-  const [bookingLocationName, setBookingLocationName] = useState<string | null>(null);
-  const [bookingLocationAddress, setBookingLocationAddress] = useState<string | null>(null);
+  // "Blocca slot" + "Malattia" now live as standalone modal routes
+  // (app/(tabs)/home/block-slot.tsx, sick-leave.tsx) driven by their own stores.
   const [defaultLocation, setDefaultLocation] = useState<AutoscuolaLocation | null>(null);
   // Load company default sede once (used to pre-populate Luogo field)
   useEffect(() => {
@@ -767,180 +661,20 @@ export const IstruttoreHomeScreen = () => {
       cancelled = true;
     };
   }, []);
-  const [guidedSuggestion, setGuidedSuggestion] = useState<InstructorBookingSuggestion | null>(null);
-  const [guidedPreferredDate, setGuidedPreferredDate] = useState<Date | null>(null);
   // ── Multi-booking state ──
   type MultiBookingEntry = { id: string; date: Date; startTime: Date; duration: number };
-  const [multiBookingMode, setMultiBookingMode] = useState(false);
-  const [multiBookingEntries, setMultiBookingEntries] = useState<MultiBookingEntry[]>([]);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [editingEntryField, setEditingEntryField] = useState<'date' | 'time' | null>(null);
   const [latestStudentLessonNote, setLatestStudentLessonNote] = useState<{
     startsAt: string;
     note: string;
   } | null>(null);
   const [studentNotesMap, setStudentNotesMap] = useState<Record<string, string | null>>({});
-  // ── Quick-book state (Google Calendar-style tap-to-create) ──
-  const [quickBookOpen, setQuickBookOpen] = useState(false);
-  const [quickBookDate, setQuickBookDate] = useState<Date>(new Date());
-  const [quickBookHour, setQuickBookHour] = useState(9);
-  const [quickBookMinutes, setQuickBookMinutes] = useState(0);
-  const [quickBookDuration, setQuickBookDuration] = useState(60);
-  const [quickBookStudentId, setQuickBookStudentId] = useState('');
-  const [quickBookPending, setQuickBookPending] = useState(false);
-  const [quickBookType, setQuickBookType] = useState<'lesson' | 'block'>('lesson');
-  const [quickBookReason, setQuickBookReason] = useState('');
-  const [qbHandleDragging, setQbHandleDragging] = useState(false);
-  // Refs for quick-book drag handles
-  const qbCurrentRef = useRef({ hour: 9, min: 0, dur: 60 });
-  const qbDragOrigin = useRef({ hour: 9, min: 0, dur: 60 });
-  const qbAllowedDurRef = useRef<number[]>([60]);
-  const qbTypeRef = useRef<'lesson' | 'block'>('lesson');
-  useEffect(() => {
-    qbCurrentRef.current = { hour: quickBookHour, min: quickBookMinutes, dur: quickBookDuration };
-  }, [quickBookHour, quickBookMinutes, quickBookDuration]);
-
-  // Occupied intervals for collision detection (sorted by start)
-  const qbOccupiedRef = useRef<Array<{ start: number; end: number }>>([]);
-  useEffect(() => {
-    const dayKey = `${quickBookDate.getFullYear()}-${String(quickBookDate.getMonth() + 1).padStart(2, '0')}-${String(quickBookDate.getDate()).padStart(2, '0')}`;
-    const intervals: Array<{ start: number; end: number }> = [];
-    for (const appt of appointments) {
-      const s = new Date(appt.startsAt);
-      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
-      if ((appt.status ?? '').toLowerCase() === 'cancelled') continue;
-      const e = appt.endsAt ? new Date(appt.endsAt) : new Date(s.getTime() + 60 * 60 * 1000);
-      intervals.push({ start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() });
-    }
-    for (const block of instructorBlocks) {
-      const s = new Date(block.startsAt);
-      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
-      const e = new Date(block.endsAt);
-      intervals.push({ start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() });
-    }
-    intervals.sort((a, b) => a.start - b.start);
-    qbOccupiedRef.current = intervals;
-  }, [quickBookDate, appointments, instructorBlocks]);
-
-  // Clamp a proposed [start, start+dur) range so it doesn't overlap any occupied interval
-  const clampToFreeSlot = (proposedStart: number, dur: number): number => {
-    const occupied = qbOccupiedRef.current;
-    let start = proposedStart;
-    for (const iv of occupied) {
-      if (start < iv.end && start + dur > iv.start) {
-        // Overlap detected — try to snap before or after
-        const before = iv.start - dur;
-        const after = iv.end;
-        // Pick whichever is closer to the proposed start
-        if (before >= 0 && Math.abs(before - proposedStart) <= Math.abs(after - proposedStart)) {
-          start = before;
-        } else {
-          start = after;
-        }
-      }
-    }
-    // Final check: ensure the new position also doesn't overlap
-    for (const iv of occupied) {
-      if (start < iv.end && start + dur > iv.start) {
-        return qbCurrentRef.current.hour * 60 + qbCurrentRef.current.min; // revert
-      }
-    }
-    return start;
-  };
-
-  // Clamp a proposed duration so the block end doesn't overlap the next occupied interval
-  const clampDuration = (start: number, proposedDur: number): number => {
-    const occupied = qbOccupiedRef.current;
-    let maxEnd = 21 * 60;
-    for (const iv of occupied) {
-      if (iv.start > start) {
-        maxEnd = Math.min(maxEnd, iv.start);
-        break;
-      }
-    }
-    return Math.min(proposedDur, maxEnd - start);
-  };
-
-  // Top handle: moves start time in 15-min steps, keeps duration fixed
-  const qbTopPan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onShouldBlockNativeResponder: () => true,
-    onPanResponderGrant: () => {
-      qbDragOrigin.current = { ...qbCurrentRef.current };
-      setQbHandleDragging(true);
-    },
-    onPanResponderMove: (_, g) => {
-      const delta = Math.round((g.dy / ROW_H) * 60 / 15) * 15;
-      const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
-      const dur = qbDragOrigin.current.dur;
-      const rawStart = Math.max(0, Math.min(21 * 60 - dur, origStart + delta));
-      const newStart = clampToFreeSlot(rawStart, dur);
-      setQuickBookHour(Math.floor(newStart / 60));
-      setQuickBookMinutes(newStart % 60);
-    },
-    onPanResponderRelease: () => setQbHandleDragging(false),
-    onPanResponderTerminate: () => setQbHandleDragging(false),
-  }), []);
-  // Bottom handle: snaps duration to nearest allowed value
-  const qbBottomPan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onShouldBlockNativeResponder: () => true,
-    onPanResponderGrant: () => {
-      qbDragOrigin.current = { ...qbCurrentRef.current };
-      setQbHandleDragging(true);
-    },
-    onPanResponderMove: (_, g) => {
-      const delta = Math.round((g.dy / ROW_H) * 60 / 15) * 15;
-      const origStart = qbDragOrigin.current.hour * 60 + qbDragOrigin.current.min;
-      const origEnd = origStart + qbDragOrigin.current.dur;
-      const rawDur = origEnd + delta - origStart;
-      if (qbTypeRef.current === 'block') {
-        // Block: free-form 15-min snapping, clamped to next occupied slot
-        const clamped = clampDuration(origStart, Math.max(15, Math.min(21 * 60 - origStart, rawDur)));
-        setQuickBookDuration(clamped);
-      } else {
-        // Lesson: snap to allowed durations, then clamp
-        const allowed = qbAllowedDurRef.current;
-        const snapped = allowed.reduce((best, d) =>
-          Math.abs(d - rawDur) < Math.abs(best - rawDur) ? d : best,
-        );
-        const clamped = clampDuration(origStart, snapped);
-        setQuickBookDuration(clamped);
-      }
-    },
-    onPanResponderRelease: () => setQbHandleDragging(false),
-    onPanResponderTerminate: () => setQbHandleDragging(false),
-  }), []);
-  const qbHeaderCollapse = useSharedValue(1);
-  useEffect(() => {
-    qbHeaderCollapse.value = withTiming(quickBookOpen ? 0 : 1, { duration: 250 });
-  }, [quickBookOpen]);
-  const qbHeaderStyle = useAnimatedStyle(() => ({
-    opacity: qbHeaderCollapse.value,
-    maxHeight: interpolate(qbHeaderCollapse.value, [0, 1], [0, 200]),
-    overflow: 'hidden' as const,
-  }));
-  const qbDrawerTranslate = useSharedValue(400);
-  useEffect(() => {
-    qbDrawerTranslate.value = quickBookOpen
-      ? withTiming(0, { duration: 220 })
-      : withTiming(400, { duration: 180 });
-  }, [quickBookOpen]);
-  const qbDrawerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: qbDrawerTranslate.value }],
-  }));
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const rangeKeyRef = useRef<string | null>(null);
   const loadRequestRef = useRef(0);
   const lessonSheetScrollRef = useRef<ScrollView | null>(null);
-  const bookingSheetScrollRef = useRef<ScrollView | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
-  const [guidedCalendarOpen, setGuidedCalendarOpen] = useState(false);
-  const [bookingSheetMode, setBookingSheetMode] = useState<'form' | 'calendar' | 'timepicker' | 'locationPicker' | 'locationForm'>('form');
   const [lessonSheetMode, setLessonSheetMode] = useState<'view' | 'locationPicker' | 'locationForm' | 'instructorPicker'>('view');
   // Instructor reassignment state for the "Modifica guida" sheet.
   // `selectedInstructorId` mirrors the sheetLesson's current instructor and
@@ -958,10 +692,14 @@ export const IstruttoreHomeScreen = () => {
   const [instructorListLoading, setInstructorListLoading] = useState(false);
   const [availableHours, setAvailableHours] = useState<Set<number>>(new Set());
   const [availabilitySlots, setAvailabilitySlots] = useState<Array<{ startMinutes: number; endMinutes: number }>>([]);
-  const [weekAvailability, setWeekAvailability] = useState<Record<number, Array<{ startMinutes: number; endMinutes: number }>>>({});
+  // Per-day availability cache (day view): seed instantly on day change so a
+  // revisited day is stable (no stale-previous-day flash, no reload glitch).
+  const availabilityCacheRef = useRef<Map<string, { hours: Set<number>; slots: Array<{ startMinutes: number; endMinutes: number }> }>>(new Map());
+  const latestAvailKeyRef = useRef<string>('');
+  // Keyed by YYYY-MM-DD. Loaded for a 3-week window (prev/current/next) so the
+  // weekly pager can swipe to adjacent weeks with availability already present.
+  const [weekAvailability, setWeekAvailability] = useState<Record<string, Array<{ startMinutes: number; endMinutes: number }>>>({});
   const [outOfAvailAppointments, setOutOfAvailAppointments] = useState<OutOfAvailabilityAppointment[]>([]);
-  const [outOfAvailSheetOpen, setOutOfAvailSheetOpen] = useState(false);
-  const [outOfAvailActionPending, setOutOfAvailActionPending] = useState<string | null>(null);
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [instructorAutonomousMode, setInstructorAutonomousMode] = useState(false);
   const [clusterDurations, setClusterDurations] = useState<number[] | null>(null);
@@ -969,25 +707,21 @@ export const IstruttoreHomeScreen = () => {
   const [myStudentsExpanded, setMyStudentsExpanded] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const queryClient = useQueryClient();
+  // Cross-fade applied to the day timeline when a background (stale-while-
+  // revalidate) refresh swaps in fresh BE data over an already-painted day.
+  const timelineFadeSV = useSharedValue(1);
+  const timelineFadeStyle = useAnimatedStyle(() => ({ opacity: timelineFadeSV.value }));
 
   // ── Query hooks for cold-start cache hydration ──
   const bootstrapParams = useMemo(() => {
-    if (!instructorId) return null;
-    const from = calendarRange ? new Date(calendarRange.from) : new Date();
-    const to = calendarRange ? new Date(calendarRange.to) : new Date();
-    if (!calendarRange) {
-      from.setDate(from.getDate() - 1);
-      from.setHours(0, 0, 0, 0);
-      to.setDate(to.getDate() + 14);
-      to.setHours(23, 59, 59, 999);
-    }
+    if (!instructorId && !ownerMode) return null;
     return {
       ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
-      from: from.toISOString(),
-      to: to.toISOString(),
-      limit: 280,
+      from: loadRange.from,
+      to: loadRange.to,
+      limit: 400,
     };
-  }, [instructorId, calendarRange, effectiveInstructorId]);
+  }, [instructorId, ownerMode, loadRange, effectiveInstructorId]);
 
   const bootstrapCached = useAgendaBootstrap(bootstrapParams);
   const settingsCached = useAutoscuolaSettings();
@@ -1047,20 +781,60 @@ export const IstruttoreHomeScreen = () => {
     }
   }, [bootstrapCached.data, settingsCached.data, instructorSettingsCached.data, holidaysCached.data, effectiveInstructorId, instructorId]);
 
-  const loadData = useCallback(async (): Promise<AutoscuolaAppointmentWithRelations[]> => {
-    if (!instructorId) return [];
+  // Optimistic bookings still in flight (provisional id → built row). Any wholesale
+  // refetch re-injects these so a concurrent loadData() never wipes a guida that
+  // the BE hasn't committed yet. Entries are removed when the booking settles
+  // (replace/reconcile/rollback) or once the server starts returning the real row.
+  const pendingProvisionalsRef = useRef<Map<string, AutoscuolaAppointmentWithRelations>>(new Map());
+  const injectPending = useCallback(
+    (list: AutoscuolaAppointmentWithRelations[], fromMs: number, toMs: number) => {
+      if (pendingProvisionalsRef.current.size === 0) return list;
+      const present = new Set(list.map(looseIdentityKey));
+      // Prune provisionals the server now returns (committed + visible).
+      for (const [id, p] of pendingProvisionalsRef.current) {
+        if (present.has(looseIdentityKey(p))) pendingProvisionalsRef.current.delete(id);
+      }
+      const extra: AutoscuolaAppointmentWithRelations[] = [];
+      for (const p of pendingProvisionalsRef.current.values()) {
+        const t = new Date(p.startsAt).getTime();
+        if (t >= fromMs && t <= toMs && !present.has(looseIdentityKey(p))) extra.push(p);
+      }
+      return extra.length ? dedupeAppointments([...list, ...extra]) : list;
+    },
+    [],
+  );
+
+  // Same guard for instructor blocks (Blocca slot / Malattia optimistic insert):
+  // a focus-triggered loadData must not wipe a block the BE hasn't committed yet.
+  const pendingBlocksRef = useRef<Map<string, InstructorBlock>>(new Map());
+  const injectPendingBlocks = useCallback((list: InstructorBlock[]) => {
+    if (pendingBlocksRef.current.size === 0) return list;
+    const present = new Set(list.map(looseBlockKey));
+    for (const [id, b] of pendingBlocksRef.current) {
+      if (present.has(looseBlockKey(b))) pendingBlocksRef.current.delete(id);
+    }
+    const extra: InstructorBlock[] = [];
+    for (const b of pendingBlocksRef.current.values()) {
+      if (!present.has(looseBlockKey(b))) extra.push(b);
+    }
+    return extra.length ? [...list, ...extra] : list;
+  }, []);
+
+  const loadData = useCallback(async (opts?: { force?: boolean }): Promise<AutoscuolaAppointmentWithRelations[]> => {
+    if (!instructorId && !ownerMode) return [];
+    // force=true (default) bypasses the TanStack cache (staleTime 0) so callers
+    // after a mutation / pull-to-refresh always hit the network. The initial
+    // mount load and the focus listener pass force=false: if the TanStack cache
+    // (already hydrated on cold start) is still fresh, fetchQuery returns it
+    // without a network round-trip, killing the cold-start double-fetch.
+    const force = opts?.force ?? true;
     const requestId = ++loadRequestRef.current;
     setError(null);
     let shouldShowRangeSkeleton = false;
     try {
-      const from = calendarRange ? new Date(calendarRange.from) : new Date();
-      const to = calendarRange ? new Date(calendarRange.to) : new Date();
-      if (!calendarRange) {
-        from.setDate(from.getDate() - 1);
-        from.setHours(0, 0, 0, 0);
-        to.setDate(to.getDate() + 14);
-        to.setHours(23, 59, 59, 999);
-      }
+      // Fetch the whole rolling window (decoupled from the displayed day).
+      const from = new Date(loadRange.from);
+      const to = new Date(loadRange.to);
       const rangeKey = `${from.toISOString()}|${to.toISOString()}`;
       if (rangeKeyRef.current !== rangeKey) {
         shouldShowRangeSkeleton = true;
@@ -1074,6 +848,14 @@ export const IstruttoreHomeScreen = () => {
       featuredTo.setDate(featuredTo.getDate() + 60);
       featuredTo.setHours(23, 59, 59, 999);
 
+      // Bootstrap params MUST match useAgendaBootstrap's bootstrapParams exactly
+      // so fetchQuery shares the same cache entry (dedup with the hydration hook).
+      const bootstrapParams = {
+        ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: 400,
+      };
       const [
         agendaBootstrap,
         featuredAppointmentsResponse,
@@ -1082,11 +864,12 @@ export const IstruttoreHomeScreen = () => {
         clusterSettingsResponse,
       ] =
         await Promise.all([
-          regloApi.getAgendaBootstrap({
-            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
-            from: from.toISOString(),
-            to: to.toISOString(),
-            limit: 280,
+          // Routed through TanStack: force ⇒ staleTime 0 (always network);
+          // otherwise reuse the fresh cache shared with useAgendaBootstrap.
+          queryClient.fetchQuery({
+            queryKey: queryKeys.agendaBootstrap(activeCompanyId, bootstrapParams),
+            queryFn: () => regloApi.getAgendaBootstrap(bootstrapParams),
+            staleTime: force ? 0 : STALE_TIMES.agendaBootstrap,
           }),
           regloApi.getAppointments({
             ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
@@ -1095,15 +878,30 @@ export const IstruttoreHomeScreen = () => {
             limit: 220,
             light: true,
           }),
-          regloApi.getAutoscuolaSettings(),
-          // Lightweight fetch of sick_leave blocks over wide range for calendar dots
+          queryClient.fetchQuery({
+            queryKey: queryKeys.autoscuolaSettings(activeCompanyId),
+            queryFn: () => regloApi.getAutoscuolaSettings(),
+            staleTime: force ? 0 : STALE_TIMES.settings,
+          }),
+          // Lightweight fetch of sick_leave blocks over wide range for calendar dots.
+          // Owner (no instructorId) → omit it so the API returns all instructors'.
           regloApi.getInstructorBlocks({
-            instructorId: effectiveInstructorId ?? instructorId!,
+            ...(effectiveInstructorId
+              ? { instructorId: effectiveInstructorId }
+              : instructorId
+                ? { instructorId }
+                : {}),
             from: featuredFrom.toISOString(),
             to: featuredTo.toISOString(),
             reason: 'sick_leave',
           }),
-          regloApi.getInstructorSettings().catch(() => null),
+          queryClient
+            .fetchQuery({
+              queryKey: queryKeys.instructorSettings(activeCompanyId),
+              queryFn: () => regloApi.getInstructorSettings(),
+              staleTime: force ? 0 : STALE_TIMES.instructorSettings,
+            })
+            .catch(() => null),
         ]);
       if (requestId !== loadRequestRef.current) {
         return [];
@@ -1132,7 +930,7 @@ export const IstruttoreHomeScreen = () => {
           mergedBlocks.push(sb);
         }
       }
-      setInstructorBlocks(mergedBlocks);
+      setInstructorBlocks(injectPendingBlocks(mergedBlocks));
       const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
       const matchesScope = (item: { instructorId?: string | null }) =>
         effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
@@ -1142,9 +940,18 @@ export const IstruttoreHomeScreen = () => {
       const nextFeaturedAppointments = dedupeAppointments(
         featuredAppointmentsResponse.filter((item) => matchesScope(item) && notCancelled(item)),
       );
-      setAppointments(nextAppointments);
-      setFeaturedAppointments(nextFeaturedAppointments);
-      return nextAppointments;
+      // Re-inject any still-in-flight optimistic bookings so a focus-triggered
+      // refetch can't wipe a guida the BE hasn't committed yet.
+      const mergedAppointments = injectPending(nextAppointments, from.getTime(), to.getTime());
+      setAppointments(mergedAppointments);
+      setFeaturedAppointments(injectPending(nextFeaturedAppointments, featuredFrom.getTime(), featuredTo.getTime()));
+      // Background revalidation over an already-painted window → gentle cross-fade
+      // to the fresh data (not on a brand-new window load, which shows a skeleton).
+      if (!shouldShowRangeSkeleton) {
+        timelineFadeSV.value = 0.5;
+        timelineFadeSV.value = withTiming(1, { duration: 220 });
+      }
+      return mergedAppointments;
     } catch (err) {
       if (requestId !== loadRequestRef.current) {
         return [];
@@ -1159,17 +966,18 @@ export const IstruttoreHomeScreen = () => {
         }
       }
     }
-  }, [calendarRange, instructorId, effectiveInstructorId]);
+  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, injectPending, injectPendingBlocks, queryClient, activeCompanyId]);
 
   const loadOutOfAvailability = useCallback(async () => {
-    if (!instructorId) return;
+    if (!instructorId && !ownerMode) return;
     try {
-      const data = await regloApi.getOutOfAvailabilityAppointments(instructorId);
+      // Owner → no instructorId, so the API returns all instructors' OOB guide.
+      const data = await regloApi.getOutOfAvailabilityAppointments(instructorId ?? undefined);
       setOutOfAvailAppointments(Array.isArray(data) ? data : []);
     } catch {
       // silent
     }
-  }, [instructorId]);
+  }, [instructorId, ownerMode]);
 
   const loadHolidays = useCallback(async () => {
     try {
@@ -1192,33 +1000,12 @@ export const IstruttoreHomeScreen = () => {
     }
   }, []);
 
-  const handleOutOfAvailAction = useCallback(async (
-    appointmentId: string,
-    action: 'cancel' | 'reposition' | 'approve',
-  ) => {
-    setOutOfAvailActionPending(appointmentId);
-    try {
-      if (action === 'cancel') {
-        await regloApi.cancelAppointment(appointmentId);
-        setToast({ text: 'Guida cancellata.', tone: 'success' });
-      } else if (action === 'reposition') {
-        await regloApi.repositionAppointment(appointmentId);
-        setToast({ text: 'Riposizionamento avviato.', tone: 'success' });
-      } else {
-        await regloApi.approveAvailabilityOverride(appointmentId);
-        setToast({ text: 'Guida mantenuta.', tone: 'success' });
-      }
-      loadOutOfAvailability();
-      loadData();
-    } catch {
-      setToast({ text: 'Errore durante l\'operazione.', tone: 'danger' });
-    } finally {
-      setOutOfAvailActionPending(null);
-    }
-  }, [loadData, loadOutOfAvailability]);
-
   useEffect(() => {
-    loadData().then(() => loadOutOfAvailability());
+    // Initial load: reuse the fresh TanStack cache when present (no double
+    // fetch on cold start) and fire out-of-availability in parallel rather
+    // than chaining it behind loadData.
+    loadData({ force: false });
+    loadOutOfAvailability();
   }, [loadData, loadOutOfAvailability]);
 
   useEffect(() => {
@@ -1270,14 +1057,12 @@ export const IstruttoreHomeScreen = () => {
   const bookingActors = settings?.appBookingActors ?? 'students';
   const instructorBookingMode = settings?.instructorBookingMode ?? 'manual_engine';
   const canInstructorBook =
-    bookingActors === 'instructors' || bookingActors === 'both';
+    !ownerMode && (bookingActors === 'instructors' || bookingActors === 'both');
   const bookingDurations = useMemo(
     () =>
       (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60]).slice().sort((a, b) => a - b),
     [clusterDurations, settings?.bookingSlotDurations],
   );
-  qbAllowedDurRef.current = bookingDurations;
-  qbTypeRef.current = quickBookType;
   const clustersActive = Boolean(instructorAutonomousMode);
   const assignedStudents = useMemo(
     () => students.filter((s) => s.assignedInstructorId === instructorId),
@@ -1303,115 +1088,13 @@ export const IstruttoreHomeScreen = () => {
       ...unassignedStudents.map((s) => toOption(s, true)),
     ];
   }, [students, assignedStudents, unassignedStudents, clustersActive]);
-  const selectedBookingStudent = useMemo(
-    () => students.find((student) => student.id === bookingStudentId) ?? null,
-    [bookingStudentId, students],
-  );
-  const appointmentsLoading = initialLoading || rangeLoading;
+  // SWR: only a true loading state when nothing is loaded yet. Background window
+  // refreshes keep the (week) grid painted instead of flashing a loader.
+  const appointmentsLoading = (initialLoading || rangeLoading) && appointments.length === 0;
 
-  const normalizeToQuarter = useCallback((value: Date) => {
-    const next = new Date(value);
-    next.setSeconds(0, 0);
-    const minutes = next.getMinutes();
-    const rounded = Math.ceil(minutes / 15) * 15;
-    if (rounded === 60) {
-      next.setHours(next.getHours() + 1, 0, 0, 0);
-    } else {
-      next.setMinutes(rounded, 0, 0);
-    }
-    return next;
-  }, []);
 
-  const resolveBookingStartDate = useCallback(() => {
-    const date = new Date(bookingDate);
-    const time = new Date(bookingStartTime);
-    date.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    return normalizeToQuarter(date);
-  }, [bookingDate, bookingStartTime, normalizeToQuarter]);
-
-  const openBlockDrawer = useCallback(() => {
-    const roundedNow = normalizeToQuarter(new Date());
-    const endTime = new Date(roundedNow);
-    endTime.setMinutes(endTime.getMinutes() + 60);
-    setBlockDate(selectedDate);
-    setBlockStartTime(roundedNow);
-    setBlockEndTime(endTime);
-    setBlockReason('');
-    setBlockRecurring(false);
-    setBlockRecurringWeeks(4);
-    setBlockSheetMode('form');
-    setBlockSheetOpen(true);
-  }, [normalizeToQuarter, selectedDate]);
-
-  const handleCreateBlock = useCallback(async () => {
-    setBlockPending(true);
-    try {
-      const startsAt = new Date(blockDate);
-      const startT = new Date(blockStartTime);
-      startsAt.setHours(startT.getHours(), startT.getMinutes(), 0, 0);
-      const endsAt = new Date(blockDate);
-      const endT = new Date(blockEndTime);
-      endsAt.setHours(endT.getHours(), endT.getMinutes(), 0, 0);
-      if (endsAt <= startsAt) {
-        setToast({ text: "L'ora di fine deve essere dopo l'inizio.", tone: 'danger' });
-        return;
-      }
-      await regloApi.createInstructorBlock({
-        startsAt: startsAt.toISOString(),
-        endsAt: endsAt.toISOString(),
-        ...(blockReason.trim() ? { reason: blockReason.trim() } : {}),
-        ...(blockRecurring ? { recurring: true, recurringWeeks: blockRecurringWeeks } : {}),
-      });
-      setBlockSheetOpen(false);
-      setToast({ text: 'Slot bloccato.', tone: 'success' });
-      await loadData();
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nel blocco slot',
-        tone: 'danger',
-      });
-    } finally {
-      setBlockPending(false);
-    }
-  }, [blockDate, blockStartTime, blockEndTime, blockReason, blockRecurring, blockRecurringWeeks, loadData]);
-
-  const openSickLeaveDrawer = useCallback(() => {
-    setSickStartDate(new Date());
-    setSickEndDate(new Date());
-    setSickMultiDay(false);
-    setSickHalfDay(false);
-    const defaultTime = new Date();
-    defaultTime.setHours(14, 0, 0, 0);
-    setSickStartTime(defaultTime);
-    setSickSheetMode('form');
-    setSickSheetOpen(true);
-  }, []);
-
-  const handleCreateSickLeave = useCallback(async () => {
-    setSickPending(true);
-    try {
-      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const startDate = fmt(sickStartDate);
-      const endDate = fmt(sickEndDate);
-      const startTime = sickHalfDay
-        ? `${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`
-        : undefined;
-      const result = await regloApi.createInstructorSickLeave({ startDate, endDate, startTime });
-      setSickSheetOpen(false);
-      setToast({
-        text: `Malattia registrata. ${result.appointmentsCancelled} guide cancellate.`,
-        tone: 'success',
-      });
-      await loadData();
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella registrazione malattia',
-        tone: 'danger',
-      });
-    } finally {
-      setSickPending(false);
-    }
-  }, [sickStartDate, sickEndDate, sickHalfDay, sickStartTime, loadData]);
+  // openBlockDrawer / openSickLeaveDrawer are defined further down, after
+  // reconcileProvisionalBlocks (they reference it in their optimistic callbacks).
 
   const handleDeleteBlock = useCallback(async (blockId: string) => {
     try {
@@ -1426,468 +1109,74 @@ export const IstruttoreHomeScreen = () => {
     }
   }, [loadData]);
 
-  // Exam actions
-  const handleRemoveExamStudent = useCallback(
-    async (appointmentId: string) => {
-      setExamActionPending(appointmentId);
-      try {
-        await regloApi.cancelAppointment(appointmentId);
-        setToast({ text: 'Allievo rimosso dall\u2019esame.', tone: 'success' });
-        await loadData();
-        // Refresh the drawer with updated group
-        setExamDrawerGroup((prev) =>
-          prev
-            ? {
-                ...prev,
-                appointments: prev.appointments.filter((a) => a.id !== appointmentId),
-              }
-            : null,
-        );
-      } catch (err) {
-        setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
-      } finally {
-        setExamActionPending(null);
-      }
+  // Open the native exam-management page sheet (seed-and-callback).
+  const openExamManage = useCallback(
+    (g: {
+      startsAt: string;
+      endsAt: string | null;
+      instructorId: string | null;
+      instructorName: string | null;
+      notes: string | null;
+      appointments: AutoscuolaAppointmentWithRelations[];
+    }) => {
+      examManageStore.set({ ...g, readOnly: ownerMode, onChanged: () => { loadData(); } });
+      router.push('/(tabs)/home/exam-manage');
     },
-    [loadData],
+    [loadData, router, ownerMode],
   );
 
-  const handleCancelExam = useCallback(async () => {
-    if (!examDrawerGroup) return;
-    setExamActionPending('all');
-    try {
-      await Promise.all(
-        examDrawerGroup.appointments.map((a) => regloApi.cancelAppointment(a.id)),
-      );
-      setToast({ text: 'Esame annullato.', tone: 'success' });
-      setExamDrawerGroup(null);
-      await loadData();
-    } catch (err) {
-      setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
-    } finally {
-      setExamActionPending(null);
-    }
-  }, [examDrawerGroup, loadData]);
+  // Manage an existing group lesson: open the dedicated "Gestisci guida di
+  // gruppo" page sheet (roster, instructor/vehicle, sposta, annulla). Loads the
+  // instructor + vehicle lists for the in-modal pickers, then seeds the store.
+  const openGroupLessonManage = useCallback(
+    async (groupLessonId: string) => {
+      try {
+        const vehiclesEnabled = settings?.vehiclesEnabled !== false;
+        const [instructorsRes, vehiclesRes] = await Promise.all([
+          regloApi.getInstructors().catch(() => [] as AutoscuolaInstructor[]),
+          vehiclesEnabled
+            ? regloApi.getVehicles().catch(() => [] as AutoscuolaVehicle[])
+            : Promise.resolve([] as AutoscuolaVehicle[]),
+        ]);
+        groupLessonManageStore.set({
+          groupLessonId,
+          instructors: (instructorsRes ?? []).filter((i) => i.status !== 'inactive'),
+          vehicles: (vehiclesRes ?? []).filter((v) => v.status === 'active'),
+          vehiclesEnabled,
+          readOnly: ownerMode,
+          onChanged: () => { loadData(); },
+        });
+        router.push('/(tabs)/home/manage-group-lesson');
+      } catch (e) {
+        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+      }
+    },
+    [loadData, router, settings?.vehiclesEnabled, ownerMode],
+  );
 
-  const openBookingDrawer = useCallback(() => {
-    if (!canInstructorBook) {
-      setToast({
-        text: 'La prenotazione da app è abilitata solo per allievi.',
-        tone: 'info',
-      });
-      return;
-    }
-    const allowedDurations = (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60])
-      .slice()
-      .sort((a, b) => a - b);
-    const nowDate = new Date();
-    const roundedNow = normalizeToQuarter(nowDate);
-    setBookingStudentId('');
-    setBookingVehicleId((current) => current || vehicles[0]?.id || '');
-    setBookingLessonTypes(['guida']);
-    setBookingDuration((current) =>
-      allowedDurations.includes(current) ? current : allowedDurations[0] ?? 60,
-    );
-    setBookingDate(selectedDate);
-    setBookingStartTime(roundedNow);
-    setGuidedSuggestion(null);
-    setGuidedPreferredDate(null);
-    setMultiBookingMode(false);
-    setMultiBookingEntries([]);
-    setEditingEntryId(null);
-    setEditingEntryField(null);
-    // Pre-populate location with the autoscuola's default sede
-    setBookingLocationId(defaultLocation?.id ?? null);
-    setBookingLocationName(defaultLocation?.name ?? null);
-    setBookingLocationAddress(defaultLocation?.address ?? null);
-    setBookingSheetMode('form');
-    setBookingSheetOpen(true);
-  }, [canInstructorBook, normalizeToQuarter, settings?.bookingSlotDurations, students, vehicles, selectedDate, defaultLocation, clusterDurations]);
-
-  const openQuickBook = useCallback((date: Date, hour: number, minutes: number) => {
-    if (!canInstructorBook) {
-      setToast({
-        text: 'La prenotazione da app è abilitata solo per allievi.',
-        tone: 'info',
-      });
-      return;
-    }
-    // Check if the tapped slot overlaps with any existing appointment or block
-    const tapStart = hour * 60 + minutes;
-    const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const hasCollision = [...appointments, ...instructorBlocks.map((b) => ({ startsAt: b.startsAt, endsAt: b.endsAt, status: 'active' }))].some((item) => {
-      const s = new Date(item.startsAt);
-      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) return false;
-      if ('status' in item && typeof item.status === 'string' && item.status.toLowerCase() === 'cancelled') return false;
-      const e = item.endsAt ? new Date(item.endsAt) : new Date(s.getTime() + 60 * 60 * 1000);
-      const iStart = s.getHours() * 60 + s.getMinutes();
-      const iEnd = e.getHours() * 60 + e.getMinutes();
-      return tapStart >= iStart && tapStart < iEnd;
+  const openCreateGroupLesson = useCallback(() => {
+    groupLessonSheetStore.set({
+      initialDate: selectedDate.toISOString(),
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
-    if (hasCollision) return;
-    const allowedDurations = (clusterDurations ?? settings?.bookingSlotDurations ?? [30, 60])
-      .slice()
-      .sort((a, b) => a - b);
-    const dur = allowedDurations.includes(60) ? 60 : allowedDurations[0] ?? 60;
-    // Find max duration before next occupied slot
-    let maxEnd = 21 * 60;
-    for (const item of [...appointments, ...instructorBlocks.map((b) => ({ startsAt: b.startsAt, endsAt: b.endsAt, status: 'active' }))]) {
-      const s = new Date(item.startsAt);
-      if (`${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}` !== dayKey) continue;
-      if ('status' in item && typeof item.status === 'string' && item.status.toLowerCase() === 'cancelled') continue;
-      const iStart = s.getHours() * 60 + s.getMinutes();
-      if (iStart > tapStart && iStart < maxEnd) maxEnd = iStart;
-    }
-    const clampedDur = Math.min(dur, maxEnd - tapStart);
-    if (clampedDur < 15) return; // not enough space
-    setQuickBookDate(date);
-    setQuickBookHour(hour);
-    setQuickBookMinutes(minutes);
-    setQuickBookDuration(clampedDur);
-    setQuickBookStudentId('');
-    setQuickBookType('lesson');
-    setQuickBookReason('');
-    setQuickBookOpen(true);
-  }, [canInstructorBook, clusterDurations, settings?.bookingSlotDurations, appointments, instructorBlocks]);
+    router.push('/(tabs)/home/create-group-lesson');
+  }, [selectedDate, router]);
 
-  const handleQuickBookConfirm = useCallback(async () => {
-    if (!quickBookStudentId) {
-      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
-      return;
-    }
-    if (!instructorId) {
-      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
-      return;
-    }
-    const start = new Date(quickBookDate);
-    start.setHours(quickBookHour, quickBookMinutes, 0, 0);
-    const end = new Date(start.getTime() + quickBookDuration * 60 * 1000);
 
-    setQuickBookPending(true);
-    setToast(null);
 
-    const doBook = async (skipWeeklyLimitCheck = false) => {
-      await regloApi.confirmInstructorBooking({
-        studentId: quickBookStudentId,
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        instructorId,
-        vehicleId: settings?.vehiclesEnabled !== false ? (vehicles[0]?.id ?? null) : null,
-        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
-      });
-    };
 
-    try {
-      await doBook();
-      setQuickBookOpen(false);
-      setToast({ text: 'Guida prenotata.', tone: 'success' });
-      await loadData();
-    } catch (err: unknown) {
-      const payload = (err as { payload?: Record<string, unknown> })?.payload;
-      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
-        setQuickBookPending(false);
-        const msg = typeof payload.message === 'string'
-          ? payload.message
-          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
-        Alert.alert('Limite settimanale', msg, [
-          { text: 'Annulla', style: 'cancel' },
-          {
-            text: 'Procedi',
-            onPress: async () => {
-              setQuickBookPending(true);
-              try {
-                await doBook(true);
-                setQuickBookOpen(false);
-                setToast({ text: 'Guida prenotata.', tone: 'success' });
-                await loadData();
-              } catch (retryErr) {
-                setToast({
-                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
-                  tone: 'danger',
-                });
-              } finally {
-                setQuickBookPending(false);
-              }
-            },
-          },
-        ]);
-        return;
-      }
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
-        tone: 'danger',
-      });
-    } finally {
-      setQuickBookPending(false);
-    }
-  }, [quickBookStudentId, quickBookDate, quickBookHour, quickBookMinutes, quickBookDuration, instructorId, settings?.vehiclesEnabled, vehicles, loadData]);
 
-  const handleQuickBlockConfirm = useCallback(async () => {
-    const start = new Date(quickBookDate);
-    start.setHours(quickBookHour, quickBookMinutes, 0, 0);
-    const end = new Date(start.getTime() + quickBookDuration * 60 * 1000);
-
-    setQuickBookPending(true);
-    try {
-      await regloApi.createInstructorBlock({
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        ...(quickBookReason.trim() ? { reason: quickBookReason.trim() } : {}),
-      });
-      setQuickBookOpen(false);
-      setToast({ text: 'Slot bloccato.', tone: 'success' });
-      await loadData();
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nel blocco slot',
-        tone: 'danger',
-      });
-    } finally {
-      setQuickBookPending(false);
-    }
-  }, [quickBookDate, quickBookHour, quickBookMinutes, quickBookDuration, quickBookReason, loadData]);
-
-  const handleSuggestGuidedBooking = useCallback(async () => {
-    if (!bookingStudentId) {
-      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
-      return;
-    }
-    setBookingPendingAction('suggest');
-    setToast(null);
-    try {
-      const requestedDate = guidedPreferredDate ? toDateOnlyString(guidedPreferredDate) : undefined;
-      const suggestion = await regloApi.suggestInstructorBooking({
-        studentId: bookingStudentId,
-        preferredDate: requestedDate,
-      });
-      setGuidedSuggestion(suggestion);
-      setBookingVehicleId(suggestion.vehicleId);
-      setBookingDuration(suggestion.durationMinutes);
-      setBookingLessonTypes([suggestion.suggestedLessonType || 'guida']);
-      const suggestedDate = toDateOnlyString(new Date(suggestion.startsAt));
-      const usedFallbackDate = Boolean(requestedDate && requestedDate !== suggestedDate);
-      setToast({
-        text: usedFallbackDate
-          ? 'Nessuno slot nella data scelta: proposta sul primo giorno utile.'
-          : 'Slot suggerito pronto. Conferma per inviare la proposta.',
-        tone: 'success',
-      });
-    } catch (err) {
-      setGuidedSuggestion(null);
-      setToast({
-        text: err instanceof Error ? err.message : 'Nessuno slot disponibile al momento',
-        tone: 'danger',
-      });
-    } finally {
-      setBookingPendingAction(null);
-    }
-  }, [bookingStudentId, guidedPreferredDate]);
-
-  const handleConfirmInstructorBooking = useCallback(async () => {
-    if (!bookingStudentId) {
-      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
-      return;
-    }
-    if (settings?.vehiclesEnabled !== false && !bookingVehicleId) {
-      setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
-      return;
-    }
-    if (!instructorId) {
-      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
-      return;
-    }
-
-    const start = guidedSuggestion ? new Date(guidedSuggestion.startsAt) : resolveBookingStartDate();
-    const end = guidedSuggestion
-      ? new Date(guidedSuggestion.endsAt)
-      : new Date(start.getTime() + bookingDuration * 60 * 1000);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      setToast({ text: 'Intervallo orario non valido.', tone: 'danger' });
-      return;
-    }
-
-    setBookingPendingAction(guidedSuggestion ? 'confirm' : 'create');
-    setToast(null);
-
-    const doBook = async (skipWeeklyLimitCheck = false) => {
-      const res = await regloApi.confirmInstructorBooking({
-        studentId: bookingStudentId,
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        instructorId,
-        vehicleId: settings?.vehiclesEnabled !== false ? (guidedSuggestion?.vehicleId ?? bookingVehicleId) : null,
-        locationId: bookingLocationId,
-        ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
-          ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
-          : {}),
-        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
-      });
-      return res;
-    };
-
-    try {
-      await doBook();
-      setBookingSheetOpen(false);
-      setGuidedSuggestion(null);
-      setToast({
-        text: 'Guida prenotata.',
-        tone: 'success',
-      });
-      await loadData();
-    } catch (err: unknown) {
-      const payload = (err as { payload?: Record<string, unknown> })?.payload;
-      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
-        setBookingPendingAction(null);
-        const msg = typeof payload.message === 'string'
-          ? payload.message
-          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
-        Alert.alert('Limite settimanale', msg, [
-          { text: 'Annulla', style: 'cancel' },
-          {
-            text: 'Procedi',
-            onPress: async () => {
-              setBookingPendingAction(guidedSuggestion ? 'confirm' : 'create');
-              try {
-                await doBook(true);
-                setBookingSheetOpen(false);
-                setGuidedSuggestion(null);
-                setToast({ text: 'Guida prenotata.', tone: 'success' });
-                await loadData();
-              } catch (retryErr) {
-                setToast({
-                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
-                  tone: 'danger',
-                });
-              } finally {
-                setBookingPendingAction(null);
-              }
-            },
-          },
-        ]);
-        return;
-      }
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
-        tone: 'danger',
-      });
-    } finally {
-      setBookingPendingAction(null);
-    }
-  }, [
-    bookingDuration,
-    bookingLessonTypes,
-    bookingStudentId,
-    bookingVehicleId,
-    guidedSuggestion,
-    instructorId,
-    loadData,
-    resolveBookingStartDate,
-  ]);
-
-  const handleConfirmMultiBooking = useCallback(async () => {
-    if (!bookingStudentId) {
-      setToast({ text: 'Seleziona un allievo.', tone: 'danger' });
-      return;
-    }
-    if (settings?.vehiclesEnabled !== false && !bookingVehicleId) {
-      setToast({ text: 'Seleziona un veicolo.', tone: 'danger' });
-      return;
-    }
-    if (!instructorId) {
-      setToast({ text: 'Profilo istruttore non disponibile.', tone: 'danger' });
-      return;
-    }
-    if (!multiBookingEntries.length) {
-      setToast({ text: 'Aggiungi almeno una guida.', tone: 'danger' });
-      return;
-    }
-
-    const entries = multiBookingEntries.map((entry) => {
-      const start = new Date(entry.date);
-      start.setHours(entry.startTime.getHours(), entry.startTime.getMinutes(), 0, 0);
-      const end = new Date(start.getTime() + entry.duration * 60 * 1000);
-      return { startsAt: start.toISOString(), endsAt: end.toISOString() };
-    });
-
-    setBookingPendingAction('create');
-    setToast(null);
-
-    const doBook = async (skipWeeklyLimitCheck = false) => {
-      return regloApi.confirmInstructorBookingBatch({
-        studentId: bookingStudentId,
-        instructorId,
-        vehicleId: settings?.vehiclesEnabled !== false ? bookingVehicleId : null,
-        ...(bookingLessonTypes.length && !(bookingLessonTypes.length === 1 && bookingLessonTypes[0] === 'guida')
-          ? { lessonType: bookingLessonTypes[0], types: bookingLessonTypes }
-          : {}),
-        ...(skipWeeklyLimitCheck ? { skipWeeklyLimitCheck: true } : {}),
-        entries,
-      });
-    };
-
-    try {
-      const result = await doBook();
-      setBookingSheetOpen(false);
-      setMultiBookingMode(false);
-      setMultiBookingEntries([]);
-      setToast({
-        text: `${result.created} guide prenotate.`,
-        tone: 'success',
-      });
-      await loadData();
-    } catch (err: unknown) {
-      const payload = (err as { payload?: Record<string, unknown> })?.payload;
-      if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
-        setBookingPendingAction(null);
-        const msg = typeof payload.message === 'string'
-          ? payload.message
-          : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
-        Alert.alert('Limite settimanale', msg, [
-          { text: 'Annulla', style: 'cancel' },
-          {
-            text: 'Procedi',
-            onPress: async () => {
-              setBookingPendingAction('create');
-              try {
-                const result = await doBook(true);
-                setBookingSheetOpen(false);
-                setMultiBookingMode(false);
-                setMultiBookingEntries([]);
-                setToast({ text: `${result.created} guide prenotate.`, tone: 'success' });
-                await loadData();
-              } catch (retryErr) {
-                setToast({
-                  text: retryErr instanceof Error ? retryErr.message : 'Errore nella prenotazione',
-                  tone: 'danger',
-                });
-              } finally {
-                setBookingPendingAction(null);
-              }
-            },
-          },
-        ]);
-        return;
-      }
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
-        tone: 'danger',
-      });
-    } finally {
-      setBookingPendingAction(null);
-    }
-  }, [
-    bookingDuration,
-    bookingLessonTypes,
-    bookingStudentId,
-    bookingVehicleId,
-    instructorId,
-    loadData,
-    multiBookingEntries,
-  ]);
 
   const featuredLesson = useMemo(
     () => pickFeaturedLesson(featuredAppointments, now),
     [featuredAppointments, now],
+  );
+  // `appointments` now holds the whole fetch window; the day grid renders only
+  // the selected day. Filtering here (instead of refetching per day) is what
+  // makes day-to-day navigation instant with no skeleton.
+  const dayAppointments = useMemo(
+    () => appointments.filter((appt) => isSameDay(selectedDate, appt.startsAt)),
+    [appointments, selectedDate],
   );
   const HOUR_SLOTS = useMemo(() => {
     const DEFAULT_START = 7;
@@ -1900,30 +1189,34 @@ export const IstruttoreHomeScreen = () => {
       if (h < earliest) earliest = h;
     }
     // Check appointments (skip timeless exams — they render as banners, not in the grid)
-    for (const appt of appointments) {
+    for (const appt of dayAppointments) {
       if (appt.type === 'esame' && !appt.endsAt) continue;
       const h = new Date(appt.startsAt).getHours();
       if (normalizeStatus(appt.status) !== 'cancelled' && h < earliest) earliest = h;
     }
-    // Also extend earliest backwards for instructor blocks (e.g. a 06:00 block).
+    // Also extend earliest backwards for instructor blocks on this day (e.g. 06:00).
     for (const block of instructorBlocks) {
+      if (!isSameDay(selectedDate, block.startsAt)) continue;
       const h = new Date(block.startsAt).getHours();
       if (h < earliest) earliest = h;
     }
     return Array.from({ length: END - earliest + 1 }, (_, i) => i + earliest);
-  }, [availableHours, appointments, instructorBlocks]);
+  }, [availableHours, dayAppointments, instructorBlocks, selectedDate]);
 
   // Raw (non-grouped) list — used for counts, stats, etc.
   const timelineAppointments = useMemo(() => {
-    return [...appointments].sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
-  }, [appointments]);
+    return [...dayAppointments].sort((a, b) => getStartsAtTs(a) - getStartsAtTs(b));
+  }, [dayAppointments]);
 
   // Timeline items: exams grouped by time; other appointments as-is
   const timelineItems = useMemo(() => {
+    const GROUP_LESSON_CAPACITY = 3;
     const exams: AutoscuolaAppointmentWithRelations[] = [];
+    const groupLessonAppts: AutoscuolaAppointmentWithRelations[] = [];
     const others: AutoscuolaAppointmentWithRelations[] = [];
     for (const appt of timelineAppointments) {
       if (appt.type === 'esame') exams.push(appt);
+      else if (appt.type === 'group_lesson') groupLessonAppts.push(appt);
       else others.push(appt);
     }
     const groupMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
@@ -1933,9 +1226,18 @@ export const IstruttoreHomeScreen = () => {
       list.push(e);
       groupMap.set(key, list);
     }
+    // Collapse group-lesson participant appointments into ONE card per lesson.
+    const glMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
+    for (const a of groupLessonAppts) {
+      const key = a.groupLessonId ?? `${a.startsAt}|${a.endsAt ?? ''}|${a.instructorId ?? ''}`;
+      const list = glMap.get(key) ?? [];
+      list.push(a);
+      glMap.set(key, list);
+    }
     type Item =
       | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
-      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
+      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
     const items: Item[] = [];
     for (const appt of others) {
       items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
@@ -1950,6 +1252,23 @@ export const IstruttoreHomeScreen = () => {
         instructorId: first.instructorId,
         instructorName: first.instructor?.name ?? null,
         notes: first.notes ?? null,
+        appointments: appts,
+        sortKey: getStartsAtTs(first),
+      });
+    }
+    for (const [key, appts] of glMap) {
+      const first = appts[0];
+      // Synthetic empty-lesson rows (id `gl-empty:`) represent 0 participants.
+      const filled = appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length;
+      items.push({
+        kind: 'groupLesson',
+        id: `gl-${key}`,
+        groupLessonId: first.groupLessonId ?? null,
+        startsAt: first.startsAt,
+        endsAt: first.endsAt,
+        vehicleName: first.vehicle?.name ?? null,
+        count: filled,
+        capacity: GROUP_LESSON_CAPACITY,
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });
@@ -2012,6 +1331,9 @@ export const IstruttoreHomeScreen = () => {
 
   // Detect if selected day has a sick leave block + find full contiguous range
   const sickLeaveInfo = useMemo(() => {
+    // Owner vede TUTTI gli istruttori: la malattia di uno non blocca la giornata
+    // (gli altri lavorano). Niente overlay "in malattia" a tutta pagina.
+    if (ownerMode) return null;
     const selKey = dateToKey(selectedDate);
     if (!sickLeaveDateKeys.has(selKey)) return null;
 
@@ -2038,9 +1360,13 @@ export const IstruttoreHomeScreen = () => {
       isHalfDay,
       sickStartHour,
     };
-  }, [instructorBlocks, selectedDate, sickLeaveDateKeys]);
+  }, [instructorBlocks, selectedDate, sickLeaveDateKeys, ownerMode]);
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
+  // Stale-while-revalidate: only show the day skeleton when there is genuinely
+  // nothing to paint for the selected day. A background window refresh keeps the
+  // already-loaded day visible instead of flashing skeletons.
+  const dayGridLoading = (initialLoading || rangeLoading) && !hasTimelineAppointments;
 
   const ROW_H = 80;
 
@@ -2138,16 +1464,18 @@ export const IstruttoreHomeScreen = () => {
     if (type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
       return { border: '#6366F1', badgeBg: '#EEF2FF', badgeText: '#4338CA', label: 'ESAME', isExam: true as const };
     }
+    // Group lesson: teal theme (mirrors the agenda card accent).
+    if (type === 'group_lesson' && s !== 'cancelled' && s !== 'no_show') {
+      return { border: '#10B981', badgeBg: '#D1FAE5', badgeText: '#047857', label: 'GRUPPO', isExam: false as const };
+    }
     if (s === 'pending_review')
       return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare', isExam: false as const };
     if (s === 'checked_in')
-      return { border: '#EC4899', badgeBg: '#FDF2F8', badgeText: '#EC4899', label: 'In corso', isExam: false as const };
+      return { border: '#1A1A2E', badgeBg: '#EEF0F4', badgeText: '#1A1A2E', label: 'In corso', isExam: false as const };
     if (s === 'completed')
       return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata', isExam: false as const };
     if (s === 'no_show' || s === 'cancelled')
       return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata', isExam: false as const };
-    if (s === 'proposal')
-      return { border: '#A78BFA', badgeBg: '#F5F3FF', badgeText: '#7C3AED', label: 'Proposta', isExam: false as const };
     // Scheduled/confirmed: mandatory if student has < 8h completed AND lesson is ≥ 60 min
     const completedMins = opts?.studentId ? (studentCompletedMinutes[opts.studentId] ?? 0) : 0;
     const isMandatory = completedMins < MANDATORY_MINUTES_THRESHOLD && (opts?.durationMin ?? 0) >= 60;
@@ -2167,15 +1495,17 @@ export const IstruttoreHomeScreen = () => {
   };
 
   const openLessonDrawer = (lesson: AutoscuolaAppointmentWithRelations) => {
+    // Group-lesson seats are not managed via the normal "Gestisci guida" modal —
+    // they open the dedicated "Gestisci guida di gruppo" page sheet instead.
+    if (lesson.type === 'group_lesson' && lesson.groupLessonId) {
+      openGroupLessonManage(lesson.groupLessonId);
+      return;
+    }
     setSheetLesson(lesson);
     setSheetStudentProgress(null);
-    setSheetScrollAtBottom(false);
-    setSheetScrollAtTop(true);
-    setSelectedLessonTypes(resolveInitialLessonTypes(lesson));
-    setSelectedRating(lesson.rating ?? null);
-    setLessonNotes(lesson.notes ?? '');
-    setSelectedInstructorId(lesson.instructorId ?? null);
-    setInstructorAvailability({ status: 'idle' });
+    // Seed the store synchronously so the route paints immediately, then push.
+    manageLessonStore.set(buildManageSnapshot(lesson, null));
+    router.push('/(tabs)/home/manage-lesson');
   };
 
   // Live availability check whenever the staged instructor changes to a
@@ -2333,9 +1663,6 @@ export const IstruttoreHomeScreen = () => {
   }, [timelineAppointments]);
 
   const canRunStatusAction = Boolean(sheetActionAvailability?.enabled);
-  const canRepositionSheetLesson = sheetLesson
-    ? canOperationalReposition(sheetLesson, now)
-    : false;
   const canRescheduleSheetLesson = useMemo(() => {
     if (!sheetLesson) return false;
     const status = normalizeStatus(sheetLesson.status);
@@ -2422,7 +1749,7 @@ export const IstruttoreHomeScreen = () => {
     });
     // Map timelineStatusConfig colors to LessonStateTag tones
     const toneMap: Record<string, 'live' | 'confirmed' | 'scheduled' | 'pending_review'> = {
-      '#EC4899': 'live',        // checked_in / in corso
+      '#1A1A2E': 'live',        // checked_in / in corso
       '#22C55E': 'confirmed',   // completed
       '#F97316': 'pending_review', // pending_review
       '#94A3B8': 'pending_review', // cancelled / no_show
@@ -2448,6 +1775,56 @@ export const IstruttoreHomeScreen = () => {
     }
     return set;
   }, [featuredAppointments]);
+
+  // Booked days in YYYY-MM-DD for the new scrollable calendar (select-date sheet).
+  const markedDatesYMD = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const set = new Set<string>();
+    for (const appt of featuredAppointments) {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled') continue;
+      const d = new Date(appt.startsAt);
+      set.add(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    }
+    return set;
+  }, [featuredAppointments]);
+
+  const openAgendaCalendar = useCallback(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const sel = new Date(selectedDate);
+    dayPickerStore.set({
+      selectedDate: `${sel.getFullYear()}-${pad(sel.getMonth() + 1)}-${pad(sel.getDate())}`,
+      markedDates: markedDatesYMD,
+      // Snappy: 2 mesi passati + mese corrente + 3 mesi futuri (max 3 mesi avanti),
+      // non più ~1.5 anni che rendeva lento il render del calendario.
+      monthsBack: 2,
+      monthsCount: 4,
+      allowPast: true,
+      title: 'Vai al giorno',
+      onSelect: (ds) => {
+        const [y, m, d] = ds.split('-').map(Number);
+        setSelectedDate(new Date(y, m - 1, d));
+      },
+    });
+    router.push('/(tabs)/home/select-date');
+  }, [selectedDate, markedDatesYMD, router]);
+
+  // Legacy tap+drag grid is disabled (quick-book is now a native formSheet).
+  // Kept renderable-but-off via a non-literal flag so TS still type-checks the
+  // block; remove the block entirely in a later cleanup.
+
+  // Overall bookable window for the selected day (earliest..latest availability,
+  // or a sensible default when none is set).
+  const dayBookWindow = useMemo(() => {
+    if (availabilitySlots.length) {
+      return {
+        start: Math.min(...availabilitySlots.map((s) => s.startMinutes)),
+        end: Math.max(...availabilitySlots.map((s) => s.endMinutes)),
+      };
+    }
+    return { start: 8 * 60, end: 20 * 60 };
+  }, [availabilitySlots]);
+
 
   const examDatesSet = useMemo(() => {
     const set = new Set<string>();
@@ -2478,7 +1855,6 @@ export const IstruttoreHomeScreen = () => {
     }
     return days;
   }, []);
-  const calendarMonthLabel = `${ITALIAN_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
   const isSelectedDateHoliday = useMemo(
     () => holidays.has(toDateOnlyString(selectedDate)),
@@ -2522,10 +1898,20 @@ export const IstruttoreHomeScreen = () => {
 
   const loadAvailability = useCallback(() => {
     if (!instructorId) return;
+    const key = toDateOnlyString(selectedDate);
+    latestAvailKeyRef.current = key;
+    // Seed instantly from cache so changing day never shows the previous day's
+    // availability (nor flashes the 8–20 fallback). If uncached, keep what's
+    // shown until the fetch resolves — never clear.
+    const cached = availabilityCacheRef.current.get(key);
+    if (cached) {
+      setAvailableHours(cached.hours);
+      setAvailabilitySlots(cached.slots);
+    }
     regloApi.getAvailabilitySlots({
       ownerType: 'instructor',
       ownerId: instructorId,
-      date: toDateOnlyString(selectedDate),
+      date: key,
     }).then((slots) => {
       const hours = new Set<number>();
       const precise: Array<{ startMinutes: number; endMinutes: number }> = [];
@@ -2545,10 +1931,39 @@ export const IstruttoreHomeScreen = () => {
           if (endMinute > 0) hours.add(endHour);
         }
       }
-      setAvailableHours(hours);
-      setAvailabilitySlots(precise);
-    }).catch(() => { setAvailableHours(new Set()); setAvailabilitySlots([]); });
+      availabilityCacheRef.current.set(key, { hours, slots: precise });
+      // Only apply if the user is still on this day (guards out-of-order resolves).
+      if (latestAvailKeyRef.current === key) {
+        setAvailableHours(hours);
+        setAvailabilitySlots(precise);
+      }
+    }).catch(() => { /* keep cached/previous availability — never flash empty */ });
   }, [selectedDate, instructorId]);
+
+  // Recenter the fetch window only when the selected day nears an edge. Staying
+  // inside the loaded window is a no-op → no refetch, no skeleton (pure client
+  // filter). The generous span (-7/+21) prefetches neighbours for both the day
+  // grid and week swipes; SWR keeps the visible day painted during a recenter.
+  useEffect(() => {
+    setLoadRange((prev) => {
+      const sel = new Date(selectedDate);
+      sel.setHours(0, 0, 0, 0);
+      const selMs = sel.getTime();
+      const prevFrom = new Date(prev.from).getTime();
+      const prevTo = new Date(prev.to).getTime();
+      const MARGIN = 86400000; // 1 day
+      if (selMs >= prevFrom + MARGIN && selMs <= prevTo - MARGIN) return prev;
+      const from = new Date(selectedDate);
+      from.setDate(from.getDate() - 7);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(selectedDate);
+      to.setDate(to.getDate() + 21);
+      to.setHours(23, 59, 59, 999);
+      const next = { from: from.toISOString(), to: to.toISOString() };
+      if (next.from === prev.from && next.to === prev.to) return prev;
+      return next;
+    });
+  }, [selectedDate]);
 
   useEffect(() => {
     if (agendaViewMode === 'week') {
@@ -2571,22 +1986,25 @@ export const IstruttoreHomeScreen = () => {
     }
     loadAvailability();
 
-    // Load availability for all 6 days when in weekly mode
+    // Load availability for a 3-week window (prev/current/next) in weekly mode,
+    // keyed by date, so the horizontal week-pager always has the neighbouring
+    // weeks ready and swiping never flashes empty availability.
     if (agendaViewMode === 'week' && instructorId) {
       const day = selectedDate.getDay();
       const mondayOffset = day === 0 ? -6 : 1 - day;
-      const monday = new Date(selectedDate);
-      monday.setDate(monday.getDate() + mondayOffset);
-      monday.setHours(0, 0, 0, 0);
+      const start = new Date(selectedDate);
+      start.setDate(start.getDate() + mondayOffset - 7); // one week before current
+      start.setHours(0, 0, 0, 0);
 
       Promise.all(
-        Array.from({ length: 6 }, (_, i) => {
-          const d = new Date(monday);
+        Array.from({ length: 21 }, (_, i) => {
+          const d = new Date(start);
           d.setDate(d.getDate() + i);
+          const key = toDateOnlyString(d);
           return regloApi.getAvailabilitySlots({
             ownerType: 'instructor',
             ownerId: instructorId,
-            date: toDateOnlyString(d),
+            date: key,
           }).then((slots) => {
             const precise: Array<{ startMinutes: number; endMinutes: number }> = [];
             if (slots) {
@@ -2596,26 +2014,37 @@ export const IstruttoreHomeScreen = () => {
                 precise.push({ startMinutes: s.getHours() * 60 + s.getMinutes(), endMinutes: e.getHours() * 60 + e.getMinutes() });
               }
             }
-            return { colIdx: i, slots: precise };
+            return { key, slots: precise };
           });
         }),
       ).then((results) => {
-        const map: Record<number, Array<{ startMinutes: number; endMinutes: number }>> = {};
-        for (const r of results) map[r.colIdx] = r.slots;
-        setWeekAvailability(map);
-      }).catch(() => setWeekAvailability({}));
+        const map: Record<string, Array<{ startMinutes: number; endMinutes: number }>> = {};
+        for (const r of results) map[r.key] = r.slots;
+        // MERGE (don't replace): swiping to an adjacent week must never blank out
+        // days that already have availability — we only add/refresh keys. Replacing
+        // made days flash "Riposo" during the ~0.5s reload. Keep prior data on error.
+        setWeekAvailability((prev) => ({ ...prev, ...map }));
+      }).catch(() => { /* keep previously loaded availability — never flash empty */ });
     }
   }, [selectedDate, instructorId, loadAvailability, agendaViewMode]);
 
-  // Re-fetch data when screen regains focus (e.g. after changing availability)
+  // Re-fetch data when screen regains focus (e.g. after changing availability).
+  // Gated: returning from a sheet/tab fires 'focus' constantly; without a gate
+  // every re-entry re-ran 4 fetch families. Skip the network refresh when the
+  // last one was < 30s ago — the view-mode read (local, cheap) still runs every
+  // time. loadData uses force:false so it reuses the fresh TanStack cache.
   const navigation = useNavigation();
+  const lastFocusRefreshRef = useRef(0);
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      loadData();
+      sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
+      const nowMs = Date.now();
+      if (nowMs - lastFocusRefreshRef.current < 30_000) return;
+      lastFocusRefreshRef.current = nowMs;
+      loadData({ force: false });
       loadAvailability();
       loadOutOfAvailability();
       loadHolidays();
-      sessionStorage.getAgendaViewMode().then(setAgendaViewMode);
     });
     return unsubscribe;
   }, [navigation, loadData, loadAvailability, loadOutOfAvailability]);
@@ -2660,11 +2089,32 @@ export const IstruttoreHomeScreen = () => {
         return;
       }
 
+      // Optimistic update: patch the status everywhere it shows immediately, so
+      // the home list / featured card reflect it without waiting on the BE.
+      const lessonId = lesson.id;
+      const optimistic: Partial<AutoscuolaAppointmentWithRelations> = {
+        status: action,
+        ...(types.length ? { types, type: types[0] } : {}),
+      };
+      const previous: Partial<AutoscuolaAppointmentWithRelations> = {
+        status: lesson.status,
+        type: lesson.type,
+        types: lesson.types,
+      };
+      const applyPatch = (patch: Partial<AutoscuolaAppointmentWithRelations>) => {
+        const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
+          arr.map((a) => (a.id === lessonId ? { ...a, ...patch } : a));
+        setAppointments((p) => map(p));
+        setFeaturedAppointments((p) => map(p));
+        setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patch } : p));
+      };
+
+      applyPatch(optimistic);
       setPendingAction(action);
       setError(null);
 
       try {
-        await regloApi.updateAppointmentStatus(lesson.id, {
+        await regloApi.updateAppointmentStatus(lessonId, {
           status: action,
           lessonType: types[0] || undefined,
           lessonTypes: types.length ? types : undefined,
@@ -2672,12 +2122,11 @@ export const IstruttoreHomeScreen = () => {
         setToast({ text: 'Stato aggiornato', tone: 'success' });
         if (options?.closeDrawerOnSuccess) {
           setSheetLesson(null);
-        } else if (sheetLesson?.id === lesson.id) {
-          await refreshAndSyncDrawer(lesson.id);
-        } else {
-          await loadData();
         }
+        // Reconcile with the BE in the background (keeps derived fields fresh).
+        void loadData();
       } catch (err) {
+        applyPatch(previous); // roll back the optimistic change
         const message = err instanceof Error ? err.message : 'Errore aggiornando stato';
         setError(message);
         setToast({ text: message, tone: 'danger' });
@@ -2685,86 +2134,128 @@ export const IstruttoreHomeScreen = () => {
         setPendingAction(null);
       }
     },
-    [loadData, refreshAndSyncDrawer, sheetLesson?.id],
+    [loadData, settings?.autoCheckinEnabled],
   );
 
-  const handleSaveDetails = async () => {
-    if (!sheetLesson) return;
-    if (!isDetailsEditable(sheetLesson, now)) {
+  // Saves tipo guida / valutazione / note from the details sub-sheet. Instructor
+  // and location are NOT handled here — they auto-save on selection.
+  const saveLessonDetails = async (
+    lesson: AutoscuolaAppointmentWithRelations,
+    input: ManageLessonDetailsPayload,
+  ): Promise<boolean> => {
+    if (!isDetailsEditable(lesson, now)) {
       setToast({ text: 'Guida non modificabile.', tone: 'danger' });
-      return;
+      return false;
     }
 
-    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null; instructorId?: string } = {};
-    const initialTypes = resolveInitialLessonTypes(sheetLesson);
-    const typesChanged = JSON.stringify(selectedLessonTypes.sort()) !== JSON.stringify([...initialTypes].sort());
-    if (selectedLessonTypes.length && typesChanged) {
-      payload.lessonTypes = selectedLessonTypes;
-      payload.lessonType = selectedLessonTypes[0];
+    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null } = {};
+    const initialTypes = resolveInitialLessonTypes(lesson);
+    const typesChanged = JSON.stringify([...input.lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
+    if (input.lessonTypes.length && typesChanged) {
+      payload.lessonTypes = input.lessonTypes;
+      payload.lessonType = input.lessonTypes[0];
     }
 
-    const initialRating = sheetLesson.rating ?? null;
-    if (selectedRating !== initialRating) {
-      payload.rating = selectedRating;
+    const initialRating = lesson.rating ?? null;
+    if (input.rating !== initialRating) {
+      payload.rating = input.rating;
     }
 
-    const currentNotes = normalizeNotes(lessonNotes);
-    const initialNotes = normalizeNotes(sheetLesson.notes);
+    const currentNotes = normalizeNotes(input.notes);
+    const initialNotes = normalizeNotes(lesson.notes);
     if (currentNotes !== initialNotes) {
       payload.notes = currentNotes || null;
     }
 
-    // Instructor reassignment. We block the save if the user staged an
-    // unavailable instructor — the inline badge already explains why.
-    if (
-      selectedInstructorId &&
-      selectedInstructorId !== sheetLesson.instructorId
-    ) {
-      if (
-        instructorAvailability.status === 'unavailable' ||
-        instructorAvailability.status === 'checking' ||
-        instructorAvailability.status === 'error'
-      ) {
-        setToast({
-          text:
-            instructorAvailability.status === 'checking'
-              ? 'Verifica disponibilità in corso…'
-              : instructorAvailability.status === 'unavailable'
-                ? instructorAvailability.detail
-                : 'Riprova la verifica disponibilità.',
-          tone: 'danger',
-        });
-        return;
-      }
-      payload.instructorId = selectedInstructorId;
-    }
-
     if (!Object.keys(payload).length) {
       setToast({ text: 'Nessuna modifica da salvare.', tone: 'info' });
-      return;
+      return false;
     }
 
-    setPendingAction('save_details');
+    // Optimistic update: patch the changed fields everywhere they show, close the
+    // sheet immediately, then reconcile with the BE in the background.
+    const lessonId = lesson.id;
+    const optimistic: Partial<AutoscuolaAppointmentWithRelations> = {
+      ...(payload.lessonTypes ? { types: payload.lessonTypes, type: payload.lessonType } : {}),
+      ...(payload.rating !== undefined ? { rating: payload.rating } : {}),
+      ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
+    };
+    const previous: Partial<AutoscuolaAppointmentWithRelations> = {
+      types: lesson.types,
+      type: lesson.type,
+      rating: lesson.rating,
+      notes: lesson.notes,
+    };
+    const applyPatch = (patch: Partial<AutoscuolaAppointmentWithRelations>) => {
+      const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
+        arr.map((a) => (a.id === lessonId ? { ...a, ...patch } : a));
+      setAppointments((p) => map(p));
+      setFeaturedAppointments((p) => map(p));
+      setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patch } : p));
+    };
+
+    applyPatch(optimistic);
     setToast(null);
     setError(null);
 
-    try {
-      await regloApi.updateAppointmentDetails(sheetLesson.id, payload);
-      await refreshAndSyncDrawer(sheetLesson.id);
-      setToast({ text: 'Dettagli guida salvati.', tone: 'success' });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Errore aggiornando dettagli';
-      setError(message);
-      setToast({ text: message, tone: 'danger' });
-    } finally {
-      setPendingAction(null);
-    }
+    void (async () => {
+      try {
+        await regloApi.updateAppointmentDetails(lessonId, payload);
+        setToast({ text: 'Dettagli guida salvati.', tone: 'success' });
+        void loadData();
+      } catch (err) {
+        applyPatch(previous); // roll back the optimistic change
+        const message = err instanceof Error ? err.message : 'Errore aggiornando dettagli';
+        setError(message);
+        setToast({ text: message, tone: 'danger' });
+      }
+    })();
+
+    return true;
   };
 
-  const handleStatusAction = async (action: InstructorActionStatus) => {
+  // Instructor reassignment — checks availability, then auto-saves (optimistic).
+  // Uses Alert (not toast) for the failure path since toasts render under the
+  // modal route and would be invisible while the sheet stays open.
+  const changeLessonInstructor = (
+    lesson: AutoscuolaAppointmentWithRelations,
+    instructor: { id: string; name: string },
+  ) => {
+    const lessonId = lesson.id;
+    if (!instructor?.id || instructor.id === lesson.instructorId) return;
+    if (!isDetailsEditable(lesson, now)) {
+      Alert.alert('Guida non modificabile', 'Non puoi cambiare istruttore per questa guida.');
+      return;
+    }
+    const prevId = lesson.instructorId;
+    const prevInstr = lesson.instructor;
+    const patch = (patchData: Partial<AutoscuolaAppointmentWithRelations>) => {
+      const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
+        arr.map((a) => (a.id === lessonId ? { ...a, ...patchData } : a));
+      setAppointments((p) => map(p));
+      setFeaturedAppointments((p) => map(p));
+      setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patchData } : p));
+    };
+    // Optimistic update so the row reflects the choice immediately. The BE
+    // validates instructor availability and rejects on conflict.
+    patch({ instructorId: instructor.id, instructor: instructor as any });
+
+    void (async () => {
+      try {
+        await regloApi.updateAppointmentDetails(lessonId, { instructorId: instructor.id });
+        setToast({ text: 'Istruttore aggiornato.', tone: 'success' });
+        void loadData();
+      } catch (err: unknown) {
+        patch({ instructorId: prevId, instructor: prevInstr }); // roll back
+        Alert.alert('Istruttore non aggiornato', err instanceof Error ? err.message : 'Errore aggiornando istruttore.');
+      }
+    })();
+  };
+
+  const handleStatusAction = async (action: InstructorActionStatus, lessonTypes: string[]) => {
     if (!sheetLesson) return;
     await executeStatusAction(sheetLesson, action, {
-      lessonTypes: selectedLessonTypes,
+      lessonTypes,
       closeDrawerOnSuccess: true,
     });
   };
@@ -2777,82 +2268,169 @@ export const IstruttoreHomeScreen = () => {
     setRefreshing(false);
   }, [loadData, loadAvailability, loadOutOfAvailability]);
 
-  const handleRepositionLesson = useCallback(
-    async (lesson: AutoscuolaAppointmentWithRelations) => {
-      if (!canOperationalReposition(lesson, now)) {
-        setToast({ text: 'Puoi riposizionare solo guide future.', tone: 'info' });
-        return;
-      }
-      setPendingAction('reposition');
-      setToast(null);
-      try {
-        const response = await regloApi.repositionAppointment(lesson.id, 'instructor_cancel');
-        if (response.proposalCreated && response.proposalStartsAt) {
-          setToast({
-            text: `Nuova proposta inviata (${formatDay(response.proposalStartsAt)} · ${formatTime(
-              response.proposalStartsAt,
-            )})`,
-            tone: 'success',
-          });
-        } else {
-          setToast({
-            text: 'Guida cancellata. Ricerca nuovo slot in corso.',
-            tone: 'info',
-          });
-        }
-        if (sheetLesson?.id === lesson.id) {
-          setSheetLesson(null);
-        }
-        await loadData();
-      } catch (err) {
-        setToast({
-          text: err instanceof Error ? err.message : 'Errore durante il riposizionamento',
-          tone: 'danger',
-        });
-      } finally {
-        setPendingAction(null);
-      }
+  // Permanent delete ("Elimina definitivamente") — same action as the web. Soft
+  // delete on the BE (status→cancelled, refunds credit, notifies the student),
+  // available regardless of the lesson time/status. Confirmed before running.
+  const handlePermanentDelete = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) => {
+      Alert.alert(
+        'Elimina definitivamente',
+        'Sei sicuro di voler eliminare definitivamente questa guida? All’allievo verrà restituito il credito.',
+        [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Elimina',
+            style: 'destructive',
+            onPress: async () => {
+              const lessonId = lesson.id;
+              // Optimistic removal from the list + featured + drawer.
+              setAppointments((prev) => prev.filter((a) => a.id !== lessonId));
+              setFeaturedAppointments((prev) => prev.filter((a) => a.id !== lessonId));
+              setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
+              setPendingAction('save_details');
+              setToast(null);
+              try {
+                const res = await regloApi.permanentlyCancelAppointment(lessonId);
+                if (!res?.success) {
+                  throw new Error(res?.message || 'Impossibile eliminare la guida.');
+                }
+                setToast({ text: 'Guida eliminata definitivamente.', tone: 'success' });
+                void loadData();
+              } catch (err) {
+                // Re-fetch to restore the lesson if the delete failed.
+                await loadData();
+                setToast({
+                  text: err instanceof Error ? err.message : 'Errore durante l’eliminazione.',
+                  tone: 'danger',
+                });
+              } finally {
+                setPendingAction(null);
+              }
+            },
+          },
+        ],
+      );
     },
-    [loadData, now, sheetLesson?.id],
+    [loadData],
   );
 
-  const handleManualCancelLesson = useCallback(
-    async (lesson: AutoscuolaAppointmentWithRelations) => {
-      if (new Date(lesson.startsAt).getTime() <= Date.now()) {
-        setToast({ text: 'Puoi annullare solo guide future.', tone: 'info' });
-        return;
-      }
-      setPendingAction('reposition');
-      setToast(null);
-      try {
-        await regloApi.cancelAppointment(lesson.id);
-        if (sheetLesson?.id === lesson.id) {
-          setSheetLesson(null);
-        }
-        setToast({ text: 'Guida annullata.', tone: 'success' });
-        await loadData();
-      } catch (err) {
-        setToast({
-          text: err instanceof Error ? err.message : 'Errore durante annullamento guida',
-          tone: 'danger',
-        });
-      } finally {
-        setPendingAction(null);
-      }
-    },
-    [loadData, sheetLesson?.id],
-  );
+  // ── "Gestisci guida" route (manage-lesson) bridge ──────────────────────────
+  // Builds the snapshot the manage-lesson modal route renders from. The route
+  // owns local drafts (notes/types/rating/instructor); we keep all API logic.
+  const buildManageSnapshot = (
+    lesson: AutoscuolaAppointmentWithRelations,
+    progress: { completed: number; required: number } | null,
+  ): ManageLessonData => {
+    const status = normalizeStatus(lesson.status);
+    const endTs = lesson.endsAt
+      ? new Date(lesson.endsAt).getTime()
+      : new Date(lesson.startsAt).getTime() + 60 * 60 * 1000;
+    const durationMin = (endTs - new Date(lesson.startsAt).getTime()) / (60 * 1000);
+    const config = timelineStatusConfig(lesson.status, lesson.type, {
+      durationMin,
+      studentId: lesson.studentId,
+    });
+    const toneMap: Record<string, 'live' | 'confirmed' | 'scheduled' | 'pending_review'> = {
+      '#1A1A2E': 'live',
+      '#22C55E': 'confirmed',
+      '#F97316': 'pending_review',
+      '#94A3B8': 'pending_review',
+      '#A78BFA': 'pending_review',
+    };
+    const stateMeta = { label: config.label, tone: toneMap[config.border] ?? 'scheduled' };
 
-  const handleCancelByMode = useCallback(
-    async (lesson: AutoscuolaAppointmentWithRelations) => {
-      if (instructorBookingMode === 'manual_full') {
-        await handleManualCancelLesson(lesson);
-        return;
-      }
-      await handleRepositionLesson(lesson);
-    },
-    [handleManualCancelLesson, handleRepositionLesson, instructorBookingMode],
-  );
+    const actionAvail = getActionAvailability(lesson, now, settings?.autoCheckinEnabled);
+    const startsFuture = new Date(lesson.startsAt).getTime() > Date.now();
+    const menuOptions: ManageLessonData['menuOptions'] = [];
+    if (['scheduled', 'confirmed', 'proposal'].includes(status) && startsFuture) {
+      menuOptions.push({ key: 'sposta', label: 'Sposta' });
+    }
+    if ((status === 'scheduled' || status === 'confirmed') && startsFuture && lesson.type !== 'esame') {
+      menuOptions.push({ key: 'scambia', label: 'Scambia' });
+    }
+    // "Elimina" (permanent delete) is always available — future, past or live.
+    menuOptions.push({ key: 'cancella', label: 'Elimina', danger: true });
+
+    return {
+      lesson,
+      studentProgress: progress,
+      stateMeta,
+      stateLabel: getLessonStateLabel(lesson, now),
+      durationText: durationLabel(lesson),
+      vehiclesEnabled: settings?.vehiclesEnabled !== false,
+      vehicleText: lesson.vehicle?.name ?? 'Da assegnare',
+      defaultLocation,
+      isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
+      readOnly: ownerMode,
+      showStatusActions: !ownerMode && Boolean(actionAvail.enabled) && status !== 'proposal',
+      allowPresente: status !== 'checked_in',
+      showRating: ['checked_in', 'completed', 'no_show'].includes(status),
+      pendingAction,
+      menuOptions: ownerMode ? [] : menuOptions,
+      onSaveDetails: (input) => saveLessonDetails(lesson, input),
+      onChangeInstructor: (instructor) => changeLessonInstructor(lesson, instructor),
+      // Uses the captured `lesson` (not sheetLesson): the route closes itself
+      // first, which nulls sheetLesson before this fires.
+      onStatus: (action) => {
+        void executeStatusAction(lesson, action, {
+          lessonTypes: resolveInitialLessonTypes(lesson),
+          closeDrawerOnSuccess: true,
+        });
+      },
+      onMenu: (key) => {
+        if (key === 'sposta') {
+          rescheduleStore.set({
+            lesson,
+            onSuccess: (newStartsAt) => {
+              setToast({
+                text: `Guida spostata al ${formatDay(newStartsAt)} · ${formatTime(newStartsAt)}.`,
+                tone: 'success',
+              });
+              void refreshAndSyncDrawer(lesson.id);
+            },
+            onError: (message) => setToast({ text: message, tone: 'danger' }),
+          });
+          router.push('/(tabs)/home/reschedule-lesson');
+        } else if (key === 'scambia') {
+          swapStore.set({
+            sourceName: `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo',
+            candidates: computeSwapCandidates(lesson),
+            vehiclesEnabled: settings?.vehiclesEnabled !== false,
+            onSwap: (target) => doSwap(lesson, target),
+          });
+          router.push('/(tabs)/home/swap-lesson');
+        } else if (key === 'cancella') {
+          handlePermanentDelete(lesson);
+        }
+      },
+      onChangeLocation: (location) => {
+        const lessonId = lesson.id;
+        const prevId = lesson.locationId;
+        const prevLoc = lesson.location;
+        if (location.id === prevId) return; // already the current location — nothing to save
+        setSheetLesson((prev) =>
+          prev && prev.id === lessonId ? { ...prev, locationId: location.id, location } : prev,
+        );
+        regloApi
+          .updateAppointmentDetails(lessonId, { locationId: location.id })
+          .catch((err) => {
+            setSheetLesson((prev) =>
+              prev && prev.id === lessonId ? { ...prev, locationId: prevId, location: prevLoc } : prev,
+            );
+            setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.', tone: 'danger' });
+          });
+      },
+      onClosed: () => { setSheetLesson(null); },
+    };
+  };
+
+  // Keep the route's store snapshot in sync while a lesson is being managed.
+  useEffect(() => {
+    if (!sheetLesson) return;
+    manageLessonStore.set(buildManageSnapshot(sheetLesson, sheetStudentProgress));
+    // buildManageSnapshot reads current closure (now/settings/pending/etc.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetLesson, sheetStudentProgress, pendingAction, now, settings, defaultLocation, instructorBookingMode]);
 
   const handleInstructorSwap = useCallback(async (targetAppt: AutoscuolaAppointmentWithRelations) => {
     if (!swapSourceLesson || swapPending) return;
@@ -2891,54 +2469,441 @@ export const IstruttoreHomeScreen = () => {
     );
   }, [swapSourceLesson, swapPending, loadData]);
 
-  const resetGuidedSuggestionForStudent = useCallback((nextStudentId: string) => {
-    if (nextStudentId === '__separator__') return;
-    setBookingStudentId(nextStudentId);
-    setGuidedSuggestion(null);
-  }, []);
+  // Swappable candidates for a given source lesson (same instructor, future,
+  // scheduled/confirmed, different student, not an exam).
+  const computeSwapCandidates = (
+    source: AutoscuolaAppointmentWithRelations,
+  ): AutoscuolaAppointmentWithRelations[] => {
+    const nowTs = Date.now();
+    return featuredAppointments
+      .filter((a) => {
+        if (a.id === source.id) return false;
+        if (a.studentId === source.studentId) return false;
+        if (a.instructorId !== source.instructorId) return false;
+        if (a.status !== 'scheduled' && a.status !== 'confirmed') return false;
+        if (new Date(a.startsAt).getTime() <= nowTs) return false;
+        if (a.type === 'esame') return false;
+        return true;
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  };
 
-  const bookingSheetFooter = useMemo(() => {
-    if (!canInstructorBook) return null;
+  // Performs the swap from the swap-lesson route. Returns true on success so the
+  // route dismisses itself (revealing the home + success toast).
+  const doSwap = useCallback(
+    async (
+      source: AutoscuolaAppointmentWithRelations,
+      target: AutoscuolaAppointmentWithRelations,
+    ): Promise<boolean> => {
+      setToast(null);
+      try {
+        await regloApi.instructorSwapAppointments({
+          appointmentIdA: source.id,
+          appointmentIdB: target.id,
+        });
+        setToast({ text: 'Guide scambiate.', tone: 'success' });
+        // Refresh the still-open "Gestisci guida" sheet with the swapped data.
+        await refreshAndSyncDrawer(source.id);
+        return true;
+      } catch (err) {
+        setToast({ text: err instanceof Error ? err.message : 'Errore nello scambio', tone: 'danger' });
+        return false;
+      }
+    },
+    [refreshAndSyncDrawer],
+  );
 
-    if (multiBookingMode) {
-      const n = multiBookingEntries.length;
-      return (
-        <Button
-          label={bookingPendingAction ? 'Prenotazione...' : `Prenota ${n} guid${n === 1 ? 'a' : 'e'}`}
-          tone="primary"
-          onPress={!bookingPendingAction ? handleConfirmMultiBooking : undefined}
-          disabled={Boolean(bookingPendingAction) || !bookingStudentId || (settings?.vehiclesEnabled !== false && !bookingVehicleId) || n === 0}
-          fullWidth
-        />
-      );
+
+  // New booking via the native modal route (same component family as Gestione guida).
+  // Builds a provisional agenda row from a just-created booking so it shows
+  // immediately; loadData() later replaces the whole array with BE data.
+  const buildProvisionalAppointment = useCallback(
+    (item: BookingResultItem): AutoscuolaAppointmentWithRelations => {
+      const stu = students.find((s) => s.id === item.studentId);
+      const veh = item.vehicleId ? vehicles.find((v) => v.id === item.vehicleId) : null;
+      const nowIso = new Date().toISOString();
+      return {
+        id: item.id,
+        companyId: '',
+        studentId: item.studentId,
+        caseId: null,
+        slotId: null,
+        type: item.type,
+        types: item.types,
+        rating: null,
+        startsAt: item.startsAt,
+        endsAt: item.endsAt,
+        status: 'scheduled',
+        instructorId: instructorId ?? null,
+        vehicleId: item.vehicleId,
+        locationId: item.locationId,
+        notes: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        student: {
+          id: item.studentId,
+          companyId: '',
+          firstName: stu?.firstName ?? '',
+          lastName: stu?.lastName ?? '',
+          email: null,
+          phone: stu?.phone ?? null,
+          status: 'active',
+          notes: null,
+          assignedInstructorId: stu?.assignedInstructorId ?? null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        case: null,
+        instructor: null,
+        vehicle: veh
+          ? { id: veh.id, companyId: '', name: veh.name, plate: null, status: 'active', assignedInstructorId: veh.assignedInstructorId ?? null, followsInstructorAvailability: true, licenseCategory: veh.licenseCategory ?? 'B', transmission: veh.transmission ?? 'manual', createdAt: nowIso, updatedAt: nowIso }
+          : null,
+        location: item.locationId
+          ? { id: item.locationId, companyId: '', createdByUserId: null, name: item.locationName ?? '', address: item.locationAddress ?? null, latitude: null, longitude: null, placeId: null, isDefault: false, isPrecise: false }
+          : null,
+      };
+    },
+    [students, vehicles, instructorId],
+  );
+
+  // Batch booking returns no ids, so we must refetch to learn the real rows. This
+  // is a LIGHTWEIGHT reconcile (agenda + featured only — NOT the full loadData
+  // that also replaces settings/students/vehicles and reflows the whole screen):
+  // it merges the fresh real rows over the provisionals in place, matched by a
+  // loose identity (student + startsAt to the minute, ignoring slotId), so the
+  // visible rows update instead of the list being wiped and rebuilt.
+  const reconcileProvisionals = useCallback(
+    async (provisionalIds: string[]) => {
+      if (!instructorId) return;
+      const idSet = new Set(provisionalIds);
+      const looseKey = (a: AutoscuolaAppointmentWithRelations) =>
+        `${a.studentId}:${Math.floor(new Date(a.startsAt).getTime() / 60000)}`;
+      try {
+        const from = calendarRange ? new Date(calendarRange.from) : new Date();
+        const to = calendarRange ? new Date(calendarRange.to) : new Date();
+        if (!calendarRange) {
+          from.setDate(from.getDate() - 1);
+          from.setHours(0, 0, 0, 0);
+          to.setDate(to.getDate() + 14);
+          to.setHours(23, 59, 59, 999);
+        }
+        const featuredFrom = new Date();
+        featuredFrom.setDate(featuredFrom.getDate() - 1);
+        featuredFrom.setHours(0, 0, 0, 0);
+        const featuredTo = new Date();
+        featuredTo.setDate(featuredTo.getDate() + 60);
+        featuredTo.setHours(23, 59, 59, 999);
+        const [agendaBootstrap, featuredResp] = await Promise.all([
+          regloApi.getAgendaBootstrap({
+            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
+            from: from.toISOString(),
+            to: to.toISOString(),
+            limit: 280,
+          }),
+          regloApi.getAppointments({
+            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
+            from: featuredFrom.toISOString(),
+            to: featuredTo.toISOString(),
+            limit: 220,
+            light: true,
+          }),
+        ]);
+        const notCancelled = (item: { status?: string | null }) =>
+          (item.status ?? '').toLowerCase() !== 'cancelled';
+        const matchesScope = (item: { instructorId?: string | null }) =>
+          effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
+        const freshAgenda = dedupeAppointments(
+          agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i)),
+        );
+        const freshFeatured = dedupeAppointments(
+          featuredResp.filter((i) => matchesScope(i) && notCancelled(i)),
+        );
+        const mergeReplace = (
+          prev: AutoscuolaAppointmentWithRelations[],
+          fresh: AutoscuolaAppointmentWithRelations[],
+        ) => {
+          const freshByKey = new Map(fresh.map((a) => [looseKey(a), a]));
+          const used = new Set<string>();
+          const out: AutoscuolaAppointmentWithRelations[] = [];
+          for (const a of prev) {
+            if (idSet.has(a.id)) {
+              const real = freshByKey.get(looseKey(a));
+              // Keep the provisional if the real row isn't back yet (replica lag):
+              // never let a just-booked guide vanish. A later loadData reconciles.
+              if (real) {
+                // Re-track under the real id (cleared by injectPending once a
+                // refetch returns it) so a stale loadData can't wipe it.
+                pendingProvisionalsRef.current.delete(a.id);
+                pendingProvisionalsRef.current.set(real.id, real);
+              }
+              out.push(real ?? a);
+              used.add(looseKey(real ?? a));
+            } else {
+              out.push(a);
+              used.add(looseKey(a));
+            }
+          }
+          for (const a of fresh) {
+            if (!used.has(looseKey(a))) out.push(a);
+          }
+          return dedupeAppointments(out);
+        };
+        setAppointments((prev) => mergeReplace(prev, freshAgenda));
+        setFeaturedAppointments((prev) => mergeReplace(prev, freshFeatured));
+      } catch {
+        // On failure, drop the provisionals so we don't leave ghost rows.
+        setAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
+        setFeaturedAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
+      }
+    },
+    [instructorId, effectiveInstructorId, calendarRange],
+  );
+
+  // Lightweight reconcile for optimistic instructor blocks (Blocca slot / Malattia):
+  // refetch blocks over a wide window and swap the provisionals for the real rows
+  // (matched by instructor + startsAt-to-the-minute), keeping any not-yet-returned
+  // provisional until the BE catches up. For sick leave, also refresh agenda +
+  // featured so the conflicting guides the BE cancelled drop out of the list.
+  const reconcileProvisionalBlocks = useCallback(
+    async (provisionalIds: string[], opts?: { refreshAppointments?: boolean }) => {
+      if (!instructorId) return;
+      const idSet = new Set(provisionalIds);
+      try {
+        const bFrom = new Date(); bFrom.setDate(bFrom.getDate() - 1); bFrom.setHours(0, 0, 0, 0);
+        const bTo = new Date(); bTo.setDate(bTo.getDate() + 60); bTo.setHours(23, 59, 59, 999);
+        const freshBlocks = (await regloApi.getInstructorBlocks({
+          instructorId: effectiveInstructorId ?? instructorId,
+          from: bFrom.toISOString(),
+          to: bTo.toISOString(),
+        })).filter((b) => (effectiveInstructorId ? b.instructorId === effectiveInstructorId : true));
+        const freshByKey = new Map(freshBlocks.map((b) => [looseBlockKey(b), b]));
+        setInstructorBlocks((prev) => {
+          const used = new Set<string>();
+          const out: InstructorBlock[] = [];
+          for (const b of prev) {
+            if (idSet.has(b.id)) {
+              const real = freshByKey.get(looseBlockKey(b));
+              if (real) {
+                pendingBlocksRef.current.delete(b.id);
+                pendingBlocksRef.current.set(real.id, real);
+                out.push(real); used.add(looseBlockKey(real));
+              } else { out.push(b); used.add(looseBlockKey(b)); }
+            } else { out.push(b); used.add(looseBlockKey(b)); }
+          }
+          for (const b of freshBlocks) { if (!used.has(looseBlockKey(b))) out.push(b); }
+          const seen = new Set<string>();
+          return out.filter((b) => (seen.has(b.id) ? false : (seen.add(b.id), true)));
+        });
+        if (opts?.refreshAppointments) {
+          const aFrom = calendarRange ? new Date(calendarRange.from) : new Date();
+          const aTo = calendarRange ? new Date(calendarRange.to) : new Date();
+          if (!calendarRange) { aFrom.setDate(aFrom.getDate() - 1); aFrom.setHours(0, 0, 0, 0); aTo.setDate(aTo.getDate() + 14); aTo.setHours(23, 59, 59, 999); }
+          const fFrom = new Date(); fFrom.setDate(fFrom.getDate() - 1); fFrom.setHours(0, 0, 0, 0);
+          const fTo = new Date(); fTo.setDate(fTo.getDate() + 60); fTo.setHours(23, 59, 59, 999);
+          const [agendaBootstrap, featuredResp] = await Promise.all([
+            regloApi.getAgendaBootstrap({ ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}), from: aFrom.toISOString(), to: aTo.toISOString(), limit: 280 }),
+            regloApi.getAppointments({ ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}), from: fFrom.toISOString(), to: fTo.toISOString(), limit: 220, light: true }),
+          ]);
+          const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
+          const matchesScope = (item: { instructorId?: string | null }) => (effectiveInstructorId ? item.instructorId === effectiveInstructorId : true);
+          setAppointments(injectPending(dedupeAppointments(agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i))), aFrom.getTime(), aTo.getTime()));
+          setFeaturedAppointments(injectPending(dedupeAppointments(featuredResp.filter((i) => matchesScope(i) && notCancelled(i))), fFrom.getTime(), fTo.getTime()));
+        }
+      } catch {
+        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
+        provisionalIds.forEach((id) => pendingBlocksRef.current.delete(id));
+      }
+    },
+    [instructorId, effectiveInstructorId, calendarRange, injectPending],
+  );
+
+  // "Blocca slot" + "Malattia": seed the store with the viewed day + instructor +
+  // optimistic callbacks, then push the route. Same optimistic model as bookings:
+  // the block(s) appear instantly, a focus-loadData can't wipe them (pendingBlocks
+  // guard), and the real rows reconcile in place on success.
+  // Seeds blockSheetStore for the dedicated block-slot route AND the quick-book
+  // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
+  const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number) => {
+    blockSheetStore.set({
+      initialDate: initialDate.toISOString(),
+      ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
+      instructorId: effectiveInstructorId ?? instructorId ?? '',
+      onOptimisticInsert: (blocks) => {
+        blocks.forEach((b) => pendingBlocksRef.current.set(b.id, b));
+        setInstructorBlocks((prev) => [...prev, ...blocks]);
+      },
+      onOptimisticRemove: (ids) => {
+        const idSet = new Set(ids);
+        ids.forEach((id) => pendingBlocksRef.current.delete(id));
+        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
+      },
+      onReconcile: (ids) => { void reconcileProvisionalBlocks(ids); },
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+  }, [effectiveInstructorId, instructorId, reconcileProvisionalBlocks]);
+
+  const openBlockDrawer = useCallback(() => {
+    seedBlockStore(selectedDate);
+    router.push('/(tabs)/home/block-slot');
+  }, [seedBlockStore, selectedDate, router]);
+
+  const openSickLeaveDrawer = useCallback(() => {
+    sickLeaveSheetStore.set({
+      initialDate: selectedDate.toISOString(),
+      instructorId: effectiveInstructorId ?? instructorId ?? '',
+      onOptimisticInsert: (blocks) => {
+        blocks.forEach((b) => pendingBlocksRef.current.set(b.id, b));
+        setInstructorBlocks((prev) => [...prev, ...blocks]);
+      },
+      onOptimisticRemove: (ids) => {
+        const idSet = new Set(ids);
+        ids.forEach((id) => pendingBlocksRef.current.delete(id));
+        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
+      },
+      // Sick leave also cancels conflicting guides → refresh appointments so they drop out.
+      onReconcile: (ids) => { void reconcileProvisionalBlocks(ids, { refreshAppointments: true }); },
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+    router.push('/(tabs)/home/sick-leave');
+  }, [selectedDate, effectiveInstructorId, instructorId, reconcileProvisionalBlocks, router]);
+
+  const openCreateExam = useCallback(() => {
+    examSheetStore.set({
+      initialDate: selectedDate.toISOString(),
+      // The create-exam route loads its own students; the screen-focus listener
+      // reloads the agenda on return so the new exam appears. No optimistic insert.
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+    router.push('/(tabs)/home/create-exam');
+  }, [selectedDate, router]);
+
+  // Seeds bookingSheetStore for the dedicated new-booking route AND the quick-book
+  // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
+  const seedBookingStore = useCallback((initialDate: Date, presetStartMinutes?: number) => {
+    bookingSheetStore.set({
+      canBook: canInstructorBook,
+      vehiclesEnabled: settings?.vehiclesEnabled !== false,
+      availabilityWeeks: Number(settings?.availabilityWeeks) || 4,
+      instructorId: instructorId ?? '',
+      initialDate: initialDate.toISOString(),
+      ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
+      durations: bookingDurations,
+      defaultDuration: bookingDurations.includes(60) ? 60 : (bookingDurations[0] ?? 60),
+      // Precompile the instructor's fixed vehicle when they have one; the
+      // picker stays editable so it can still be overridden per lesson.
+      defaultVehicleId:
+        vehicles.find((v) => v.assignedInstructorId === instructorId)?.id ??
+        vehicles[0]?.id ??
+        '',
+      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name })),
+      studentOptions: bookingStudentOptions,
+      defaultLocation: defaultLocation
+        ? { id: defaultLocation.id, name: defaultLocation.name, address: defaultLocation.address ?? null }
+        : null,
+      bookedDateKeys: Array.from(bookedDatesSet),
+      onOptimisticInsert: (items) => {
+        const provisionals = items.map(buildProvisionalAppointment);
+        // Track them as in-flight so any concurrent loadData() (e.g. the focus
+        // listener firing when this modal closes) re-injects them instead of
+        // wiping them. Cleared when the booking settles or the BE returns it.
+        provisionals.forEach((p) => pendingProvisionalsRef.current.set(p.id, p));
+        // Only insert into the agenda list that's actually loaded (the selected
+        // day/week scope). A booking for another day must NOT flash on the
+        // current day — loadData() will fetch it when that day is opened.
+        const inAgendaScope = (iso: string) => {
+          const t = new Date(iso).getTime();
+          if (calendarRange) {
+            return t >= new Date(calendarRange.from).getTime() && t <= new Date(calendarRange.to).getTime();
+          }
+          return isSameDay(selectedDate, iso);
+        };
+        const agendaItems = provisionals.filter((p) => inAgendaScope(p.startsAt));
+        if (agendaItems.length) {
+          setAppointments((prev) => dedupeAppointments([...prev, ...agendaItems]));
+        }
+        // Featured ("prossima guida") pool spans ~[-1d, +60d] (mirror of loadData);
+        // insert upcoming bookings within it so the hero stays consistent.
+        const featStart = new Date(); featStart.setDate(featStart.getDate() - 1); featStart.setHours(0, 0, 0, 0);
+        const featEnd = new Date(); featEnd.setDate(featEnd.getDate() + 60); featEnd.setHours(23, 59, 59, 999);
+        const featuredItems = provisionals.filter((p) => {
+          const t = new Date(p.startsAt).getTime();
+          return t >= featStart.getTime() && t <= featEnd.getTime();
+        });
+        if (featuredItems.length) {
+          setFeaturedAppointments((prev) => dedupeAppointments([...prev, ...featuredItems]));
+        }
+      },
+      onOptimisticRemove: (ids) => {
+        const idSet = new Set(ids);
+        ids.forEach((id) => pendingProvisionalsRef.current.delete(id));
+        setAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
+        setFeaturedAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
+      },
+      // Single booking: the API returned the real appointment → patch the
+      // provisional row in place (keep its already-built relations, swap in the
+      // real id/slotId/status). No refetch ⇒ no full-screen reflow ("scatto").
+      onOptimisticReplace: (provisionalId, real) => {
+        // Build the real row from the tracked provisional (keeps the form's
+        // relations) merged with the API's real id/slotId/status/timestamps.
+        const prevRow = pendingProvisionalsRef.current.get(provisionalId);
+        pendingProvisionalsRef.current.delete(provisionalId);
+        const realRow: AutoscuolaAppointmentWithRelations | null = prevRow
+          ? {
+              ...prevRow,
+              id: real.id,
+              slotId: real.slotId ?? null,
+              status: real.status ?? prevRow.status,
+              type: real.type ?? prevRow.type,
+              types: real.types ?? prevRow.types,
+              startsAt: real.startsAt ?? prevRow.startsAt,
+              endsAt: real.endsAt ?? prevRow.endsAt,
+              vehicleId: real.vehicleId ?? prevRow.vehicleId,
+              locationId: real.locationId ?? prevRow.locationId,
+              instructorId: real.instructorId ?? prevRow.instructorId,
+              createdAt: real.createdAt ?? prevRow.createdAt,
+              updatedAt: real.updatedAt ?? prevRow.updatedAt,
+            }
+          : null;
+        // Keep tracking the REAL row until a refetch actually returns it, so a
+        // stale in-flight loadData (fetched before the booking committed) that
+        // resolves now can't wipe it. injectPending prunes it once the BE returns it.
+        if (realRow) pendingProvisionalsRef.current.set(real.id, realRow);
+        const patch = (a: AutoscuolaAppointmentWithRelations) =>
+          a.id === provisionalId ? (realRow ?? a) : a;
+        setAppointments((prev) => prev.map(patch));
+        setFeaturedAppointments((prev) => prev.map(patch));
+      },
+      onReconcile: (ids) => { void reconcileProvisionals(ids); },
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+  }, [canInstructorBook, settings?.vehiclesEnabled, settings?.availabilityWeeks, instructorId, selectedDate, calendarRange, bookingDurations, vehicles, bookingStudentOptions, defaultLocation, bookedDatesSet, reconcileProvisionals, buildProvisionalAppointment]);
+
+  const openNewBooking = useCallback(() => {
+    if (!canInstructorBook) {
+      setToast({ text: 'La prenotazione da app è abilitata solo per allievi.', tone: 'info' });
+      return;
     }
+    seedBookingStore(selectedDate);
+    router.push('/(tabs)/home/new-booking');
+  }, [canInstructorBook, seedBookingStore, selectedDate, router]);
 
-    return (
-      <Button
-        label={bookingPendingAction ? 'Prenotazione...' : 'Prenota guida'}
-        tone="primary"
-        onPress={!bookingPendingAction ? handleConfirmInstructorBooking : undefined}
-        disabled={Boolean(bookingPendingAction) || !bookingStudentId || (settings?.vehiclesEnabled !== false && !bookingVehicleId)}
-        fullWidth
-      />
-    );
-  }, [
-    bookingPendingAction,
-    bookingStudentId,
-    bookingVehicleId,
-    canInstructorBook,
-    guidedSuggestion,
-    handleConfirmInstructorBooking,
-    handleConfirmMultiBooking,
-    handleSuggestGuidedBooking,
-    instructorBookingMode,
-    multiBookingMode,
-    multiBookingEntries.length,
-  ]);
+  // Opens the native quick-book sheet (Airbnb segmented: Prenota guida / Blocca
+  // slot) preset to a start within a free window. Seeds the SAME stores the
+  // dedicated routes use, so the embedded forms are identical.
+  const openQuickBookSheet = useCallback((date: Date, startMinutes: number, windowStart: number, windowEnd: number) => {
+    if (!canInstructorBook) {
+      setToast({ text: 'La prenotazione da app è abilitata solo per allievi.', tone: 'info' });
+      return;
+    }
+    const preset = Math.max(windowStart, Math.min(windowEnd - 15, startMinutes));
+    seedBookingStore(date, preset);
+    seedBlockStore(date, preset);
+    router.push('/(tabs)/home/quick-book');
+  }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
 
-  const userName = user?.name?.split(' ')[0] ?? 'Istruttore';
+  const userName = user?.name?.split(' ')[0] ?? (ownerMode ? 'Titolare' : 'Istruttore');
 
-  if (!instructorId) {
+  if (!instructorId && !ownerMode) {
     return (
       <Screen>
         <StatusBar style="dark" />
@@ -2953,162 +2918,138 @@ export const IstruttoreHomeScreen = () => {
     );
   }
 
+  // Scope filter — Airbnb-style chips (same language as the Allievi filters),
+  // replacing the old segmented bar. Shared by the weekly + daily headers.
+  const scopeChips = canSwitchScope ? (
+    <View style={scopeStyles.row}>
+      <SelectableChip
+        label="Le mie guide"
+        active={calendarScope === 'personal'}
+        onPress={() => setCalendarScope('personal')}
+      />
+      <SelectableChip
+        label="Tutti gli istruttori"
+        active={calendarScope === 'all'}
+        onPress={() => setCalendarScope('all')}
+      />
+    </View>
+  ) : null;
+
   return (
-    <Screen>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       {agendaViewMode === 'week' ? (
         <>
-          {/* ── Fixed header for weekly mode (collapses during quick-book) ── */}
-          <Animated.View style={[{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.md }, qbHeaderStyle]}>
-            <View style={styles.header}>
-              <View>
-                <Text style={styles.title}>
-                  Ciao, {userName} {'\uD83D\uDC4B'}
-                </Text>
-                <Text style={styles.subtitle}>Gestisci le tue guide</Text>
-              </View>
+          {/* ── Fixed header for weekly mode ── */}
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: safeInsets.top, paddingBottom: spacing.sm }}>
+            <View style={styles.greetRow}>
+              <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'\uD83D\uDC4B'}</Text>
             </View>
 
-            {canSwitchScope && (
-              <View style={scopeStyles.bar}>
-                <Pressable
-                  style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
-                  onPress={() => setCalendarScope('personal')}
-                >
-                  <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
-                </Pressable>
-                <Pressable
-                  style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
-                  onPress={() => setCalendarScope('all')}
-                >
-                  <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
-                </Pressable>
-              </View>
-            )}
+            {scopeChips}
 
             {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
-            {featuredLesson ? (() => {
-              const isLive = isLessonInProgressWindow(featuredLesson, now);
-              return (
-                <View style={[styles.nextBanner, isLive && styles.nextBannerLive]}>
-                  <View style={styles.nextBannerLeft}>
-                    {isLive ? (
-                      <View style={styles.nextBannerDot} />
-                    ) : (
-                      <Ionicons name="time-outline" size={14} color="#CA8A04" />
-                    )}
-                    <Text style={styles.nextBannerLabel}>
-                      {isLive ? 'In corso' : 'Prossima'}
-                    </Text>
-                  </View>
-                  <Text style={styles.nextBannerInfo} numberOfLines={1}>
-                    {smartDayLabel(featuredLesson.startsAt, now)} {formatTime(featuredLesson.startsAt)} {'\u00B7'} {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
-                  </Text>
+
+            {outOfAvailAppointments.length > 0 && (
+              <Pressable
+                onPress={() => {
+                  outOfAvailStore.set({
+                    appointments: outOfAvailAppointments,
+                    onChanged: () => { loadOutOfAvailability(); loadData(); },
+                  });
+                  router.push('/(tabs)/home/out-of-availability');
+                }}
+                style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
+              >
+                <View style={oobStyles.bannerIcon}>
+                  <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
                 </View>
-              );
-            })() : null}
-          </Animated.View>
+                <Text style={oobStyles.bannerText}>
+                  <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
+                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilit\u00E0
+                </Text>
+                <Text style={oobStyles.bannerAction}>Gestisci</Text>
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              </Pressable>
+            )}
+          </View>
         </>
       ) : null}
 
-      <ScrollView
-        contentContainerStyle={[styles.content, quickBookOpen && { paddingBottom: 500 }]}
+      <View style={agendaViewMode === 'week' ? { display: 'none' } : { flex: 1, paddingTop: safeInsets.top }}>
+      <Animated.ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: 0 }]}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={!qbHandleDragging}
-        style={agendaViewMode === 'week' ? { display: 'none' } : undefined}
+        scrollEventThrottle={16}
+        stickyHeaderIndices={[1]}
+        style={{ flex: 1 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={'#1A1A2E'}
+            colors={['#1A1A2E']}
           />
         }
       >
-        {/* ── Header (collapses during quick-book) ── */}
-        <Animated.View style={qbHeaderStyle}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>
-                Ciao, {userName} {'\uD83D\uDC4B'}
-              </Text>
-              <Text style={styles.subtitle}>Gestisci le tue guide</Text>
-            </View>
+        {/* ── Greeting + out-of-availability banner ── */}
+        <View>
+          <View>
+          <View style={styles.greetRow}>
+            <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
           </View>
 
-          {canSwitchScope && (
-            <View style={scopeStyles.bar}>
-              <Pressable
-                style={[scopeStyles.tab, calendarScope === 'personal' && scopeStyles.tabActive]}
-                onPress={() => setCalendarScope('personal')}
-              >
-                <Text style={[scopeStyles.tabText, calendarScope === 'personal' && scopeStyles.tabTextActive]}>Le mie guide</Text>
-              </Pressable>
-              <Pressable
-                style={[scopeStyles.tab, calendarScope === 'all' && scopeStyles.tabActive]}
-                onPress={() => setCalendarScope('all')}
-              >
-                <Text style={[scopeStyles.tabText, calendarScope === 'all' && scopeStyles.tabTextActive]}>Tutti gli istruttori</Text>
-              </Pressable>
-            </View>
-          )}
+          {scopeChips}
 
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
 
           {outOfAvailAppointments.length > 0 && (
             <Pressable
-              onPress={() => setOutOfAvailSheetOpen(true)}
-              style={oobStyles.banner}
+              onPress={() => {
+                outOfAvailStore.set({
+                  appointments: outOfAvailAppointments,
+                  onChanged: () => { loadOutOfAvailability(); loadData(); },
+                });
+                router.push('/(tabs)/home/out-of-availability');
+              }}
+              style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
             >
-              <Ionicons name="alert-circle" size={18} color="#92400E" />
+              <View style={oobStyles.bannerIcon}>
+                <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
+              </View>
               <Text style={oobStyles.bannerText}>
                 <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
                 {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
               </Text>
               <Text style={oobStyles.bannerAction}>Gestisci</Text>
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
           )}
+        </View>
 
-          {/* ── Next Lesson Compact Banner ── */}
-          {featuredLesson ? (() => {
-            const isLive = isLessonInProgressWindow(featuredLesson, now);
-            return (
-              <View style={[styles.nextBanner, isLive && styles.nextBannerLive]}>
-                <View style={styles.nextBannerLeft}>
-                  {isLive ? (
-                    <View style={styles.nextBannerDot} />
-                  ) : (
-                    <Ionicons name="time-outline" size={14} color="#CA8A04" />
-                  )}
-                  <Text style={styles.nextBannerLabel}>
-                    {isLive ? 'In corso' : 'Prossima'}
-                  </Text>
-                </View>
-                <Text style={styles.nextBannerInfo} numberOfLines={1}>
-                  {smartDayLabel(featuredLesson.startsAt, now)} {formatTime(featuredLesson.startsAt)} {'\u00B7'} {featuredLesson.student?.firstName} {featuredLesson.student?.lastName}
-                </Text>
-              </View>
-            );
-          })() : null}
-        </Animated.View>
-
-        {/* ── Day Pill Calendar ── */}
+        {/* ── Calendar panel (tonal surface; sticky) ── */}
         <View style={styles.calendarSection}>
           <View style={styles.calendarMonthRow}>
-            <Text style={styles.calendarMonthTitle}>{calendarMonthLabel}</Text>
+            <Text style={styles.calendarMonthTitle}>
+              {ITALIAN_MONTHS[selectedDate.getMonth()]}{' '}
+              <Text style={styles.calendarMonthYear}>{selectedDate.getFullYear()}</Text>
+            </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Pressable
                 onPress={() => setSelectedDate(new Date())}
-                style={styles.calendarIconBtn}
+                style={({ pressed }) => [styles.calendarTodayChip, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
+                hitSlop={6}
               >
-                <Ionicons name="return-down-back-outline" size={20} color="#94A3B8" />
+                <Text style={styles.calendarTodayChipText}>Oggi</Text>
               </Pressable>
               <Pressable
-                onPress={() => setCalendarDrawerOpen(true)}
-                style={styles.calendarIconBtn}
+                onPress={openAgendaCalendar}
+                style={({ pressed }) => [styles.calendarIconBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
+                hitSlop={6}
               >
-                <Ionicons name="calendar-outline" size={22} color="#94A3B8" />
+                <Ionicons name="calendar-outline" size={21} color="#1A1A2E" />
               </Pressable>
             </View>
           </View>
@@ -3116,6 +3057,7 @@ export const IstruttoreHomeScreen = () => {
             ref={dayScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.dayPillsScroll}
             contentContainerStyle={styles.dayPillsRow}
             onLayout={handleDayScrollLayout}
           >
@@ -3127,7 +3069,7 @@ export const IstruttoreHomeScreen = () => {
               const todayNorm = new Date();
               todayNorm.setHours(0, 0, 0, 0);
               const isDayToday = dayNorm.getTime() === todayNorm.getTime();
-              const isDaySelected = dayNorm.getTime() === selNorm.getTime() && !isDayToday;
+              const isDaySelected = dayNorm.getTime() === selNorm.getTime();
               const dayKey = `${dayNorm.getFullYear()}-${dayNorm.getMonth()}-${dayNorm.getDate()}`;
               const hasBooking = bookedDatesSet.has(dayKey);
               const hasExam = examDatesSet.has(dayKey);
@@ -3136,19 +3078,16 @@ export const IstruttoreHomeScreen = () => {
               return (
                 <Pressable
                   key={`day-${index}`}
-                  style={[
+                  style={({ pressed }) => [
                     styles.dayPill,
-                    isDaySick && !isDaySelected
-                      ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1.5 }
-                      : hasExam && !isDaySelected
-                        ? { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1.5 }
-                        : isDayHoliday && !isDaySelected && !isDayToday
+                    isDaySelected
+                      ? styles.dayPillSelected
+                      : isDayToday
+                        ? styles.dayPillToday
+                        : isDayHoliday
                           ? styles.dayPillHoliday
-                          : isDaySelected
-                            ? styles.dayPillSelected
-                            : isDayToday
-                              ? styles.dayPillToday
-                              : styles.dayPillUnselected,
+                          : styles.dayPillUnselected,
+                    pressed && { transform: [{ scale: 0.96 }] },
                   ]}
                   onPress={() => setSelectedDate(day.date)}
                 >
@@ -3190,7 +3129,7 @@ export const IstruttoreHomeScreen = () => {
                     <View
                       style={[
                         styles.dayPillDot,
-                        (isDaySelected || isDayToday) && styles.dayPillDotHighlight,
+                        isDaySelected && styles.dayPillDotHighlight,
                       ]}
                     />
                   ) : null}
@@ -3202,7 +3141,7 @@ export const IstruttoreHomeScreen = () => {
 
 
         {/* ── Timeline ── */}
-        {appointmentsLoading ? (
+        {dayGridLoading ? (
           <View style={styles.timelineSection}>
             {Array.from({ length: 6 }).map((_, i) => (
               <View key={`skel-hour-${i}`} style={styles.timelineRow}>
@@ -3220,46 +3159,50 @@ export const IstruttoreHomeScreen = () => {
         ) : sickLeaveInfo && !sickLeaveInfo.isHalfDay ? (
           /* ── Full-Day Sick Leave Overlay ── */
           <View style={{
-            backgroundColor: '#FFF7ED',
-            borderRadius: 35,
-            borderWidth: 1,
-            borderColor: '#FED7AA',
-            padding: 24,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 28,
+            paddingVertical: 32,
+            paddingHorizontal: 24,
             alignItems: 'center',
-            gap: 16,
+            gap: 18,
+            shadowColor: '#1A1A2E',
+            shadowOpacity: 0.06,
+            shadowRadius: 22,
+            shadowOffset: { width: 0, height: 12 },
+            elevation: 3,
           }}>
             <View style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: '#FFEDD5',
+              width: 88,
+              height: 88,
+              borderRadius: 44,
+              backgroundColor: '#F4F5F9',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <Ionicons name="medkit" size={32} color="#EA580C" />
+              <Image source={require('../../assets/icons/fluent-thermometer.png')} style={{ width: 52, height: 52 }} resizeMode="contain" />
             </View>
-            <View style={{ alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: '#9A3412' }}>
+            <View style={{ alignItems: 'center', gap: 7 }}>
+              <Text style={{ fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 }}>
                 In malattia
               </Text>
-              <Text style={{ fontSize: 14, color: '#C2410C', textAlign: 'center', lineHeight: 20 }}>
-                Le guide di oggi sono state cancellate{'\n'}e gli allievi sono stati avvisati.
+              <Text style={{ fontSize: 14, color: '#717171', textAlign: 'center', lineHeight: 21 }}>
+                Le guide sono state cancellate{'\n'}e gli allievi sono stati avvisati.
               </Text>
             </View>
             <View style={{
-              backgroundColor: '#FFEDD5',
-              borderRadius: 12,
+              backgroundColor: '#F4F5F9',
+              borderRadius: 999,
               paddingHorizontal: 16,
-              paddingVertical: 10,
+              paddingVertical: 9,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
             }}>
-              <Ionicons name="calendar-outline" size={16} color="#EA580C" />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#C2410C' }}>
-                {sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
-                {' \u2013 '}
-                {sickLeaveInfo.rangeEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+              <Ionicons name="calendar-outline" size={15} color="#1A1A2E" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1A1A2E' }}>
+                {sickLeaveInfo.rangeStart.toDateString() === sickLeaveInfo.rangeEnd.toDateString()
+                  ? sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+                  : `${sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} \u2013 ${sickLeaveInfo.rangeEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`}
               </Text>
             </View>
             <Pressable
@@ -3279,22 +3222,23 @@ export const IstruttoreHomeScreen = () => {
               }}
               style={({ pressed }) => [
                 {
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  borderRadius: 12,
+                  marginTop: 2,
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: '#FED7AA',
-                  backgroundColor: pressed ? '#FFF7ED' : '#FFFFFF',
+                  borderColor: '#E4E7EE',
+                  backgroundColor: pressed ? '#F4F5F9' : '#FFFFFF',
                 },
               ]}
             >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#EA580C' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A2E' }}>
                 Rimuovi malattia
               </Text>
             </Pressable>
           </View>
         ) : (
-          <View style={styles.timelineGridWrapper}>
+          <Animated.View style={[styles.timelineGridWrapper, timelineFadeStyle]}>
             {/* ── Half-day sick leave banner ── */}
             {sickLeaveInfo?.isHalfDay && (
               <Pressable
@@ -3349,28 +3293,31 @@ export const IstruttoreHomeScreen = () => {
               </Pressable>
             )}
             {/* Empty day hint — inline above the grid */}
-            {!hasTimelineAppointments && (
+            {!hasTimelineAppointments && (isSelectedDateHoliday || !canInstructorBook || !!sickLeaveInfo) && (
               isSelectedDateHoliday ? (
-                <View style={styles.holidayBanner}>
-                  <Ionicons name="ban-outline" size={28} color="#DC2626" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.holidayBannerTitle}>Giorno festivo</Text>
-                    <Text style={styles.holidayBannerSubtitle}>L'autoscuola è chiusa</Text>
-                  </View>
+                <View style={styles.dayEmpty}>
+                  <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.dayEmptyImg} />
+                  <Text style={styles.dayEmptyTitle}>Giorno festivo</Text>
+                  <Text style={styles.dayEmptySub}>L'autoscuola è chiusa.</Text>
                 </View>
               ) : (
-                <View style={styles.emptyDayBanner}>
-                  <View style={styles.emptyDayDuckClip}>
-                    <Image
-                      source={require('../../assets/duck-zen.png')}
-                      style={styles.emptyDayDuck}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.emptyDayTitle}>Nessuna guida oggi</Text>
-                    <Text style={styles.emptyDaySubtitle}>Giornata libera — goditi la pausa!</Text>
-                  </View>
+                <View style={styles.dayEmpty}>
+                  <Image source={require('../../assets/icons/fluent-car.png')} style={styles.dayEmptyImg} />
+                  <Text style={styles.dayEmptyTitle}>Nessuna guida oggi</Text>
+                  <Text style={styles.dayEmptySub}>
+                    {ownerMode
+                      ? 'Nessuna guida in programma per gli istruttori.'
+                      : canInstructorBook && !sickLeaveInfo ? 'Tocca un orario libero per prenotare al volo.' : 'Giornata libera — goditi la pausa!'}
+                  </Text>
+                  {canInstructorBook && !sickLeaveInfo ? (
+                    <Pressable
+                      onPress={() => openQuickBookSheet(selectedDate, dayBookWindow.start, dayBookWindow.start, dayBookWindow.end)}
+                      style={({ pressed }) => [styles.dayEmptyCta, pressed && { opacity: 0.9 }]}
+                    >
+                      <Ionicons name="add" size={18} color="#FFFFFF" />
+                      <Text style={styles.dayEmptyCtaText}>Prenota una guida</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               )
             )}
@@ -3388,8 +3335,7 @@ export const IstruttoreHomeScreen = () => {
                       <Pressable
                         key={`timeless-day-${item.id}`}
                         onPress={() =>
-                          setExamDrawerGroup({
-                            id: item.id,
+                          openExamManage({
                             startsAt: item.startsAt,
                             endsAt: item.endsAt,
                             instructorId: item.instructorId,
@@ -3426,546 +3372,439 @@ export const IstruttoreHomeScreen = () => {
                 </View>
               );
             })()}
-            <View style={[styles.timelineSection, { position: 'relative', height: HOUR_SLOTS.length * ROW_H }]}>
-              {/* ── Tap-to-book / tap-to-dismiss ── */}
-              {canInstructorBook && (
-                <Pressable
-                  style={{ position: 'absolute', top: 0, left: 60, right: 0, bottom: 0, zIndex: 1 }}
-                  onPress={(e) => {
-                    if (quickBookOpen) {
-                      setQuickBookOpen(false);
-                      return;
-                    }
-                    const y = e.nativeEvent.locationY;
-                    const hourOffset = y / ROW_H;
-                    const hour = HOUR_SLOTS[0] + Math.floor(hourOffset);
-                    const minutes = Math.floor((hourOffset % 1) * 4) * 15;
-                    openQuickBook(selectedDate, hour, minutes);
-                  }}
-                />
-              )}
-              {/* ── Grid layer: hour labels + lines + availability ── */}
-              {HOUR_SLOTS.map((hour, idx) => {
-                const coverage = hourAvailCoverage.get(hour);
-                return (
-                  <View key={`grid-${hour}`} style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H, flexDirection: 'row' }} pointerEvents="none">
-                    <Text style={styles.hourLabel}>{String(hour).padStart(2, '0')}:00</Text>
-                    <View style={{ flex: 1, borderTopWidth: 1, borderTopColor: '#F1F5F9', position: 'relative' }}>
-                      {coverage ? (
-                        <View style={{ position: 'absolute', left: 0, width: 3, top: coverage.top * ROW_H, height: (coverage.bottom - coverage.top) * ROW_H, backgroundColor: '#EC4899', borderRadius: 1.5 }} />
-                      ) : (
-                        <View style={{ position: 'absolute', left: 0, width: 1, top: 0, bottom: 0, borderLeftWidth: 1, borderLeftColor: '#E5E7EB', borderStyle: 'dashed' }} />
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-              {/* ── Unavailable labels ── */}
-              {HOUR_SLOTS.map((hour, idx) => {
-                const coverage = hourAvailCoverage.get(hour);
-                if (coverage) return null;
-                const prevHasCoverage = idx > 0 && hourAvailCoverage.has(HOUR_SLOTS[idx - 1]);
-                const isFirst = idx === 0 || prevHasCoverage;
-                if (!isFirst) return null;
-                let blockSize = 0;
-                for (let i = idx; i < HOUR_SLOTS.length; i++) {
-                  if (!hourAvailCoverage.has(HOUR_SLOTS[i])) blockSize++;
-                  else break;
+            {/* ── Itinerary list (always shown; quick-book opens as a drawer over it) ── */}
+            {(() => {
+              const itFmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+              const gapLabel = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) : ''}` : `${m} min`;
+              type ItinRow =
+                | { type: 'appointment'; startMin: number; endMin: number; appt: AutoscuolaAppointmentWithRelations }
+                | { type: 'examGroup'; startMin: number; endMin: number; group: Extract<(typeof timelineItems)[number], { kind: 'examGroup' }> }
+                | { type: 'groupLesson'; startMin: number; endMin: number; group: Extract<(typeof timelineItems)[number], { kind: 'groupLesson' }> }
+                | { type: 'cluster'; startMin: number; endMin: number; cluster: Extract<TimelineClusterItem, { kind: 'cluster' }> }
+                | { type: 'block'; startMin: number; endMin: number; block: InstructorBlock };
+              const rows: ItinRow[] = [];
+              for (const c of timelineClusters) {
+                if (c.kind === 'cluster') {
+                  rows.push({ type: 'cluster', startMin: c.startMin, endMin: c.endMin, cluster: c });
+                } else {
+                  const it = c.item;
+                  if (it.kind === 'appointment') {
+                    const a = it.appointment;
+                    const sd = new Date(a.startsAt);
+                    const startMin = sd.getHours() * 60 + sd.getMinutes();
+                    const endTs = a.endsAt ? new Date(a.endsAt).getTime() : sd.getTime() + 3600000;
+                    rows.push({ type: 'appointment', startMin, endMin: startMin + (endTs - sd.getTime()) / 60000, appt: a });
+                  } else if (it.kind === 'groupLesson') {
+                    const sd = new Date(it.startsAt);
+                    const startMin = sd.getHours() * 60 + sd.getMinutes();
+                    const endTs = it.endsAt ? new Date(it.endsAt).getTime() : sd.getTime() + 3600000;
+                    rows.push({ type: 'groupLesson', startMin, endMin: startMin + (endTs - sd.getTime()) / 60000, group: it });
+                  } else {
+                    if (!it.endsAt) continue; // timeless exams render as banners above
+                    const sd = new Date(it.startsAt);
+                    const startMin = sd.getHours() * 60 + sd.getMinutes();
+                    rows.push({ type: 'examGroup', startMin, endMin: startMin + (new Date(it.endsAt).getTime() - sd.getTime()) / 60000, group: it });
+                  }
                 }
-                const hasContent = Array.from({ length: blockSize }, (_, i) => HOUR_SLOTS[idx + i]).some(
-                  (h) => (appointmentsByHour.get(h)?.length ?? 0) > 0 || (blocksByHour.get(h)?.length ?? 0) > 0
-                );
-                if (hasContent) return null;
+              }
+              const dayBlocks = Array.from(new Map(Array.from(blocksByHour.values()).flat()
+                .filter((b) => b.reason === 'sick_leave' ? sickLeaveInfo?.isHalfDay === true : true)
+                .map((b) => [b.id, b])).values());
+              for (const block of dayBlocks) {
+                const bs = new Date(block.startsAt); const be = new Date(block.endsAt);
+                rows.push({ type: 'block', startMin: bs.getHours() * 60 + bs.getMinutes(), endMin: be.getHours() * 60 + be.getMinutes(), block });
+              }
+              rows.sort((a, b) => a.startMin - b.startMin);
+              // No lessons AND not bookable (holiday / sick full-day / can't book)
+              // → let the empty-state block handle it.
+              const cannotBookEmpty = !canInstructorBook || (!!sickLeaveInfo && sickLeaveInfo.isHalfDay === false) || isSelectedDateHoliday;
+              if (!rows.length && cannotBookEmpty) return null;
+              const todayNorm = new Date(); todayNorm.setHours(0, 0, 0, 0);
+              const selNorm = new Date(selectedDate); selNorm.setHours(0, 0, 0, 0);
+              const nowMin = selNorm.getTime() === todayNorm.getTime() ? now.getHours() * 60 + now.getMinutes() : null;
+              // The past portion of the rail stays "illuminated" (green); the
+              // block/segment containing `now` is the boundary (green above, grey
+              // below); the future is grey.
+              const lineStateFor = (start: number, end: number): 'past' | 'now' | 'future' =>
+                nowMin === null ? 'future' : nowMin >= end ? 'past' : nowMin >= start ? 'now' : 'future';
+              const sickFullDay = !!sickLeaveInfo && sickLeaveInfo.isHalfDay === false;
+
+              // Airbnb-style time rail: a time pill per row, pills linked top-to
+              // -bottom by a continuous vertical line (markers included).
+              const Rail = ({ time, isFirst, isLast, muted, hidePill, lineState = 'future' }: { time: string; sub?: string; isFirst: boolean; isLast: boolean; muted?: boolean; hidePill?: boolean; lineState?: 'past' | 'now' | 'future' }) => {
+                const lit = lineState !== 'future';                         // past + now → green pill
+                const topLive = lineState === 'past' || lineState === 'now'; // line ABOVE the pill is past
+                const botLive = lineState === 'past';                        // line BELOW only when fully past
                 return (
-                  <View key={`unavail-${hour}`} style={{ position: 'absolute', top: idx * ROW_H, left: 46 + 14, right: 0, height: blockSize * ROW_H, justifyContent: 'center', alignItems: 'center' }} pointerEvents="none">
-                    <Text style={styles.unavailableLabel}>Non disponibile</Text>
-                  </View>
-                );
-              })}
-              {/* ── Cluster blocks for "all instructors" scope ── */}
-              {calendarScope === 'all' && timelineClusters.map((cluster, ci) => {
-                if (cluster.kind !== 'cluster') return null;
-                const firstHourMin = HOUR_SLOTS[0] * 60;
-                const topPx = ((cluster.startMin - firstHourMin) / 60) * ROW_H;
-                const blockH = Math.max(44, ((cluster.endMin - cluster.startMin) / 60) * ROW_H);
-                const count = cluster.items.length;
-                const startH = Math.floor(cluster.startMin / 60);
-                const startM = cluster.startMin % 60;
-                const endH = Math.floor(cluster.endMin / 60);
-                const endM = Math.round(cluster.endMin % 60);
-                const fmt = (h: number, m: number) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                const allAppts = cluster.items
-                  .filter((it) => it.kind === 'appointment')
-                  .map((it) => (it as { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations }).appointment);
-                const instructorNames = [...new Set(allAppts.map((a) => a.instructor?.name).filter(Boolean))];
-                const isCompact = blockH < 55;
-                return (
-                  <Pressable
-                    key={`cluster-${ci}`}
-                    onPress={() => setClusterDrawerAppts(allAppts)}
-                    style={[
-                      styles.timelineBlock,
-                      {
-                        borderLeftColor: colors.primary,
-                        borderLeftWidth: 4,
-                        backgroundColor: '#FDF2F8',
-                        position: 'absolute',
-                        top: topPx,
-                        left: 60,
-                        right: 0,
-                        height: blockH,
-                        zIndex: 10,
-                        padding: isCompact ? 6 : 14,
-                      },
-                    ]}
-                  >
-                    {isCompact ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <Ionicons name="layers-outline" size={14} color={colors.primary} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }} numberOfLines={1}>
-                          {count} guide · {fmt(startH, startM)}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#64748B', flex: 1 }} numberOfLines={1}>
-                          {instructorNames.slice(0, 2).join(', ')}{instructorNames.length > 2 ? ` +${instructorNames.length - 2}` : ''}
-                        </Text>
-                      </View>
+                  <View style={styles.itinRail}>
+                    {hidePill ? (
+                      // Row starts exactly at an availability boundary marker — the
+                      // marker already shows the time, so we drop the duplicate pill
+                      // and draw a continuous line through the rail instead.
+                      <View style={[styles.railLineFull, topLive && styles.lineLive]} />
                     ) : (
                       <>
-                        <View style={styles.timelineBlockHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name="layers-outline" size={16} color={colors.primary} />
-                            <Text style={[styles.timelineBlockTime, { color: colors.primary }]}>
-                              {fmt(startH, startM)} {'\u2013'} {fmt(endH, endM)}
-                            </Text>
-                          </View>
-                          <View style={[styles.timelineStatusBadge, { backgroundColor: '#FCE7F3' }]}>
-                            <Text style={[styles.timelineStatusText, { color: colors.primary }]}>
-                              {count} GUIDE
-                            </Text>
-                          </View>
+                        {!isFirst ? <View style={[styles.railLineTop, topLive && styles.lineLive]} /> : null}
+                        {!isLast ? <View style={[styles.railLineBottom, botLive && styles.lineLive]} /> : null}
+                        <View style={[styles.railPill, muted && styles.railPillMuted, lit && styles.railPillNow]}>
+                          <Text style={[styles.railPillText, muted && styles.railPillTextMuted, lit && styles.railPillTextNow]}>{time}</Text>
                         </View>
-                        <Text style={[styles.timelineBlockStudent, { color: '#1E293B' }]} numberOfLines={1}>
-                          {instructorNames.join(', ')}
-                        </Text>
-                        <Text style={[styles.timelineBlockMeta, { color: '#64748B' }]} numberOfLines={1}>
-                          Tocca per vedere i dettagli
-                        </Text>
                       </>
                     )}
-                  </Pressable>
+                  </View>
                 );
-              })}
-              {/* ── Blocks layer: appointments + exam groups + instructor blocks ── */}
-              {(calendarScope === 'all'
-                ? timelineClusters.filter((c) => c.kind === 'single').map((c) => (c as { kind: 'single'; item: (typeof timelineItems)[number] }).item)
-                : timelineItems
-              ).map((item) => {
-                if (item.kind === 'examGroup') {
-                  // Timeless exams are rendered as banners outside the grid
-                  if (!item.endsAt) return null;
-                  const startDate = new Date(item.startsAt);
-                  const startMin = startDate.getHours() * 60 + startDate.getMinutes();
-                  const endTs = new Date(item.endsAt).getTime();
-                  const durationMin = (endTs - startDate.getTime()) / (60 * 1000);
-                  const firstHourMin = HOUR_SLOTS[0] * 60;
-                  const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
-                  const blockH = Math.max(36, (durationMin / 60) * ROW_H);
-                  const isCompact = blockH < 55;
-                  const studentsCount = item.appointments.length;
-                  const studentsPreview = item.appointments
-                    .slice(0, 2)
-                    .map((a) => `${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim())
-                    .filter(Boolean)
-                    .join(', ');
-                  const moreCount = studentsCount - 2;
+              };
+              // Rail for the in-progress lesson: TWO pills — the lesson start time
+              // (light green) and the current time (solid green) — linked by green.
+              const NowRail = ({ startTime, nowTime, isFirst }: { startTime: string; nowTime: string; isFirst: boolean }) => (
+                <View style={styles.itinRailNow}>
+                  {!isFirst ? <View style={[styles.railLineTop, styles.lineLive]} /> : null}
+                  <View style={[styles.railPill, styles.railPillNow]}>
+                    <Text style={[styles.railPillText, styles.railPillTextNow]}>{startTime}</Text>
+                  </View>
+                  <View style={styles.railFlowMid} />
+                  <View style={[styles.railPill, styles.railPillNow, styles.railPillCurrent]}>
+                    <View style={styles.railCurrentDot} />
+                    <Text style={[styles.railPillText, styles.railPillTextNow]}>{nowTime}</Text>
+                  </View>
+                  <View style={styles.railFlowFill} />
+                </View>
+              );
+
+              const renderRow = (row: ItinRow, i: number, isFirst: boolean, isLast: boolean, hidePill: boolean) => {
+                // Past/now/future for this block → drives the rail line + lit pill.
+                const lineState = lineStateFor(row.startMin, row.endMin);
+                if (row.type === 'appointment') {
+                  const a = row.appt;
+                  const config = timelineStatusConfig(a.status, a.type, { durationMin: row.endMin - row.startMin, studentId: a.studentId });
+                  const st = normalizeStatus(a.status);
+                  const isTerminal = st === 'completed' || st === 'no_show' || st === 'cancelled';
+                  const isActive = !isTerminal && isLessonInProgressWindow(a, now);
+                  const actionAvail = getActionAvailability(a, now, settings?.autoCheckinEnabled);
+                  const isCheckedIn = st === 'checked_in';
+                  const showActions = isActive && (!isCheckedIn || settings?.autoCheckinEnabled) && actionAvail.enabled && st !== 'proposal';
+                  const initials = `${a.student?.firstName?.[0] ?? ''}${a.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
+                  const nm = `${calendarScope === 'all' && a.instructor?.name ? a.instructor.name + ' · ' : ''}${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim();
+                  const meta = config.isExam
+                    ? `Esame · ${durationLabel(a)}`
+                    : [settings?.vehiclesEnabled !== false ? a.vehicle?.name : null, durationLabel(a)].filter(Boolean).join(' · ');
                   return (
-                    <Pressable
-                      key={`exam-${item.id}`}
-                      onPress={() =>
-                        setExamDrawerGroup({
-                          id: item.id,
-                          startsAt: item.startsAt,
-                          endsAt: item.endsAt,
-                          instructorId: item.instructorId,
-                          instructorName: item.instructorName,
-                          notes: item.notes,
-                          appointments: item.appointments,
-                        })
-                      }
-                      style={[
-                        styles.timelineBlock,
-                        {
-                          borderLeftColor: '#6366F1',
-                          borderLeftWidth: 4,
-                          backgroundColor: '#EEF2FF',
-                          position: 'absolute',
-                          top: topPx,
-                          left: 60,
-                          right: 0,
-                          height: blockH,
-                          zIndex: 6,
-                          padding: isCompact ? 6 : 14,
-                        },
-                      ]}
-                    >
-                      {isCompact ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                          <Ionicons name="school" size={14} color="#4338CA" />
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }} numberOfLines={1}>
-                            {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt)}
-                          </Text>
-                          <Text style={{ fontSize: 13, color: '#4338CA', flex: 1 }} numberOfLines={1}>
-                            Esame · {studentsCount} {studentsCount === 1 ? 'allievo' : 'allievi'}
-                          </Text>
-                        </View>
+                    <View key={a.id} style={styles.itinRow}>
+                      {lineState === 'now' && nowMin !== null ? (
+                        <NowRail startTime={itFmt(row.startMin)} nowTime={itFmt(nowMin)} isFirst={isFirst} />
                       ) : (
-                        <>
-                          <View style={styles.timelineBlockHeader}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Ionicons name="school" size={16} color="#4338CA" />
-                              <Text style={[styles.timelineBlockTime, { color: '#4338CA' }]}>
-                                {formatTime(item.startsAt)} {'\u2013'} {formatTime(item.endsAt)}
-                              </Text>
-                            </View>
-                            <View style={[styles.timelineStatusBadge, { backgroundColor: '#E0E7FF' }]}>
-                              <Text style={[styles.timelineStatusText, { color: '#4338CA' }]}>
-                                ESAME
-                              </Text>
-                            </View>
-                          </View>
-                          <Text style={[styles.timelineBlockStudent, { color: '#1E293B' }]} numberOfLines={1}>
-                            {studentsCount} {studentsCount === 1 ? 'allievo all\u2019esame' : 'allievi all\u2019esame'}
-                          </Text>
-                          <Text style={[styles.timelineBlockMeta, { color: '#4C1D95' }]} numberOfLines={1}>
-                            {studentsPreview}
-                            {moreCount > 0 ? ` +${moreCount}` : ''}
-                          </Text>
-                        </>
+                        <Rail time={itFmt(row.startMin)} sub={durationLabel(a)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
                       )}
-                    </Pressable>
-                  );
-                }
-                const appt = item.appointment;
-                const startDate = new Date(appt.startsAt);
-                const startMin = startDate.getHours() * 60 + startDate.getMinutes();
-                const endTs = appt.endsAt ? new Date(appt.endsAt).getTime() : startDate.getTime() + 60 * 60 * 1000;
-                const durationMin = (endTs - startDate.getTime()) / (60 * 1000);
-                const firstHourMin = HOUR_SLOTS[0] * 60;
-                const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
-                const blockH = Math.max(36, (durationMin / 60) * ROW_H);
-                const config = timelineStatusConfig(appt.status, appt.type, { durationMin, studentId: appt.studentId });
-                const apptStatus = normalizeStatus(appt.status);
-                const isTerminal = apptStatus === 'completed' || apptStatus === 'no_show' || apptStatus === 'cancelled';
-                const isActive = !isTerminal && isLessonInProgressWindow(appt, now);
-                const actionAvail = getActionAvailability(appt, now, settings?.autoCheckinEnabled);
-                const isCheckedIn = apptStatus === 'checked_in';
-                const isCompact = blockH < 55;
-                const isFull = blockH >= 110;
-
-                return (
-                  <Pressable
-                    key={appt.id}
-                    onPress={() => openLessonDrawer(appt)}
-                    style={[
-                      styles.timelineBlock,
-                      {
-                        borderLeftColor: config.border,
-                        position: 'absolute',
-                        top: topPx,
-                        left: 60,
-                        right: 0,
-                        height: blockH,
-                        zIndex: 5,
-                        padding: isCompact ? 6 : 14,
-                      },
-                      isActive && styles.timelineBlockActive,
-                      config.isExam && { backgroundColor: '#F5F3FF', borderLeftWidth: 4 },
-                    ]}
-                  >
-                    {isCompact ? (
-                      /* ── Compact: single row ── */
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        {config.isExam ? (
-                          <Ionicons name="school" size={14} color="#4338CA" />
-                        ) : null}
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>
-                          {formatTime(appt.startsAt)}
-                        </Text>
-                        <Text style={{ fontSize: 13, color: '#475569', flex: 1 }} numberOfLines={1}>
-                          {calendarScope === 'all' && appt.instructor?.name ? `${appt.instructor.name} · ` : ''}{appt.student?.firstName} {appt.student?.lastName}
-                        </Text>
-                      </View>
-                    ) : (
-                      /* ── Normal / Full ── */
-                      <>
-                        <View style={styles.timelineBlockHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            {config.isExam ? (
-                              <Ionicons name="school" size={15} color="#4338CA" />
-                            ) : null}
-                            <Text style={[styles.timelineBlockTime, config.isExam && { color: '#4338CA' }]}>
-                              {formatTime(appt.startsAt)} {'\u2013'} {formatTime(appt.endsAt ?? new Date(endTs).toISOString())}
-                            </Text>
+                      <Pressable onPress={() => openLessonDrawer(a)} style={({ pressed }) => [styles.itinCard, isActive && styles.itinCardActive, pressed && styles.itinCardPressed]}>
+                        <View style={styles.itinTop}>
+                          <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
+                            {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
                           </View>
-                          <View style={[styles.timelineStatusBadge, { backgroundColor: config.badgeBg }]}>
-                            <Text style={[styles.timelineStatusText, { color: config.badgeText }]}>
-                              {config.label}
-                            </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.itinName} numberOfLines={1}>{nm}</Text>
+                            <Text style={styles.itinMeta} numberOfLines={1}>{meta}</Text>
+                          </View>
+                          <View style={[styles.itinStatusPill, { backgroundColor: config.badgeBg }]}>
+                            <Text style={[styles.itinStatusPillText, { color: config.badgeText }]} numberOfLines={1}>{config.label}</Text>
                           </View>
                         </View>
-                        <Text style={styles.timelineBlockStudent} numberOfLines={1}>
-                          {calendarScope === 'all' && appt.instructor?.name ? `${appt.instructor.name} \u00B7 ` : ''}{appt.student?.firstName} {appt.student?.lastName}
-                        </Text>
-                        <Text style={styles.timelineBlockMeta} numberOfLines={1}>
-                          {config.isExam
-                            ? `Esame di guida \u00B7 ${durationLabel(appt)}`
-                            : [settings?.vehiclesEnabled !== false ? appt.vehicle?.name : null, durationLabel(appt)].filter(Boolean).join(' \u00B7 ')}
-                        </Text>
-
-                        {isFull && appt.studentId && studentNotesMap[appt.studentId] ? (
-                          <View style={styles.timelineNoteRow}>
-                            <Ionicons name="document-text-outline" size={13} color="#94A3B8" />
-                            <Text style={styles.timelineNoteText} numberOfLines={1}>
-                              {studentNotesMap[appt.studentId]}
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        {isFull && isActive && (!isCheckedIn || settings?.autoCheckinEnabled) && actionAvail.enabled && normalizeStatus(appt.status) !== 'proposal' ? (
-                          <View style={styles.timelineActions}>
+                        {showActions ? (
+                          <View style={styles.itinActions}>
                             {!isCheckedIn ? (
-                              <Pressable
-                                onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(appt, 'checked_in'); }}
-                                disabled={isPending}
-                                style={({ pressed }) => [styles.timelineActionBtn, styles.timelineCheckIn, pressed && { opacity: 0.8 }, isPending && { opacity: 0.5 }]}
-                              >
-                                <Text style={styles.timelineCheckInText}>{pendingAction === 'checked_in' ? 'Attendi...' : '\u2713 Presente'}</Text>
+                              <Pressable onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(a, 'checked_in'); }} disabled={isPending} style={({ pressed }) => [styles.itinActBtn, styles.itinActCheck, pressed && { opacity: 0.85 }, isPending && { opacity: 0.5 }]}>
+                                <Text style={styles.itinActCheckText}>{pendingAction === 'checked_in' ? 'Attendi…' : '✓ Presente'}</Text>
                               </Pressable>
                             ) : null}
-                            <Pressable
-                              onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(appt, 'no_show'); }}
-                              disabled={isPending}
-                              style={({ pressed }) => [styles.timelineActionBtn, styles.timelineNoShow, pressed && { opacity: 0.8 }, isPending && { opacity: 0.5 }]}
-                            >
-                              <Text style={styles.timelineNoShowText}>{pendingAction === 'no_show' ? 'Attendi...' : '\u2717 Assente'}</Text>
+                            <Pressable onPress={(e) => { e.stopPropagation?.(); if (!isPending) executeStatusAction(a, 'no_show'); }} disabled={isPending} style={({ pressed }) => [styles.itinActBtn, styles.itinActNo, pressed && { opacity: 0.85 }, isPending && { opacity: 0.5 }]}>
+                              <Text style={styles.itinActNoText}>{pendingAction === 'no_show' ? 'Attendi…' : '✗ Assente'}</Text>
                             </Pressable>
                           </View>
                         ) : null}
-
-                        {null}
-                      </>
-                    )}
-                  </Pressable>
-                );
-              })}
-              {/* ── Instructor blocks layer ── */}
-              {Array.from(new Map(Array.from(blocksByHour.values()).flat().filter((b) => {
-                // Hide sick_leave blocks from timeline only when full-day overlay is shown
-                if (b.reason === 'sick_leave') return sickLeaveInfo?.isHalfDay === true;
-                return true;
-              }).map((b) => [b.id, b])).values()).map((block) => {
-                const isSickBlock = block.reason === 'sick_leave';
-                const bStart = new Date(block.startsAt);
-                const bEnd = new Date(block.endsAt);
-                const bStartMin = bStart.getHours() * 60 + bStart.getMinutes();
-                const bEndMin = bEnd.getHours() * 60 + bEnd.getMinutes() + (bEnd.getSeconds() > 0 ? 1 : 0);
-                const firstHourMin = HOUR_SLOTS[0] * 60;
-                const lastHourMin = (HOUR_SLOTS[HOUR_SLOTS.length - 1] + 1) * 60;
-                // Clamp to visible timeline range
-                const clampedStart = Math.max(bStartMin, firstHourMin);
-                const clampedEnd = Math.min(bEndMin, lastHourMin);
-                if (clampedEnd <= clampedStart) return null;
-                const clampedDurMin = clampedEnd - clampedStart;
-                const topPx = ((clampedStart - firstHourMin) / 60) * ROW_H;
-                const blockH = Math.max(36, (clampedDurMin / 60) * ROW_H);
-                const bCompact = blockH < 55;
-                // Sick leave blocks: orange theme
-                const blockBorderColor = isSickBlock ? '#FB923C' : '#94A3B8';
-                const blockBgColor = isSickBlock ? '#FFF7ED' : '#F8FAFC';
-                const blockTextColor = isSickBlock ? '#EA580C' : '#94A3B8';
-                const blockBadgeBg = isSickBlock ? '#FFEDD5' : '#F1F5F9';
-                const blockBadgeText = isSickBlock ? '#C2410C' : '#64748B';
-                const blockLabel = isSickBlock ? 'In malattia' : (block.reason || 'Bloccato');
-                return (
-                  <Pressable
-                    key={`block-${block.id}`}
-                    onPress={() => Alert.alert(
-                      isSickBlock ? 'Rimuovi malattia' : 'Rimuovi blocco',
-                      isSickBlock
-                        ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
-                        : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
-                      [
-                        { text: 'Annulla', style: 'cancel' },
-                        { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
-                      ],
-                    )}
-                    style={[styles.timelineBlock, { borderLeftColor: blockBorderColor, backgroundColor: blockBgColor, position: 'absolute', top: topPx, left: 46 + 14, right: 0, height: blockH, zIndex: 4, padding: bCompact ? 6 : 14 }]}
-                  >
-                    {bCompact ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        {isSickBlock && <Ionicons name="medkit" size={14} color="#EA580C" />}
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: blockTextColor }} numberOfLines={1}>
-                          {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
-                        </Text>
-                        <Text style={{ fontSize: 13, color: blockTextColor, flex: 1 }} numberOfLines={1}>
-                          {blockLabel}
-                        </Text>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={styles.timelineBlockHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            {isSickBlock && <Ionicons name="medkit" size={14} color="#EA580C" />}
-                            <Text style={[styles.timelineBlockTime, isSickBlock && { color: '#EA580C' }]}>
-                              {formatTime(block.startsAt)} {'\u2013'} {formatTime(block.endsAt)}
-                            </Text>
+                      </Pressable>
+                    </View>
+                  );
+                }
+                if (row.type === 'examGroup') {
+                  const g = row.group;
+                  const count = g.appointments.length;
+                  // Rich exam card (student-app language): lavender surface + Fluent
+                  // 3D icon, count subtitle, NO right tag. Tap → exam detail sheet.
+                  return (
+                    <View key={`exam-${g.id}`} style={styles.itinRow}>
+                      <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
+                      <Pressable onPress={() => openExamManage({ startsAt: g.startsAt, endsAt: g.endsAt, instructorId: g.instructorId, instructorName: g.instructorName, notes: g.notes, appointments: g.appointments })} style={({ pressed }) => [styles.examGroupCard, pressed && styles.itinCardPressed]}>
+                        <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examGroupIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.examGroupLabel}>Esame di guida</Text>
+                          <Text style={styles.examGroupTitle} numberOfLines={1}>{count} {count === 1 ? 'allievo' : 'allievi'} · {gapLabel(row.endMin - row.startMin)}</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  );
+                }
+                if (row.type === 'groupLesson') {
+                  const g = row.group;
+                  // Collapsed group-lesson card — bigger, NO student name. Tap → manage modal.
+                  const sub = [settings?.vehiclesEnabled !== false ? g.vehicleName : null, gapLabel(row.endMin - row.startMin)].filter(Boolean).join(' · ');
+                  return (
+                    <View key={g.id} style={styles.itinRow}>
+                      <Rail time={itFmt(row.startMin)} sub={gapLabel(row.endMin - row.startMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
+                      <Pressable
+                        onPress={() => g.groupLessonId && openGroupLessonManage(g.groupLessonId)}
+                        style={({ pressed }) => [styles.groupLessonCard, pressed && styles.itinCardPressed]}
+                      >
+                        <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupLessonIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.groupLessonLabel}>Guida di gruppo</Text>
+                          <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
+                          <View style={styles.glSeats}>
+                            {Array.from({ length: g.capacity }).map((_, i) => (
+                              <View key={i} style={[styles.glSeat, i >= g.count && styles.glSeatEmpty]} />
+                            ))}
+                            <Text style={styles.glSeatsText}>{g.count}/{g.capacity}</Text>
                           </View>
-                          {isSickBlock ? (
-                            <View style={[styles.timelineStatusBadge, { backgroundColor: blockBadgeBg }]}>
-                              <Text style={[styles.timelineStatusText, { color: blockBadgeText }]}>{blockLabel}</Text>
-                            </View>
-                          ) : null}
                         </View>
-                        <Text style={[styles.timelineBlockStudent, { color: blockTextColor }]}>
-                          {isSickBlock ? 'Guide cancellate e allievi avvisati' : (block.reason || 'Slot bloccato')}
-                        </Text>
-                      </>
-                    )}
-                  </Pressable>
-                );
-              })}
-              {/* ── Quick-book preview block with drag handles ── */}
-              {quickBookOpen && agendaViewMode === 'day' && (() => {
-                const qbDateStr = `${quickBookDate.getFullYear()}-${String(quickBookDate.getMonth() + 1).padStart(2, '0')}-${String(quickBookDate.getDate()).padStart(2, '0')}`;
-                const selDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-                if (qbDateStr !== selDateStr) return null;
-                const startMin = quickBookHour * 60 + quickBookMinutes;
-                const firstHourMin = HOUR_SLOTS[0] * 60;
-                const topPx = ((startMin - firstHourMin) / 60) * ROW_H;
-                const blockH = (quickBookDuration / 60) * ROW_H;
-                const endTotal = startMin + quickBookDuration;
-                const endHour = Math.floor(endTotal / 60);
-                const endMin = endTotal % 60;
-                const isBlock = quickBookType === 'block';
-                const previewColor = isBlock ? '#94A3B8' : '#EC4899';
-                const previewBg = isBlock ? '#F8FAFC' : '#FDF2F8';
-                const previewLabel = isBlock
-                  ? (quickBookReason.trim() || 'Blocca slot')
-                  : (quickBookStudentId
-                    ? (students.find((s) => s.id === quickBookStudentId)?.firstName ?? 'Nuova guida')
-                    : 'Nuova guida');
-                const showHandles = isBlock || bookingDurations.length > 1;
+                      </Pressable>
+                    </View>
+                  );
+                }
+                if (row.type === 'cluster') {
+                  const c = row.cluster;
+                  const allAppts = c.items.filter((it) => it.kind === 'appointment').map((it) => (it as { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations }).appointment);
+                  const names = [...new Set(allAppts.map((a) => a.instructor?.name).filter(Boolean))];
+                  return (
+                    <View key={`cluster-${i}`} style={styles.itinRow}>
+                      <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
+                      <Pressable onPress={() => setClusterDrawerAppts(allAppts)} style={({ pressed }) => [styles.itinCard, pressed && styles.itinCardPressed]}>
+                        <View style={styles.itinTop}>
+                          <View style={styles.itinAvatar}><Ionicons name="layers" size={18} color="#1A1A2E" /></View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.itinName} numberOfLines={1}>{c.items.length} guide insieme</Text>
+                            <Text style={styles.itinMeta} numberOfLines={1}>{names.join(', ')}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={16} color="#9AA1AC" />
+                        </View>
+                      </Pressable>
+                    </View>
+                  );
+                }
+                const block = row.block;
+                const isSick = block.reason === 'sick_leave';
                 return (
-                  <View
-                    pointerEvents="box-none"
-                    style={{
-                      position: 'absolute',
-                      top: topPx - (showHandles ? 12 : 0),
-                      left: 60,
-                      right: 0,
-                      height: blockH + (showHandles ? 24 : 0),
-                      zIndex: 15,
-                    }}
-                  >
-                    {/* Block body */}
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        top: showHandles ? 12 : 0,
-                        left: 0,
-                        right: 0,
-                        height: blockH,
-                        backgroundColor: previewBg,
-                        borderWidth: 2,
-                        borderColor: previewColor,
-                        borderRadius: 12,
-                        borderStyle: 'dashed',
-                        justifyContent: 'center',
-                        paddingHorizontal: 14,
-                      }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: previewColor }}>
-                        {String(quickBookHour).padStart(2, '0')}:{String(quickBookMinutes).padStart(2, '0')} – {String(endHour).padStart(2, '0')}:{String(endMin).padStart(2, '0')}
-                      </Text>
-                      {blockH >= 50 && (
-                        <Text style={{ fontSize: 12, color: previewColor, opacity: 0.6, marginTop: 2 }}>
-                          {previewLabel}
-                        </Text>
+                  <View key={`block-${block.id}`} style={styles.itinRow}>
+                    <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} lineState={lineState} />
+                    <Pressable
+                      onPress={ownerMode ? undefined : () => Alert.alert(
+                        isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
+                        isSick ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.' : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                        [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) }],
                       )}
-                    </View>
-                    {/* Drag handles */}
-                    {showHandles && (
-                      <>
-                        {/* Top drag handle (move start time) */}
-                        <View
-                          {...qbTopPan.panHandlers}
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: 24,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 2,
-                          }}
-                        >
-                          <View style={{
-                            width: 36,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: previewColor,
-                          }} />
+                      style={({ pressed }) => [styles.itinCard, styles.itinCardMuted, pressed && styles.itinCardPressed]}
+                    >
+                      <View style={styles.itinTop}>
+                        <View style={[styles.itinAvatar, { backgroundColor: '#F1F5F9' }]}><Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#94A3B8'} /></View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.itinName, { color: '#64748B' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
+                          <Text style={styles.itinMeta} numberOfLines={1}>{isSick ? 'Guide cancellate e allievi avvisati' : 'Non prenotabile'}</Text>
                         </View>
-                        {/* Bottom drag handle */}
-                        <View
-                          {...qbBottomPan.panHandlers}
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            height: 24,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 2,
-                          }}
-                        >
-                          <View style={{
-                            width: 36,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: previewColor,
-                          }} />
-                    </View>
-                      </>
-                    )}
+                      </View>
+                    </Pressable>
                   </View>
                 );
-              })()}
-              {/* ── NOW line ── */}
-              {nowHourFraction !== null && nowHourFraction >= HOUR_SLOTS[0] && nowHourFraction <= HOUR_SLOTS[HOUR_SLOTS.length - 1] + 1 ? (
-                <View style={[styles.nowLineOverlay, { top: (nowHourFraction - HOUR_SLOTS[0]) * ROW_H, left: 40, zIndex: 20 }]} pointerEvents="none">
-                  <View style={styles.nowDot} />
-                  <View style={styles.nowLine} />
-                  <Text style={styles.nowLabel}>
-                    {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
-                  </Text>
+              };
+
+              // Free slots across the whole working day (availability − occupied),
+              // so the instructor can tap any open window to quick-book — not just
+              // the gaps between two lessons.
+              const canShowFree = canInstructorBook && !sickFullDay && !isSelectedDateHoliday;
+              const MIN_FREE = 30;
+              const occupied = rows.map((r) => [r.startMin, r.endMin] as [number, number]).sort((a, b) => a[0] - b[0]);
+              // Availability is stored as many granular (e.g. 30-min) slots —
+              // MERGE adjacent/overlapping ones into continuous windows so a free
+              // span renders as ONE band, not a 30-min grid.
+              // Loaded with zero availability windows = the day is explicitly
+              // unavailable (e.g. a "giorno non disponibile" override). Only fall
+              // back to the 8–20 canvas WHILE STILL LOADING — never after a load
+              // that genuinely returned no availability.
+              const availLoaded = availabilityCacheRef.current.has(toDateOnlyString(selectedDate));
+              const dayUnavailable = availLoaded && availabilitySlots.length === 0;
+              // Owner has no personal availability → no availability scaffolding
+              // (markers / free bands). The itinerary becomes the pure list of all
+              // instructors' guide, chronologically.
+              const rawWindows: Array<[number, number]> = ownerMode
+                ? []
+                : availabilitySlots.length
+                  ? availabilitySlots.map((s) => [s.startMinutes, s.endMinutes] as [number, number])
+                  : dayUnavailable
+                    ? []
+                    : [[8 * 60, 20 * 60]];
+              rawWindows.sort((a, b) => a[0] - b[0]);
+              const windows: Array<[number, number]> = [];
+              for (const w of rawWindows) {
+                const last = windows[windows.length - 1];
+                if (last && w[0] <= last[1]) last[1] = Math.max(last[1], w[1]);
+                else windows.push([w[0], w[1]]);
+              }
+              const freeIntervals: Array<[number, number]> = [];
+              if (canShowFree) {
+                for (const [ws, we] of windows) {
+                  let cursor = ws;
+                  for (const [os, oe] of occupied) {
+                    if (oe <= cursor || os >= we) continue;
+                    if (os > cursor) freeIntervals.push([cursor, Math.min(os, we)]);
+                    cursor = Math.max(cursor, oe);
+                    if (cursor >= we) break;
+                  }
+                  if (cursor < we) freeIntervals.push([cursor, we]);
+                }
+              }
+              const freeRows = freeIntervals
+                .map(([s, e]) => [nowMin !== null && s < nowMin ? Math.ceil(nowMin / 15) * 15 : s, e] as [number, number])
+                .filter(([s, e]) => e - s >= MIN_FREE);
+              // Every bookable start across the whole day (15-min grid, ascending,
+              // disjoint windows) — the shared space the hold-to-scrub walks, so a
+              // hold on one free band can reach times in any other band.
+              const SCRUB_STEP = 15;
+              const bookableStarts: number[] = [];
+              for (const [s, e] of freeRows) {
+                for (let m = s; m <= e - SCRUB_STEP; m += SCRUB_STEP) bookableStarts.push(m);
+              }
+
+              // Unified, chronologically-sorted timeline: availability markers,
+              // booked rows and free bands all live in ONE sorted sequence. This
+              // (a) gives every (merged) availability window its own start/end
+              // marker — so multiple bands and the gaps between them are explicit —
+              // and (b) lets an out-of-availability lesson sort correctly BELOW the
+              // end marker instead of floating above it.
+              type SeqItem =
+                | { kind: 'booked'; row: ItinRow; ri: number; sortMin: number; order: number }
+                | { kind: 'free'; s: number; e: number; sortMin: number; order: number }
+                | { kind: 'marker'; min: number; text: string; sortMin: number; order: number };
+              const seq: SeqItem[] = [];
+              rows.forEach((row, ri) => seq.push({ kind: 'booked', row, ri, sortMin: row.startMin, order: 1 }));
+              freeRows.forEach(([s, e]) => seq.push({ kind: 'free', s, e, sortMin: s, order: 1 }));
+              // One start/end marker per merged availability window. Intermediate
+              // boundaries read as "Pausa" → "Ripresa disponibilità".
+              const windowStartSet = new Set<number>(windows.map(([ws]) => ws));
+              windows.forEach(([ws, we], wi) => {
+                const isFirstWin = wi === 0;
+                const isLastWin = wi === windows.length - 1;
+                seq.push({ kind: 'marker', min: ws, text: isFirstWin ? 'Inizio disponibilità' : 'Ripresa disponibilità', sortMin: ws, order: 0 });
+                seq.push({ kind: 'marker', min: we, text: isLastWin ? 'Fine disponibilità' : 'Pausa', sortMin: we, order: 2 });
+              });
+              // Chronological order; at the same minute a start marker comes first,
+              // content next, an end marker last.
+              seq.sort((a, b) => a.sortMin - b.sortMin || a.order - b.order);
+
+              const renderFree = (s: number, e: number, key: string, isFirst: boolean, isLast: boolean, hidePill: boolean, showHint: boolean) => (
+                <View key={key} style={styles.itinRow}>
+                  <Rail time={itFmt(s)} sub={gapLabel(e - s)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} lineState={lineStateFor(s, e)} />
+                  <View style={{ flex: 1 }}>
+                    <BookableBand windowStart={s} windowEnd={e} bookableStarts={bookableStarts} showHint={showHint} onPick={(min) => {
+                      // The scrub may land in a DIFFERENT free band than the one held,
+                      // so resolve the window that actually contains `min` (else the
+                      // clamp in openQuickBookSheet would drag a cross-band pick back).
+                      const win = freeRows.find(([ws, we]) => min >= ws && min < we) ?? [min, min + 15];
+                      openQuickBookSheet(selectedDate, min, win[0], win[1]);
+                    }} />
+                  </View>
                 </View>
-              ) : null}
-            </View>
-          </View>
+              );
+
+              const renderMarker = (min: number, text: string, key: string, isFirst: boolean, isLast: boolean) => {
+                const past = nowMin !== null && nowMin >= min; // marker (a point in time) is behind us
+                return (
+                <View key={key} style={styles.itinRow}>
+                  <View style={styles.itinRail}>
+                    {!isFirst ? <View style={[styles.railLineTop, past && styles.lineLive]} /> : null}
+                    {!isLast ? <View style={[styles.railLineBottom, past && styles.lineLive]} /> : null}
+                    <View style={[styles.railPill, styles.railPillEndpoint, past && styles.railPillNow]}>
+                      <Text style={[styles.railPillText, styles.railPillTextMuted, past && styles.railPillTextNow]}>{itFmt(min)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.itinMarkerBody}>
+                    <Text style={styles.itinMarkerText}>{text}</Text>
+                  </View>
+                </View>
+                );
+              };
+
+              const lastIdx = seq.length - 1;
+              const els: React.ReactNode[] = [];
+              // Skip the free-floating dot when "now" is already inside a block or
+              // free band (those light their own pill / split their own line).
+              const nowInside = nowMin !== null && (rows.some((r) => r.startMin <= nowMin && nowMin < r.endMin) || freeRows.some(([s, e]) => s <= nowMin && nowMin < e));
+              let nowShown = nowInside;
+              let freeHintShown = false; // the "hold to pick" hint is shown once, on the first free slot
+              seq.forEach((item, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === lastIdx;
+                const startMin = item.kind === 'marker' ? item.min : item.sortMin;
+                if (!nowShown && nowMin !== null && nowMin < startMin && item.kind !== 'marker') {
+                  // Current-time marker: a coloured dot riding ON the timeline rail
+                  // (no horizontal line / label — that broke the cards' 3D feel).
+                  els.push(
+                    <View key={`now-${idx}`} style={styles.itinNowRow}>
+                      <View style={styles.itinRail}>
+                        <View style={styles.railNowLineTop} />
+                        <View style={styles.railNowLineBottom} />
+                        <View style={styles.railNowDot} />
+                      </View>
+                      <View style={{ flex: 1 }} />
+                    </View>,
+                  );
+                  nowShown = true;
+                }
+                if (item.kind === 'marker') {
+                  els.push(renderMarker(item.min, item.text, `mk-${idx}`, isFirst, isLast));
+                } else {
+                  // Drop the redundant time pill when a row/band starts exactly at
+                  // a window boundary — the adjacent marker already shows that time.
+                  const hidePill = windowStartSet.has(startMin);
+                  if (item.kind === 'booked') els.push(renderRow(item.row, item.ri, isFirst, isLast, hidePill));
+                  else {
+                    els.push(renderFree(item.s, item.e, `free-${idx}`, isFirst, isLast, hidePill, !freeHintShown));
+                    freeHintShown = true;
+                  }
+                }
+              });
+              return (
+                <View style={styles.itinerary}>
+                  {dayUnavailable ? (
+                    <Text style={styles.dayEmptyInline}>Nessuna disponibilità in questa giornata</Text>
+                  ) : rows.length === 0 ? (
+                    <Text style={styles.dayEmptyInline}>Nessuna guida oggi · tieni premuto uno slot libero per prenotare</Text>
+                  ) : null}
+                  {els}
+                </View>
+              );
+            })()}
+
+          </Animated.View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
+      </View>
 
       {agendaViewMode === 'week' ? (
         <>
           {/* Timeless exam banners */}
           {(() => {
-            const timelessExams = appointments.filter(
-              (a) => a.type === 'esame' && !a.endsAt && (a.status ?? '').toLowerCase() !== 'cancelled',
-            );
+            // `appointments` now spans the whole fetch window, so constrain the
+            // week view's timeless-exam banners to the visible week (of selectedDate).
+            const weekMon = new Date(selectedDate);
+            const dow = weekMon.getDay();
+            weekMon.setDate(weekMon.getDate() + (dow === 0 ? -6 : 1 - dow));
+            weekMon.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(weekMon);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+            const weekMonMs = weekMon.getTime();
+            const weekEndMs = weekEnd.getTime();
+            const timelessExams = appointments.filter((a) => {
+              if (a.type !== 'esame' || a.endsAt || (a.status ?? '').toLowerCase() === 'cancelled') return false;
+              const t = new Date(a.startsAt).getTime();
+              return t >= weekMonMs && t <= weekEndMs;
+            });
             if (!timelessExams.length) return null;
             // Group by startsAt (date)
             const groups = new Map<string, typeof timelessExams>();
@@ -3985,8 +3824,7 @@ export const IstruttoreHomeScreen = () => {
                       key={`timeless-exam-${startsAt}`}
                       onPress={() => {
                         const first = appts[0];
-                        setExamDrawerGroup({
-                          id: `exam-${startsAt}`,
+                        openExamManage({
                           startsAt: first.startsAt,
                           endsAt: first.endsAt,
                           instructorId: first.instructorId,
@@ -4023,2019 +3861,164 @@ export const IstruttoreHomeScreen = () => {
               </View>
             );
           })()}
-          <WeeklyAgendaView
+
+          {/* Live card — current/next lesson or exam of TODAY, with inline check-in */}
+          {(() => {
+            // Exclude timeless exams (no time yet) — they have their own banner above.
+            const today = appointments.filter((a) => isSameDay(now, a.startsAt) && !(a.type === 'esame' && !a.endsAt));
+            const live = pickFeaturedLesson(today, now);
+            if (!live) return null;
+            const isExam = live.type === 'esame';
+            const inProgress = isLessonInProgressWindow(live, now);
+            const st = normalizeStatus(live.status);
+            const isCheckedIn = st === 'checked_in';
+            const avail = getActionAvailability(live, now, settings?.autoCheckinEnabled);
+            const showActions = !ownerMode && !isExam && inProgress && avail.enabled && st !== 'proposal';
+            const sameSlot = isExam
+              ? today.filter((a) => a.type === 'esame' && a.startsAt === live.startsAt && (a.endsAt ?? '') === (live.endsAt ?? '') && a.instructorId === live.instructorId && normalizeStatus(a.status) !== 'cancelled')
+              : [];
+            const mins = Math.round((new Date(live.startsAt).getTime() - now.getTime()) / 60000);
+            const topLabel = inProgress
+              ? 'ADESSO · IN CORSO'
+              : mins <= 0 ? 'A breve'
+              : mins < 60 ? `Tra ${mins} min`
+              : `Alle ${formatTime(live.startsAt)}`;
+            const timeText = `${formatTime(live.startsAt)}${live.endsAt ? ` – ${formatTime(live.endsAt)}` : ''}`;
+            const vehicleText = !isExam && settings?.vehiclesEnabled !== false ? (live.vehicle?.name ?? null) : null;
+            const pa = pendingAction === 'checked_in' || pendingAction === 'no_show' ? pendingAction : null;
+            return (
+              <WeeklyLiveCard
+                lesson={live}
+                isExam={isExam}
+                examCount={sameSlot.length}
+                inProgress={inProgress}
+                isCheckedIn={isCheckedIn}
+                showActions={showActions}
+                isPending={isPending}
+                pendingAction={pa}
+                topLabel={topLabel}
+                timeText={timeText}
+                vehicleText={vehicleText}
+                onPresent={() => executeStatusAction(live, 'checked_in')}
+                onAbsent={() => executeStatusAction(live, 'no_show')}
+                onOpen={() => {
+                  if (isExam) {
+                    openExamManage({
+                      startsAt: live.startsAt,
+                      endsAt: live.endsAt,
+                      instructorId: live.instructorId,
+                      instructorName: live.instructor?.name ?? null,
+                      notes: live.notes,
+                      appointments: sameSlot.length ? sameSlot : [live],
+                    });
+                  } else {
+                    openLessonDrawer(live);
+                  }
+                }}
+              />
+            );
+          })()}
+
+          <WeeklyOverview
+            selectedDate={selectedDate}
             appointments={appointments}
             instructorBlocks={instructorBlocks}
-            holidays={holidays}
-            loading={appointmentsLoading}
-            clusterMode={calendarScope === 'all'}
-            onPressCluster={(appts) => setClusterDrawerAppts(appts)}
-            studentCompletedMinutes={studentCompletedMinutes}
             weekAvailability={weekAvailability}
-            onPressAppointment={(appt: AutoscuolaAppointmentWithRelations) => {
-              if (appt.type === 'esame') return;
-              setSheetLesson(appt);
-            }}
-            onPressExam={(examAppts) => {
-              if (!examAppts.length) return;
-              const first = examAppts[0];
-              setExamDrawerGroup({
-                id: `exam-${first.startsAt}`,
-                startsAt: first.startsAt,
-                endsAt: first.endsAt,
-                instructorId: first.instructorId,
-                instructorName: first.instructor?.name ?? null,
-                notes: first.notes,
-                appointments: examAppts,
+            holidays={holidays}
+            completedMinutes={studentCompletedMinutes}
+            now={now}
+            canBook={canInstructorBook}
+            loading={appointmentsLoading}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            onSelectDate={(date) => setSelectedDate(date)}
+            onToday={() => setSelectedDate(new Date())}
+            onOpenCalendar={openAgendaCalendar}
+            onOpenDay={(date) => {
+              const key = toDateOnlyString(date);
+              const plan = computeDayPlan(date, appointments, instructorBlocks, weekAvailability[key] ?? [], {
+                now,
+                canBook: canInstructorBook,
+                isHoliday: holidays.has(key),
+                completedMinutes: studentCompletedMinutes,
               });
+              dayDetailStore.set({
+                date,
+                plan,
+                onQuickBook: openQuickBookSheet,
+                onOpenLesson: openLessonDrawer,
+                onOpenExam: (examAppts) => {
+                  if (!examAppts.length) return;
+                  const first = examAppts[0];
+                  openExamManage({
+                    startsAt: first.startsAt,
+                    endsAt: first.endsAt,
+                    instructorId: first.instructorId,
+                    instructorName: first.instructor?.name ?? null,
+                    notes: first.notes,
+                    appointments: examAppts,
+                  });
+                },
+                onOpenGroupLesson: (group) => {
+                  openGroupLessonManage(group.id);
+                },
+                // Owner (sola lettura): tap su un blocco non offre la rimozione.
+                onOpenBlock: ownerMode ? () => {} : (block) => {
+                  const isSick = block.reason === 'sick_leave';
+                  Alert.alert(
+                    isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
+                    isSick
+                      ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+                      : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                    [
+                      { text: 'Annulla', style: 'cancel' },
+                      { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
+                    ],
+                  );
+                },
+              });
+              router.push('/(tabs)/home/day-detail');
             }}
-            onPressBlock={(block) => {
-              const isSick = block.reason === 'sick_leave';
-              Alert.alert(
-                isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
-                isSick
-                  ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
-                  : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
-                [
-                  { text: 'Annulla', style: 'cancel' },
-                  { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
-                ],
-              );
-            }}
-            onPressEmptySlot={(date, hour, minutes) => {
-              if (quickBookOpen) { setQuickBookOpen(false); return; }
-              openQuickBook(date, hour, minutes);
-            }}
-            onDateChange={(weekStart: Date) => {
-              setSelectedDate(weekStart);
-            }}
-            quickBookPreview={quickBookOpen ? {
-              date: quickBookDate,
-              hour: quickBookHour,
-              minutes: quickBookMinutes,
-              duration: quickBookDuration,
-            } : null}
-            quickBookTopPanHandlers={bookingDurations.length > 1 ? qbTopPan.panHandlers : undefined}
-            quickBookBottomPanHandlers={bookingDurations.length > 1 ? qbBottomPan.panHandlers : undefined}
-            quickBookDragging={qbHandleDragging}
           />
         </>
       ) : null}
 
-      {/* ── Quick-book inline drawer (no modal/backdrop) ── */}
-      {quickBookOpen && (
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 62 + safeInsets.bottom + keyboardHeight,
-              backgroundColor: '#FFFFFF',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              borderBottomLeftRadius: 24,
-              borderBottomRightRadius: 24,
-              marginHorizontal: 8,
-              paddingHorizontal: 20,
-              paddingTop: 12,
-              paddingBottom: 16,
-              shadowColor: '#000',
-              shadowOpacity: 0.15,
-              shadowRadius: 24,
-              shadowOffset: { width: 0, height: -10 },
-              elevation: 16,
-              zIndex: 50,
-            },
-            qbDrawerStyle,
-          ]}
-        >
-          {/* Handle */}
-          <View style={{ alignItems: 'center', marginBottom: 10 }}>
-            <View style={{ width: 36, height: 5, borderRadius: 2.5, backgroundColor: '#D1D5DB' }} />
-          </View>
 
-          {/* Segmented control: Guida / Blocca slot */}
-          <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 3, marginBottom: 14 }}>
-            <Pressable
-              onPress={() => setQuickBookType('lesson')}
-              style={({ pressed }) => ({
-                flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
-                backgroundColor: quickBookType === 'lesson' ? '#FFFFFF' : 'transparent',
-                ...(quickBookType === 'lesson' ? { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 } : {}),
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: quickBookType === 'lesson' ? '#EC4899' : '#94A3B8' }}>Guida</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setQuickBookType('block')}
-              style={({ pressed }) => ({
-                flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
-                backgroundColor: quickBookType === 'block' ? '#FFFFFF' : 'transparent',
-                ...(quickBookType === 'block' ? { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 } : {}),
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: quickBookType === 'block' ? '#64748B' : '#94A3B8' }}>Blocca slot</Text>
-            </Pressable>
-          </View>
 
-          {/* Date + time range */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: quickBookType === 'lesson' ? '#FDF2F8' : '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={quickBookType === 'lesson' ? 'calendar-outline' : 'ban-outline'} size={18} color={quickBookType === 'lesson' ? '#EC4899' : '#64748B'} />
-            </View>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-              {quickBookDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })}
-              {' · '}
-              {String(quickBookHour).padStart(2, '0')}:{String(quickBookMinutes).padStart(2, '0')}
-              {'–'}
-              {(() => {
-                const endMin = quickBookHour * 60 + quickBookMinutes + quickBookDuration;
-                return `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
-              })()}
-            </Text>
-          </View>
-
-          {quickBookType === 'lesson' ? (
-            <>
-              {/* Student selector */}
-              <View style={{ marginBottom: 14 }}>
-                <SearchableSelect
-                  placeholder="Seleziona allievo..."
-                  value={quickBookStudentId || null}
-                  options={bookingStudentOptions}
-                  onChange={setQuickBookStudentId}
-                />
-              </View>
-
-              {/* Duration chips */}
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-                {bookingDurations.map((dur) => {
-                  const isActive = quickBookDuration === dur;
-                  return (
-                    <Pressable
-                      key={dur}
-                      onPress={() => setQuickBookDuration(dur)}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: 16,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                        backgroundColor: isActive ? '#EC4899' : '#F1F5F9',
-                        borderWidth: 1,
-                        borderColor: isActive ? '#EC4899' : '#E2E8F0',
-                        opacity: pressed ? 0.8 : 1,
-                      })}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? '#FFFFFF' : '#64748B' }}>
-                        {dur} min
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          ) : (
-            <>
-              {/* Reason input */}
-              <View style={{ marginBottom: 18 }}>
-                <TextInput
-                  placeholder="Motivo (opzionale)"
-                  placeholderTextColor="#94A3B8"
-                  value={quickBookReason}
-                  onChangeText={setQuickBookReason}
-                  style={{
-                    backgroundColor: '#F8FAFC',
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: '#E2E8F0',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    fontSize: 15,
-                    color: '#1E293B',
-                  }}
-                />
-              </View>
-            </>
-          )}
-
-          {/* Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Pressable
-              onPress={() => setQuickBookOpen(false)}
-              disabled={quickBookPending}
-              style={({ pressed }) => ({
-                flex: 1,
-                paddingVertical: 14,
-                borderRadius: 20,
-                backgroundColor: '#F1F5F9',
-                alignItems: 'center',
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#64748B' }}>Annulla</Text>
-            </Pressable>
-            <Pressable
-              onPress={quickBookPending ? undefined : (quickBookType === 'lesson' ? handleQuickBookConfirm : handleQuickBlockConfirm)}
-              disabled={quickBookPending || (quickBookType === 'lesson' && !quickBookStudentId)}
-              style={({ pressed }) => ({
-                flex: 1,
-                paddingVertical: 14,
-                borderRadius: 20,
-                backgroundColor: quickBookType === 'lesson'
-                  ? (!quickBookStudentId ? '#FBCFE8' : '#EC4899')
-                  : '#64748B',
-                alignItems: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
-                {quickBookPending
-                  ? (quickBookType === 'lesson' ? 'Prenoto...' : 'Blocco...')
-                  : (quickBookType === 'lesson' ? 'Prenota' : 'Blocca')}
-              </Text>
-            </Pressable>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* ── Sick Leave BottomSheet ── */}
-      <BottomSheet
-        visible={sickSheetOpen}
-        onClose={() => {
-          if (sickPending) return;
-          if (sickSheetMode !== 'form') { setSickSheetMode('form'); return; }
-          setSickSheetOpen(false);
-        }}
-        title={sickSheetMode === 'startCalendar' ? 'Seleziona data inizio' : sickSheetMode === 'endCalendar' ? 'Seleziona data fine' : sickSheetMode === 'timePicker' ? 'Seleziona orario' : 'Registra malattia'}
-        closeDisabled={sickPending}
-        showHandle
-        footer={sickSheetMode === 'form' ? (
-          <Pressable
-            onPress={sickPending ? undefined : handleCreateSickLeave}
-            disabled={sickPending}
-            style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaButtonPressed, sickPending && styles.ctaButtonDisabled]}
-          >
-            <Text style={styles.ctaButtonLabel}>{sickPending ? 'Registrazione...' : 'Conferma malattia'}</Text>
-          </Pressable>
-        ) : undefined}
-      >
-        {sickSheetMode === 'startCalendar' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineCalendarPicker
-              selectedDate={sickStartDate}
-              maxWeeks={52}
-              onSelectDate={(d) => {
-                setSickStartDate(d);
-                if (!sickMultiDay || d > sickEndDate) setSickEndDate(d);
-                setSickSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {sickSheetMode === 'endCalendar' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineCalendarPicker
-              selectedDate={sickEndDate}
-              maxWeeks={52}
-              onSelectDate={(d) => {
-                setSickEndDate(d);
-                setSickSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {sickSheetMode === 'timePicker' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineTimePicker
-              selectedTime={sickStartTime}
-              onSelectTime={(date) => {
-                setSickStartTime(date);
-                setSickSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {sickSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}>
-        <View style={{ gap: spacing.md }}>
-          {/* Hero illustration */}
-          <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 8 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#F59E0B', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
-              <Ionicons name="medkit" size={26} color="#D97706" />
-            </View>
-            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center' }}>
-              Registra un periodo di malattia.{'\n'}Le guide in conflitto verranno cancellate.
-            </Text>
-          </View>
-
-          {/* Single day picker */}
-          {!sickMultiDay && (
-            <Pressable
-              onPress={() => setSickSheetMode('startCalendar')}
-              style={({ pressed }) => [styles.bookingFieldCard, pressed && { backgroundColor: '#F1F5F9' }]}
-            >
-              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="calendar-outline" size={18} color="#D97706" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>GIORNO</Text>
-                  <Text style={styles.bookingFieldText}>
-                    {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-            </Pressable>
-          )}
-
-          {/* Multi-day date range */}
-          {sickMultiDay && (
-            <View style={{ backgroundColor: '#FFFBEB', borderRadius: radii.sm, padding: 4, gap: 4 }}>
-              <Pressable
-                onPress={() => setSickSheetMode('startCalendar')}
-                style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  backgroundColor: pressed ? '#FEF9C3' : '#FFFFFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
-                })}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                    <Ionicons name="calendar-outline" size={18} color="#D97706" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>DAL</Text>
-                    <Text style={styles.bookingFieldText}>
-                      {sickStartDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-              </Pressable>
-              <View style={{ height: 1, backgroundColor: '#FDE68A', marginHorizontal: 14 }} />
-              <Pressable
-                onPress={() => setSickSheetMode('endCalendar')}
-                style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  backgroundColor: pressed ? '#FEF9C3' : '#FFFFFF', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12,
-                })}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                    <Ionicons name="calendar-outline" size={18} color="#D97706" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', letterSpacing: 0.3 }}>AL</Text>
-                    <Text style={styles.bookingFieldText}>
-                      {sickEndDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Multi-day toggle */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-            backgroundColor: '#F8FAFC', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 14,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-              <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                <Ionicons name="calendar-number-outline" size={18} color="#64748B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Più giorni</Text>
-                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Imposta un periodo di malattia</Text>
-              </View>
-            </View>
-            <Switch
-              value={sickMultiDay}
-              onValueChange={(val) => {
-                setSickMultiDay(val);
-                if (val) setSickEndDate(new Date(sickStartDate));
-                else setSickEndDate(new Date(sickStartDate));
-              }}
-              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          {/* Half day toggle */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-            backgroundColor: '#F8FAFC', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 14,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-              <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                <Ionicons name="time-outline" size={18} color="#64748B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Mezza giornata</Text>
-                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Inizia a un orario specifico</Text>
-              </View>
-            </View>
-            <Switch
-              value={sickHalfDay}
-              onValueChange={setSickHalfDay}
-              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          {/* Half day time picker */}
-          {sickHalfDay && (
-            <Pressable
-              onPress={() => setSickSheetMode('timePicker')}
-              style={({ pressed }) => [styles.bookingFieldCard, pressed && { backgroundColor: '#F1F5F9' }]}
-            >
-              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="time-outline" size={18} color="#EC4899" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>ORARIO INIZIO</Text>
-                  <Text style={styles.bookingFieldText}>
-                    {`${String(sickStartTime.getHours()).padStart(2, '0')}:${String(sickStartTime.getMinutes()).padStart(2, '0')}`}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-            </Pressable>
-          )}
-        </View>
-        </Animated.View>}
-      </BottomSheet>
-
-      {/* ── FAB Menu ── */}
-      {!quickBookOpen && (
+      {/* ── FAB Menu (nascosto per il titolare: home in sola lettura) ── */}
+      {!ownerMode && (
         <FabMenu
           canBook={canInstructorBook}
-          disabled={isPending || Boolean(bookingPendingAction)}
-          onBookLesson={openBookingDrawer}
+          canGroupLesson={settings?.groupLessonsEnabled === true}
+          disabled={isPending}
+          onBookLesson={openNewBooking}
           onBlockSlot={openBlockDrawer}
-          onCreateExam={() => router.push('/(tabs)/home/create-exam')}
+          onCreateExam={openCreateExam}
+          onCreateGroupLesson={openCreateGroupLesson}
           onSickLeave={openSickLeaveDrawer}
         />
       )}
 
+      {/* Screen-level scrub bubble (follows the finger during hold-to-book) */}
+      <ScrubBubble />
+
       {/* ── Placeholder to keep old refs working ── */}
       {/* old content removed — timeline is above */}
 
-      {/* ── Lesson Detail BottomSheet ── */}
-      <BottomSheet
-        visible={Boolean(sheetLesson)}
-        onClose={() => {
-          if (isPending) return;
-          if (lessonSheetMode !== 'view') { setLessonSheetMode('view'); return; }
-          setSheetLesson(null);
-        }}
-        onClosed={() => {
-          setLessonSheetMode('view');
-          if (pendingRescheduleRef.current) {
-            setRescheduleLesson(pendingRescheduleRef.current);
-            pendingRescheduleRef.current = null;
-          }
-          if (swapSourceLesson) {
-            setSwapModalOpen(true);
-          }
-        }}
-        title={
-          lessonSheetMode === 'locationPicker' ? 'Cambia luogo'
-            : lessonSheetMode === 'locationForm' ? 'Aggiungi luogo'
-            : lessonSheetMode === 'instructorPicker' ? 'Cambia istruttore'
-            : 'Gestisci guida'
-        }
-        closeDisabled={isPending}
-        showHandle
-        footer={lessonSheetMode === 'view' ? (
-          <View style={styles.sheetFooterActions}>
-            {/* Row 1: Presente + Assente (primary actions, side by side) */}
-            {canRunStatusAction && normalizeStatus(sheetLesson?.status) !== 'proposal' ? (
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {normalizeStatus(sheetLesson?.status) !== 'checked_in' ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label={pendingAction === 'checked_in' ? 'Attendi...' : 'Presente'}
-                      tone="primary"
-                      onPress={isPending ? undefined : () => handleStatusAction('checked_in')}
-                      disabled={isPending}
-                      fullWidth
-                    />
-                  </View>
-                ) : null}
-                <View style={{ flex: 1 }}>
-                  <Button
-                    label={pendingAction === 'no_show' ? 'Attendi...' : 'Assente'}
-                    tone="danger"
-                    onPress={isPending ? undefined : () => handleStatusAction('no_show')}
-                    disabled={isPending}
-                    fullWidth
-                  />
-                </View>
-              </View>
-            ) : null}
-            {/* Row 2: Salva dettagli */}
-            <Button
-              label={pendingAction === 'save_details' ? 'Salvataggio...' : 'Salva dettagli'}
-              tone="standard"
-              onPress={!isPending && isSheetDetailsEditable ? handleSaveDetails : undefined}
-              disabled={isPending || !isSheetDetailsEditable}
-              fullWidth
-            />
-            {/* Row 3: Sposta + Scambia (side by side) */}
-            {(canRescheduleSheetLesson || (sheetLesson &&
-              (sheetLesson.status === 'scheduled' || sheetLesson.status === 'confirmed') &&
-              new Date(sheetLesson.startsAt) > new Date() &&
-              sheetLesson.type !== 'esame')) ? (
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {canRescheduleSheetLesson ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="Sposta"
-                      tone="secondary"
-                      onPress={
-                        !isPending && sheetLesson
-                          ? () => {
-                              pendingRescheduleRef.current = sheetLesson;
-                              setSheetLesson(null);
-                            }
-                          : undefined
-                      }
-                      disabled={isPending}
-                      fullWidth
-                    />
-                  </View>
-                ) : null}
-                {sheetLesson &&
-                  (sheetLesson.status === 'scheduled' || sheetLesson.status === 'confirmed') &&
-                  new Date(sheetLesson.startsAt) > new Date() &&
-                  sheetLesson.type !== 'esame' ? (
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      label="Scambia"
-                      tone="secondary"
-                      onPress={() => {
-                        setSwapSearch('');
-                        setSwapSourceLesson(sheetLesson);
-                        setSheetLesson(null);
-                      }}
-                      fullWidth
-                    />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-            {/* Row 4: Cancella (danger, full width) */}
-            <Button
-              label={
-                pendingAction === 'reposition'
-                  ? 'Attendi...'
-                  : instructorBookingMode === 'manual_full'
-                    ? 'Annulla guida'
-                    : 'Cancella e riposiziona'
-              }
-              tone="danger"
-              onPress={
-                !isPending && sheetLesson && canRepositionSheetLesson
-                  ? () => handleCancelByMode(sheetLesson)
-                  : undefined
-              }
-              disabled={isPending || !canRepositionSheetLesson}
-              fullWidth
-            />
-          </View>
-        ) : undefined}
-      >
-        {sheetLesson && lessonSheetMode === 'locationPicker' ? (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineLocationPicker
-              selectedLocationId={sheetLesson.locationId ?? defaultLocation?.id ?? null}
-              onSelect={(location) => {
-                // Optimistic update: close picker + apply new location immediately
-                const lessonId = sheetLesson.id;
-                const previousLocationId = sheetLesson.locationId;
-                const previousLocation = sheetLesson.location;
-                setSheetLesson((prev) =>
-                  prev && prev.id === lessonId
-                    ? { ...prev, locationId: location.id, location }
-                    : prev,
-                );
-                setLessonSheetMode('view');
-                regloApi
-                  .updateAppointmentDetails(lessonId, { locationId: location.id })
-                  .catch((err) => {
-                    // Rollback on failure
-                    setSheetLesson((prev) =>
-                      prev && prev.id === lessonId
-                        ? { ...prev, locationId: previousLocationId, location: previousLocation }
-                        : prev,
-                    );
-                    setToast({
-                      text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
-                      tone: 'danger',
-                    });
-                  });
-              }}
-              onRequestCreate={() => setLessonSheetMode('locationForm')}
-            />
-          </Animated.View>
-        ) : null}
-        {sheetLesson && lessonSheetMode === 'locationForm' ? (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineLocationForm
-              onCancel={() => setLessonSheetMode('locationPicker')}
-              onSubmit={async (values) => {
-                // Create location must complete (we need the id); the appointment
-                // patch runs in background so the sheet feels instant.
-                const created = await regloApi.createLocation(values);
-                const lessonId = sheetLesson.id;
-                const previousLocationId = sheetLesson.locationId;
-                const previousLocation = sheetLesson.location;
-                setSheetLesson((prev) =>
-                  prev && prev.id === lessonId
-                    ? { ...prev, locationId: created.id, location: created }
-                    : prev,
-                );
-                setLessonSheetMode('view');
-                regloApi
-                  .updateAppointmentDetails(lessonId, { locationId: created.id })
-                  .catch((err) => {
-                    setSheetLesson((prev) =>
-                      prev && prev.id === lessonId
-                        ? { ...prev, locationId: previousLocationId, location: previousLocation }
-                        : prev,
-                    );
-                    setToast({
-                      text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.',
-                      tone: 'danger',
-                    });
-                  });
-              }}
-            />
-          </Animated.View>
-        ) : null}
-        {sheetLesson && lessonSheetMode === 'instructorPicker' ? (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <View style={{ paddingBottom: 8 }}>
-              {instructorListLoading && instructorList.length === 0 ? (
-                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={{ marginTop: 12, color: colors.textSecondary, fontSize: 13 }}>
-                    Carico gli istruttori…
-                  </Text>
-                </View>
-              ) : instructorList.length === 0 ? (
-                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                    Nessun istruttore disponibile.
-                  </Text>
-                </View>
-              ) : (
-                <View style={{ gap: 6 }}>
-                  {instructorList
-                    .filter((it) => it.status !== 'inactive')
-                    .map((it) => {
-                      const isCurrent = it.id === sheetLesson.instructorId;
-                      const isSelected = it.id === selectedInstructorId;
-                      return (
-                        <Pressable
-                          key={it.id}
-                          onPress={() => {
-                            setSelectedInstructorId(it.id);
-                            setLessonSheetMode('view');
-                          }}
-                          style={({ pressed }) => [{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 12,
-                            paddingVertical: 14,
-                            paddingHorizontal: 14,
-                            borderRadius: 14,
-                            borderWidth: 1,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            backgroundColor: isSelected ? '#FCE7F3' : '#FFFFFF',
-                            minHeight: 56,
-                          }, pressed && { opacity: 0.7 }]}
-                        >
-                          <View style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isSelected ? colors.primary : '#F1F5F9',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                            <Ionicons
-                              name="person"
-                              size={18}
-                              color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                color: colors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: '600',
-                              }}
-                              numberOfLines={1}
-                            >
-                              {it.name}
-                            </Text>
-                            {isCurrent ? (
-                              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                                Istruttore attuale
-                              </Text>
-                            ) : null}
-                          </View>
-                          {isSelected ? (
-                            <Ionicons name="checkmark" size={20} color={colors.primary} />
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        ) : null}
-        {sheetLesson && lessonSheetMode === 'view' ? (
-          <View style={{ maxHeight: windowHeight * 0.45 }}>
-            <ScrollView
-              ref={lessonSheetScrollRef}
-              style={styles.sheetScroll}
-              contentContainerStyle={styles.sheetContentScroll}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-              showsVerticalScrollIndicator={false}
-              onScroll={({ nativeEvent }) => {
-                const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-                const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
-                const atTop = contentOffset.y <= 10;
-                setSheetScrollAtBottom(atBottom);
-                setSheetScrollAtTop(atTop);
-              }}
-              scrollEventThrottle={16}
-            >
-            {/* Info card */}
-            <View style={styles.modalInfoCard}>
-              <Text style={styles.modalInfoBold}>
-                {formatDay(sheetLesson.startsAt)} {'\u00B7'} {formatTime(sheetLesson.startsAt)}
-              </Text>
-              <Text style={styles.modalInfoName}>
-                {sheetLesson.student?.firstName} {sheetLesson.student?.lastName}
-              </Text>
-              {sheetLesson.student?.phone ? (
-                <View style={styles.studentContactRow}>
-                  <Pressable
-                    style={styles.studentContactButton}
-                    onPress={() => Linking.openURL(`tel:${sheetLesson.student!.phone}`)}
-                  >
-                    <Text style={styles.studentContactIcon}>📞</Text>
-                    <Text style={styles.studentContactLabel}>Chiama</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.studentContactButton, styles.studentContactWhatsapp]}
-                    onPress={() => {
-                      const num = sheetLesson.student!.phone!.replace(/[^0-9]/g, "");
-                      Linking.openURL(`https://wa.me/${num}`);
-                    }}
-                  >
-                    <Text style={styles.studentContactIcon}>💬</Text>
-                    <Text style={styles.studentContactLabel}>WhatsApp</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              <Text style={styles.modalInfoSub}>
-                {durationLabel(sheetLesson)}{settings?.vehiclesEnabled !== false ? ` \u00B7 ${sheetLesson.vehicle?.name ?? 'Da assegnare'}` : ''}
-              </Text>
-              <View style={styles.sheetStatusRow}>
-                {sheetStateMeta ? (
-                  <LessonStateTag meta={sheetStateMeta} compact />
-                ) : (
-                  <Text style={styles.modalInfoSub}>{getLessonStateLabel(sheetLesson, now)}</Text>
-                )}
-              </View>
-            </View>
+      {/* ── Booking ── */}
 
-            {/* PROGRESSO GUIDE */}
-            {sheetLesson.type !== 'esame' && (
-              <View style={styles.sheetProgressSection}>
-                <View style={styles.sheetProgressHeader}>
-                  <Text style={styles.sheetProgressLabel}>PROGRESSO GUIDE</Text>
-                  {sheetStudentProgress ? (
-                    <Text style={styles.sheetProgressCount}>
-                      {sheetStudentProgress.completed}/{sheetStudentProgress.required}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.sheetProgressCount, { color: '#D1D5DB' }]}>…</Text>
-                  )}
-                </View>
-                <View style={styles.sheetProgressBarBg}>
-                  <View
-                    style={[
-                      styles.sheetProgressBarFill,
-                      {
-                        width: sheetStudentProgress
-                          ? `${Math.min(100, (sheetStudentProgress.completed / Math.max(1, sheetStudentProgress.required)) * 100)}%`
-                          : '0%',
-                      },
-                    ]}
-                  />
-                </View>
-                {sheetStudentProgress && sheetStudentProgress.completed >= sheetStudentProgress.required ? (
-                  <Text style={styles.sheetProgressHint}>Obbligo completato</Text>
-                ) : sheetStudentProgress ? (
-                  <Text style={styles.sheetProgressHint}>
-                    {sheetStudentProgress.required - sheetStudentProgress.completed} guide rimanenti
-                  </Text>
-                ) : null}
-              </View>
-            )}
 
-            {/* TIPO GUIDA */}
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionLabel}>TIPO GUIDA</Text>
-              <View style={styles.lessonTypeList}>
-                {LESSON_TYPE_OPTIONS.map((option) => (
-                  <SelectableChip
-                    key={option.value}
-                    label={option.label}
-                    active={selectedLessonTypes.includes(option.value)}
-                    onPress={() => {
-                      setSelectedLessonTypes((prev) => {
-                        if (prev.includes(option.value)) {
-                          const next = prev.filter((t) => t !== option.value);
-                          return next.length ? next : [option.value];
-                        }
-                        return [...prev, option.value];
-                      });
-                    }}
-                    style={styles.lessonTypeChip}
-                  />
-                ))}
-              </View>
-            </View>
 
-            {/* VALUTAZIONE */}
-            {sheetLesson && ['checked_in', 'completed', 'no_show'].includes(normalizeStatus(sheetLesson.status)) ? (
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionLabel}>VALUTAZIONE</Text>
-                <StarRating value={selectedRating} onChange={setSelectedRating} />
-              </View>
-            ) : null}
-
-            {/* ISTRUTTORE */}
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionLabel}>ISTRUTTORE</Text>
-              <Pressable
-                onPress={handleOpenInstructorPicker}
-                style={({ pressed }) => [{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: '#FFFFFF',
-                  minHeight: 56,
-                }, pressed && { opacity: 0.7 }]}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="person" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
-                    numberOfLines={1}
-                  >
-                    {(() => {
-                      if (!selectedInstructorId) return 'Nessun istruttore';
-                      // 1. Try the current sheet lesson's instructor (single source of truth pre-change).
-                      if (sheetLesson?.instructorId === selectedInstructorId && sheetLesson.instructor?.name) {
-                        return sheetLesson.instructor.name;
-                      }
-                      // 2. Fall back to the lazily-loaded list.
-                      const fromList = instructorList.find((i) => i.id === selectedInstructorId);
-                      return fromList?.name ?? 'Istruttore';
-                    })()}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-
-              {/* Live availability badge (only when a different instructor is staged) */}
-              {sheetLesson &&
-              selectedInstructorId &&
-              selectedInstructorId !== sheetLesson.instructorId ? (
-                instructorAvailability.status === 'checking' ? (
-                  <View
-                    style={{
-                      marginTop: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      backgroundColor: '#F1F5F9',
-                    }}
-                  >
-                    <ActivityIndicator size="small" color={colors.textSecondary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                      Verifica disponibilità…
-                    </Text>
-                  </View>
-                ) : instructorAvailability.status === 'available' ? (
-                  <View
-                    accessibilityRole="text"
-                    style={{
-                      marginTop: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      backgroundColor: '#ECFDF5',
-                    }}
-                  >
-                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                    <Text style={{ color: '#047857', fontSize: 13, fontWeight: '500' }}>
-                      Disponibile a quest'orario
-                    </Text>
-                  </View>
-                ) : instructorAvailability.status === 'unavailable' ? (
-                  <View
-                    accessibilityRole="alert"
-                    style={{
-                      marginTop: 8,
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      gap: 8,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      backgroundColor: '#FEF2F2',
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginTop: 1 }} />
-                    <Text style={{ flex: 1, color: '#B91C1C', fontSize: 13 }}>
-                      {instructorAvailability.detail}
-                    </Text>
-                  </View>
-                ) : instructorAvailability.status === 'error' ? (
-                  <View
-                    accessibilityRole="alert"
-                    style={{
-                      marginTop: 8,
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      gap: 8,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      backgroundColor: '#FFFBEB',
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={16} color="#D97706" style={{ marginTop: 1 }} />
-                    <Text style={{ flex: 1, color: '#92400E', fontSize: 13 }}>
-                      {instructorAvailability.detail}
-                    </Text>
-                  </View>
-                ) : null
-              ) : null}
-            </View>
-
-            {/* LUOGO */}
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionLabel}>LUOGO</Text>
-              <Pressable
-                onPress={() => setLessonSheetMode('locationPicker')}
-                style={({ pressed }) => [{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: '#FFFFFF',
-                  minHeight: 56,
-                }, pressed && { opacity: 0.7 }]}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="location" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
-                    numberOfLines={1}
-                  >
-                    {sheetLesson?.location?.name ?? defaultLocation?.name ?? "Sede dell'autoscuola"}
-                  </Text>
-                  {(sheetLesson?.location?.address ?? defaultLocation?.address) ? (
-                    <Text
-                      style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
-                      numberOfLines={1}
-                    >
-                      {sheetLesson?.location?.address ?? defaultLocation?.address}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            {/* NOTE */}
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionLabel}>NOTE</Text>
-              <TextInput
-                value={lessonNotes}
-                onChangeText={setLessonNotes}
-                placeholder="Aggiungi note operative o osservazioni."
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={4}
-                style={styles.notesInput}
-                editable={!isPending}
-                onFocus={() => {
-                  setTimeout(() => {
-                    lessonSheetScrollRef.current?.scrollToEnd({ animated: true });
-                  }, 60);
-                }}
-              />
-            </View>
-            </ScrollView>
-            {!sheetScrollAtTop && (
-              <LinearGradient
-                colors={['rgba(255,255,255,1)', 'rgba(255,255,255,0)']}
-                style={styles.scrollFadeHintTop}
-                pointerEvents="none"
-              />
-            )}
-            {!sheetScrollAtBottom && (
-              <LinearGradient
-                colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
-                style={styles.scrollFadeHintBottom}
-                pointerEvents="none"
-              />
-            )}
-          </View>
-        ) : null}
-      </BottomSheet>
-
-      {/* ── Booking BottomSheet ── */}
-      <BottomSheet
-        visible={bookingSheetOpen}
-        onClose={() => {
-          if (bookingPendingAction) return;
-          if (bookingSheetMode !== 'form') { setBookingSheetMode('form'); return; }
-          setBookingSheetOpen(false);
-          setEmergencyAllStudents(false);
-        }}
-        title={
-          bookingSheetMode === 'calendar' ? 'Seleziona data'
-            : bookingSheetMode === 'timepicker' ? 'Seleziona orario'
-            : bookingSheetMode === 'locationPicker' ? 'Scegli il luogo'
-            : bookingSheetMode === 'locationForm' ? 'Aggiungi luogo'
-            : 'Nuova prenotazione'
-        }
-        closeDisabled={Boolean(bookingPendingAction)}
-        minHeight={bookingSheetMinHeight}
-        showHandle
-        footer={bookingSheetMode === 'form' ? bookingSheetFooter : undefined}
-      >
-        {bookingSheetMode === 'calendar' && (() => {
-          const calSelectedDate = editingEntryId
-            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.date ?? bookingDate)
-            : bookingDate;
-          return (
-            <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-              <InlineCalendarPicker
-                selectedDate={calSelectedDate}
-                maxWeeks={Number(settings?.availabilityWeeks) || 4}
-                bookedDates={bookedDatesSet}
-                onSelectDate={(date) => {
-                  if (editingEntryId && editingEntryField === 'date') {
-                    setMultiBookingEntries((prev) =>
-                      prev.map((e) => (e.id === editingEntryId ? { ...e, date } : e)),
-                    );
-                    setEditingEntryId(null);
-                    setEditingEntryField(null);
-                  } else {
-                    setBookingDate(date);
-                    setGuidedSuggestion(null);
-                  }
-                  setBookingSheetMode('form');
-                }}
-              />
-            </Animated.View>
-          );
-        })()}
-        {bookingSheetMode === 'timepicker' && (() => {
-          const tpSelectedTime = editingEntryId
-            ? (multiBookingEntries.find((e) => e.id === editingEntryId)?.startTime ?? bookingStartTime)
-            : bookingStartTime;
-          return (
-            <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-              <InlineTimePicker
-                selectedTime={tpSelectedTime}
-                onSelectTime={(date) => {
-                  if (editingEntryId && editingEntryField === 'time') {
-                    setMultiBookingEntries((prev) =>
-                      prev.map((e) => (e.id === editingEntryId ? { ...e, startTime: date } : e)),
-                    );
-                    setEditingEntryId(null);
-                    setEditingEntryField(null);
-                  } else {
-                    setBookingStartTime(date);
-                    setGuidedSuggestion(null);
-                  }
-                  setBookingSheetMode('form');
-                }}
-              />
-            </Animated.View>
-          );
-        })()}
-        {bookingSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}><ScrollView
-          ref={bookingSheetScrollRef}
-          style={[styles.sheetScroll, { maxHeight: bookingSheetMaxHeight }]}
-          contentContainerStyle={styles.sheetContentScroll}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          showsVerticalScrollIndicator={false}
-        >
-          {!canInstructorBook ? (
-            <Text style={styles.actionHint}>
-              La prenotazione da app è abilitata solo per allievi.
-            </Text>
-          ) : null}
-
-          {/* ── ALLIEVO ── */}
-          <View style={{ marginTop: spacing.sm }}>
-            <Text style={styles.bookingSectionLabel}>Allievo</Text>
-            {selectedBookingStudent ? (
-              <View style={styles.bookingStudentRow}>
-                <Text style={styles.bookingStudentName}>
-                  {selectedBookingStudent.firstName} {selectedBookingStudent.lastName}
-                </Text>
-                <Pressable
-                  onPress={() => resetGuidedSuggestionForStudent('')}
-                  hitSlop={8}
-                >
-                  <Text style={styles.bookingStudentChange}>Cambia</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <SearchableSelect
-                placeholder="Cerca allievo..."
-                value={bookingStudentId}
-                options={bookingStudentOptions}
-                onChange={resetGuidedSuggestionForStudent}
-                persistSelectedLabel={false}
-                onFocus={() => {
-                  setTimeout(() => {
-                    bookingSheetScrollRef.current?.scrollTo({ y: 0, animated: true });
-                  }, 40);
-                }}
-                disabled={Boolean(bookingPendingAction) || !students.length}
-                emptyText="Nessun allievo trovato."
-              />
-            )}
-            {!students.length ? (
-              <Text style={styles.actionHint}>Nessun allievo disponibile.</Text>
-            ) : null}
-          </View>
-
-          {/* ── PRENOTAZIONE MULTIPLA TOGGLE ── */}
-          <View style={{ marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={[typography.body, { color: '#1E293B' }]}>Prenotazione multipla</Text>
-            <Switch
-              value={multiBookingMode}
-              onValueChange={(val) => {
-                setMultiBookingMode(val);
-                if (val) {
-                  const now = new Date();
-                  const rounded = normalizeToQuarter(now);
-                  setMultiBookingEntries([{
-                    id: String(Date.now()),
-                    date: new Date(bookingDate),
-                    startTime: rounded,
-                    duration: bookingDuration,
-                  }]);
-                } else {
-                  setMultiBookingEntries([]);
-                  setEditingEntryId(null);
-                  setEditingEntryField(null);
-                }
-              }}
-              trackColor={{ false: '#E2E8F0', true: colors.primary }}
-              thumbColor="#fff"
-              disabled={Boolean(bookingPendingAction)}
-            />
-          </View>
-
-          {/* ── LUOGO (visible in both single + multi mode) ── */}
-          <View style={{ marginTop: spacing.md }}>
-            <Text style={styles.bookingSectionLabel}>Luogo</Text>
-            <Pressable
-              onPress={() => setBookingSheetMode('locationPicker')}
-              style={({ pressed }) => [{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: '#FFFFFF',
-                minHeight: 56,
-              }, pressed && { opacity: 0.7 }]}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="location" size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
-                  numberOfLines={1}
-                >
-                  {bookingLocationName ?? "Sede dell'autoscuola"}
-                </Text>
-                {bookingLocationAddress ? (
-                  <Text
-                    style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
-                    numberOfLines={1}
-                  >
-                    {bookingLocationAddress}
-                  </Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
-          {multiBookingMode ? (
-            <>
-              {/* ── MULTI ENTRIES LIST ── */}
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Guide</Text>
-                {multiBookingEntries.map((entry, index) => (
-                  <View
-                    key={entry.id}
-                    style={{
-                      backgroundColor: '#fff',
-                      borderRadius: 14,
-                      padding: 12,
-                      marginBottom: 8,
-                      shadowColor: '#000',
-                      shadowOpacity: 0.05,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 2,
-                    }}
-                  >
-                    {/* Row 1: date + time + trash */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                        <Ionicons name="calendar-outline" size={18} color="#CA8A04" />
-                      </View>
-                      <Pressable
-                        style={{ flex: 1, marginLeft: 10 }}
-                        onPress={() => {
-                          setEditingEntryId(entry.id);
-                          setEditingEntryField('date');
-                          setBookingSheetMode('calendar');
-                        }}
-                      >
-                        <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
-                          {entry.date.toLocaleDateString('it-IT', {
-                            weekday: 'short',
-                            day: '2-digit',
-                            month: 'short',
-                          })}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          setEditingEntryId(entry.id);
-                          setEditingEntryField('time');
-                          setBookingSheetMode('timepicker');
-                        }}
-                      >
-                        <Text style={{ color: '#1E293B', fontSize: 15, textDecorationLine: 'underline' }}>
-                          {String(entry.startTime.getHours()).padStart(2, '0')}:{String(entry.startTime.getMinutes()).padStart(2, '0')}
-                        </Text>
-                      </Pressable>
-                      {multiBookingEntries.length > 1 ? (
-                        <Pressable
-                          hitSlop={8}
-                          style={{ marginLeft: 12 }}
-                          onPress={() => {
-                            setMultiBookingEntries((prev) => prev.filter((e) => e.id !== entry.id));
-                          }}
-                        >
-                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                        </Pressable>
-                      ) : (
-                        <View style={{ width: 18, marginLeft: 12 }} />
-                      )}
-                    </View>
-                    {/* Row 2: duration chips */}
-                    <View style={{ flexDirection: 'row', marginTop: 8, marginLeft: 42, gap: 6 }}>
-                      {bookingDurations.map((dur) => {
-                        const isActive = entry.duration === dur;
-                        return (
-                          <Pressable
-                            key={dur}
-                            onPress={() => {
-                              setMultiBookingEntries((prev) =>
-                                prev.map((e) => (e.id === entry.id ? { ...e, duration: dur } : e)),
-                              );
-                            }}
-                            style={{
-                              paddingVertical: 4,
-                              paddingHorizontal: 10,
-                              borderRadius: 999,
-                              borderWidth: 1,
-                              backgroundColor: isActive ? '#FEF9C3' : '#F8FAFC',
-                              borderColor: isActive ? '#FDE047' : '#E2E8F0',
-                            }}
-                          >
-                            <Text style={{
-                              fontSize: 12,
-                              fontWeight: '600',
-                              color: isActive ? '#A16207' : '#64748B',
-                            }}>
-                              {dur} min
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
-
-                {/* ── ADD ENTRY BUTTON ── */}
-                {multiBookingEntries.length < 20 ? (
-                  <Pressable
-                    onPress={() => {
-                      const last = multiBookingEntries[multiBookingEntries.length - 1];
-                      const lastDuration = last?.duration ?? bookingDuration;
-                      const newDate = last ? new Date(last.date) : new Date(bookingDate);
-                      const newTime = last
-                        ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000)
-                        : normalizeToQuarter(new Date());
-                      setMultiBookingEntries((prev) => [
-                        ...prev,
-                        { id: String(Date.now()), date: newDate, startTime: newTime, duration: lastDuration },
-                      ]);
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 1.5,
-                      borderStyle: 'dashed',
-                      borderColor: '#CBD5E1',
-                      borderRadius: 14,
-                      paddingVertical: 12,
-                      marginTop: 4,
-                    }}
-                  >
-                    <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                    <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600', marginLeft: 6 }}>
-                      Aggiungi guida
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </>
-          ) : (
-            <>
-              {/* ── GIORNO + ORA INIZIO (single mode, 2-col row) ── */}
-              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bookingSectionLabel}>Giorno</Text>
-                  <Pressable
-                    onPress={() => setBookingSheetMode('calendar')}
-                    style={styles.bookingFieldCard}
-                  >
-                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flex: 1 }}>
-                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FEF9C3' }]}>
-                        <Ionicons name="calendar-outline" size={16} color="#CA8A04" />
-                      </View>
-                      <Text style={[styles.bookingFieldText, { flexShrink: 1 }]} numberOfLines={1}>
-                        {bookingDate.toLocaleDateString('it-IT', {
-                          weekday: 'short',
-                          day: '2-digit',
-                          month: 'short',
-                        })}
-                      </Text>
-                    </View>
-                    <Text style={styles.bookingFieldChevron}>{'›'}</Text>
-                  </Pressable>
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
-                  <Pressable
-                    onPress={() => setBookingSheetMode('timepicker')}
-                    style={styles.bookingFieldCard}
-                  >
-                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flex: 1 }}>
-                      <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                        <Ionicons name="time-outline" size={16} color="#EC4899" />
-                      </View>
-                      <Text style={[styles.bookingFieldText, { flexShrink: 1 }]} numberOfLines={1}>
-                        {bookingStartTime.toTimeString().slice(0, 5)}
-                      </Text>
-                    </View>
-                    <Text style={styles.bookingFieldChevron}>{'\u203A'}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </>
-          )}
-
-              {/* ── DURATA (single mode only — multi mode has per-entry duration) ── */}
-              {!multiBookingMode ? (
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Durata</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipScroller}
-                >
-                  {bookingDurations.map((duration) => (
-                    <SelectableChip
-                      key={`duration-${duration}`}
-                      label={`${duration} min`}
-                      active={bookingDuration === duration}
-                      onPress={() => {
-                        setBookingDuration(duration);
-                        setGuidedSuggestion(null);
-                      }}
-                      style={styles.lessonTypeChip}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-              ) : null}
-
-              {/* ── VEICOLO ── */}
-              {settings?.vehiclesEnabled !== false && (
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={styles.bookingSectionLabel}>Veicolo</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipScroller}
-                >
-                  {vehicles.map((vehicle) => (
-                    <SelectableChip
-                      key={vehicle.id}
-                      label={vehicle.name}
-                      active={bookingVehicleId === vehicle.id}
-                      onPress={() => setBookingVehicleId(vehicle.id)}
-                      style={styles.lessonTypeChip}
-                    />
-                  ))}
-                </ScrollView>
-                {!vehicles.length ? (
-                  <Text style={styles.actionHint}>Nessun veicolo disponibile.</Text>
-                ) : null}
-              </View>
-              )}
-
-          {/* ── TIPO GUIDA ── */}
-            <View style={{ marginTop: spacing.sm }}>
-              <Text style={styles.bookingSectionLabel}>Tipo guida</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipScroller}
-              >
-                {LESSON_TYPE_OPTIONS.map((option) => (
-                  <SelectableChip
-                    key={option.value}
-                    label={option.label}
-                    active={bookingLessonTypes.includes(option.value)}
-                    onPress={() => {
-                      setBookingLessonTypes((prev) => {
-                        if (prev.includes(option.value)) {
-                          const next = prev.filter((t) => t !== option.value);
-                          return next.length ? next : [option.value];
-                        }
-                        return [...prev, option.value];
-                      });
-                    }}
-                    style={styles.lessonTypeChip}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-
-        </ScrollView></Animated.View>}
-
-        {bookingSheetMode === 'locationPicker' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineLocationPicker
-              selectedLocationId={bookingLocationId ?? defaultLocation?.id ?? null}
-              onSelect={(location) => {
-                setBookingLocationId(location.id);
-                setBookingLocationName(location.name);
-                setBookingLocationAddress(location.address);
-                setBookingSheetMode('form');
-              }}
-              onRequestCreate={() => setBookingSheetMode('locationForm')}
-            />
-          </Animated.View>
-        )}
-
-        {bookingSheetMode === 'locationForm' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineLocationForm
-              onCancel={() => setBookingSheetMode('locationPicker')}
-              onSubmit={async (values) => {
-                const created = await regloApi.createLocation(values);
-                setBookingLocationId(created.id);
-                setBookingLocationName(created.name);
-                setBookingLocationAddress(created.address);
-                setBookingSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-      </BottomSheet>
-
-      <CalendarDrawer
-        visible={calendarDrawerOpen}
-        onClose={() => setCalendarDrawerOpen(false)}
-        onSelectDate={(date) => setSelectedDate(date)}
-        selectedDate={selectedDate}
-        unlimitedNavigation
-        caption={null}
-        bookedDates={bookedDatesSet}
-      />
-
-      <CalendarDrawer
-        visible={guidedCalendarOpen}
-        onClose={() => {
-          setGuidedCalendarOpen(false);
-        }}
-        onClosed={() => setBookingSheetOpen(true)}
-        onSelectDate={(date) => {
-          setGuidedPreferredDate(date);
-          setGuidedSuggestion(null);
-          setGuidedCalendarOpen(false);
-        }}
-        selectedDate={guidedPreferredDate ?? new Date()}
-        maxWeeks={Number(settings?.availabilityWeeks) || 4}
-        caption={null}
-      />
-
-      {/* ── Block Slot BottomSheet ── */}
-      <BottomSheet
-        visible={blockSheetOpen}
-        onClose={() => {
-          if (blockPending) return;
-          if (blockSheetMode !== 'form') { setBlockSheetMode('form'); return; }
-          setBlockSheetOpen(false);
-        }}
-        title={blockSheetMode === 'calendar' ? 'Seleziona data' : blockSheetMode === 'startTime' ? 'Seleziona ora inizio' : blockSheetMode === 'endTime' ? 'Seleziona ora fine' : 'Blocca slot'}
-        closeDisabled={blockPending}
-        showHandle
-        footer={blockSheetMode === 'form' ? (
-          <Button
-            label={blockPending ? 'Creazione...' : 'Blocca slot'}
-            tone="primary"
-            onPress={!blockPending ? handleCreateBlock : undefined}
-            disabled={blockPending}
-            fullWidth
-          />
-        ) : undefined}
-      >
-        {blockSheetMode === 'calendar' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineCalendarPicker
-              selectedDate={blockDate}
-              maxWeeks={52}
-              onSelectDate={(date) => {
-                setBlockDate(date);
-                setBlockSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {blockSheetMode === 'startTime' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineTimePicker
-              selectedTime={blockStartTime}
-              onSelectTime={(date) => {
-                setBlockStartTime(date);
-                setBlockSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {blockSheetMode === 'endTime' && (
-          <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(160)}>
-            <InlineTimePicker
-              selectedTime={blockEndTime}
-              onSelectTime={(date) => {
-                setBlockEndTime(date);
-                setBlockSheetMode('form');
-              }}
-            />
-          </Animated.View>
-        )}
-        {blockSheetMode === 'form' && <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}>
-        <View style={{ gap: spacing.md }}>
-          <View>
-            <Text style={styles.bookingSectionLabel}>Giorno</Text>
-            <Pressable
-              onPress={() => setBlockSheetMode('calendar')}
-              style={styles.bookingFieldCard}
-            >
-              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                  <Ionicons name="calendar-outline" size={18} color="#64748B" />
-                </View>
-                <Text style={styles.bookingFieldText}>
-                  {blockDate.toLocaleDateString('it-IT', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                  })}
-                </Text>
-              </View>
-              <Text style={styles.bookingFieldChevron}>›</Text>
-            </Pressable>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bookingSectionLabel}>Ora inizio</Text>
-              <Pressable
-                onPress={() => setBlockSheetMode('startTime')}
-                style={styles.bookingFieldCard}
-              >
-                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                    <Ionicons name="time-outline" size={18} color="#64748B" />
-                  </View>
-                  <Text style={styles.bookingFieldText}>
-                    {String(blockStartTime.getHours()).padStart(2, '0')}:{String(blockStartTime.getMinutes()).padStart(2, '0')}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bookingSectionLabel}>Ora fine</Text>
-              <Pressable
-                onPress={() => setBlockSheetMode('endTime')}
-                style={styles.bookingFieldCard}
-              >
-                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  <View style={[styles.bookingFieldIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                    <Ionicons name="time-outline" size={18} color="#64748B" />
-                  </View>
-                  <Text style={styles.bookingFieldText}>
-                    {String(blockEndTime.getHours()).padStart(2, '0')}:{String(blockEndTime.getMinutes()).padStart(2, '0')}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          </View>
-          <View>
-            <Text style={styles.bookingSectionLabel}>Motivo (opzionale)</Text>
-            <Input
-              placeholder="Es. Visita medica, pausa..."
-              value={blockReason}
-              onChangeText={setBlockReason}
-            />
-          </View>
-          <View style={styles.blockRecurringRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.blockRecurringLabel}>Ripeti ogni settimana</Text>
-              <Text style={styles.blockRecurringDesc}>Stesso giorno e orario</Text>
-            </View>
-            <Switch
-              value={blockRecurring}
-              onValueChange={setBlockRecurring}
-              trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          {blockRecurring && (
-            <View>
-              <Text style={styles.bookingSectionLabel}>Per quante settimane</Text>
-              <View style={styles.blockWeeksRow}>
-                {[2, 4, 8, 12].map((w) => (
-                  <Pressable
-                    key={w}
-                    style={[styles.blockWeekChip, blockRecurringWeeks === w && styles.blockWeekChipActive]}
-                    onPress={() => setBlockRecurringWeeks(w)}
-                  >
-                    <Text style={[styles.blockWeekChipText, blockRecurringWeeks === w && styles.blockWeekChipTextActive]}>
-                      {w} sett.
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-        </Animated.View>}
-      </BottomSheet>
-
-      {/* ── Out of Availability BottomSheet ── */}
-      <BottomSheet
-        visible={outOfAvailSheetOpen}
-        onClose={() => setOutOfAvailSheetOpen(false)}
-        title="Guide fuori disponibilità"
-        showHandle
-      >
-        <ScrollView style={{ maxHeight: windowHeight * 0.6 }} showsVerticalScrollIndicator={false}>
-          {outOfAvailAppointments.map((apt) => {
-            const isLoading = outOfAvailActionPending === apt.id;
-            return (
-            <View key={apt.id} style={[oobStyles.card, isLoading && { opacity: 0.5 }]}>
-              <View style={oobStyles.cardHeader}>
-                <Text style={oobStyles.studentName}>{apt.studentName}</Text>
-                <View style={[
-                  oobStyles.badge,
-                  apt.outOfAvailabilityFor.length > 1
-                    ? oobStyles.badgeBoth
-                    : apt.outOfAvailabilityFor.includes('instructor')
-                      ? oobStyles.badgeInstructor
-                      : oobStyles.badgeVehicle,
-                ]}>
-                  <Text style={[
-                    oobStyles.badgeText,
-                    apt.outOfAvailabilityFor.length > 1
-                      ? oobStyles.badgeTextBoth
-                      : apt.outOfAvailabilityFor.includes('instructor')
-                        ? oobStyles.badgeTextInstructor
-                        : oobStyles.badgeTextVehicle,
-                  ]}>
-                    {apt.outOfAvailabilityFor.length > 1
-                      ? 'Entrambi'
-                      : apt.outOfAvailabilityFor.includes('instructor')
-                        ? 'Istruttore'
-                        : 'Veicolo'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={oobStyles.cardTime}>
-                {new Date(apt.startsAt).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
-                {' \u00B7 '}
-                {formatTime(apt.startsAt)} – {formatTime(apt.endsAt)}
-              </Text>
-              {apt.instructorName && (
-                <Text style={oobStyles.cardMeta}>{apt.instructorName}</Text>
-              )}
-              {apt.vehicleName && (
-                <Text style={oobStyles.cardMeta}>{apt.vehicleName}</Text>
-              )}
-              <View style={oobStyles.actions}>
-                <Pressable
-                  style={[oobStyles.actionBtn, oobStyles.actionBtnDanger]}
-                  disabled={isLoading}
-                  onPress={() => handleOutOfAvailAction(apt.id, 'cancel')}
-                >
-                  <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnDangerText]}>Cancella</Text>
-                </Pressable>
-                <Pressable
-                  style={[oobStyles.actionBtn, oobStyles.actionBtnPrimary]}
-                  disabled={isLoading}
-                  onPress={() => handleOutOfAvailAction(apt.id, 'approve')}
-                >
-                  <Text style={[oobStyles.actionBtnText, oobStyles.actionBtnPrimaryText]}>Mantieni</Text>
-                </Pressable>
-              </View>
-            </View>
-            );
-          })}
-          {outOfAvailAppointments.length === 0 && (
-            <Text style={oobStyles.emptyText}>Nessuna guida fuori disponibilità.</Text>
-          )}
-        </ScrollView>
-      </BottomSheet>
-
-      {/* ── Exam details drawer ── */}
-      <BottomSheet
-        visible={Boolean(examDrawerGroup)}
-        onClose={() => { setExamDrawerGroup(null); setExamDrawerMode('details'); }}
-        showHandle
-      >
-        {examDrawerMode === 'timepicker' && examDrawerGroup ? (
-          <View style={{ paddingBottom: 12 }}>
-            <Pressable
-              onPress={() => setExamDrawerMode('details')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}
-            >
-              <Ionicons name="arrow-back" size={20} color="#4338CA" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#4338CA' }}>Scegli orario esame</Text>
-            </Pressable>
-            <InlineTimePicker
-              selectedTime={examDrawerGroup.endsAt ? new Date(examDrawerGroup.startsAt) : (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
-              loading={examTimeSaving}
-              onSelectTime={async (d) => {
-                if (!examDrawerGroup) return;
-                setExamTimeSaving(true);
-                const ids = examDrawerGroup.appointments.map((a) => a.id);
-                const startsAtDate = new Date(examDrawerGroup.startsAt);
-                const newStart = new Date(startsAtDate);
-                newStart.setHours(d.getHours(), d.getMinutes(), 0, 0);
-                const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
-                try {
-                  await regloApi.updateExamTime({
-                    appointmentIds: ids,
-                    startsAt: newStart.toISOString(),
-                    endsAt: newEnd.toISOString(),
-                  });
-                  setExamDrawerGroup({
-                    ...examDrawerGroup,
-                    startsAt: newStart.toISOString(),
-                    endsAt: newEnd.toISOString(),
-                  });
-                  setExamDrawerMode('details');
-                  loadData();
-                } catch {
-                  Alert.alert('Errore', 'Impossibile aggiornare l\u2019orario.');
-                } finally {
-                  setExamTimeSaving(false);
-                }
-              }}
-            />
-          </View>
-        ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="school" size={20} color="#4338CA" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>Esame di guida</Text>
-              {examDrawerGroup ? (
-                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
-                  {formatDay(examDrawerGroup.startsAt)}
-                  {examDrawerGroup.endsAt
-                    ? ` · ${formatTime(examDrawerGroup.startsAt)} – ${formatTime(examDrawerGroup.endsAt)}`
-                    : ' · Orario da definire'}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Imposta / Modifica orario */}
-          {examDrawerGroup ? (
-            <Pressable
-              onPress={() => setExamDrawerMode('timepicker')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', marginBottom: 12 }}
-            >
-              <Ionicons name="time-outline" size={16} color="#4338CA" />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#4338CA', flex: 1 }}>
-                {examDrawerGroup.endsAt ? 'Modifica orario' : 'Imposta orario'}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color="#6366F1" />
-            </Pressable>
-          ) : null}
-
-          {examDrawerGroup?.instructorName ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 12 }}>
-              <Ionicons name="person-outline" size={16} color="#64748B" />
-              <Text style={{ fontSize: 13, color: '#475569' }}>Accompagnatore:</Text>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', flex: 1 }}>
-                {examDrawerGroup.instructorName}
-              </Text>
-            </View>
-          ) : null}
-
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 8 }}>
-            ALLIEVI ({examDrawerGroup?.appointments.length ?? 0})
-          </Text>
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden', marginBottom: 12 }}>
-            {examDrawerGroup?.appointments.map((a, idx) => {
-              const isLast = idx === examDrawerGroup.appointments.length - 1;
-              const canRemove = examDrawerGroup.appointments.length > 1;
-              const pending = examActionPending === a.id;
-              const name = a.student ? `${a.student.firstName} ${a.student.lastName}`.trim() : 'Allievo';
-              return (
-                <View
-                  key={a.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: 12,
-                    borderBottomWidth: isLast ? 0 : 1,
-                    borderBottomColor: '#F1F5F9',
-                  }}
-                >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="person" size={14} color="#4338CA" />
-                  </View>
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#1E293B' }} numberOfLines={1}>
-                    {name}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      canRemove && !pending
-                        ? Alert.alert(
-                            'Rimuovi allievo',
-                            `Rimuovere ${name} dall\u2019esame?`,
-                            [
-                              { text: 'Annulla', style: 'cancel' },
-                              { text: 'Rimuovi', style: 'destructive', onPress: () => handleRemoveExamStudent(a.id) },
-                            ],
-                          )
-                        : undefined
-                    }
-                    disabled={!canRemove || pending}
-                    style={({ pressed }) => [
-                      {
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 999,
-                        backgroundColor: !canRemove ? '#F1F5F9' : pressed ? '#FEE2E2' : '#FEF2F2',
-                        borderWidth: 1,
-                        borderColor: !canRemove ? '#E2E8F0' : '#FECACA',
-                      },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: !canRemove ? '#94A3B8' : '#DC2626' }}>
-                      {pending ? '...' : 'Rimuovi'}
-                    </Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-
-          {examDrawerGroup?.notes ? (
-            <>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 8 }}>NOTE</Text>
-              <View style={{ padding: 12, borderRadius: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 12 }}>
-                <Text style={{ fontSize: 13, color: '#475569', lineHeight: 18 }}>{examDrawerGroup.notes}</Text>
-              </View>
-            </>
-          ) : null}
-
-          <Pressable
-            onPress={() =>
-              Alert.alert(
-                'Annulla esame',
-                'Vuoi annullare l\u2019esame per tutti gli allievi?',
-                [
-                  { text: 'Chiudi', style: 'cancel' },
-                  { text: 'Annulla esame', style: 'destructive', onPress: handleCancelExam },
-                ],
-              )
-            }
-            disabled={examActionPending === 'all'}
-            style={({ pressed }) => [
-              {
-                paddingVertical: 14,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: '#FECACA',
-                backgroundColor: pressed ? '#FEE2E2' : '#FFFFFF',
-                alignItems: 'center',
-                marginTop: 4,
-              },
-              examActionPending === 'all' && { opacity: 0.6 },
-            ]}
-          >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#DC2626' }}>
-              {examActionPending === 'all' ? 'Annullamento...' : 'Annulla esame'}
-            </Text>
-          </Pressable>
-        </ScrollView>
-        )}
-      </BottomSheet>
 
       {/* ── Cluster details drawer (all-instructors scope) ── */}
-      <BottomSheet
+      <NativePageSheet
         visible={Boolean(clusterDrawerAppts)}
         onClose={() => setClusterDrawerAppts(null)}
-        showHandle
       >
-        <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="layers" size={20} color={colors.primary} />
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="layers" size={20} color={'#1A1A2E'} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>
@@ -6096,126 +4079,10 @@ export const IstruttoreHomeScreen = () => {
             })}
           </View>
         </ScrollView>
-      </BottomSheet>
+      </NativePageSheet>
 
-      <RescheduleAppointmentSheet
-        visible={rescheduleLesson !== null}
-        onClose={() => setRescheduleLesson(null)}
-        lesson={rescheduleLesson}
-        onSuccess={(newStartsAt) => {
-          setToast({
-            text: `Guida spostata al ${formatDay(newStartsAt)} · ${formatTime(newStartsAt)}.`,
-            tone: 'success',
-          });
-          loadData();
-        }}
-        onError={(message) => {
-          setToast({ text: message, tone: 'danger' });
-        }}
-      />
 
-      <Modal
-        visible={swapModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => { if (!swapPending) { setSwapModalOpen(false); setSwapSourceLesson(null); } }}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, width: '100%', maxHeight: '70%', overflow: 'hidden' }}>
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A' }}>Scambia con…</Text>
-              <Pressable hitSlop={8} onPress={() => { if (!swapPending) { setSwapModalOpen(false); setSwapSourceLesson(null); } }}>
-                <Ionicons name="close" size={22} color="#94A3B8" />
-              </Pressable>
-            </View>
-
-            {/* Search */}
-            <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12, height: 42 }}>
-                <Ionicons name="search" size={18} color="#94A3B8" />
-                <TextInput
-                  placeholder="Cerca allievo..."
-                  placeholderTextColor="#94A3B8"
-                  value={swapSearch}
-                  onChangeText={setSwapSearch}
-                  style={{ flex: 1, marginLeft: 8, fontSize: 15, color: '#1E293B' }}
-                  autoCorrect={false}
-                />
-                {swapSearch ? (
-                  <Pressable hitSlop={8} onPress={() => setSwapSearch('')}>
-                    <Ionicons name="close-circle" size={18} color="#CBD5E1" />
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-
-            {/* List */}
-            <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-              {swapCandidatesByDay.length === 0 ? (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Ionicons name="swap-horizontal-outline" size={32} color="#CBD5E1" />
-                  <Text style={{ color: '#94A3B8', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
-                    Nessuna guida disponibile per lo scambio
-                  </Text>
-                </View>
-              ) : (
-                swapCandidatesByDay.map((section) => (
-                  <View key={section.title}>
-                    <View style={{ paddingHorizontal: 20, paddingVertical: 6, backgroundColor: '#F8FAFC' }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' }}>
-                        {section.title}
-                      </Text>
-                    </View>
-                    {section.data.map((appt) => {
-                      const startTime = new Date(appt.startsAt);
-                      const timeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
-                      const endTime = appt.endsAt ? new Date(appt.endsAt) : new Date(startTime.getTime() + 60 * 60 * 1000);
-                      const endStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
-                      return (
-                        <Pressable
-                          key={appt.id}
-                          onPress={() => handleInstructorSwap(appt)}
-                          disabled={swapPending}
-                          style={({ pressed }) => ({
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingHorizontal: 20,
-                            paddingVertical: 14,
-                            borderBottomWidth: 1,
-                            borderBottomColor: '#F1F5F9',
-                            backgroundColor: pressed ? '#FEF9C3' : '#fff',
-                          })}
-                        >
-                          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FCE7F3', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#EC4899' }}>
-                              {(appt.student?.firstName ?? '?').slice(0, 1).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>
-                              {appt.student?.firstName ?? ''} {appt.student?.lastName ?? ''}
-                            </Text>
-                            {settings?.vehiclesEnabled !== false && appt.vehicle?.name ? (
-                              <Text style={{ fontSize: 13, color: '#64748B', marginTop: 1 }}>
-                                {appt.vehicle.name}
-                              </Text>
-                            ) : null}
-                          </View>
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#475569' }}>
-                            {timeStr} – {endStr}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </Screen>
+    </View>
   );
 };
 
@@ -6251,206 +4118,67 @@ const LessonStateTag = ({
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const FAB_DURATION = 300;
-const PILL_STAGGER = 60;
-
 const FabMenu = ({
   canBook,
+  canGroupLesson,
   disabled,
   onBookLesson,
   onBlockSlot,
   onCreateExam,
+  onCreateGroupLesson,
   onSickLeave,
 }: {
   canBook: boolean;
+  canGroupLesson: boolean;
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
   onCreateExam: () => void;
+  onCreateGroupLesson: () => void;
   onSickLeave: () => void;
 }) => {
-  const progress = useSharedValue(0);
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const fabScale = useSharedValue(1);
+  const fabStyle = useAnimatedStyle(() => ({ transform: [{ scale: fabScale.value }] }));
 
-  const toggle = useCallback(() => {
-    const next = !open;
-    setOpen(next);
-    progress.value = withTiming(next ? 1 : 0, {
-      duration: FAB_DURATION,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
+  // Seed the handlers, then open the native content-hugging formSheet route.
+  const openMenu = useCallback(() => {
+    homeAddSheetStore.set({
+      canBook,
+      canGroupLesson,
+      onBook: onBookLesson,
+      onBlock: onBlockSlot,
+      onExam: onCreateExam,
+      onGroupLesson: onCreateGroupLesson,
+      onSick: onSickLeave,
     });
-  }, [open, progress]);
-
-  const close = useCallback(() => {
-    setOpen(false);
-    progress.value = withTiming(0, {
-      duration: FAB_DURATION,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
-    });
-  }, [progress]);
-
-  const handleBook = useCallback(() => {
-    close();
-    onBookLesson();
-  }, [close, onBookLesson]);
-
-  const handleBlock = useCallback(() => {
-    close();
-    onBlockSlot();
-  }, [close, onBlockSlot]);
-
-  // FAB rotation: 450° (1.25 turns)
-  const fabStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${interpolate(progress.value, [0, 1], [0, 90])}deg` },
-      { scale: interpolate(progress.value, [0, 0.5, 1], [1, 1.1, 1]) },
-    ],
-  }));
-
-  // Overlay fade
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: progress.value * 0.4,
-    pointerEvents: progress.value > 0.01 ? 'auto' as const : 'none' as const,
-  }));
-
-  // Pill animations (bottom pill first — closer to FAB)
-  const pill0Style = useAnimatedStyle(() => {
-    const p = interpolate(progress.value, [0, 1], [0, 1]);
-    return {
-      opacity: p,
-      transform: [
-        { translateY: interpolate(p, [0, 1], [20, 0]) },
-        { scale: interpolate(p, [0, 1], [0.8, 1]) },
-      ],
-    };
-  });
-
-  const pill1Style = useAnimatedStyle(() => {
-    const delayed = interpolate(progress.value, [0, 0.3, 1], [0, 0, 1]);
-    return {
-      opacity: delayed,
-      transform: [
-        { translateY: interpolate(delayed, [0, 1], [20, 0]) },
-        { scale: interpolate(delayed, [0, 1], [0.8, 1]) },
-      ],
-    };
-  });
+    router.push('/(tabs)/home/add-action');
+  }, [canBook, canGroupLesson, onBookLesson, onBlockSlot, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
 
   return (
-    <>
-      {/* Overlay */}
-      <Animated.View style={[styles.fabOverlay, overlayStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-      </Animated.View>
-
-      {/* Pills */}
-      {open || progress.value > 0 ? (
-        <View style={styles.fabMenuContainer} pointerEvents="box-none">
-          {canBook ? (
-            <Animated.View style={pill1Style}>
-              <Pressable
-                onPress={handleBook}
-                style={({ pressed }) => [
-                  styles.fabPill,
-                  pressed && styles.fabPillPressed,
-                ]}
-              >
-                <View style={[styles.fabPillIcon, { backgroundColor: '#FDF2F8' }]}>
-                  <Ionicons name="calendar-outline" size={20} color="#EC4899" />
-                </View>
-                <Text style={styles.fabPillLabel}>Prenota guida</Text>
-              </Pressable>
-            </Animated.View>
-          ) : null}
-          <Animated.View style={pill0Style}>
-            <Pressable
-              onPress={handleBlock}
-              style={({ pressed }) => [
-                styles.fabPill,
-                pressed && styles.fabPillPressed,
-              ]}
-            >
-              <View style={[styles.fabPillIcon, { backgroundColor: '#F1F5F9' }]}>
-                <Ionicons name="ban-outline" size={20} color="#64748B" />
-              </View>
-              <Text style={styles.fabPillLabel}>Blocca slot</Text>
-            </Pressable>
-          </Animated.View>
-          <Animated.View style={pill0Style}>
-            <Pressable
-              onPress={onCreateExam}
-              style={({ pressed }) => [
-                styles.fabPill,
-                pressed && styles.fabPillPressed,
-              ]}
-            >
-              <View style={[styles.fabPillIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="school-outline" size={20} color="#D97706" />
-              </View>
-              <Text style={styles.fabPillLabel}>Crea esame</Text>
-            </Pressable>
-          </Animated.View>
-          <Animated.View style={pill0Style}>
-            <Pressable
-              onPress={onSickLeave}
-              style={({ pressed }) => [
-                styles.fabPill,
-                pressed && styles.fabPillPressed,
-              ]}
-            >
-              <View style={[styles.fabPillIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="medkit-outline" size={20} color="#DC2626" />
-              </View>
-              <Text style={styles.fabPillLabel}>Malattia</Text>
-            </Pressable>
-          </Animated.View>
-        </View>
-      ) : null}
-
-      {/* FAB */}
-      <AnimatedPressable
-        onPress={disabled ? undefined : toggle}
-        style={[
-          styles.fab,
-          disabled && { opacity: 0.5 },
-          fabStyle,
-        ]}
-      >
-        <Ionicons name={open ? 'close' : 'add'} size={28} color="#FFFFFF" />
-      </AnimatedPressable>
-    </>
+    <AnimatedPressable
+      onPress={disabled ? undefined : openMenu}
+      onPressIn={() => { fabScale.value = withTiming(0.92, { duration: 90 }); }}
+      onPressOut={() => { fabScale.value = withTiming(1, { duration: 120 }); }}
+      style={[styles.fab, disabled && { opacity: 0.5 }, fabStyle]}
+    >
+      <Ionicons name="add" size={28} color="#FFFFFF" />
+    </AnimatedPressable>
   );
 };
 
+const COMPACT_HEADER_H = 44;
+const LARGE_TITLE_H = 64;
+// Max height for the in-sheet picker formsheets (instructor / location): hugs
+// content for short lists, scrolls beyond this.
+const PICKER_MAX_H = 460;
+
 const scopeStyles = StyleSheet.create({
-  bar: {
+  row: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: 999,
-    borderWidth: 1,
-    backgroundColor: '#FEFCE8',
-    borderColor: '#FEF08A',
-  },
-  tabActive: {
-    backgroundColor: '#FDF2F8',
-    borderColor: '#FBCFE8',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#A16207',
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
+    marginTop: 14,
+    marginBottom: 4,
   },
 });
 
@@ -6459,6 +4187,18 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
     paddingBottom: spacing.xxl * 2 + spacing.md,
+  },
+  greetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  greetName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    letterSpacing: 0.1,
   },
 
   /* ── Header ── */
@@ -6476,6 +4216,51 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: '#64748B',
     marginTop: 2,
+  },
+
+  /* ── Sticky blur header (Airbnb-style) ── */
+  stickyHeader: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 20,
+  },
+  stickyHeaderBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E6E8EC',
+  },
+  stickyHeaderRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  stickyHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A2E',
+  },
+  largeTitleWrap: {
+    height: LARGE_TITLE_H,
+    justifyContent: 'flex-end',
+    paddingBottom: 2,
+  },
+  largeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    color: '#1A1A2E',
+  },
+  largeSub: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 3,
   },
 
   /* ── Next Lesson Card (yellow gradient) ── */
@@ -6685,37 +4470,20 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  /* ── CTA Button ── */
-  ctaButton: {
-    backgroundColor: '#EC4899',
-    borderRadius: radii.sm,
-    minHeight: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  ctaButtonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.92,
-  },
-  ctaButtonDisabled: {
-    opacity: 0.5,
-  },
-  ctaButtonLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
 
   /* ── Calendar Section ── */
   calendarSection: {
     gap: spacing.sm,
+    backgroundColor: '#F4F5F9',
+    marginHorizontal: -spacing.lg,
+    // leave ~16px of breathing room between the greeting eyebrow and the panel
+    // (content container adds `gap: spacing.lg`; we cancel all but ~16px)
+    marginTop: -spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   calendarMonthRow: {
     flexDirection: 'row',
@@ -6723,57 +4491,84 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   calendarMonthTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1A2E',
+    letterSpacing: -0.6,
+    lineHeight: 26,
   },
-  calendarIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  calendarMonthYear: {
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  calendarTodayChip: {
+    height: 34,
+    paddingHorizontal: 15,
+    borderRadius: 17,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  calendarTodayChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1A2E',
+  },
+  calendarIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  dayPillsScroll: {
+    // bleed to the full panel width so cells slide off the straight panel edge
+    // instead of being clipped against the panel's inner padding
+    marginHorizontal: -spacing.lg,
   },
   dayPillsRow: {
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    gap: 10,
+    // extra vertical room so the selected pill's drop shadow (radius 18, y+10)
+    // isn't clipped by the horizontal ScrollView's bounds
+    paddingTop: 12,
+    paddingBottom: 26,
+    paddingHorizontal: spacing.lg,
   },
   dayPill: {
     width: 58,
     height: 72,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
   },
   dayPillSelected: {
-    backgroundColor: '#FCE7F3',
-    borderWidth: 2,
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    backgroundColor: '#1A1A2E',
+    borderWidth: 0,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.20,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
+  // Minimal style: inactive days are bare on the tonal panel (no fill, no border)
   dayPillUnselected: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    backgroundColor: 'transparent',
   },
+  // Today gets a soft tonal fill (not a ring) — lighter than the selected fill
   dayPillToday: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 2,
-    borderColor: '#FACC15',
-    shadowColor: '#D97706',
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    backgroundColor: '#E9EBF2',
   },
   dayPillWeekday: {
     fontSize: 11,
@@ -6781,26 +4576,26 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dayPillWeekdaySelected: {
-    color: '#BE185D',
+    color: '#FFFFFF',
   },
   dayPillWeekdayUnselected: {
     color: '#94A3B8',
   },
   dayPillWeekdayToday: {
-    color: '#CA8A04',
+    color: '#1A1A2E',
   },
   dayPillNumber: {
     fontSize: 20,
     fontWeight: '700',
   },
   dayPillNumberSelected: {
-    color: '#BE185D',
+    color: '#FFFFFF',
   },
   dayPillNumberUnselected: {
-    color: '#1E293B',
+    color: '#1A1A2E',
   },
   dayPillNumberToday: {
-    color: '#CA8A04',
+    color: '#1A1A2E',
   },
 
   dayPillDot: {
@@ -6809,15 +4604,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   dayPillDotHighlight: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FACC15',
   },
   dayPillHoliday: {
     backgroundColor: '#FEE2E2',
-    borderWidth: 2,
-    borderColor: '#FCA5A5',
   },
   dayPillWeekdayHoliday: {
     color: '#DC2626',
@@ -6938,7 +4731,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.positive,
   },
   stateTagScheduled: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: '#EEF0F4',
   },
   stateTagPendingReview: {
     backgroundColor: '#FFF7ED',
@@ -6960,17 +4753,47 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   stateTagTextScheduled: {
-    color: '#CA8A04',
+    color: '#1A1A2E',
+  },
+  sheetMoreBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F2F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetSaveBtn: {
+    backgroundColor: '#1A1A2E',
+    minHeight: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  sheetSaveText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   /* ── BottomSheet content styles ── */
   modalInfoCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
+    padding: 16,
     gap: 4,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   modalInfoBold: {
     fontSize: 16,
@@ -6990,28 +4813,45 @@ const styles = StyleSheet.create({
   },
   studentContactRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    marginTop: 6,
+    marginTop: 12,
   },
-  studentContactButton: {
+  contactCallBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  contactWaBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#1A1A2E',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#1A1A2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  studentContactWhatsapp: {
-    backgroundColor: '#F0FDF4',
-  },
-  studentContactIcon: {
-    fontSize: 16,
-  },
-  studentContactLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
+  contactWaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   modalInfoSub: {
     fontSize: 13,
@@ -7027,11 +4867,102 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  /* ── Grouped detail list (istruttore + luogo) ── */
+  detailGroupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 64,
+  },
+  detailRowPressed: {
+    opacity: 0.55,
+  },
+  detailRowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#EEF0F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailRowBody: {
+    flex: 1,
+    gap: 2,
+  },
+  detailRowLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  detailRowValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A2E',
+  },
+  detailRowSub: {
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  detailDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#ECECEC',
+    marginLeft: 66,
+  },
+  pickerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerAvatarActive: {
+    backgroundColor: '#1A1A2E',
+  },
+  pickerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A2E',
+  },
+  pickerNameActive: {
+    fontWeight: '700',
+  },
+  /* ── Availability badge ── */
+  availBadge: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  availBadgeNeutral: { backgroundColor: '#F1F5F9' },
+  availBadgeNeutralText: { color: '#64748B', fontSize: 13 },
+  availBadgeOk: { backgroundColor: '#ECFDF5' },
+  availBadgeOkText: { color: '#047857', fontSize: 13, fontWeight: '500' },
+  availBadgeBad: { backgroundColor: '#FEF2F2' },
+  availBadgeBadText: { color: '#B91C1C', fontSize: 13 },
+  availBadgeWarn: { backgroundColor: '#FFFBEB' },
+  availBadgeWarnText: { color: '#92400E', fontSize: 13 },
   modalBookingInfoCard: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
     padding: 16,
     gap: 4,
   },
@@ -7054,44 +4985,6 @@ const styles = StyleSheet.create({
   },
   sheetScroll: {
     width: '100%',
-  },
-  blockRecurringRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  blockRecurringLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  blockRecurringDesc: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  blockWeeksRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-  },
-  blockWeekChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-  },
-  blockWeekChipActive: {
-    backgroundColor: '#FACC15',
-  },
-  blockWeekChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  blockWeekChipTextActive: {
-    color: '#1E293B',
   },
   scrollFadeHintTop: {
     position: 'absolute',
@@ -7123,12 +5016,14 @@ const styles = StyleSheet.create({
   },
   sheetProgressSection: {
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#EEEDEB',
+    borderRadius: 20,
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.12)', inset: true },
+      { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.06)', inset: true },
+    ],
   },
   sheetProgressHeader: {
     flexDirection: 'row',
@@ -7154,7 +5049,7 @@ const styles = StyleSheet.create({
   sheetProgressBarFill: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
   },
   sheetProgressHint: {
     fontSize: 12,
@@ -7179,9 +5074,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: 1,
   },
-  lessonTypeChip: {
-    marginRight: spacing.xs,
-  },
+  lessonTypeChip: {},
   notesBlock: {
     gap: spacing.xs,
     marginTop: spacing.sm,
@@ -7191,16 +5084,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   notesInput: {
-    minHeight: 96,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    color: colors.textPrimary,
-    backgroundColor: '#FFFFFF',
+    minHeight: 110,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#1A1A2E',
+    backgroundColor: '#F7F7F8',
     textAlignVertical: 'top',
-    ...typography.body,
+    fontSize: 15,
+    lineHeight: 22,
   },
   sheetFooterActions: {
     gap: spacing.sm,
@@ -7269,39 +5163,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* ── Booking BottomSheet form styles ── */
-  bookingSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  bookingFieldCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: radii.sm,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  bookingFieldIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookingFieldText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  bookingFieldChevron: {
-    fontSize: 18,
-    color: '#CBD5E1',
-  },
   bookingStudentRow: {
     backgroundColor: '#F8FAFC',
     borderRadius: 16,
@@ -7318,7 +5179,7 @@ const styles = StyleSheet.create({
   bookingStudentChange: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#EC4899',
+    color: '#1A1A2E',
   },
 
   emptyState: {
@@ -7348,14 +5209,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FEF9C3',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     marginTop: 12,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   nextBannerLive: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#EEF0F4',
+    borderColor: '#D6D9E0',
   },
   nextBannerLeft: {
     flexDirection: 'row',
@@ -7366,12 +5235,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#16A34A',
+    backgroundColor: '#1A1A2E',
   },
   nextBannerLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#1A1A2E',
   },
   nextBannerInfo: {
     fontSize: 13,
@@ -7410,18 +5279,13 @@ const styles = StyleSheet.create({
     elevation: 2,
     overflow: 'hidden',
   },
-  emptyDayDuckClip: {
+  emptyDayIconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: '#FDF2F8',
+    backgroundColor: '#EEF0F4',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyDayDuck: {
-    width: 120,
-    height: 120,
   },
   emptyDayTitle: {
     fontSize: 16,
@@ -7434,6 +5298,134 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 18,
   },
+
+  /* ── Empty state (Fluent, centered) ── */
+  dayEmpty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 },
+  dayEmptyImg: { width: 76, height: 76, resizeMode: 'contain', marginBottom: 16 },
+  dayEmptyTitle: { fontSize: 19, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  dayEmptySub: { fontSize: 14, fontWeight: '500', color: '#94A3B8', marginTop: 6, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  dayEmptyCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20,
+    backgroundColor: '#1A1A2E', paddingVertical: 13, paddingHorizontal: 22, borderRadius: 26,
+    shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  },
+  dayEmptyCtaText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+
+  /* ── Itinerary list (Airbnb-style day view) ── */
+  itinerary: { marginBottom: 12 },
+  itinRow: { flexDirection: 'row', alignItems: 'stretch' },
+  itinRail: { width: 84, paddingTop: 16, alignItems: 'center', position: 'relative' },
+  // Line linking the time pills, with a small gap above/below each pill.
+  railLineTop: { position: 'absolute', left: 41, top: 0, height: 12, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railLineBottom: { position: 'absolute', left: 41, top: 46, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railLineFull: { position: 'absolute', left: 41, top: 0, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railPill: {
+    minHeight: 26, minWidth: 52, paddingHorizontal: 9, justifyContent: 'center', alignItems: 'center',
+    borderRadius: 13, backgroundColor: '#EEF0F4',
+  },
+  railPillMuted: { backgroundColor: '#F1F3F7' },
+  railPillEndpoint: { backgroundColor: '#F1F3F7' },
+  railPillNow: { backgroundColor: '#DCFCE7' },
+  railPillText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
+  railPillTextMuted: { color: '#94A3B8' },
+  railPillTextNow: { color: '#16A34A' },
+  // Past portion of the rail is illuminated (green); future stays grey.
+  lineLive: { backgroundColor: '#22C55E' },
+  // In-progress lesson rail: start pill (light green) + current-time pill (solid green).
+  itinRailNow: { width: 84, paddingTop: 16, alignItems: 'center', position: 'relative' },
+  railFlowMid: { width: 2, height: 14, backgroundColor: '#22C55E', borderRadius: 1, marginVertical: 3 },
+  railFlowFill: { width: 2, flex: 1, minHeight: 12, backgroundColor: '#E6E8EC', borderRadius: 1, marginTop: 3, marginBottom: -14 },
+  railPillCurrent: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
+  railCurrentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16A34A' },
+  // Current-time marker: a coloured dot centred on the rail line (left 41, w2 → centre 42),
+  // green line above (past), grey below (future).
+  itinNowRow: { flexDirection: 'row', height: 18 },
+  railNowLineTop: { position: 'absolute', left: 41, top: 0, height: 9, width: 2, backgroundColor: '#22C55E', borderRadius: 1 },
+  railNowLineBottom: { position: 'absolute', left: 41, top: 9, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railNowDot: { position: 'absolute', left: 36, top: 3, width: 12, height: 12, borderRadius: 6, backgroundColor: '#16A34A', borderWidth: 2.5, borderColor: '#FFFFFF', zIndex: 3 },
+  itinCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 14,
+    marginBottom: 14,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  // Active (in-progress) lesson: stays a 3D card — MORE elevated, never a flat outline.
+  itinCardActive: { shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 7 },
+  itinCardMuted: { backgroundColor: '#F7F8FA', shadowOpacity: 0, elevation: 0 },
+  itinCardPressed: { opacity: 0.95, transform: [{ scale: 0.992 }] },
+  // Exam card — student-app language (lavender surface + Fluent 3D icon), no right tag.
+  examGroupCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#F5F0FF', borderRadius: 22, padding: 14, marginBottom: 14,
+    shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  examGroupIcon: { width: 42, height: 42 },
+  examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
+  examGroupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  // Group-lesson card — bigger than a normal lesson, teal accent, NO student name.
+  groupLessonCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14,
+    shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  groupLessonIcon: { width: 48, height: 48 },
+  groupLessonLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
+  groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
+  glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
+  glSeatEmpty: { backgroundColor: '#A7D8CE' },
+  glSeatsText: { fontSize: 12, fontWeight: '500', color: '#0F766E', marginLeft: 4 },
+  itinTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
+  itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  itinName: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  itinMeta: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+  itinStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
+  itinStatusPillText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
+  itinActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  itinActBtn: { flex: 1, minHeight: 46, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  itinActCheck: { backgroundColor: '#1A1A2E' },
+  itinActCheckText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  itinActNo: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E9EBF2' },
+  itinActNoText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  itinGapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginLeft: 64,
+    marginBottom: 14,
+    marginTop: -4,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E6E6EA',
+    borderStyle: 'dashed',
+  },
+  itinGapText: { fontSize: 13, fontWeight: '600', color: '#9AA1AC' },
+  itinGapAdd: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  itinGapAddText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  itinFree: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14,
+    borderRadius: 18, borderWidth: 1.5, borderColor: '#E6E6EA', borderStyle: 'dashed',
+    backgroundColor: 'transparent',
+  },
+  itinFreeAdd: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
+  itinFreeTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.1 },
+  itinFreeSub: { fontSize: 12, fontWeight: '500', color: '#9AA1AC', marginTop: 1 },
+  itinMarkerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
+  itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#475569', letterSpacing: 0.1 },
+  dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', marginBottom: 14, marginLeft: 84, lineHeight: 18 },
+  itinNowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 22, marginBottom: 14 },
+  itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#EF4444', opacity: 0.45 },
+  itinNowLabel: { fontSize: 11, fontWeight: '700', color: '#EF4444' },
   hourLabel: {
     width: 46,
     fontSize: 12,
@@ -7492,11 +5484,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
   },
   timelineBlockActive: {
-    backgroundColor: '#FFF1F3',
+    backgroundColor: '#F4F5F9',
     borderLeftWidth: 5,
-    borderLeftColor: '#EC4899',
-    borderColor: '#FECDD3',
-    shadowColor: '#EC4899',
+    borderLeftColor: '#1A1A2E',
+    borderColor: '#D6D9E6',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.15,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -7635,61 +5627,17 @@ const styles = StyleSheet.create({
   },
 
   /* ── FAB ── */
-  fabOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
-    zIndex: 50,
-  },
-  fabMenuContainer: {
-    position: 'absolute',
-    bottom: 164,
-    right: 24,
-    alignItems: 'flex-end',
-    gap: 12,
-    zIndex: 51,
-  },
-  fabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 10,
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  fabPillPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.97 }],
-  },
-  fabPillIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabPillLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginRight: 4,
-  },
   fab: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 24,
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.35,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -7702,27 +5650,40 @@ const oobStyles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
     marginTop: spacing.sm,
+    marginBottom: 10,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  bannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F4F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bannerText: {
     flex: 1,
-    fontSize: 13,
-    color: '#92400E',
+    fontSize: 14,
+    color: '#1A1A2E',
   },
   bannerCount: {
-    fontWeight: '700',
+    fontWeight: '600',
+    color: '#1A1A2E',
   },
   bannerAction: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '600',
-    color: '#92400E',
+    color: '#1A1A2E',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -7755,7 +5716,7 @@ const oobStyles = StyleSheet.create({
     backgroundColor: '#DBEAFE',
   },
   badgeBoth: {
-    backgroundColor: '#FCE7F3',
+    backgroundColor: '#EEF0F4',
   },
   badgeText: {
     fontSize: 11,
@@ -7768,7 +5729,7 @@ const oobStyles = StyleSheet.create({
     color: '#1E40AF',
   },
   badgeTextBoth: {
-    color: '#9D174D',
+    color: '#14141F',
   },
   cardTime: {
     fontSize: 12,
@@ -7805,8 +5766,8 @@ const oobStyles = StyleSheet.create({
     color: '#DC2626',
   },
   actionBtnPrimary: {
-    borderColor: '#EC4899',
-    backgroundColor: '#EC4899',
+    borderColor: '#1A1A2E',
+    backgroundColor: '#1A1A2E',
   },
   actionBtnPrimaryText: {
     color: '#FFFFFF',

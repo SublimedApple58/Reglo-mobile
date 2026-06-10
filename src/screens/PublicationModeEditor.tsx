@@ -1,26 +1,36 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
 import Animated, {
   FadeIn,
-  FadeOut,
+  Extrapolation,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../components/Button';
-import RangesEditor, { TimeRange } from '../components/RangesEditor';
-import { TimePickerDrawer } from '../components/TimePickerDrawer';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import { SkeletonBlock } from '../components/Skeleton';
 import { ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
-import { colors, spacing } from '../theme';
+import { TimeRange } from '../types/regloApi';
+import { timePickerStore } from '../stores/timePickerStore';
+import { publishDayStore } from '../stores/publishDayStore';
+import { availabilityCache } from '../services/availabilityCache';
+
+const FLUENT_CHECK = require('../../assets/icons/fluent-check.png');
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -37,360 +47,317 @@ type DayState = {
 
 // ── Constants ──────────────────────────────────────────────────
 
-const DAY_LETTERS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-const DAY_NAMES_LONG = [
-  'Lunedì',
-  'Martedì',
-  'Mercoledì',
-  'Giovedì',
-  'Venerdì',
-  'Sabato',
-  'Domenica',
-];
+const WEEK_COUNT = 8; // weeks shown in the horizontal rail
+const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const DAY_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
-const SPRING_PRESS = { damping: 15, stiffness: 200 };
 
 // ── Helpers ────────────────────────────────────────────────────
 
-const buildTime = (h: number, m: number): Date => {
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
-};
-
-const formatWeekRange = (weekStart: string): string => {
-  const start = new Date(weekStart + 'T00:00:00Z');
-  const end = new Date(start.getTime() + 6 * 86400000);
-  if (start.getUTCMonth() === end.getUTCMonth()) {
-    const month = start.toLocaleDateString('it-IT', {
-      month: 'long',
-      timeZone: 'UTC',
-    });
-    return `${start.getUTCDate()} – ${end.getUTCDate()} ${month}`;
-  }
-  const sm = start.toLocaleDateString('it-IT', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  });
-  const em = end.toLocaleDateString('it-IT', {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
-  return `${sm} – ${em}`;
-};
+const pad = (n: number) => String(n).padStart(2, '0');
+const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
 const getMonday = (offset: number = 0): string => {
   const d = new Date();
   const dow = d.getDay();
   d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-const formatDetailDate = (dateStr: string): string => {
+const railLabel = (weekStart: string): string => {
+  const start = new Date(weekStart + 'T00:00:00Z');
+  const end = new Date(start.getTime() + 6 * 86400000);
+  const em = end.toLocaleDateString('it-IT', { month: 'short', timeZone: 'UTC' }).replace('.', '');
+  if (start.getUTCMonth() === end.getUTCMonth()) return `${start.getUTCDate()}–${end.getUTCDate()} ${em}`;
+  const sm = start.toLocaleDateString('it-IT', { month: 'short', timeZone: 'UTC' }).replace('.', '');
+  return `${start.getUTCDate()} ${sm}–${end.getUTCDate()} ${em}`;
+};
+
+const dayLongLabel = (dateStr: string, index: number): string => {
   const d = new Date(dateStr + 'T00:00:00Z');
-  return d.toLocaleDateString('it-IT', {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
+  const month = d.toLocaleDateString('it-IT', { month: 'long', timeZone: 'UTC' });
+  return `${DAY_FULL[index]} ${d.getUTCDate()} ${month}`;
 };
 
 const getTodayStr = (): string => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-// ── Sub-components ─────────────────────────────────────────────
+// ── Swipe-to-toggle row (custom Pan gesture) ───────────────────
 
-const NavArrow = ({
-  onPress,
-  direction,
+const SWIPE_THRESHOLD = 76; // px past which release commits the toggle
+const MAX_SWIPE = 116;      // how far the row can be dragged left
+
+const SwipeRow = ({
+  day,
+  index,
+  isToday,
+  onToggle,
+  onEdit,
 }: {
-  onPress: () => void;
-  direction: 'back' | 'forward';
+  day: DayState;
+  index: number;
+  isToday: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
 }) => {
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+  const tx = useSharedValue(0);
+
+  const pan = Gesture.Pan()
+    .activeOffsetX([-12, 12])   // only grab on clear horizontal intent
+    .failOffsetY([-14, 14])     // let the vertical ScrollView win otherwise
+    .onUpdate((e) => {
+      tx.value = Math.max(-MAX_SWIPE, Math.min(0, e.translationX));
+    })
+    .onEnd(() => {
+      if (tx.value <= -SWIPE_THRESHOLD) {
+        runOnJS(onToggle)();
+        tx.value = withTiming(0, { duration: 200 });
+      } else {
+        tx.value = withSpring(0, { damping: 20, stiffness: 220 });
+      }
+    });
+
+  const fgStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
+  const actionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(-tx.value, [8, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
   }));
+
+  const dateNum = new Date(day.date + 'T00:00:00Z').getUTCDate();
+
   return (
-    <Pressable
-      onPressIn={() => {
-        scale.value = withSpring(0.88, SPRING_PRESS);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, SPRING_PRESS);
-      }}
-      onPress={onPress}
-      hitSlop={14}
-    >
-      <Animated.View style={[styles.navArrow, animStyle]}>
-        <Ionicons
-          name={direction === 'back' ? 'chevron-back' : 'chevron-forward'}
-          size={18}
-          color={colors.textSecondary}
-        />
+    <View style={styles.dayRow}>
+      {/* Action revealed behind on left-swipe — floating rounded pill */}
+      <Animated.View style={[styles.swipeActionWrap, actionStyle]} pointerEvents="none">
+        <View style={[styles.swipePill, day.available ? styles.swipePillDisable : styles.swipePillEnable]}>
+          <Ionicons name={day.available ? 'moon' : 'checkmark'} size={15} color="#FFFFFF" />
+          <Text style={styles.swipeActionText}>{day.available ? 'Riposo' : 'Attiva'}</Text>
+        </View>
       </Animated.View>
-    </Pressable>
+
+      {/* Foreground (opaque, slides) */}
+      <GestureDetector gesture={pan}>
+        <Animated.View style={[styles.dayFg, fgStyle]}>
+          <Pressable onPress={onEdit} style={({ pressed }) => [styles.dayRowTap, pressed && styles.rowPressed]}>
+            <Text style={styles.dayName}>{DAY_SHORT[index]} {dateNum}</Text>
+            {isToday && <Text style={styles.todayLabel}>Oggi</Text>}
+            <View style={styles.chipsArea}>
+              {day.available ? (
+                day.ranges.map((r, ri) => (
+                  <View key={ri} style={styles.timeChip}>
+                    <Text style={styles.timeChipText}>{fmtMin(r.startMinutes)}–{fmtMin(r.endMinutes)}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.restText}>Riposo</Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#C7C7CC" style={{ marginLeft: 8 }} />
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
+    </View>
   );
 };
 
 // ── Main Component ─────────────────────────────────────────────
 
 export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
-  const [weekOffset, setWeekOffset] = useState(0);
-  const weekStart = useMemo(() => getMonday(weekOffset), [weekOffset]);
+  const router = useRouter();
+  const [selectedOffset, setSelectedOffset] = useState(0);
+  const weekStart = useMemo(() => getMonday(selectedOffset), [selectedOffset]);
+  const weeksList = useMemo(
+    () => Array.from({ length: WEEK_COUNT }, (_, i) => ({ offset: i, start: getMonday(i) })),
+    [],
+  );
+
+  const [publishedWeeks, setPublishedWeeks] = useState<Set<string>>(new Set());
+  const [railLoading, setRailLoading] = useState(true);
   const [days, setDays] = useState<DayState[]>([]);
-  const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
-  const [savingDay, setSavingDay] = useState<number | null>(null);
-  const [selectedDay, setSelectedDay] = useState(0);
 
-  const [timePickerTarget, setTimePickerTarget] = useState<{
-    dayIndex: number;
-    rangeIndex: number;
-    field: 'start' | 'end';
-  } | null>(null);
+  const daysRef = useRef<DayState[]>([]);
+  daysRef.current = days;
+  const publishedRef = useRef<Set<string>>(publishedWeeks);
+  publishedRef.current = publishedWeeks;
+  const weekStartRef = useRef(weekStart);
+  weekStartRef.current = weekStart;
 
   const todayStr = useMemo(getTodayStr, []);
-  const selectedDayData = days[selectedDay] ?? null;
+  const published = publishedWeeks.has(weekStart);
 
-  // ── Data loading ───────────────────────────────────────────
-
-  const loadWeek = useCallback(async () => {
-    setLoading(true);
+  // ── Rail: published-weeks horizon (one call) ──
+  const fetchRail = useCallback(async () => {
     try {
-      const ws = new Date(weekStart + 'T00:00:00Z');
-      const we = new Date(ws.getTime() + 6 * 86400000);
-      const weStr = `${we.getUTCFullYear()}-${String(we.getUTCMonth() + 1).padStart(2, '0')}-${String(we.getUTCDate()).padStart(2, '0')}`;
+      const res = await regloApi.getPublishedWeeks({ instructorId, from: getMonday(0), to: getMonday(WEEK_COUNT - 1) });
+      const list = res.map((w) => w.weekStart);
+      setPublishedWeeks(new Set(list));
+      availabilityCache.setPublishedWeeks(instructorId, list);
+    } catch {
+      // keep whatever is cached
+    } finally {
+      setRailLoading(false);
+    }
+  }, [instructorId]);
 
-      const [publishedRes, overridesRes] = await Promise.all([
-        regloApi.getPublishedWeeks({
-          instructorId,
-          from: weekStart,
-          to: weekStart,
-        }),
-        regloApi.getDailyAvailabilityOverrides({
-          ownerType: 'instructor',
-          ownerId: instructorId,
-          from: weekStart,
-          to: weStr,
-        }),
-      ]);
+  // ── Fetch one week's days from network, then cache ──
+  const fetchWeek = useCallback(async (ws: string) => {
+    try {
+      const wsDate = new Date(ws + 'T00:00:00Z');
+      const we = new Date(wsDate.getTime() + 6 * 86400000);
+      const weStr = `${we.getUTCFullYear()}-${pad(we.getUTCMonth() + 1)}-${pad(we.getUTCDate())}`;
 
-      const isPublished = publishedRes.length > 0;
-      setPublished(isPublished);
+      const overridesRes = await regloApi.getDailyAvailabilityOverrides({
+        ownerType: 'instructor', ownerId: instructorId, from: ws, to: weStr,
+      });
 
+      const isPublished = publishedRef.current.has(ws);
       const hasAnyOverride = overridesRes.length > 0;
 
-      // Pre-fill from last published week if current week has no overrides
       let templateOverrides: typeof overridesRes = [];
       if (!hasAnyOverride && !isPublished) {
         try {
-          // Find the most recent published week before this one
-          const allPublished = await regloApi.getPublishedWeeks({
-            instructorId,
-            from: '2020-01-01',
-            to: weekStart,
-          });
-          // Sort by weekStart descending, pick the first one that's before current week
+          const allPublished = await regloApi.getPublishedWeeks({ instructorId, from: '2020-01-01', to: ws });
           const previous = allPublished
-            .filter((pw) => pw.weekStart < weekStart)
+            .filter((pw) => pw.weekStart < ws)
             .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
-
           if (previous) {
             const prevWs = new Date(previous.weekStart + 'T00:00:00Z');
             const prevWe = new Date(prevWs.getTime() + 6 * 86400000);
-            const prevWeStr = `${prevWe.getUTCFullYear()}-${String(prevWe.getUTCMonth() + 1).padStart(2, '0')}-${String(prevWe.getUTCDate()).padStart(2, '0')}`;
-            const prevOverrides = await regloApi.getDailyAvailabilityOverrides({
-              ownerType: 'instructor',
-              ownerId: instructorId,
-              from: previous.weekStart,
-              to: prevWeStr,
+            const prevWeStr = `${prevWe.getUTCFullYear()}-${pad(prevWe.getUTCMonth() + 1)}-${pad(prevWe.getUTCDate())}`;
+            templateOverrides = await regloApi.getDailyAvailabilityOverrides({
+              ownerType: 'instructor', ownerId: instructorId, from: previous.weekStart, to: prevWeStr,
             });
-            templateOverrides = prevOverrides;
           }
-        } catch {
-          // Silent fail — just skip pre-fill
-        }
+        } catch { /* skip pre-fill */ }
       }
 
       const newDays: DayState[] = [];
       for (let i = 0; i < 7; i++) {
-        const d = new Date(ws.getTime() + i * 86400000);
-        const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-        const override = overridesRes.find(
-          (o: any) => o.date?.slice(0, 10) === dateStr,
-        );
-
+        const d = new Date(wsDate.getTime() + i * 86400000);
+        const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+        const override = overridesRes.find((o: any) => o.date?.slice(0, 10) === dateStr);
         if (override?.ranges?.length) {
-          // This day has its own override — use it
-          newDays.push({
-            date: dateStr,
-            available: true,
-            ranges: override.ranges as TimeRange[],
-          });
+          newDays.push({ date: dateStr, available: true, ranges: override.ranges as TimeRange[] });
         } else if (templateOverrides.length > 0) {
-          // Pre-fill from template: match by day-of-week (same index)
-          const templateDay = templateOverrides.find((o: any) => {
-            const oDate = new Date(o.date?.slice(0, 10) + 'T00:00:00Z');
-            return oDate.getUTCDay() === d.getUTCDay();
-          });
-          const templateRanges: TimeRange[] = templateDay?.ranges?.length
-            ? (templateDay.ranges as TimeRange[])
-            : [];
-          newDays.push({
-            date: dateStr,
-            available: templateRanges.length > 0,
-            ranges: templateRanges.length > 0 ? templateRanges : [...DEFAULT_RANGES],
-          });
+          const tpl = templateOverrides.find((o: any) => new Date(o.date?.slice(0, 10) + 'T00:00:00Z').getUTCDay() === d.getUTCDay());
+          const tplRanges: TimeRange[] = tpl?.ranges?.length ? (tpl.ranges as TimeRange[]) : [];
+          newDays.push({ date: dateStr, available: tplRanges.length > 0, ranges: tplRanges.length > 0 ? tplRanges : [...DEFAULT_RANGES] });
         } else {
-          // No override, no template — default off
-          newDays.push({
-            date: dateStr,
-            available: false,
-            ranges: [...DEFAULT_RANGES],
-          });
+          newDays.push({ date: dateStr, available: false, ranges: [...DEFAULT_RANGES] });
         }
       }
-      setDays(newDays);
+      // Only commit if the user is still on this week.
+      if (weekStartRef.current === ws) setDays(newDays);
+      availabilityCache.setWeekDays(instructorId, ws, newDays);
     } catch (err) {
-      onToast(
-        err instanceof Error ? err.message : 'Errore nel caricamento',
-        'danger',
-      );
+      onToast(err instanceof Error ? err.message : 'Errore nel caricamento', 'danger');
     } finally {
-      setLoading(false);
+      if (weekStartRef.current === ws) setLoading(false);
     }
-  }, [weekStart, instructorId, onToast]);
+  }, [instructorId, onToast]);
 
+  // Hydrate rail from cache instantly, then refresh.
   useEffect(() => {
-    loadWeek();
-  }, [loadWeek]);
+    let alive = true;
+    (async () => {
+      const cachedPW = await availabilityCache.getPublishedWeeks(instructorId);
+      if (alive && cachedPW) { setPublishedWeeks(new Set(cachedPW)); setRailLoading(false); }
+      fetchRail();
+    })();
+    return () => { alive = false; };
+  }, [instructorId, fetchRail]);
 
-  // ── Day toggle ─────────────────────────────────────────────
+  // On week change: paint cached days instantly (or skeleton), then refresh.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const cached = await availabilityCache.getWeekDays(instructorId, weekStart);
+      if (!alive) return;
+      if (cached) { setDays(cached); setLoading(false); } else { setLoading(true); }
+      fetchWeek(weekStart);
+    })();
+    return () => { alive = false; };
+  }, [weekStart, instructorId, fetchWeek]);
 
-  const toggleDay = useCallback(
-    async (dayIndex: number) => {
-      const day = days[dayIndex];
-      if (!day) return;
-      const newAvailable = !day.available;
-      const newRanges = newAvailable ? day.ranges : [];
+  // ── Time picker (shared route in role stack) ──
+  const openTimePicker = useCallback(
+    (current: Date, onPick: (d: Date) => void) => {
+      timePickerStore.set({ selectedTime: current, onConfirm: onPick });
+      router.push('/(tabs)/role/time-picker' as never);
+    },
+    [router],
+  );
 
-      setSavingDay(dayIndex);
-      try {
-        await regloApi.setDailyAvailabilityOverride({
-          ownerType: 'instructor',
-          ownerId: instructorId,
-          date: day.date,
-          ranges: newRanges,
-        });
-        setDays((prev) =>
-          prev.map((d, i) =>
-            i === dayIndex ? { ...d, available: newAvailable } : d,
-          ),
+  // ── Open the per-day formSheet ──
+  const openDaySheet = (index: number) => {
+    const day = days[index];
+    if (!day) return;
+    publishDayStore.set({
+      dayLabel: dayLongLabel(day.date, index),
+      available: day.available,
+      ranges: day.ranges.length ? day.ranges : [...DEFAULT_RANGES],
+      openTimePicker,
+      onSave: (available, ranges) => {
+        // Optimistic + instant: update UI and cache now, persist in the background.
+        const finalRanges = available ? (ranges.length ? ranges : [...DEFAULT_RANGES]) : [];
+        const prev = daysRef.current;
+        const next = prev.map((d) =>
+          d.date === day.date ? { ...d, available, ranges: available ? finalRanges : d.ranges } : d,
         );
-      } catch {
+        setDays(next);
+        availabilityCache.setWeekDays(instructorId, weekStart, next);
+        regloApi
+          .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: finalRanges })
+          .catch(() => {
+            // Revert on failure.
+            setDays(prev);
+            availabilityCache.setWeekDays(instructorId, weekStart, prev);
+            onToast('Errore nel salvataggio', 'danger');
+          });
+      },
+    });
+    router.push('/(tabs)/role/publish-day' as never);
+  };
+
+  // ── Inline day on/off (optimistic, no sheet) ──
+  const toggleDayInline = (index: number) => {
+    const day = days[index];
+    if (!day) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const nextAvailable = !day.available;
+    // Keep the ranges in local state when turning off, so they come back on re-enable.
+    const keptRanges = nextAvailable ? (day.ranges.length ? day.ranges : [...DEFAULT_RANGES]) : day.ranges;
+    const persistRanges = nextAvailable ? keptRanges : [];
+    const prev = daysRef.current;
+    const next = prev.map((d, i) => (i === index ? { ...d, available: nextAvailable, ranges: keptRanges } : d));
+    setDays(next);
+    availabilityCache.setWeekDays(instructorId, weekStart, next);
+    regloApi
+      .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: persistRanges })
+      .catch(() => {
+        setDays(prev);
+        availabilityCache.setWeekDays(instructorId, weekStart, prev);
         onToast('Errore nel salvataggio', 'danger');
-      } finally {
-        setSavingDay(null);
-      }
-    },
-    [days, instructorId, onToast],
-  );
+      });
+  };
 
-  // ── Range editing ──────────────────────────────────────────
-
-  const updateRanges = useCallback(
-    async (dayIndex: number, ranges: TimeRange[]) => {
-      const day = days[dayIndex];
-      if (!day) return;
-      setDays((prev) =>
-        prev.map((d, i) => (i === dayIndex ? { ...d, ranges } : d)),
-      );
-      try {
-        await regloApi.setDailyAvailabilityOverride({
-          ownerType: 'instructor',
-          ownerId: instructorId,
-          date: day.date,
-          ranges,
-        });
-      } catch {
-        onToast('Errore nel salvataggio della fascia', 'danger');
-      }
-    },
-    [days, instructorId, onToast],
-  );
-
-  const handlePickTime = useCallback(
-    (dayIndex: number, rangeIndex: number, field: 'start' | 'end') => {
-      setTimePickerTarget({ dayIndex, rangeIndex, field });
-    },
-    [],
-  );
-
-  const handleTimePickerSelect = useCallback(
-    (date: Date) => {
-      if (!timePickerTarget) return;
-      const minutes = date.getHours() * 60 + date.getMinutes();
-      const { dayIndex, rangeIndex, field } = timePickerTarget;
-      const day = days[dayIndex];
-      if (!day) return;
-      const key = field === 'start' ? 'startMinutes' : 'endMinutes';
-      const newRanges = day.ranges.map((r, i) =>
-        i === rangeIndex ? { ...r, [key]: minutes } : r,
-      );
-      updateRanges(dayIndex, newRanges);
-    },
-    [timePickerTarget, days, updateRanges],
-  );
-
-  const timePickerSelectedTime = useMemo(() => {
-    if (!timePickerTarget) return buildTime(9, 0);
-    const day = days[timePickerTarget.dayIndex];
-    if (!day) return buildTime(9, 0);
-    const range = day.ranges[timePickerTarget.rangeIndex];
-    if (!range) return buildTime(9, 0);
-    const mins =
-      timePickerTarget.field === 'start'
-        ? range.startMinutes
-        : range.endMinutes;
-    return buildTime(Math.floor(mins / 60), mins % 60);
-  }, [timePickerTarget, days]);
-
-  const handleAddRange = useCallback(
-    (dayIndex: number) => {
-      const day = days[dayIndex];
-      if (!day) return;
-      const lastEnd = day.ranges[day.ranges.length - 1]?.endMinutes ?? 540;
-      const newRange: TimeRange = {
-        startMinutes: lastEnd,
-        endMinutes: Math.min(lastEnd + 120, 1440),
-      };
-      updateRanges(dayIndex, [...day.ranges, newRange]);
-    },
-    [days, updateRanges],
-  );
-
-  // ── Publish / Unpublish ────────────────────────────────────
-
+  // ── Publish / Unpublish ──
   const handlePublish = useCallback(async () => {
     setPublishing(true);
     try {
       await regloApi.publishWeek({ weekStart, instructorId });
-      setPublished(true);
+      setPublishedWeeks((prev) => {
+        const n = new Set(prev).add(weekStart);
+        availabilityCache.setPublishedWeeks(instructorId, [...n]);
+        return n;
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onToast('Settimana pubblicata');
     } catch (err) {
-      onToast(
-        err instanceof Error ? err.message : 'Errore nella pubblicazione',
-        'danger',
-      );
+      onToast(err instanceof Error ? err.message : 'Errore nella pubblicazione', 'danger');
     } finally {
       setPublishing(false);
     }
@@ -400,13 +367,15 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     setPublishing(true);
     try {
       await regloApi.unpublishWeek({ weekStart, instructorId });
-      setPublished(false);
+      setPublishedWeeks((prev) => {
+        const n = new Set(prev); n.delete(weekStart);
+        availabilityCache.setPublishedWeeks(instructorId, [...n]);
+        return n;
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       onToast('Pubblicazione ritirata');
     } catch (err) {
-      onToast(
-        err instanceof Error ? err.message : 'Errore nel ritiro',
-        'danger',
-      );
+      onToast(err instanceof Error ? err.message : 'Errore nel ritiro', 'danger');
     } finally {
       setPublishing(false);
     }
@@ -416,352 +385,167 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
 
   return (
     <View style={styles.container}>
-      {/* ── Week Navigation ────────────────────────────────── */}
-      <View style={styles.weekNav}>
-        <NavArrow
-          direction="back"
-          onPress={() => setWeekOffset((p) => p - 1)}
-        />
-        <View style={styles.weekCenter}>
-          <Text style={styles.weekLabel}>{formatWeekRange(weekStart)}</Text>
-          <View
-            style={[
-              styles.statusPill,
-              {
-                backgroundColor: published ? '#F0FDF4' : '#FEFCE8',
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: published ? '#22C55E' : '#CA8A04' },
-              ]}
-            />
-            <Text
-              style={[
-                styles.statusText,
-                { color: published ? '#16A34A' : '#CA8A04' },
-              ]}
+      {/* ── Week pills (chunky, rounded, greyscale state) ─── */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {weeksList.map((w) => {
+          const isSel = w.offset === selectedOffset;
+          const isPub = !railLoading && publishedWeeks.has(w.start);
+          return (
+            <Pressable
+              key={w.start}
+              onPress={() => setSelectedOffset(w.offset)}
+              style={[styles.weekPill, isSel ? styles.weekPillSel : isPub ? styles.weekPillPub : styles.weekPillOff]}
             >
-              {published ? 'Pubblicata' : 'Bozza'}
-            </Text>
+              {isPub && (
+                <Ionicons name="checkmark-circle" size={14} color={isSel ? '#FFFFFF' : PUB_FG} style={{ marginRight: 5 }} />
+              )}
+              <Text style={[styles.weekPillText, isSel ? styles.weekPillTextSel : isPub && styles.weekPillTextPub]}>
+                {railLabel(w.start)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* ── Action bar: status + publish (high & visible) ─── */}
+      <View style={styles.actionBar}>
+        <View style={styles.actionInfo}>
+          <View style={styles.actionStatusRow}>
+            {published ? (
+              <Image source={FLUENT_CHECK} style={styles.statusIcon} />
+            ) : (
+              <Ionicons name="ellipse-outline" size={17} color="#C0C4CC" />
+            )}
+            <Text style={styles.actionTitle}>{published ? 'Pubblicata' : 'Da pubblicare'}</Text>
           </View>
         </View>
-        <NavArrow
-          direction="forward"
-          onPress={() => setWeekOffset((p) => p + 1)}
-        />
+        <Pressable
+          onPress={publishing ? undefined : published ? handleUnpublish : handlePublish}
+          disabled={publishing}
+          style={({ pressed }) => [
+            published ? styles.btnGhost : styles.btnPublish,
+            pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+            publishing && { opacity: 0.6 },
+          ]}
+        >
+          {publishing ? (
+            <ActivityIndicator color={published ? '#6B7280' : '#FFFFFF'} />
+          ) : (
+            <Text style={published ? styles.btnGhostText : styles.btnPublishText}>
+              {published ? 'Ritira' : 'Pubblica'}
+            </Text>
+          )}
+        </Pressable>
       </View>
 
-      {/* ── Main Panel ─────────────────────────────────────── */}
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : (
-        <>
-          <View style={styles.panel}>
-            {/* Day strip — horizontal selector */}
-            <View style={styles.dayStrip}>
-              {days.map((day, i) => {
-                const isSelected = i === selectedDay;
-                const isToday = day.date === todayStr;
-                return (
-                  <Pressable
-                    key={day.date}
-                    onPress={() => setSelectedDay(i)}
-                    style={[
-                      styles.dayPill,
-                      day.available && styles.dayPillAvailable,
-                      !day.available && styles.dayPillInactive,
-                      isSelected && styles.dayPillSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayPillLetter,
-                        day.available && styles.dayPillTextLight,
-                      ]}
-                    >
-                      {DAY_LETTERS[i]}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dayPillDate,
-                        day.available && styles.dayPillTextLight,
-                        isToday &&
-                          !day.available &&
-                          styles.dayPillDateToday,
-                      ]}
-                    >
-                      {new Date(day.date + 'T00:00:00Z').getUTCDate()}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Divider */}
-            <View style={styles.panelDivider} />
-
-            {/* Detail for selected day */}
-            {selectedDayData && (
-              <Animated.View
-                key={selectedDayData.date}
-                entering={FadeIn.duration(180)}
-              >
-                <View style={styles.detailHeader}>
-                  <View>
-                    <Text style={styles.detailTitle}>
-                      {DAY_NAMES_LONG[selectedDay]}
-                    </Text>
-                    <Text style={styles.detailSubtitle}>
-                      {formatDetailDate(selectedDayData.date)}
-                    </Text>
-                  </View>
-                  <View style={styles.detailControls}>
-                    {savingDay === selectedDay && (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.primary}
-                      />
-                    )}
-                    <Switch
-                      value={selectedDayData.available}
-                      onValueChange={() => toggleDay(selectedDay)}
-                      trackColor={{
-                        false: '#E5E7EB',
-                        true: colors.primary,
-                      }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                </View>
-
-                {selectedDayData.available ? (
-                  <Animated.View
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(120)}
-                    style={styles.detailRanges}
-                  >
-                    <RangesEditor
-                      ranges={selectedDayData.ranges}
-                      onChange={(ranges) =>
-                        updateRanges(selectedDay, ranges)
-                      }
-                      onPickTime={(rangeIndex, field) =>
-                        handlePickTime(selectedDay, rangeIndex, field)
-                      }
-                      onAddRange={() => handleAddRange(selectedDay)}
-                    />
-                  </Animated.View>
-                ) : (
-                  <Animated.View
-                    entering={FadeIn.duration(200)}
-                    style={styles.detailOff}
-                  >
-                    <Ionicons
-                      name="moon-outline"
-                      size={20}
-                      color={colors.textMuted}
-                    />
-                    <Text style={styles.detailOffText}>
-                      Non disponibile
-                    </Text>
-                  </Animated.View>
-                )}
-              </Animated.View>
-            )}
-          </View>
-
-          {/* ── Publish CTA ──────────────────────────────────── */}
-          <Animated.View entering={FadeIn.duration(250).delay(200)}>
-            <Button
-              label={
-                published
-                  ? publishing
-                    ? 'Ritirando...'
-                    : 'Ritira pubblicazione'
-                  : publishing
-                    ? 'Pubblicando...'
-                    : 'Pubblica settimana'
-              }
-              onPress={published ? handleUnpublish : handlePublish}
-              tone={published ? 'danger' : 'primary'}
-              disabled={publishing}
-              fullWidth
-            />
-          </Animated.View>
-        </>
+      {/* ── Swipe hint ────────────────────────────────────── */}
+      {!loading && (
+        <View style={styles.swipeHint}>
+          <Ionicons name="arrow-back" size={13} color="#B0B5BD" />
+          <Text style={styles.swipeHintText}>Trascina un giorno verso sinistra per attivarlo o disattivarlo</Text>
+        </View>
       )}
 
-      <TimePickerDrawer
-        visible={timePickerTarget !== null}
-        selectedTime={timePickerSelectedTime}
-        onSelectTime={handleTimePickerSelect}
-        onClose={() => setTimePickerTarget(null)}
-      />
+      {/* ── Day list — flat rows, hairline dividers ───────── */}
+      {loading ? (
+        <View style={styles.list}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <View key={i} style={[styles.dayRow, styles.daySkeletonRow]}>
+              <SkeletonBlock width={70} height={15} radius={7} />
+              <View style={{ flex: 1 }} />
+              <SkeletonBlock width={96} height={13} radius={7} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Animated.View key={weekStart} entering={FadeIn.duration(220)} style={styles.list}>
+          {days.map((day, i) => (
+            <SwipeRow
+              key={day.date}
+              day={day}
+              index={i}
+              isToday={day.date === todayStr}
+              onToggle={() => toggleDayInline(i)}
+              onEdit={() => openDaySheet(i)}
+            />
+          ))}
+        </Animated.View>
+      )}
+
     </View>
   );
 };
 
 // ── Styles ─────────────────────────────────────────────────────
 
+const HAIRLINE = '#ECECEC';
+const PUB_BG = '#E9F9F0';   // chiarissimo menta (pill pubblicata)
+const PUB_FG = '#34C759';   // verde fresco iOS (check)
+
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing.lg,
-  },
+  container: {},
 
-  /* ── Week navigation ─────────────────────────────────── */
-  weekNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  navArrow: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekCenter: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  weekLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    textTransform: 'capitalize',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
+  /* ── Week pills ──────────────────────────────────────── */
+  rail: { gap: 8, paddingRight: 8, paddingVertical: 2 },
+  weekPill: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  weekPillOff: { backgroundColor: '#F1F2F4' },
+  weekPillPub: { backgroundColor: PUB_BG },
+  weekPillSel: { backgroundColor: '#1A1A2E' },
+  weekPillText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF', letterSpacing: -0.2 },
+  weekPillTextPub: { color: '#334155', fontWeight: '700' },
+  weekPillTextSel: { color: '#FFFFFF', fontWeight: '700' },
 
-  /* ── Loader ──────────────────────────────────────────── */
-  loader: {
-    marginTop: 24,
-  },
+  /* ── Swipe hint ──────────────────────────────────────── */
+  swipeHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 },
+  swipeHintText: { fontSize: 12, fontWeight: '500', color: '#B0B5BD', letterSpacing: -0.1 },
 
-  /* ── Panel ───────────────────────────────────────────── */
-  panel: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
+  /* ── Day list (flat) ─────────────────────────────────── */
+  list: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HAIRLINE },
+  dayRow: {
+    minHeight: 60, overflow: 'hidden', position: 'relative',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: HAIRLINE,
   },
+  dayFg: { backgroundColor: '#FDFDFD' },
+  daySkeletonRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18 },
+  dayRowTap: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, minHeight: 60 },
+  rowPressed: { opacity: 0.5 },
+  swipeActionWrap: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: MAX_SWIPE,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  swipePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999,
+  },
+  swipePillDisable: { backgroundColor: '#64748B' },
+  swipePillEnable: { backgroundColor: '#34C759' },
+  swipeActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
+  dayName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  todayLabel: { fontSize: 13, fontWeight: '500', color: '#9CA3AF', marginLeft: 1 },
 
-  /* ── Day strip ───────────────────────────────────────── */
-  dayStrip: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.md,
-    gap: 4,
+  chipsArea: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
+  timeChip: {
+    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13,
+    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
   },
-  dayPill: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 2,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  dayPillAvailable: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayPillInactive: {
-    backgroundColor: '#F1F5F9',
-  },
-  dayPillSelected: {
-    borderColor: colors.accent,
-  },
-  dayPillLetter: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  dayPillDate: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  dayPillTextLight: {
-    color: '#FFFFFF',
-  },
-  dayPillDateToday: {
-    color: colors.primary,
-  },
+  timeChipText: { fontSize: 13.5, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  restText: { fontSize: 15, fontWeight: '400', color: '#C0C4CC' },
 
-  /* ── Panel divider ───────────────────────────────────── */
-  panelDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
+  /* ── Action bar (Airbnb footer-style, placed up top) ─── */
+  actionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 },
+  actionInfo: { flex: 1, gap: 3 },
+  actionStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusIcon: { width: 20, height: 20, resizeMode: 'contain' },
+  actionTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  btnPublish: {
+    backgroundColor: '#1A1A2E', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5,
   },
-
-  /* ── Detail section ──────────────────────────────────── */
-  detailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+  btnPublishText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  btnGhost: {
+    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 22, minWidth: 100,
+    borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center',
   },
-  detailTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  detailSubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  detailControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailRanges: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  detailOff: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: spacing.xl,
-  },
-  detailOffText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
+  btnGhostText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
 });

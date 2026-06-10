@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
-  ActivityIndicator,
+  ActionSheetIOS,
   Alert,
+  Image,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,16 +14,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Screen } from '../components/Screen';
-import { Button } from '../components/Button';
-import { LocationFormSheet } from '../components/LocationFormSheet';
-import { colors, radii, spacing, typography } from '../theme';
+import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
+import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
-import type {
-  AutoscuolaLocation,
-  CreateLocationInput,
-} from '../types/regloApi';
+import { useSession } from '../context/SessionContext';
+import { useLocations } from '../hooks/queries/useLocations';
+import { queryKeys } from '../hooks/queries/queryKeys';
+import { locationFormStore } from '../stores/locationFormStore';
+import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
 const toNumber = (value: number | string | null | undefined): number | null => {
   if (value == null) return null;
@@ -32,61 +35,46 @@ const toNumber = (value: number | string | null | undefined): number | null => {
 
 export const LocationsScreen = () => {
   const router = useRouter();
-  const [locations, setLocations] = useState<AutoscuolaLocation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [formSheet, setFormSheet] = useState<{
-    initial: AutoscuolaLocation | null;
-  } | null>(null);
+  const { activeCompanyId } = useSession();
+  const queryClient = useQueryClient();
+  const { data: locations = [], isLoading } = useLocations();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await regloApi.getLocations();
-      setLocations(data ?? []);
-    } catch {
-      setLocations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const invalidate = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.locations(activeCompanyId) }),
+    [queryClient, activeCompanyId],
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleCreate = async (values: CreateLocationInput) => {
-    await regloApi.createLocation(values);
-    await load();
-  };
-
-  const handleUpdate = async (id: string, values: CreateLocationInput) => {
-    await regloApi.updateLocation(id, values);
-    await load();
-  };
+  const openForm = useCallback(
+    (initial: AutoscuolaLocation | null) => {
+      locationFormStore.set({
+        initial,
+        onSubmit: async (values: CreateLocationInput) => {
+          if (initial) await regloApi.updateLocation(initial.id, values);
+          else await regloApi.createLocation(values);
+          await invalidate();
+        },
+      });
+      router.push('/(tabs)/more/location-form');
+    },
+    [router, invalidate],
+  );
 
   const handleDelete = (loc: AutoscuolaLocation) => {
-    Alert.alert(
-      'Eliminare luogo?',
-      `"${loc.name}" sarà rimosso dalla lista.`,
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await regloApi.deleteLocation(loc.id);
-              await load();
-            } catch (err) {
-              Alert.alert(
-                'Errore',
-                err instanceof Error ? err.message : 'Eliminazione fallita.',
-              );
-            }
-          },
+    Alert.alert('Eliminare luogo?', `"${loc.name}" sarà rimosso dalla lista.`, [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await regloApi.deleteLocation(loc.id);
+            await invalidate();
+          } catch (err) {
+            Alert.alert('Errore', err instanceof Error ? err.message : 'Eliminazione fallita.');
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const openMaps = (loc: AutoscuolaLocation) => {
@@ -98,273 +86,197 @@ export const LocationsScreen = () => {
     Linking.openURL(url).catch(() => null);
   };
 
+  // Tapping a location opens a native action menu (Airbnb-style) instead of
+  // inline buttons cluttering each row.
+  const openActions = (loc: AutoscuolaLocation) => {
+    const lat = toNumber(loc.latitude);
+    const lng = toNumber(loc.longitude);
+    const canMaps = loc.isPrecise && lat != null && lng != null;
+
+    if (Platform.OS === 'ios') {
+      const options = [
+        ...(canMaps ? ['Apri in Maps'] : []),
+        'Elimina',
+        'Annulla',
+      ];
+      const cancelButtonIndex = options.length - 1;
+      const destructiveButtonIndex = options.length - 2;
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: loc.name, options, cancelButtonIndex, destructiveButtonIndex },
+        (i) => {
+          const label = options[i];
+          if (label === 'Apri in Maps') openMaps(loc);
+          else if (label === 'Elimina') handleDelete(loc);
+        },
+      );
+    } else {
+      Alert.alert(loc.name, undefined, [
+        ...(canMaps ? [{ text: 'Apri in Maps', onPress: () => openMaps(loc) }] : []),
+        { text: 'Elimina', style: 'destructive' as const, onPress: () => handleDelete(loc) },
+        { text: 'Annulla', style: 'cancel' as const },
+      ]);
+    }
+  };
+
   const sede = locations.find((l) => l.isDefault) ?? null;
   const customs = locations.filter((l) => !l.isDefault);
+  const sedeTappable = sede?.isPrecise && toNumber(sede.latitude) != null && toNumber(sede.longitude) != null;
 
   return (
     <Screen>
       <StatusBar style="dark" />
+
+      {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
         </Pressable>
-        <Text style={styles.headerTitle}>Luoghi guida</Text>
-        <View style={{ width: 32 }} />
+        <Text style={[styles.headerTitle, { flex: 1 }]}>Luoghi guida</Text>
+        <Pressable onPress={() => openForm(null)} hitSlop={10} style={styles.headerAdd}>
+          <Ionicons name="add" size={28} color="#1A1A2E" />
+        </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Sede */}
-        <Text style={styles.sectionTitle}>Sede dell&apos;autoscuola</Text>
-        <Text style={styles.sectionSubtitle}>
-          Modificabile solo dal titolare nelle impostazioni web. Usata come luogo di default per ogni guida.
-        </Text>
-        {loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* ── Sede ── */}
+        <Text style={styles.sectionLabel}>SEDE PRINCIPALE</Text>
+        {isLoading ? (
+          <SkeletonCard style={styles.skelCard}>
+            <SkeletonBlock width="55%" height={16} radius={6} />
+            <SkeletonBlock width="80%" height={12} radius={6} style={{ marginTop: 8 }} />
+          </SkeletonCard>
         ) : (
           <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconWrap, styles.iconSede]}>
-                <Ionicons name="business-outline" size={20} color="#EC4899" />
+            <View style={styles.row}>
+              <View style={styles.iconWrap}>
+                <Ionicons name="business-outline" size={23} color="#1A1A2E" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardName}>{sede?.name ?? "Sede dell'autoscuola"}</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.cardName} numberOfLines={1}>{sede?.name ?? "Sede dell'autoscuola"}</Text>
                 {sede?.address ? (
-                  <Text style={styles.cardAddress}>{sede.address}</Text>
+                  <Text style={styles.cardAddress} numberOfLines={1}>{sede.address}</Text>
                 ) : (
                   <Text style={styles.cardAddressMuted}>Non ancora configurata</Text>
                 )}
               </View>
-              {sede?.isPrecise && sede.latitude != null && sede.longitude != null ? (
-                <Pressable onPress={() => openMaps(sede)} style={styles.linkBtn}>
-                  <Ionicons name="open-outline" size={18} color={colors.primary} />
+              {sedeTappable ? (
+                <Pressable onPress={() => openMaps(sede!)} hitSlop={8} style={styles.mapsBtn}>
+                  <Ionicons name="open-outline" size={19} color="#6E7596" />
                 </Pressable>
               ) : null}
             </View>
           </View>
         )}
+        <Text style={styles.note}>
+          Modificabile solo dal titolare dalle impostazioni web. Usata come luogo di default per ogni guida.
+        </Text>
 
-        {/* Altri luoghi */}
-        <View style={styles.customsHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Altri luoghi</Text>
-            <Text style={styles.sectionSubtitle}>
-              Aggiungi parcheggi, punti di ritrovo o aree di esercitazione.
-            </Text>
+        {/* ── Altri luoghi ── */}
+        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>ALTRI LUOGHI</Text>
+
+        {isLoading ? (
+          <>
+            <SkeletonCard style={styles.skelCard}>
+              <SkeletonBlock width="50%" height={15} radius={6} />
+              <SkeletonBlock width="70%" height={12} radius={6} style={{ marginTop: 8 }} />
+            </SkeletonCard>
+            <SkeletonCard style={styles.skelCard}>
+              <SkeletonBlock width="45%" height={15} radius={6} />
+              <SkeletonBlock width="65%" height={12} radius={6} style={{ marginTop: 8 }} />
+            </SkeletonCard>
+          </>
+        ) : customs.length === 0 ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIconCircle}>
+              <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.emptyIcon} />
+            </View>
+            <Text style={styles.emptyTitle}>Nessun luogo aggiuntivo</Text>
+            <Text style={styles.emptySub}>Aggiungi parcheggi, punti di ritrovo o aree di esercitazione.</Text>
           </View>
-          <Button label="+ Aggiungi" onPress={() => setFormSheet({ initial: null })} />
-        </View>
-
-        {customs.length === 0 && !loading ? (
-          <Text style={styles.emptyText}>Nessun luogo aggiuntivo.</Text>
-        ) : null}
-
-        {customs.map((loc) => {
-          const lat = toNumber(loc.latitude);
-          const lng = toNumber(loc.longitude);
-          const tappable = loc.isPrecise && lat != null && lng != null;
-          return (
-            <View key={loc.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View
-                  style={[
-                    styles.iconWrap,
-                    loc.isPrecise ? styles.iconPrecise : styles.iconGeneric,
-                  ]}
-                >
+        ) : (
+          customs.map((loc, i) => (
+            <React.Fragment key={loc.id}>
+              {i > 0 ? <View style={styles.locDivider} /> : null}
+              <Pressable
+                onPress={() => openForm(loc)}
+                style={({ pressed }) => [styles.locRow, pressed && styles.locRowPressed]}
+              >
+                <View style={styles.iconWrap}>
                   <Ionicons
-                    name={loc.isPrecise ? 'location' : 'pricetag-outline'}
-                    size={20}
-                    color={loc.isPrecise ? '#16A34A' : '#6B7280'}
+                    name={loc.isPrecise ? 'location-outline' : 'pricetag-outline'}
+                    size={23}
+                    color="#1A1A2E"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.cardName} numberOfLines={1}>
-                      {loc.name}
-                    </Text>
-                    <View
-                      style={[
-                        styles.badge,
-                        loc.isPrecise ? styles.badgePrecise : styles.badgeGeneric,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.badgeText,
-                          loc.isPrecise ? styles.badgeTextPrecise : styles.badgeTextGeneric,
-                        ]}
-                      >
-                        {loc.isPrecise ? 'Precisa' : 'Generica'}
-                      </Text>
-                    </View>
-                  </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.cardName} numberOfLines={1}>{loc.name}</Text>
                   {loc.address ? (
-                    <Text style={styles.cardAddress} numberOfLines={1}>
-                      {loc.address}
-                    </Text>
+                    <Text style={styles.cardAddress} numberOfLines={1}>{loc.address}</Text>
                   ) : null}
                 </View>
-              </View>
-              <View style={styles.actionRow}>
-                {tappable ? (
-                  <Pressable onPress={() => openMaps(loc)} style={styles.actionBtn}>
-                    <Ionicons name="open-outline" size={18} color={colors.textSecondary} />
-                    <Text style={styles.actionText}>Maps</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={() => setFormSheet({ initial: loc })}
-                  style={styles.actionBtn}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
-                  <Text style={styles.actionText}>Modifica</Text>
+                <Pressable onPress={() => openActions(loc)} hitSlop={12} style={styles.ellipsisBtn}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#C7C7CC" />
                 </Pressable>
-                <Pressable onPress={() => handleDelete(loc)} style={styles.actionBtn}>
-                  <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-                  <Text style={[styles.actionText, { color: colors.destructive }]}>
-                    Elimina
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          );
-        })}
+              </Pressable>
+            </React.Fragment>
+          ))
+        )}
       </ScrollView>
-
-      <LocationFormSheet
-        visible={formSheet !== null}
-        initialValue={formSheet?.initial ?? null}
-        onClose={() => setFormSheet(null)}
-        onSubmit={async (values) => {
-          if (formSheet?.initial) {
-            await handleUpdate(formSheet.initial.id, values);
-          } else {
-            await handleCreate(values);
-          }
-        }}
-      />
     </Screen>
   );
 };
 
+const CARD_SHADOW = {
+  shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
+} as const;
+
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm,
   },
-  backBtn: { padding: spacing.xs },
-  headerTitle: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  backBtn: { padding: 2 },
+  headerAdd: { padding: 2 },
+  headerTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
+
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
+
+  sectionLabel: {
+    fontSize: 12, fontWeight: '600', color: '#9CA3AF',
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 12,
   },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
-  sectionTitle: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  customsHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
+  note: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', lineHeight: 18, marginTop: 12 },
+
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    backgroundColor: colors.surface, borderRadius: 20, padding: 16, marginBottom: 12,
+    ...CARD_SHADOW,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  skelCard: { borderRadius: 20, padding: 16, marginBottom: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconWrap: { width: 32, alignItems: 'center', justifyContent: 'center' },
+
+  cardName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  cardAddress: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
+  cardAddressMuted: { fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: '#9CA3AF', marginTop: 2 },
+
+  mapsBtn: { padding: 4 },
+
+  // "Altri luoghi" = FLAT list (NOT wrapped in a card): rows flush-left on the
+  // page background (icon at the screen margin), hairline dividers, tap → edit,
+  // ••• → native action menu.
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 0 },
+  locRowPressed: { backgroundColor: '#F4F5F9' },
+  locDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 46 },
+  ellipsisBtn: { padding: 4 },
+
+  empty: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 24 },
+  emptyIconCircle: {
+    width: 88, height: 88, borderRadius: 44, backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+    ...CARD_SHADOW,
   },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconSede: { backgroundColor: '#FCE7F3' },
-  iconPrecise: { backgroundColor: '#DCFCE7' },
-  iconGeneric: { backgroundColor: '#F3F4F6' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  cardName: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  cardAddress: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  cardAddressMuted: {
-    ...typography.caption,
-    fontStyle: 'italic',
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  badge: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  badgePrecise: { backgroundColor: '#DCFCE7' },
-  badgeGeneric: { backgroundColor: '#F3F4F6' },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  badgeTextPrecise: { color: '#15803D' },
-  badgeTextGeneric: { color: '#4B5563' },
-  linkBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FCE7F3',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  emptyText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-  },
+  emptyIcon: { width: 48, height: 48 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  emptySub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });

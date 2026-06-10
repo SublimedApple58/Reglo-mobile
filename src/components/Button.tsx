@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
 
 type ButtonTone = 'standard' | 'primary' | 'danger' | 'secondary';
@@ -10,6 +10,8 @@ type ButtonProps = {
   tone?: ButtonTone;
   disabled?: boolean;
   fullWidth?: boolean;
+  /** Shows a spinner in place of the label (the label stays stable, no text swap). */
+  loading?: boolean;
 };
 
 type ToneStyle = {
@@ -47,24 +49,30 @@ export const Button = ({
   tone = 'standard',
   disabled = false,
   fullWidth = false,
+  loading = false,
 }: ButtonProps) => {
   const t = tones[tone];
+  const isDisabled = disabled || loading;
 
   return (
     <Pressable
-      onPress={onPress}
-      disabled={disabled}
+      onPress={loading ? undefined : onPress}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.root,
         fullWidth && styles.fullWidth,
         { backgroundColor: t.bg, borderColor: t.border },
         pressed && styles.pressed,
-        disabled && styles.disabled,
+        isDisabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.label, { color: t.text }, disabled && styles.labelDisabled]}>
-        {label}
-      </Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={t.text} />
+      ) : (
+        <Text style={[styles.label, { color: t.text }, isDisabled && styles.labelDisabled]}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 };

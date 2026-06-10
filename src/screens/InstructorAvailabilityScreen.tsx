@@ -1,169 +1,238 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+  FadeIn,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Screen } from '../components/Screen';
-import { Badge } from '../components/Badge';
-import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { AvailabilityEditor } from './InstructorManageScreen';
+import { SkeletonBlock } from '../components/Skeleton';
+import { DefaultAvailabilityEditor } from './DefaultAvailabilityEditor';
 import { PublicationModeEditor } from './PublicationModeEditor';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaSettings, AvailabilityMode } from '../types/regloApi';
-import { colors, radii, spacing } from '../theme';
+import { availabilityCache } from '../services/availabilityCache';
+import { AvailabilityMode } from '../types/regloApi';
+import { colors } from '../theme';
 import { useSession } from '../context/SessionContext';
+
+const H_PAD = 22;
+const COMPACT_H = 54;
+const LARGE_TITLE_H = 56;
+
+const FLUENT_CALENDAR = require('../../assets/icons/fluent-calendar.png');
 
 export const InstructorAvailabilityScreen = () => {
   const { instructorId } = useSession();
-  const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
+  const insets = useSafeAreaInsets();
   const [availabilityMode, setAvailabilityMode] = useState<AvailabilityMode>('default');
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [weeks, setWeeks] = useState(4);
+  const [modeLoading, setModeLoading] = useState(true);
+  const [editorKey, setEditorKey] = useState(0);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadMode = useCallback(async () => {
     try {
       const [settingsRes, instrSettings] = await Promise.all([
-        regloApi.getAutoscuolaSettings(),
+        regloApi.getAutoscuolaSettings().catch(() => null),
         regloApi.getInstructorSettings().catch(() => null),
       ]);
-      setSettings(settingsRes);
-      if (instrSettings?.settings?.availabilityMode) {
-        setAvailabilityMode(instrSettings.settings.availabilityMode);
+      const freshWeeks = settingsRes?.availabilityWeeks ?? null;
+      const freshMode = instrSettings?.settings?.availabilityMode ?? null;
+      if (freshWeeks) setWeeks(freshWeeks);
+      if (freshMode) setAvailabilityMode(freshMode);
+      if (instructorId && (freshWeeks || freshMode)) {
+        availabilityCache.setMode(instructorId, {
+          mode: freshMode ?? 'default',
+          weeks: freshWeeks ?? 4,
+        });
       }
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nel caricamento',
-        tone: 'danger',
-      });
+    } catch {
+      setToast({ text: 'Errore nel caricamento', tone: 'danger' });
     } finally {
-      setInitialLoading(false);
+      setModeLoading(false);
     }
-  }, []);
+  }, [instructorId]);
 
+  // Hydrate the mode from cache so the editor paints instantly, then refresh.
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let alive = true;
+    (async () => {
+      if (instructorId) {
+        const cached = await availabilityCache.getMode(instructorId);
+        if (alive && cached) {
+          setAvailabilityMode(cached.mode);
+          setWeeks(cached.weeks);
+          setModeLoading(false);
+        }
+      }
+      loadMode();
+    })();
+    return () => { alive = false; };
+  }, [instructorId, loadMode]);
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
+    await loadMode();
+    setEditorKey((k) => k + 1); // force the active editor to remount + refetch
+  }, [loadMode]);
 
-  if (!instructorId) {
-    return (
-      <Screen>
-        <StatusBar style="dark" />
-        <View style={styles.emptyState}>
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>Profilo istruttore mancante</Text>
-            <Text style={styles.emptyText}>
-              Il tuo account non e ancora collegato a un profilo istruttore.
-            </Text>
-          </View>
-        </View>
-      </Screen>
-    );
-  }
+  const onToast = useCallback((text: string, tone: ToastTone = 'success') => {
+    setToast({ text, tone });
+  }, []);
+
+  /* ── Collapsible header ── */
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
+  const largeTitleStyle = useAnimatedStyle(() => {
+    const ty = scrollY.value < 0
+      ? scrollY.value
+      : interpolate(scrollY.value, [0, LARGE_TITLE_H], [0, -12], Extrapolation.CLAMP);
+    return {
+      opacity: interpolate(scrollY.value, [0, LARGE_TITLE_H * 0.7], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: ty }],
+    };
+  });
+  const compactStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [LARGE_TITLE_H * 0.5, LARGE_TITLE_H * 0.95], [0, 1], Extrapolation.CLAMP),
+  }));
+  const headerBgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const isPublication = availabilityMode === 'publication';
+  const modeLabel = isPublication ? 'Modalità pubblicazione' : 'Modalità predefinita';
 
   return (
-    <Screen>
+    <GestureHandlerRootView style={styles.root}>
       <StatusBar style="dark" />
-      <ToastNotice
-        message={toast?.text ?? null}
-        tone={toast?.tone}
-        onHide={() => setToast(null)}
-      />
-      <ScrollView
-        contentContainerStyle={styles.content}
+      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
+
+      {/* Sticky collapsible header */}
+      <View style={[styles.headerWrap, { height: insets.top + COMPACT_H, paddingTop: insets.top }]} pointerEvents="box-none">
+        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]} pointerEvents="none">
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.96)' }]} />
+          )}
+          <View style={styles.headerBorder} />
+        </Animated.View>
+        <View style={styles.compactRow}>
+          <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Disponibilità</Animated.Text>
+        </View>
+      </View>
+
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={false}
             onRefresh={handleRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
+            progressViewOffset={insets.top + COMPACT_H}
           />
         }
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + COMPACT_H }]}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Disponibilità</Text>
-          <Badge label="Istruttore" />
+        <View style={{ height: LARGE_TITLE_H, justifyContent: 'flex-end' }}>
+          <Animated.Text style={[styles.largeTitle, largeTitleStyle]}>Disponibilità</Animated.Text>
         </View>
 
-        {initialLoading ? (
-          <SkeletonCard style={styles.skeletonCard}>
-            <SkeletonBlock width="60%" height={12} />
-            <SkeletonBlock width="50%" height={10} />
-            <SkeletonBlock width="100%" height={40} radius={20} style={{ marginTop: 8 }} />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-              <SkeletonBlock width="48%" height={60} radius={radii.sm} />
-              <SkeletonBlock width="48%" height={60} radius={radii.sm} />
+        {/* Mode badge — only in publication mode (default mode reads as the plain screen) */}
+        {isPublication ? (
+          <View style={styles.modeRow}>
+            <View style={styles.modeBadge}>
+              <Image source={FLUENT_CALENDAR} style={styles.modeIcon} />
+              <Text style={styles.modeBadgeText}>{modeLabel}</Text>
             </View>
-            <SkeletonBlock width="100%" height={50} radius={radii.sm} style={{ marginTop: 8 }} />
-          </SkeletonCard>
-        ) : availabilityMode === 'publication' ? (
-          <PublicationModeEditor
-            instructorId={instructorId}
-            onToast={(text, tone = 'success') => setToast({ text, tone })}
-          />
+          </View>
         ) : (
-          <AvailabilityEditor
-            title="Disponibilità istruttore"
-            ownerType="instructor"
-            ownerId={instructorId}
-            weeks={settings?.availabilityWeeks ?? 4}
-            onToast={(text, tone = 'success') => setToast({ text, tone })}
-          />
+          <View style={styles.modeSpacer} />
         )}
-      </ScrollView>
-    </Screen>
+
+        {!instructorId ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Profilo istruttore mancante</Text>
+            <Text style={styles.emptyText}>Il tuo account non è ancora collegato a un profilo istruttore.</Text>
+          </View>
+        ) : modeLoading ? (
+          <View style={styles.skeletonCard}>
+            <View style={styles.skeletonDaysRow}>
+              {Array.from({ length: 7 }).map((_, i) => (
+                <SkeletonBlock key={i} width={36} height={44} radius={12} />
+              ))}
+            </View>
+            <SkeletonBlock width="100%" height={56} radius={999} style={{ marginTop: 16 }} />
+            <SkeletonBlock width="100%" height={50} radius={25} style={{ marginTop: 16 }} />
+          </View>
+        ) : (
+          <Animated.View entering={FadeIn.duration(400)} key={editorKey}>
+            {isPublication ? (
+              <PublicationModeEditor instructorId={instructorId} onToast={onToast} />
+            ) : (
+              <DefaultAvailabilityEditor instructorId={instructorId} weeks={weeks} onToast={onToast} />
+            )}
+          </Animated.View>
+        )}
+      </Animated.ScrollView>
+    </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl * 2 + spacing.md,
+  root: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: H_PAD, paddingBottom: 28 },
+
+  /* Header */
+  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  headerBorder: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    height: StyleSheet.hairlineWidth, backgroundColor: colors.border,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  compactRow: { height: COMPACT_H, justifyContent: 'center', alignItems: 'center' },
+  compactTitle: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  largeTitle: { fontSize: 32, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+
+  /* Mode badge */
+  modeRow: { flexDirection: 'row', marginTop: 8, marginBottom: 22 },
+  modeSpacer: { height: 18 },
+  modeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999,
+    backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#E2E8F0',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
+  modeIcon: { width: 16, height: 16, resizeMode: 'contain' },
+  modeBadgeText: { fontSize: 12.5, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1 },
+
+  /* Skeleton */
   skeletonCard: {
-    borderRadius: radii.lg,
-    backgroundColor: '#FFFFFF',
-    padding: 22,
-    gap: spacing.sm,
+    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0',
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
+  skeletonDaysRow: { flexDirection: 'row', gap: 6 },
+
+  /* Empty */
   emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radii.lg,
-    padding: 24,
-    alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, gap: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0',
   },
-  emptyCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
+  emptyText: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
 });

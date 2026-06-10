@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vista settimana — zoom (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:#1A1A2E; --navy600:#14141F; --navy400:#6E7596; --navy300:#AEB4CC;
+    --navy200:#D6D9E6; --navy100:#E9EBF2; --navy50:#F4F5F9;
+    --bg:#FDFDFD; --surface:#FFFFFF; --border:#E5E7EB; --muted:#9CA3AF;
+    --yellow:#FACC15; --yellowBg:#FEF9C3; --yellowTx:#CA8A04;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0d0d16; display:flex; flex-wrap:wrap; gap:46px; justify-content:center; padding:48px 24px 90px; color:var(--navy); }
+  .lane { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .lane h2 { color:#AEB4CC; font-size:13px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .lane .cap { color:#6E7596; font-size:12px; font-weight:400; max-width:380px; text-align:center; line-height:1.55; }
+  .lane .cap b { color:#AEB4CC; }
+  code { color:#AEB4CC; }
+
+  .phone { width:390px; height:844px; background:var(--bg); border-radius:48px; border:11px solid #000; position:relative; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:32px; background:#000; border-radius:0 0 18px 18px; z-index:60; }
+  .statusbar { height:54px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 30px 6px; font-size:15px; font-weight:600; }
+
+  .greet { font-size:15px; font-weight:600; color:var(--navy400); padding:6px 24px 0; }
+  .weekhead { display:flex; align-items:center; justify-content:space-between; padding:14px 24px 14px; }
+  .weekrange { font-size:24px; font-weight:700; letter-spacing:-.4px; }
+  .weekrange .mo { color:var(--navy300); font-weight:600; }
+  .ctrls { display:flex; align-items:center; gap:8px; }
+  .today-chip { background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:8px 15px; font-size:14px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow { width:40px; height:40px; border-radius:20px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .arrow svg { width:18px; height:18px; stroke:var(--navy); }
+
+  .subbar { display:flex; align-items:center; justify-content:space-between; margin:0 24px 4px; padding:0 4px 14px; border-bottom:.5px solid var(--border); }
+  .weeksum { display:flex; gap:18px; }
+  .weeksum .it { display:flex; flex-direction:column; gap:1px; }
+  .weeksum .n { font-size:20px; font-weight:700; letter-spacing:-.4px; }
+  .weeksum .l { font-size:12px; color:var(--muted); }
+  /* zoom stepper */
+  .zoom { display:flex; align-items:center; background:var(--navy50); border-radius:999px; padding:3px; gap:2px; }
+  .zoom button { width:34px; height:34px; border:none; background:transparent; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .zoom button.act { background:var(--surface); box-shadow:0 1px 4px rgba(0,0,0,.12); }
+  .zoom svg { width:18px; height:18px; stroke:var(--navy); stroke-width:2.2; }
+
+  /* hour scale */
+  .scale { display:flex; padding:14px 24px 0; }
+  .scale .pad { width:78px; flex-shrink:0; }
+  .scale .ticks { flex:1; position:relative; height:16px; margin-right:54px; }
+  .scale .ticks span { position:absolute; top:0; transform:translateX(-50%); font-size:11px; font-weight:600; color:var(--navy300); }
+
+  .days { padding:2px 24px 0; }
+  .drow { display:flex; align-items:center; height:84px; }
+  .drow + .drow { border-top:.5px solid var(--border); }
+  .dlabel { width:78px; flex-shrink:0; display:flex; align-items:center; gap:10px; }
+  .dlabel .wd { font-size:11px; font-weight:700; color:var(--navy300); letter-spacing:.4px; }
+  .dlabel .num { font-size:19px; font-weight:700; letter-spacing:-.3px; }
+  .dlabel.today .numwrap { width:34px; height:34px; border-radius:17px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .dlabel.today .num { color:#fff; }
+  .dlabel.today .wd { color:var(--yellowTx); }
+  .dlabel.rest .wd, .dlabel.rest .num { color:var(--navy200); }
+  .dcol { display:flex; flex-direction:column; }
+
+  .track { flex:1; position:relative; height:84px; }
+  .track .grid { position:absolute; top:18px; bottom:18px; width:1px; background:var(--navy50); }
+  .avail { position:absolute; top:50%; transform:translateY(-50%); height:34px; background:var(--navy50); border-radius:10px; }
+  .seg { position:absolute; top:50%; transform:translateY(-50%); height:34px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; padding:0 9px; overflow:hidden; }
+  .seg.booked { background:var(--navy); }
+  .seg.booked .t { font-size:12px; font-weight:700; color:#fff; line-height:1.1; }
+  .seg.done { background:var(--navy100); }
+  .seg.done .t { font-size:12px; font-weight:700; color:var(--navy400); }
+  .seg.exam { background:#EDE9FE; }
+  .seg.exam .t { font-size:12px; font-weight:700; color:#6D28D9; }
+  .seg.block { background:repeating-linear-gradient(45deg,#EDEFF4,#EDEFF4 5px,#F6F7FA 5px,#F6F7FA 10px); }
+  .seg.block .t { font-size:11px; font-weight:600; color:var(--navy400); }
+  .seg .dot { position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:3px; background:var(--yellow); }
+  .dsum { width:54px; flex-shrink:0; text-align:right; }
+  .dsum .a { font-size:13px; font-weight:700; }
+  .dsum .b { font-size:11px; color:var(--muted); margin-top:1px; }
+
+  .pinchhint { text-align:center; font-size:11.5px; color:var(--navy300); padding:14px 24px 0; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .pinchhint svg { width:15px; height:15px; stroke:var(--navy300); stroke-width:1.8; }
+
+  /* ───── ZOOMED-IN layout ───── */
+  .zwrap { display:flex; padding:0 0 0 24px; }
+  .zlabels { width:70px; flex-shrink:0; z-index:5; background:var(--bg); }
+  .zlabels .zhead { height:30px; }
+  .zlabels .zcell { height:84px; display:flex; align-items:center; gap:8px; border-top:.5px solid var(--border); }
+  .zlabels .zcell:first-of-type { border-top:none; }
+  .zlabels .wd { font-size:10px; font-weight:700; color:var(--navy300); }
+  .zlabels .num { font-size:18px; font-weight:700; }
+  .zlabels .today .numwrap { width:32px; height:32px; border-radius:16px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .zlabels .today .num { color:#fff; }
+  .zlabels .today .wd { color:var(--yellowTx); }
+  .zscrollmask { flex:1; position:relative; overflow:hidden; }
+  .zscroll { position:relative; width:736px; transform:translateX(-46px); } /* simulate scrolled to ~9:30 */
+  .zscroll .ztick { position:absolute; top:0; transform:translateX(-50%); font-size:11px; font-weight:600; color:var(--navy300); }
+  .ztickrow { height:30px; position:relative; }
+  .zrow { height:84px; position:relative; border-top:.5px solid var(--border); }
+  .zrow:first-of-type { border-top:none; }
+  .zrow .vgrid { position:absolute; top:16px; bottom:16px; width:1px; background:var(--navy50); }
+  .zavail { position:absolute; top:50%; transform:translateY(-50%); height:48px; background:var(--navy50); border-radius:12px; }
+  .zseg { position:absolute; top:50%; transform:translateY(-50%); height:48px; border-radius:12px; display:flex; align-items:center; gap:10px; padding:0 12px; overflow:hidden; }
+  .zseg.booked { background:var(--navy); }
+  .zseg.exam { background:#EDE9FE; }
+  .zseg.block { background:repeating-linear-gradient(45deg,#EDEFF4,#EDEFF4 6px,#F6F7FA 6px,#F6F7FA 12px); }
+  .zseg .zav { width:34px; height:34px; border-radius:17px; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; flex-shrink:0; }
+  .zseg.exam .zav { background:rgba(109,40,217,.12); }
+  .zseg.exam .zav svg { width:18px; height:18px; stroke:#6D28D9; }
+  .zseg .znm { font-size:14px; font-weight:700; color:#fff; line-height:1.15; }
+  .zseg .zmt { font-size:11px; color:var(--navy300); line-height:1.15; }
+  .zseg.exam .znm { color:#6D28D9; } .zseg.exam .zmt { color:#8B5CF6; }
+  .zseg.block .znm { color:var(--navy400); }
+  .zfade { position:absolute; top:0; bottom:0; right:0; width:34px; background:linear-gradient(90deg,rgba(253,253,253,0),var(--bg)); z-index:6; pointer-events:none; }
+  .zbar { height:4px; margin:10px 80px 0 94px; background:var(--navy50); border-radius:2px; position:relative; }
+  .zbar i { position:absolute; left:18%; width:46%; top:0; bottom:0; background:var(--navy200); border-radius:2px; }
+
+  .fab { position:absolute; right:22px; bottom:96px; width:60px; height:60px; border-radius:30px; background:var(--navy); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(26,26,46,.4); z-index:30; }
+  .fab svg { width:26px; height:26px; stroke:#fff; stroke-width:2.4; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:80px; background:rgba(253,253,253,.96); border-top:.5px solid var(--border); display:flex; align-items:flex-start; justify-content:space-around; padding-top:12px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .tab.on { color:var(--navy); font-weight:600; }
+  .tab svg { width:24px; height:24px; }
+</style>
+</head>
+<body>
+
+<!-- ════════ LANE 1 — ZOOM OUT (settimana intera) ════════ -->
+<div class="lane">
+  <h2>1 · Zoom out — colpo d'occhio</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls">
+        <div class="today-chip">Oggi</div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+
+    <div class="subbar">
+      <div class="weeksum">
+        <div class="it"><span class="n">7</span><span class="l">guide</span></div>
+        <div class="it"><span class="n">1</span><span class="l">esame</span></div>
+        <div class="it"><span class="n">23h</span><span class="l">libere</span></div>
+      </div>
+      <div class="zoom">
+        <button class="act"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </div>
+    </div>
+
+    <div class="scale">
+      <div class="pad"></div>
+      <div class="ticks"><span style="left:8.3%">8</span><span style="left:33.3%">11</span><span style="left:58.3%">14</span><span style="left:75%">17</span><span style="left:100%">20</span></div>
+    </div>
+
+    <div class="days">
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">LUN</span><span class="num">8</span></div></div>
+        <div class="track"><div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div><div class="avail" style="left:8.3%;width:58.4%"></div><div class="seg done" style="left:58.3%;width:8.3%"><span class="t">15:00</span></div></div>
+        <div class="dsum"><div class="a">1</div><div class="b">guida</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">MAR</span><span class="num">9</span></div></div>
+        <div class="track"><div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div><div class="avail" style="left:8.3%;width:75%"></div><div class="seg block" style="left:16.7%;width:8.3%"><span class="t">Blocco</span></div></div>
+        <div class="dsum"><div class="a">0</div><div class="b">guide</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel today"><div class="numwrap"><span class="num">10</span></div><div class="dcol"><span class="wd">MER</span></div></div>
+        <div class="track"><div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div><div class="avail" style="left:8.3%;width:66.7%"></div>
+          <!-- giornata fitta: 4 guide strette → illeggibili a zoom out -->
+          <div class="seg booked" style="left:8.3%;width:6.2%"></div>
+          <div class="seg booked" style="left:16.7%;width:6.2%"></div>
+          <div class="seg booked" style="left:33.3%;width:6.2%"><span class="dot"></span></div>
+          <div class="seg booked" style="left:50%;width:6.2%"></div>
+        </div>
+        <div class="dsum"><div class="a">4</div><div class="b">guide</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">GIO</span><span class="num">11</span></div></div>
+        <div class="track"><div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div><div class="avail" style="left:8.3%;width:66.7%"></div></div>
+        <div class="dsum"><div class="a">8h</div><div class="b">libere</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel"><div class="dcol"><span class="wd">VEN</span><span class="num">12</span></div></div>
+        <div class="track"><div class="grid" style="left:33.3%"></div><div class="grid" style="left:58.3%"></div><div class="grid" style="left:75%"></div><div class="avail" style="left:8.3%;width:83.4%"></div><div class="seg booked" style="left:8.3%;width:8.3%"></div><div class="seg booked" style="left:25%;width:8.3%"></div><div class="seg exam" style="left:66.7%;width:12.5%"><span class="t">Esame</span></div></div>
+        <div class="dsum"><div class="a">2+1</div><div class="b">esame</div></div>
+      </div>
+      <div class="drow">
+        <div class="dlabel rest"><div class="dcol"><span class="wd">SAB</span><span class="num">13</span></div></div>
+        <div class="track"><div style="position:absolute;left:0;top:50%;transform:translateY(-50%);font-size:12px;color:var(--navy200);font-weight:500">Nessuna disponibilità</div></div>
+        <div class="dsum"></div>
+      </div>
+    </div>
+
+    <div class="pinchhint">
+      <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V6a2 2 0 0 1 4 0v5"/><path d="M5 13l2-2 2 2"/><path d="M19 13l-2-2-2 2"/></svg>
+      Pizzica per ingrandire e leggere ogni guida
+    </div>
+
+    <div class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Default: l'intera settimana in una schermata. I giorni fitti (es. MER, 4 guide) mostrano segmenti stretti senza etichetta — ti dicono "è pieno" ma non il dettaglio. Per leggere → zoom.</div>
+</div>
+
+<!-- ════════ LANE 2 — ZOOM IN (leggibile, scroll orizzontale) ════════ -->
+<div class="lane">
+  <h2>2 · Zoom in — guide leggibili</h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>10:53</span><span>􀙇 􀛨</span></div>
+    <div class="greet">Ciao, Tiziano 👋</div>
+    <div class="weekhead">
+      <div class="weekrange">8 – 13 <span class="mo">Giu</span></div>
+      <div class="ctrls"><div class="today-chip">Oggi</div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div><div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+    </div>
+
+    <div class="subbar">
+      <div class="weeksum">
+        <div class="it"><span class="n">7</span><span class="l">guide</span></div>
+        <div class="it"><span class="n">1</span><span class="l">esame</span></div>
+        <div class="it"><span class="n">23h</span><span class="l">libere</span></div>
+      </div>
+      <div class="zoom">
+        <button><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="act"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </div>
+    </div>
+
+    <!-- horizontal scrollbar indicator -->
+    <div class="zbar"><i></i></div>
+
+    <div class="zwrap">
+      <div class="zlabels">
+        <div class="zhead"></div>
+        <div class="zcell"><div class="dcol"><span class="wd">LUN</span><span class="num">8</span></div></div>
+        <div class="zcell"><div class="dcol"><span class="wd">MAR</span><span class="num">9</span></div></div>
+        <div class="zcell today"><div class="numwrap"><span class="num">10</span></div><div class="dcol"><span class="wd">MER</span></div></div>
+        <div class="zcell"><div class="dcol"><span class="wd">GIO</span><span class="num">11</span></div></div>
+        <div class="zcell"><div class="dcol"><span class="wd">VEN</span><span class="num">12</span></div></div>
+      </div>
+
+      <div class="zscrollmask">
+        <div class="zscroll">
+          <!-- 1h = 92px, x=0 → 9:00 -->
+          <div class="ztickrow">
+            <span class="ztick" style="left:0">9</span>
+            <span class="ztick" style="left:92px">10</span>
+            <span class="ztick" style="left:184px">11</span>
+            <span class="ztick" style="left:276px">12</span>
+            <span class="ztick" style="left:368px">13</span>
+            <span class="ztick" style="left:460px">14</span>
+            <span class="ztick" style="left:552px">15</span>
+          </div>
+          <!-- LUN 8 -->
+          <div class="zrow">
+            <div class="vgrid" style="left:92px"></div><div class="vgrid" style="left:276px"></div><div class="vgrid" style="left:460px"></div>
+            <div class="zavail" style="left:0;width:736px"></div>
+            <div class="zseg booked" style="left:552px;width:92px"><div class="zav">MR</div><div><div class="znm">M. Rossi</div><div class="zmt">15:00 · 60 min</div></div></div>
+          </div>
+          <!-- MAR 9 -->
+          <div class="zrow">
+            <div class="vgrid" style="left:92px"></div><div class="vgrid" style="left:276px"></div><div class="vgrid" style="left:460px"></div>
+            <div class="zavail" style="left:0;width:828px"></div>
+            <div class="zseg block" style="left:92px;width:92px"><div><div class="znm">Bloccato</div><div class="zmt" style="color:var(--muted)">10:00 – 11:00</div></div></div>
+          </div>
+          <!-- MER 10 today: 4 guide ora larghe e leggibili -->
+          <div class="zrow">
+            <div class="vgrid" style="left:92px"></div><div class="vgrid" style="left:276px"></div><div class="vgrid" style="left:460px"></div>
+            <div class="zavail" style="left:0;width:736px"></div>
+            <div class="zseg booked" style="left:0;width:88px"><div class="zav">LB</div><div><div class="znm">L. Bianchi</div><div class="zmt">9:00 · 45 min</div></div></div>
+            <div class="zseg booked" style="left:92px;width:88px"><div class="zav">GV</div><div><div class="znm">G. Verdi</div><div class="zmt">10:00 · 45 min</div></div></div>
+            <div class="zseg booked" style="left:276px;width:88px"><div class="zav">AP</div><div><div class="znm">A. Prova</div><div class="zmt">12:00 · 45 min</div></div></div>
+          </div>
+          <!-- GIO 11 libero -->
+          <div class="zrow">
+            <div class="vgrid" style="left:92px"></div><div class="vgrid" style="left:276px"></div><div class="vgrid" style="left:460px"></div>
+            <div class="zavail" style="left:0;width:736px"></div>
+          </div>
+          <!-- VEN 12 -->
+          <div class="zrow">
+            <div class="vgrid" style="left:92px"></div><div class="vgrid" style="left:276px"></div><div class="vgrid" style="left:460px"></div>
+            <div class="zavail" style="left:0;width:920px"></div>
+            <div class="zseg booked" style="left:0;width:88px"><div class="zav">FT</div><div><div class="znm">F. Tonni</div><div class="zmt">9:00 · 60 min</div></div></div>
+          </div>
+        </div>
+        <div class="zfade"></div>
+      </div>
+    </div>
+
+    <div class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="tabbar">
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 11h18v5h-2v-1H5v1H3z"/></svg><span>Home</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span>Disponibilità</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/></svg><span>Allievi</span></div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Altro</span></div>
+    </div>
+  </div>
+  <div class="cap">Ingrandito: l'asse ore si allunga, i segmenti diventano larghi con avatar + nome + ora. La barra del tempo scorre <b>orizzontalmente</b> e tutti i giorni si muovono in sync; le etichette giorno restano <b>fisse a sinistra</b>. Indicatore di scroll in alto + sfumatura sul bordo. Il long-press quick-book funziona uguale (scrub a 15′).</div>
+</div>
+
+</body>
+</html>

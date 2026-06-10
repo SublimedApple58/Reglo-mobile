@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gestisci guida di gruppo (istruttore) — preview 013</title>
+<style>
+  :root{
+    --navy:#1A1A2E; --muted:#717171; --muted2:#94A3B8; --chev:#C7CBD1;
+    --bg:#F4F5F9; --white:#fff; --divider:#EBEBEB; --line:#E9EBF2;
+    --teal:#0F766E; --teal-bg:#CCFBF1; --teal-badge-bg:#D1FAE5; --teal-badge-fg:#047857;
+    --rose:#E5484D;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    background:#0c0c14;color:var(--navy);display:flex;flex-wrap:wrap;gap:48px;
+    justify-content:center;padding:56px 24px;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .col h2{color:#9da3bb;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+  /* page-sheet look: rounded top, inset from top */
+  .sheet{width:390px;height:800px;background:var(--bg);border-radius:14px 14px 38px 38px;
+    position:relative;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);
+    border:1px solid #222;}
+  .grabberArea{height:14px;}
+  .scroll{position:absolute;inset:0;overflow-y:auto;padding-bottom:110px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .topBar{display:flex;justify-content:flex-end;padding:14px 20px 4px;}
+  .x{width:34px;height:34px;border-radius:17px;background:#EFEFF1;display:flex;align-items:center;justify-content:center;}
+  .x svg{stroke:var(--navy);}
+
+  .content{padding:0 20px;display:flex;flex-direction:column;gap:24px;}
+
+  /* hero */
+  .hero{display:flex;flex-direction:column;gap:4px;}
+  .overline{font-size:13px;font-weight:500;color:var(--muted2);letter-spacing:.2px;}
+  .name{font-size:24px;font-weight:600;color:var(--navy);letter-spacing:-.4px;}
+  .meta{font-size:14px;font-weight:400;color:var(--muted);margin-top:2px;}
+  .pillRow{margin-top:12px;}
+  .statePill{display:inline-flex;border-radius:999px;padding:5px 11px;background:var(--teal-badge-bg);}
+  .statePill span{font-size:12px;font-weight:600;color:var(--teal-badge-fg);}
+
+  /* ring */
+  .ringBlock{display:flex;justify-content:center;padding:4px 0;}
+  .ring{width:132px;height:132px;border-radius:66px;
+    background:conic-gradient(var(--teal) 0deg 120deg, #E3E6EE 120deg 360deg);
+    display:flex;align-items:center;justify-content:center;}
+  .ringInner{width:106px;height:106px;border-radius:53px;background:var(--bg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .ringCount{font-size:34px;font-weight:700;color:var(--navy);letter-spacing:-1px;line-height:1;}
+  .ringCount small{font-size:18px;font-weight:500;color:#9CA3AF;}
+  .ringLabel{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-top:4px;}
+
+  /* detail rows */
+  .rows{display:flex;flex-direction:column;}
+  .row{display:flex;align-items:center;gap:16px;padding:14px 0;}
+  .rowIcon{width:28px;display:flex;justify-content:center;}
+  .rowIcon svg{stroke:var(--navy);}
+  .rowBody{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .rowLabel{font-size:15px;font-weight:600;color:var(--navy);}
+  .rowValue{font-size:14px;font-weight:400;color:var(--muted);}
+  .chev svg{stroke:var(--chev);}
+  .divider{height:1px;background:var(--divider);margin-left:44px;}
+
+  /* partecipanti section */
+  .section{display:flex;flex-direction:column;gap:10px;}
+  .sectionHead{display:flex;align-items:center;justify-content:space-between;}
+  .sectionTitle{font-size:15px;font-weight:600;color:var(--navy);}
+  .seatsHint{font-size:13px;font-weight:400;color:var(--muted2);}
+  .pCard{background:var(--white);border-radius:18px;padding:6px;
+    box-shadow:0 6px 18px rgba(26,26,46,.05);display:flex;flex-direction:column;}
+  .pRow{display:flex;align-items:center;gap:12px;padding:11px 12px;}
+  .pAvatar{width:34px;height:34px;border-radius:11px;background:var(--teal-bg);
+    display:flex;align-items:center;justify-content:center;}
+  .pAvatar svg{stroke:var(--teal);}
+  .pName{flex:1;font-size:15px;font-weight:500;color:var(--navy);}
+  .pTrash{width:34px;height:34px;border-radius:17px;background:#FEF2F2;display:flex;align-items:center;justify-content:center;}
+  .pTrash svg{stroke:var(--rose);}
+  .pDivider{height:1px;background:var(--line);margin:0 12px;}
+  .addRow{display:flex;align-items:center;gap:12px;padding:12px;}
+  .addIcon{width:34px;height:34px;border-radius:11px;border:1.5px dashed #C7CBD1;display:flex;align-items:center;justify-content:center;}
+  .addIcon svg{stroke:var(--muted);}
+  .addTxt{flex:1;font-size:15px;font-weight:500;color:var(--navy);}
+  .addSub{font-size:13px;font-weight:400;color:var(--muted2);}
+  .inviteBtn{display:flex;align-items:center;justify-content:center;gap:8px;height:48px;
+    border-radius:24px;background:var(--white);border:1px solid var(--line);}
+  .inviteBtn svg{stroke:var(--teal);}
+  .inviteBtn span{font-size:14.5px;font-weight:600;color:var(--teal);}
+
+  /* floating bottom toolbar (manage-lesson style) */
+  .floatWrap{position:absolute;left:0;right:0;bottom:0;padding:12px 20px 26px;
+    display:flex;justify-content:flex-end;gap:10px;
+    background:linear-gradient(to top, var(--bg) 60%, transparent);}
+  .spostaPill{display:flex;align-items:center;gap:8px;height:50px;padding:0 22px;border-radius:25px;
+    background:var(--white);box-shadow:0 8px 22px rgba(26,26,46,.12);}
+  .spostaPill svg{stroke:var(--navy);}
+  .spostaPill span{font-size:15px;font-weight:600;color:var(--navy);}
+  .trashCircle{width:50px;height:50px;border-radius:25px;background:var(--white);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(26,26,46,.12);}
+  .trashCircle svg{stroke:var(--rose);}
+
+  .note{max-width:840px;color:#aeb4cc;font-size:12.5px;line-height:1.65;}
+  .note b{color:#d6d9e6;} .note code{color:#c9d4ff;}
+  .variant{font-size:12px;color:#8088a8;margin-top:6px;}
+</style>
+</head>
+<body>
+
+<div class="col">
+  <h2>Istruttore · Gestisci guida di gruppo (page sheet)</h2>
+  <div class="sheet">
+    <div class="scroll">
+      <div class="topBar"><div class="x"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+
+      <div class="content">
+        <!-- hero -->
+        <div class="hero">
+          <div class="overline">Gestisci guida di gruppo</div>
+          <div class="name">Guida di gruppo</div>
+          <div class="meta">ven 12 giu · 11:00 · 180 min · Veicolo 3</div>
+          <div class="pillRow"><span class="statePill"><span>GRUPPO · 2 posti liberi</span></span></div>
+        </div>
+
+        <!-- seats ring -->
+        <div class="ringBlock">
+          <div class="ring"><div class="ringInner">
+            <div class="ringCount">1<small>/3</small></div>
+            <div class="ringLabel">posti</div>
+          </div></div>
+        </div>
+
+        <!-- detail rows -->
+        <div class="rows">
+          <div class="row">
+            <div class="rowIcon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+            <div class="rowBody"><div class="rowLabel">Istruttore</div><div class="rowValue">Tiziano Nuovo 1</div></div>
+            <div class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="rowIcon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2v-3l2-5h12l2 5v3a2 2 0 0 1-2 2M7 17v2M17 17v2"/></svg></div>
+            <div class="rowBody"><div class="rowLabel">Veicolo</div><div class="rowValue">Veicolo 3</div></div>
+            <div class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+
+        <!-- partecipanti -->
+        <div class="section">
+          <div class="sectionHead">
+            <div class="sectionTitle">Partecipanti</div>
+            <div class="seatsHint">1 su 3</div>
+          </div>
+          <div class="pCard">
+            <div class="pRow">
+              <div class="pAvatar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="pName">Allievo Prova</div>
+              <div class="pTrash"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+            </div>
+            <div class="pDivider"></div>
+            <div class="addRow">
+              <div class="addIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="rowBody"><div class="addTxt">Aggiungi allievo</div><div class="addSub">Seleziona un allievo idoneo</div></div>
+              <div class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+          <div class="inviteBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg><span>Invita allievi idonei · 2 posti</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- floating bottom: Sposta · cestino -->
+    <div class="floatWrap">
+      <div class="spostaPill"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M14 15l3 0M17 15l-2-2M17 15l-2 2"/></svg><span>Sposta</span></div>
+      <div class="trashCircle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Stesso design piatto di "Gestisci guida"</b> (overline + titolo + meta + state-pill · ring centrale · righe piatte istruttore/veicolo · toolbar flottante in basso). Differenze per il gruppo:<br/>
+  • Ring centrale = <b>posti occupati / capienza</b> (es. 1/3), gradiente <b>teal</b> invece del navy progressi-allievo.<br/>
+  • State-pill teal "GRUPPO · N posti liberi".<br/>
+  • Sezione <b>Partecipanti</b>: lista con rimuovi (cestino per riga) + riga "Aggiungi allievo" (→ picker idonei) + bottone "Invita allievi idonei · N posti".<br/>
+  • Righe <b>Istruttore</b> e <b>Veicolo</b> tappabili → picker → <code>updateGroupLesson</code> (vale per tutti).<br/>
+  • Bottom: <b>Sposta</b> (data+ora per tutti → <code>updateGroupLesson</code>) · <b>cestino</b> (<code>cancelGroupLesson</code>). Niente "Scambia"/"Presente/Assente" (non sensati per il gruppo).<br/>
+  <span class="variant">Apertura: sia dalla griglia oraria del giorno sia dal day-detail settimanale, al tap su una guida di gruppo (oggi: griglia → dettaglio normale; day-detail → action sheet). Entrambi → questa modal.</span>
+</div>
+
+</body>
+</html>

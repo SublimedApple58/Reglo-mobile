@@ -1453,7 +1453,7 @@ export const InstructorManageScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Inizio</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
                         <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityStart)}</Text>
                       </View>
                     </Pressable>
@@ -1466,7 +1466,7 @@ export const InstructorManageScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Fine</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#EC4899" />
+                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
                         <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityEnd)}</Text>
                       </View>
                     </Pressable>
@@ -1531,14 +1531,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   mainTabActive: {
-    borderBottomColor: '#EC4899',
+    borderBottomColor: '#1A1A2E',
   },
   mainTabText: {
     fontSize: 16,
     fontWeight: '600',
   },
   mainTabTextActive: {
-    color: '#EC4899',
+    color: '#1A1A2E',
   },
   mainTabTextInactive: {
     color: '#94A3B8',
@@ -1677,11 +1677,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 50,
     borderRadius: radii.sm,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.xs,
-    shadowColor: '#EC4899',
+    shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -1787,8 +1787,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weekPillActive: {
-    backgroundColor: '#EC4899',
-    borderColor: '#EC4899',
+    backgroundColor: '#1A1A2E',
+    borderColor: '#1A1A2E',
   },
   weekPillText: {
     fontSize: 15,
