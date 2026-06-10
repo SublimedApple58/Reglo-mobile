@@ -412,11 +412,15 @@ const s = StyleSheet.create({
   // Profile flip card (single allowed card)
   flipWrap: { marginHorizontal: 4, marginTop: 18, marginBottom: 26 },
   face: {
+    // minHeight so the card fits the TALLER face (the back / "Dati personali",
+    // 4 rows) — the back is absolutely positioned, so without this the card is
+    // sized to the front and the back overflows below it (last row clipped).
+    minHeight: 260,
     backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 22, paddingHorizontal: 22,
     shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.09, shadowRadius: 18, elevation: 5,
   },
   faceFront: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-  faceBack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: 16 },
+  faceBack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: 13 },
   profileLeft: { flex: 1, alignItems: 'center', gap: 4, paddingRight: 8 },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   avatarText: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
