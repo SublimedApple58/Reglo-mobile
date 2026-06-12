@@ -28,7 +28,6 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
-import { scrubActive, scrubLabel, scrubX, scrubY } from '../stores/scrubOverlay';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
 /* ------------------------------------------------------------------ */
@@ -276,12 +275,9 @@ const GridBookableWindow = ({
       gCol.value = colIdx; gStart.value = start; gDur.value = 60;
       gLive.value = withTiming(1, { duration: 140 });
       baseStart.value = start; baseCol.value = colIdx;
-      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
-      scrubActive.value = withTiming(1, { duration: 140 });
       runOnJS(onArm)(start, 60);
     })
     .onUpdate((e) => {
-      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
       const steps = Math.round(e.translationY / PX_PER_STEP);
       const cols = Math.round(e.translationX / (colW + COL_GAP));
       const col = Math.max(0, Math.min(5, baseCol.value + cols));
@@ -294,18 +290,14 @@ const GridBookableWindow = ({
     })
     .onEnd(() => {
       gLive.value = withTiming(0, { duration: 180 });
-      scrubActive.value = withTiming(0, { duration: 180 });
       runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
     })
     .onFinalize((_e, success) => {
-      if (!success) {
-        scrubActive.value = withTiming(0, { duration: 180 });
-        // Gesture cancelled mid-drag (system interruption): settle the ghost
-        // where it is instead of leaving it in the live/CTA-less limbo.
-        if (gLive.value > 0) {
-          gLive.value = withTiming(0, { duration: 180 });
-          runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
-        }
+      // Gesture cancelled mid-drag (system interruption): settle the ghost
+      // where it is instead of leaving it in the live/CTA-less limbo.
+      if (!success && gLive.value > 0) {
+        gLive.value = withTiming(0, { duration: 180 });
+        runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
       }
     });
 
@@ -352,50 +344,14 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
   const timeText = useTextStore(ghostTimeLabel);
   const durText = useTextStore(ghostDurLabel);
 
-  /* — body: hold (160ms) and drag the whole block, also across days — */
-  const movePan = Gesture.Pan()
-    .activateAfterLongPress(160)
-    .onStart((e) => {
-      baseStart.value = gStart.value; baseCol.value = gCol.value;
-      gLive.value = withTiming(1, { duration: 140 });
-      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
-      scrubActive.value = withTiming(1, { duration: 140 });
-      runOnJS(onLift)();
-    })
-    .onUpdate((e) => {
-      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
-      const steps = Math.round(e.translationY / PX_PER_STEP);
-      const cols = Math.round(e.translationX / (colW + COL_GAP));
-      const col = Math.max(0, Math.min(5, baseCol.value + cols));
-      let start = baseStart.value + steps * STEP;
-      start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
-      if (col !== gCol.value || start !== gStart.value) {
-        gCol.value = col; gStart.value = start;
-        runOnJS(onStep)(start, gDur.value);
-      }
-    })
-    .onEnd(() => {
-      gLive.value = withTiming(0, { duration: 180 });
-      scrubActive.value = withTiming(0, { duration: 180 });
-      runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
-    })
-    .onFinalize((_e, success) => {
-      if (!success) {
-        scrubActive.value = withTiming(0, { duration: 180 });
-        if (gLive.value > 0) {
-          gLive.value = withTiming(0, { duration: 180 });
-          runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
-        }
-      }
-    });
-
   /* — knobs: drag the edges to resize (30' – 4h, 15' steps) —
    * No finger bubble here: the block stays under the eye and already shows
-   * the live range/duration — the bubble would just cover the grid. */
+   * the live range/duration — the bubble would just cover the grid.
+   * Generous hitSlop: the knobs must be the EASY target near the edges. */
   const makeKnobPan = (edge: 'top' | 'bottom') =>
     Gesture.Pan()
-      .hitSlop({ top: 14, bottom: 14, left: 18, right: 18 })
-      .activeOffsetY([-4, 4])
+      .hitSlop({ top: 22, bottom: 22, left: 34, right: 34 })
+      .activeOffsetY([-3, 3])
       .onStart(() => {
         baseStart.value = gStart.value;
         baseEnd.value = gStart.value + gDur.value;
@@ -434,6 +390,40 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
 
   const topKnobPan = useMemo(() => makeKnobPan('top'), []); // eslint-disable-line react-hooks/exhaustive-deps
   const botKnobPan = useMemo(() => makeKnobPan('bottom'), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* — body: hold (160ms) and drag the whole block, also across days —
+   * Defers to the knobs: a touch landing in their (large) hit area can NEVER
+   * move the block, so a missed resize doesn't turn into an accidental move.
+   * No finger bubble here either — the block itself is the feedback. */
+  const movePan = useMemo(() => Gesture.Pan()
+    .activateAfterLongPress(160)
+    .requireExternalGestureToFail(topKnobPan, botKnobPan)
+    .onStart(() => {
+      baseStart.value = gStart.value; baseCol.value = gCol.value;
+      gLive.value = withTiming(1, { duration: 140 });
+      runOnJS(onLift)();
+    })
+    .onUpdate((e) => {
+      const steps = Math.round(e.translationY / PX_PER_STEP);
+      const cols = Math.round(e.translationX / (colW + COL_GAP));
+      const col = Math.max(0, Math.min(5, baseCol.value + cols));
+      let start = baseStart.value + steps * STEP;
+      start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
+      if (col !== gCol.value || start !== gStart.value) {
+        gCol.value = col; gStart.value = start;
+        runOnJS(onStep)(start, gDur.value);
+      }
+    })
+    .onEnd(() => {
+      gLive.value = withTiming(0, { duration: 180 });
+      runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+    })
+    .onFinalize((_e, success) => {
+      if (!success && gLive.value > 0) {
+        gLive.value = withTiming(0, { duration: 180 });
+        runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+      }
+    }), [topKnobPan, botKnobPan, colW]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const frameStyle = useAnimatedStyle(() => ({
     top: ((gStart.value - DAY_MIN) / 60) * ROW_H,
@@ -523,10 +513,8 @@ const WeekPage = React.memo(function WeekPage({
   const [ghostOn, setGhostOn] = useState(false);
 
   const setGhostLabels = useCallback((start: number, dur: number) => {
-    const range = `${fmtMin(start)} – ${fmtMin(start + dur)}`;
-    ghostTimeLabel.set(range);
+    ghostTimeLabel.set(`${fmtMin(start)} – ${fmtMin(start + dur)}`);
     ghostDurLabel.set(fmtDur(dur));
-    scrubLabel.set(range);
   }, []);
 
   const ghostArm = useCallback((start: number, dur: number) => {
@@ -1196,8 +1184,8 @@ export default function WeeklyAgendaView({
       {/* ── Ghost CTA — floating card, slides up when the block is placed ── */}
       {ghostInfo && onBookAt && (
         <Animated.View
-          entering={FadeInUp.duration(280).springify().damping(18)}
-          exiting={FadeOut.duration(160)}
+          entering={FadeInUp.duration(220)}
+          exiting={FadeOut.duration(140)}
           style={styles.ctaBar}
         >
           <Pressable
