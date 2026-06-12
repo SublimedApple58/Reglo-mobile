@@ -1767,10 +1767,14 @@ export const AllievoHomeScreen = () => {
   const openLessonDetail = useCallback((lesson: AutoscuolaAppointmentWithRelations) => {
     const status = (lesson.status ?? '').trim().toLowerCase();
     const isFutureActive = upcomingConfirmedStatuses.has(status) && new Date(lesson.startsAt).getTime() > Date.now();
+    // Group-lesson seats and exams are never swappable (the BE rejects them
+    // too): a swap would bypass the group opt-in/seat rules.
+    const type = (lesson.type ?? '').trim().toLowerCase();
+    const swappableType = !lesson.groupLessonId && type !== 'group_lesson' && type !== 'esame';
     lessonDetailStore.set({
       lesson,
       payment: paymentByAppointmentId.get(lesson.id) ?? null,
-      canSwap: isFutureActive && ['scheduled', 'confirmed'].includes(status) && !!(bookingOptions?.swapEnabled ?? settings?.swapEnabled),
+      canSwap: swappableType && isFutureActive && ['scheduled', 'confirmed'].includes(status) && !!(bookingOptions?.swapEnabled ?? settings?.swapEnabled),
       canCancel: isFutureActive && !!canCancelAppointments,
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
       activeSwapOfferId: mySwapByAppointment.get(lesson.id) ?? null,

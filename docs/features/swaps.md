@@ -25,6 +25,7 @@ There is no longer a `swaps` entry in `app/(tabs)/_layout.tsx`.
 - **Home markers**: a lesson with an active own swap request shows a pink "Sostituzione richiesta" chip (hero) / corner badge + label (mini-card); the guide detail shows a banner + "Revoca richiesta" instead of "Cerca sostituto". Driven by `getMySwapOffers` → `mySwapByAppointment` Map (appointmentId→offerId).
 - 30-second polling for new offers + push-intent refresh.
 - Feature-gated: `useSwapEnabled()` hook.
+- **Non-swappable types** (fix 2026-06-12): `AllievoHomeScreen.openLessonDetail` sets `canSwap: false` for group-lesson seats (`groupLessonId`/`type group_lesson`) and `esame` — the BE rejects them too (Robatto incident: a swap takeover let a non-opted-in student into a group lesson).
 
 ## API functions used
 `getSwapOffers`, `getMySwapOffers`, `respondSwapOffer`, `cancelSwapOffer`, `createSwapOffer`, `getStudents`
