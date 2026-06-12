@@ -319,6 +319,14 @@ export default function ManageLessonScreen() {
 
   const openDetails = () => router.push('/(tabs)/home/manage-lesson-details');
 
+  // Student detail modal — same route the exam sheet uses, stacks natively
+  // over this sheet with its own X close.
+  const openStudentDetail = () =>
+    router.push({
+      pathname: '/(tabs)/home/student-detail',
+      params: { studentId: lesson.studentId, name: studentName },
+    } as never);
+
   const runMenu = (key: string) => {
     if (isPending) return;
     if (key === 'scambia' || key === 'sposta') {
@@ -373,7 +381,11 @@ export default function ManageLessonScreen() {
         {/* Hero */}
         <View style={s.hero}>
           <Text style={s.heroOverline}>{readOnly ? 'Dettaglio guida' : 'Gestisci guida'}</Text>
-          <Text style={s.heroName}>{studentName}</Text>
+          {/* Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami) */}
+          <Pressable onPress={openStudentDetail} hitSlop={6} style={({ pressed }) => [s.heroNameRow, pressed && { opacity: 0.55 }]}>
+            <Text style={s.heroName}>{studentName}</Text>
+            <Ionicons name="chevron-forward" size={21} color="#C7CBD1" style={{ marginTop: 3 }} />
+          </Pressable>
           <Text style={s.heroMeta}>
             {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
             {durationText ? ` · ${durationText}` : ''}
@@ -554,6 +566,7 @@ const s = StyleSheet.create({
   // Hero
   hero: { gap: 4 },
   heroOverline: { fontSize: 13, fontWeight: '500', color: '#94A3B8', letterSpacing: 0.2 },
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   heroName: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
   heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },
   statePill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },

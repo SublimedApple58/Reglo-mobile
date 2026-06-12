@@ -18,6 +18,7 @@ Full appointment management for instructors: create, cancel, reschedule, check-i
 - In-progress window detection (15 min before/after)
 - Appointment detail editing: lesson types, notes, star ratings
 - Change instructor, location, and **vehicle** of a lesson from "Gestisci guida" (auto-save on pick). Vehicle row opens the generic `select-options` picker; each vehicle shows an elegant subtitle (license category + assigned instructor). Backend: `updateAppointmentDetails` accepts `vehicleId` (PATCH `/api/autoscuole/appointments/{id}`)
+- Il **nome allievo** nell'hero di "Gestisci guida" è tappabile (chevron) → apre il modal dettaglio allievo (`/(tabs)/home/student-detail`, stesso route dell'exam sheet, stack nativo sopra la sheet)
 - Reposition to find new available slots
 - Sick leave creation (blocks availability, cancels appointments)
 - Hours tracking: weekly breakdown, working vs outside hours, bar charts
