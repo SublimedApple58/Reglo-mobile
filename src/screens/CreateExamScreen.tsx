@@ -36,7 +36,7 @@ const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', da
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 // Exams can run longer than a normal guida — up to 3h (parity with web).
-const EXAM_DURATIONS = [30, 45, 60, 90, 120, 150, 180];
+const EXAM_DURATIONS = [30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300];
 const durLabel = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m} min`);
 
 const initialsOf = (first: string, last: string) => {
