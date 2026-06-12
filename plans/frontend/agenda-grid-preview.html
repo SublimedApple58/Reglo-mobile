@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reglo · Vista Griglia settimanale — Preview</title>
+<style>
+  :root{
+    --navy-700:#0D0D16; --navy-600:#14141F; --navy-500:#1A1A2E;
+    --navy-400:#6E7596; --navy-300:#AEB4CC; --navy-200:#D6D9E6;
+    --navy-100:#E9EBF2; --navy-50:#F4F5F9;
+    --surface:#FFFFFF; --bg:#FDFDFD; --border:#E5E7EB;
+    --text:#1F2937; --muted:#9CA3AF; --sub:#6B7280;
+    --accent:#FACC15;
+    --green-bg:#E9F9EF; --green-bd:#34C77B; --green-tx:#157A48;
+    --warn-bg:#FFF4E8; --warn-bd:#F59E42; --warn-tx:#B5681C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    background:#E7E9F0; color:var(--text);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    padding:28px 16px 60px;
+  }
+  .head{text-align:center; max-width:760px;}
+  .head h1{font-size:19px; font-weight:600; color:var(--navy-500); letter-spacing:-.3px;}
+  .head p{font-size:13.5px; color:var(--sub); margin-top:6px; line-height:1.5;}
+  .toggle{display:flex; gap:8px; margin-top:14px; justify-content:center; flex-wrap:wrap;}
+  .toggle button{
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    padding:9px 16px; border-radius:13px; border:1.5px solid var(--navy-200);
+    background:#fff; color:var(--navy-400); transition:all .18s;
+  }
+  .toggle button.active{background:var(--navy-500); color:#fff; border-color:var(--navy-500);}
+
+  .stage{display:flex; gap:34px; flex-wrap:wrap; justify-content:center; align-items:flex-start;}
+  .variant-wrap{display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .variant-wrap.hidden{display:none;}
+  .vlabel{font-size:12.5px; font-weight:700; color:var(--navy-500); letter-spacing:.2px;}
+  .vlabel span{font-weight:500; color:var(--muted); display:block; font-size:11px; margin-top:3px; max-width:300px; text-align:center;}
+
+  /* iPhone frame */
+  .phone{
+    width:340px; background:var(--bg); border-radius:40px;
+    box-shadow:0 30px 60px -20px rgba(13,13,22,.45), 0 0 0 11px #11111a, 0 0 0 13px #2a2a38;
+    overflow:hidden; position:relative;
+  }
+  .notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:26px; background:#11111a; border-radius:0 0 16px 16px; z-index:50;}
+
+  .screen{padding:46px 0 18px; height:680px; display:flex; flex-direction:column;}
+
+  /* greeting / week nav */
+  .topbar{padding:0 18px 12px; display:flex; align-items:center; justify-content:space-between;}
+  .week-label{font-size:21px; font-weight:600; color:var(--navy-500); letter-spacing:-.4px;}
+  .navbtns{display:flex; gap:8px;}
+  .navbtn{width:34px; height:34px; border-radius:17px; background:#fff; border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(13,13,22,.05);}
+  .navbtn svg{width:16px; height:16px; stroke:var(--navy-400);}
+
+  /* legend */
+  .legend{display:flex; gap:14px; padding:0 18px 12px; flex-wrap:wrap;}
+  .lg{display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--sub);}
+  .swatch{width:14px; height:14px; border-radius:5px;}
+
+  /* day header */
+  .dayhead{display:flex; padding:0 12px 8px; gap:5px;}
+  .gutter{width:30px; flex:0 0 30px;}
+  .dh{flex:1; text-align:center;}
+  .dh .dl{font-size:11px; font-weight:600; color:var(--navy-400); text-transform:uppercase; letter-spacing:.3px;}
+  .dh .dn{font-size:15px; font-weight:600; color:var(--navy-500); margin-top:3px;}
+  .dh.today .dn{background:var(--navy-500); color:#fff; width:26px; height:26px; line-height:26px;
+    border-radius:13px; margin:3px auto 0; display:block; box-shadow:0 4px 10px -2px rgba(26,26,46,.5);}
+  .dh.today .dl{color:var(--navy-500);}
+
+  /* grid */
+  .gridscroll{flex:1; overflow-y:auto; padding:0 12px;}
+  .gridscroll::-webkit-scrollbar{width:0;}
+  .grid{display:flex; gap:5px; position:relative; padding-bottom:30px;}
+  .hrcol{width:30px; flex:0 0 30px; position:relative;}
+  .hr{height:54px; position:relative;}
+  .hr .hl{position:absolute; top:-7px; right:6px; font-size:10px; font-weight:500; color:var(--navy-300); font-variant-numeric:tabular-nums;}
+  .daycol{flex:1; position:relative; border-left:1px solid #EEF0F6;}
+  .daycol:first-of-type{border-left:none;}
+  /* hour gridlines */
+  .gline{position:absolute; left:0; right:0; height:1px; background:#F1F2F7;}
+
+  /* now line */
+  .now{position:absolute; left:0; right:0; height:0; z-index:9;}
+  .now .nl{position:absolute; left:0; right:0; top:-1px; height:2px; background:var(--navy-500);}
+  .now .nd{position:absolute; left:-4px; top:-4px; width:9px; height:9px; border-radius:5px; background:var(--navy-500); box-shadow:0 0 0 3px rgba(26,26,46,.15);}
+
+  /* ===== AVAILABILITY ===== */
+  /* Variant A: available = bright raised white card on a recessed grey canvas */
+  .va .gridscroll{background:linear-gradient(#F4F5F9,#F4F5F9);}
+  .va .daycol{background:#EFF0F6;}
+  .va .avail{position:absolute; left:3px; right:3px; border-radius:12px; background:#fff;
+    box-shadow:0 4px 14px -6px rgba(13,13,22,.18), 0 1px 3px rgba(13,13,22,.06); border:1px solid #EDEFF5;}
+  /* Variant B: available = green tinted band with side-rail + label */
+  .vb .avail{position:absolute; left:3px; right:3px; border-radius:12px;
+    background:var(--green-bg); border:1px solid #CFEFDD;}
+  .vb .avail::before{content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:2px; background:var(--green-bd);}
+  .vb .avail .at{position:absolute; top:6px; left:9px; font-size:9px; font-weight:700; color:var(--green-tx); letter-spacing:.3px;}
+
+  /* ===== LESSON CARDS (shared, rounded + 3D) ===== */
+  .lesson{position:absolute; left:3px; right:3px; border-radius:13px; padding:7px 8px; overflow:hidden;
+    box-shadow:0 6px 16px -6px rgba(13,13,22,.30), 0 1px 2px rgba(13,13,22,.10); z-index:4; cursor:pointer;}
+  .lesson .ln{font-size:11px; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lesson .lt{font-size:9px; font-weight:500; opacity:.7; margin-top:2px;}
+  .lesson .dot{position:absolute; top:7px; right:7px; width:7px; height:7px; border-radius:4px;}
+  /* navy filled lesson */
+  .lesson.l-navy{background:var(--navy-500); }
+  .lesson.l-navy .ln{color:#fff;} .lesson.l-navy .lt{color:#fff;}
+  /* white lesson with navy accent (used in variant B) */
+  .lesson.l-white{background:#fff; border:1px solid #E7E9F1;}
+  .lesson.l-white .ln{color:var(--navy-500);} .lesson.l-white .lt{color:var(--navy-400);}
+  .lesson.l-white::before{content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:2px; background:var(--navy-500);}
+
+  /* ===== BLOCKS (Malattia / Blocca slot) ===== */
+  .block{position:absolute; left:3px; right:3px; border-radius:13px; padding:7px 8px; overflow:hidden; z-index:5; cursor:pointer;}
+  .block .bn{font-size:10px; font-weight:700; line-height:1.1;}
+  .block .bt{font-size:8.5px; font-weight:500; opacity:.8; margin-top:2px;}
+  .block .bicon{position:absolute; top:6px; right:7px; width:13px; height:13px; opacity:.85;}
+  /* sick = warm amber, hatched */
+  .block.sick{background:repeating-linear-gradient(135deg,var(--warn-bg),var(--warn-bg) 7px,#FCEBD6 7px,#FCEBD6 14px);
+    border:1.5px solid var(--warn-bd);}
+  .block.sick .bn,.block.sick .bt{color:var(--warn-tx);}
+  /* blocca slot = navy hatched (closed) */
+  .block.closed{background:repeating-linear-gradient(135deg,#EDEFF5,#EDEFF5 7px,#E3E6EF 7px,#E3E6EF 14px);
+    border:1.5px solid var(--navy-300);}
+  .block.closed .bn,.block.closed .bt{color:var(--navy-400);}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Reglo · Nuova vista “Griglia” settimanale</h1>
+    <p>Terza opzione del picker <b>Vista agenda</b> (dopo Giornaliera e Settimanale). Griglia tipo Google Calendar — giorni × ore — in stile Reglo mono-navy, Airbnb: tondo, 3D, ombre morbide.<br>L’obiettivo: leggere <b>disponibilità</b> e <b>blocchi</b> della settimana in un colpo d’occhio. Scegli come devono “spiccare”:</p>
+    <div class="toggle">
+      <button id="btnA" class="active" onclick="showVariant('A')">Variante A · Tela bianca</button>
+      <button id="btnB" onclick="showVariant('B')">Variante B · Banda verde</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- ============ VARIANT A ============ -->
+    <div class="variant-wrap" id="wrapA">
+      <div class="vlabel">A · “Tela bianca”
+        <span>Lo sfondo è grigio (chiuso). La disponibilità emerge come superficie bianca rialzata. Guide navy piene. Blocchi tratteggiati.</span>
+      </div>
+      <div class="phone va">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="topbar">
+            <div class="week-label">9 – 14 Giu</div>
+            <div class="navbtns">
+              <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+              <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+          </div>
+          <div class="legend">
+            <div class="lg"><span class="swatch" style="background:#fff;border:1px solid #E3E6EF;box-shadow:0 2px 5px rgba(0,0,0,.1)"></span>Disponibile</div>
+            <div class="lg"><span class="swatch" style="background:var(--navy-500)"></span>Guida</div>
+            <div class="lg"><span class="swatch" style="background:repeating-linear-gradient(135deg,#EDEFF5,#EDEFF5 4px,#E3E6EF 4px,#E3E6EF 8px);border:1px solid var(--navy-300)"></span>Bloccato</div>
+          </div>
+          <div class="dayhead" id="dhA"></div>
+          <div class="gridscroll"><div class="grid" id="gridA"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ VARIANT B ============ -->
+    <div class="variant-wrap hidden" id="wrapB">
+      <div class="vlabel">B · “Banda verde”
+        <span>La disponibilità è una banda verde tenue con rail laterale e orario. Guide come card bianche con accento navy + pallino stato. Blocchi a colore caldo.</span>
+      </div>
+      <div class="phone vb">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="topbar">
+            <div class="week-label">9 – 14 Giu</div>
+            <div class="navbtns">
+              <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+              <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+          </div>
+          <div class="legend">
+            <div class="lg"><span class="swatch" style="background:var(--green-bg);border:1px solid #CFEFDD"></span>Disponibile</div>
+            <div class="lg"><span class="swatch" style="background:#fff;border:1px solid #E3E6EF"></span>Guida</div>
+            <div class="lg"><span class="swatch" style="background:var(--warn-bg);border:1px solid var(--warn-bd)"></span>Malattia</div>
+          </div>
+          <div class="dayhead" id="dhB"></div>
+          <div class="gridscroll"><div class="grid" id="gridB"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const FIRST=7, LAST=21, ROW=54;
+  const days=[['LUN',9],['MAR',10],['MER',11],['GIO',12,true],['VEN',13],['SAB',14]];
+  // availability windows per day index: [startH, endH]
+  const avail={0:[[8,13],[14,18]],1:[[9,19]],2:[[8,12.5]],3:[[9,13],[15,19]],4:[[8,18]],5:[[9,12]]};
+  // lessons: day, startH, durMin, name, status(dot color)
+  const lessons=[
+    {d:0,s:9,dur:60,n:'Rossi M.',dot:'#34C77B'},
+    {d:0,s:15,dur:90,n:'Bianchi L.',dot:'#FACC15'},
+    {d:1,s:10.5,dur:60,n:'Esposito',dot:'#0EA5E9'},
+    {d:1,s:14,dur:60,n:'Greco A.',dot:'#34C77B'},
+    {d:3,s:9.5,dur:60,n:'Conte F.',dot:'#FACC15'},
+    {d:3,s:16,dur:120,n:'Marino',dot:'#0EA5E9'},
+    {d:4,s:11,dur:60,n:'Ferrari',dot:'#34C77B'},
+    {d:4,s:14.5,dur:90,n:'De Luca',dot:'#FACC15'},
+  ];
+  // blocks: day, startH, endH, kind('sick'|'closed'), label
+  const blocks=[
+    {d:2,s:13,e:18,kind:'sick',label:'Malattia'},
+    {d:5,s:12,e:14,kind:'closed',label:'Bloccato'},
+  ];
+  const NOW=12.4; // now-line at ~12:24 on today (GIO=index3)
+
+  const top=h=>(h-FIRST)*ROW;
+  const fmt=h=>String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
+
+  function buildHead(el){
+    el.innerHTML='<div class="gutter"></div>'+days.map(d=>
+      `<div class="dh ${d[2]?'today':''}"><div class="dl">${d[0]}</div><div class="dn">${d[1]}</div></div>`).join('');
+  }
+
+  function buildGrid(el,variant){
+    const H=(LAST-FIRST)*ROW;
+    let html='<div class="hrcol">';
+    for(let h=FIRST;h<LAST;h++) html+=`<div class="hr"><span class="hl">${String(h).padStart(2,'0')}</span></div>`;
+    html+='</div>';
+    for(let di=0; di<days.length; di++){
+      html+=`<div class="daycol" style="height:${H}px">`;
+      // gridlines
+      for(let h=FIRST;h<LAST;h++) html+=`<div class="gline" style="top:${top(h)}px"></div>`;
+      // availability
+      (avail[di]||[]).forEach(w=>{
+        const t=top(w[0]), hh=(w[1]-w[0])*ROW;
+        html+=`<div class="avail" style="top:${t}px;height:${hh}px">`+
+              (variant==='B'?`<span class="at">${fmt(w[0])}</span>`:'')+`</div>`;
+      });
+      // lessons
+      lessons.filter(l=>l.d===di).forEach(l=>{
+        const t=top(l.s), hh=Math.max(l.dur/60*ROW,26);
+        const cls=variant==='A'?'l-navy':'l-white';
+        const dot=variant==='B'?`<span class="dot" style="background:${l.dot}"></span>`:'';
+        html+=`<div class="lesson ${cls}" style="top:${t}px;height:${hh}px">${dot}`+
+              `<div class="ln">${l.n}</div><div class="lt">${fmt(l.s)}</div></div>`;
+      });
+      // blocks
+      blocks.filter(b=>b.d===di).forEach(b=>{
+        const t=top(b.s), hh=(b.e-b.s)*ROW;
+        const icon=b.kind==='sick'
+          ? '<svg class="bicon" viewBox="0 0 24 24" fill="none" stroke="#B5681C" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>'
+          : '<svg class="bicon" viewBox="0 0 24 24" fill="none" stroke="#6E7596" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+        html+=`<div class="block ${b.kind}" style="top:${t}px;height:${hh}px">${icon}`+
+              `<div class="bn">${b.label}</div><div class="bt">${fmt(b.s)}–${fmt(b.e)}</div></div>`;
+      });
+      // now line on today
+      if(days[di][2]){
+        html+=`<div class="now" style="top:${top(NOW)}px"><div class="nl"></div><div class="nd"></div></div>`;
+      }
+      html+='</div>';
+    }
+    el.innerHTML=html;
+  }
+
+  function showVariant(v){
+    document.getElementById('btnA').classList.toggle('active',v==='A');
+    document.getElementById('btnB').classList.toggle('active',v==='B');
+    document.getElementById('wrapA').classList.toggle('hidden',v!=='A');
+    document.getElementById('wrapB').classList.toggle('hidden',v!=='B');
+  }
+
+  buildHead(document.getElementById('dhA')); buildGrid(document.getElementById('gridA'),'A');
+  buildHead(document.getElementById('dhB')); buildGrid(document.getElementById('gridB'),'B');
+</script>
+</body>
+</html>

@@ -57,7 +57,7 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
         {/* Header */}
         <View style={styles.hero}>
           <Text style={styles.title}>Crea account allievo</Text>
-          <Text style={styles.subtitle}>Inserisci il codice della tua autoscuola</Text>
+          <Text style={styles.subtitle}>Inserisci il codice ricevuto dalla tua autoscuola o dal tuo istruttore</Text>
         </View>
 
         {/* Form */}
@@ -85,7 +85,7 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
           />
 
           <View style={styles.codeWrapper}>
-            <Text style={styles.codeLabel}>Codice autoscuola</Text>
+            <Text style={styles.codeLabel}>Codice di invito</Text>
             <TextInput
               style={styles.codeInput}
               value={schoolCode}

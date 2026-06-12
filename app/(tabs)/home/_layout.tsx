@@ -133,6 +133,15 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
+        name="edit-notes"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: 'fitToContents',
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="swap-lesson"
         options={{
           presentation: 'formSheet',

@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- expo-clipboard non è nel binario
+  // corrente (aggiungerlo richiede una build nativa): il Clipboard core di RN è OTA-safe.
+  Clipboard,
   Platform,
   Pressable,
   RefreshControl,
@@ -7,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -82,6 +86,8 @@ export const ClusterSettingsScreen = () => {
   const [restrictedTimeEnd, setRestrictedTimeEnd] = useState<string | undefined>(undefined);
   const [allStudents, setAllStudents] = useState<Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null }>>([]);
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
+  const [autonomousMode, setAutonomousMode] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -103,6 +109,8 @@ export const ClusterSettingsScreen = () => {
       setRestrictedTimeEnd(res.settings.restrictedTimeRangeEnd);
       setAllStudents(res.students ?? []);
       setAssignedStudentIds(res.assignedStudentIds ?? []);
+      setAutonomousMode(res.autonomousMode === true);
+      setInviteCode(res.inviteCode ?? null);
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
     } finally {
@@ -142,6 +150,13 @@ export const ClusterSettingsScreen = () => {
       },
     });
     router.push('/(tabs)/notes/group-students');
+  };
+
+  const copyInviteCode = () => {
+    if (!inviteCode) return;
+    Clipboard.setString(inviteCode);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    setToast({ text: 'Codice copiato', tone: 'success' });
   };
 
   const openTimePicker = (current: string, onPick: (hhmm: string) => void) => {
@@ -331,6 +346,24 @@ export const ClusterSettingsScreen = () => {
           <View style={styles.rowDivider} />
           <Row icon="sparkles-outline" label="Funzionalità extra" hint={extrasSummary} onPress={() => router.push('/(tabs)/notes/extras' as never)} />
         </View>
+
+        {/* Codice di invito — gli allievi che si registrano con questo codice
+            entrano direttamente nel gruppo. Tap = copia. */}
+        {autonomousMode && inviteCode ? (
+          <Pressable
+            onPress={copyInviteCode}
+            style={({ pressed }) => [styles.codeCard, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
+          >
+            <View style={styles.codeCardHeader}>
+              <Text style={styles.codeCardLabel}>Codice di invito</Text>
+              <Ionicons name="copy-outline" size={17} color="#9CA3AF" />
+            </View>
+            <Text style={styles.codeCardValue}>{inviteCode}</Text>
+            <Text style={styles.codeCardHint}>
+              Condividilo con i nuovi allievi: registrandosi con questo codice si iscriveranno all'autoscuola direttamente nel tuo gruppo.
+            </Text>
+          </Pressable>
+        ) : null}
       </Animated.ScrollView>
     </View>
   );
@@ -363,4 +396,36 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 16, fontWeight: '500', color: '#1A1A2E' },
   rowHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 39 },
+
+  /* Codice di invito */
+  codeCard: {
+    marginTop: 28,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECECEC',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  codeCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  codeCardLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  codeCardValue: {
+    fontSize: 30,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    letterSpacing: 6,
+    marginTop: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  codeCardHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 10, lineHeight: 18 },
 });

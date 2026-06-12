@@ -1,53 +1,60 @@
-import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
+  runOnJS,
+  interpolateColor,
   Easing,
 } from 'react-native-reanimated';
 import {
   View,
   Text,
+  Image,
   Pressable,
   ScrollView,
+  FlatList,
   StyleSheet,
   useWindowDimensions,
-  PanResponder,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import * as Haptics from '../utils/haptics';
+import { scrubActive, scrubLabel, scrubX, scrubY } from '../stores/scrubOverlay';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type QuickBookPreview = {
-  date: Date;
-  hour: number;
-  minutes: number;
-  duration: number;
-};
+type AvailWindow = { startMinutes: number; endMinutes: number };
 
 type WeeklyAgendaViewProps = {
   appointments: AutoscuolaAppointmentWithRelations[];
   instructorBlocks?: InstructorBlock[];
   holidays?: Set<string>;
+  /** A date inside the week to open on first render. */
+  anchorDate?: Date;
+  /** Owner / read-only: no booking, no block removal. */
+  readOnly?: boolean;
   onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
+  onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
-  onPressCluster?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
-  onPressEmptySlot?: (date: Date, hour: number, minutes: number) => void;
+  /**
+   * Hold-and-scrub booking: fired on release with the picked start minute + the
+   * free-segment bounds. Same flow as the day/week views' BookableBand.
+   */
+  onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number) => void;
+  /** Fired when the visible week settles (swipe / "Oggi"). */
   onDateChange?: (weekStart: Date) => void;
   loading?: boolean;
-  clusterMode?: boolean;
   studentCompletedMinutes?: Record<string, number>;
-  weekAvailability?: Record<number, Array<{ startMinutes: number; endMinutes: number }>>;
-  quickBookPreview?: QuickBookPreview | null;
-  quickBookTopPanHandlers?: ReturnType<typeof PanResponder.create>['panHandlers'];
-  quickBookBottomPanHandlers?: ReturnType<typeof PanResponder.create>['panHandlers'];
-  quickBookDragging?: boolean;
+  /** Availability windows keyed by YYYY-MM-DD (minutes since midnight). */
+  weekAvailabilityByDate?: Record<string, AvailWindow[]>;
 };
 
 /* ------------------------------------------------------------------ */
@@ -56,17 +63,25 @@ type WeeklyAgendaViewProps = {
 
 const FIRST_HOUR = 7;
 // Upper boundary of the grid. With LAST_HOUR = 24 the last visible row is
-// labeled "23:00" and covers 23:00–24:00, so events ending up to midnight
-// render correctly. (Prior value 21 silently clipped any block after 21:00.)
+// labeled "23:00" and covers 23:00–24:00, so events ending up to midnight render.
 const LAST_HOUR = 24;
 const ROW_H = 56;
-const GUTTER_W = 24;
+const GUTTER_W = 34;
+const COL_GAP = 4;        // gap between day columns (Airbnb-ish breathing room)
+const GRID_TOP_PAD = 12;  // breathing room so the first hour label isn't clipped
+
+// Hold-and-scrub booking (mirrors BookableBand in the day/week views).
+const STEP = 15;          // minutes per scrub step
+const PX_PER_STEP = 10;   // px of vertical drag per 15-min step
+
+// Horizontal week carousel: half a year of swipe each way, centered on "today".
+const WEEK_SPAN = 26;
 
 const MONTH_NAMES = [
   'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
   'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic',
 ];
-const DAY_LABELS = ['L', 'M', 'M', 'G', 'V', 'S'];
+const DAY_LABELS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -86,14 +101,19 @@ const isSameDay = (a: Date, b: Date) =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
-const isSameWeek = (a: Date, b: Date) =>
-  isSameDay(getMonday(a), getMonday(b));
+const isSameWeek = (a: Date, b: Date) => isSameDay(getMonday(a), getMonday(b));
 
 const addDays = (d: Date, n: number): Date => {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
   return r;
 };
+
+const toDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const fmtMin = (min: number) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
 
 const formatWeekLabel = (monday: Date): string => {
   const saturday = addDays(monday, 5);
@@ -106,86 +126,45 @@ const formatWeekLabel = (monday: Date): string => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Appointment colour map                                             */
+/*  Lesson appearance — mono-navy (Variant A)                          */
 /* ------------------------------------------------------------------ */
 
-type AppointmentColors = { bg: string; border: string; text: string };
+type LessonLook = { bg: string; text: string; sub: string; pressed: string };
 
-/**
- * Color map aligned with daily view's timelineStatusConfig.
- * Single source of truth for appointment status colors.
- */
-const getDurationColors = (durationMinutes: number): AppointmentColors => {
-  if (durationMinutes <= 30) return { bg: '#F0FDFA', border: '#14B8A6', text: '#0F766E' };   // teal
-  if (durationMinutes <= 45) return { bg: '#F7FEE7', border: '#84CC16', text: '#4D7C0F' };   // lime
-  if (durationMinutes <= 60) return { bg: '#FEF9C3', border: '#FACC15', text: '#CA8A04' };   // yellow
-  if (durationMinutes <= 90) return { bg: '#F0F9FF', border: '#0EA5E9', text: '#0369A1' };   // sky
-  return { bg: '#F5F3FF', border: '#8B5CF6', text: '#6D28D9' };                               // violet
-};
+// Active guides are navy-filled pills; "spent" states (cancelled / no_show) recede
+// to a muted grey so the eye reads the live week at a glance.
+const NAVY: LessonLook = { bg: '#1A1A2E', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#2A2A45' };
+const MUTED: LessonLook = { bg: '#EBEDF3', text: '#8A90A6', sub: 'rgba(110,117,150,0.7)', pressed: '#E1E4EC' };
 
-const getAppointmentColors = (
-  appt: AutoscuolaAppointmentWithRelations,
-  completedMinutes: Record<string, number>,
-): AppointmentColors => {
+const getLessonLook = (appt: AutoscuolaAppointmentWithRelations): LessonLook => {
   const status = (appt.status ?? '').trim().toLowerCase();
-
-  // Exam type overrides status (unless cancelled/no_show)
-  if (appt.type === 'esame' && status !== 'cancelled' && status !== 'no_show') {
-    return { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' };
-  }
-
-  switch (status) {
-    case 'pending_review':
-      return { bg: '#FFF7ED', border: '#F97316', text: '#EA580C' };
-    case 'checked_in':
-      return { bg: '#F4F5F9', border: '#1A1A2E', text: '#14141F' };
-    case 'completed':
-      return { bg: '#F0FDF4', border: '#22C55E', text: '#16A34A' };
-    case 'no_show':
-    case 'cancelled':
-      return { bg: '#F1F5F9', border: '#94A3B8', text: '#64748B' };
-    case 'scheduled':
-    case 'confirmed':
-    default: {
-      const start = new Date(appt.startsAt).getTime();
-      const end = appt.endsAt ? new Date(appt.endsAt).getTime() : start + 60 * 60 * 1000;
-      const dur = Math.round((end - start) / 60000);
-      // Mandatory: student < 6h completed AND lesson ≥ 60 min
-      const mins = completedMinutes[appt.studentId] ?? 0;
-      if (mins < MANDATORY_MINUTES_THRESHOLD && dur >= 60) {
-        return { bg: '#F0F9FF', border: '#0EA5E9', text: '#0369A1' };
-      }
-      // Duration-based colors
-      return getDurationColors(dur);
-    }
-  }
+  if (status === 'cancelled' || status === 'no_show') return MUTED;
+  return NAVY;
 };
+
+// Dedicated tinted looks for exams (indigo) and group lessons (teal) — same
+// palettes as the day/week views, so the event type reads at a glance.
+const EXAM_LOOK = { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' };
+const GROUP_LOOK = { bg: '#ECFDF5', border: '#10B981', text: '#0F766E' };
+const GROUP_CAPACITY = 3;
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton pulse block                                               */
 /* ------------------------------------------------------------------ */
 
 const SkeletonBlock = ({ style }: { style: object }) => {
-  const opacity = useSharedValue(0.12);
+  const opacity = useSharedValue(0.10);
   useEffect(() => {
     opacity.value = withRepeat(
-      withTiming(0.28, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0.22, { duration: 900, easing: Easing.inOut(Easing.ease) }),
       -1,
       true,
     );
   }, [opacity]);
-  const animStyle = useAnimatedStyle(() => ({
-    backgroundColor: '#1A1A2E',
-    opacity: opacity.value,
-  }));
+  const animStyle = useAnimatedStyle(() => ({ backgroundColor: '#1A1A2E', opacity: opacity.value }));
   return <Animated.View style={[style, animStyle]} />;
 };
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
-/* Skeleton placeholder positions (col, startHour fraction, height fraction) */
 const SKELETON_BLOCKS = [
   { col: 0, top: 2.5, h: 1.2 },
   { col: 1, top: 1.0, h: 1.0 },
@@ -197,70 +176,151 @@ const SKELETON_BLOCKS = [
   { col: 5, top: 3.5, h: 1.2 },
 ];
 
-const MANDATORY_MINUTES_THRESHOLD = 360; // 6 hours
+/* ------------------------------------------------------------------ */
+/*  Free segment = hold-and-scrub bookable surface                     */
+/* ------------------------------------------------------------------ */
 
-export default function WeeklyAgendaView({
-  appointments,
-  instructorBlocks = [],
-  holidays = new Set(),
-  onPressAppointment,
-  onPressExam,
-  onPressBlock,
-  onPressCluster,
-  onPressEmptySlot,
-  onDateChange,
-  loading = false,
-  clusterMode = false,
-  studentCompletedMinutes = {},
-  weekAvailability = {},
-  quickBookPreview = null,
-  quickBookTopPanHandlers,
-  quickBookBottomPanHandlers,
-  quickBookDragging = false,
-}: WeeklyAgendaViewProps) {
-  const { width: screenWidth } = useWindowDimensions();
-  const colW = (screenWidth - GUTTER_W) / 6;
+type GridBookableProps = {
+  top: number; height: number; left: number; width: number;
+  /** This free segment's bounds (minutes from midnight), used for seeding. */
+  windowStart: number; windowEnd: number;
+  /** Day-wide ascending 15-min bookable starts (every free segment), the scrub walks them. */
+  starts: number[];
+  /** All free segments of the day, to resolve which one the picked time falls in. */
+  segments: Array<[number, number]>;
+  date: Date;
+  onBook: (date: Date, startMin: number, winStart: number, winEnd: number) => void;
+};
 
-  const [weekAnchor, setWeekAnchor] = useState<Date>(() => getMonday(new Date()));
+// Any free time is bookable — the surface spans a free segment (the day minus
+// guides/blocks), NOT the availability. Press-and-hold (220ms) to arm, drag
+// up/down in 15-min steps across every free time; a floating card bubble follows
+// the finger (screen-level <ScrubBubble/>). Release books the held time; a tap
+// books the tapped time. The surface is invisible — a faint navy tint shows while held.
+const GridBookableWindow = ({
+  top, height, left, width, windowStart, windowEnd, starts, segments, date, onBook,
+}: GridBookableProps) => {
+  const active = useSharedValue(0);
+  const baseIdx = useSharedValue(0);
+  const curIdx = useSharedValue(0);
 
-  const today = useMemo(() => new Date(), []);
-  const isCurrentWeek = isSameWeek(weekAnchor, today);
+  const idxNearest = (m: number) => {
+    'worklet';
+    let best = 0; let bestD = Infinity;
+    for (let i = 0; i < starts.length; i++) {
+      const d = starts[i] - m; const ad = d < 0 ? -d : d;
+      if (ad < bestD) { bestD = ad; best = i; }
+    }
+    return best;
+  };
+  const clampIdx = (i: number) => { 'worklet'; return Math.max(0, Math.min(starts.length - 1, i)); };
 
-  const weekDays = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => addDays(weekAnchor, i)),
-    [weekAnchor],
+  const startHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const stepHaptic = () => Haptics.selectionAsync();
+  const setLabel = (m: number) => scrubLabel.set(fmtMin(m));
+  // Resolve the free segment containing the picked minute so the sheet clamps the
+  // new lesson's duration up to the next guide/block (not into it).
+  const doBook = (m: number) => {
+    let ws = m; let we = m + 60;
+    for (const [s, e] of segments) { if (m >= s && m < e) { ws = s; we = e; break; } }
+    onBook(date, m, ws, we);
+  };
+
+  const pan = Gesture.Pan()
+    .activateAfterLongPress(220)
+    .onStart((e) => {
+      active.value = withTiming(1, { duration: 140 });
+      const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
+      const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
+      const idx = idxNearest(localMin);
+      baseIdx.value = idx; curIdx.value = idx;
+      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+      scrubActive.value = withTiming(1, { duration: 140 });
+      runOnJS(setLabel)(starts[idx]);
+      runOnJS(startHaptic)();
+    })
+    .onUpdate((e) => {
+      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+      const steps = Math.round(e.translationY / PX_PER_STEP);
+      const idx = clampIdx(baseIdx.value + steps);
+      if (idx !== curIdx.value) {
+        curIdx.value = idx;
+        runOnJS(setLabel)(starts[idx]);
+        runOnJS(stepHaptic)();
+      }
+    })
+    .onEnd(() => {
+      active.value = withTiming(0, { duration: 180 });
+      scrubActive.value = withTiming(0, { duration: 180 });
+      runOnJS(doBook)(starts[curIdx.value]);
+    })
+    .onFinalize((_e, success) => {
+      active.value = withTiming(0, { duration: 180 });
+      if (!success) scrubActive.value = withTiming(0, { duration: 180 });
+    });
+
+  const tap = Gesture.Tap()
+    .maxDuration(250)
+    .onEnd((e) => {
+      // Book at the tapped position (not the segment start), snapped to the grid.
+      const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
+      const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
+      runOnJS(doBook)(starts[idxNearest(localMin)]);
+    });
+
+  const gesture = Gesture.Exclusive(pan, tap);
+
+  const aStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(active.value, [0, 1], ['rgba(26,26,46,0)', 'rgba(26,26,46,0.07)']),
+  }));
+
+  return (
+    <View style={{ position: 'absolute', top, height, left, width, zIndex: 2 }}>
+      <GestureDetector gesture={gesture}>
+        <Animated.View style={[styles.bookSurface, aStyle]} />
+      </GestureDetector>
+    </View>
   );
+};
 
-  const hours = useMemo(
-    () => Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i),
-    [],
-  );
+/* ------------------------------------------------------------------ */
+/*  One week page (day header + vertical hour grid)                    */
+/* ------------------------------------------------------------------ */
 
-  /* ── Swipe navigation ── */
-  const swipeRef = useRef({ startX: 0 });
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 30 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-        onPanResponderGrant: (_, g) => { swipeRef.current.startX = g.x0; },
-        onPanResponderRelease: (_, g) => {
-          if (g.dx > 60) setWeekAnchor((prev) => addDays(prev, -7));
-          else if (g.dx < -60) setWeekAnchor((prev) => addDays(prev, 7));
-        },
-      }),
-    [],
-  );
+type WeekPageProps = {
+  monday: Date;
+  pageWidth: number;
+  pageHeight: number;
+  colW: number;
+  today: Date;
+  appointments: AutoscuolaAppointmentWithRelations[];
+  instructorBlocks: InstructorBlock[];
+  holidays: Set<string>;
+  weekAvailabilityByDate: Record<string, AvailWindow[]>;
+  studentCompletedMinutes: Record<string, number>;
+  readOnly: boolean;
+  loading: boolean;
+  onPressAppointment: (appointment: AutoscuolaAppointmentWithRelations) => void;
+  onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
+  onPressGroupLesson?: (groupLessonId: string) => void;
+  onPressBlock?: (block: InstructorBlock) => void;
+  onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number) => void;
+};
 
-  useEffect(() => {
-    onDateChange?.(weekAnchor);
-  }, [weekAnchor, onDateChange]);
+const WeekPage = React.memo(function WeekPage({
+  monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
+  weekAvailabilityByDate, readOnly, loading,
+  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onBookAt,
+}: WeekPageProps) {
+  const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
+  const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
 
-  /* ── Bucket appointments by column ── */
+  const weekDays = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), [monday]);
+  const hours = useMemo(() => Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i), []);
+  const isCurrentWeek = isSameWeek(monday, today);
+
   const appointmentsByCol = useMemo(() => {
-    const buckets: AutoscuolaAppointmentWithRelations[][] = Array.from(
-      { length: 6 },
-      () => [],
-    );
+    const buckets: AutoscuolaAppointmentWithRelations[][] = Array.from({ length: 6 }, () => []);
     for (const appt of appointments) {
       const start = new Date(appt.startsAt);
       const dow = start.getDay();
@@ -275,58 +335,6 @@ export default function WeeklyAgendaView({
     return buckets;
   }, [appointments, weekDays]);
 
-  /* ── Cluster overlapping appointments per column ── */
-  type ClusterItem =
-    | { kind: 'single'; appt: AutoscuolaAppointmentWithRelations }
-    | { kind: 'cluster'; appts: AutoscuolaAppointmentWithRelations[]; startMin: number; endMin: number };
-
-  const clusteredByCol = useMemo(() => {
-    if (!clusterMode) return null;
-    return appointmentsByCol.map((colAppts): ClusterItem[] => {
-      if (colAppts.length <= 1) return colAppts.map((a) => ({ kind: 'single' as const, appt: a }));
-      type Span = { idx: number; startMin: number; endMin: number };
-      const spans: Span[] = colAppts.map((appt, idx) => {
-        const s = new Date(appt.startsAt);
-        const sm = s.getHours() * 60 + s.getMinutes();
-        const em = appt.endsAt ? sm + (new Date(appt.endsAt).getTime() - s.getTime()) / 60000 : sm + 60;
-        return { idx, startMin: sm, endMin: em };
-      });
-      spans.sort((a, b) => a.startMin - b.startMin);
-      const groups: Span[][] = [];
-      let cur: Span[] = [spans[0]];
-      let gEnd = spans[0].endMin;
-      for (let i = 1; i < spans.length; i++) {
-        if (spans[i].startMin < gEnd) {
-          cur.push(spans[i]);
-          gEnd = Math.max(gEnd, spans[i].endMin);
-        } else {
-          groups.push(cur);
-          cur = [spans[i]];
-          gEnd = spans[i].endMin;
-        }
-      }
-      groups.push(cur);
-      return groups.map((g): ClusterItem => {
-        if (g.length === 1) return { kind: 'single', appt: colAppts[g[0].idx] };
-        return {
-          kind: 'cluster',
-          appts: g.map((s) => colAppts[s.idx]),
-          startMin: Math.min(...g.map((s) => s.startMin)),
-          endMin: Math.max(...g.map((s) => s.endMin)),
-        };
-      });
-    });
-  }, [appointmentsByCol, clusterMode]);
-
-  /* ── Holiday columns ── */
-  const toDateKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const holidayCols = useMemo(
-    () => new Set(weekDays.map((d, i) => (holidays.has(toDateKey(d)) ? i : -1)).filter((i) => i >= 0)),
-    [weekDays, holidays],
-  );
-
-  /* ── Bucket instructor blocks by column ── */
   const blocksByCol = useMemo(() => {
     const buckets: InstructorBlock[][] = Array.from({ length: 6 }, () => []);
     for (const block of instructorBlocks) {
@@ -343,7 +351,109 @@ export default function WeeklyAgendaView({
     return buckets;
   }, [instructorBlocks, weekDays]);
 
-  /* ── Now line ── */
+  // Split each column's appointments into the four dedicated event kinds:
+  // individual guide pills, collapsed timed-exam slots, collapsed group lessons,
+  // and timeless exams (no time → shown in the all-day lane).
+  const eventsByCol = useMemo(() => {
+    const slotKey = (a: AutoscuolaAppointmentWithRelations) => `${a.startsAt}|${a.endsAt ?? ''}|${a.instructorId ?? ''}`;
+    return weekDays.map((_day, colIdx) => {
+      const guide: AutoscuolaAppointmentWithRelations[] = [];
+      const timeless: AutoscuolaAppointmentWithRelations[] = [];
+      const examMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
+      const groupMap = new Map<string, AutoscuolaAppointmentWithRelations[]>();
+      for (const a of appointmentsByCol[colIdx]) {
+        const status = (a.status ?? '').trim().toLowerCase();
+        if (a.type === 'esame') {
+          if (!a.endsAt) { if (status !== 'cancelled') timeless.push(a); continue; }
+          const k = slotKey(a);
+          const arr = examMap.get(k); if (arr) arr.push(a); else examMap.set(k, [a]);
+        } else if (a.type === 'group_lesson') {
+          const k = a.groupLessonId ?? slotKey(a);
+          const arr = groupMap.get(k); if (arr) arr.push(a); else groupMap.set(k, [a]);
+        } else {
+          guide.push(a);
+        }
+      }
+      const exams = Array.from(examMap.values());
+      const groups = Array.from(groupMap.entries()).map(([key, appts]) => ({
+        groupLessonId: appts[0].groupLessonId ?? (key.includes('|') ? null : key),
+        appts,
+      }));
+      return { guide, exams, groups, timeless };
+    });
+  }, [appointmentsByCol, weekDays]);
+
+  const weekHasTimeless = useMemo(
+    () => eventsByCol.some((c) => c.timeless.length > 0),
+    [eventsByCol],
+  );
+
+  // Availability veil (informational, light) — merged windows, does NOT gate booking.
+  const availTintByCol = useMemo(() => weekDays.map((day) => {
+    const rawSlots = weekAvailabilityByDate[toDateKey(day)] ?? [];
+    if (!rawSlots.length) return [] as Array<[number, number]>;
+    const raw: Array<[number, number]> = rawSlots
+      .map((s) => [Math.max(s.startMinutes, FIRST_HOUR * 60), Math.min(s.endMinutes, LAST_HOUR * 60)] as [number, number])
+      .filter(([s, e]) => e > s)
+      .sort((a, b) => a[0] - b[0]);
+    const merged: Array<[number, number]> = [];
+    for (const w of raw) {
+      const last = merged[merged.length - 1];
+      if (last && w[0] <= last[1]) last[1] = Math.max(last[1], w[1]);
+      else merged.push([w[0], w[1]]);
+    }
+    return merged;
+  }), [weekDays, weekAvailabilityByDate]);
+
+  // Bookable free segments = whole day (07–24) minus occupied (non-cancelled guide + blocks).
+  const bookableByCol = useMemo(() => {
+    const DAY_START = FIRST_HOUR * 60;
+    const DAY_END = LAST_HOUR * 60;
+    return weekDays.map((_day, colIdx) => {
+      const occupied: Array<[number, number]> = [];
+      for (const a of appointmentsByCol[colIdx]) {
+        if ((a.status ?? '').trim().toLowerCase() === 'cancelled') continue;
+        if (a.type === 'esame' && !a.endsAt) continue; // timeless exam: no real time block
+        const s = new Date(a.startsAt);
+        const sm = s.getHours() * 60 + s.getMinutes();
+        let em = sm + 60;
+        if (a.endsAt) { const e = new Date(a.endsAt); em = e.getHours() * 60 + e.getMinutes(); }
+        if (em > sm) occupied.push([sm, em]);
+      }
+      for (const b of blocksByCol[colIdx]) {
+        const s = new Date(b.startsAt); const e = new Date(b.endsAt);
+        const sm = s.getHours() * 60 + s.getMinutes();
+        const em = e.getHours() * 60 + e.getMinutes();
+        if (em > sm) occupied.push([sm, em]);
+      }
+      occupied.sort((a, b) => a[0] - b[0]);
+      const occ: Array<[number, number]> = [];
+      for (const o of occupied) {
+        const last = occ[occ.length - 1];
+        if (last && o[0] <= last[1]) last[1] = Math.max(last[1], o[1]);
+        else occ.push([o[0], o[1]]);
+      }
+      const segments: Array<[number, number]> = [];
+      let cursor = DAY_START;
+      for (const [os, oe] of occ) {
+        if (oe <= cursor) continue;
+        if (os > cursor) segments.push([cursor, Math.min(os, DAY_END)]);
+        cursor = Math.max(cursor, oe);
+        if (cursor >= DAY_END) break;
+      }
+      if (cursor < DAY_END) segments.push([cursor, DAY_END]);
+      const segs = segments.filter(([s, e]) => e - s >= STEP);
+      const starts: number[] = [];
+      for (const [s, e] of segs) for (let m = s; m <= e - STEP; m += STEP) starts.push(m);
+      return { segments: segs, starts };
+    });
+  }, [weekDays, appointmentsByCol, blocksByCol]);
+
+  const holidayCols = useMemo(
+    () => new Set(weekDays.map((d, i) => (holidays.has(toDateKey(d)) ? i : -1)).filter((i) => i >= 0)),
+    [weekDays, holidays],
+  );
+
   const nowLineTop = useMemo(() => {
     if (!isCurrentWeek) return null;
     const now = new Date();
@@ -358,33 +468,9 @@ export default function WeeklyAgendaView({
     return weekDays.findIndex((d) => isSameDay(d, today));
   }, [isCurrentWeek, weekDays, today]);
 
-  const weekLabel = formatWeekLabel(weekAnchor);
-  const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
-
   return (
-    <View style={styles.container}>
-      {/* ──── Week nav ──── */}
-      <View style={styles.weekNav}>
-        <Text style={styles.weekLabel}>{weekLabel}</Text>
-        <View style={styles.weekNavBtns}>
-          <Pressable
-            onPress={() => setWeekAnchor((prev) => addDays(prev, -7))}
-            hitSlop={8}
-            style={({ pressed }) => [styles.weekNavBtn, pressed && { backgroundColor: '#F1F5F9' }]}
-          >
-            <Ionicons name="chevron-back-outline" size={18} color="#94A3B8" />
-          </Pressable>
-          <Pressable
-            onPress={() => setWeekAnchor((prev) => addDays(prev, 7))}
-            hitSlop={8}
-            style={({ pressed }) => [styles.weekNavBtn, pressed && { backgroundColor: '#F1F5F9' }]}
-          >
-            <Ionicons name="chevron-forward-outline" size={18} color="#94A3B8" />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* ──── Day header ──── */}
+    <View style={{ width: pageWidth, height: pageHeight }}>
+      {/* Day header (slides with the week) */}
       <View style={styles.dayHeaderRow}>
         <View style={{ width: GUTTER_W }} />
         {weekDays.map((day, idx) => {
@@ -392,18 +478,18 @@ export default function WeeklyAgendaView({
           const isPast = day < today && !isToday;
           const isHoliday = holidayCols.has(idx);
           return (
-            <View key={idx} style={[styles.dayHeaderCell, { width: colW }, isHoliday && { backgroundColor: '#FEE2E2' }]}>
+            <View key={idx} style={[styles.dayHeaderCell, { width: colW, marginLeft: idx === 0 ? 0 : COL_GAP }]}>
               <Text
                 style={[
                   styles.dayLetter,
-                  isPast && !isHoliday && { color: '#CBD5E1' },
-                  isToday && !isHoliday && { color: '#1A1A2E' },
+                  isPast && !isHoliday && { color: '#C2C7DA' },
+                  isToday && { color: '#1A1A2E' },
                   isHoliday && { color: '#DC2626' },
                 ]}
               >
                 {DAY_LABELS[idx]}
               </Text>
-              {isToday && !isHoliday ? (
+              {isToday ? (
                 <View style={styles.todayCircle}>
                   <Text style={styles.todayCircleText}>{day.getDate()}</Text>
                 </View>
@@ -411,143 +497,119 @@ export default function WeeklyAgendaView({
                 <Text
                   style={[
                     styles.dayNumber,
-                    isPast && !isHoliday && { color: '#CBD5E1' },
+                    isPast && !isHoliday && { color: '#C2C7DA' },
                     isHoliday && { color: '#DC2626' },
                   ]}
                 >
                   {day.getDate()}
                 </Text>
               )}
-              {isHoliday && (
-                <View style={{ backgroundColor: '#FECACA', borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1, marginTop: 2 }}>
-                  <Text style={{ fontSize: 7, fontWeight: '700', color: '#DC2626' }}>Festivo</Text>
-                </View>
-              )}
             </View>
           );
         })}
       </View>
 
-      {/* ──── Scrollable time grid ──── */}
+      {/* Timeless exams (no time yet) — prominent canonical exam card per day */}
+      {weekHasTimeless && (
+        <View style={styles.timelessWrap}>
+          {eventsByCol.map(({ timeless }, colIdx) => {
+            if (!timeless.length) return null;
+            const day = weekDays[colIdx];
+            const dayLabel = day.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+            const n = timeless.length;
+            return (
+              <Pressable
+                key={`tl-${colIdx}`}
+                onPress={() => onPressExam?.(timeless)}
+                style={({ pressed }) => [styles.examBanner, pressed && { opacity: 0.94, transform: [{ scale: 0.992 }] }]}
+              >
+                <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examBannerIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.examBannerLabel}>Esame di guida · {dayLabel}</Text>
+                  <Text style={styles.examBannerTitle} numberOfLines={1}>
+                    {n} {n === 1 ? 'allievo' : 'allievi'} · Orario da definire
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Scrollable time grid */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ height: gridHeight + (quickBookPreview ? 500 : 100) }}
+        nestedScrollEnabled
+        contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 28, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={!quickBookDragging}
-        {...panResponder.panHandlers}
       >
-        {/* Today column highlight */}
-        {todayColIdx >= 0 && !holidayCols.has(todayColIdx) && (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: GUTTER_W + todayColIdx * colW,
-              width: colW,
-              height: gridHeight,
-              backgroundColor: '#F4F5F9',
-              opacity: 0.35,
-            }}
-          />
-        )}
+        {/* Column canvases — recessed grey = closed/unavailable */}
+        {weekDays.map((_day, colIdx) => {
+          const isHoliday = holidayCols.has(colIdx);
+          const isTodayCol = colIdx === todayColIdx;
+          return (
+            <View
+              key={`canvas-${colIdx}`}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: colX(colIdx),
+                width: colW,
+                height: gridHeight,
+                borderRadius: 14,
+                backgroundColor: isHoliday ? '#FBEAEA' : '#EFF0F6',
+                borderWidth: isTodayCol ? 1.5 : 0,
+                borderColor: '#D6D9E6',
+              }}
+            />
+          );
+        })}
 
-        {/* Holiday column overlays */}
-        {Array.from(holidayCols).map((colIdx) => (
-          <View
-            key={`holiday-${colIdx}`}
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: GUTTER_W + colIdx * colW,
-              width: colW,
-              height: gridHeight,
-              backgroundColor: '#FEE2E2',
-              opacity: 0.35,
-            }}
-          />
-        ))}
-
-        {/* Tap-to-book: tap empty area to create lesson */}
-        {onPressEmptySlot && (
-          <Pressable
-            style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: gridHeight, zIndex: 0 }}
-            onPress={(e) => {
-              const x = e.nativeEvent.locationX;
-              const y = e.nativeEvent.locationY;
-              const col = Math.floor(x / colW);
-              if (col < 0 || col > 5) return;
-              const hourOffset = y / ROW_H;
-              const hour = FIRST_HOUR + Math.floor(hourOffset);
-              const minutes = Math.floor((hourOffset % 1) * 4) * 15;
-              onPressEmptySlot(weekDays[col], hour, minutes);
-            }}
-          />
-        )}
-
-        {/* Hour rows + horizontal grid lines */}
+        {/* Hour gridlines + labels */}
         {hours.map((hour, idx) => (
           <View
             key={hour}
             pointerEvents="none"
             style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H }}
           >
-            <View style={styles.hourGutter}>
-              <Text style={styles.hourLabel}>
-                {String(hour).padStart(2, '0')}
-              </Text>
-            </View>
-            <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0' }} />
+            <Text style={styles.hourLabel}>{pad(hour)}</Text>
+            {idx > 0 && (
+              <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E4E6EF' }} />
+            )}
           </View>
         ))}
 
-        {/* Availability highlights per column */}
-        {Object.entries(weekAvailability).map(([colIdxStr, slots]) => {
-          const ci = Number(colIdxStr);
-          return slots.map((slot, si) => {
-            const topMin = Math.max(slot.startMinutes, FIRST_HOUR * 60);
-            const botMin = Math.min(slot.endMinutes, LAST_HOUR * 60);
-            if (botMin <= topMin) return null;
-            const top = ((topMin - FIRST_HOUR * 60) / 60) * ROW_H;
-            const height = ((botMin - topMin) / 60) * ROW_H;
+        {/* Availability veil — faint light hint only (does not gate booking) */}
+        {availTintByCol.map((wins, colIdx) =>
+          wins.map(([sMin, eMin], i) => {
+            const top = ((sMin - FIRST_HOUR * 60) / 60) * ROW_H;
+            const height = ((eMin - sMin) / 60) * ROW_H;
             return (
               <View
-                key={`avail-${ci}-${si}`}
+                key={`avt-${colIdx}-${i}`}
                 pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top,
-                  height,
-                  left: GUTTER_W + ci * colW + 1,
-                  width: colW - 2,
-                  backgroundColor: '#86EFAC',
-                  opacity: 0.12,
-                  borderTopLeftRadius: 4,
-                  borderTopRightRadius: 4,
-                  borderBottomLeftRadius: 4,
-                  borderBottomRightRadius: 4,
-                }}
+                style={[styles.availTint, { top, height, left: colX(colIdx) + 3, width: colW - 6 }]}
               />
             );
-          });
-        })}
+          }),
+        )}
 
-        {/* Vertical column separators */}
-        {Array.from({ length: 7 }, (_, i) => (
-          <View
-            key={`v${i}`}
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: GUTTER_W + i * colW,
-              width: StyleSheet.hairlineWidth,
-              height: gridHeight,
-              backgroundColor: i === 0 ? '#CBD5E1' : '#F1F5F9',
-            }}
-          />
-        ))}
+        {/* Bookable free segments — invisible press-and-hold scrub surfaces */}
+        {onBookAt && !readOnly && bookableByCol.map(({ segments, starts }, colIdx) =>
+          starts.length ? segments.map(([sMin, eMin], si) => {
+            const top = ((sMin - FIRST_HOUR * 60) / 60) * ROW_H;
+            const height = ((eMin - sMin) / 60) * ROW_H;
+            return (
+              <GridBookableWindow
+                key={`bk-${colIdx}-${si}`}
+                top={top} height={height} left={colX(colIdx) + 3} width={colW - 6}
+                windowStart={sMin} windowEnd={eMin}
+                starts={starts} segments={segments} date={weekDays[colIdx]} onBook={onBookAt}
+              />
+            );
+          }) : null,
+        )}
 
         {/* Skeleton blocks */}
         {loading && appointments.length === 0 && SKELETON_BLOCKS.map((sk, i) => (
@@ -557,146 +619,110 @@ export default function WeeklyAgendaView({
               position: 'absolute',
               top: sk.top * ROW_H,
               height: sk.h * ROW_H,
-              left: GUTTER_W + sk.col * colW + 2,
-              width: colW - 4,
-              borderRadius: 4,
+              left: colX(sk.col) + 3,
+              width: colW - 6,
+              borderRadius: 12,
             }}
           />
         ))}
 
-        {/* Appointment blocks (with optional cluster mode) */}
-        {clusteredByCol
-          ? clusteredByCol.map((items, colIdx) =>
-              items.map((entry, ei) => {
-                if (entry.kind === 'cluster') {
-                  const top = ((entry.startMin - FIRST_HOUR * 60) / 60) * ROW_H;
-                  const height = Math.max(((entry.endMin - entry.startMin) / 60) * ROW_H, 24);
-                  const count = entry.appts.length;
-                  return (
-                    <Pressable
-                      key={`cluster-${colIdx}-${ei}`}
-                      onPress={() => onPressCluster?.(entry.appts)}
-                      style={({ pressed }) => ({
-                        position: 'absolute',
-                        top,
-                        height,
-                        left: GUTTER_W + colIdx * colW + 2,
-                        width: colW - 4,
-                        backgroundColor: pressed ? '#D6D9E630' : '#F4F5F9',
-                        borderLeftWidth: 3,
-                        borderLeftColor: '#1A1A2E',
-                        borderRadius: 4,
-                        paddingHorizontal: 3,
-                        paddingVertical: 2,
-                        overflow: 'hidden',
-                      })}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A1A2E', lineHeight: 14 }} numberOfLines={1}>
-                        {count} guide
-                      </Text>
-                      {height >= 38 && (
-                        <Text style={{ fontSize: 9, fontWeight: '500', color: '#1A1A2E', opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
-                          {String(Math.floor(entry.startMin / 60)).padStart(2, '0')}:{String(entry.startMin % 60).padStart(2, '0')}
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                }
-                const appt = entry.appt;
-                // Timeless exams are rendered as banners outside the grid
-                if (appt.type === 'esame' && !appt.endsAt) return null;
-                const start = new Date(appt.startsAt);
-                const sm = start.getHours() * 60 + start.getMinutes();
-                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
-                let dur = 60;
-                if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
-                const height = Math.max((dur / 60) * ROW_H, 24);
-                const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
-                const isExam = appt.type === 'esame';
-                const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
-                const showTime = height >= 38;
-                return (
-                  <Pressable
-                    key={appt.id}
-                    onPress={() => {
-                      if (isExam && onPressExam) onPressExam([appt]);
-                      else onPressAppointment(appt);
-                    }}
-                    style={({ pressed }) => ({
-                      position: 'absolute', top, height,
-                      left: GUTTER_W + colIdx * colW + 2, width: colW - 4,
-                      backgroundColor: pressed ? border + '30' : bg,
-                      borderLeftWidth: 3, borderLeftColor: border, borderRadius: 4,
-                      paddingHorizontal: 3, paddingVertical: 2, overflow: 'hidden',
-                    })}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>{label}</Text>
-                    {showTime && (
-                      <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
-                        {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              }),
-            )
-          : appointmentsByCol.map((colAppts, colIdx) =>
-              colAppts.map((appt) => {
-                // Timeless exams are rendered as banners outside the grid
-                if (appt.type === 'esame' && !appt.endsAt) return null;
-                const start = new Date(appt.startsAt);
-                const sm = start.getHours() * 60 + start.getMinutes();
-                const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
-                let dur = 60;
-                if (appt.endsAt) {
-                  dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
-                }
-                const height = Math.max((dur / 60) * ROW_H, 24);
-                const { bg, border, text } = getAppointmentColors(appt, studentCompletedMinutes);
-                const isExam = appt.type === 'esame';
-                const label = isExam ? 'Esame' : [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || '';
-                const showTime = height >= 38;
+        {/* Individual guide pills (navy-filled, rounded, 3D) */}
+        {eventsByCol.map(({ guide }, colIdx) =>
+          guide.map((appt) => {
+            const start = new Date(appt.startsAt);
+            const sm = start.getHours() * 60 + start.getMinutes();
+            const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+            let dur = 60;
+            if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
+            const height = Math.max((dur / 60) * ROW_H, 26);
+            const look = getLessonLook(appt);
+            const label = [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || 'Guida';
+            const showTime = height >= 40;
+            return (
+              <Pressable
+                key={appt.id}
+                onPress={() => onPressAppointment(appt)}
+                style={({ pressed }) => [
+                  styles.lesson,
+                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: pressed ? look.pressed : look.bg },
+                ]}
+              >
+                <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
+                {showTime && (
+                  <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1}>
+                    {pad(start.getHours())}:{pad(start.getMinutes())}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          }),
+        )}
 
-                return (
-                  <Pressable
-                    key={appt.id}
-                    onPress={() => {
-                      if (isExam && onPressExam) {
-                        onPressExam(colAppts.filter((a) => a.type === 'esame' && a.startsAt === appt.startsAt));
-                      } else {
-                        onPressAppointment(appt);
-                      }
-                    }}
-                    style={({ pressed }) => ({
-                      position: 'absolute',
-                      top,
-                      height,
-                      left: GUTTER_W + colIdx * colW + 2,
-                      width: colW - 4,
-                      backgroundColor: pressed ? border + '30' : bg,
-                      borderLeftWidth: 3,
-                      borderLeftColor: border,
-                      borderRadius: 4,
-                      paddingHorizontal: 3,
-                      paddingVertical: 2,
-                      overflow: 'hidden',
-                    })}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: text, lineHeight: 14 }} numberOfLines={1}>
-                      {label}
-                    </Text>
-                    {showTime && (
-                      <Text style={{ fontSize: 9, fontWeight: '500', color: text, opacity: 0.65, lineHeight: 11, marginTop: 1 }} numberOfLines={1}>
-                        {String(start.getHours()).padStart(2, '0')}:{String(start.getMinutes()).padStart(2, '0')}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              }),
-            )
-        }
+        {/* Exam slots — collapsed indigo card (icon + count) */}
+        {eventsByCol.map(({ exams }, colIdx) =>
+          exams.map((appts) => {
+            const a0 = appts[0];
+            const start = new Date(a0.startsAt);
+            const sm = start.getHours() * 60 + start.getMinutes();
+            const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+            let dur = 60;
+            if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
+            const height = Math.max((dur / 60) * ROW_H, 26);
+            const showMeta = height >= 40;
+            return (
+              <Pressable
+                key={`exam-${colIdx}-${a0.id}`}
+                onPress={() => onPressExam?.(appts)}
+                style={({ pressed }) => [
+                  styles.eventCard,
+                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: EXAM_LOOK.bg, borderColor: EXAM_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Ionicons name="school" size={11} color={EXAM_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
+                <Text style={[styles.eventName, { color: EXAM_LOOK.text }]} numberOfLines={1}>Esame</Text>
+                {showMeta && (
+                  <Text style={[styles.eventMeta, { color: EXAM_LOOK.text }]} numberOfLines={1}>
+                    {pad(start.getHours())}:{pad(start.getMinutes())}{appts.length > 1 ? ` · ${appts.length}` : ''}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          }),
+        )}
 
-        {/* Instructor blocks */}
+        {/* Group lessons — collapsed teal card (people icon + seats N/3) */}
+        {eventsByCol.map(({ groups }, colIdx) =>
+          groups.map(({ groupLessonId, appts }) => {
+            const a0 = appts[0];
+            const start = new Date(a0.startsAt);
+            const sm = start.getHours() * 60 + start.getMinutes();
+            const top = ((sm - FIRST_HOUR * 60) / 60) * ROW_H;
+            let dur = 60;
+            if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
+            const height = Math.max((dur / 60) * ROW_H, 26);
+            const showMeta = height >= 40;
+            return (
+              <Pressable
+                key={`group-${colIdx}-${groupLessonId ?? a0.id}`}
+                onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
+                style={({ pressed }) => [
+                  styles.eventCard,
+                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: GROUP_LOOK.bg, borderColor: GROUP_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Ionicons name="people" size={11} color={GROUP_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
+                <Text style={[styles.eventName, { color: GROUP_LOOK.text }]} numberOfLines={1}>Gruppo</Text>
+                {showMeta && (
+                  <Text style={[styles.eventMeta, { color: GROUP_LOOK.text }]} numberOfLines={1}>
+                    {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.length}/{GROUP_CAPACITY}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          }),
+        )}
+
+        {/* Instructor blocks — dashed, tinted (Malattia / Bloccato) */}
         {blocksByCol.map((colBlocks, colIdx) =>
           colBlocks.map((block) => {
             const bStart = new Date(block.startsAt);
@@ -707,38 +733,27 @@ export default function WeeklyAgendaView({
             const clampedEm = Math.min(em || LAST_HOUR * 60, LAST_HOUR * 60);
             if (clampedEm <= clampedSm) return null;
             const top = ((clampedSm - FIRST_HOUR * 60) / 60) * ROW_H;
-            const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 20);
+            const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 24);
             const isSick = block.reason === 'sick_leave';
-            const borderColor = isSick ? '#FB923C' : '#94A3B8';
-            const bgColor = isSick ? '#FFF7ED' : '#F8FAFC';
-            const textColor = isSick ? '#EA580C' : '#94A3B8';
+            const tint = isSick
+              ? { bg: '#FFF4E8', border: '#F59E42', text: '#B5681C', icon: 'medkit' as const }
+              : { bg: '#ECEEF5', border: '#AEB4CC', text: '#6E7596', icon: 'lock-closed' as const };
             const label = isSick ? 'Malattia' : (block.reason || 'Bloccato');
             return (
               <Pressable
                 key={`block-${block.id}`}
                 onPress={() => onPressBlock?.(block)}
-                style={{
-                  position: 'absolute',
-                  top,
-                  height,
-                  left: GUTTER_W + colIdx * colW + 2,
-                  width: colW - 4,
-                  backgroundColor: bgColor,
-                  borderLeftWidth: 3,
-                  borderLeftColor: borderColor,
-                  borderRadius: 4,
-                  paddingHorizontal: 3,
-                  paddingVertical: 2,
-                  overflow: 'hidden',
-                  zIndex: 5,
-                }}
+                disabled={!onPressBlock}
+                style={[
+                  styles.block,
+                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: tint.bg, borderColor: tint.border },
+                ]}
               >
-                <Text style={{ fontSize: 9, fontWeight: '700', color: textColor, lineHeight: 12 }} numberOfLines={1}>
-                  {label}
-                </Text>
-                {height >= 32 && (
-                  <Text style={{ fontSize: 8, fontWeight: '500', color: textColor, opacity: 0.7, lineHeight: 10, marginTop: 1 }} numberOfLines={1}>
-                    {String(bStart.getHours()).padStart(2, '0')}:{String(bStart.getMinutes()).padStart(2, '0')}–{String(bEnd.getHours()).padStart(2, '0')}:{String(bEnd.getMinutes()).padStart(2, '0')}
+                <Ionicons name={tint.icon} size={11} color={tint.text} style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85 }} />
+                <Text style={[styles.blockName, { color: tint.text }]} numberOfLines={1}>{label}</Text>
+                {height >= 36 && (
+                  <Text style={[styles.blockTime, { color: tint.text }]} numberOfLines={1}>
+                    {pad(bStart.getHours())}:{pad(bStart.getMinutes())}–{pad(bEnd.getHours())}:{pad(bEnd.getMinutes())}
                   </Text>
                 )}
               </Pressable>
@@ -746,86 +761,141 @@ export default function WeeklyAgendaView({
           }),
         )}
 
-        {/* Quick-book preview block with handles */}
-        {quickBookPreview && (() => {
-          const qbDate = quickBookPreview.date;
-          const qbDow = qbDate.getDay();
-          if (qbDow === 0) return null;
-          const qbColIdx = qbDow - 1;
-          if (qbColIdx > 5) return null;
-          const qbDateNorm = new Date(qbDate); qbDateNorm.setHours(0, 0, 0, 0);
-          const weekDayNorm = new Date(weekDays[qbColIdx]); weekDayNorm.setHours(0, 0, 0, 0);
-          if (qbDateNorm.getTime() !== weekDayNorm.getTime()) return null;
-          const startMin = quickBookPreview.hour * 60 + quickBookPreview.minutes;
-          const topPx = ((startMin - FIRST_HOUR * 60) / 60) * ROW_H;
-          const blockH = Math.max((quickBookPreview.duration / 60) * ROW_H, 20);
-          const endTotal = startMin + quickBookPreview.duration;
-          const endH = Math.floor(endTotal / 60);
-          const endM = endTotal % 60;
-          const hasHandles = Boolean(quickBookTopPanHandlers && quickBookBottomPanHandlers);
-          return (
-            <View
-              pointerEvents="box-none"
-              style={{
-                position: 'absolute',
-                top: topPx - (hasHandles ? 10 : 0),
-                left: GUTTER_W + qbColIdx * colW + 2,
-                width: colW - 4,
-                height: blockH + (hasHandles ? 20 : 0),
-                zIndex: 12,
-              }}
-            >
-              {/* Block body */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: hasHandles ? 10 : 0,
-                  left: 0,
-                  right: 0,
-                  height: blockH,
-                  backgroundColor: '#F4F5F9',
-                  borderWidth: 1.5,
-                  borderColor: '#1A1A2E',
-                  borderStyle: 'dashed',
-                  borderRadius: 4,
-                  justifyContent: 'center',
-                  paddingHorizontal: 3,
-                }}
-              >
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#1A1A2E', lineHeight: 12 }} numberOfLines={1}>
-                  {String(quickBookPreview.hour).padStart(2, '0')}:{String(quickBookPreview.minutes).padStart(2, '0')}–{String(endH).padStart(2, '0')}:{String(endM).padStart(2, '0')}
-                </Text>
-              </View>
-              {/* Drag handles */}
-              {hasHandles && (
-                <>
-                  <View
-                    {...quickBookTopPanHandlers}
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
-                  >
-                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#1A1A2E' }} />
-                  </View>
-                  <View
-                    {...quickBookBottomPanHandlers}
-                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
-                  >
-                    <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: '#1A1A2E' }} />
-                  </View>
-                </>
-              )}
-            </View>
-          );
-        })()}
-
-        {/* Now line */}
-        {nowLineTop !== null && (
-          <View pointerEvents="none" style={{ position: 'absolute', top: nowLineTop, left: 0, right: 0, height: 0, zIndex: 10 }}>
-            <View style={{ position: 'absolute', top: -0.75, left: GUTTER_W, right: 0, height: 1.5, backgroundColor: '#1A1A2E' }} />
-            <View style={{ position: 'absolute', top: -4, left: GUTTER_W - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#1A1A2E' }} />
+        {/* Now line — only on today's column */}
+        {nowLineTop !== null && todayColIdx >= 0 && (
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: nowLineTop, left: colX(todayColIdx), width: colW, height: 0, zIndex: 10 }}
+          >
+            <View style={{ position: 'absolute', top: -1, left: 0, right: 0, height: 2, backgroundColor: '#FF3B30' }} />
+            <View style={{ position: 'absolute', top: -4, left: -3, width: 9, height: 9, borderRadius: 5, backgroundColor: '#FF3B30' }} />
           </View>
         )}
       </ScrollView>
+    </View>
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/*  Component — horizontal week carousel                               */
+/* ------------------------------------------------------------------ */
+
+export default function WeeklyAgendaView({
+  appointments,
+  instructorBlocks = [],
+  holidays = new Set(),
+  anchorDate,
+  readOnly = false,
+  onPressAppointment,
+  onPressExam,
+  onPressGroupLesson,
+  onPressBlock,
+  onBookAt,
+  onDateChange,
+  loading = false,
+  studentCompletedMinutes = {},
+  weekAvailabilityByDate = {},
+}: WeeklyAgendaViewProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const pageWidth = screenWidth;
+  const gridWidth = screenWidth - GUTTER_W - 24;
+  const colW = (gridWidth - COL_GAP * 5) / 6;
+
+  const today = useMemo(() => new Date(), []);
+
+  // Fixed at mount: the carousel is the source of truth for the visible week.
+  const baseMonday = useRef(getMonday(anchorDate ?? new Date())).current;
+  const pages = useMemo(
+    () => Array.from({ length: WEEK_SPAN * 2 + 1 }, (_, i) => addDays(baseMonday, (i - WEEK_SPAN) * 7)),
+    [baseMonday],
+  );
+
+  const listRef = useRef<FlatList<Date>>(null);
+  const indexRef = useRef(WEEK_SPAN);
+  const [visibleMonday, setVisibleMonday] = useState<Date>(baseMonday);
+  const [listH, setListH] = useState(0);
+  const isCurrentWeek = isSameWeek(visibleMonday, today);
+
+  const onDateChangeRef = useRef(onDateChange);
+  onDateChangeRef.current = onDateChange;
+
+  const settle = useCallback((i: number) => {
+    if (i < 0 || i >= pages.length || i === indexRef.current) return;
+    indexRef.current = i;
+    setVisibleMonday(pages[i]);
+    onDateChangeRef.current?.(pages[i]);
+  }, [pages]);
+
+  const onMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    settle(Math.round(e.nativeEvent.contentOffset.x / pageWidth));
+  }, [settle, pageWidth]);
+
+  const goToday = useCallback(() => {
+    listRef.current?.scrollToIndex({ index: WEEK_SPAN, animated: true });
+    settle(WEEK_SPAN);
+  }, [settle]);
+
+  const renderItem = useCallback(({ item }: { item: Date }) => (
+    <WeekPage
+      monday={item}
+      pageWidth={pageWidth}
+      pageHeight={listH}
+      colW={colW}
+      today={today}
+      appointments={appointments}
+      instructorBlocks={instructorBlocks}
+      holidays={holidays}
+      weekAvailabilityByDate={weekAvailabilityByDate}
+      studentCompletedMinutes={studentCompletedMinutes}
+      readOnly={readOnly}
+      loading={loading}
+      onPressAppointment={onPressAppointment}
+      onPressExam={onPressExam}
+      onPressGroupLesson={onPressGroupLesson}
+      onPressBlock={onPressBlock}
+      onBookAt={onBookAt}
+    />
+  ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
+      studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onBookAt]);
+
+  return (
+    <View style={styles.container}>
+      {/* ── Header (Airbnb-clean): week range + "Oggi"; navigate by swipe ── */}
+      <View style={styles.header}>
+        <Text style={styles.weekLabel}>{formatWeekLabel(visibleMonday)}</Text>
+        {!isCurrentWeek && (
+          <Pressable
+            onPress={goToday}
+            hitSlop={8}
+            style={({ pressed }) => [styles.todayPill, pressed && { backgroundColor: '#2A2A45' }]}
+          >
+            <Ionicons name="arrow-undo" size={13} color="#FFFFFF" />
+            <Text style={styles.todayPillText}>Oggi</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={{ flex: 1 }} onLayout={(e) => setListH(e.nativeEvent.layout.height)}>
+        {listH > 0 && (
+          <FlatList
+            ref={listRef}
+            data={pages}
+            keyExtractor={(d) => String(d.getTime())}
+            renderItem={renderItem}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={WEEK_SPAN}
+            getItemLayout={(_, i) => ({ length: pageWidth, offset: pageWidth * i, index: i })}
+            onMomentumScrollEnd={onMomentumEnd}
+            onScrollToIndexFailed={() => { /* getItemLayout makes this unreachable */ }}
+            windowSize={3}
+            initialNumToRender={1}
+            maxToRenderPerBatch={2}
+            decelerationRate="fast"
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -835,82 +905,117 @@ export default function WeeklyAgendaView({
 /* ------------------------------------------------------------------ */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  weekNav: {
+  container: { flex: 1 },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingTop: 2,
+    paddingBottom: 12,
   },
-  weekLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  weekNavBtns: {
+  weekLabel: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  todayPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  weekNavBtn: {
-    width: 36,
+    gap: 6,
     height: 36,
+    paddingHorizontal: 16,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayHeaderRow: {
-    flexDirection: 'row',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  dayHeaderCell: {
-    alignItems: 'center',
-  },
-  dayLetter: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  dayNumber: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  todayCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
     backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  todayCircleText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  todayPillText: { fontSize: 13.5, fontWeight: '600', color: '#FFFFFF' },
+  dayHeaderRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10 },
+  dayHeaderCell: { alignItems: 'center' },
+  dayLetter: { fontSize: 11, fontWeight: '600', color: '#6E7596', letterSpacing: 0.3, marginBottom: 4 },
+  dayNumber: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  todayCircle: {
+    width: 26, height: 26, borderRadius: 13, backgroundColor: '#1A1A2E',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#1A1A2E', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  scrollView: {
-    flex: 1,
-  },
-  hourGutter: {
-    position: 'absolute',
-    top: -6,
-    left: 4,
-    width: GUTTER_W - 4,
-  },
+  todayCircleText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  scrollView: { flex: 1 },
   hourLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#94A3B8',
-    fontVariant: ['tabular-nums'],
+    position: 'absolute', top: -7, left: 4, width: GUTTER_W - 8,
+    fontSize: 10, fontWeight: '500', color: '#AEB4CC', fontVariant: ['tabular-nums'],
   },
+  // Faint availability hint over the grey canvas — just lighter, no shadow.
+  availTint: {
+    position: 'absolute',
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  // Invisible bookable surface (the tint is added while held by the gesture).
+  bookSurface: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  lesson: {
+    position: 'absolute',
+    borderRadius: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    overflow: 'hidden',
+    zIndex: 4,
+    shadowColor: '#0D0D16',
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
+  lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
+  // Dedicated event card (exam / group) — tinted, bordered, rounded.
+  eventCard: {
+    position: 'absolute',
+    borderRadius: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    overflow: 'hidden',
+    zIndex: 4,
+    borderWidth: 1.5,
+    shadowColor: '#0D0D16',
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  eventName: { fontSize: 11, fontWeight: '700', lineHeight: 14 },
+  eventMeta: { fontSize: 9, fontWeight: '500', marginTop: 2, opacity: 0.85 },
+  // Timeless exams — canonical lavender exam card (matches day-detail style).
+  timelessWrap: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  examBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F5F0FF',
+    borderRadius: 22,
+    padding: 14,
+    shadowColor: '#8B5CF6',
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  examBannerIcon: { width: 42, height: 42 },
+  examBannerLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
+  examBannerTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  block: {
+    position: 'absolute',
+    borderRadius: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    overflow: 'hidden',
+    zIndex: 5,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+  blockName: { fontSize: 10, fontWeight: '700', lineHeight: 13 },
+  blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });

@@ -61,6 +61,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Types**: `NotificationItem` union, `PersistedNotification`, notification store
 
 ### Settings
+- → **Auth/Signup**: card "Codice di invito" in ClusterSettingsScreen; lo stesso codice è accettato dal campo signup (`SignupScreen`, wire field `schoolCode`) e assegna l'allievo all'istruttore
 - → **Availability Editor**: availabilityMode toggle
 - → **Payments**: payment method management
 - → **Instructor Manage**: cluster settings (durations, booking actors, limits)

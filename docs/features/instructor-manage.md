@@ -8,7 +8,7 @@ Full appointment management for instructors: create, cancel, reschedule, check-i
 - `src/screens/InstructorManageScreen.tsx` (70KB) — detailed management
 - `src/screens/InstructorHoursScreen.tsx` — hours reporting
 - `src/components/RescheduleAppointmentSheet.tsx` — reschedule UI (modal-in-modal)
-- `src/components/WeeklyAgendaView.tsx` — 6-day agenda grid
+- `src/components/WeeklyAgendaView.tsx` — Google-Calendar-style weekly grid (terza vista "Griglia"); horizontal week carousel (paged FlatList), press-and-hold + scrub to book any free time, mono-navy Variant A. Dedicated event rendering: individual guide = navy pill; **esami** = collapsed indigo card (per slot, +count); **guide di gruppo** = collapsed teal card (people icon, N/3 seats); **esami senza orario** = chip in the all-day lane above the grid
 
 ## Features
 - Daily agenda timeline with lesson blocks
@@ -17,6 +17,7 @@ Full appointment management for instructors: create, cancel, reschedule, check-i
 - Check-in/no-show status management
 - In-progress window detection (15 min before/after)
 - Appointment detail editing: lesson types, notes, star ratings
+- Change instructor, location, and **vehicle** of a lesson from "Gestisci guida" (auto-save on pick). Vehicle row opens the generic `select-options` picker; each vehicle shows an elegant subtitle (license category + assigned instructor). Backend: `updateAppointmentDetails` accepts `vehicleId` (PATCH `/api/autoscuole/appointments/{id}`)
 - Reposition to find new available slots
 - Sick leave creation (blocks availability, cancels appointments)
 - Hours tracking: weekly breakdown, working vs outside hours, bar charts

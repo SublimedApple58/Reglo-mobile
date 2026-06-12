@@ -16,6 +16,7 @@ import { examSheetStore } from '../stores/examSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
+import { optionsPickerStore } from '../stores/optionsPickerStore';
 import { regloApi } from '../services/regloApi';
 import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
@@ -33,6 +34,10 @@ const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
 const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+// Exams can run longer than a normal guida — up to 3h (parity with web).
+const EXAM_DURATIONS = [30, 45, 60, 90, 120, 150, 180];
+const durLabel = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m} min`);
 
 const initialsOf = (first: string, last: string) => {
   const f = (first ?? '').trim();
@@ -80,6 +85,7 @@ export const CreateExamScreen = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [examDate, setExamDate] = useState<Date>(() => (data ? new Date(data.initialDate) : new Date()));
   const [timeSet, setTimeSet] = useState(true);
+  const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -125,6 +131,7 @@ export const CreateExamScreen = () => {
     setExamDate(new Date(data.initialDate));
     setSelectedIds([]);
     setTimeSet(true);
+    setDuration(60);
     setNotes('');
     setSaving(false);
   }, [data]);
@@ -175,6 +182,17 @@ export const CreateExamScreen = () => {
     router.push('/(tabs)/home/time-picker');
   };
 
+  const openDurationPicker = () => {
+    optionsPickerStore.set({
+      title: 'Durata esame',
+      multi: false,
+      selected: [String(duration)],
+      options: EXAM_DURATIONS.map((m) => ({ value: String(m), label: durLabel(m) })),
+      onConfirm: (v) => setDuration(Number(v[0]) || 60),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
   const studentsValue = selectedStudents.length === 0
     ? null
     : selectedStudents.length === 1
@@ -193,7 +211,7 @@ export const CreateExamScreen = () => {
     setSaving(true);
     try {
       if (timeSet) {
-        const endsAt = new Date(examDate); endsAt.setHours(endsAt.getHours() + 1);
+        const endsAt = new Date(examDate); endsAt.setMinutes(endsAt.getMinutes() + duration);
         await regloApi.createExam({
           studentIds: selectedIds,
           startsAt: examDate.toISOString(),
@@ -267,6 +285,8 @@ export const CreateExamScreen = () => {
               <>
                 <View style={s.divider} />
                 <Row icon="time-outline" label="Ora" value={fmtTime(examDate)} onPress={openTimePicker} disabled={saving} />
+                <View style={s.divider} />
+                <Row icon="hourglass-outline" label="Durata" value={durLabel(duration)} onPress={openDurationPicker} disabled={saving} />
               </>
             ) : null}
           </View>
@@ -299,7 +319,7 @@ export const CreateExamScreen = () => {
             <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
               <Text style={s.sumKey}>Riepilogo</Text>
               <Text style={s.sumVal} numberOfLines={1}>{summary}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)}` : ' · orario da definire'}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)} · ${durLabel(duration)}` : ' · orario da definire'}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>
               <Button label="Crea esame" tone="primary" loading={saving} disabled={selectedIds.length === 0} onPress={handleCreate} />

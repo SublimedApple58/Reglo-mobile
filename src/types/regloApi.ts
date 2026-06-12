@@ -441,6 +441,8 @@ export type UpdateAppointmentDetailsInput = {
   rating?: number | null;
   notes?: string | null;
   locationId?: Uuid | null;
+  /** Reassign the appointment to a different company vehicle (null = unassign). */
+  vehicleId?: Uuid | null;
   /**
    * Reassign the appointment to a different instructor (single-lesson
    * override; does NOT change the student's assignedInstructorId). Server

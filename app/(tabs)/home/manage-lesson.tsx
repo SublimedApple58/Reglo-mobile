@@ -26,6 +26,7 @@ import { manageLessonStore, type ManageLessonMenuOption } from '../../../src/sto
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
+import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
@@ -267,8 +268,8 @@ export default function ManageLessonScreen() {
 
   const {
     studentProgress, stateMeta, stateLabel, durationText, vehiclesEnabled, vehicleText,
-    defaultLocation, showStatusActions, allowPresente, showRating, readOnly,
-    pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation,
+    vehicles, defaultLocation, showStatusActions, allowPresente, showRating, readOnly,
+    pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
   } = data;
 
   const isPending = pendingAction !== null;
@@ -303,6 +304,17 @@ export default function ManageLessonScreen() {
       },
     });
     router.push('/(tabs)/home/manage-lesson-location');
+  };
+
+  const openVehiclePicker = () => {
+    optionsPickerStore.set({
+      title: 'Veicolo',
+      multi: false,
+      selected: lesson.vehicleId ? [lesson.vehicleId] : [],
+      options: vehicles.map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      onConfirm: (v) => onChangeVehicle(v[0] ?? null),
+    });
+    router.push('/(tabs)/home/select-options');
   };
 
   const openDetails = () => router.push('/(tabs)/home/manage-lesson-details');
@@ -460,6 +472,34 @@ export default function ManageLessonScreen() {
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
           )}
+
+          {vehiclesEnabled ? (
+            <>
+              <View style={s.rowDivider} />
+              {readOnly ? (
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Veicolo</Text>
+                    <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={openVehiclePicker}
+                  disabled={!vehicles.length}
+                  style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
+                >
+                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Veicolo</Text>
+                    <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                </Pressable>
+              )}
+            </>
+          ) : null}
         </View>
 
         {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet.

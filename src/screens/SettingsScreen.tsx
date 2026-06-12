@@ -212,7 +212,7 @@ export const SettingsScreen = () => {
     'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
   >(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
+  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week' | 'grid'>('day');
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -950,7 +950,7 @@ export const SettingsScreen = () => {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={studentStyles.rowLabel}>Vista agenda</Text>
                   <Text style={studentStyles.rowHint} numberOfLines={1}>
-                    {agendaViewMode === 'day' ? 'Giornaliera' : 'Settimanale'}
+                    {agendaViewMode === 'day' ? 'Giornaliera' : agendaViewMode === 'grid' ? 'Griglia' : 'Settimanale'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />

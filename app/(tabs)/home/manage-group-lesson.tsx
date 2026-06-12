@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +8,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { groupLessonManageStore } from '../../../src/stores/groupLessonManageStore';
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
+import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
-import { SkeletonRing } from '../../../src/components/Skeleton';
+import { SkeletonBlock, SkeletonRing } from '../../../src/components/Skeleton';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { transmissionLabel } from '../../../src/utils/license';
 import type { GroupLesson } from '../../../src/types/regloApi';
@@ -32,6 +34,19 @@ const durationOf = (startIso: string, endIso: string | null) => {
   if (!endIso) return 180;
   return Math.max(60, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
 };
+
+/**
+ * Detail-row value: pulsing skeleton while the lesson detail loads, then the
+ * real text fades in (instead of popping in abruptly).
+ */
+const RowValue = ({ text, loaded, width, lines = 1 }: { text: string; loaded: boolean; width: number; lines?: number }) =>
+  loaded ? (
+    <Animated.Text entering={FadeIn.duration(260)} style={s.detailValue} numberOfLines={lines}>
+      {text}
+    </Animated.Text>
+  ) : (
+    <SkeletonBlock width={width} height={13} radius={7} style={{ marginTop: 3, marginBottom: 2 }} />
+  );
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toDateOnly = (iso: string) => {
@@ -162,6 +177,21 @@ export default function ManageGroupLessonScreen() {
       },
     });
     router.push('/(tabs)/home/select-options');
+  };
+
+  const openNotesEditor = () => {
+    if (!lesson) return;
+    notesEditorStore.set({
+      title: 'Note',
+      subtitle: 'Note operative sulla guida di gruppo.',
+      initial: lesson.notes ?? '',
+      onSave: async (text) => {
+        const next = text.trim();
+        if (next === (lesson.notes ?? '').trim()) return true; // no-op
+        return run(() => regloApi.updateGroupLesson({ groupLessonId, notes: next || null }));
+      },
+    });
+    router.push('/(tabs)/home/edit-notes');
   };
 
   const openParticipants = () => {
@@ -305,7 +335,7 @@ export default function ManageGroupLessonScreen() {
               <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Istruttore</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{instructorName}</Text>
+                <RowValue text={instructorName} loaded={!!lesson} width={150} />
               </View>
             </View>
           ) : (
@@ -313,7 +343,7 @@ export default function ManageGroupLessonScreen() {
               <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Istruttore</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{instructorName}</Text>
+                <RowValue text={instructorName} loaded={!!lesson} width={150} />
               </View>
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
@@ -326,7 +356,7 @@ export default function ManageGroupLessonScreen() {
                   <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{vehicleName}</Text>
+                    <RowValue text={vehicleName} loaded={!!lesson} width={110} />
                   </View>
                 </View>
               ) : (
@@ -334,13 +364,40 @@ export default function ManageGroupLessonScreen() {
                   <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{vehicleName}</Text>
+                    <RowValue text={vehicleName} loaded={!!lesson} width={110} />
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
                 </Pressable>
               )}
             </>
           ) : null}
+          {/* Note — operative dell'istruttore sul gruppo. Read-only: solo se presenti. */}
+          {readOnly ? (
+            lesson?.notes?.trim() ? (
+              <>
+                <View style={s.rowDivider} />
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}><Ionicons name="document-text-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Note</Text>
+                    <Text style={s.detailValue} numberOfLines={2}>{lesson.notes!.trim()}</Text>
+                  </View>
+                </View>
+              </>
+            ) : null
+          ) : (
+            <>
+              <View style={s.rowDivider} />
+              <Pressable onPress={openNotesEditor} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+                <View style={s.detailIcon}><Ionicons name="document-text-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>Note</Text>
+                  <RowValue text={lesson?.notes?.trim() || 'Aggiungi note'} loaded={!!lesson} width={180} lines={2} />
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              </Pressable>
+            </>
+          )}
         </View>
 
         {/* Partecipanti — card 3D CTA → roster sheet. Read-only = card statica. */}

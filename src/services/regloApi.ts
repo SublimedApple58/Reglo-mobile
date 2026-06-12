@@ -188,6 +188,8 @@ export const createRegloApi = (baseUrl?: string) => {
         companyDefaults: CompanyBookingDefaults;
         students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null }>;
         assignedStudentIds: string[];
+        /** Codice di invito personale: gli allievi che si registrano con questo codice entrano nel gruppo dell'istruttore. */
+        inviteCode?: string | null;
         instructorId?: string;
         autonomousInstructors?: Array<{ id: string; name: string }>;
         publishedWeeks?: Array<{ id: string; weekStart: string; publishedAt: string }>;
@@ -222,6 +224,7 @@ export const createRegloApi = (baseUrl?: string) => {
       endsAt?: string;
       instructorId?: string | null;
       vehicleId?: string | null;
+      notes?: string | null;
     }) => {
       const { groupLessonId, ...body } = input;
       return client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {

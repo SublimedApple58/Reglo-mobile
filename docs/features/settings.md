@@ -28,6 +28,7 @@ The instructor/owner branch (`renderNonStudentContent`): large title, then direc
 
 ## Cluster settings (ClusterSettingsScreen — "Il mio gruppo")
 - Booking duration options, cutoff time, weekly limit, weekly absence, restricted time range, booking actor governance, student assignment to cluster.
+- **Codice di invito**: card sotto il menu (solo se `autonomousMode`, da `getInstructorSettings().inviteCode`) — codice 6 char in monospace grande, tap = copia (usa `Clipboard` da `react-native` core, deprecato ma OTA-safe: `expo-clipboard` NON è nel binario; migrare alla prossima build nativa) + haptic + toast. Un allievo che si registra con quel codice (`SignupScreen` campo "Codice di invito") entra direttamente nel gruppo dell'istruttore (BE: lookup company-first, vedi `reglo/docs/features/instructor-clusters.md`).
 - **Design-system aligned**: Switch tracks are **pink** (`#EC4899`, was yellow `#FACC15`); palette `#1A1A2E` (was slate `#1E293B`); `SelectableChip` navy.
 - **Migrated off custom drawers**: the 3 `TimePickerDrawer`s → **formSheet route** `app/(tabs)/notes/time-picker.tsx` (shared `timePickerStore`); the students-management `BottomSheet` → **page-sheet route** `app/(tabs)/notes/group-students.tsx` (`groupStudentsStore`). Notes layout got `contentStyle` background + the two route registrations.
 

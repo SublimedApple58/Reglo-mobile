@@ -44,7 +44,7 @@ import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { NativePageSheet } from '../components/NativePageSheet';
-import { manageLessonStore, type ManageLessonData, type ManageLessonDetailsPayload } from '../stores/manageLessonStore';
+import { manageLessonStore, type ManageLessonData, type ManageLessonDetailsPayload, type ManageLessonVehicle } from '../stores/manageLessonStore';
 import { swapStore } from '../stores/swapStore';
 import { rescheduleStore } from '../stores/rescheduleStore';
 import { Input } from '../components/Input';
@@ -64,6 +64,7 @@ import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SelectableChip } from '../components/SelectableChip';
 import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
+import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { computeDayPlan } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
@@ -342,14 +343,13 @@ const resolveInitialLessonType = (value: string | null | undefined) => {
   return match?.value ?? '';
 };
 
-const isDetailsEditable = (lesson: AutoscuolaAppointmentWithRelations, now: Date) => {
+const isDetailsEditable = (lesson: AutoscuolaAppointmentWithRelations, _now: Date) => {
   const status = normalizeStatus(lesson.status);
   if (!DETAILS_EDITABLE_STATUSES.has(status)) return false;
   if (status === 'cancelled') return false;
-  if (status === 'completed' || status === 'no_show' || status === 'checked_in') {
-    const { closesAt } = computeStatusWindow(lesson);
-    return now <= closesAt;
-  }
+  // Tipo guida / valutazione / note restano modificabili anche sulle guide già
+  // concluse (completed / no_show / checked_in), senza limite temporale: una
+  // valutazione o una nota si possono aggiungere/correggere a posteriori.
   return true;
 };
 
@@ -673,7 +673,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const loadRequestRef = useRef(0);
   const lessonSheetScrollRef = useRef<ScrollView | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week'>('day');
+  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week' | 'grid'>('day');
   const [calendarDrawerOpen, setCalendarDrawerOpen] = useState(false);
   const [lessonSheetMode, setLessonSheetMode] = useState<'view' | 'locationPicker' | 'locationForm' | 'instructorPicker'>('view');
   // Instructor reassignment state for the "Modifica guida" sheet.
@@ -1566,6 +1566,18 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     }
   }, [instructorList.length, instructorListLoading]);
 
+  // Preload the instructor list when the drawer opens, so the "Veicolo" picker
+  // can label vehicles with the instructor they're assigned to.
+  useEffect(() => {
+    if (!sheetLesson || settings?.vehiclesEnabled === false) return;
+    if (instructorList.length > 0 || instructorListLoading) return;
+    setInstructorListLoading(true);
+    regloApi.getInstructors()
+      .then((l) => setInstructorList(l ?? []))
+      .catch(() => { /* keep best-effort agenda-derived names */ })
+      .finally(() => setInstructorListLoading(false));
+  }, [sheetLesson, settings?.vehiclesEnabled, instructorList.length, instructorListLoading]);
+
   // Fetch student lesson progress when drawer opens
   useEffect(() => {
     if (!sheetLesson) return;
@@ -1966,8 +1978,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   }, [selectedDate]);
 
   useEffect(() => {
-    if (agendaViewMode === 'week') {
-      // Fetch full week (Mon–Sat) for weekly view
+    if (agendaViewMode === 'week' || agendaViewMode === 'grid') {
+      // Fetch full week (Mon–Sat) for weekly / grid view
       const day = selectedDate.getDay();
       const mondayOffset = day === 0 ? -6 : 1 - day;
       const from = new Date(selectedDate);
@@ -1989,7 +2001,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     // Load availability for a 3-week window (prev/current/next) in weekly mode,
     // keyed by date, so the horizontal week-pager always has the neighbouring
     // weeks ready and swiping never flashes empty availability.
-    if (agendaViewMode === 'week' && instructorId) {
+    if ((agendaViewMode === 'week' || agendaViewMode === 'grid') && instructorId) {
       const day = selectedDate.getDay();
       const mondayOffset = day === 0 ? -6 : 1 - day;
       const start = new Date(selectedDate);
@@ -2223,8 +2235,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   ) => {
     const lessonId = lesson.id;
     if (!instructor?.id || instructor.id === lesson.instructorId) return;
-    if (!isDetailsEditable(lesson, now)) {
-      Alert.alert('Guida non modificabile', 'Non puoi cambiare istruttore per questa guida.');
+    // L'istruttore non si cambia su guide concluse/annullate (il backend lo
+    // rifiuta comunque). I dettagli (tipo/voto/note) invece restano editabili.
+    const instrStatus = normalizeStatus(lesson.status);
+    if (['cancelled', 'completed', 'no_show'].includes(instrStatus)) {
+      Alert.alert('Guida non modificabile', 'Non puoi cambiare istruttore per una guida conclusa o annullata.');
       return;
     }
     const prevId = lesson.instructorId;
@@ -2314,6 +2329,32 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     [loadData],
   );
 
+  // Instructor names by id — best-effort from the loaded agenda (always present)
+  // plus the lazily-loaded picker list. Used to label vehicles by their assigned
+  // instructor in the "Veicolo" picker.
+  const instructorNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of appointments) {
+      if (a.instructor?.id && a.instructor.name) m.set(a.instructor.id, a.instructor.name);
+    }
+    for (const i of instructorList) {
+      if (i?.id && i.name) m.set(i.id, i.name);
+    }
+    return m;
+  }, [appointments, instructorList]);
+
+  // Elegant subtitle for a vehicle: "Patente B · Mario Rossi" (license category +
+  // assigned instructor, where applicable).
+  const vehicleOptions = useMemo<ManageLessonVehicle[]>(() => {
+    return vehicles.map((v) => {
+      const parts: string[] = [];
+      if (v.licenseCategory) parts.push(`Patente ${String(v.licenseCategory).toUpperCase()}`);
+      const instName = v.assignedInstructorId ? instructorNameById.get(v.assignedInstructorId) : null;
+      if (instName) parts.push(instName);
+      return { id: v.id, name: v.name, subtitle: parts.join(' · ') || null };
+    });
+  }, [vehicles, instructorNameById]);
+
   // ── "Gestisci guida" route (manage-lesson) bridge ──────────────────────────
   // Builds the snapshot the manage-lesson modal route renders from. The route
   // owns local drafts (notes/types/rating/instructor); we keep all API logic.
@@ -2358,7 +2399,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       stateLabel: getLessonStateLabel(lesson, now),
       durationText: durationLabel(lesson),
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
-      vehicleText: lesson.vehicle?.name ?? 'Da assegnare',
+      // Resolve from the relation, falling back to the vehicles list so an
+      // optimistic vehicleId-only change reflects the new name immediately.
+      vehicleText: lesson.vehicle?.name ?? vehicles.find((v) => v.id === lesson.vehicleId)?.name ?? 'Da assegnare',
+      vehicles: vehicleOptions,
       defaultLocation,
       isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
       readOnly: ownerMode,
@@ -2420,6 +2464,27 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.', tone: 'danger' });
           });
       },
+      onChangeVehicle: (vehicleId) => {
+        const lessonId = lesson.id;
+        const prevId = lesson.vehicleId;
+        const prevVehicle = lesson.vehicle;
+        if ((vehicleId ?? null) === (prevId ?? null)) return; // already current — nothing to save
+        // Optimistic: set vehicleId only + clear the stale relation; vehicleText
+        // resolves the new name from the vehicles list. Server refresh syncs the
+        // full relation afterwards.
+        setSheetLesson((prev) =>
+          prev && prev.id === lessonId ? { ...prev, vehicleId: vehicleId ?? null, vehicle: null } : prev,
+        );
+        regloApi
+          .updateAppointmentDetails(lessonId, { vehicleId: vehicleId ?? null })
+          .then(() => { void refreshAndSyncDrawer(lessonId); })
+          .catch((err) => {
+            setSheetLesson((prev) =>
+              prev && prev.id === lessonId ? { ...prev, vehicleId: prevId, vehicle: prevVehicle } : prev,
+            );
+            setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il veicolo.', tone: 'danger' });
+          });
+      },
       onClosed: () => { setSheetLesson(null); },
     };
   };
@@ -2430,7 +2495,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     manageLessonStore.set(buildManageSnapshot(sheetLesson, sheetStudentProgress));
     // buildManageSnapshot reads current closure (now/settings/pending/etc.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetLesson, sheetStudentProgress, pendingAction, now, settings, defaultLocation, instructorBookingMode]);
+  }, [sheetLesson, sheetStudentProgress, pendingAction, now, settings, defaultLocation, instructorBookingMode, vehicleOptions]);
 
   const handleInstructorSwap = useCallback(async (targetAppt: AutoscuolaAppointmentWithRelations) => {
     if (!swapSourceLesson || swapPending) return;
@@ -2977,7 +3042,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         </>
       ) : null}
 
-      <View style={agendaViewMode === 'week' ? { display: 'none' } : { flex: 1, paddingTop: safeInsets.top }}>
+      <View style={agendaViewMode !== 'day' ? { display: 'none' } : { flex: 1, paddingTop: safeInsets.top }}>
       <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingTop: 0 }]}
         showsVerticalScrollIndicator={false}
@@ -3833,28 +3898,27 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                           appointments: appts,
                         });
                       }}
-                      style={({ pressed }) => ({
+                      style={({ pressed }) => [{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 10,
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 14,
-                        backgroundColor: pressed ? '#E0E7FF' : '#EEF2FF',
-                        borderWidth: 1,
-                        borderColor: '#C7D2FE',
-                      })}
+                        gap: 12,
+                        backgroundColor: '#F5F0FF',
+                        borderRadius: 22,
+                        padding: 14,
+                        shadowColor: '#8B5CF6',
+                        shadowOpacity: 0.22,
+                        shadowRadius: 14,
+                        shadowOffset: { width: 0, height: 5 },
+                        elevation: 4,
+                      }, pressed && styles.itinCardPressed]}
                     >
-                      <Ionicons name="school" size={18} color="#4338CA" />
+                      <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examGroupIcon} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }}>
-                          Esame · {dayLabel}
-                        </Text>
-                        <Text style={{ fontSize: 11, color: '#6366F1', marginTop: 1 }}>
+                        <Text style={styles.examGroupLabel}>Esame di guida · {dayLabel}</Text>
+                        <Text style={styles.examGroupTitle} numberOfLines={1}>
                           {appts.length} {appts.length === 1 ? 'allievo' : 'allievi'} · Orario da definire
                         </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color="#6366F1" />
                     </Pressable>
                   );
                 })}
@@ -3984,6 +4048,92 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       ) : null}
 
 
+
+      {agendaViewMode === 'grid' ? (
+        <View style={{ flex: 1, paddingTop: safeInsets.top }}>
+          {/* Header compatto (saluto + scope) */}
+          <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+            <View style={styles.greetRow}>
+              <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
+            </View>
+            {scopeChips}
+            {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+            {outOfAvailAppointments.length > 0 && (
+              <Pressable
+                onPress={() => {
+                  outOfAvailStore.set({
+                    appointments: outOfAvailAppointments,
+                    onChanged: () => { loadOutOfAvailability(); loadData(); },
+                  });
+                  router.push('/(tabs)/home/out-of-availability');
+                }}
+                style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
+              >
+                <View style={oobStyles.bannerIcon}>
+                  <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
+                </View>
+                <Text style={oobStyles.bannerText}>
+                  <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
+                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+                </Text>
+                <Text style={oobStyles.bannerAction}>Gestisci</Text>
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              </Pressable>
+            )}
+          </View>
+
+          <WeeklyAgendaView
+            appointments={appointments}
+            instructorBlocks={instructorBlocks}
+            holidays={holidays}
+            anchorDate={selectedDate}
+            readOnly={ownerMode}
+            loading={appointmentsLoading}
+            studentCompletedMinutes={studentCompletedMinutes}
+            weekAvailabilityByDate={weekAvailability}
+            onDateChange={(monday) => {
+              // Aggiorna selectedDate solo se cambia settimana (evita loop col sync anchor).
+              setSelectedDate((prev) => {
+                const pm = new Date(prev);
+                const pd = pm.getDay();
+                pm.setDate(pm.getDate() + (pd === 0 ? -6 : 1 - pd));
+                pm.setHours(0, 0, 0, 0);
+                return pm.getTime() === monday.getTime() ? prev : monday;
+              });
+            }}
+            onPressAppointment={openLessonDrawer}
+            onPressExam={(appts) => {
+              if (!appts.length) return;
+              const first = appts[0];
+              openExamManage({
+                startsAt: first.startsAt,
+                endsAt: first.endsAt,
+                instructorId: first.instructorId,
+                instructorName: first.instructor?.name ?? null,
+                notes: first.notes,
+                appointments: appts,
+              });
+            }}
+            onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
+            onPressBlock={ownerMode ? undefined : (block) => {
+              const isSick = block.reason === 'sick_leave';
+              Alert.alert(
+                isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
+                isSick
+                  ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+                  : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                [
+                  { text: 'Annulla', style: 'cancel' },
+                  { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
+                ],
+              );
+            }}
+            onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd) => {
+              openQuickBookSheet(date, startMin, winStart, winEnd);
+            }}
+          />
+        </View>
+      ) : null}
 
       {/* ── FAB Menu (nascosto per il titolare: home in sola lettura) ── */}
       {!ownerMode && (

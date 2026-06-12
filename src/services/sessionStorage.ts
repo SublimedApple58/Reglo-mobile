@@ -21,11 +21,11 @@ export const sessionStorage = {
     }
     await SecureStore.setItemAsync(INSTRUCTOR_KEY, instructorId);
   },
-  getAgendaViewMode: async (): Promise<'day' | 'week'> => {
+  getAgendaViewMode: async (): Promise<'day' | 'week' | 'grid'> => {
     const val = await SecureStore.getItemAsync(AGENDA_VIEW_MODE_KEY);
-    return val === 'week' ? 'week' : 'day';
+    return val === 'week' ? 'week' : val === 'grid' ? 'grid' : 'day';
   },
-  setAgendaViewMode: async (mode: 'day' | 'week') => {
+  setAgendaViewMode: async (mode: 'day' | 'week' | 'grid') => {
     await SecureStore.setItemAsync(AGENDA_VIEW_MODE_KEY, mode);
   },
   clear: async () => {

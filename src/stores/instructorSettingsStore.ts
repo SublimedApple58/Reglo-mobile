@@ -1,4 +1,4 @@
-export type AgendaViewMode = 'day' | 'week';
+export type AgendaViewMode = 'day' | 'week' | 'grid';
 export type InstrAvailabilityMode = 'default' | 'publication';
 
 // Published by SettingsScreen for instructor/owner so the dedicated formSheet

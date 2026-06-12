@@ -4,6 +4,12 @@ import type {
   AutoscuolaLocation,
 } from '../types/regloApi';
 
+/**
+ * Vehicle option for the "Veicolo" picker: display name + an elegant subtitle
+ * (license category and, where assigned, the instructor it belongs to).
+ */
+export type ManageLessonVehicle = { id: string; name: string; subtitle?: string | null };
+
 export type ManageLessonStateMeta = {
   label: string;
   tone: 'live' | 'confirmed' | 'scheduled' | 'pending_review';
@@ -40,6 +46,8 @@ export type ManageLessonData = {
   durationText: string;
   vehiclesEnabled: boolean;
   vehicleText: string;
+  /** Company vehicles available to assign (for the "Veicolo" picker). */
+  vehicles: ManageLessonVehicle[];
   defaultLocation: AutoscuolaLocation | null;
   isDetailsEditable: boolean;
   /** Owner/titolare view-only: static rows, no edit CTA, no bottom actions. */
@@ -61,6 +69,8 @@ export type ManageLessonData = {
   onStatus: (action: 'checked_in' | 'no_show') => void;
   onMenu: (key: string) => void;
   onChangeLocation: (location: AutoscuolaLocation) => void;
+  /** Reassign the lesson's vehicle (null = unassign) — auto-saves (optimistic). */
+  onChangeVehicle: (vehicleId: string | null) => void;
   /** Called when the main route is dismissed (popped), so the parent can reset. */
   onClosed: () => void;
 };

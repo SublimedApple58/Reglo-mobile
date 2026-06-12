@@ -8,7 +8,8 @@ import { spacing } from '../../../src/theme/spacing';
 
 const OPTIONS: { value: AgendaViewMode; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'day', label: 'Giornaliera', desc: 'Vedi un giorno alla volta', icon: 'calendar-outline' },
-  { value: 'week', label: 'Settimanale', desc: "Vedi tutta la settimana", icon: 'grid-outline' },
+  { value: 'week', label: 'Settimanale', desc: "Vedi tutta la settimana", icon: 'list-outline' },
+  { value: 'grid', label: 'Griglia', desc: 'La settimana a griglia oraria', icon: 'grid-outline' },
 ];
 
 export default function AgendaViewScreen() {
