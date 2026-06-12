@@ -800,7 +800,7 @@ const WeekPage = React.memo(function WeekPage({
                 width: colW,
                 height: gridHeight,
                 borderRadius: 14,
-                backgroundColor: isHoliday ? '#FBEAEA' : '#EFF0F6',
+                backgroundColor: isHoliday ? '#FBEAEA' : '#F4F5F9',
                 borderWidth: isTodayCol ? 1.5 : 0,
                 borderColor: '#D6D9E6',
               }}
@@ -808,21 +808,9 @@ const WeekPage = React.memo(function WeekPage({
           );
         })}
 
-        {/* Hour gridlines + labels */}
-        {hours.map((hour, idx) => (
-          <View
-            key={hour}
-            pointerEvents="none"
-            style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H }}
-          >
-            <Text style={styles.hourLabel}>{pad(hour)}</Text>
-            {idx > 0 && (
-              <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E4E6EF' }} />
-            )}
-          </View>
-        ))}
-
-        {/* Availability veil — faint light hint only (does not gate booking) */}
+        {/* Availability veil — faint light hint only (does not gate booking).
+            Rendered BEFORE the hour gridlines so the lines stay visible on top
+            of the white availability blocks. */}
         {availTintByCol.map((wins, colIdx) =>
           wins.map(([sMin, eMin], i) => {
             const top = ((sMin - FIRST_HOUR * 60) / 60) * ROW_H;
@@ -836,6 +824,20 @@ const WeekPage = React.memo(function WeekPage({
             );
           }),
         )}
+
+        {/* Hour gridlines + labels — drawn over the availability veils */}
+        {hours.map((hour, idx) => (
+          <View
+            key={hour}
+            pointerEvents="none"
+            style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H }}
+          >
+            <Text style={styles.hourLabel}>{pad(hour)}</Text>
+            {idx > 0 && (
+              <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#DCDFEA' }} />
+            )}
+          </View>
+        ))}
 
         {/* Bookable free segments — invisible press-and-hold ghost surfaces */}
         {canBook && !readOnly && bookableByCol.map(({ segments }, colIdx) =>
