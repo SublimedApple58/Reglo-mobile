@@ -179,6 +179,27 @@ export default function ManageGroupLessonScreen() {
     router.push('/(tabs)/home/select-options');
   };
 
+  // Capienza (3 o 4) — auto-save come istruttore/veicolo; il BE rifiuta se
+  // inferiore agli iscritti attuali.
+  const openCapacityPicker = () => {
+    if (!lesson) return;
+    optionsPickerStore.set({
+      title: 'Capienza',
+      multi: false,
+      selected: [String(capacity)],
+      options: [
+        { value: '3', label: '3 allievi', subtitle: filled > 3 ? 'Non disponibile: 4 iscritti' : null },
+        { value: '4', label: '4 allievi', subtitle: null },
+      ],
+      onConfirm: (values) => {
+        const next = Number(values[0] ?? capacity);
+        if (!next || next === capacity) return;
+        run(() => regloApi.updateGroupLesson({ groupLessonId, capacity: next }));
+      },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
   const openNotesEditor = () => {
     if (!lesson) return;
     notesEditorStore.set({
@@ -371,6 +392,26 @@ export default function ManageGroupLessonScreen() {
               )}
             </>
           ) : null}
+          {/* Capienza — 3 o 4 posti. Read-only: statica. */}
+          <View style={s.rowDivider} />
+          {readOnly ? (
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Capienza</Text>
+                <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
+              </View>
+            </View>
+          ) : (
+            <Pressable onPress={openCapacityPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Capienza</Text>
+                <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            </Pressable>
+          )}
           {/* Note — operative dell'istruttore sul gruppo. Read-only: solo se presenti. */}
           {readOnly ? (
             lesson?.notes?.trim() ? (

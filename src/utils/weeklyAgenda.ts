@@ -60,7 +60,9 @@ export type DayBlockRow = { block: InstructorBlock; startMin: number; endMin: nu
 export type DaySegment = { startMin: number; endMin: number; kind: 'booked' | 'exam' | 'block' | 'group' };
 
 // Group lessons (Guide di gruppo): participant appointments (type="group_lesson")
-// sharing the same groupLessonId collapse into ONE teal card. Capacity is always 3.
+// sharing the same groupLessonId collapse into ONE teal card. Capacity is
+// configurable per lesson (3 or 4) — read from the BE row annotation
+// `groupLessonCapacity`, with 3 as fallback for stale caches.
 export type DayGroupLessonGroup = {
   id: string;
   startMin: number;
@@ -171,7 +173,7 @@ export function computeDayPlan(
       durationMin: rowsG[0].durationMin,
       // Synthetic empty-lesson rows (id `gl-empty:`) count as 0 participants.
       count: rowsG.filter((r) => !String(r.appt.id).startsWith('gl-empty:')).length,
-      capacity: GROUP_LESSON_CAPACITY,
+      capacity: rowsG[0].appt.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);

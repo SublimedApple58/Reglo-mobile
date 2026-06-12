@@ -190,7 +190,7 @@ const getLessonLook = (appt: AutoscuolaAppointmentWithRelations): LessonLook => 
 // palettes as the day/week views, so the event type reads at a glance.
 const EXAM_LOOK = { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' };
 const GROUP_LOOK = { bg: '#ECFDF5', border: '#10B981', text: '#0F766E' };
-const GROUP_CAPACITY = 3;
+const GROUP_CAPACITY = 3; // fallback — real capacity (3|4) comes from the BE row annotation
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton pulse block                                               */
@@ -961,7 +961,7 @@ const WeekPage = React.memo(function WeekPage({
                 <Text style={[styles.eventName, { color: GROUP_LOOK.text }]} numberOfLines={1}>Gruppo</Text>
                 {showMeta && (
                   <Text style={[styles.eventMeta, { color: GROUP_LOOK.text }]} numberOfLines={1}>
-                    {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.length}/{GROUP_CAPACITY}
+                    {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
                   </Text>
                 )}
               </Pressable>

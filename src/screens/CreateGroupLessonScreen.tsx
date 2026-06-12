@@ -30,7 +30,10 @@ const TEAL = '#0F766E';
 const N50 = '#F4F5F9';
 const N100 = '#E9EBF2';
 
-const CAPACITY = 3;
+const CAPACITY_OPTIONS = [
+  { value: '3', label: '3 allievi' },
+  { value: '4', label: '4 allievi' },
+];
 const DURATIONS = [
   { value: '60', label: '1 ora' },
   { value: '120', label: '2 ore' },
@@ -86,6 +89,7 @@ export const CreateGroupLessonScreen = () => {
 
   const [startAt, setStartAt] = useState<Date>(() => (data ? new Date(data.initialDate) : new Date()));
   const [durationMin, setDurationMin] = useState<number>(180);
+  const [capacity, setCapacity] = useState<number>(3);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [instructorId, setInstructorId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -165,6 +169,19 @@ export const CreateGroupLessonScreen = () => {
     });
     router.push('/(tabs)/home/select-options');
   };
+  const openCapacityPicker = () => {
+    optionsPickerStore.set({
+      title: 'Capienza', multi: false, selected: [String(capacity)], options: CAPACITY_OPTIONS,
+      onConfirm: (vals) => {
+        if (!vals[0]) return;
+        const cap = Number(vals[0]);
+        setCapacity(cap);
+        // Lowering 4 → 3 with 4 pre-selected students: trim the list.
+        setSelectedIds((prev) => prev.slice(0, cap));
+      },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
   const openVehiclePicker = () => {
     optionsPickerStore.set({
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
@@ -190,7 +207,7 @@ export const CreateGroupLessonScreen = () => {
     examStudentsStore.set({
       selectedIds,
       options,
-      onConfirm: (ids) => setSelectedIds(ids.slice(0, CAPACITY)),
+      onConfirm: (ids) => setSelectedIds(ids.slice(0, capacity)),
     });
     router.push('/(tabs)/home/select-exam-students');
   };
@@ -201,7 +218,7 @@ export const CreateGroupLessonScreen = () => {
     ? null
     : selectedStudents.length === 1
       ? `${selectedStudents[0].firstName} ${selectedStudents[0].lastName}`.trim()
-      : `${selectedStudents.length}/${CAPACITY} allievi`;
+      : `${selectedStudents.length}/${capacity} allievi`;
 
   const handleCreate = async () => {
     if (!vehicleId) { Alert.alert('Veicolo', 'Seleziona il veicolo della guida di gruppo.'); return; }
@@ -213,10 +230,11 @@ export const CreateGroupLessonScreen = () => {
         endsAt: endsAt.toISOString(),
         vehicleId,
         instructorId: instructorId ?? undefined,
+        capacity,
         studentIds: selectedIds,
       });
       // Optionally broadcast an invite for the remaining seats.
-      if (openInvites && res.participants < CAPACITY) {
+      if (openInvites && res.participants < capacity) {
         await regloApi.inviteToGroupLesson(res.groupLessonId).catch(() => null);
       }
       data.onDone('Guida di gruppo creata.');
@@ -235,7 +253,7 @@ export const CreateGroupLessonScreen = () => {
           <Ionicons name="close" size={20} color={NAVY} />
         </Pressable>
       </View>
-      <Text style={s.lede}>1 istruttore · 1 veicolo · fino a {CAPACITY} allievi</Text>
+      <Text style={s.lede}>1 istruttore · 1 veicolo · fino a {capacity} allievi</Text>
 
       {loading ? (
         <View style={s.loadingBox}><ActivityIndicator color={colors.primary} /></View>
@@ -247,6 +265,8 @@ export const CreateGroupLessonScreen = () => {
             <Row icon="time-outline" label="Ora inizio" value={fmtTime(startAt)} onPress={openTimePicker} disabled={saving} />
             <View style={s.divider} />
             <Row icon="hourglass-outline" label="Durata" value={durationLabel} onPress={openDurationPicker} disabled={saving} />
+            <View style={s.divider} />
+            <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
             <View style={s.divider} />
             <Row icon="car-outline" label="Veicolo" value={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : null} placeholder="Seleziona veicolo" onPress={openVehiclePicker} disabled={saving} />
             <View style={s.divider} />
@@ -285,7 +305,7 @@ export const CreateGroupLessonScreen = () => {
           <View style={s.footer}>
             <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
               <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{CAPACITY} allievi · {durationLabel}</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{capacity} allievi · {durationLabel}</Text>
               <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>

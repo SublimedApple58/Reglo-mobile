@@ -1,7 +1,7 @@
 # Guide di gruppo (Group lessons) — mobile
 
 ## What it does
-Mobile side of the **Guide di gruppo** module (1 istruttore + 1 veicolo + fino a 3 allievi, 3–4h). Optional module, gated on `settings.groupLessonsEnabled` (backend `CompanyService.limits`). Istruttore/titolare creano e gestiscono le guide di gruppo dall'agenda; l'allievo riceve un invito e si iscrive.
+Mobile side of the **Guide di gruppo** module (1 istruttore + 1 veicolo + fino a 3 o 4 allievi, 3–4h). Optional module, gated on `settings.groupLessonsEnabled` (backend `CompanyService.limits`). Istruttore/titolare creano e gestiscono le guide di gruppo dall'agenda; l'allievo riceve un invito e si iscrive.
 
 ## Accent / design
 Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent-people.png`):
@@ -13,7 +13,7 @@ Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent
 - **Tipi** `src/types/regloApi.ts`: `GroupLesson`, `GroupLessonInvite`, `GroupLessonParticipant`, `GroupLessonInvitee`, `CreateGroupLessonInput`; `AutoscuolaAppointment.groupLessonId`; `AutoscuolaStudent.groupLessonsOptIn`; `AutoscuolaSettings.groupLessonsEnabled`.
 - **Service** `src/services/regloApi.ts`: `getGroupLessons`, `getGroupLesson` (single, GET `/api/autoscuole/group-lessons/{id}`), `createGroupLesson`, `updateGroupLesson` (PATCH same URL — startsAt/endsAt/instructorId/vehicleId applies to all; notes container-only), `cancelGroupLesson`, `add/removeGroupLessonParticipant`, `inviteToGroupLesson`, `getEligibleGroupLessonInvitees`, `getGroupLessonInvites`, `respondGroupLessonInvite`, `updateStudentGroupLessonOptIn`.
 - **Agenda (rendering)**:
-  - `src/utils/weeklyAgenda.ts` — `DayGroupLessonGroup` + `groupLessonGroups` (participant appts `type==='group_lesson'` grouped by `groupLessonId`; capacity fixed `GROUP_LESSON_CAPACITY=3`), `'group'` density segment, count in `daySummary`/`weekTotals`.
+  - `src/utils/weeklyAgenda.ts` — `DayGroupLessonGroup` + `groupLessonGroups` (participant appts `type==='group_lesson'` grouped by `groupLessonId`; capacity dalla riga (`groupLessonCapacity`, fallback `GROUP_LESSON_CAPACITY=3`)), `'group'` density segment, count in `daySummary`/`weekTotals`.
   - `src/components/DayItinerary.tsx` — `groupCard` (teal, Fluent people icon, seats indicator) + `onOpenGroupLesson`.
   - `src/components/WeeklyOverview.tsx` — `segGroup` (`#10B981`).
   - `src/stores/dayDetailStore.ts` + `app/(tabs)/home/day-detail.tsx` — `onOpenGroupLesson`.
@@ -40,7 +40,7 @@ La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "d
 ## Note / limiti noti
 - Sia la vista **giornaliera** (hour-grid, `IstruttoreHomeScreen` `timelineItems`/`renderRow` kind `groupLesson`) sia la **settimanale** (day-detail sheet) collassano i partecipanti in **una sola card** per guida (teal, icona 3D Fluent people, **niente nome allievo**, pallini posti `count/capacity`, card più grande di una guida normale). Tap → "Gestisci guida di gruppo" page sheet.
 - Le guide di gruppo **vuote** (0 partecipanti) ora compaiono anche in agenda: il bootstrap backend (`getAutoscuolaAgendaBootstrapAction`) sintetizza una riga `gl-empty:<glId>` (fonte unica web+mobile); `weeklyAgenda.ts` e `IstruttoreHomeScreen.timelineItems` escludono le righe `gl-empty:` dal conteggio (mostrano `0/3`). Così sono gestibili/annullabili anche senza iscritti.
-- Capienza fissa a 3 nel form.
+- **Capienza configurabile 3 o 4** (2026-06-12): riga "Capienza" nel form di creazione e nella sheet di gestione (auto-save, il BE rifiuta sotto gli iscritti attuali). Le card agenda (giorno/settimana/griglia) leggono la capienza reale dall'annotazione BE `groupLessonCapacity` sulle righe (fallback 3); le UI allievo (inviti, card home, detail sheet) erano già dinamiche su `capacity` dal payload.
 
 ## Connected features
 - Backend `reglo/docs/features/group-lessons.md`, `vehicles` (patenti → filtro invitabili), `notifications` (kind nuovo), pagamenti.

@@ -1212,7 +1212,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
   // Timeline items: exams grouped by time; other appointments as-is
   const timelineItems = useMemo(() => {
-    const GROUP_LESSON_CAPACITY = 3;
+    const GROUP_LESSON_CAPACITY = 3; // fallback when the BE annotation is missing
     const exams: AutoscuolaAppointmentWithRelations[] = [];
     const groupLessonAppts: AutoscuolaAppointmentWithRelations[] = [];
     const others: AutoscuolaAppointmentWithRelations[] = [];
@@ -1270,7 +1270,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         endsAt: first.endsAt,
         vehicleName: first.vehicle?.name ?? null,
         count: filled,
-        capacity: GROUP_LESSON_CAPACITY,
+        capacity: first.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });

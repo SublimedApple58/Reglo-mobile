@@ -224,6 +224,8 @@ export const createRegloApi = (baseUrl?: string) => {
       endsAt?: string;
       instructorId?: string | null;
       vehicleId?: string | null;
+      /** Capienza massima (3 o 4) — il BE rifiuta sotto gli iscritti attuali. */
+      capacity?: number;
       notes?: string | null;
     }) => {
       const { groupLessonId, ...body } = input;
