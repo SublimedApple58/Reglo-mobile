@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reglo · Quick-book a blocco fantasma — Preview</title>
+<style>
+  :root{
+    --navy-700:#0D0D16; --navy-600:#14141F; --navy-500:#1A1A2E;
+    --navy-400:#6E7596; --navy-300:#AEB4CC; --navy-200:#D6D9E6;
+    --navy-100:#E9EBF2; --navy-50:#F4F5F9;
+    --surface:#FFFFFF; --bg:#FDFDFD; --border:#E5E7EB;
+    --text:#1F2937; --muted:#9CA3AF; --sub:#6B7280;
+    --ease:cubic-bezier(.32,.72,0,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    background:#E7E9F0; color:var(--text);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    padding:28px 16px 60px;
+  }
+  .head{text-align:center; max-width:680px;}
+  .head h1{font-size:19px; font-weight:600; color:var(--navy-500); letter-spacing:-.3px;}
+  .head p{font-size:13.5px; color:var(--sub); margin-top:6px; line-height:1.55;}
+  .head b{color:var(--navy-500);}
+  .steps{display:flex; gap:10px; margin-top:14px; justify-content:center; flex-wrap:wrap;}
+  .step{background:#fff; border:1px solid var(--navy-100); border-radius:13px; padding:9px 13px;
+    font-size:12px; font-weight:600; color:var(--navy-400); display:flex; align-items:center; gap:7px;}
+  .step .n{width:18px; height:18px; border-radius:9px; background:var(--navy-500); color:#fff;
+    font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+
+  /* iPhone frame */
+  .phone{
+    width:340px; background:var(--bg); border-radius:40px;
+    box-shadow:0 30px 60px -20px rgba(13,13,22,.45), 0 0 0 11px #11111a, 0 0 0 13px #2a2a38;
+    overflow:hidden; position:relative; user-select:none; touch-action:none;
+  }
+  .notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:26px; background:#11111a; border-radius:0 0 16px 16px; z-index:50;}
+  .screen{padding:46px 0 0; height:700px; display:flex; flex-direction:column; position:relative; overflow:hidden;}
+
+  .topbar{padding:0 18px 12px; display:flex; align-items:center; justify-content:space-between;}
+  .week-label{font-size:21px; font-weight:600; color:var(--navy-500); letter-spacing:-.4px;}
+  .navbtns{display:flex; gap:8px;}
+  .navbtn{width:34px; height:34px; border-radius:17px; background:#fff; border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(13,13,22,.05);}
+  .navbtn svg{width:16px; height:16px; stroke:var(--navy-400);}
+
+  .dayhead{display:flex; padding:0 12px 8px; gap:5px;}
+  .gutter{width:30px; flex:0 0 30px;}
+  .dh{flex:1; text-align:center;}
+  .dh .dl{font-size:11px; font-weight:600; color:var(--navy-400); text-transform:uppercase; letter-spacing:.3px;}
+  .dh .dn{font-size:15px; font-weight:600; color:var(--navy-500); margin-top:3px;}
+  .dh.today .dn{background:var(--navy-500); color:#fff; width:26px; height:26px; line-height:26px;
+    border-radius:13px; margin:3px auto 0; display:block; box-shadow:0 4px 10px -2px rgba(26,26,46,.5);}
+  .dh.today .dl{color:var(--navy-500);}
+
+  .gridscroll{flex:1; overflow-y:auto; padding:0 12px; background:var(--navy-50); overscroll-behavior:contain;}
+  .gridscroll::-webkit-scrollbar{width:0;}
+  .grid{display:flex; gap:5px; position:relative; padding-bottom:120px; padding-top:10px;}
+  .hrcol{width:30px; flex:0 0 30px; position:relative;}
+  .hr{height:54px; position:relative;}
+  .hr .hl{position:absolute; top:-7px; right:6px; font-size:10px; font-weight:500; color:var(--navy-300); font-variant-numeric:tabular-nums;}
+  .daycol{flex:1; position:relative; background:#EFF0F6; border-radius:4px;}
+  .gline{position:absolute; left:0; right:0; height:1px; background:#F1F2F7; pointer-events:none;}
+
+  .avail{position:absolute; left:3px; right:3px; border-radius:12px; background:#fff;
+    box-shadow:0 4px 14px -6px rgba(13,13,22,.18), 0 1px 3px rgba(13,13,22,.06); border:1px solid #EDEFF5; pointer-events:none;}
+
+  .lesson{position:absolute; left:3px; right:3px; border-radius:13px; padding:7px 8px; overflow:hidden;
+    box-shadow:0 6px 16px -6px rgba(13,13,22,.30), 0 1px 2px rgba(13,13,22,.10); z-index:4;
+    background:var(--navy-500); pointer-events:none;}
+  .lesson .ln{font-size:11px; font-weight:600; line-height:1.15; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lesson .lt{font-size:9px; font-weight:500; color:rgba(255,255,255,.62); margin-top:2px;}
+  .lesson.amber{background:#F7E8C3;}
+  .lesson.amber .ln{color:#6B5413;} .lesson.amber .lt{color:rgba(107,84,19,.62);}
+
+  /* ===================== GHOST BLOCK ===================== */
+  .ghost{
+    position:absolute; left:2px; right:2px; border-radius:13px; z-index:10; cursor:grab;
+    background:rgba(26,26,46,.09);
+    border:1.6px dashed rgba(26,26,46,.5);
+    backdrop-filter:saturate(1.1);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    transition:box-shadow .18s var(--ease), background-color .18s var(--ease), border-color .18s var(--ease);
+    animation:ghostIn .26s var(--ease);
+  }
+  @keyframes ghostIn{
+    0%{transform:scale(.92); opacity:0;}
+    60%{transform:scale(1.03);}
+    100%{transform:scale(1); opacity:1;}
+  }
+  .ghost .gtime{font-size:10.5px; font-weight:700; color:var(--navy-500); letter-spacing:.1px; font-variant-numeric:tabular-nums; pointer-events:none;}
+  .ghost .gdur{font-size:8.5px; font-weight:600; color:var(--navy-400); background:#fff; border:1px solid var(--navy-100);
+    padding:2px 7px; border-radius:8px; pointer-events:none; box-shadow:0 1px 3px rgba(13,13,22,.08);}
+  /* while actively dragging (body or handle) */
+  .ghost.live{
+    background:rgba(26,26,46,.14);
+    border-style:solid; border-color:rgba(26,26,46,.75);
+    box-shadow:0 10px 26px -8px rgba(13,13,22,.40);
+    cursor:grabbing;
+  }
+  /* resize handles — Airbnb knobs */
+  .knob{
+    position:absolute; left:50%; width:24px; height:24px; margin-left:-12px; border-radius:12px;
+    background:#fff; border:2px solid var(--navy-500); z-index:12; cursor:ns-resize;
+    box-shadow:0 3px 8px rgba(13,13,22,.22);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .15s var(--ease);
+  }
+  .knob::after{content:""; width:8px; height:2px; border-radius:1px; background:var(--navy-300);}
+  .knob.top{top:-12px;} .knob.bot{bottom:-12px;}
+  .knob.grabbed{transform:scale(1.25);}
+  .ghost.live .knob{opacity:0;}
+
+  /* floating time bubble while dragging */
+  .bubble{
+    position:absolute; z-index:40; pointer-events:none;
+    background:var(--navy-500); color:#fff; font-size:12.5px; font-weight:700;
+    font-variant-numeric:tabular-nums; letter-spacing:.2px;
+    padding:8px 13px; border-radius:14px;
+    box-shadow:0 12px 28px -8px rgba(13,13,22,.55);
+    opacity:0; transform:translate(-50%,-130%) scale(.9);
+    transition:opacity .15s var(--ease), transform .15s var(--ease);
+  }
+  .bubble.on{opacity:1; transform:translate(-50%,-150%) scale(1);}
+
+  /* ===================== BOTTOM CTA ===================== */
+  .ctabar{
+    position:absolute; left:14px; right:14px; bottom:16px; z-index:45;
+    transform:translateY(120px); opacity:0;
+    transition:transform .32s var(--ease), opacity .26s var(--ease);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ctabar.on{transform:translateY(0); opacity:1;}
+  .ctacard{
+    background:#fff; border-radius:22px; padding:12px 14px 12px 18px;
+    box-shadow:0 18px 44px -10px rgba(13,13,22,.35), 0 2px 8px rgba(13,13,22,.08);
+    display:flex; align-items:center; gap:12px;
+  }
+  .ctainfo{flex:1; min-width:0;}
+  .ctainfo .cd{font-size:11px; font-weight:600; color:var(--navy-400); text-transform:capitalize;}
+  .ctainfo .ct{font-size:16px; font-weight:600; color:var(--navy-500); letter-spacing:-.2px; margin-top:1px; font-variant-numeric:tabular-nums;}
+  .ctainfo .ct span{font-size:12px; font-weight:600; color:var(--navy-300); margin-left:6px;}
+  .ctabtn{
+    background:var(--navy-500); color:#fff; border:none; font:inherit; cursor:pointer;
+    font-size:14px; font-weight:600; padding:13px 18px; border-radius:15px;
+    box-shadow:0 8px 18px -6px rgba(26,26,46,.45);
+    display:flex; align-items:center; gap:7px; flex-shrink:0;
+    transition:transform .12s var(--ease), background .15s;
+  }
+  .ctabtn:active{transform:scale(.96); background:#2A2A45;}
+  .ctabtn svg{width:15px; height:15px; stroke:#fff; stroke-width:2.4;}
+  .ctaclose{
+    width:34px; height:34px; border-radius:17px; background:var(--navy-50); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition:background .15s;
+  }
+  .ctaclose:active{background:var(--navy-100);}
+  .ctaclose svg{width:14px; height:14px; stroke:var(--navy-400); stroke-width:2.4;}
+
+  /* ===================== FAKE BOOKING SHEET ===================== */
+  .sheetwrap{position:absolute; inset:0; z-index:60; pointer-events:none;}
+  .sheetwrap .dim{position:absolute; inset:0; background:rgba(10,10,22,.42); opacity:0; transition:opacity .3s;}
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; top:9%;
+    background:#fff; border-radius:24px 24px 0 0; padding:18px 20px;
+    transform:translateY(105%); transition:transform .38s var(--ease);
+    box-shadow:0 -10px 40px rgba(13,13,22,.25);
+  }
+  .sheetwrap.on{pointer-events:auto;}
+  .sheetwrap.on .dim{opacity:1;}
+  .sheetwrap.on .sheet{transform:translateY(0);}
+  .sheet .shead{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .sheet h3{font-size:19px; font-weight:600; color:var(--navy-500); letter-spacing:-.3px;}
+  .sheet .x{width:32px; height:32px; border-radius:16px; background:var(--navy-50); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;}
+  .sheet .x svg{width:14px; height:14px; stroke:var(--navy-400); stroke-width:2.4;}
+  .sheet .ssub{font-size:13px; color:var(--sub); margin-bottom:16px;}
+  .srow{display:flex; align-items:center; gap:13px; padding:15px 2px; border-bottom:1px solid #F1F2F7;}
+  .srow .sic{width:36px; height:36px; border-radius:12px; background:var(--navy-50); display:flex; align-items:center; justify-content:center;}
+  .srow .sic svg{width:17px; height:17px; stroke:var(--navy-500); stroke-width:1.9;}
+  .srow .sl{flex:1;}
+  .srow .sl .k{font-size:11px; font-weight:600; color:var(--navy-400); text-transform:uppercase; letter-spacing:.4px;}
+  .srow .sl .v{font-size:15px; font-weight:600; color:var(--navy-500); margin-top:2px;}
+  .srow .v.preset{display:flex; align-items:center; gap:7px;}
+  .chipset{font-size:9.5px; font-weight:700; color:#157A48; background:#E9F9EF; padding:3px 8px; border-radius:8px; letter-spacing:.3px;}
+  .srow .chev{width:14px; height:14px; stroke:var(--navy-300); stroke-width:2.2;}
+  .snote{font-size:12px; color:var(--muted); text-align:center; margin-top:18px; line-height:1.5;}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Quick-book in griglia · Blocco fantasma</h1>
+    <p>La gesture resta press-and-hold, ma ora <b>disegna un blocco vero nella griglia</b>: lo trascini dove vuoi (anche su un altro giorno), regoli la durata dalle maniglie, e quando è a posto la CTA in basso apre il form di prenotazione con orario e durata già impostati.</p>
+    <div class="steps">
+      <div class="step"><span class="n">1</span>Tieni premuto su uno spazio libero</div>
+      <div class="step"><span class="n">2</span>Trascina il blocco · maniglie per la durata</div>
+      <div class="step"><span class="n">3</span>“Scegli i dettagli” → form precompilato</div>
+    </div>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="notch"></div>
+    <div class="screen" id="screen">
+      <div class="topbar">
+        <div class="week-label">15 – 20 Giu</div>
+        <div class="navbtns">
+          <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="navbtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+      </div>
+      <div class="dayhead" id="dayhead"></div>
+      <div class="gridscroll" id="gridscroll"><div class="grid" id="grid"></div></div>
+
+      <!-- bottom CTA -->
+      <div class="ctabar" id="ctabar">
+        <div class="ctacard">
+          <button class="ctaclose" id="ctaclose" title="Annulla">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+          <div class="ctainfo">
+            <div class="cd" id="ctaday">mer 17 giu</div>
+            <div class="ct" id="ctatime">14:15 – 15:15<span>1 h</span></div>
+          </div>
+          <button class="ctabtn" id="ctabtn">
+            Scegli i dettagli
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- fake booking sheet -->
+      <div class="sheetwrap" id="sheetwrap">
+        <div class="dim" id="sheetdim"></div>
+        <div class="sheet">
+          <div class="shead">
+            <h3>Nuova guida</h3>
+            <button class="x" id="sheetx"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+          <div class="ssub">Allievo e dettagli della guida</div>
+          <div class="srow">
+            <div class="sic"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
+            <div class="sl"><div class="k">Giorno</div><div class="v preset" id="sheetday">mer 17 giu <span class="chipset">DALLA GRIGLIA</span></div></div>
+            <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="srow">
+            <div class="sic"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+            <div class="sl"><div class="k">Orario</div><div class="v preset" id="sheettime">14:15 <span class="chipset">DALLA GRIGLIA</span></div></div>
+            <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="srow">
+            <div class="sic"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5v14" opacity="0"/><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg></div>
+            <div class="sl"><div class="k">Durata</div><div class="v preset" id="sheetdur">1 h <span class="chipset">DALLA GRIGLIA</span></div></div>
+            <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="srow">
+            <div class="sic"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></div>
+            <div class="sl"><div class="k">Allievo</div><div class="v" style="color:var(--navy-300)">Seleziona…</div></div>
+            <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="snote">È il form attuale di prenotazione veloce —<br/>giorno, orario e durata arrivano già impostati dal blocco.</div>
+        </div>
+      </div>
+
+      <div class="bubble" id="bubble">14:15 – 15:15</div>
+    </div>
+  </div>
+
+<script>
+  /* ---------- grid data ---------- */
+  const FIRST = 7, LAST = 21, ROW = 54, SNAP = ROW / 4;       // 15' = 13.5px
+  const DAYS = [['LUN',15],['MAR',16],['MER',17,true],['GIO',18],['VEN',19],['SAB',20]];
+  const DAY_FULL = ['lun 15 giu','mar 16 giu','mer 17 giu','gio 18 giu','ven 19 giu','sab 20 giu'];
+  const avail = {0:[[8,13],[14,18]],1:[[9,19]],2:[[8,12.5],[14,19]],3:[[9,13],[15,19]],4:[[8,18]],5:[[9,13]]};
+  const lessons = [
+    {d:0,s:9,dur:60,n:'Rossi M.'},
+    {d:0,s:15,dur:90,n:'Bianchi L.',amber:true},
+    {d:1,s:10.5,dur:60,n:'Esposito'},
+    {d:2,s:9,dur:60,n:'Greco A.'},
+    {d:3,s:9.5,dur:60,n:'Conte F.',amber:true},
+    {d:3,s:16,dur:120,n:'Marino'},
+    {d:4,s:11,dur:60,n:'Ferrari'},
+    {d:5,s:9.5,dur:60,n:'De Luca',amber:true},
+  ];
+
+  const topPx = h => (h-FIRST)*ROW;
+  const pad = n => String(n).padStart(2,'0');
+  const fmtMin = m => pad(Math.floor(m/60))+':'+pad(m%60);
+  const fmtDur = m => m % 60 === 0 ? (m/60)+' h' : (m>=60 ? Math.floor(m/60)+' h '+(m%60)+"'" : m+"'");
+
+  /* ---------- build ---------- */
+  const dayhead = document.getElementById('dayhead');
+  dayhead.innerHTML = '<div class="gutter"></div>'+DAYS.map(d=>
+    `<div class="dh ${d[2]?'today':''}"><div class="dl">${d[0]}</div><div class="dn">${d[1]}</div></div>`).join('');
+
+  const grid = document.getElementById('grid');
+  const H = (LAST-FIRST)*ROW;
+  let html = '<div class="hrcol">';
+  for(let h=FIRST; h<LAST; h++) html += `<div class="hr"><span class="hl">${pad(h)}</span></div>`;
+  html += '</div>';
+  for(let di=0; di<6; di++){
+    html += `<div class="daycol" data-di="${di}" style="height:${H}px">`;
+    for(let h=FIRST+1; h<LAST; h++) html += `<div class="gline" style="top:${topPx(h)}px"></div>`;
+    (avail[di]||[]).forEach(w => { html += `<div class="avail" style="top:${topPx(w[0])}px;height:${(w[1]-w[0])*ROW}px"></div>`; });
+    lessons.filter(l=>l.d===di).forEach(l => {
+      html += `<div class="lesson${l.amber?' amber':''}" style="top:${topPx(l.s)}px;height:${Math.max(l.dur/60*ROW,26)}px">`+
+              `<div class="ln">${l.n}</div><div class="lt">${fmtMin(l.s*60)}</div></div>`;
+    });
+    html += '</div>';
+  }
+  grid.innerHTML = html;
+
+  /* ---------- ghost state ---------- */
+  const screen = document.getElementById('screen');
+  const scroller = document.getElementById('gridscroll');
+  const bubble = document.getElementById('bubble');
+  const ctabar = document.getElementById('ctabar');
+  let ghost = null;          // {el, di, start (min from 0:00), dur}
+  let mode = null;           // 'move' | 'top' | 'bot'
+  let pressTimer = null, pressInfo = null;
+
+  const MIN_DUR = 30, MAX_DUR = 240;
+  const DAY_MIN = FIRST*60, DAY_MAX = LAST*60;
+
+  const cols = [...grid.querySelectorAll('.daycol')];
+
+  const minToTop = m => (m - DAY_MIN)/60*ROW;
+  const yToMin = (col, clientY) => {
+    const r = col.getBoundingClientRect();
+    const frac = (clientY - r.top)/r.height;
+    return DAY_MIN + Math.round(frac*(DAY_MAX-DAY_MIN)/15)*15;
+  };
+  const colFromX = clientX => {
+    let best = 0, bestD = Infinity;
+    cols.forEach((c,i)=>{ const r=c.getBoundingClientRect(); const cx=r.left+r.width/2;
+      const d=Math.abs(clientX-cx); if(d<bestD){bestD=d; best=i;} });
+    return best;
+  };
+
+  function renderGhost(){
+    if(!ghost) return;
+    ghost.el.style.top = minToTop(ghost.start)+'px';
+    ghost.el.style.height = (ghost.dur/60*ROW)+'px';
+    ghost.el.querySelector('.gtime').textContent = fmtMin(ghost.start)+' – '+fmtMin(ghost.start+ghost.dur);
+    ghost.el.querySelector('.gdur').textContent = fmtDur(ghost.dur);
+    if(cols[ghost.di] !== ghost.el.parentElement) cols[ghost.di].appendChild(ghost.el);
+  }
+  function updateCta(){
+    if(!ghost) return;
+    document.getElementById('ctaday').textContent = DAY_FULL[ghost.di];
+    document.getElementById('ctatime').innerHTML = fmtMin(ghost.start)+' – '+fmtMin(ghost.start+ghost.dur)+'<span>'+fmtDur(ghost.dur)+'</span>';
+  }
+  function showBubble(clientX, clientY){
+    const pr = document.getElementById('phone').getBoundingClientRect();
+    bubble.style.left = (clientX-pr.left)+'px';
+    bubble.style.top = (clientY-pr.top-46+screenTopFix())+'px';
+    bubble.textContent = fmtMin(ghost.start)+' – '+fmtMin(ghost.start+ghost.dur);
+    bubble.classList.add('on');
+  }
+  function screenTopFix(){ return 0; }
+  function hideBubble(){ bubble.classList.remove('on'); }
+
+  function createGhost(di, centerMin){
+    dismissGhost(true);
+    const el = document.createElement('div');
+    el.className = 'ghost live';
+    el.innerHTML = '<div class="gtime"></div><div class="gdur"></div>'+
+      '<div class="knob top" data-k="top"></div><div class="knob bot" data-k="bot"></div>';
+    let start = Math.round((centerMin-30)/15)*15;
+    start = Math.max(DAY_MIN, Math.min(DAY_MAX-60, start));
+    ghost = { el, di, start, dur:60 };
+    cols[di].appendChild(el);
+    renderGhost();
+    if(navigator.vibrate) navigator.vibrate(8);
+    // handle listeners
+    el.addEventListener('pointerdown', onGhostDown);
+  }
+  function placeGhost(){
+    if(!ghost) return;
+    ghost.el.classList.remove('live');
+    hideBubble();
+    updateCta();
+    ctabar.classList.add('on');
+  }
+  function dismissGhost(silent){
+    if(!ghost) return;
+    const el = ghost.el;
+    ghost = null;
+    ctabar.classList.remove('on');
+    hideBubble();
+    if(silent){ el.remove(); return; }
+    el.style.transition = 'opacity .18s, transform .18s';
+    el.style.opacity = '0'; el.style.transform = 'scale(.94)';
+    setTimeout(()=>el.remove(), 190);
+  }
+
+  /* ---------- gestures ---------- */
+  // long-press on free grid space → create
+  grid.addEventListener('pointerdown', e => {
+    if(e.target.closest('.ghost')) return;
+    const col = e.target.closest('.daycol');
+    if(!col) return;
+    pressInfo = { x:e.clientX, y:e.clientY, col, t:Date.now() };
+    pressTimer = setTimeout(()=>{
+      const di = +col.dataset.di;
+      createGhost(di, yToMin(col, pressInfo.y));
+      mode = 'move';
+      grabOffset = 30; // grabbed at center of the fresh 1h block
+      showBubble(pressInfo.x, pressInfo.y);
+    }, 260);
+  });
+
+  let grabOffset = 0;
+  function onGhostDown(e){
+    e.stopPropagation();
+    const k = e.target.dataset && e.target.dataset.k;
+    if(k === 'top' || k === 'bot'){
+      mode = k;
+      e.target.classList.add('grabbed');
+    } else {
+      mode = 'move';
+      grabOffset = yToMin(cols[ghost.di], e.clientY) - ghost.start;
+      ghost.el.classList.add('live');
+      ctabar.classList.remove('on');
+      if(navigator.vibrate) navigator.vibrate(6);
+    }
+    showBubble(e.clientX, e.clientY);
+  }
+
+  window.addEventListener('pointermove', e => {
+    if(pressTimer && pressInfo && !mode){
+      // cancel long-press if finger strays before it fires (lets the page scroll)
+      if(Math.abs(e.clientY-pressInfo.y) > 9 || Math.abs(e.clientX-pressInfo.x) > 9){
+        clearTimeout(pressTimer); pressTimer = null;
+      }
+    }
+    if(!mode || !ghost) return;
+    e.preventDefault();
+    const col = cols[ghost.di];
+    if(mode === 'move'){
+      const di = colFromX(e.clientX);
+      if(di !== ghost.di){ ghost.di = di; }
+      let s = yToMin(cols[ghost.di], e.clientY) - grabOffset;
+      s = Math.round(s/15)*15;
+      s = Math.max(DAY_MIN, Math.min(DAY_MAX - ghost.dur, s));
+      if(s !== ghost.start || true){ ghost.start = s; renderGhost(); }
+    } else if(mode === 'top'){
+      let ns = Math.round(yToMin(col, e.clientY)/15)*15;
+      ns = Math.max(DAY_MIN, Math.min(ghost.start+ghost.dur-MIN_DUR, ns));
+      const nd = ghost.start + ghost.dur - ns;
+      if(nd <= MAX_DUR){ ghost.start = ns; ghost.dur = nd; renderGhost(); }
+    } else if(mode === 'bot'){
+      let ne = Math.round(yToMin(col, e.clientY)/15)*15;
+      ne = Math.max(ghost.start+MIN_DUR, Math.min(DAY_MAX, ne));
+      if(ne-ghost.start <= MAX_DUR){ ghost.dur = ne-ghost.start; renderGhost(); }
+    }
+    showBubble(e.clientX, e.clientY);
+  }, {passive:false});
+
+  window.addEventListener('pointerup', e => {
+    if(pressTimer){ clearTimeout(pressTimer); pressTimer = null; }
+    if(mode && ghost){
+      document.querySelectorAll('.knob.grabbed').forEach(k=>k.classList.remove('grabbed'));
+      mode = null;
+      placeGhost();
+      if(navigator.vibrate) navigator.vibrate(10);
+    } else if(pressInfo && ghost && Date.now()-pressInfo.t < 240 && !e.target.closest('.ghost') && !e.target.closest('.ctabar')){
+      // quick tap on empty grid while a ghost is placed → dismiss
+      dismissGhost();
+    }
+    pressInfo = null;
+  });
+
+  /* ---------- CTA + sheet ---------- */
+  document.getElementById('ctaclose').addEventListener('click', ()=>dismissGhost());
+  const sheetwrap = document.getElementById('sheetwrap');
+  document.getElementById('ctabtn').addEventListener('click', ()=>{
+    if(!ghost) return;
+    document.getElementById('sheetday').innerHTML = DAY_FULL[ghost.di]+' <span class="chipset">DALLA GRIGLIA</span>';
+    document.getElementById('sheettime').innerHTML = fmtMin(ghost.start)+' <span class="chipset">DALLA GRIGLIA</span>';
+    document.getElementById('sheetdur').innerHTML = fmtDur(ghost.dur)+' <span class="chipset">DALLA GRIGLIA</span>';
+    sheetwrap.classList.add('on');
+  });
+  const closeSheet = ()=>sheetwrap.classList.remove('on');
+  document.getElementById('sheetx').addEventListener('click', closeSheet);
+  document.getElementById('sheetdim').addEventListener('click', closeSheet);
+
+  // scroll to 8:00-ish
+  scroller.scrollTop = ROW*1.2;
+</script>
+</body>
+</html>

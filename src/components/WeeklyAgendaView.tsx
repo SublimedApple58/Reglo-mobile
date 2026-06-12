@@ -1,12 +1,17 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
   runOnJS,
+  interpolate,
   interpolateColor,
   Easing,
+  FadeInUp,
+  FadeOut,
+  ZoomIn,
+  type SharedValue,
 } from 'react-native-reanimated';
 import {
   View,
@@ -45,10 +50,13 @@ type WeeklyAgendaViewProps = {
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
   /**
-   * Hold-and-scrub booking: fired on release with the picked start minute + the
-   * free-segment bounds. Same flow as the day/week views' BookableBand.
+   * Ghost-block booking: fired from the "Scegli i dettagli" CTA with the
+   * placed block's start + duration. `windowStart/windowEnd` keep the legacy
+   * signature (callers only clamp the preset inside them).
    */
-  onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number) => void;
+  onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number, durationMinutes?: number) => void;
+  /** Ghost CTA visible/hidden — lets the parent hide the FAB underneath. */
+  onGhostActiveChange?: (active: boolean) => void;
   /** Fired when the visible week settles (swipe / "Oggi"). */
   onDateChange?: (weekStart: Date) => void;
   loading?: boolean;
@@ -70,9 +78,13 @@ const GUTTER_W = 34;
 const COL_GAP = 4;        // gap between day columns (Airbnb-ish breathing room)
 const GRID_TOP_PAD = 12;  // breathing room so the first hour label isn't clipped
 
-// Hold-and-scrub booking (mirrors BookableBand in the day/week views).
-const STEP = 15;          // minutes per scrub step
-const PX_PER_STEP = 10;   // px of vertical drag per 15-min step
+// Ghost-block booking.
+const STEP = 15;                       // minutes per snap step
+const PX_PER_STEP = ROW_H / 4;         // px of vertical drag per 15-min step (1:1 with the grid)
+const GHOST_MIN_DUR = 30;              // minimum draggable duration
+const GHOST_MAX_DUR = 240;             // maximum draggable duration
+const DAY_MIN = FIRST_HOUR * 60;
+const DAY_MAX = LAST_HOUR * 60;
 
 // Horizontal week carousel: half a year of swipe each way, centered on "today".
 const WEEK_SPAN = 26;
@@ -114,6 +126,31 @@ const toDateKey = (d: Date) =>
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (min: number) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+const fmtDur = (min: number) => {
+  if (min % 60 === 0) return `${min / 60} h`;
+  if (min > 60) return `${Math.floor(min / 60)} h ${min % 60}'`;
+  return `${min}'`;
+};
+
+/* ------------------------------------------------------------------ */
+/*  Ghost label store — tiny pub/sub (same pattern as scrubOverlay)    */
+/*  Updated per 15-min step from the gesture worklets via runOnJS so   */
+/*  only the two <Text> inside the ghost re-render, never the grid.    */
+/* ------------------------------------------------------------------ */
+
+const makeTextStore = () => {
+  let value = '';
+  const listeners = new Set<() => void>();
+  return {
+    set(v: string) { if (v === value) return; value = v; listeners.forEach((fn) => fn()); },
+    get() { return value; },
+    subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
+  };
+};
+const ghostTimeLabel = makeTextStore();
+const ghostDurLabel = makeTextStore();
+const useTextStore = (store: ReturnType<typeof makeTextStore>) =>
+  useSyncExternalStore(store.subscribe, store.get);
 
 const formatWeekLabel = (monday: Date): string => {
   const saturday = addDays(monday, 5);
@@ -188,106 +225,256 @@ const SKELETON_BLOCKS = [
 /*  Free segment = hold-and-scrub bookable surface                     */
 /* ------------------------------------------------------------------ */
 
-type GridBookableProps = {
+type GhostSharedValues = {
+  gCol: SharedValue<number>;
+  gStart: SharedValue<number>;
+  gDur: SharedValue<number>;
+  gLive: SharedValue<number>;
+};
+
+type GridBookableProps = GhostSharedValues & {
   top: number; height: number; left: number; width: number;
-  /** This free segment's bounds (minutes from midnight), used for seeding. */
+  /** This free segment's bounds (minutes from midnight), to map e.y → time. */
   windowStart: number; windowEnd: number;
-  /** Day-wide ascending 15-min bookable starts (every free segment), the scrub walks them. */
-  starts: number[];
-  /** All free segments of the day, to resolve which one the picked time falls in. */
-  segments: Array<[number, number]>;
-  date: Date;
-  onBook: (date: Date, startMin: number, winStart: number, winEnd: number) => void;
+  colIdx: number;
+  colW: number;
+  /** Whether a ghost block is currently mounted on this week page. */
+  ghostOn: boolean;
+  /** Mount the ghost overlay + hide the CTA (drag just started). */
+  onArm: (start: number, dur: number) => void;
+  /** 15-min step crossed while dragging — update labels + tick. */
+  onStep: (start: number, dur: number) => void;
+  /** Gesture released — ghost placed, show CTA. */
+  onPlace: (col: number, start: number, dur: number) => void;
+  /** Quick tap on free space: create a placed ghost right there… */
+  onTapCreate: (col: number, start: number) => void;
+  /** …or dismiss the existing one. */
+  onTapDismiss: () => void;
 };
 
 // Any free time is bookable — the surface spans a free segment (the day minus
-// guides/blocks), NOT the availability. Press-and-hold (220ms) to arm, drag
-// up/down in 15-min steps across every free time; a floating card bubble follows
-// the finger (screen-level <ScrubBubble/>). Release books the held time; a tap
-// books the tapped time. The surface is invisible — a faint navy tint shows while held.
+// guides/blocks), NOT the availability. Press-and-hold (220ms) births a GHOST
+// BLOCK (1h) under the finger and drags it live — vertically in 15-min steps,
+// horizontally across day columns. Release places it (resize knobs + bottom
+// CTA appear). A quick tap places a ghost at the tapped slot — or dismisses
+// the current one. The surface itself stays invisible.
 const GridBookableWindow = ({
-  top, height, left, width, windowStart, windowEnd, starts, segments, date, onBook,
+  top, height, left, width, windowStart, windowEnd, colIdx, colW, ghostOn,
+  gCol, gStart, gDur, gLive, onArm, onStep, onPlace, onTapCreate, onTapDismiss,
 }: GridBookableProps) => {
-  const active = useSharedValue(0);
-  const baseIdx = useSharedValue(0);
-  const curIdx = useSharedValue(0);
-
-  const idxNearest = (m: number) => {
-    'worklet';
-    let best = 0; let bestD = Infinity;
-    for (let i = 0; i < starts.length; i++) {
-      const d = starts[i] - m; const ad = d < 0 ? -d : d;
-      if (ad < bestD) { bestD = ad; best = i; }
-    }
-    return best;
-  };
-  const clampIdx = (i: number) => { 'worklet'; return Math.max(0, Math.min(starts.length - 1, i)); };
-
-  const startHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  const stepHaptic = () => Haptics.selectionAsync();
-  const setLabel = (m: number) => scrubLabel.set(fmtMin(m));
-  // Resolve the free segment containing the picked minute so the sheet clamps the
-  // new lesson's duration up to the next guide/block (not into it).
-  const doBook = (m: number) => {
-    let ws = m; let we = m + 60;
-    for (const [s, e] of segments) { if (m >= s && m < e) { ws = s; we = e; break; } }
-    onBook(date, m, ws, we);
-  };
+  const baseStart = useSharedValue(0);
+  const baseCol = useSharedValue(0);
 
   const pan = Gesture.Pan()
     .activateAfterLongPress(220)
     .onStart((e) => {
-      active.value = withTiming(1, { duration: 140 });
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
-      const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      const idx = idxNearest(localMin);
-      baseIdx.value = idx; curIdx.value = idx;
+      const centerMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
+      // Birth a 1h block centered on the finger, clamped to the day.
+      let start = Math.round((centerMin - 30) / STEP) * STEP;
+      start = Math.max(DAY_MIN, Math.min(DAY_MAX - 60, start));
+      gCol.value = colIdx; gStart.value = start; gDur.value = 60;
+      gLive.value = withTiming(1, { duration: 140 });
+      baseStart.value = start; baseCol.value = colIdx;
       scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
       scrubActive.value = withTiming(1, { duration: 140 });
-      runOnJS(setLabel)(starts[idx]);
-      runOnJS(startHaptic)();
+      runOnJS(onArm)(start, 60);
     })
     .onUpdate((e) => {
       scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
       const steps = Math.round(e.translationY / PX_PER_STEP);
-      const idx = clampIdx(baseIdx.value + steps);
-      if (idx !== curIdx.value) {
-        curIdx.value = idx;
-        runOnJS(setLabel)(starts[idx]);
-        runOnJS(stepHaptic)();
+      const cols = Math.round(e.translationX / (colW + COL_GAP));
+      const col = Math.max(0, Math.min(5, baseCol.value + cols));
+      let start = baseStart.value + steps * STEP;
+      start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
+      if (col !== gCol.value || start !== gStart.value) {
+        gCol.value = col; gStart.value = start;
+        runOnJS(onStep)(start, gDur.value);
       }
     })
     .onEnd(() => {
-      active.value = withTiming(0, { duration: 180 });
+      gLive.value = withTiming(0, { duration: 180 });
       scrubActive.value = withTiming(0, { duration: 180 });
-      runOnJS(doBook)(starts[curIdx.value]);
+      runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
     })
     .onFinalize((_e, success) => {
-      active.value = withTiming(0, { duration: 180 });
-      if (!success) scrubActive.value = withTiming(0, { duration: 180 });
+      if (!success) {
+        scrubActive.value = withTiming(0, { duration: 180 });
+        // Gesture cancelled mid-drag (system interruption): settle the ghost
+        // where it is instead of leaving it in the live/CTA-less limbo.
+        if (gLive.value > 0) {
+          gLive.value = withTiming(0, { duration: 180 });
+          runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+        }
+      }
     });
 
   const tap = Gesture.Tap()
     .maxDuration(250)
     .onEnd((e) => {
-      // Book at the tapped position (not the segment start), snapped to the grid.
+      if (ghostOn) { runOnJS(onTapDismiss)(); return; }
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
       const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      runOnJS(doBook)(starts[idxNearest(localMin)]);
+      const start = Math.max(DAY_MIN, Math.min(DAY_MAX - 60, localMin));
+      runOnJS(onTapCreate)(colIdx, start);
     });
 
   const gesture = Gesture.Exclusive(pan, tap);
 
-  const aStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(active.value, [0, 1], ['rgba(26,26,46,0)', 'rgba(26,26,46,0.07)']),
-  }));
-
   return (
     <View style={{ position: 'absolute', top, height, left, width, zIndex: 2 }}>
       <GestureDetector gesture={gesture}>
-        <Animated.View style={[styles.bookSurface, aStyle]} />
+        <Animated.View style={styles.bookSurface} />
       </GestureDetector>
     </View>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Ghost block — draggable, resizable draft of the new lesson         */
+/* ------------------------------------------------------------------ */
+
+type GhostBlockProps = GhostSharedValues & {
+  colW: number;
+  onLift: () => void;
+  onStep: (start: number, dur: number) => void;
+  onPlace: (col: number, start: number, dur: number) => void;
+};
+
+// The ghost lives entirely on shared values: position/size animate on the UI
+// thread (zero React re-renders while dragging); the time/duration labels go
+// through the tiny ghost*Label stores (re-render just two <Text>).
+const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }: GhostBlockProps) => {
+  const baseStart = useSharedValue(0);
+  const baseCol = useSharedValue(0);
+  const baseEnd = useSharedValue(0);
+
+  const timeText = useTextStore(ghostTimeLabel);
+  const durText = useTextStore(ghostDurLabel);
+
+  /* — body: hold (160ms) and drag the whole block, also across days — */
+  const movePan = Gesture.Pan()
+    .activateAfterLongPress(160)
+    .onStart((e) => {
+      baseStart.value = gStart.value; baseCol.value = gCol.value;
+      gLive.value = withTiming(1, { duration: 140 });
+      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+      scrubActive.value = withTiming(1, { duration: 140 });
+      runOnJS(onLift)();
+    })
+    .onUpdate((e) => {
+      scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+      const steps = Math.round(e.translationY / PX_PER_STEP);
+      const cols = Math.round(e.translationX / (colW + COL_GAP));
+      const col = Math.max(0, Math.min(5, baseCol.value + cols));
+      let start = baseStart.value + steps * STEP;
+      start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
+      if (col !== gCol.value || start !== gStart.value) {
+        gCol.value = col; gStart.value = start;
+        runOnJS(onStep)(start, gDur.value);
+      }
+    })
+    .onEnd(() => {
+      gLive.value = withTiming(0, { duration: 180 });
+      scrubActive.value = withTiming(0, { duration: 180 });
+      runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+    })
+    .onFinalize((_e, success) => {
+      if (!success) {
+        scrubActive.value = withTiming(0, { duration: 180 });
+        if (gLive.value > 0) {
+          gLive.value = withTiming(0, { duration: 180 });
+          runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+        }
+      }
+    });
+
+  /* — knobs: drag the edges to resize (30' – 4h, 15' steps) — */
+  const makeKnobPan = (edge: 'top' | 'bottom') =>
+    Gesture.Pan()
+      .hitSlop({ top: 14, bottom: 14, left: 18, right: 18 })
+      .activeOffsetY([-4, 4])
+      .onStart((e) => {
+        baseStart.value = gStart.value;
+        baseEnd.value = gStart.value + gDur.value;
+        gLive.value = withTiming(1, { duration: 140 });
+        scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+        scrubActive.value = withTiming(1, { duration: 140 });
+        runOnJS(onLift)();
+      })
+      .onUpdate((e) => {
+        scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
+        const delta = Math.round(e.translationY / PX_PER_STEP) * STEP;
+        if (edge === 'top') {
+          let ns = baseStart.value + delta;
+          ns = Math.max(Math.max(DAY_MIN, baseEnd.value - GHOST_MAX_DUR), Math.min(baseEnd.value - GHOST_MIN_DUR, ns));
+          if (ns !== gStart.value) {
+            gStart.value = ns; gDur.value = baseEnd.value - ns;
+            runOnJS(onStep)(ns, baseEnd.value - ns);
+          }
+        } else {
+          let ne = baseEnd.value + delta;
+          ne = Math.max(baseStart.value + GHOST_MIN_DUR, Math.min(Math.min(DAY_MAX, baseStart.value + GHOST_MAX_DUR), ne));
+          const nd = ne - baseStart.value;
+          if (nd !== gDur.value) {
+            gDur.value = nd;
+            runOnJS(onStep)(baseStart.value, nd);
+          }
+        }
+      })
+      .onEnd(() => {
+        gLive.value = withTiming(0, { duration: 180 });
+        scrubActive.value = withTiming(0, { duration: 180 });
+        runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+      })
+      .onFinalize((_e, success) => {
+        if (!success) {
+          scrubActive.value = withTiming(0, { duration: 180 });
+          if (gLive.value > 0) {
+            gLive.value = withTiming(0, { duration: 180 });
+            runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
+          }
+        }
+      });
+
+  const topKnobPan = useMemo(() => makeKnobPan('top'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const botKnobPan = useMemo(() => makeKnobPan('bottom'), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const frameStyle = useAnimatedStyle(() => ({
+    top: ((gStart.value - DAY_MIN) / 60) * ROW_H,
+    height: (gDur.value / 60) * ROW_H,
+    left: GUTTER_W + gCol.value * (colW + COL_GAP) + 2,
+    width: colW - 4,
+    backgroundColor: interpolateColor(gLive.value, [0, 1], ['rgba(26,26,46,0.09)', 'rgba(26,26,46,0.16)']),
+    borderColor: interpolateColor(gLive.value, [0, 1], ['rgba(26,26,46,0.45)', 'rgba(26,26,46,0.80)']),
+    shadowOpacity: interpolate(gLive.value, [0, 1], [0.10, 0.32]),
+  }));
+  const knobStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(gLive.value, [0, 1], [1, 0]),
+  }));
+  const chipStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(gLive.value, [0, 1], [1, 0.4]),
+  }));
+
+  return (
+    <GestureDetector gesture={movePan}>
+      <Animated.View entering={ZoomIn.duration(220)} style={[styles.ghost, frameStyle]}>
+        <Text style={styles.ghostTime} numberOfLines={1}>{timeText}</Text>
+        <Animated.View style={[styles.ghostDurChip, chipStyle]}>
+          <Text style={styles.ghostDurText}>{durText}</Text>
+        </Animated.View>
+        <GestureDetector gesture={topKnobPan}>
+          <Animated.View style={[styles.ghostKnob, { top: -12 }, knobStyle]} hitSlop={{ top: 14, bottom: 10, left: 18, right: 18 }}>
+            <View style={styles.ghostKnobBar} />
+          </Animated.View>
+        </GestureDetector>
+        <GestureDetector gesture={botKnobPan}>
+          <Animated.View style={[styles.ghostKnob, { bottom: -12 }, knobStyle]} hitSlop={{ top: 10, bottom: 14, left: 18, right: 18 }}>
+            <View style={styles.ghostKnobBar} />
+          </Animated.View>
+        </GestureDetector>
+      </Animated.View>
+    </GestureDetector>
   );
 };
 
@@ -312,18 +499,82 @@ type WeekPageProps = {
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
-  onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number) => void;
+  /** Ghost-block booking enabled (instructor, not read-only). */
+  canBook: boolean;
+  /** Ghost placed (info) or lifted/dismissed (null) → parent drives the CTA. */
+  onGhostChange: (info: { date: Date; startMin: number; durMin: number } | null) => void;
+  /** Parent bumps this to clear the ghost (CTA ✕ / confirm / week swipe). */
+  ghostDismissTick: number;
 };
 
 const WeekPage = React.memo(function WeekPage({
   monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
   weekAvailabilityByDate, readOnly, loading,
-  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onBookAt,
+  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
+  canBook, onGhostChange, ghostDismissTick,
 }: WeekPageProps) {
   const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
   const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
 
   const weekDays = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), [monday]);
+
+  /* ── Ghost block state ──
+   * Position/size live on shared values (UI-thread drag); React only knows
+   * whether the ghost exists. Labels go through the ghost*Label stores. */
+  const gCol = useSharedValue(0);
+  const gStart = useSharedValue(DAY_MIN);
+  const gDur = useSharedValue(60);
+  const gLive = useSharedValue(0);
+  const [ghostOn, setGhostOn] = useState(false);
+
+  const setGhostLabels = useCallback((start: number, dur: number) => {
+    const range = `${fmtMin(start)} – ${fmtMin(start + dur)}`;
+    ghostTimeLabel.set(range);
+    ghostDurLabel.set(fmtDur(dur));
+    scrubLabel.set(range);
+  }, []);
+
+  const ghostArm = useCallback((start: number, dur: number) => {
+    setGhostLabels(start, dur);
+    setGhostOn(true);
+    onGhostChange(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [setGhostLabels, onGhostChange]);
+
+  const ghostStep = useCallback((start: number, dur: number) => {
+    setGhostLabels(start, dur);
+    Haptics.selectionAsync();
+  }, [setGhostLabels]);
+
+  const ghostLift = useCallback(() => {
+    onGhostChange(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [onGhostChange]);
+
+  const ghostPlace = useCallback((col: number, start: number, dur: number) => {
+    setGhostLabels(start, dur);
+    onGhostChange({ date: weekDays[col], startMin: start, durMin: dur });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [setGhostLabels, onGhostChange, weekDays]);
+
+  const ghostTapCreate = useCallback((col: number, start: number) => {
+    gCol.value = col; gStart.value = start; gDur.value = 60; gLive.value = 0;
+    setGhostLabels(start, 60);
+    setGhostOn(true);
+    onGhostChange({ date: weekDays[col], startMin: start, durMin: 60 });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setGhostLabels, onGhostChange, weekDays]);
+
+  const ghostTapDismiss = useCallback(() => {
+    setGhostOn(false);
+    onGhostChange(null);
+  }, [onGhostChange]);
+
+  // Parent-driven dismiss (CTA ✕, confirm, week swipe).
+  useEffect(() => {
+    if (ghostDismissTick > 0) setGhostOn(false);
+  }, [ghostDismissTick]);
   const hours = useMemo(() => Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i), []);
   const isCurrentWeek = isSameWeek(monday, today);
 
@@ -603,9 +854,9 @@ const WeekPage = React.memo(function WeekPage({
           }),
         )}
 
-        {/* Bookable free segments — invisible press-and-hold scrub surfaces */}
-        {onBookAt && !readOnly && bookableByCol.map(({ segments, starts }, colIdx) =>
-          starts.length ? segments.map(([sMin, eMin], si) => {
+        {/* Bookable free segments — invisible press-and-hold ghost surfaces */}
+        {canBook && !readOnly && bookableByCol.map(({ segments }, colIdx) =>
+          segments.map(([sMin, eMin], si) => {
             const top = ((sMin - FIRST_HOUR * 60) / 60) * ROW_H;
             const height = ((eMin - sMin) / 60) * ROW_H;
             return (
@@ -613,10 +864,13 @@ const WeekPage = React.memo(function WeekPage({
                 key={`bk-${colIdx}-${si}`}
                 top={top} height={height} left={colX(colIdx) + 3} width={colW - 6}
                 windowStart={sMin} windowEnd={eMin}
-                starts={starts} segments={segments} date={weekDays[colIdx]} onBook={onBookAt}
+                colIdx={colIdx} colW={colW} ghostOn={ghostOn}
+                gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
+                onArm={ghostArm} onStep={ghostStep} onPlace={ghostPlace}
+                onTapCreate={ghostTapCreate} onTapDismiss={ghostTapDismiss}
               />
             );
-          }) : null,
+          }),
         )}
 
         {/* Skeleton blocks */}
@@ -769,6 +1023,15 @@ const WeekPage = React.memo(function WeekPage({
           }),
         )}
 
+        {/* Ghost block — the draggable draft of the new lesson */}
+        {ghostOn && canBook && !readOnly && (
+          <GhostBlock
+            colW={colW}
+            gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
+            onLift={ghostLift} onStep={ghostStep} onPlace={ghostPlace}
+          />
+        )}
+
         {/* Now line — only on today's column */}
         {nowLineTop !== null && todayColIdx >= 0 && (
           <View
@@ -799,6 +1062,7 @@ export default function WeeklyAgendaView({
   onPressGroupLesson,
   onPressBlock,
   onBookAt,
+  onGhostActiveChange,
   onDateChange,
   loading = false,
   studentCompletedMinutes = {},
@@ -827,12 +1091,38 @@ export default function WeeklyAgendaView({
   const onDateChangeRef = useRef(onDateChange);
   onDateChangeRef.current = onDateChange;
 
+  /* ── Ghost draft + bottom CTA ── */
+  const [ghostInfo, setGhostInfo] = useState<{ date: Date; startMin: number; durMin: number } | null>(null);
+  const [ghostDismissTick, setGhostDismissTick] = useState(0);
+  const handleGhostChange = useCallback(
+    (info: { date: Date; startMin: number; durMin: number } | null) => setGhostInfo(info),
+    [],
+  );
+  const dismissGhost = useCallback(() => {
+    setGhostInfo(null);
+    setGhostDismissTick((t) => t + 1);
+  }, []);
+  const onGhostActiveChangeRef = useRef(onGhostActiveChange);
+  onGhostActiveChangeRef.current = onGhostActiveChange;
+  useEffect(() => {
+    onGhostActiveChangeRef.current?.(ghostInfo != null);
+  }, [ghostInfo]);
+  // Unmount (e.g. switching to the day view): release the parent's FAB.
+  useEffect(() => () => { onGhostActiveChangeRef.current?.(false); }, []);
+  const confirmGhost = useCallback(() => {
+    if (!ghostInfo || !onBookAt) return;
+    const { date, startMin, durMin } = ghostInfo;
+    dismissGhost();
+    onBookAt(date, startMin, startMin, startMin + durMin, durMin);
+  }, [ghostInfo, onBookAt, dismissGhost]);
+
   const settle = useCallback((i: number) => {
     if (i < 0 || i >= pages.length || i === indexRef.current) return;
     indexRef.current = i;
     setVisibleMonday(pages[i]);
     onDateChangeRef.current?.(pages[i]);
-  }, [pages]);
+    dismissGhost();
+  }, [pages, dismissGhost]);
 
   const onMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     settle(Math.round(e.nativeEvent.contentOffset.x / pageWidth));
@@ -861,10 +1151,13 @@ export default function WeeklyAgendaView({
       onPressExam={onPressExam}
       onPressGroupLesson={onPressGroupLesson}
       onPressBlock={onPressBlock}
-      onBookAt={onBookAt}
+      canBook={!!onBookAt}
+      onGhostChange={handleGhostChange}
+      ghostDismissTick={ghostDismissTick}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
-      studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onBookAt]);
+      studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
+      onBookAt, handleGhostChange, ghostDismissTick]);
 
   return (
     <View style={styles.container}>
@@ -904,6 +1197,39 @@ export default function WeeklyAgendaView({
           />
         )}
       </View>
+
+      {/* ── Ghost CTA — floating card, slides up when the block is placed ── */}
+      {ghostInfo && onBookAt && (
+        <Animated.View
+          entering={FadeInUp.duration(280).springify().damping(18)}
+          exiting={FadeOut.duration(160)}
+          style={styles.ctaBar}
+        >
+          <Pressable
+            onPress={dismissGhost}
+            hitSlop={6}
+            style={({ pressed }) => [styles.ctaClose, pressed && { backgroundColor: '#E9EBF2' }]}
+          >
+            <Ionicons name="close" size={17} color="#6E7596" />
+          </Pressable>
+          <View style={styles.ctaInfo}>
+            <Text style={styles.ctaDay} numberOfLines={1}>
+              {ghostInfo.date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </Text>
+            <Text style={styles.ctaTime} numberOfLines={1}>
+              {fmtMin(ghostInfo.startMin)} – {fmtMin(ghostInfo.startMin + ghostInfo.durMin)}
+              <Text style={styles.ctaDur}>  {fmtDur(ghostInfo.durMin)}</Text>
+            </Text>
+          </View>
+          <Pressable
+            onPress={confirmGhost}
+            style={({ pressed }) => [styles.ctaBtn, pressed && { backgroundColor: '#2A2A45', transform: [{ scale: 0.97 }] }]}
+          >
+            <Text style={styles.ctaBtnText}>Scegli i dettagli</Text>
+            <Ionicons name="chevron-forward" size={15} color="#FFFFFF" />
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -959,11 +1285,114 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.55)',
   },
-  // Invisible bookable surface (the tint is added while held by the gesture).
+  // Invisible bookable surface (the ghost block is the visual feedback).
   bookSurface: {
     flex: 1,
     borderRadius: 10,
   },
+  /* ── Ghost block ── */
+  ghost: {
+    position: 'absolute',
+    zIndex: 7,
+    borderRadius: 13,
+    borderWidth: 1.6,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    shadowColor: '#0D0D16',
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+    overflow: 'visible',
+  },
+  ghostTime: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    fontVariant: ['tabular-nums'],
+  },
+  ghostDurChip: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E9EBF2',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    shadowColor: '#0D0D16',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  ghostDurText: { fontSize: 8.5, fontWeight: '600', color: '#6E7596' },
+  ghostKnob: {
+    position: 'absolute',
+    left: '50%',
+    marginLeft: -12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#1A1A2E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0D0D16',
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 7,
+    zIndex: 9,
+  },
+  ghostKnobBar: { width: 8, height: 2, borderRadius: 1, backgroundColor: '#AEB4CC' },
+  /* ── Ghost CTA bar ── */
+  ctaBar: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 14,
+    zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    shadowColor: '#0D0D16',
+    shadowOpacity: 0.30,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  ctaClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F4F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaInfo: { flex: 1, minWidth: 0 },
+  ctaDay: { fontSize: 11, fontWeight: '600', color: '#6E7596', textTransform: 'capitalize' },
+  ctaTime: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 1, fontVariant: ['tabular-nums'] },
+  ctaDur: { fontSize: 12, fontWeight: '600', color: '#AEB4CC', letterSpacing: 0 },
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 15,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  ctaBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   lesson: {
     position: 'absolute',
     borderRadius: 13,

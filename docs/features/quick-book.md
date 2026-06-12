@@ -28,10 +28,13 @@ i form quick sono identici a quelli pieni per costruzione.
 1. **Gesture** in `IstruttoreHomeScreen`:
    - Day view: `<BookableBand onPick={(min) => openQuickBookSheet(...)} />` (banda fantasma + hold-to-scrub; vedi "Timeline giorno").
    - Week view: `WeeklyOverview` → tap su un giorno lo espande nell'itinerario → `<BookableBand onPick={(min) => openQuickBookSheet(date, ...)} />` con la **data del giorno espanso** (stessa gesture della vista giorno).
+   - **Grid view** (`WeeklyAgendaView`): **blocco fantasma** (2026-06-12, sostituisce lo scrub) — hold (220ms) su spazio libero genera un blocco draft da 1h che si trascina live (15' step verticali, cross-colonna orizzontale); release lo piazza → knob alto/basso per la durata (30'–4h) + CTA bottom "Scegli i dettagli". Tap su spazio libero = piazza il blocco lì (o dismisses quello esistente). Il blocco piazzato si ri-trascina con hold (160ms). Posizione/size su shared values (UI thread, zero re-render); label via mini pub/sub `ghostTimeLabel`/`ghostDurLabel`; bolla finger = la solita `ScrubBubble` (label = range). CTA conferma → `onBookAt(date, start, start, start+dur, dur)`. `onGhostActiveChange` nasconde il FAB della home mentre la CTA è visibile. Dismiss: ✕, conferma, swipe settimana, tap fuori, unmount.
    - Empty-day CTA: bottone "Prenota una guida" → `openQuickBookSheet(...)`.
-2. `openQuickBookSheet(date, startMinutes, windowStart, windowEnd)` calcola il preset
-   clampato, poi **semina entrambi gli store** via `seedBookingStore(date, preset)` +
-   `seedBlockStore(date, preset)` (gli stessi helper usati dalle route FAB) e fa
+2. `openQuickBookSheet(date, startMinutes, windowStart, windowEnd, durationMinutes?)` calcola il preset
+   clampato; la durata del blocco fantasma (step liberi da 15') viene **snappata alla
+   durata consentita più vicina** e passata come `presetDurationMinutes` →
+   `seedBookingStore(date, preset, presetDur)` la usa come `defaultDuration`.
+   Poi semina anche `seedBlockStore(date, preset)` e fa
    `router.push('/(tabs)/home/quick-book')`.
 3. La route renderizza il form scelto dalla segmented; il **parent (home) possiede la
    logica optimistic** (insert/replace/reconcile/remove) tramite le callback degli store

@@ -627,6 +627,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  // Ghost-block CTA visible in the weekly grid → hide the FAB underneath it.
+  const [ghostCtaActive, setGhostCtaActive] = useState(false);
   const [sheetLesson, setSheetLesson] = useState<AutoscuolaAppointmentWithRelations | null>(null);
   const [sheetStudentProgress, setSheetStudentProgress] = useState<{ completed: number; required: number } | null>(null);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
@@ -2844,7 +2846,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
   // Seeds bookingSheetStore for the dedicated new-booking route AND the quick-book
   // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
-  const seedBookingStore = useCallback((initialDate: Date, presetStartMinutes?: number) => {
+  const seedBookingStore = useCallback((initialDate: Date, presetStartMinutes?: number, presetDurationMinutes?: number) => {
     bookingSheetStore.set({
       canBook: canInstructorBook,
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
@@ -2853,7 +2855,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       initialDate: initialDate.toISOString(),
       ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
       durations: bookingDurations,
-      defaultDuration: bookingDurations.includes(60) ? 60 : (bookingDurations[0] ?? 60),
+      // Ghost-block flow: the dragged duration (already snapped to the closest
+      // allowed option) wins over the default 60'.
+      defaultDuration: presetDurationMinutes
+        ?? (bookingDurations.includes(60) ? 60 : (bookingDurations[0] ?? 60)),
       // Precompile the instructor's fixed vehicle when they have one; the
       // picker stays editable so it can still be overridden per lesson.
       defaultVehicleId:
@@ -2955,16 +2960,22 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // Opens the native quick-book sheet (Airbnb segmented: Prenota guida / Blocca
   // slot) preset to a start within a free window. Seeds the SAME stores the
   // dedicated routes use, so the embedded forms are identical.
-  const openQuickBookSheet = useCallback((date: Date, startMinutes: number, windowStart: number, windowEnd: number) => {
+  const openQuickBookSheet = useCallback((date: Date, startMinutes: number, windowStart: number, windowEnd: number, durationMinutes?: number) => {
     if (!canInstructorBook) {
       setToast({ text: 'La prenotazione da app è abilitata solo per allievi.', tone: 'info' });
       return;
     }
     const preset = Math.max(windowStart, Math.min(windowEnd - 15, startMinutes));
-    seedBookingStore(date, preset);
+    // Ghost-block duration (free 15' steps) → closest allowed booking duration.
+    const presetDur = durationMinutes != null && bookingDurations.length
+      ? bookingDurations.reduce((best, d) =>
+          Math.abs(d - durationMinutes) < Math.abs(best - durationMinutes) ? d : best,
+        bookingDurations[0])
+      : undefined;
+    seedBookingStore(date, preset, presetDur);
     seedBlockStore(date, preset);
     router.push('/(tabs)/home/quick-book');
-  }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
+  }, [canInstructorBook, bookingDurations, seedBookingStore, seedBlockStore, router]);
 
   const userName = user?.name?.split(' ')[0] ?? (ownerMode ? 'Titolare' : 'Istruttore');
 
@@ -4128,15 +4139,17 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 ],
               );
             }}
-            onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd) => {
-              openQuickBookSheet(date, startMin, winStart, winEnd);
+            onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
+              openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
             }}
+            onGhostActiveChange={setGhostCtaActive}
           />
         </View>
       ) : null}
 
-      {/* ── FAB Menu (nascosto per il titolare: home in sola lettura) ── */}
-      {!ownerMode && (
+      {/* ── FAB Menu (nascosto per il titolare: home in sola lettura;
+           e mentre la CTA del blocco fantasma occupa il fondo schermo) ── */}
+      {!ownerMode && !(agendaViewMode === 'grid' && ghostCtaActive) && (
         <FabMenu
           canBook={canInstructorBook}
           canGroupLesson={settings?.groupLessonsEnabled === true}
