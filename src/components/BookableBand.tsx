@@ -164,8 +164,10 @@ export const ScrubBubble = () => {
           <MaterialCommunityIcons name="car" size={20} color="#FFFFFF" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.bubbleTime}>{label}</Text>
-          <Text style={s.bubbleSub}>Nuova guida · rilascia per prenotare</Text>
+          {/* Ranges ("20:15 – 21:15") must never wrap — the bubble would balloon
+              over the grid. Single line, shrink-to-fit. */}
+          <Text style={s.bubbleTime} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{label}</Text>
+          <Text style={s.bubbleSub} numberOfLines={1}>Nuova guida · rilascia per prenotare</Text>
         </View>
       </Animated.View>
     </View>

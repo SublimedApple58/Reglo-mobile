@@ -389,21 +389,20 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
       }
     });
 
-  /* — knobs: drag the edges to resize (30' – 4h, 15' steps) — */
+  /* — knobs: drag the edges to resize (30' – 4h, 15' steps) —
+   * No finger bubble here: the block stays under the eye and already shows
+   * the live range/duration — the bubble would just cover the grid. */
   const makeKnobPan = (edge: 'top' | 'bottom') =>
     Gesture.Pan()
       .hitSlop({ top: 14, bottom: 14, left: 18, right: 18 })
       .activeOffsetY([-4, 4])
-      .onStart((e) => {
+      .onStart(() => {
         baseStart.value = gStart.value;
         baseEnd.value = gStart.value + gDur.value;
         gLive.value = withTiming(1, { duration: 140 });
-        scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
-        scrubActive.value = withTiming(1, { duration: 140 });
         runOnJS(onLift)();
       })
       .onUpdate((e) => {
-        scrubX.value = e.absoluteX; scrubY.value = e.absoluteY;
         const delta = Math.round(e.translationY / PX_PER_STEP) * STEP;
         if (edge === 'top') {
           let ns = baseStart.value + delta;
@@ -424,16 +423,12 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
       })
       .onEnd(() => {
         gLive.value = withTiming(0, { duration: 180 });
-        scrubActive.value = withTiming(0, { duration: 180 });
         runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
       })
       .onFinalize((_e, success) => {
-        if (!success) {
-          scrubActive.value = withTiming(0, { duration: 180 });
-          if (gLive.value > 0) {
-            gLive.value = withTiming(0, { duration: 180 });
-            runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
-          }
+        if (!success && gLive.value > 0) {
+          gLive.value = withTiming(0, { duration: 180 });
+          runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
         }
       });
 
