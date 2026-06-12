@@ -135,10 +135,18 @@ type LessonLook = { bg: string; text: string; sub: string; pressed: string };
 // to a muted grey so the eye reads the live week at a glance.
 const NAVY: LessonLook = { bg: '#1A1A2E', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#2A2A45' };
 const MUTED: LessonLook = { bg: '#EBEDF3', text: '#8A90A6', sub: 'rgba(110,117,150,0.7)', pressed: '#E1E4EC' };
+// Guide oltre le prime 6 obbligatorie → ambra soffusa (mai squillante).
+const AMBER: LessonLook = { bg: '#F7E8C3', text: '#6B5413', sub: 'rgba(107,84,19,0.62)', pressed: '#EFDDAE' };
+// Allievo con esame il giorno dopo → rosso attenuato ma inconfondibile.
+const RED: LessonLook = { bg: '#F6D2CD', text: '#8E2A20', sub: 'rgba(142,42,32,0.62)', pressed: '#EFC2BC' };
 
 const getLessonLook = (appt: AutoscuolaAppointmentWithRelations): LessonLook => {
   const status = (appt.status ?? '').trim().toLowerCase();
   if (status === 'cancelled' || status === 'no_show') return MUTED;
+  // Priorità: esame domani (rosso) > prime 6 obbligatorie (navy) > altre (ambra).
+  // I flag arrivano dal BE; se assenti (BE non ancora deployato) → navy come prima.
+  if (appt.examNextDay) return RED;
+  if (appt.mandatoryLesson === false) return AMBER;
   return NAVY;
 };
 

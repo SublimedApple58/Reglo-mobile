@@ -194,6 +194,10 @@ export type AutoscuolaAppointment = {
   cancellationKind?: string | null;
   cancellationReason?: string | null;
   replacedByAppointmentId?: Uuid | null;
+  /** Annotazioni BE per i colori della vista griglia (solo guide, non esami). */
+  mandatoryLesson?: boolean;
+  /** L'allievo ha l'esame di guida il giorno dopo questa guida. */
+  examNextDay?: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
