@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Image,
   Platform,
@@ -24,9 +24,8 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { DefaultAvailabilityEditor } from './DefaultAvailabilityEditor';
 import { PublicationModeEditor } from './PublicationModeEditor';
-import { regloApi } from '../services/regloApi';
-import { availabilityCache } from '../services/availabilityCache';
-import { AvailabilityMode } from '../types/regloApi';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { useInstructorSettings } from '../hooks/queries/useInstructorSettings';
 import { colors } from '../theme';
 import { useSession } from '../context/SessionContext';
 
@@ -39,56 +38,21 @@ const FLUENT_CALENDAR = require('../../assets/icons/fluent-calendar.png');
 export const InstructorAvailabilityScreen = () => {
   const { instructorId } = useSession();
   const insets = useSafeAreaInsets();
-  const [availabilityMode, setAvailabilityMode] = useState<AvailabilityMode>('default');
-  const [weeks, setWeeks] = useState(4);
-  const [modeLoading, setModeLoading] = useState(true);
   const [editorKey, setEditorKey] = useState(0);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
-  const loadMode = useCallback(async () => {
-    try {
-      const [settingsRes, instrSettings] = await Promise.all([
-        regloApi.getAutoscuolaSettings().catch(() => null),
-        regloApi.getInstructorSettings().catch(() => null),
-      ]);
-      const freshWeeks = settingsRes?.availabilityWeeks ?? null;
-      const freshMode = instrSettings?.settings?.availabilityMode ?? null;
-      if (freshWeeks) setWeeks(freshWeeks);
-      if (freshMode) setAvailabilityMode(freshMode);
-      if (instructorId && (freshWeeks || freshMode)) {
-        availabilityCache.setMode(instructorId, {
-          mode: freshMode ?? 'default',
-          weeks: freshWeeks ?? 4,
-        });
-      }
-    } catch {
-      setToast({ text: 'Errore nel caricamento', tone: 'danger' });
-    } finally {
-      setModeLoading(false);
-    }
-  }, [instructorId]);
-
-  // Hydrate the mode from cache so the editor paints instantly, then refresh.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (instructorId) {
-        const cached = await availabilityCache.getMode(instructorId);
-        if (alive && cached) {
-          setAvailabilityMode(cached.mode);
-          setWeeks(cached.weeks);
-          setModeLoading(false);
-        }
-      }
-      loadMode();
-    })();
-    return () => { alive = false; };
-  }, [instructorId, loadMode]);
+  // Mode + horizon come from the (cached, persisted) settings queries. The
+  // persisted cache paints instantly; the background refetch corrects it.
+  const autoSettings = useAutoscuolaSettings();
+  const instrSettings = useInstructorSettings();
+  const weeks = autoSettings.data?.availabilityWeeks ?? 4;
+  const availabilityMode = instrSettings.data?.settings?.availabilityMode ?? 'default';
+  const modeLoading = instrSettings.isLoading && !instrSettings.data;
 
   const handleRefresh = useCallback(async () => {
-    await loadMode();
+    await Promise.all([autoSettings.refetch(), instrSettings.refetch()]);
     setEditorKey((k) => k + 1); // force the active editor to remount + refetch
-  }, [loadMode]);
+  }, [autoSettings, instrSettings]);
 
   const onToast = useCallback((text: string, tone: ToastTone = 'success') => {
     setToast({ text, tone });

@@ -10,14 +10,18 @@ import {
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastTone } from '../components/ToastNotice';
-import { regloApi } from '../services/regloApi';
 import { DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
 import { publishDayStore } from '../stores/publishDayStore';
 import { availabilityExceptionStore } from '../stores/availabilityExceptionStore';
-import { availabilityCache } from '../services/availabilityCache';
+import { useSession } from '../context/SessionContext';
+import { useDefaultAvailability } from '../hooks/queries/useDefaultAvailability';
+import { useDailyOverrides } from '../hooks/queries/useDailyOverrides';
+import { useSaveAvailability } from '../hooks/mutations/useSaveAvailability';
+import { queryKeys } from '../hooks/queries/queryKeys';
 import { colors } from '../theme';
 
 // The one Fluent 3D accent on this screen (decision: keep a single one in the header).
@@ -70,59 +74,49 @@ type Props = {
 
 export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Props) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { activeCompanyId } = useSession();
 
-  // ── Orari settimanali (per-weekday base) ──
+  // ── Orari settimanali (per-weekday base) — editable local copy seeded from the
+  // (cached, persisted) query; edits stay local until "Salva orari". ──
   const [schedule, setSchedule] = useState<Schedule>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const savedRef = useRef<string>(''); // key of last-saved schedule; '' until loaded
+  const scheduleRef = useRef<Schedule>(schedule);
+  scheduleRef.current = schedule;
 
-  // ── Eccezioni (overrides) ──
-  const [overrides, setOverrides] = useState<DailyAvailabilityOverride[]>([]);
-  const [overridesLoading, setOverridesLoading] = useState(true);
+  const baseQuery = useDefaultAvailability(instructorId);
+  const overridesQuery = useDailyOverrides(instructorId);
+  const saveMutation = useSaveAvailability();
+  const saving = saveMutation.isPending;
 
-  const loadBase = useCallback(async () => {
-    const cached = await availabilityCache.getBase(instructorId);
-    if (cached?.scheduleByDay) {
-      setSchedule(cached.scheduleByDay);
-      savedRef.current = keyOf(cached.scheduleByDay);
-      setLoading(false);
-    }
-    try {
-      const res = await regloApi.getDefaultAvailability({ ownerType: 'instructor', ownerId: instructorId });
-      if (res) {
-        setSchedule(res.scheduleByDay);
-        savedRef.current = keyOf(res.scheduleByDay);
-        availabilityCache.setBase(instructorId, { scheduleByDay: res.scheduleByDay });
-      } else if (!cached) {
-        // New instructor: suggest Lun–Ven 09:00–18:00 (reads as dirty → prompts a save).
-        const suggested: Schedule = {};
-        [1, 2, 3, 4, 5].forEach((d) => { suggested[d] = [{ ...DEFAULT_RANGE }]; });
-        setSchedule(suggested);
-        savedRef.current = keyOf({});
-      }
-    } catch {
-      if (!cached) onToast('Errore caricando gli orari', 'danger');
-    } finally {
-      setLoading(false);
-    }
-  }, [instructorId, onToast]);
+  // ── Eccezioni (overrides) — straight off the query (cache-first, persisted) ──
+  const overrides: DailyAvailabilityOverride[] = overridesQuery.data ?? [];
+  const overridesLoading = overridesQuery.isLoading && !overridesQuery.data;
 
-  const loadOverrides = useCallback(async () => {
-    try {
-      const res = await regloApi.getDailyAvailabilityOverrides({ ownerType: 'instructor', ownerId: instructorId });
-      setOverrides(res ?? []);
-    } catch {
-      // silent — list just stays empty
-    } finally {
-      setOverridesLoading(false);
-    }
-  }, [instructorId]);
-
+  // Seed the editable schedule from the query, unless the user has unsaved edits.
   useEffect(() => {
-    loadBase();
-    loadOverrides();
-  }, [loadBase, loadOverrides]);
+    if (baseQuery.isError && baseQuery.data === undefined) {
+      if (savedRef.current === '') onToast('Errore caricando gli orari', 'danger');
+      setLoading(false);
+      return;
+    }
+    if (baseQuery.data === undefined) return; // still loading, no cache yet
+    const dirty = savedRef.current !== '' && savedRef.current !== keyOf(scheduleRef.current);
+    if (dirty) { setLoading(false); return; } // don't clobber the user's edits
+    const res = baseQuery.data;
+    if (res) {
+      setSchedule(res.scheduleByDay);
+      savedRef.current = keyOf(res.scheduleByDay);
+    } else if (savedRef.current === '') {
+      // New instructor: suggest Lun–Ven 09:00–18:00 (reads as dirty → prompts a save).
+      const suggested: Schedule = {};
+      [1, 2, 3, 4, 5].forEach((d) => { suggested[d] = [{ ...DEFAULT_RANGE }]; });
+      setSchedule(suggested);
+      savedRef.current = keyOf({});
+    }
+    setLoading(false);
+  }, [baseQuery.data, baseQuery.isError, onToast]);
 
   // ── Time picker (shared route in role stack) ──
   const openTimePicker = useCallback(
@@ -162,7 +156,6 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
         }
       }
     }
-    setSaving(true);
     try {
       const scheduleByDay: Schedule = {};
       active.forEach((d) => { scheduleByDay[d] = schedule[d]; });
@@ -176,7 +169,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
       const ed = new Date(anchor);
       ed.setHours(Math.floor(rep.endMinutes / 60), rep.endMinutes % 60, 0, 0);
 
-      await regloApi.createAvailabilitySlots({
+      await saveMutation.mutateAsync({
         ownerType: 'instructor',
         ownerId: instructorId,
         startsAt: sd.toISOString(),
@@ -184,13 +177,12 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
         weeks,
         scheduleByDay,
       });
-      availabilityCache.setBase(instructorId, { scheduleByDay });
+      // Mark this as the saved baseline; the mutation invalidates
+      // ['default-availability'] so the query refetches the canonical value.
       savedRef.current = keyOf(scheduleByDay);
       onToast('Orari salvati', 'success');
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Errore nel salvataggio', 'danger');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -213,7 +205,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
       // A sentinel [{0,0}] override (web "giorno non disponibile") = absent too.
       editIsAbsent: override ? !override.ranges.some((r) => r.endMinutes > r.startMinutes) : undefined,
       openTimePicker,
-      onSaved: () => loadOverrides(),
+      onSaved: () => queryClient.invalidateQueries({ queryKey: queryKeys.dailyOverrides(activeCompanyId, instructorId) }),
     });
     router.push('/(tabs)/role/availability-exception' as never);
   };

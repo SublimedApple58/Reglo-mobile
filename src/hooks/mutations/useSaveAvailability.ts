@@ -11,6 +11,7 @@ export const useSaveAvailability = () => {
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
       queryClient.invalidateQueries({ queryKey: ['date-availability'] });
       queryClient.invalidateQueries({ queryKey: ['agenda-bootstrap'] });
+      queryClient.invalidateQueries({ queryKey: ['default-availability'] });
     },
   });
 };

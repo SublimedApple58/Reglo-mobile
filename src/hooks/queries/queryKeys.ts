@@ -28,6 +28,8 @@ export const STALE_TIMES = {
   locations: 15 * 60 * 1000,
   /** Instructor driving hours — 5 min */
   instructorHours: 5 * 60 * 1000,
+  /** Instructor availability (base schedule / overrides / published weeks) — 5 min */
+  availability: 5 * 60 * 1000,
   /**
    * Student phase / theory exam date — 30 sec.
    * The phase can change as soon as the owner clicks "Assegna quiz" /
@@ -81,4 +83,17 @@ export const queryKeys = {
 
   studentPhase: (companyId: string | null) =>
     ['student-phase', companyId] as const,
+
+  // ── Instructor availability editor ──
+  defaultAvailability: (companyId: string | null, instructorId: string | null) =>
+    ['default-availability', companyId, instructorId] as const,
+
+  dailyOverrides: (companyId: string | null, instructorId: string | null) =>
+    ['daily-overrides', companyId, instructorId] as const,
+
+  publishedWeeks: (companyId: string | null, instructorId: string | null, params?: Record<string, unknown>) =>
+    ['published-weeks', companyId, instructorId, params] as const,
+
+  publicationWeek: (companyId: string | null, instructorId: string | null, weekStart: string) =>
+    ['publication-week', companyId, instructorId, weekStart] as const,
 } as const;

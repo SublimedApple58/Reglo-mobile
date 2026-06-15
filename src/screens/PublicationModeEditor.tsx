@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,13 +22,17 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { TimeRange } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
 import { publishDayStore } from '../stores/publishDayStore';
-import { availabilityCache } from '../services/availabilityCache';
+import { useSession } from '../context/SessionContext';
+import { usePublishedWeeks } from '../hooks/queries/usePublishedWeeks';
+import { usePublicationWeek, DayState } from '../hooks/queries/usePublicationWeek';
+import { queryKeys } from '../hooks/queries/queryKeys';
 
 const FLUENT_CHECK = require('../../assets/icons/fluent-check.png');
 
@@ -37,12 +41,6 @@ const FLUENT_CHECK = require('../../assets/icons/fluent-check.png');
 type Props = {
   instructorId: string;
   onToast: (text: string, tone?: ToastTone) => void;
-};
-
-type DayState = {
-  date: string;
-  available: boolean;
-  ranges: TimeRange[];
 };
 
 // ── Constants ──────────────────────────────────────────────────
@@ -165,122 +163,38 @@ const SwipeRow = ({
 
 export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { activeCompanyId } = useSession();
   const [selectedOffset, setSelectedOffset] = useState(0);
   const weekStart = useMemo(() => getMonday(selectedOffset), [selectedOffset]);
   const weeksList = useMemo(
     () => Array.from({ length: WEEK_COUNT }, (_, i) => ({ offset: i, start: getMonday(i) })),
     [],
   );
+  const railFrom = useMemo(() => getMonday(0), []);
+  const railTo = useMemo(() => getMonday(WEEK_COUNT - 1), []);
 
-  const [publishedWeeks, setPublishedWeeks] = useState<Set<string>>(new Set());
-  const [railLoading, setRailLoading] = useState(true);
-  const [days, setDays] = useState<DayState[]>([]);
-  const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
-  const daysRef = useRef<DayState[]>([]);
-  daysRef.current = days;
-  const publishedRef = useRef<Set<string>>(publishedWeeks);
-  publishedRef.current = publishedWeeks;
-  const weekStartRef = useRef(weekStart);
-  weekStartRef.current = weekStart;
-
   const todayStr = useMemo(getTodayStr, []);
+
+  // ── Rail: published-weeks horizon (cached, persisted) ──
+  const railQuery = usePublishedWeeks(instructorId, railFrom, railTo);
+  const publishedWeeks = useMemo(() => new Set(railQuery.data ?? []), [railQuery.data]);
+  const railLoading = railQuery.isLoading && !railQuery.data;
   const published = publishedWeeks.has(weekStart);
+  const railKey = queryKeys.publishedWeeks(activeCompanyId, instructorId, { from: railFrom, to: railTo });
 
-  // ── Rail: published-weeks horizon (one call) ──
-  const fetchRail = useCallback(async () => {
-    try {
-      const res = await regloApi.getPublishedWeeks({ instructorId, from: getMonday(0), to: getMonday(WEEK_COUNT - 1) });
-      const list = res.map((w) => w.weekStart);
-      setPublishedWeeks(new Set(list));
-      availabilityCache.setPublishedWeeks(instructorId, list);
-    } catch {
-      // keep whatever is cached
-    } finally {
-      setRailLoading(false);
-    }
-  }, [instructorId]);
+  // ── Selected week → 7 day rows (cached, persisted; composite queryFn) ──
+  const weekKey = queryKeys.publicationWeek(activeCompanyId, instructorId, weekStart);
+  const weekQuery = usePublicationWeek(instructorId, weekStart, { isPublished: published });
+  const days = useMemo<DayState[]>(() => weekQuery.data ?? [], [weekQuery.data]);
+  const loading = weekQuery.isLoading && !weekQuery.data;
 
-  // ── Fetch one week's days from network, then cache ──
-  const fetchWeek = useCallback(async (ws: string) => {
-    try {
-      const wsDate = new Date(ws + 'T00:00:00Z');
-      const we = new Date(wsDate.getTime() + 6 * 86400000);
-      const weStr = `${we.getUTCFullYear()}-${pad(we.getUTCMonth() + 1)}-${pad(we.getUTCDate())}`;
-
-      const overridesRes = await regloApi.getDailyAvailabilityOverrides({
-        ownerType: 'instructor', ownerId: instructorId, from: ws, to: weStr,
-      });
-
-      const isPublished = publishedRef.current.has(ws);
-      const hasAnyOverride = overridesRes.length > 0;
-
-      let templateOverrides: typeof overridesRes = [];
-      if (!hasAnyOverride && !isPublished) {
-        try {
-          const allPublished = await regloApi.getPublishedWeeks({ instructorId, from: '2020-01-01', to: ws });
-          const previous = allPublished
-            .filter((pw) => pw.weekStart < ws)
-            .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
-          if (previous) {
-            const prevWs = new Date(previous.weekStart + 'T00:00:00Z');
-            const prevWe = new Date(prevWs.getTime() + 6 * 86400000);
-            const prevWeStr = `${prevWe.getUTCFullYear()}-${pad(prevWe.getUTCMonth() + 1)}-${pad(prevWe.getUTCDate())}`;
-            templateOverrides = await regloApi.getDailyAvailabilityOverrides({
-              ownerType: 'instructor', ownerId: instructorId, from: previous.weekStart, to: prevWeStr,
-            });
-          }
-        } catch { /* skip pre-fill */ }
-      }
-
-      const newDays: DayState[] = [];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(wsDate.getTime() + i * 86400000);
-        const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-        const override = overridesRes.find((o: any) => o.date?.slice(0, 10) === dateStr);
-        if (override?.ranges?.length) {
-          newDays.push({ date: dateStr, available: true, ranges: override.ranges as TimeRange[] });
-        } else if (templateOverrides.length > 0) {
-          const tpl = templateOverrides.find((o: any) => new Date(o.date?.slice(0, 10) + 'T00:00:00Z').getUTCDay() === d.getUTCDay());
-          const tplRanges: TimeRange[] = tpl?.ranges?.length ? (tpl.ranges as TimeRange[]) : [];
-          newDays.push({ date: dateStr, available: tplRanges.length > 0, ranges: tplRanges.length > 0 ? tplRanges : [...DEFAULT_RANGES] });
-        } else {
-          newDays.push({ date: dateStr, available: false, ranges: [...DEFAULT_RANGES] });
-        }
-      }
-      // Only commit if the user is still on this week.
-      if (weekStartRef.current === ws) setDays(newDays);
-      availabilityCache.setWeekDays(instructorId, ws, newDays);
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Errore nel caricamento', 'danger');
-    } finally {
-      if (weekStartRef.current === ws) setLoading(false);
-    }
-  }, [instructorId, onToast]);
-
-  // Hydrate rail from cache instantly, then refresh.
+  // Surface a load error (cache, if any, still shows).
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      const cachedPW = await availabilityCache.getPublishedWeeks(instructorId);
-      if (alive && cachedPW) { setPublishedWeeks(new Set(cachedPW)); setRailLoading(false); }
-      fetchRail();
-    })();
-    return () => { alive = false; };
-  }, [instructorId, fetchRail]);
-
-  // On week change: paint cached days instantly (or skeleton), then refresh.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const cached = await availabilityCache.getWeekDays(instructorId, weekStart);
-      if (!alive) return;
-      if (cached) { setDays(cached); setLoading(false); } else { setLoading(true); }
-      fetchWeek(weekStart);
-    })();
-    return () => { alive = false; };
-  }, [weekStart, instructorId, fetchWeek]);
+    if (weekQuery.isError) onToast('Errore nel caricamento', 'danger');
+  }, [weekQuery.isError, onToast]);
 
   // ── Time picker (shared route in role stack) ──
   const openTimePicker = useCallback(
@@ -301,20 +215,18 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
       ranges: day.ranges.length ? day.ranges : [...DEFAULT_RANGES],
       openTimePicker,
       onSave: (available, ranges) => {
-        // Optimistic + instant: update UI and cache now, persist in the background.
+        // Optimistic + instant: write through the query cache now, persist in the background.
         const finalRanges = available ? (ranges.length ? ranges : [...DEFAULT_RANGES]) : [];
-        const prev = daysRef.current;
+        const prev = queryClient.getQueryData<DayState[]>(weekKey) ?? days;
         const next = prev.map((d) =>
           d.date === day.date ? { ...d, available, ranges: available ? finalRanges : d.ranges } : d,
         );
-        setDays(next);
-        availabilityCache.setWeekDays(instructorId, weekStart, next);
+        queryClient.setQueryData(weekKey, next);
         regloApi
           .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: finalRanges })
           .catch(() => {
             // Revert on failure.
-            setDays(prev);
-            availabilityCache.setWeekDays(instructorId, weekStart, prev);
+            queryClient.setQueryData(weekKey, prev);
             onToast('Errore nel salvataggio', 'danger');
           });
       },
@@ -328,18 +240,16 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     if (!day) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const nextAvailable = !day.available;
-    // Keep the ranges in local state when turning off, so they come back on re-enable.
+    // Keep the ranges when turning off, so they come back on re-enable.
     const keptRanges = nextAvailable ? (day.ranges.length ? day.ranges : [...DEFAULT_RANGES]) : day.ranges;
     const persistRanges = nextAvailable ? keptRanges : [];
-    const prev = daysRef.current;
-    const next = prev.map((d, i) => (i === index ? { ...d, available: nextAvailable, ranges: keptRanges } : d));
-    setDays(next);
-    availabilityCache.setWeekDays(instructorId, weekStart, next);
+    const prev = queryClient.getQueryData<DayState[]>(weekKey) ?? days;
+    const next = prev.map((d) => (d.date === day.date ? { ...d, available: nextAvailable, ranges: keptRanges } : d));
+    queryClient.setQueryData(weekKey, next);
     regloApi
       .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: persistRanges })
       .catch(() => {
-        setDays(prev);
-        availabilityCache.setWeekDays(instructorId, weekStart, prev);
+        queryClient.setQueryData(weekKey, prev);
         onToast('Errore nel salvataggio', 'danger');
       });
   };
@@ -349,10 +259,8 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     setPublishing(true);
     try {
       await regloApi.publishWeek({ weekStart, instructorId });
-      setPublishedWeeks((prev) => {
-        const n = new Set(prev).add(weekStart);
-        availabilityCache.setPublishedWeeks(instructorId, [...n]);
-        return n;
+      queryClient.setQueryData<string[]>(railKey, (prev) => {
+        const s = new Set(prev ?? []); s.add(weekStart); return [...s];
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onToast('Settimana pubblicata');
@@ -367,11 +275,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     setPublishing(true);
     try {
       await regloApi.unpublishWeek({ weekStart, instructorId });
-      setPublishedWeeks((prev) => {
-        const n = new Set(prev); n.delete(weekStart);
-        availabilityCache.setPublishedWeeks(instructorId, [...n]);
-        return n;
-      });
+      queryClient.setQueryData<string[]>(railKey, (prev) => (prev ?? []).filter((w) => w !== weekStart));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       onToast('Pubblicazione ritirata');
     } catch (err) {

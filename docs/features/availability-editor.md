@@ -23,7 +23,7 @@ For instructors, `index` renders `InstructorAvailabilityScreen` (the shell).
 Airbnb-style: a single editorial column, lots of air, full-bleed hairline dividers, **one** Fluent 3D accent in the header and line icons (chevron/+) everywhere else. **Per-weekday hours are supported** end-to-end (full-stack): the backend `AutoscuolaWeeklyAvailability.rangesByDay` map persists a different schedule per day. `getDefaultAvailability` returns `scheduleByDay` (`Record<dayOfWeek, TimeRange[]>`, always present — legacy shared records are projected onto each active day server-side).
 - **Orari settimanali**: vertical **7-day list** (Lun→Dom, value 1..6,0). Each row = full day name (left) + right-aligned **soft-shadow white time chips** per range, or muted grey "Non disponibile" + chevron. Tap a row → **`role/publish-day` formSheet** (reused via `publishDayStore`) to toggle that day on/off + edit its ranges (`RangesEditor`); the draft updates the local `schedule` only.
   - **Batch save**: a single dirty-only "Salva orari" (navy, `FadeIn`) appears when `schedule` differs from the last-saved snapshot (`savedRef` key over active days). → `createAvailabilitySlots({ scheduleByDay, startsAt/endsAt from a representative day, weeks })`. One server round-trip (slot regeneration is heavy) instead of per-day auto-save. New instructor (no base) → suggested Lun–Ven 09:00–18:00, reads as dirty.
-  - Cache-first via `availabilityCache` `base` (now `{ scheduleByDay }`).
+  - Cache-first via `useDefaultAvailability` (TanStack Query); the editable `schedule` is seeded from the query data unless the user has unsaved edits.
 - **Eccezioni**: flat list of upcoming overrides (`getDailyAvailabilityOverrides`, future-only, sorted) — hairline dividers, no card, no Fluent (single-accent rule). Each row: short date (`Lun 9 giu`) + right-aligned **soft-shadow white time chips** per range, or muted grey "Assente" + chevron (no colored dots — no amber/yellow). Tap a row → edit/remove that date. "Aggiungi eccezione" = clean filled light button (no dashed) → page-sheet:
   - *Una volta* → MiniCalendar date → `setDailyAvailabilityOverride(date, ranges|[])`
   - *Ricorrente* → weekday + N settimane → `setRecurringAvailabilityOverride(dayOfWeek, ranges|[], weeksAhead)`
@@ -45,12 +45,17 @@ Each range = two tappable **Inizio / Fine** cards (white, soft shadow — they'r
 ## Immediacy / loading
 Shell + section chrome render instantly; small `SkeletonBlock`s sit where data will land and are replaced with `FadeIn(400)`. No full-screen `SkeletonCard` / centered `ActivityIndicator`.
 
-### On-device cache (`src/services/availabilityCache.ts`, AsyncStorage)
-Cache-first paint, then background refresh — removes the staged "wait → rail → wait → days" cold-load:
-- `mode` (mode + weeks) → the shell renders the right editor instantly without waiting on `getInstructorSettings`.
-- `pubweeks` (published-weeks horizon) → rail dots instant.
-- `week:{weekStart}` (publication `DayState[]`) → the selected week's day list instant; refetched silently and re-cached.
-- `base` (default-mode per-weekday schedule, `{ scheduleByDay }`) → "Orari settimanali" instant.
+### Caching — unified on TanStack Query (persisted)
+All availability data now flows through TanStack Query (the bespoke `availabilityCache`
+service was retired). The shared `fileSystemPersister` in `app/_layout.tsx` persists the
+whole query cache to disk (24h), so every surface paints instantly from the last known
+state on cold start, then refreshes in the background. Cleared on logout by the existing
+`queryClient.clear()`. Keys + 5-min staleTime in `src/hooks/queries/queryKeys.ts`.
+- **Mode + weeks** → `useAutoscuolaSettings` (`availabilityWeeks`) + `useInstructorSettings` (`settings.availabilityMode`); the shell renders the right editor instantly.
+- **Rail (published weeks)** → `usePublishedWeeks(instructorId, from, to)` → `['published-weeks', …]`; publish/unpublish update it via `queryClient.setQueryData`.
+- **Selected week days** → `usePublicationWeek(instructorId, weekStart, { isPublished })` → `['publication-week', …, weekStart]`; the composite queryFn does the overrides fetch + previous-week template pre-fill. Per-day optimistic edits write through `queryClient.setQueryData`.
+- **Default base schedule** → `useDefaultAvailability` → `['default-availability', …]`; saved via `useSaveAvailability` (invalidates it).
+- **Eccezioni (overrides)** → `useDailyOverrides` → `['daily-overrides', …]`; the exception sheet's `onSaved` invalidates the key.
 
 ### Optimistic day save (publication)
 Saving a single day from the `publish-day` sheet is **instant**: local state + cache update synchronously, the `setDailyAvailabilityOverride` call is fire-and-forget (revert + toast on failure). No per-day spinner. Only `publishWeek` / `unpublishWeek` show a loading state.
