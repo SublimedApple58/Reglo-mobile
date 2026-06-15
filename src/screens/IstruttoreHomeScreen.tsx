@@ -3234,9 +3234,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                     {day.dayNum}
                   </Text>
                   {isDaySick ? (
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EA580C' }} />
+                    <View style={[styles.dayPillDot, styles.dayPillSickDot]} />
                   ) : hasExam ? (
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
+                    <View style={[styles.dayPillDot, styles.dayPillExamDot]} />
                   ) : isDayHoliday ? (
                     <View style={styles.dayPillHolidayDot} />
                   ) : hasBooking ? (
@@ -4813,6 +4813,14 @@ const styles = StyleSheet.create({
   },
   dayPillDotHighlight: {
     backgroundColor: '#FACC15',
+  },
+  // Exam / sick dots: absolute like the booking dot, so the weekday + number
+  // stay vertically aligned across every day (inline dots used to push them up).
+  dayPillExamDot: {
+    backgroundColor: '#6366F1',
+  },
+  dayPillSickDot: {
+    backgroundColor: '#EA580C',
   },
   dayPillHoliday: {
     backgroundColor: '#FEE2E2',

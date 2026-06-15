@@ -57,24 +57,6 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   student_phase_change: 'sparkles-outline',
 };
 
-const THEME: Record<NotificationItem['kind'], { bg: string; fg: string }> = {
-  swap: { bg: '#E9EBF2', fg: '#14141F' },
-  waitlist: { bg: '#DBEAFE', fg: '#2563EB' },
-  group_lesson_invite: { bg: '#D1FAE5', fg: '#047857' },
-  confirmation: { bg: '#DCFCE7', fg: '#16A34A' },
-  available_slots: { bg: '#CCFBF1', fg: '#0D9488' },
-  holiday_declared: { bg: '#FEE2E2', fg: '#DC2626' },
-  weekly_absence: { bg: '#FFEDD5', fg: '#EA580C' },
-  sick_leave_cancelled: { bg: '#FEE2E2', fg: '#DC2626' },
-  appointment_rescheduled: { bg: '#EDE9FE', fg: '#7C3AED' },
-  appointment_cancelled: { bg: '#FEE2E2', fg: '#DC2626' },
-  availability_published: { bg: '#DCFCE7', fg: '#16A34A' },
-  appointment_location_changed: { bg: '#CCFBF1', fg: '#0D9488' },
-  theory_exam_countdown: { bg: '#E0E7FF', fg: '#4F46E5' },
-  theory_quiz_inactivity: { bg: '#EDE9FE', fg: '#7C3AED' },
-  student_phase_change: { bg: '#E9EBF2', fg: '#14141F' },
-};
-
 const getTitle = (item: PersistedNotification): string => {
   switch (item.kind) {
     case 'waitlist':
@@ -206,7 +188,6 @@ const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: ()
 
 const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
   const swipeableRef = useRef<any>(null);
-  const theme = THEME[item.kind];
 
   const handleDelete = useCallback(() => {
     swipeableRef.current?.close();
@@ -224,12 +205,12 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
       }}
       overshootRight={false}
     >
-      <Pressable onPress={onTap} style={({ pressed }) => [styles.card, !item.read && styles.cardUnread, pressed && styles.cardPressed]}>
-        <View style={[styles.iconChip, { backgroundColor: theme.bg }]}>
-          <Ionicons name={ICON_MAP[item.kind]} size={18} color={theme.fg} />
+      <Pressable onPress={onTap} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+        <View style={[styles.iconChip, item.read ? styles.iconChipRead : styles.iconChipUnread]}>
+          <Ionicons name={ICON_MAP[item.kind]} size={18} color={item.read ? '#5B6178' : '#FFFFFF'} />
         </View>
         <View style={styles.cardCenter}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={[styles.cardTitle, item.read && styles.cardTitleRead]} numberOfLines={1}>
             {getTitle(item)}
           </Text>
           <Text style={styles.cardSubtitle} numberOfLines={1}>
@@ -237,7 +218,6 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
           </Text>
           <Text style={styles.cardTimestamp}>{formatRelativeTime(item.receivedAt)}</Text>
         </View>
-        {!item.read ? <View style={styles.unreadDot} /> : null}
       </Pressable>
     </ReanimatedSwipeable>
   );
@@ -358,6 +338,11 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
   const borderStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
   }));
+  // Header background (blur + hairline) fades in only on scroll — at rest the top
+  // is clean white, no grey bar behind the status bar.
+  const headerBgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
+  }));
 
   const renderItem = useCallback(
     ({ item }: { item: PersistedNotification }) => (
@@ -373,13 +358,15 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
   return (
     <GestureHandlerRootView style={styles.root}>
       {/* ── Sticky blur header ── */}
-      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]}>
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.95)' }]} />
-        )}
-        <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, borderStyle]} />
+      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]} pointerEvents="box-none">
+        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]} pointerEvents="none">
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.95)' }]} />
+          )}
+          <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, borderStyle]} />
+        </Animated.View>
         <View style={styles.headerRow}>
           {asTab ? (
             <View style={styles.backBtn} />
@@ -409,9 +396,9 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.list, { paddingTop: headerH }]}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={
-          <Animated.View style={largeTitleStyle}>
+          <Animated.View style={[styles.largeHeader, largeTitleStyle]}>
             <Text style={styles.largeTitle}>Notifiche</Text>
             <Text style={styles.largeSub}>
               {hasUnread ? 'Hai aggiornamenti da leggere' : 'Sei in pari'}
@@ -459,44 +446,43 @@ const styles = StyleSheet.create({
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 18 },
 
   /* List */
-  list: { paddingHorizontal: spacing.md, paddingBottom: 60 },
+  list: { paddingBottom: 60 },
+  largeHeader: { paddingHorizontal: spacing.lg },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: spacing.lg + 42 + 13 },
 
-  /* Card */
+  /* Row — flat, full-bleed, hairline divider (Airbnb inbox). No shadow → nothing
+     for the swipeable's overflow:hidden to clip. */
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: 14,
+    paddingVertical: 15,
+    paddingHorizontal: spacing.lg,
     gap: 13,
-    minHeight: 58,
-    shadowColor: '#1A1A2E',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 3,
+    minHeight: 66,
   },
-  cardUnread: { backgroundColor: '#F4F5F9' },
-  cardPressed: { opacity: 0.95, transform: [{ scale: 0.99 }] },
+  cardPressed: { backgroundColor: '#F6F7F9' },
+  // Monochrome circular icon — navy-filled when unread (scannable), soft grey when read.
   iconChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconChipUnread: { backgroundColor: colors.primary },
+  iconChipRead: { backgroundColor: '#F1F2F6' },
   cardCenter: { flex: 1, gap: 2 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  cardTitleRead: { color: '#3E4358' },
   cardSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
   cardTimestamp: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
 
-  /* Swipe */
-  swipeActionPressable: { flex: 1, justifyContent: 'center', alignItems: 'center', width: 76, marginLeft: 10 },
+  /* Swipe — flush flat action, full row height */
+  swipeActionPressable: { flex: 1, justifyContent: 'center', alignItems: 'center', width: 84 },
   swipeAction: {
     flex: 1,
     backgroundColor: '#DC2626',
-    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
