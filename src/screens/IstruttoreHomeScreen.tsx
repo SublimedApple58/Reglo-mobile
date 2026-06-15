@@ -65,7 +65,7 @@ import { SelectableChip } from '../components/SelectableChip';
 import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
-import { computeDayPlan } from '../utils/weeklyAgenda';
+import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
 import { groupLessonManageStore } from '../stores/groupLessonManageStore';
@@ -756,7 +756,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     );
     setInstructorBlocks(freshBlocks);
     setAppointments(
-      dedupeAppointments(bootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item)))
+      stripDeleted(dedupeAppointments(bootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item))))
     );
     setInitialLoading(false);
     setRangeLoading(false);
@@ -805,6 +805,17 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     },
     [],
   );
+
+  // Tombstone for optimistically-deleted guide ("Elimina definitivamente"). The
+  // mirror of injectPending: a focus/stale refetch that races the (already
+  // committed) delete would otherwise re-add the guide for a beat → the ugly
+  // "disappears, flickers back, then disappears again" ping-pong. stripDeleted
+  // filters tombstoned ids out of any freshly fetched list.
+  const deletedIdsRef = useRef<Set<string>>(new Set());
+  const stripDeleted = useCallback((list: AutoscuolaAppointmentWithRelations[]) => {
+    if (deletedIdsRef.current.size === 0) return list;
+    return list.filter((a) => !deletedIdsRef.current.has(a.id));
+  }, []);
 
   // Same guard for instructor blocks (Blocca slot / Malattia optimistic insert):
   // a focus-triggered loadData must not wipe a block the BE hasn't committed yet.
@@ -942,11 +953,21 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       const nextFeaturedAppointments = dedupeAppointments(
         featuredAppointmentsResponse.filter((item) => matchesScope(item) && notCancelled(item)),
       );
+      // Tombstone prune: once the BE no longer returns a deleted id (cancel
+      // committed), drop it from the tombstone so it can never re-appear nor
+      // wrongly hide a future booking that reuses the slot.
+      if (deletedIdsRef.current.size) {
+        const activeIds = new Set(nextAppointments.map((a) => a.id));
+        for (const id of deletedIdsRef.current) {
+          if (!activeIds.has(id)) deletedIdsRef.current.delete(id);
+        }
+      }
       // Re-inject any still-in-flight optimistic bookings so a focus-triggered
-      // refetch can't wipe a guida the BE hasn't committed yet.
-      const mergedAppointments = injectPending(nextAppointments, from.getTime(), to.getTime());
+      // refetch can't wipe a guida the BE hasn't committed yet; strip any guide
+      // pending deletion so it doesn't flicker back.
+      const mergedAppointments = stripDeleted(injectPending(nextAppointments, from.getTime(), to.getTime()));
       setAppointments(mergedAppointments);
-      setFeaturedAppointments(injectPending(nextFeaturedAppointments, featuredFrom.getTime(), featuredTo.getTime()));
+      setFeaturedAppointments(stripDeleted(injectPending(nextFeaturedAppointments, featuredFrom.getTime(), featuredTo.getTime())));
       // Background revalidation over an already-painted window → gentle cross-fade
       // to the fresh data (not on a brand-new window load, which shows a skeleton).
       if (!shouldShowRangeSkeleton) {
@@ -968,7 +989,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         }
       }
     }
-  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, injectPending, injectPendingBlocks, queryClient, activeCompanyId]);
+  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, injectPending, injectPendingBlocks, stripDeleted, queryClient, activeCompanyId]);
 
   const loadOutOfAvailability = useCallback(async () => {
     if (!instructorId && !ownerMode) return;
@@ -1365,10 +1386,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   }, [instructorBlocks, selectedDate, sickLeaveDateKeys, ownerMode]);
 
   const hasTimelineAppointments = timelineAppointments.length > 0 || blocksByHour.size > 0;
-  // Stale-while-revalidate: only show the day skeleton when there is genuinely
-  // nothing to paint for the selected day. A background window refresh keeps the
-  // already-loaded day visible instead of flashing skeletons.
-  const dayGridLoading = (initialLoading || rangeLoading) && !hasTimelineAppointments;
+  // Show the day skeleton ONLY while the initial window load is still empty
+  // (nothing fetched yet) — same rule as the week/grid views (`appointmentsLoading`).
+  // Gating on the per-day `!hasTimelineAppointments` was wrong: once the window
+  // is loaded, an EMPTY day (today/past with no guide) would stay stuck on an
+  // infinite skeleton, while days that happen to have a guide painted fine.
+  const dayGridLoading = (initialLoading || rangeLoading) && appointments.length === 0;
 
   const ROW_H = 80;
 
@@ -2300,7 +2323,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             style: 'destructive',
             onPress: async () => {
               const lessonId = lesson.id;
-              // Optimistic removal from the list + featured + drawer.
+              // Optimistic removal + tombstone so a focus/stale refetch racing the
+              // (already committed) delete can't flicker the guide back.
+              deletedIdsRef.current.add(lessonId);
               setAppointments((prev) => prev.filter((a) => a.id !== lessonId));
               setFeaturedAppointments((prev) => prev.filter((a) => a.id !== lessonId));
               setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
@@ -2312,14 +2337,27 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                   throw new Error(res?.message || 'Impossibile eliminare la guida.');
                 }
                 setToast({ text: 'Guida eliminata definitivamente.', tone: 'success' });
+                // Fresh fetch confirms the cancel and prunes the tombstone.
                 void loadData();
               } catch (err) {
-                // Re-fetch to restore the lesson if the delete failed.
+                // The cancel often commits server-side even when the client call
+                // times out (slow student notifications on the BE) — so don't cry
+                // wolf. loadData prunes the tombstone IFF the BE no longer returns
+                // the guide as active; use that to tell a real failure from a
+                // slow-but-successful delete.
                 await loadData();
-                setToast({
-                  text: err instanceof Error ? err.message : 'Errore durante l’eliminazione.',
-                  tone: 'danger',
-                });
+                if (deletedIdsRef.current.has(lessonId)) {
+                  // Still active on the BE → genuine failure: restore it + error.
+                  deletedIdsRef.current.delete(lessonId);
+                  await loadData();
+                  setToast({
+                    text: err instanceof Error ? err.message : 'Errore durante l’eliminazione.',
+                    tone: 'danger',
+                  });
+                } else {
+                  // Cancel actually committed → confirm instead of a false error.
+                  setToast({ text: 'Guida eliminata definitivamente.', tone: 'success' });
+                }
               } finally {
                 setPendingAction(null);
               }
@@ -2773,8 +2811,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           ]);
           const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
           const matchesScope = (item: { instructorId?: string | null }) => (effectiveInstructorId ? item.instructorId === effectiveInstructorId : true);
-          setAppointments(injectPending(dedupeAppointments(agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i))), aFrom.getTime(), aTo.getTime()));
-          setFeaturedAppointments(injectPending(dedupeAppointments(featuredResp.filter((i) => matchesScope(i) && notCancelled(i))), fFrom.getTime(), fTo.getTime()));
+          setAppointments(stripDeleted(injectPending(dedupeAppointments(agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i))), aFrom.getTime(), aTo.getTime())));
+          setFeaturedAppointments(stripDeleted(injectPending(dedupeAppointments(featuredResp.filter((i) => matchesScope(i) && notCancelled(i))), fFrom.getTime(), fTo.getTime())));
         }
       } catch {
         setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
@@ -3407,6 +3445,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 <View style={{ paddingHorizontal: 0, paddingBottom: 12, gap: 6 }}>
                   {timelessExams.map((item) => {
                     if (item.kind !== 'examGroup') return null;
+                    const d = new Date(item.startsAt);
+                    const dayLabel = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
                     return (
                       <Pressable
                         key={`timeless-day-${item.id}`}
@@ -3420,28 +3460,27 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                             appointments: item.appointments,
                           })
                         }
-                        style={({ pressed }) => ({
+                        style={({ pressed }) => [{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          gap: 10,
-                          paddingVertical: 10,
-                          paddingHorizontal: 14,
-                          borderRadius: 14,
-                          backgroundColor: pressed ? '#E0E7FF' : '#EEF2FF',
-                          borderWidth: 1,
-                          borderColor: '#C7D2FE',
-                        })}
+                          gap: 12,
+                          backgroundColor: '#F5F0FF',
+                          borderRadius: 22,
+                          padding: 14,
+                          shadowColor: '#8B5CF6',
+                          shadowOpacity: 0.22,
+                          shadowRadius: 14,
+                          shadowOffset: { width: 0, height: 5 },
+                          elevation: 4,
+                        }, pressed && styles.itinCardPressed]}
                       >
-                        <Ionicons name="school" size={18} color="#4338CA" />
+                        <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examGroupIcon} />
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#4338CA' }}>
-                            Esame · Orario da definire
-                          </Text>
-                          <Text style={{ fontSize: 11, color: '#6366F1', marginTop: 1 }}>
-                            {item.appointments.length} {item.appointments.length === 1 ? 'allievo' : 'allievi'}
+                          <Text style={styles.examGroupLabel}>Esame di guida · {dayLabel}</Text>
+                          <Text style={styles.examGroupTitle} numberOfLines={1}>
+                            {item.appointments.length} {item.appointments.length === 1 ? 'allievo' : 'allievi'} · Orario da definire
                           </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={16} color="#6366F1" />
                       </Pressable>
                     );
                   })}
@@ -3721,18 +3760,20 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 if (last && w[0] <= last[1]) last[1] = Math.max(last[1], w[1]);
                 else windows.push([w[0], w[1]]);
               }
+              // Bookable free spans = the whole working day (07–24) minus occupied
+              // events — NOT clipped to availability. The instructor can quick-book
+              // any open time, as long as it doesn't overlap another event.
+              // `windows` (availability) stays only for the informational markers.
               const freeIntervals: Array<[number, number]> = [];
               if (canShowFree) {
-                for (const [ws, we] of windows) {
-                  let cursor = ws;
-                  for (const [os, oe] of occupied) {
-                    if (oe <= cursor || os >= we) continue;
-                    if (os > cursor) freeIntervals.push([cursor, Math.min(os, we)]);
-                    cursor = Math.max(cursor, oe);
-                    if (cursor >= we) break;
-                  }
-                  if (cursor < we) freeIntervals.push([cursor, we]);
+                let cursor = BOOK_DAY_START;
+                for (const [os, oe] of occupied) {
+                  if (oe <= cursor || os >= BOOK_DAY_END) continue;
+                  if (os > cursor) freeIntervals.push([cursor, Math.min(os, BOOK_DAY_END)]);
+                  cursor = Math.max(cursor, oe);
+                  if (cursor >= BOOK_DAY_END) break;
                 }
+                if (cursor < BOOK_DAY_END) freeIntervals.push([cursor, BOOK_DAY_END]);
               }
               const freeRows = freeIntervals
                 .map(([s, e]) => [nowMin !== null && s < nowMin ? Math.ceil(nowMin / 15) * 15 : s, e] as [number, number])
@@ -3846,7 +3887,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               });
               return (
                 <View style={styles.itinerary}>
-                  {dayUnavailable ? (
+                  {dayUnavailable && !canShowFree ? (
                     <Text style={styles.dayEmptyInline}>Nessuna disponibilità in questa giornata</Text>
                   ) : rows.length === 0 ? (
                     <Text style={styles.dayEmptyInline}>Nessuna guida oggi · tieni premuto uno slot libero per prenotare</Text>
@@ -4142,6 +4183,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
               openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
             }}
+            allowedDurations={bookingDurations}
             onGhostActiveChange={setGhostCtaActive}
           />
         </View>
@@ -5530,7 +5572,7 @@ const styles = StyleSheet.create({
   },
   examGroupIcon: { width: 42, height: 42 },
   examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examGroupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  examGroupTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   // Group-lesson card — bigger than a normal lesson, teal accent, NO student name.
   groupLessonCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -5585,7 +5627,7 @@ const styles = StyleSheet.create({
   itinFreeSub: { fontSize: 12, fontWeight: '500', color: '#9AA1AC', marginTop: 1 },
   itinMarkerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
   itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#475569', letterSpacing: 0.1 },
-  dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', marginBottom: 14, marginLeft: 84, lineHeight: 18 },
+  dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', textAlign: 'center', marginTop: 4, marginBottom: 16, paddingHorizontal: 24, lineHeight: 18 },
   itinNowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 22, marginBottom: 14 },
   itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#EF4444', opacity: 0.45 },
   itinNowLabel: { fontSize: 11, fontWeight: '700', color: '#EF4444' },

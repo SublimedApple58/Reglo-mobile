@@ -54,6 +54,8 @@ type WeeklyAgendaViewProps = {
    * signature (callers only clamp the preset inside them).
    */
   onBookAt?: (date: Date, startMinutes: number, windowStart: number, windowEnd: number, durationMinutes?: number) => void;
+  /** Allowed lesson durations (minutes) — the ghost block snaps only to these (same set as the booking modal). */
+  allowedDurations?: number[];
   /** Ghost CTA visible/hidden — lets the parent hide the FAB underneath. */
   onGhostActiveChange?: (active: boolean) => void;
   /** Fired when the visible week settles (swipe / "Oggi"). */
@@ -78,12 +80,26 @@ const COL_GAP = 4;        // gap between day columns (Airbnb-ish breathing room)
 const GRID_TOP_PAD = 12;  // breathing room so the first hour label isn't clipped
 
 // Ghost-block booking.
-const STEP = 15;                       // minutes per snap step
+const STEP = 15;                       // minutes per snap step (drag granularity)
 const PX_PER_STEP = ROW_H / 4;         // px of vertical drag per 15-min step (1:1 with the grid)
-const GHOST_MIN_DUR = 30;              // minimum draggable duration
-const GHOST_MAX_DUR = 240;             // maximum draggable duration
+const FALLBACK_DURATIONS = [30, 60, 90, 120]; // used only if the parent passes none
 const DAY_MIN = FIRST_HOUR * 60;
 const DAY_MAX = LAST_HOUR * 60;
+
+// Snap a raw (dragged) duration to the nearest *allowed* lesson duration that
+// still fits `maxFit` minutes; falls back to the smallest allowed if none fit.
+// Worklet: runs on the UI thread during the resize gesture.
+function fitAllowedDur(raw: number, allowed: number[], maxFit: number): number {
+  'worklet';
+  let best = -1;
+  let smallest = allowed[0];
+  for (let i = 0; i < allowed.length; i++) {
+    const d = allowed[i];
+    if (d < smallest) smallest = d;
+    if (d <= maxFit && (best === -1 || Math.abs(d - raw) < Math.abs(best - raw))) best = d;
+  }
+  return best === -1 ? smallest : best;
+}
 
 // Horizontal week carousel: half a year of swipe each way, centered on "today".
 const WEEK_SPAN = 26;
@@ -237,6 +253,8 @@ type GridBookableProps = GhostSharedValues & {
   windowStart: number; windowEnd: number;
   colIdx: number;
   colW: number;
+  /** Default lesson duration (an allowed value) used when a block is born. */
+  defaultDur: number;
   /** Whether a ghost block is currently mounted on this week page. */
   ghostOn: boolean;
   /** Mount the ghost overlay + hide the CTA (drag just started). */
@@ -258,7 +276,7 @@ type GridBookableProps = GhostSharedValues & {
 // CTA appear). A quick tap places a ghost at the tapped slot — or dismisses
 // the current one. The surface itself stays invisible.
 const GridBookableWindow = ({
-  top, height, left, width, windowStart, windowEnd, colIdx, colW, ghostOn,
+  top, height, left, width, windowStart, windowEnd, colIdx, colW, defaultDur, ghostOn,
   gCol, gStart, gDur, gLive, onArm, onStep, onPlace, onTapCreate, onTapDismiss,
 }: GridBookableProps) => {
   const baseStart = useSharedValue(0);
@@ -269,13 +287,13 @@ const GridBookableWindow = ({
     .onStart((e) => {
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
       const centerMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      // Birth a 1h block centered on the finger, clamped to the day.
-      let start = Math.round((centerMin - 30) / STEP) * STEP;
-      start = Math.max(DAY_MIN, Math.min(DAY_MAX - 60, start));
-      gCol.value = colIdx; gStart.value = start; gDur.value = 60;
+      // Birth a default-duration block centered on the finger, clamped to the day.
+      let start = Math.round((centerMin - defaultDur / 2) / STEP) * STEP;
+      start = Math.max(DAY_MIN, Math.min(DAY_MAX - defaultDur, start));
+      gCol.value = colIdx; gStart.value = start; gDur.value = defaultDur;
       gLive.value = withTiming(1, { duration: 140 });
       baseStart.value = start; baseCol.value = colIdx;
-      runOnJS(onArm)(start, 60);
+      runOnJS(onArm)(start, defaultDur);
     })
     .onUpdate((e) => {
       const steps = Math.round(e.translationY / PX_PER_STEP);
@@ -307,7 +325,7 @@ const GridBookableWindow = ({
       if (ghostOn) { runOnJS(onTapDismiss)(); return; }
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
       const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      const start = Math.max(DAY_MIN, Math.min(DAY_MAX - 60, localMin));
+      const start = Math.max(DAY_MIN, Math.min(DAY_MAX - defaultDur, localMin));
       runOnJS(onTapCreate)(colIdx, start);
     });
 
@@ -328,6 +346,7 @@ const GridBookableWindow = ({
 
 type GhostBlockProps = GhostSharedValues & {
   colW: number;
+  allowedDur: number[];
   onLift: () => void;
   onStep: (start: number, dur: number) => void;
   onPlace: (col: number, start: number, dur: number) => void;
@@ -336,7 +355,7 @@ type GhostBlockProps = GhostSharedValues & {
 // The ghost lives entirely on shared values: position/size animate on the UI
 // thread (zero React re-renders while dragging); the time/duration labels go
 // through the tiny ghost*Label stores (re-render just two <Text>).
-const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }: GhostBlockProps) => {
+const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }: GhostBlockProps) => {
   const baseStart = useSharedValue(0);
   const baseCol = useSharedValue(0);
   const baseEnd = useSharedValue(0);
@@ -359,18 +378,19 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
         runOnJS(onLift)();
       })
       .onUpdate((e) => {
+        // Drag finely, but snap the resulting DURATION to an allowed lesson length.
         const delta = Math.round(e.translationY / PX_PER_STEP) * STEP;
         if (edge === 'top') {
-          let ns = baseStart.value + delta;
-          ns = Math.max(Math.max(DAY_MIN, baseEnd.value - GHOST_MAX_DUR), Math.min(baseEnd.value - GHOST_MIN_DUR, ns));
+          const rawDur = baseEnd.value - (baseStart.value + delta);
+          const nd = fitAllowedDur(rawDur, allowedDur, baseEnd.value - DAY_MIN);
+          const ns = baseEnd.value - nd;
           if (ns !== gStart.value) {
-            gStart.value = ns; gDur.value = baseEnd.value - ns;
-            runOnJS(onStep)(ns, baseEnd.value - ns);
+            gStart.value = ns; gDur.value = nd;
+            runOnJS(onStep)(ns, nd);
           }
         } else {
-          let ne = baseEnd.value + delta;
-          ne = Math.max(baseStart.value + GHOST_MIN_DUR, Math.min(Math.min(DAY_MAX, baseStart.value + GHOST_MAX_DUR), ne));
-          const nd = ne - baseStart.value;
+          const rawDur = (baseEnd.value + delta) - baseStart.value;
+          const nd = fitAllowedDur(rawDur, allowedDur, DAY_MAX - baseStart.value);
           if (nd !== gDur.value) {
             gDur.value = nd;
             runOnJS(onStep)(baseStart.value, nd);
@@ -388,8 +408,8 @@ const GhostBlock = ({ colW, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }
         }
       });
 
-  const topKnobPan = useMemo(() => makeKnobPan('top'), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const botKnobPan = useMemo(() => makeKnobPan('bottom'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const topKnobPan = useMemo(() => makeKnobPan('top'), [allowedDur]); // eslint-disable-line react-hooks/exhaustive-deps
+  const botKnobPan = useMemo(() => makeKnobPan('bottom'), [allowedDur]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* — body: hold (160ms) and drag the whole block, also across days —
    * Defers to the knobs: a touch landing in their (large) hit area can NEVER
@@ -486,6 +506,9 @@ type WeekPageProps = {
   onPressBlock?: (block: InstructorBlock) => void;
   /** Ghost-block booking enabled (instructor, not read-only). */
   canBook: boolean;
+  /** Allowed lesson durations (minutes) + the default one used when a block is born. */
+  allowedDur: number[];
+  defaultDur: number;
   /** Ghost placed (info) or lifted/dismissed (null) → parent drives the CTA. */
   onGhostChange: (info: { date: Date; startMin: number; durMin: number } | null) => void;
   /** Parent bumps this to clear the ghost (CTA ✕ / confirm / week swipe). */
@@ -496,7 +519,7 @@ const WeekPage = React.memo(function WeekPage({
   monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
   weekAvailabilityByDate, readOnly, loading,
   onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-  canBook, onGhostChange, ghostDismissTick,
+  canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick,
 }: WeekPageProps) {
   const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
   const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
@@ -508,7 +531,7 @@ const WeekPage = React.memo(function WeekPage({
    * whether the ghost exists. Labels go through the ghost*Label stores. */
   const gCol = useSharedValue(0);
   const gStart = useSharedValue(DAY_MIN);
-  const gDur = useSharedValue(60);
+  const gDur = useSharedValue(defaultDur);
   const gLive = useSharedValue(0);
   const [ghostOn, setGhostOn] = useState(false);
 
@@ -541,13 +564,13 @@ const WeekPage = React.memo(function WeekPage({
   }, [setGhostLabels, onGhostChange, weekDays]);
 
   const ghostTapCreate = useCallback((col: number, start: number) => {
-    gCol.value = col; gStart.value = start; gDur.value = 60; gLive.value = 0;
-    setGhostLabels(start, 60);
+    gCol.value = col; gStart.value = start; gDur.value = defaultDur; gLive.value = 0;
+    setGhostLabels(start, defaultDur);
     setGhostOn(true);
-    onGhostChange({ date: weekDays[col], startMin: start, durMin: 60 });
+    onGhostChange({ date: weekDays[col], startMin: start, durMin: defaultDur });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setGhostLabels, onGhostChange, weekDays]);
+  }, [setGhostLabels, onGhostChange, weekDays, defaultDur]);
 
   const ghostTapDismiss = useCallback(() => {
     setGhostOn(false);
@@ -849,7 +872,7 @@ const WeekPage = React.memo(function WeekPage({
                 key={`bk-${colIdx}-${si}`}
                 top={top} height={height} left={colX(colIdx) + 3} width={colW - 6}
                 windowStart={sMin} windowEnd={eMin}
-                colIdx={colIdx} colW={colW} ghostOn={ghostOn}
+                colIdx={colIdx} colW={colW} defaultDur={defaultDur} ghostOn={ghostOn}
                 gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
                 onArm={ghostArm} onStep={ghostStep} onPlace={ghostPlace}
                 onTapCreate={ghostTapCreate} onTapDismiss={ghostTapDismiss}
@@ -1012,6 +1035,7 @@ const WeekPage = React.memo(function WeekPage({
         {ghostOn && canBook && !readOnly && (
           <GhostBlock
             colW={colW}
+            allowedDur={allowedDur}
             gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
             onLift={ghostLift} onStep={ghostStep} onPlace={ghostPlace}
           />
@@ -1047,6 +1071,7 @@ export default function WeeklyAgendaView({
   onPressGroupLesson,
   onPressBlock,
   onBookAt,
+  allowedDurations,
   onGhostActiveChange,
   onDateChange,
   loading = false,
@@ -1118,6 +1143,16 @@ export default function WeeklyAgendaView({
     settle(WEEK_SPAN);
   }, [settle]);
 
+  // Allowed lesson durations (same set as the booking modal). The ghost block
+  // can only snap to these; `defaultDur` is the one used when a block is born.
+  const allowedDur = useMemo(() => {
+    const list = (allowedDurations && allowedDurations.length ? allowedDurations : FALLBACK_DURATIONS)
+      .slice()
+      .sort((a, b) => a - b);
+    return list;
+  }, [allowedDurations]);
+  const defaultDur = useMemo(() => (allowedDur.includes(60) ? 60 : allowedDur[0]), [allowedDur]);
+
   const renderItem = useCallback(({ item }: { item: Date }) => (
     <WeekPage
       monday={item}
@@ -1137,12 +1172,14 @@ export default function WeeklyAgendaView({
       onPressGroupLesson={onPressGroupLesson}
       onPressBlock={onPressBlock}
       canBook={!!onBookAt}
+      allowedDur={allowedDur}
+      defaultDur={defaultDur}
       onGhostChange={handleGhostChange}
       ghostDismissTick={ghostDismissTick}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-      onBookAt, handleGhostChange, ghostDismissTick]);
+      onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick]);
 
   return (
     <View style={styles.container}>

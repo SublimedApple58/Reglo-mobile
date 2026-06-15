@@ -16,6 +16,13 @@ const MANDATORY_MINUTES_THRESHOLD = 480; // 8h — matches IstruttoreHomeScreen
 const SCRUB_STEP = 15;
 const DEFAULT_LESSON_MIN = 60;
 
+// Quick-book is NOT gated by availability: the instructor can book any free time
+// of the working day, as long as it doesn't overlap another event (lesson, exam,
+// group lesson, block). Bounds mirror the weekly grid (07:00–24:00). Availability
+// stays informational (markers / veil), it no longer clips the bookable surface.
+export const BOOK_DAY_START = 7 * 60;
+export const BOOK_DAY_END = 24 * 60;
+
 const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
 
 const sameDay = (date: Date, iso: string) => {
@@ -223,19 +230,19 @@ export function computeDayPlan(
   const dateNorm = new Date(date); dateNorm.setHours(0, 0, 0, 0);
   const nowMin = dateNorm.getTime() === todayNorm.getTime() ? now.getHours() * 60 + now.getMinutes() : null;
 
+  // Free (bookable) windows = the whole working day minus occupied — NOT clipped
+  // to availability. The instructor can quick-book any open time of the day.
   const freeWindows: Interval[] = [];
   const canShowFree = canBook && !isHoliday && !hasFullDaySick;
   if (canShowFree) {
-    for (const [ws, we] of availWindows) {
-      let cursor = ws;
-      for (const [os, oe] of occupied) {
-        if (oe <= cursor || os >= we) continue;
-        if (os > cursor) freeWindows.push([cursor, Math.min(os, we)]);
-        cursor = Math.max(cursor, oe);
-        if (cursor >= we) break;
-      }
-      if (cursor < we) freeWindows.push([cursor, we]);
+    let cursor = BOOK_DAY_START;
+    for (const [os, oe] of occupied) {
+      if (oe <= cursor || os >= BOOK_DAY_END) continue;
+      if (os > cursor) freeWindows.push([cursor, Math.min(os, BOOK_DAY_END)]);
+      cursor = Math.max(cursor, oe);
+      if (cursor >= BOOK_DAY_END) break;
     }
+    if (cursor < BOOK_DAY_END) freeWindows.push([cursor, BOOK_DAY_END]);
   }
   const clampedFree = freeWindows
     .map(([s, e]) => [nowMin !== null && s < nowMin ? Math.ceil(nowMin / 15) * 15 : s, e] as Interval)
