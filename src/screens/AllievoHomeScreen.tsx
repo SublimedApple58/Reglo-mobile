@@ -429,12 +429,18 @@ export const AllievoHomeScreen = () => {
           );
           setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
           invalidateAllData();
-        }).catch(() => {
+        }).catch((err) => {
           queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
             { queryKey: ['appointments'] },
             (old) => old?.filter((a) => a.id !== provisionalId),
           );
-          setToast({ text: 'Errore nella prenotazione', tone: 'danger' });
+          // Surface the server message (e.g. the weekly-limit rejection
+          // "Hai raggiunto il limite massimo di N guide settimanali…") instead
+          // of a generic error, so the student understands why it was blocked.
+          setToast({
+            text: err instanceof Error ? err.message : 'Errore nella prenotazione',
+            tone: 'danger',
+          });
         });
       },
       onClose: () => { bookingFlowStore.clear(); },
