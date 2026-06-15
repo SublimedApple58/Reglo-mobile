@@ -64,6 +64,7 @@ export const GroupLessonInvitesScreen = () => {
   const { user } = useSession();
 
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
+  const [studentsLoaded, setStudentsLoaded] = useState(false);
   const [invites, setInvites] = useState<GroupLessonInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -72,7 +73,11 @@ export const GroupLessonInvitesScreen = () => {
   const studentId = useMemo(() => findLinkedStudent(students, user)?.id ?? null, [students, user]);
 
   useEffect(() => {
-    regloApi.getStudents().then(setStudents).catch(() => {});
+    regloApi
+      .getStudents()
+      .then(setStudents)
+      .catch(() => {})
+      .finally(() => setStudentsLoaded(true));
   }, []);
 
   const load = useCallback(async (sid: string) => {
@@ -85,10 +90,13 @@ export const GroupLessonInvitesScreen = () => {
   }, []);
 
   useEffect(() => {
+    // Keep the spinner until we know who the student is — otherwise the empty
+    // state flashes for a beat while getStudents() is still in flight.
+    if (!studentsLoaded) return;
     if (!studentId) { setLoading(false); return; }
     setLoading(true);
     load(studentId).finally(() => setLoading(false));
-  }, [studentId, load]);
+  }, [studentsLoaded, studentId, load]);
 
   const respond = async (invite: GroupLessonInvite, response: 'accept' | 'decline') => {
     if (!studentId || pendingId) return;

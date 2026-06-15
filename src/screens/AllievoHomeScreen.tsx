@@ -788,11 +788,28 @@ export const AllievoHomeScreen = () => {
   // staleTime, so a booking made elsewhere (e.g. an exam booked from the web
   // while the app stayed open) wouldn't show up. Forcing a refetch on focus
   // makes returning to Home always reflect the current schedule.
+  // Open group-lesson count for the home "Guide di gruppo" CTA. Refetched on
+  // mount, on focus (so returning from the invites screen after an accept/decline
+  // updates the badge), and on pull-to-refresh.
+  const refreshGroupInvitesCount = useCallback(async () => {
+    if (!groupLessonsEligible || !selectedStudentId) {
+      setGroupInvitesCount(null);
+      return;
+    }
+    try {
+      const list = await regloApi.getGroupLessonInvites(selectedStudentId, 20);
+      setGroupInvitesCount(Array.isArray(list) ? list.length : 0);
+    } catch {
+      setGroupInvitesCount(0);
+    }
+  }, [groupLessonsEligible, selectedStudentId]);
+
   useFocusEffect(
     useCallback(() => {
       if (!selectedStudentId) return;
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    }, [queryClient, selectedStudentId]),
+      void refreshGroupInvitesCount();
+    }, [queryClient, selectedStudentId, refreshGroupInvitesCount]),
   );
 
   // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
@@ -840,26 +857,10 @@ export const AllievoHomeScreen = () => {
     };
   }, [swapEnabled, selectedStudentId]);
 
-  // Open group-lesson invites count for the home "Guide di gruppo" CTA
-  // (background, non-blocking). Only when the student is eligible.
+  // Initial / dependency-driven fetch of the group-lesson count.
   useEffect(() => {
-    if (!groupLessonsEligible || !selectedStudentId) {
-      setGroupInvitesCount(null);
-      return;
-    }
-    let cancelled = false;
-    regloApi
-      .getGroupLessonInvites(selectedStudentId, 20)
-      .then((list) => {
-        if (!cancelled) setGroupInvitesCount(Array.isArray(list) ? list.length : 0);
-      })
-      .catch(() => {
-        if (!cancelled) setGroupInvitesCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [groupLessonsEligible, selectedStudentId]);
+    void refreshGroupInvitesCount();
+  }, [refreshGroupInvitesCount]);
 
   // My active swap requests (background): mark the lessons I asked to swap.
   const refreshMySwaps = useCallback(async () => {
@@ -1752,6 +1753,7 @@ export const AllievoHomeScreen = () => {
       await loadStudents();
       invalidateAllData();
       notificationEvents.requestRefresh();
+      await refreshGroupInvitesCount();
     } catch (err) {
       setToast({
         text: err instanceof Error ? err.message : 'Errore nel refresh',
@@ -1760,7 +1762,7 @@ export const AllievoHomeScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [invalidateAllData, loadStudents]);
+  }, [invalidateAllData, loadStudents, refreshGroupInvitesCount]);
 
   const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
 
