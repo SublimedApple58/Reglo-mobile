@@ -1,29 +1,47 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Screen } from '../components/Screen';
-import { Input } from '../components/Input';
-import { colors, radii, spacing } from '../theme';
-import { useSession } from '../context/SessionContext';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AuthField } from '../components/AuthField';
+import { useSession } from '../context/SessionContext';
+import { colors } from '../theme';
+
+const NAVY = colors.primary; // #1A1A2E
+const IVORY = '#F5EFE6';
+const NAVY_300 = '#AEB4CC';
+const NAVY_400 = '#6E7596';
 
 type SignupScreenProps = {
-  onLogin?: () => void;
+  /** 'inline' = Android full navy screen · 'sheet' = iOS native page sheet */
+  mode?: 'inline' | 'sheet';
 };
 
-export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
+export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
   const { signUp } = useSession();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
@@ -32,7 +50,7 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
         email: email.trim(),
         phone: phone.trim(),
         password,
-        confirmPassword,
+        confirmPassword: password,
         schoolCode: schoolCode.trim().toUpperCase(),
       });
     } catch (err) {
@@ -42,192 +60,195 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
     }
   };
 
+  const dark = mode === 'inline';
+
+  const form = (
+    <>
+      <AuthField label="Nome completo" dark={dark} placeholder="Mario Rossi" value={name} onChangeText={setName} />
+      <AuthField
+        label="Email"
+        dark={dark}
+        placeholder="nome@email.it"
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <AuthField
+        label="Numero di cellulare"
+        dark={dark}
+        placeholder="+39 ..."
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={setPhone}
+      />
+      <AuthField label="Password" dark={dark} password placeholder="••••••••" value={password} onChangeText={setPassword} />
+
+      <View style={styles.codeWrap}>
+        <Text style={[styles.codeLabel, { color: dark ? NAVY_300 : '#14141F' }]}>Codice di invito</Text>
+        <TextInput
+          style={[styles.codeInput, dark ? styles.codeInputDark : styles.codeInputLight]}
+          value={schoolCode}
+          onChangeText={(t) => setSchoolCode(t.toUpperCase())}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={6}
+          placeholder="ABC123"
+          placeholderTextColor={dark ? '#7E84A0' : '#9AA1BB'}
+        />
+        <Text style={[styles.codeHint, { color: dark ? NAVY_400 : NAVY_400 }]}>
+          Ricevuto dalla tua autoscuola o dall'istruttore
+        </Text>
+      </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </>
+  );
+
+  const cta = (
+    <Pressable
+      onPress={loading ? undefined : handleSignup}
+      style={({ pressed }) => [
+        styles.cta,
+        dark ? styles.ctaIvory : styles.ctaNavy,
+        pressed && styles.ctaPressed,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={dark ? NAVY : '#FFFFFF'} />
+      ) : (
+        <Text style={[styles.ctaText, { color: dark ? NAVY : '#FFFFFF' }]}>Crea account</Text>
+      )}
+    </Pressable>
+  );
+
+  const footer = (
+    <View style={styles.footer}>
+      <Text style={[styles.footerText, { color: NAVY_400 }]}>Hai già un account?</Text>
+      <Text style={[styles.footerLink, { color: dark ? IVORY : NAVY }]} onPress={() => router.back()}>
+        Accedi
+      </Text>
+    </View>
+  );
+
+  // ── iOS native page sheet ──
+  if (mode === 'sheet') {
+    return (
+      <View style={styles.sheetRoot}>
+        <StatusBar style="dark" />
+        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.close}>
+          <Ionicons name="close" size={20} color={NAVY_400} />
+        </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView
+            contentContainerStyle={styles.sheetBody}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.sheetTitle}>Crea il tuo account</Text>
+            <Text style={styles.sheetSub}>Bastano pochi dati e il codice di invito</Text>
+            {form}
+            {cta}
+            {footer}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    );
+  }
+
+  // ── Android — full navy inline ──
   return (
-    <Screen>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+    <View style={styles.inlineRoot}>
+      <StatusBar style="light" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.inlineBody,
+            { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        {/* Header */}
-        <View style={styles.hero}>
-          <Text style={styles.title}>Crea account allievo</Text>
-          <Text style={styles.subtitle}>Inserisci il codice ricevuto dalla tua autoscuola o dal tuo istruttore</Text>
-        </View>
-
-        {/* Form */}
-        <View style={styles.form}>
-          <Input placeholder="Nome completo" value={name} onChangeText={setName} />
-          <Input
-            placeholder="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <Input
-            placeholder="Numero di cellulare"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-          />
-          <Input placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
-          <Input
-            placeholder="Conferma password"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-          />
-
-          <View style={styles.codeWrapper}>
-            <Text style={styles.codeLabel}>Codice di invito</Text>
-            <TextInput
-              style={styles.codeInput}
-              value={schoolCode}
-              onChangeText={(text) => setSchoolCode(text.toUpperCase())}
-              autoCapitalize="characters"
-              maxLength={6}
-              placeholder="ABC123"
-              placeholderTextColor={colors.textMuted}
-            />
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable
-            onPress={handleSignup}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.cta,
-              pressed && styles.ctaPressed,
-              loading && styles.ctaDisabled,
-            ]}
-          >
-            <Text style={styles.ctaText}>
-              {loading ? 'Creazione...' : 'Crea account'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Hai già un account?</Text>
-          <Text
-            style={styles.footerLink}
-            onPress={() => {
-              if (onLogin) {
-                onLogin();
-              } else {
-                router.back();
-              }
-            }}
-          >
-            Accedi
-          </Text>
-        </View>
+          <Text style={styles.inlineTitle}>Crea il tuo account</Text>
+          <Text style={styles.inlineSub}>Bastano pochi dati e il codice di invito</Text>
+          {form}
+          {cta}
+          {footer}
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: spacing.lg,
-    paddingTop: 48,
-    paddingBottom: 32,
-    gap: 28,
-  },
-  hero: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  subtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#94A3B8',
-  },
-  form: {
-    gap: 12,
-  },
-  codeWrapper: {
-    gap: 6,
-  },
-  codeLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  codeInput: {
-    borderWidth: 2,
-    borderColor: colors.navy[200],
+  // sheet (iOS)
+  sheetRoot: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: 18 },
+  close: {
+    position: 'absolute',
+    top: 16,
+    right: 18,
+    zIndex: 5,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: colors.navy[50],
-    borderRadius: radii.sm,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
-    letterSpacing: 8,
-    textAlign: 'center',
-    color: colors.textPrimary,
-  },
-  error: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.destructive,
-    textAlign: 'center',
-  },
-  cta: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.sm,
-    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: colors.primary,
+  },
+  sheetBody: { paddingHorizontal: 24, paddingTop: 6, paddingBottom: 36 },
+  sheetTitle: { fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
+  sheetSub: { fontSize: 14, fontWeight: '400', color: NAVY_400, marginTop: 6 },
+
+  // inline (Android)
+  inlineRoot: { flex: 1, backgroundColor: NAVY },
+  inlineBody: { paddingHorizontal: 28 },
+  inlineTitle: { fontSize: 27, fontWeight: '600', color: IVORY, letterSpacing: -0.4 },
+  inlineSub: { fontSize: 14.5, fontWeight: '400', color: NAVY_300, marginTop: 6 },
+
+  // code field
+  codeWrap: { marginTop: 16 },
+  codeLabel: { fontSize: 12.5, fontWeight: '600', marginBottom: 6, marginLeft: 3 },
+  codeInput: {
+    height: 60,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '600',
+    letterSpacing: 12,
+    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+  },
+  codeInputLight: { backgroundColor: colors.navy[50], borderColor: colors.navy[200], color: NAVY },
+  codeInputDark: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(245,239,230,0.20)',
+    color: IVORY,
+  },
+  codeHint: { fontSize: 11.5, marginTop: 7, marginLeft: 3 },
+
+  // shared
+  error: { fontSize: 14, fontWeight: '500', color: colors.destructive, marginTop: 12, textAlign: 'center' },
+  cta: { height: 54, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  ctaNavy: {
+    backgroundColor: NAVY,
+    shadowColor: NAVY,
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  ctaIvory: {
+    backgroundColor: IVORY,
+    shadowColor: '#000',
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
   },
-  ctaPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
-  },
-  ctaDisabled: {
-    opacity: 0.6,
-  },
-  ctaText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  footerText: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#94A3B8',
-  },
-  footerLink: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+  ctaPressed: { transform: [{ scale: 0.985 }], opacity: 0.92 },
+  ctaText: { fontSize: 16, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 18 },
+  footerText: { fontSize: 14 },
+  footerLink: { fontSize: 14, fontWeight: '600' },
 });

@@ -1,28 +1,18 @@
-// OTA-safe haptics shim.
+// Haptics indirection point.
 //
-// The production binary (native build 31/03, runtime 1.1.1) does NOT bundle
-// expo-haptics' native module. Because the runtimeVersion policy is "appVersion"
-// (frozen at 1.1.1), an OTA that imports expo-haptics gets delivered to that
-// binary and crashes at launch (`requireNativeModule('ExpoHaptics')` throws).
+// History: the 31/03 binary (runtime 1.1.1) did NOT bundle expo-haptics, so any
+// OTA importing it crashed at launch. While that binary was the production
+// target this module was a no-op shim.
 //
-// Until the next native build ships expo-haptics, haptics degrade to no-ops.
-// Same API surface as expo-haptics so call sites are a 1-line import swap.
-// When a new native build goes out, revert these imports back to 'expo-haptics'.
-
-export enum ImpactFeedbackStyle {
-  Light = 'light',
-  Medium = 'medium',
-  Heavy = 'heavy',
-  Soft = 'soft',
-  Rigid = 'rigid',
-}
-
-export enum NotificationFeedbackType {
-  Success = 'success',
-  Warning = 'warning',
-  Error = 'error',
-}
-
-export const impactAsync = (_style?: ImpactFeedbackStyle): Promise<void> => Promise.resolve();
-export const selectionAsync = (): Promise<void> => Promise.resolve();
-export const notificationAsync = (_type?: NotificationFeedbackType): Promise<void> => Promise.resolve();
+// From the 1.1.2 native build onward, expo-haptics IS bundled (it's in
+// package.json + autolinked by prebuild), so this module simply re-exports the
+// real API. Call sites keep importing from `../utils/haptics`, which means
+// toggling haptics on/off (e.g. for a future OTA-only window) stays a one-file
+// change here.
+export {
+  ImpactFeedbackStyle,
+  NotificationFeedbackType,
+  impactAsync,
+  selectionAsync,
+  notificationAsync,
+} from 'expo-haptics';
