@@ -20,7 +20,7 @@ The instructor/owner branch (`renderNonStudentContent`): large title, then direc
 
 **All roles:** account info, password change, notification reminder timing (120/60/30/20/15 min)
 
-**Student:** payment profile, add/remove methods, auto-payments toggle
+**Student:** disponibilità (giorni + fasce), notifiche. (Nessun pagamento in-app — i metodi di pagamento sono stati rimossi dall'app.)
 
 **Instructor:** autonomous mode, available durations (30/45/60/90/120), rounded hours, availability mode (default/publication)
 
@@ -34,17 +34,16 @@ The instructor/owner branch (`renderNonStudentContent`): large title, then direc
 
 ## Performance — instant render (non-blocking load)
 The screen never blocks on network. `initialLoading` is set `false` as soon as the session-derived UI can render; the network calls that only feed **row hints** run in the **background, in parallel**, gated by a separate loading flag that shows a small `SkeletonBlock` on just that row.
-- **Student:** profile card + payment render immediately; `loadStudentAvailabilityPreset` runs in background, `availabilityLoading` gates only the Disponibilità hint.
+- **Student:** profile card renders immediately; `loadStudentAvailabilityPreset` runs in background, `availabilityLoading` gates only the Disponibilità hint.
 - **Instructor/Owner:** profile card + Vista agenda (from `sessionStorage`) render immediately; `getAutoscuolaSettings` + `getInstructorSettings` run in parallel in the background, `settingsLoading` gates only the Disponibilità mode + Agenda weeks hints. (Previously these were two sequential awaits blocking the whole screen behind a full skeleton.)
 
 ## API functions used
-`getAutoscuolaSettings`, `getInstructorSettings`, `updateInstructorSettings`, `getPaymentProfile`, `createSetupIntent`, `confirmPaymentMethod`, `removePaymentMethod`, `deleteAccount`
+`getAutoscuolaSettings`, `getInstructorSettings`, `updateInstructorSettings`, `deleteAccount`
 
 ## Components used
 Screen, Card, Button, Input, SelectableChip, TimePickerDrawer, BottomSheet
 
 ## Connected features
 - **Availability Editor** — availabilityMode toggle
-- **Payments** — payment method management
 - **Booking Flow** — governance settings affect booking
 - **Instructor Manage** — cluster config shared with ClusterSettingsScreen

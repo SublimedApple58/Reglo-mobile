@@ -6,7 +6,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Component | Used by screens | Notes |
 |-----------|----------------|-------|
-| `BottomSheet` | AllievoPayments, CreateExam, IstruttoreHome, InstructorManage, LocationPickerSheet, NotificationOverlay, OwnerInstructor, RescheduleAppointmentSheet, TitolareHome (9) | iOS + Android separate implementations. ClusterSettings + Vehicles migrated to formSheet routes. |
+| `BottomSheet` | CreateExam, IstruttoreHome, InstructorManage, LocationPickerSheet, NotificationOverlay, OwnerInstructor, RescheduleAppointmentSheet, TitolareHome (8) | iOS + Android separate implementations. ClusterSettings + Vehicles migrated to formSheet routes. |
 | `TimePickerDrawer` | CreateExam, InstructorManage, OwnerInstructor, PublicationModeEditor, RescheduleAppointmentSheet, Settings (6) | Depends on BottomSheet. ClusterSettings + Vehicles now use the formSheet `time-picker` route (timePickerStore). |
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome (3) | Depends on MiniCalendar + BottomSheet. (TitolareHome ora è un wrapper di IstruttoreHome.) |
 | `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor, DefaultAvailabilityEditor, role/availability-exception (5) | Time range format changes break all availability UIs. Navy clock circle (no pink). |
@@ -27,14 +27,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens (14) |
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
-| `MobileStudentPaymentProfile` | Settings, AllievoPayments (2) |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
 ## Feature Adjacency
 
 ### Booking Flow
 - → **Notifications**: booking success can trigger proposal/confirmation notifications
-- → **Payments**: booking may require payment snapshot
 - → **Settings**: booking governance (limits, cutoff, actors) configured in settings
 - → **Backend**: `createBookingRequest()`, `getAvailableSlots()`, `getBookingOptions()`
 
@@ -43,11 +41,6 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Settings**: `availabilityMode` toggle (default vs publication) lives in Settings (chosen there, NOT in the Disponibilità screen)
 - → **Backend**: `setDailyAvailabilityOverride()`, `setRecurringAvailabilityOverride()`, `deleteDailyAvailabilityOverride()`, `createAvailabilitySlots()`, `publishWeek()`, `unpublishWeek()`
 - **Live tree:** `app/(tabs)/role/` stack → `InstructorAvailabilityScreen` (shell, collapsible BlurView header) → `DefaultAvailabilityEditor` (Orari settimanali per-weekday + Eccezioni; full-stack `scheduleByDay`) or `PublicationModeEditor`. Exceptions edited via the `role/availability-exception` page-sheet (`availabilityExceptionStore`). `InstructorManageScreen` + its `AvailabilityEditor` are **legacy/unmounted** (React-Navigation `TabNavigator`, not in Expo Router tree).
-
-### Payments
-- → **Booking Flow**: payment profile needed for booking
-- → **Settings**: payment method management in SettingsScreen
-- → **Backend**: Stripe setup intents, payment history, pay-now flow
 
 ### Swaps
 - → **Notifications**: swap offers arrive via push → NotificationOverlay
@@ -63,7 +56,6 @@ When modifying a feature, read its connected features to verify nothing breaks.
 ### Settings
 - → **Auth/Signup**: card "Codice di invito" in ClusterSettingsScreen; lo stesso codice è accettato dal campo signup (`SignupScreen`, wire field `schoolCode`) e assegna l'allievo all'istruttore
 - → **Availability Editor**: availabilityMode toggle
-- → **Payments**: payment method management
 - → **Instructor Manage**: cluster settings (durations, booking actors, limits)
 - → **Backend**: `getAutoscuolaSettings()`, `updateInstructorSettings()`
 
@@ -99,9 +91,9 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Quiz Teoria**: tab visibile solo in TEORIA + `hasQuizAccess`; CTA della home TEORIA portano direttamente al quiz.
 - → **Booking Flow**: tab Agenda nascosta in AWAITING e TEORIA + booking server-side bloccato (messaggi distinti per AWAITING vs TEORIA).
 - → **Tab Layout**:
-  - AWAITING → solo `home` (niente settings, payments, notes, quiz)
+  - AWAITING → solo `home` (niente settings, notes, quiz)
   - TEORIA → `home` + `quiz` (se `hasQuizAccess`) + eventualmente `notes`
-  - PRATICA → `home` + `payments` (se autoPayments) + `notes` + `settings`. Scambi **non** è una tab: si apre da `home/swaps` via CTA "Scambi" (se `swapEnabled`).
+  - PRATICA → `home` + `notes` + `settings`. Scambi **non** è una tab: si apre da `home/swaps` via CTA "Scambi" (se `swapEnabled`).
   - PATENTATO → solo `home`
 - → **Notifications**: due `kinds` (`theory_exam_countdown`, `theory_quiz_inactivity`) inbox-only.
 - → **Home routing**: `RoleHomeScreen` usa la fase per scegliere fra `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoHomeScreen`, `AllievoLicensedScreen`.

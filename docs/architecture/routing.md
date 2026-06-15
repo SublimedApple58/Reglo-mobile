@@ -13,7 +13,6 @@ Expo Router 6, file-based routing.
 | home | All | AllievoHome / IstruttoreHome / TitolareHome (role dispatch) |
 | role | Instructor, Owner | RoleHomeScreen (agenda) |
 | notes | Instructor, Owner | Notes management + ClusterSettings |
-| payments | Student (if autoPayments) | AllievoPaymentsScreen |
 | more | All | MoreScreen → settings, vehicles, instructors, hours |
 | settings | All | SettingsScreen |
 
@@ -26,6 +25,6 @@ Sub-routes: home/create-exam, home/notifications, home/swaps, notes/[studentId],
 - Android: custom animated tab bar (`GlassTabBar.tsx`, Reanimated, pink highlight)
 
 ## Key files
-- `app/_layout.tsx` — root: SessionProvider, StripeProvider, push intent peek
+- `app/_layout.tsx` — root: SessionProvider, push intent peek
 - `app/(tabs)/_layout.tsx` — tab bar + NotificationOverlay mount
 - `app/(auth)/_layout.tsx` — auth stack

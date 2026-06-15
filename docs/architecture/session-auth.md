@@ -32,7 +32,6 @@ Used by 17 screens + NotificationOverlay. Provides role for conditional renderin
 ## Feature flag hooks
 | Hook | Purpose | Used by |
 |------|---------|--------|
-| `useAutoPaymentsEnabled` | Company-level, cached | Tab visibility, SettingsScreen |
 | `useSwapEnabled` | Student-level, checks booking options | Tab visibility, SwapOffersScreen |
 | `useStudentNotesEnabled` | Feature gate for notes | Tab visibility, notes screens |
 | `useVehiclesEnabled` | Feature gate for vehicles | Vehicle screens |

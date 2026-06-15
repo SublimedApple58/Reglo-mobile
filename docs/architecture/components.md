@@ -4,7 +4,7 @@
 
 | Component | Used by (screens) |
 |-----------|-------------------|
-| **BottomSheet** | AllievoHome, AllievoPayments, ClusterSettings, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, SwapOffers, TitolareHome **(14)** |
+| **BottomSheet** | AllievoHome, ClusterSettings, CreateExam, IstruttoreHome, InstructorManage, InstructorVehicles, NotificationOverlay, OwnerInstructor, OwnerVehicles, RescheduleAppointmentSheet, SwapOffers, TitolareHome **(13)** |
 | **TimePickerDrawer** | ClusterSettings, CreateExam, InstructorAvailability, InstructorManage, InstructorVehicles, OwnerVehicles, PublicationModeEditor, RescheduleAppointmentSheet, Settings **(9)** |
 | **CalendarDrawer** | AllievoHome, CreateExam, IstruttoreHome, TitolareHome **(4)** |
 | **RangesEditor** | InstructorManage, OwnerInstructor, PublicationModeEditor **(3)** |

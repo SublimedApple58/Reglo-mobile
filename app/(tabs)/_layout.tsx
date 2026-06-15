@@ -1,7 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { useSession } from '../../src/context/SessionContext';
-import { useAutoPaymentsEnabled } from '../../src/hooks/useAutoPaymentsEnabled';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
@@ -17,7 +16,6 @@ import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as 
 
 export default function TabsLayout() {
   const { autoscuolaRole } = useSession();
-  const { enabled: autoPaymentsEnabled } = useAutoPaymentsEnabled();
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
@@ -32,9 +30,7 @@ export default function TabsLayout() {
   const isStudentLicensed = isStudent && studentPhase === 'PATENTATO';
   // Students in AWAITING: only the home neutral screen — no functional tabs.
   // Students in PATENTATO: only home tab is visible.
-  // Students in TEORIA: quiz central, no swaps/payments.
-  const showPaymentsTab =
-    !showRoleTab && autoPaymentsEnabled && !isStudentAwaiting && !isStudentInTeoria && !isStudentLicensed;
+  // Students in TEORIA: quiz central, no swaps.
   const showNotesTab =
     (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed && !isStudentInTeoria;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
@@ -55,7 +51,6 @@ export default function TabsLayout() {
     if (!showRoleTab) set.add('role');
     if (!showNotesTab) set.add('notes');
     if (!showMoreTab) set.add('more');
-    if (!showPaymentsTab) set.add('payments');
     if (!showQuizTab) set.add('quiz');
     if (!showInboxTab) set.add('inbox');
     // Settings hidden when "Altro" is shown (accessed from More screen)
@@ -67,7 +62,6 @@ export default function TabsLayout() {
     showRoleTab,
     showNotesTab,
     showMoreTab,
-    showPaymentsTab,
     showQuizTab,
     showInboxTab,
     isStudentAwaiting,
@@ -96,7 +90,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
-        <Tabs.Screen name="payments" options={{ href: showPaymentsTab ? '/(tabs)/payments' : null, title: 'Pagamenti' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />
       </Tabs>

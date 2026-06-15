@@ -18,7 +18,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -28,19 +27,13 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { colors, radii, spacing, typography } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaStudent, MobileStudentPaymentProfile } from '../types/regloApi';
+import { AutoscuolaStudent } from '../types/regloApi';
 import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { settingsStore, SlotTarget } from '../stores/settingsStore';
 import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
 import { isInstructor, isOwner, isStudent } from '../utils/roles';
-import { useAutoPaymentsEnabled } from '../hooks/useAutoPaymentsEnabled';
-
-const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
-  const normalized = (message ?? '').toLowerCase();
-  return normalized.includes('merchantidentifier') || normalized.includes('merchant identifier');
-};
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
 
@@ -171,7 +164,6 @@ const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
 export const SettingsScreen = () => {
   const router = useRouter();
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const [name, setName] = useState(user?.name ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
@@ -187,13 +179,11 @@ export const SettingsScreen = () => {
   const [instructorBookingMode, setInstructorBookingMode] =
     useState<'manual_full' | 'manual_engine'>('manual_engine');
   const [refreshing, setRefreshing] = useState(false);
-  const [paymentProfile, setPaymentProfile] = useState<MobileStudentPaymentProfile | null>(null);
   const [studentProfile, setStudentProfile] = useState<AutoscuolaStudent | null>(null);
   const [availabilityDays, setAvailabilityDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [availabilityStart, setAvailabilityStart] = useState(buildTime(9, 0));
   const [availabilityEnd, setAvailabilityEnd] = useState(buildTime(18, 0));
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   // Loads after initialLoading (background) — gates only the availability hint.
@@ -234,16 +224,6 @@ export const SettingsScreen = () => {
     }
     return source.slice(0, 2).toUpperCase();
   }, [user?.email, user?.name]);
-
-  const paymentStatusText = paymentProfile?.hasPaymentMethod
-    ? 'Metodo di pagamento configurato'
-    : 'Nessun metodo configurato';
-  // Presence of the payment row comes from the cached settings query (instant
-  // after first load) so the row renders immediately; only its summary value
-  // waits on the payment profile.
-  const autoPayments = useAutoPaymentsEnabled();
-  const showStudentPaymentCard =
-    autoPayments.enabled || paymentProfile?.autoPaymentsEnabled === true;
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -402,21 +382,19 @@ export const SettingsScreen = () => {
       }
 
       if (isStudent(autoscuolaRole)) {
-        const [profile, settings, studentsList] = await Promise.all([
-          regloApi.getPaymentProfile(),
+        const [settings, studentsList] = await Promise.all([
           regloApi.getAutoscuolaSettings().catch(() => null),
           regloApi.getStudents().catch(() => [] as AutoscuolaStudent[]),
         ]);
-        setPaymentProfile(profile);
         if (settings) {
           setAvailabilityWeeks(String(settings.availabilityWeeks));
         }
         const linkedStudent = findLinkedStudent(studentsList, user);
         setStudentProfile(linkedStudent);
-        // Unblock the screen immediately: the profile card needs no network
-        // and payment is already loaded. The availability preset only feeds
-        // the Disponibilità sub-page + its summary row, so load it in the
-        // background instead of blocking the whole screen on 7 slot calls.
+        // Unblock the screen immediately: the profile card needs no network.
+        // The availability preset only feeds the Disponibilità sub-page + its
+        // summary row, so load it in the background instead of blocking the
+        // whole screen on 7 slot calls.
         setInitialLoading(false);
         if (linkedStudent?.id) {
           setAvailabilityLoading(true);
@@ -427,7 +405,6 @@ export const SettingsScreen = () => {
           setAvailabilityLoading(false);
         }
       } else {
-        setPaymentProfile(null);
         setStudentProfile(null);
       }
     } catch (err) {
@@ -666,103 +643,10 @@ export const SettingsScreen = () => {
     }
   }, [loadSettings, refreshMe]);
 
-  const handleConfigurePaymentMethod = async () => {
-    if (!isStudent(autoscuolaRole)) return;
-
-    setPaymentLoading(true);
-    setError(null);
-    setToast(null);
-    try {
-      const setup = await regloApi.createSetupIntent();
-      const baseSheetConfig = {
-        merchantDisplayName: 'Reglo Autoscuole',
-        customerId: setup.customerId,
-        customerEphemeralKeySecret: setup.ephemeralKey,
-        setupIntentClientSecret: setup.setupIntentClientSecret,
-        defaultBillingDetails: {
-          name: user?.name ?? undefined,
-          email: user?.email ?? undefined,
-        },
-      } as const;
-
-      let init = await initPaymentSheet({
-        ...baseSheetConfig,
-        applePay: { merchantCountryCode: 'IT' },
-        googlePay: { merchantCountryCode: 'IT', testEnv: __DEV__ },
-      });
-
-      if (init.error && shouldRetryPaymentSheetWithoutWallet(init.error.message)) {
-        init = await initPaymentSheet(baseSheetConfig);
-        if (!init.error) {
-          setToast({
-            text: 'Apple Pay non disponibile su questa build. Usa carta o Link.',
-            tone: 'info',
-          });
-        }
-      }
-
-      if (init.error) {
-        throw new Error(init.error.message);
-      }
-
-      const result = await presentPaymentSheet();
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      await regloApi.confirmPaymentMethod({ setupIntentId: setup.setupIntentId });
-      const profile = await regloApi.getPaymentProfile();
-      setPaymentProfile(profile);
-      setToast({ text: 'Metodo di pagamento salvato', tone: 'success' });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore configurando pagamento');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
-
-  const handleRemovePaymentMethod = () => {
-    if (!isStudent(autoscuolaRole) || !paymentProfile?.hasPaymentMethod) return;
-    Alert.alert(
-      'Rimuovi metodo',
-      'Rimuovendo il metodo di pagamento non potrai prenotare nuove guide finché non ne aggiungi uno nuovo.',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Rimuovi',
-          style: 'destructive',
-          onPress: async () => {
-            setPaymentLoading(true);
-            setError(null);
-            setToast(null);
-            try {
-              await regloApi.removePaymentMethod();
-              const profile = await regloApi.getPaymentProfile();
-              setPaymentProfile(profile);
-              setToast({ text: 'Metodo di pagamento rimosso', tone: 'success' });
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Errore rimuovendo il metodo');
-            } finally {
-              setPaymentLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const paymentSubtitle = paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod
-    ? `${paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022${paymentProfile.paymentMethod.last4} configurata`
-    : 'Nessun metodo configurato';
-
   /* \u2500\u2500\u2500 Student-specific render \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
   const availabilitySummary = availabilityDays.length > 0
     ? availabilityDays.map((d) => dayLetters[d]).join(', ') + (morningActive && afternoonActive ? ' \u2022 Tutto il giorno' : morningActive ? ' \u2022 Mattina' : afternoonActive ? ' \u2022 Pomeriggio' : '')
     : 'Non configurata';
-
-  const paymentSummary = paymentProfile?.hasPaymentMethod && paymentProfile.paymentMethod
-    ? `${paymentProfile.paymentMethod.brand.toUpperCase()} \u2022\u2022\u2022\u2022${paymentProfile.paymentMethod.last4}`
-    : 'Non configurato';
 
   const onPickSlotTime = (target: SlotTarget, date: Date) => {
     if (target === 'morningStart') setMorningStart(date);
@@ -783,8 +667,6 @@ export const SettingsScreen = () => {
       morningActive, afternoonActive, toggleMorning, toggleAfternoon,
       morningStart, morningEnd, afternoonStart, afternoonEnd,
       onPickSlotTime, availabilitySaving, onSaveAvailability: handleSaveStudentAvailability,
-      paymentProfile, paymentLoading,
-      onConfigurePayment: handleConfigurePaymentMethod, onRemovePayment: handleRemovePaymentMethod,
     });
   });
 
@@ -863,24 +745,6 @@ export const SettingsScreen = () => {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </Pressable>
-
-        {showStudentPaymentCard && (
-          <>
-            <View style={studentStyles.rowDivider} />
-            <Pressable onPress={() => router.push('/(tabs)/settings/payment')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="card-outline" size={23} color="#1A1A2E" />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={studentStyles.rowLabel}>Metodo di pagamento</Text>
-                {initialLoading ? (
-                  <SkeletonBlock width={110} height={11} radius={6} style={{ marginTop: 5 }} />
-                ) : (
-                  <Text style={studentStyles.rowHint} numberOfLines={1}>{paymentSummary}</Text>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-            </Pressable>
-          </>
-        )}
 
         <View style={studentStyles.rowDivider} />
         <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>

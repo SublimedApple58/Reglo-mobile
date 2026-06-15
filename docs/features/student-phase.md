@@ -24,9 +24,9 @@ L'app cambia completamente in base alla fase dell'allievo: **AWAITING** → **TE
 
 | Fase | Home | Tabs visibili | Booking guida |
 |------|------|---------------|---------------|
-| AWAITING | `AllievoAwaitingScreen` (duck-clock + testo, nessuna CTA) | Solo `home` (niente settings, payments, notes, swaps, quiz) | Bloccato server-side ("Il tuo percorso non è ancora stato attivato dall'autoscuola.") |
+| AWAITING | `AllievoAwaitingScreen` (duck-clock + testo, nessuna CTA) | Solo `home` (niente settings, notes, swaps, quiz) | Bloccato server-side ("Il tuo percorso non è ancora stato attivato dall'autoscuola.") |
 | TEORIA | `AllievoTheoryHomeScreen` (riepilogo + progress bar + countdown + CTA quiz) | `home`, `quiz` (solo se `hasQuizAccess`), eventuali `notes` se abilitato | Bloccato server-side ("Le lezioni di guida saranno disponibili dopo l'esame di teoria.") |
-| PRATICA | `AllievoHomeScreen` + `PhaseProgressBar compact` in cima | `home`, `payments` (se autoPayments), `swaps` (se enabled), `notes` (se enabled), `settings` | Disponibile |
+| PRATICA | `AllievoHomeScreen` + `PhaseProgressBar compact` in cima | `home`, `swaps` (se enabled), `notes` (se enabled), `settings` | Disponibile |
 | PATENTATO | `AllievoLicensedScreen` (saluto + progress bar 100% + logout) | Solo `home` | Bloccato (fase nascosta in app) |
 
 ## Schema dati `/api/autoscuole/me`

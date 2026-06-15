@@ -4,8 +4,6 @@ import React, { useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StyleSheet } from 'react-native';
-import Constants from 'expo-constants';
-import { StripeProvider } from '@stripe/stripe-react-native';
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -152,15 +150,7 @@ const AuthGate = () => {
 };
 
 export default function RootLayout() {
-  const stripePublishableKey =
-    process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
-    (Constants.expoConfig?.extra?.stripePublishableKey as string | undefined) ??
-    '';
-  const merchantIdentifier =
-    (Constants.expoConfig?.extra?.stripeMerchantIdentifier as string | undefined) ??
-    'merchant.com.tiziano.developer.reglo-mobile';
-
-  const content = (
+  return (
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{ persister: fileSystemPersister, maxAge: 24 * 60 * 60 * 1000 }}
@@ -171,19 +161,6 @@ export default function RootLayout() {
         </GestureHandlerRootView>
       </SessionProvider>
     </PersistQueryClientProvider>
-  );
-
-  if (!stripePublishableKey) {
-    return content;
-  }
-
-  return (
-    <StripeProvider
-      publishableKey={stripePublishableKey}
-      merchantIdentifier={merchantIdentifier}
-    >
-      {content}
-    </StripeProvider>
   );
 }
 

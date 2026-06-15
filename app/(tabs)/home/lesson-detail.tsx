@@ -4,10 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
-import { paymentStatusLabel } from '../../../src/utils/payment';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
-import type { StudentAppointmentPaymentHistoryItem } from '../../../src/types/regloApi';
 
 const statusLabel = (status: string | null | undefined) => {
   const s = (status ?? '').trim().toLowerCase();
@@ -45,7 +43,7 @@ export default function LessonDetailScreen() {
     return <View style={s.root} />;
   }
 
-  const { lesson, payment, canSwap, canCancel, vehiclesEnabled, activeSwapOfferId, onSwap, onCancel, onRevokeSwap } = data;
+  const { lesson, canSwap, canCancel, vehiclesEnabled, activeSwapOfferId, onSwap, onCancel, onRevokeSwap } = data;
   const isFuture = new Date(lesson.startsAt).getTime() > Date.now();
   const hasActiveSwap = !!activeSwapOfferId;
 
@@ -135,19 +133,6 @@ export default function LessonDetailScreen() {
               </Pressable>
             );
           })()}
-
-          {/* Payment */}
-          <View style={s.divider} />
-          <View style={s.row}>
-            <View style={[s.iconChip, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="wallet" size={18} color="#D97706" />
-            </View>
-            <Text style={[s.rowValue, { color: colors.textSecondary }]}>
-              {payment
-                ? `${paymentStatusLabel(payment.paymentStatus).label}${payment.dueAmount > 0 ? ` \u2022 Residuo \u20AC${payment.dueAmount.toFixed(2)}` : ''}`
-                : 'Nessun dettaglio disponibile'}
-            </Text>
-          </View>
 
           {/* Lesson type */}
           {lesson.types && lesson.types.length > 0 && (

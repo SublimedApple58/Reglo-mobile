@@ -33,9 +33,6 @@ export type BookingFlowState = {
   instructors: AutoscuolaInstructor[];
   instructorsByDate: Record<string, string[]>;
   availabilityDates: Record<string, boolean>;
-  creditFlowEnabled: boolean;
-  creditsAvailable: number;
-  autoPaymentsEnabled: boolean;
   calendarMonths: CalendarMonth[];
   bookingMaxDate: Date;
   bookedDatesSet: Set<string>;

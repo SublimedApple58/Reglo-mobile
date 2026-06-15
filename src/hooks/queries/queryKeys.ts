@@ -12,10 +12,6 @@ export const STALE_TIMES = {
   dateAvailability: 5 * 60 * 1000,
   /** Active booking flow — must be fresh — 30 sec */
   availableSlots: 30 * 1000,
-  /** Payment profile changes rarely — 15 min */
-  paymentProfile: 15 * 60 * 1000,
-  /** Payment history — 5 min */
-  paymentHistory: 5 * 60 * 1000,
   /** Holidays almost never change — 1 hour */
   holidays: 60 * 60 * 1000,
   /** Agenda bootstrap (instructor) — 2 min */
@@ -59,12 +55,6 @@ export const queryKeys = {
 
   dateAvailability: (companyId: string | null, params?: Record<string, unknown>) =>
     ['date-availability', companyId, params] as const,
-
-  paymentProfile: (companyId: string | null) =>
-    ['payment-profile', companyId] as const,
-
-  paymentHistory: (companyId: string | null, limit?: number) =>
-    ['payment-history', companyId, limit] as const,
 
   holidays: (companyId: string | null, params?: Record<string, unknown>) =>
     ['holidays', companyId, params] as const,

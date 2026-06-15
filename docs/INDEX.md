@@ -6,7 +6,6 @@
 |---------|-----|----------------|
 | Booking Flow | [booking-flow.md](features/booking-flow.md) | `AllievoHomeScreen` |
 | Availability Editor | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception` |
-| Payments | [payments.md](features/payments.md) | `AllievoPaymentsScreen` |
 | Swaps | [swaps.md](features/swaps.md) | `SwapOffersScreen` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |

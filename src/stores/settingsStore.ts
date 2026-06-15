@@ -1,5 +1,3 @@
-import type { MobileStudentPaymentProfile } from '../types/regloApi';
-
 export type SlotTarget = 'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd';
 
 export type SettingsStoreData = {
@@ -26,11 +24,6 @@ export type SettingsStoreData = {
   onPickSlotTime: (target: SlotTarget, date: Date) => void;
   availabilitySaving: boolean;
   onSaveAvailability: () => void;
-  // payment
-  paymentProfile: MobileStudentPaymentProfile | null;
-  paymentLoading: boolean;
-  onConfigurePayment: () => void;
-  onRemovePayment: () => void;
 };
 
 let _data: SettingsStoreData | null = null;

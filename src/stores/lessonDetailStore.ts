@@ -1,8 +1,7 @@
-import type { AutoscuolaAppointmentWithRelations, StudentAppointmentPaymentHistoryItem } from '../types/regloApi';
+import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 
 type LessonDetailData = {
   lesson: AutoscuolaAppointmentWithRelations;
-  payment: StudentAppointmentPaymentHistoryItem | null;
   canSwap: boolean;
   canCancel: boolean;
   vehiclesEnabled: boolean;

@@ -65,7 +65,6 @@ export default function BookingFlowScreen() {
     slots, slotsLoading, selectedSlot, loading, preferredDateAvailable,
     availableDurations, availableLessonTypes, canSelectLessonType, canSelectInstructor,
     isLockedToInstructor, assignedInstructorName,
-    creditFlowEnabled, creditsAvailable, autoPaymentsEnabled,
     calendarOpen, calendarMonths, bookingMaxDate, bookedDatesSet, unavailableDatesSet,
     onSearchSlots, onConfirmBooking, onClose,
   } = data;
@@ -87,11 +86,6 @@ export default function BookingFlowScreen() {
       {/* Title row */}
       <View style={s.titleRow}>
         <Text style={s.title}>{step === 1 ? 'Prenota una guida' : 'Scegli un orario'}</Text>
-        {(autoPaymentsEnabled || creditFlowEnabled) && (
-          <View style={s.creditsBadge}>
-            <Text style={s.creditsText}>Crediti: {creditsAvailable}</Text>
-          </View>
-        )}
       </View>
 
       <View style={{ paddingHorizontal: spacing.md, paddingBottom: 20, gap: 28 }}>

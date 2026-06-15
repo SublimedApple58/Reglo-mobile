@@ -33,7 +33,7 @@ Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent
 - **Notifiche** `src/types/notifications.ts` (kind `group_lesson_invite`), `src/screens/NotificationInboxScreen.tsx` (icona `people-outline`, theme teal, title/subtitle; tap → `home/group-lesson-invites`). Recovery dal BE `/api/autoscuole/notifications`.
 
 ## Pagamento
-La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "da pagare" (`paymentRequired`, `paymentStatus="pending"`, `manualPaymentStatus="unpaid"`) al **prezzo di una guida normale** (`lessonPrice60`, nessun prezzo dedicato). Visibile nei pagamenti/dettaglio allievo come qualsiasi guida da pagare.
+La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "da pagare" (`paymentRequired`, `paymentStatus="pending"`, `manualPaymentStatus="unpaid"`) al **prezzo di una guida normale** (`lessonPrice60`, nessun prezzo dedicato). La gestione del pagamento è **solo backend/web** (il titolare addebita/archivia): l'app mobile **non mostra più** pagamenti né importi all'allievo (pagamenti in-app rimossi).
 
 **Ritiro / rimozione (decisione A, 2026-06-10)**: si riusa la logica delle guide normali (lato backend). Ritiro/rimozione **prima del cutoff** = posto liberato senza addebito; **dopo il cutoff o a guida avvenuta** = resta "da pagare" e finisce nelle *cancellazioni tardive* (il titolare addebita/archivia). Il posto liberato fa **re-broadcast** dell'invito; il ritiro dell'allievo notifica l'istruttore. Dettagli backend: `reglo/docs/features/group-lessons.md`.
 

@@ -44,13 +44,6 @@ import {
   RespondSwapOfferResult,
   InstructorSwapInput,
   RegisterPushTokenInput,
-  MobileStudentPaymentProfile,
-  MobileSetupIntentPayload,
-  MobileConfirmPaymentMethodPayload,
-  MobileRemovePaymentMethodPayload,
-  MobilePreparePayNowPayload,
-  MobileFinalizePayNowPayload,
-  MobileAppointmentPaymentDocument,
   MobileBookingOptions,
   AvailableSlot,
   SuggestInstructorBookingInput,
@@ -61,7 +54,6 @@ import {
   LatestStudentAppointmentNote,
   DeleteAccountInput,
   DeleteAccountPayload,
-  StudentAppointmentPaymentHistoryItem,
   SelectCompanyInput,
   SelectCompanyPayload,
   StudentRegisterInput,
@@ -710,56 +702,6 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
-    getPaymentProfile: async () =>
-      client.request<MobileStudentPaymentProfile>('/api/mobile/payments/profile'),
-    getPaymentHistory: async (limit?: number) =>
-      client.request<StudentAppointmentPaymentHistoryItem[]>('/api/mobile/payments/history', {
-        params: limit ? { limit } : undefined,
-      }),
-    createSetupIntent: async () =>
-      client.request<MobileSetupIntentPayload>('/api/mobile/payments/setup-intent', {
-        method: 'POST',
-        body: {},
-      }),
-    confirmPaymentMethod: async (input: {
-      setupIntentId?: string;
-      paymentMethodId?: string;
-    }) =>
-      client.request<MobileConfirmPaymentMethodPayload>(
-        '/api/mobile/payments/confirm-method',
-        {
-          method: 'POST',
-          body: input,
-        }
-      ),
-    removePaymentMethod: async () =>
-      client.request<MobileRemovePaymentMethodPayload>(
-        '/api/mobile/payments/remove-method',
-        {
-          method: 'POST',
-          body: {},
-        }
-      ),
-    preparePayNow: async (appointmentId: string) =>
-      client.request<MobilePreparePayNowPayload>(
-        `/api/mobile/payments/appointments/${appointmentId}/pay-now`,
-        {
-          method: 'POST',
-          body: {},
-        }
-      ),
-    finalizePayNow: async (appointmentId: string, paymentIntentId: string) =>
-      client.request<MobileFinalizePayNowPayload>(
-        `/api/mobile/payments/appointments/${appointmentId}/pay-now`,
-        {
-          method: 'POST',
-          body: { paymentIntentId },
-        }
-      ),
-    getAppointmentPaymentDocument: async (appointmentId: string) =>
-      client.request<MobileAppointmentPaymentDocument>(
-        `/api/mobile/payments/appointments/${appointmentId}/document`
-      ),
     getInstructorHours: async (params: { weekStart: string; monthStart?: string }) => {
       const qs = new URLSearchParams({ weekStart: params.weekStart });
       if (params.monthStart) qs.set('monthStart', params.monthStart);

@@ -19,7 +19,6 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   home: 'car-sport-outline',
   role: 'time-outline',
   notes: 'people-outline',
-  payments: 'wallet-outline',
   swaps: 'repeat-outline',
   inbox: 'file-tray-outline',
   more: 'ellipsis-horizontal',

@@ -25,15 +25,6 @@ export default function SettingsLayout() {
         }}
       />
       <Stack.Screen
-        name="payment"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
         name="time-picker"
         options={{
           presentation: 'formSheet',

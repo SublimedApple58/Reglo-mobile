@@ -12,12 +12,10 @@ import Animated, {
 import {
   Alert,
   Image,
-  Linking,
   Modal,
   Platform,
   Pressable,
   RefreshControl,
-  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,9 +25,7 @@ import {
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as FileSystem from 'expo-file-system/legacy';
 import { BlurView } from 'expo-blur';
-import { useStripe } from '@stripe/stripe-react-native';
 import { Screen } from '../components/Screen';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -44,15 +40,12 @@ import { loadInbox } from '../services/notificationStore';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { useBookingOptions } from '../hooks/queries/useBookingOptions';
-import { usePaymentProfile } from '../hooks/queries/usePaymentProfile';
-import { usePaymentHistory } from '../hooks/queries/usePaymentHistory';
 import { useAppointments } from '../hooks/queries/useAppointments';
 import { queryKeys } from '../hooks/queries/queryKeys';
 import { useBookSlot } from '../hooks/mutations/useBookSlot';
 import { useCancelAppointment } from '../hooks/mutations/useCancelAppointment';
 import {
   AutoscuolaAppointmentWithRelations,
-  MobileAppointmentPaymentDocument,
   AvailableSlot,
   AutoscuolaStudent,
   AutoscuolaInstructor,
@@ -68,12 +61,6 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
-import {
-  invoiceStatusLabel,
-  paymentEventStatusLabel,
-  paymentPhaseLabel,
-  paymentStatusLabel,
-} from '../utils/payment';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -123,30 +110,6 @@ const statusLabel = (status: string) => {
   return { label: 'Programmato', tone: 'default' as const };
 };
 
-const shouldRetryPaymentSheetWithoutWallet = (message?: string | null) => {
-  const normalized = (message ?? '').toLowerCase();
-  return (
-    normalized.includes('merchantidentifier') ||
-    normalized.includes('merchant identifier')
-  );
-};
-
-let sharingModulePromise: Promise<typeof import('expo-sharing') | null> | null = null;
-const getSharingModule = async () => {
-  if (!sharingModulePromise) {
-    sharingModulePromise = import('expo-sharing').catch(() => null);
-  }
-  return sharingModulePromise;
-};
-
-let webBrowserModulePromise: Promise<typeof import('expo-web-browser') | null> | null = null;
-const getWebBrowserModule = async () => {
-  if (!webBrowserModulePromise) {
-    webBrowserModulePromise = import('expo-web-browser').catch(() => null);
-  }
-  return webBrowserModulePromise;
-};
-
 const normalize = (value: string | null | undefined) =>
   (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -189,7 +152,6 @@ export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user, activeCompanyId, companies } = useSession();
   const activeCompanyName = companies.find((c) => c.id === activeCompanyId)?.name ?? null;
   const {
@@ -221,11 +183,6 @@ export const AllievoHomeScreen = () => {
   const [bookingSelectedSlot, setBookingSelectedSlot] = useState<AvailableSlot | null>(null);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [historyDetailsOpen, setHistoryDetailsOpen] = useState(false);
-  const [selectedHistoryLesson, setSelectedHistoryLesson] =
-    useState<AutoscuolaAppointmentWithRelations | null>(null);
-  const [historyDocumentBusy, setHistoryDocumentBusy] = useState<'view' | 'share' | null>(null);
-  const [payNowLoading, setPayNowLoading] = useState(false);
   const [creatingSwap, setCreatingSwap] = useState(false);
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -280,8 +237,6 @@ export const AllievoHomeScreen = () => {
   // ── Query hooks (data from cache on cold start, background refetch) ──
   const appointmentsQuery = useAppointments(appointmentParams);
   const settingsQuery = useAutoscuolaSettings();
-  const paymentProfileQuery = usePaymentProfile();
-  const paymentHistoryQuery = usePaymentHistory(40);
   const bookingOptionsQuery = useBookingOptions(selectedStudentId);
 
   // Derive data from hooks (fallback to empty/null for loading state)
@@ -291,8 +246,6 @@ export const AllievoHomeScreen = () => {
     [allAppointments, selectedStudentId]
   );
   const settings = settingsQuery.data ?? null;
-  const paymentProfile = paymentProfileQuery.data ?? null;
-  const paymentHistory = paymentHistoryQuery.data ?? [];
   const bookingOptions = bookingOptionsQuery.data ?? null;
 
   // Derive loading states from hooks
@@ -304,8 +257,6 @@ export const AllievoHomeScreen = () => {
   const invalidateAllData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     queryClient.invalidateQueries({ queryKey: ['autoscuola-settings'] });
-    queryClient.invalidateQueries({ queryKey: ['payment-profile'] });
-    queryClient.invalidateQueries({ queryKey: ['payment-history'] });
     queryClient.invalidateQueries({ queryKey: ['booking-options'] });
   }, [queryClient]);
 
@@ -313,51 +264,12 @@ export const AllievoHomeScreen = () => {
   const bookSlotMutation = useBookSlot();
   const cancelMutation = useCancelAppointment();
 
-  const historyDetailsScrollRef = useRef<ScrollView | null>(null);
-  const [historyDetailsLayoutHeight, setHistoryDetailsLayoutHeight] = useState(0);
-  const [historyDetailsContentHeight, setHistoryDetailsContentHeight] = useState(0);
-  const [historyDetailsOffsetY, setHistoryDetailsOffsetY] = useState(0);
-  const historyDetailsMaxHeight = useMemo(
-    () => Math.max(320, Math.min(windowHeight * 0.62, windowHeight - insets.top - 180)),
-    [insets.top, windowHeight]
-  );
-  const historyDetailsMaxOffset = Math.max(
-    0,
-    historyDetailsContentHeight - historyDetailsLayoutHeight
-  );
-  const canScrollHistoryDetails = historyDetailsMaxOffset > 12;
-  const showHistoryScrollUp = canScrollHistoryDetails && historyDetailsOffsetY > 24;
-  const showHistoryScrollDown =
-    canScrollHistoryDetails &&
-    !showHistoryScrollUp &&
-    historyDetailsOffsetY < historyDetailsMaxOffset - 24;
-
-  const handleHistoryDetailsQuickScroll = useCallback(
-    (direction: 'up' | 'down') => {
-      if (!historyDetailsScrollRef.current) return;
-      const step = Math.max(180, historyDetailsLayoutHeight * 0.85);
-      const nextOffset =
-        direction === 'down'
-          ? Math.min(historyDetailsOffsetY + step, historyDetailsMaxOffset)
-          : Math.max(historyDetailsOffsetY - step, 0);
-      historyDetailsScrollRef.current.scrollTo({ y: nextOffset, animated: true });
-    },
-    [historyDetailsLayoutHeight, historyDetailsMaxOffset, historyDetailsOffsetY]
-  );
-
   const triggerBookingCelebration = useCallback(() => {
     setBookingCelebrationVisible(false);
     setTimeout(() => {
       setBookingCelebrationVisible(true);
     }, 0);
   }, []);
-
-  useEffect(() => {
-    if (historyDetailsOpen) return;
-    setHistoryDetailsOffsetY(0);
-    setHistoryDetailsLayoutHeight(0);
-    setHistoryDetailsContentHeight(0);
-  }, [historyDetailsOpen]);
 
   const ITALIAN_MONTHS_BK = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -430,18 +342,6 @@ export const AllievoHomeScreen = () => {
       setToast({ text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.', tone: 'info' });
       return;
     }
-    if (requiresPaymentMethodForBooking) {
-      setToast({ text: 'Aggiungi un metodo di pagamento dalle impostazioni prima di prenotare.', tone: 'info' });
-      return;
-    }
-    if (requiresCreditsForBooking) {
-      setToast({ text: 'Non hai crediti guida disponibili. Contatta la tua autoscuola.', tone: 'info' });
-      return;
-    }
-    if (paymentProfile?.blockedByInsoluti) {
-      setToast({ text: 'Hai pagamenti insoluti. Salda prima di prenotare una nuova guida.', tone: 'danger' });
-      return;
-    }
     setBookingStep(1);
     setBookingSlots([]);
     setBookingSelectedSlot(null);
@@ -467,9 +367,6 @@ export const AllievoHomeScreen = () => {
       instructors,
       instructorsByDate: dateAvailability.instructorsByDate,
       availabilityDates: dateAvailability.dates,
-      creditFlowEnabled,
-      creditsAvailable: paymentProfile?.lessonCreditsAvailable ?? 0,
-      autoPaymentsEnabled: paymentProfile?.autoPaymentsEnabled ?? false,
       calendarMonths,
       bookingMaxDate,
       bookedDatesSet,
@@ -661,8 +558,6 @@ export const AllievoHomeScreen = () => {
   // Group lessons: feature on for the school AND this student opted in.
   const groupLessonsEligible =
     settings?.groupLessonsEnabled === true && selectedStudent?.groupLessonsOptIn === true;
-  const hasLessonCredits = (paymentProfile?.lessonCreditsAvailable ?? 0) > 0;
-  const creditFlowEnabled = paymentProfile?.lessonCreditFlowEnabled ?? false;
   // Prefer cluster-resolved setting over company default.
   // Fail-closed default: hide the "Annulla guida" button when bookingOptions is
   // not yet loaded (loading / stale persisted cache / query error). Showing the
@@ -673,18 +568,6 @@ export const AllievoHomeScreen = () => {
   const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
   const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
   const canBook = !!bookingOptions && !studentBookingDisabledByPolicy;
-  const requiresPaymentMethodForBooking = Boolean(
-    paymentProfile?.autoPaymentsEnabled &&
-      !creditFlowEnabled &&
-      !paymentProfile?.hasPaymentMethod &&
-      !hasLessonCredits
-  );
-  const requiresCreditsForBooking = Boolean(
-    creditFlowEnabled &&
-      paymentProfile?.lessonCreditsRequired !== false &&
-      !paymentProfile?.autoPaymentsEnabled &&
-      !hasLessonCredits
-  );
   const weeklyLimitReached = Boolean(
     bookingOptions?.weeklyBookingLimit?.enabled &&
       bookingOptions.weeklyBookingLimit.reached
@@ -1007,10 +890,6 @@ export const AllievoHomeScreen = () => {
     };
   }, [upcomingGroupLessons]);
 
-  const paymentByAppointmentId = useMemo(
-    () => new Map(paymentHistory.map((item) => [item.appointmentId, item])),
-    [paymentHistory]
-  );
   const bookedDatesSet = useMemo(() => {
     const set = new Set<string>();
     for (const appt of appointments) {
@@ -1081,19 +960,6 @@ export const AllievoHomeScreen = () => {
     () => (showAllAgendaLessons ? agendaLessons : agendaLessons.slice(0, 4)),
     [agendaLessons, showAllAgendaLessons],
   );
-  const selectedHistoryPayment = useMemo(
-    () =>
-      selectedHistoryLesson
-        ? paymentByAppointmentId.get(selectedHistoryLesson.id) ?? null
-        : null,
-    [paymentByAppointmentId, selectedHistoryLesson]
-  );
-
-  useEffect(() => {
-    setHistoryDetailsOpen(false);
-    setSelectedHistoryLesson(null);
-  }, [selectedStudentId]);
-
   useEffect(() => {
     setShowAllAgendaLessons(false);
   }, [calendarRange?.from, calendarRange?.to, selectedStudentId]);
@@ -1105,17 +971,6 @@ export const AllievoHomeScreen = () => {
     to.setHours(23, 59, 59, 999);
     setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
   }, [selectedDate]);
-
-  useEffect(() => {
-    if (!selectedHistoryLesson) return;
-    const updated = appointments.find((item) => item.id === selectedHistoryLesson.id);
-    if (!updated) {
-      setHistoryDetailsOpen(false);
-      setSelectedHistoryLesson(null);
-      return;
-    }
-    setSelectedHistoryLesson(updated);
-  }, [appointments, selectedHistoryLesson]);
 
   const nextLesson = upcoming[0];
 
@@ -1314,27 +1169,6 @@ export const AllievoHomeScreen = () => {
       setToast({
         text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.',
         tone: 'info',
-      });
-      return;
-    }
-    if (requiresPaymentMethodForBooking) {
-      setToast({
-        text: 'Aggiungi un metodo di pagamento dalle impostazioni prima di prenotare.',
-        tone: 'info',
-      });
-      return;
-    }
-    if (requiresCreditsForBooking) {
-      setToast({
-        text: 'Non hai crediti guida disponibili. Contatta la tua autoscuola.',
-        tone: 'info',
-      });
-      return;
-    }
-    if (paymentProfile?.blockedByInsoluti) {
-      setToast({
-        text: 'Hai pagamenti insoluti. Salda prima di prenotare una nuova guida.',
-        tone: 'danger',
       });
       return;
     }
@@ -1575,177 +1409,6 @@ export const AllievoHomeScreen = () => {
     );
   };
 
-  const handleOpenHistoryDetails = (lesson: AutoscuolaAppointmentWithRelations) => {
-    openLessonDetail(lesson);
-  };
-
-  const getPaymentDocument = useCallback(
-    async (appointmentId: string): Promise<MobileAppointmentPaymentDocument | null> => {
-      const document = await regloApi.getAppointmentPaymentDocument(appointmentId);
-      if (document.documentType === 'none' || !document.viewUrl) {
-        setToast({
-          text: 'Documento non disponibile al momento.',
-          tone: 'info',
-        });
-        return null;
-      }
-      return document;
-    },
-    []
-  );
-
-  const handleOpenPaymentDocument = useCallback(async () => {
-    if (!selectedHistoryPayment || historyDocumentBusy) return;
-    setHistoryDocumentBusy('view');
-    try {
-      const document = await getPaymentDocument(selectedHistoryPayment.appointmentId);
-      if (!document?.viewUrl) return;
-      const webBrowser = await getWebBrowserModule();
-      if (webBrowser) {
-        await webBrowser.openBrowserAsync(document.viewUrl, {
-          presentationStyle: webBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-        });
-        return;
-      }
-      await Linking.openURL(document.viewUrl);
-      setToast({
-        text: 'Viewer in-app non disponibile su questa build. Aperto nel browser.',
-        tone: 'info',
-      });
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore aprendo il documento',
-        tone: 'danger',
-      });
-    } finally {
-      setHistoryDocumentBusy(null);
-    }
-  }, [getPaymentDocument, historyDocumentBusy, selectedHistoryPayment]);
-
-  const handleSharePaymentDocument = useCallback(async () => {
-    if (!selectedHistoryPayment || historyDocumentBusy) return;
-    setHistoryDocumentBusy('share');
-    let downloadedUri: string | null = null;
-    try {
-      const document = await regloApi.getAppointmentPaymentDocument(selectedHistoryPayment.appointmentId);
-      if (document.documentType === 'none' || !document.shareUrl || document.shareMode === 'none') {
-        setToast({
-          text: 'Documento non disponibile al momento.',
-          tone: 'info',
-        });
-        return;
-      }
-
-      if (document.shareMode === 'file') {
-        const sharing = await getSharingModule();
-        if (!sharing || !(await sharing.isAvailableAsync())) {
-          await Share.share({
-            message: document.shareUrl,
-            url: document.shareUrl,
-          });
-          setToast({
-            text: 'Condivisione file non disponibile su questa build. Ti condivido il link.',
-            tone: 'info',
-          });
-          return;
-        }
-
-        const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-        if (!cacheDir) {
-          throw new Error('Storage locale non disponibile sul dispositivo.');
-        }
-        const fileUri = `${cacheDir}payment-${selectedHistoryPayment.appointmentId}-${Date.now()}.pdf`;
-        const downloaded = await FileSystem.downloadAsync(document.shareUrl, fileUri);
-        downloadedUri = downloaded.uri;
-        await sharing.shareAsync(downloaded.uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: document.label,
-          UTI: 'com.adobe.pdf',
-        });
-        return;
-      }
-
-      await Share.share({
-        message: document.shareUrl,
-        url: document.shareUrl,
-      });
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore condividendo il documento',
-        tone: 'danger',
-      });
-    } finally {
-      if (downloadedUri) {
-        try {
-          await FileSystem.deleteAsync(downloadedUri, { idempotent: true });
-        } catch {
-          // ignore cleanup error
-        }
-      }
-      setHistoryDocumentBusy(null);
-    }
-  }, [historyDocumentBusy, selectedHistoryPayment]);
-
-  const handlePayNow = async () => {
-    if (!selectedStudentId || !paymentProfile?.outstanding.length) return;
-    const outstanding = paymentProfile.outstanding[0];
-    setPayNowLoading(true);
-    setToast(null);
-    try {
-      const setup = await regloApi.preparePayNow(outstanding.appointmentId);
-      const baseSheetConfig = {
-        merchantDisplayName: 'Reglo Autoscuole',
-        customerId: setup.customerId,
-        customerEphemeralKeySecret: setup.ephemeralKey,
-        paymentIntentClientSecret: setup.paymentIntentClientSecret,
-      } as const;
-
-      let init = await initPaymentSheet({
-        ...baseSheetConfig,
-        applePay: { merchantCountryCode: 'IT' },
-        googlePay: { merchantCountryCode: 'IT', testEnv: __DEV__ },
-      });
-
-      if (init.error && shouldRetryPaymentSheetWithoutWallet(init.error.message)) {
-        init = await initPaymentSheet(baseSheetConfig);
-        if (!init.error) {
-          setToast({
-            text: 'Apple Pay non disponibile su questa build. Usa carta o Link.',
-            tone: 'info',
-          });
-        }
-      }
-
-      if (init.error) {
-        throw new Error(init.error.message);
-      }
-
-      const result = await presentPaymentSheet();
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const finalized = await regloApi.finalizePayNow(
-        outstanding.appointmentId,
-        setup.paymentIntentId
-      );
-
-      if (!finalized.success) {
-        throw new Error(finalized.message ?? 'Pagamento in elaborazione.');
-      }
-
-      setToast({ text: 'Pagamento completato', tone: 'success' });
-      invalidateAllData();
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante pagamento',
-        tone: 'danger',
-      });
-    } finally {
-      setPayNowLoading(false);
-    }
-  };
-
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setToast(null);
@@ -1764,8 +1427,6 @@ export const AllievoHomeScreen = () => {
     }
   }, [invalidateAllData, loadStudents, refreshGroupInvitesCount]);
 
-  const blockedByInsoluti = paymentProfile?.blockedByInsoluti;
-
   const openLessonDetail = useCallback((lesson: AutoscuolaAppointmentWithRelations) => {
     const status = (lesson.status ?? '').trim().toLowerCase();
     const isFutureActive = upcomingConfirmedStatuses.has(status) && new Date(lesson.startsAt).getTime() > Date.now();
@@ -1775,7 +1436,6 @@ export const AllievoHomeScreen = () => {
     const swappableType = !lesson.groupLessonId && type !== 'group_lesson' && type !== 'esame';
     lessonDetailStore.set({
       lesson,
-      payment: paymentByAppointmentId.get(lesson.id) ?? null,
       canSwap: swappableType && isFutureActive && ['scheduled', 'confirmed'].includes(status) && !!(bookingOptions?.swapEnabled ?? settings?.swapEnabled),
       canCancel: isFutureActive && !!canCancelAppointments,
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
@@ -1785,7 +1445,7 @@ export const AllievoHomeScreen = () => {
       onRevokeSwap: handleRevokeSwap,
     });
     router.push('/(tabs)/home/lesson-detail');
-  }, [paymentByAppointmentId, bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
+  }, [bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
 
   const openGroupLessonDetail = useCallback((appt: AutoscuolaAppointmentWithRelations) => {
     if (!appt.groupLessonId) return;

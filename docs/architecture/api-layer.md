@@ -20,7 +20,6 @@ type ApiResponse<T> = ApiSuccess<T> | ApiError;
 | `AutoscuolaAppointmentWithRelations` | 14 |
 | `InstructorClusterSettings` | 9 |
 | `AutoscuolaStudent` | 7 |
-| `MobileStudentPaymentProfile` | 2 |
 | `NotificationItem` | 3 |
 
 ## Most-called API functions

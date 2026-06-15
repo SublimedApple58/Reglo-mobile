@@ -14,13 +14,12 @@ Student lesson booking: select type/duration → pick date → view available sl
 4. `BookingCelebration` plays (variant: 'booking')
 
 ## API functions used
-`getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`, `getPaymentProfile`
+`getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 
 ## Components used
 Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingCelebration
 
 ## Connected features
 - **Notifications** — booking success can trigger proposal/confirmation
-- **Payments** — payment profile needed for booking
 - **Settings** — booking governance (limits, cutoff, actors) configured in settings
 - **Backend** — `docs/features/booking-engine.md` in `../reglo/`
