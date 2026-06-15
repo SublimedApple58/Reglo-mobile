@@ -3,7 +3,7 @@ import { authStorage, RegloApiError, onAuthInvalidated } from '../services/apiCl
 import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
-import { AutoscuolaRole, CompanySummary, UserPublic } from '../types/regloApi';
+import { AuthPayload, AutoscuolaRole, CompanySummary, UserPublic } from '../types/regloApi';
 
 type SessionStatus = 'loading' | 'unauthenticated' | 'company_select' | 'ready';
 
@@ -29,6 +29,8 @@ type SessionContextValue = SessionState & {
   signOut: () => Promise<void>;
   selectCompany: (companyId: string) => Promise<void>;
   refreshMe: () => Promise<void>;
+  /** Establish a session directly from an AuthPayload (e.g. after a password reset auto-login). */
+  applyAuthPayload: (payload: AuthPayload) => Promise<void>;
 };
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
@@ -195,9 +197,10 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       });
   }, [state.status, state.activeCompanyId, state.user?.id]);
 
-  const signIn = useCallback(
-    async (email: string, password: string) => {
-      const payload = await regloApi.login({ email, password });
+  // Shared by signIn / signUp / password-reset auto-login: if the user has a
+  // single company and none active yet, select it, then commit the session.
+  const applyAuthPayload = useCallback(
+    async (payload: AuthPayload) => {
       if (!payload.activeCompanyId && payload.companies.length === 1) {
         const companyId = payload.companies[0].id;
         await regloApi.selectCompany({ companyId });
@@ -215,6 +218,14 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     [setAuthenticated]
   );
 
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const payload = await regloApi.login({ email, password });
+      await applyAuthPayload(payload);
+    },
+    [applyAuthPayload]
+  );
+
   const signUp = useCallback(
     async (input: {
       name: string;
@@ -225,21 +236,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       schoolCode: string;
     }) => {
       const payload = await regloApi.studentRegister(input);
-      if (!payload.activeCompanyId && payload.companies.length === 1) {
-        const companyId = payload.companies[0].id;
-        await regloApi.selectCompany({ companyId });
-        payload.activeCompanyId = companyId;
-        payload.autoscuolaRole = payload.companies[0].autoscuolaRole ?? null;
-      }
-      setAuthenticated({
-        user: payload.user,
-        companies: payload.companies,
-        activeCompanyId: payload.activeCompanyId,
-        autoscuolaRole: payload.autoscuolaRole ?? null,
-        instructorId: payload.instructorId ?? null,
-      });
+      await applyAuthPayload(payload);
     },
-    [setAuthenticated]
+    [applyAuthPayload]
   );
 
   const signOut = useCallback(async () => {
@@ -274,8 +273,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       signOut,
       selectCompany,
       refreshMe,
+      applyAuthPayload,
     }),
-    [state, signIn, signUp, signOut, selectCompany, refreshMe]
+    [state, signIn, signUp, signOut, selectCompany, refreshMe, applyAuthPayload]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

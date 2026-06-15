@@ -85,7 +85,14 @@ const AuthGate = () => {
       // stale API calls with invalidated token (crashes on instructor logout)
       queryClient.cancelQueries();
       queryClient.clear();
-      const allowedAuthLeaves = new Set(['login', 'signup', 'invite']);
+      const allowedAuthLeaves = new Set([
+        'login',
+        'login-sheet',
+        'signup',
+        'invite',
+        'password-reset',
+        'password-reset-sheet',
+      ]);
       if (!inAuth || !allowedAuthLeaves.has(leaf ?? '')) {
         router.replace('/(auth)/login');
       }

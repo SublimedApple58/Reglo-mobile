@@ -13,7 +13,11 @@
 - `status` (auth state)
 
 ## Methods
-`signIn`, `signUp`, `signOut`, `selectCompany`, `refreshMe`
+`signIn`, `signUp`, `signOut`, `selectCompany`, `refreshMe`, `applyAuthPayload`
+
+`applyAuthPayload(payload)` commits a session directly from an `AuthPayload`
+(single-company auto-select + set state). Shared internally by `signIn`/`signUp`
+and used by the password-reset auto-login (see `features/password-reset.md`).
 
 ## Storage
 - Native: `expo-secure-store`

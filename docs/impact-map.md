@@ -125,6 +125,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - **Veicolo fisso per istruttore (1:1, 2026-06-09)**: tutto in `more/vehicle-form` (sezione Veicoli, NON nei cluster). Titolare → picker "Istruttore assegnato" (`isOwner`, lista da `getInstructors`); istruttore → toggle "Assegna a me" (`session.instructorId`; bloccato se il veicolo è di un altro). Toggle `followsInstructorAvailability` nel form. BE riassegna automaticamente (rilascia il veicolo precedente dell'istruttore). → **Quick-book** (`IstruttoreHomeScreen`/`bookingSheetStore`): `defaultVehicleId` precompilato col veicolo fisso, modificabile. → **Backend** `updateVehicle({assignedInstructorId, followsInstructorAvailability})`.
 - **Categorie patente (B/AM/A1/A2/A + cambio, 2026-06-09, 2° mattone)**: veicolo = una categoria + un cambio (picker in `more/vehicle-form`, costanti `src/utils/license.ts`, badge in `VehiclesScreen`). L'idoneità dell'istruttore è **derivata dal veicolo** (nessun campo istruttore). Il percorso dell'allievo (`CompanyMember.licenseCategory/transmission`) lo imposta il **titolare da web** (no edit allievo su mobile); arriva in `StudentPhasePayload` come info. Matching BE **gated su `vehiclesEnabled`**. → **Tipi** `AutoscuolaVehicle`/`Create|UpdateVehicleInput`/`StudentPhasePayload`. → **Quick-book** invariato.
 
+### Password Reset
+- **`PasswordResetScreen`** (sheet iOS / inline Android): 3 step email→codice→password, riusa `AuthField` + `ToastNotice` + pattern code-input di `SignupScreen`.
+- → **Session & Auth**: usa `SessionContext.applyAuthPayload` per l'auto-login; se cambia la shape di `AuthPayload` aggiorna login + reset insieme.
+- → **LoginScreen**: `onForgot` apre la route per piattaforma (`password-reset-sheet` / `password-reset`); entrambe in `allowedAuthLeaves` (`app/_layout.tsx`).
+- → **Backend**: 3 route `POST /api/mobile/auth/password-reset/*`. OTA-safe (nessun modulo nativo nuovo).
+
 ## Cross-Repo Impact
 
 When `../reglo/` backend changes:

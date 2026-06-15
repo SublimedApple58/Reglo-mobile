@@ -20,6 +20,7 @@
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
 | Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |
+| Password Reset | [password-reset.md](features/password-reset.md) | `PasswordResetScreen`, `(auth)/password-reset(-sheet)`, `LoginScreen.onForgot` |
 
 ## Design System
 

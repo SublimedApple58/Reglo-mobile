@@ -65,6 +65,10 @@ import {
   SelectCompanyInput,
   SelectCompanyPayload,
   StudentRegisterInput,
+  PasswordResetRequestInput,
+  PasswordResetVerifyInput,
+  PasswordResetConfirmInput,
+  PasswordResetConfirmResult,
   UnregisterPushTokenInput,
   RescheduleAppointmentInput,
   RescheduleAppointmentResult,
@@ -128,6 +132,39 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.setToken(payload.token);
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
+    },
+    // ── Password reset (OTP via email) ──
+    passwordResetRequest: async (input: PasswordResetRequestInput) => {
+      // Server always answers 200 with a generic message (no enumeration); the
+      // screen shows its own generic copy, so we only care that it didn't throw.
+      await client.request<unknown>('/api/mobile/auth/password-reset/request', {
+        method: 'POST',
+        body: input,
+      });
+    },
+    passwordResetVerify: async (input: PasswordResetVerifyInput) => {
+      // Throws RegloApiError (400) when the code is wrong/expired.
+      await client.request<unknown>('/api/mobile/auth/password-reset/verify', {
+        method: 'POST',
+        body: input,
+      });
+    },
+    passwordResetConfirm: async (
+      input: PasswordResetConfirmInput,
+    ): Promise<PasswordResetConfirmResult> => {
+      // On success the server returns the full AuthPayload (auto-login) OR only
+      // a message (no company membership). `request` returns `data` or undefined.
+      const payload = (await client.request<AuthPayload>(
+        '/api/mobile/auth/password-reset/confirm',
+        { method: 'POST', body: input },
+      )) as AuthPayload | undefined;
+
+      if (payload?.token) {
+        await authStorage.setToken(payload.token);
+        await authStorage.setActiveCompanyId(payload.activeCompanyId);
+        return { autoLogin: true, payload };
+      }
+      return { autoLogin: false };
     },
     logout: async () => {
       const payload = await client.request<LogoutPayload>('/api/mobile/auth/logout', {

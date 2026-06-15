@@ -623,6 +623,25 @@ export type StudentRegisterInput = {
   schoolCode: string;
 };
 
+// Self-service password reset (OTP via email)
+export type PasswordResetRequestInput = { email: string };
+export type PasswordResetVerifyInput = { email: string; code: string };
+export type PasswordResetConfirmInput = {
+  email: string;
+  code: string;
+  password: string;
+  confirmPassword: string;
+};
+/** request/verify return only an ack; the generic message is shown as-is. */
+export type PasswordResetAck = { message?: string };
+/**
+ * confirm returns the full AuthPayload (auto-login) when the account can enter,
+ * or only a message (e.g. no company membership → log in manually).
+ */
+export type PasswordResetConfirmResult =
+  | { autoLogin: true; payload: AuthPayload }
+  | { autoLogin: false; message?: string };
+
 export type SelectCompanyInput = { companyId: Uuid };
 export type UpdateProfileInput = { name: string; phone?: string };
 export type MobileInviteContext = {
