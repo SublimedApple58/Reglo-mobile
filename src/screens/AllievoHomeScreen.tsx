@@ -414,6 +414,15 @@ export const AllievoHomeScreen = () => {
         // the server has confirmed it.
         bookingFlowStore.set({ loading: true });
         const slot = s.selectedSlot;
+        // On error (weekly limit, slot taken, …) close the booking modal and show
+        // the toast on the home — otherwise the slots route keeps its own confirm
+        // spinner running (it lives in the route, not here) and the toast would be
+        // hidden behind the modal.
+        const closeWithError = (msg: string) => {
+          router.dismiss(2);
+          bookingFlowStore.clear();
+          setToast({ text: msg, tone: 'danger' });
+        };
         regloApi.createBookingRequest({
           studentId: selectedStudentId,
           preferredDate: toDateString(s.preferredDate),
@@ -429,18 +438,12 @@ export const AllievoHomeScreen = () => {
             triggerBookingCelebration();
             return;
           }
-          bookingFlowStore.set({ loading: false });
-          setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
           await invalidateAllData();
+          closeWithError('Slot non più disponibile. Riprova.');
         }).catch((err) => {
-          bookingFlowStore.set({ loading: false });
           // Surface the server message (e.g. the weekly-limit rejection
-          // "Hai raggiunto il limite massimo di N guide settimanali…") instead
-          // of a generic error, so the student understands why it was blocked.
-          setToast({
-            text: err instanceof Error ? err.message : 'Errore nella prenotazione',
-            tone: 'danger',
-          });
+          // "Hai raggiunto il limite massimo di N guide settimanali…").
+          closeWithError(err instanceof Error ? err.message : 'Errore nella prenotazione');
         });
       },
       onClose: () => { bookingFlowStore.clear(); },
