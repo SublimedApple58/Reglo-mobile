@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<style>
+  :root{--ink:#1A1A2E;--muted:#717784;--green:#157F4F;--green-t:#E9F3ED;--red:#BB3B30;--red-t:#F8EBE8;}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;}
+  body{background:#E7E1D6;padding:34px 30px;width:780px;color:var(--ink);}
+  h2{font-size:12.5px;font-weight:600;color:#9a9384;margin:6px 0 16px;letter-spacing:.6px;text-transform:uppercase;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px;}
+  .toast{position:relative;background:#fff;border-radius:20px;box-shadow:0 12px 32px rgba(26,26,46,.15),0 3px 8px rgba(26,26,46,.07);}
+  .body{display:flex;align-items:center;gap:14px;padding:16px 18px;}
+  .ic{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .ttl{font-size:15.5px;font-weight:600;letter-spacing:.1px;}
+  .desc{font-size:13px;font-weight:500;color:var(--muted);margin-top:3px;line-height:1.35;}
+  .prog{position:absolute;left:18px;right:18px;bottom:10px;height:2px;border-radius:2px;background:#EFEAE0;overflow:hidden;}
+  .prog>i{display:block;height:100%;width:62%;border-radius:2px;}
+  .ok .prog>i{background:var(--green);} .err .prog>i{background:var(--red);}
+  /* Soft */
+  .soft.ok .ic{background:var(--green-t);} .soft.err .ic{background:var(--red-t);}
+  /* Pieno */
+  .fill.ok .ic{background:var(--green);} .fill.err .ic{background:var(--red);}
+</style></head><body>
+  <h2>Trattamento 1 · SOFT  (icona a contorno su tinta tenue)</h2>
+  <div class="grid">
+    <div class="toast soft ok"><div class="body"><div class="ic" id="s1"></div><div><div class="ttl">Guida prenotata</div><div class="desc">Martedì 17 giu · 15:00 con Marco</div></div></div><div class="prog"><i></i></div></div>
+    <div class="toast soft err"><div class="body"><div class="ic" id="s2"></div><div><div class="ttl">Slot non più disponibile</div><div class="desc">Qualcun altro l’ha preso. Riprova.</div></div></div><div class="prog"><i></i></div></div>
+  </div>
+  <h2>Trattamento 2 · PIENO  (cerchio pieno, icona bianca)</h2>
+  <div class="grid">
+    <div class="toast fill ok"><div class="body"><div class="ic" id="f1"></div><div><div class="ttl">Guida prenotata</div><div class="desc">Martedì 17 giu · 15:00 con Marco</div></div></div><div class="prog"><i></i></div></div>
+    <div class="toast fill err"><div class="body"><div class="ic" id="f2"></div><div><div class="ttl">Slot non più disponibile</div><div class="desc">Qualcun altro l’ha preso. Riprova.</div></div></div><div class="prog"><i></i></div></div>
+  </div>
+<script>
+  var CHK=function(c){return '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';};
+  var ALR=function(c){return '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.6"/><path d="M12 16.2h.01"/></svg>';};
+  s1.innerHTML=CHK('#157F4F'); s2.innerHTML=ALR('#BB3B30');
+  f1.innerHTML=CHK('#FFFFFF'); f2.innerHTML=ALR('#FFFFFF');
+</script>
+</body></html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<style>
+  :root{--navy:#1A1A2E;--navy-800:#23233A;--ivory:#F5EFE6;--ink:#1A1A2E;--muted:#6B7280;
+    --ok:#0E9F6E;--ok-tint:#E8F6EF;--ok-on-navy:rgba(16,185,129,0.20);
+    --err:#C13515;--err-tint:#FBEBE5;--err-on-navy:rgba(226,96,60,0.22);}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;}
+  body{background:#0F0F1A;padding:30px 28px;color:var(--ivory);width:760px;}
+  h2{font-size:14px;font-weight:600;color:rgba(245,239,230,.55);margin:8px 0 14px;letter-spacing:.3px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:26px;}
+  .toast{position:relative;border-radius:20px;}
+  .grab{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:34px;height:4px;border-radius:3px;opacity:.5;}
+  .body{display:flex;align-items:center;gap:13px;padding:15px 16px;}
+  .ic{flex:0 0 38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;}
+  .ttl{font-size:15px;font-weight:600;}
+  .desc{font-size:12.5px;font-weight:500;margin-top:2px;line-height:1.35;}
+  .prog{position:absolute;left:16px;right:16px;bottom:9px;height:2.5px;border-radius:2px;overflow:hidden;}
+  .prog>i{display:block;height:100%;width:66%;border-radius:2px;}
+  .A{background:linear-gradient(180deg,var(--navy-800),var(--navy));box-shadow:0 16px 36px rgba(0,0,0,.45),inset 0 0 0 1px rgba(245,239,230,.06);}
+  .A .grab{background:var(--ivory);}.A .ttl{color:var(--ivory);}.A .desc{color:rgba(245,239,230,.6);}
+  .A.ok .ic{background:var(--ok-on-navy);}.A.err .ic{background:var(--err-on-navy);}
+  .A .prog{background:rgba(245,239,230,.12);}.A.ok .prog>i{background:var(--ok);}.A.err .prog>i{background:#E2603C;}
+  .B{background:#fff;box-shadow:0 16px 38px rgba(26,26,46,.20),0 2px 8px rgba(26,26,46,.08);}
+  .B .grab{background:#C9C2B6;}.B .ttl{color:var(--ink);}.B .desc{color:var(--muted);}
+  .B.ok .ic{background:var(--ok-tint);}.B.err .ic{background:var(--err-tint);}
+  .B .prog{background:#EFEAE0;}.B.ok .prog>i{background:var(--ok);}.B.err .prog>i{background:var(--err);}
+</style></head><body>
+  <h2>DIREZIONE A · Navy pill (premium mono)</h2>
+  <div class="grid">
+    <div class="toast A ok"><div class="grab"></div><div class="body"><div class="ic" id="a1"></div><div><div class="ttl">Guida prenotata</div><div class="desc">Martedì 17 giu · 15:00 con Marco</div></div></div><div class="prog"><i></i></div></div>
+    <div class="toast A err"><div class="grab"></div><div class="body"><div class="ic" id="a2"></div><div><div class="ttl">Slot non più disponibile</div><div class="desc">Qualcun altro l’ha preso. Riprova.</div></div></div><div class="prog"><i></i></div></div>
+  </div>
+  <h2>DIREZIONE B · White card (Airbnb)</h2>
+  <div class="grid">
+    <div class="toast B ok"><div class="grab"></div><div class="body"><div class="ic" id="b1"></div><div><div class="ttl">Guida prenotata</div><div class="desc">Martedì 17 giu · 15:00 con Marco</div></div></div><div class="prog"><i></i></div></div>
+    <div class="toast B err"><div class="grab"></div><div class="body"><div class="ic" id="b2"></div><div><div class="ttl">Slot non più disponibile</div><div class="desc">Qualcun altro l’ha preso. Riprova.</div></div></div><div class="prog"><i></i></div></div>
+  </div>
+<script>
+  var CHK=function(c){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';};
+  var ALR=function(c){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><path d="M12 16.1h.01"/></svg>';};
+  a1.innerHTML=CHK('#34D399'); a2.innerHTML=ALR('#F08A6B');
+  b1.innerHTML=CHK('#0E9F6E'); b2.innerHTML=ALR('#C13515');
+</script>
+</body></html>

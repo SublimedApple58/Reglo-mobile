@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reglo · Toast redesign (Airbnb, mono-navy, trascinabile)</title>
+<style>
+  :root{
+    --navy:#1A1A2E; --navy-800:#23233A; --navy-700:#2E2E48;
+    --ivory:#F5EFE6; --ink:#1A1A2E; --muted:#6B7280;
+    --ok:#0E9F6E; --ok-tint:#E8F6EF; --ok-on-navy:rgba(16,185,129,0.20);
+    --err:#C13515; --err-tint:#FBEBE5; --err-on-navy:rgba(226,96,60,0.22);
+    --hairline:#ECE7DD;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+    background:#0F0F1A;
+    color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;gap:22px;
+    padding:26px 16px 40px;min-height:100%;
+  }
+  h1{color:var(--ivory);font-size:17px;font-weight:600;margin:2px 0 0;letter-spacing:.2px;}
+  .sub{color:rgba(245,239,230,.55);font-size:12.5px;font-weight:500;margin:-12px 0 4px;text-align:center;max-width:460px;line-height:1.5;}
+
+  /* phone frame */
+  .phone{
+    position:relative;width:390px;max-width:96vw;height:720px;border-radius:46px;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #2A2A42 0%, #14141F 46%, #101019 100%);
+    box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.05);
+    overflow:hidden;
+  }
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:30px;background:#0c0c14;border-radius:18px;z-index:5;}
+  /* faux app behind */
+  .app{position:absolute;inset:0;padding:60px 20px 0;}
+  .app .greet{color:var(--ivory);font-weight:600;font-size:24px;opacity:.92;}
+  .app .greet small{display:block;font-size:13px;font-weight:500;color:rgba(245,239,230,.5);margin-top:6px;}
+  .card-ghost{margin-top:22px;height:150px;border-radius:22px;background:linear-gradient(180deg,rgba(245,239,230,.10),rgba(245,239,230,.04));border:1px solid rgba(245,239,230,.08);}
+  .row-ghost{margin-top:16px;height:64px;border-radius:16px;background:rgba(245,239,230,.06);}
+  .row-ghost+ .row-ghost{margin-top:12px;}
+
+  /* toast layer */
+  .toastLayer{position:absolute;top:0;left:0;right:0;padding:54px 14px 0;z-index:20;pointer-events:none;}
+  .toast{
+    pointer-events:auto; position:relative; margin:0 auto; width:100%; max-width:360px;
+    border-radius:20px; cursor:grab; touch-action:none; user-select:none;
+    transform:translateY(-140%); opacity:0;
+    transition:transform .42s cubic-bezier(.16,1,.3,1), opacity .3s ease;
+    will-change:transform,opacity;
+  }
+  .toast.in{transform:translateY(0);opacity:1;}
+  .toast .grab{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:34px;height:4px;border-radius:3px;opacity:.5;}
+  .toast .body{display:flex;align-items:center;gap:13px;padding:15px 16px;}
+  .toast .ic{flex:0 0 38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;}
+  .toast .txt{flex:1;min-width:0;}
+  .toast .ttl{font-size:15px;font-weight:600;letter-spacing:.1px;}
+  .toast .desc{font-size:12.5px;font-weight:500;margin-top:2px;line-height:1.35;}
+
+  /* progress bar (auto-dismiss) */
+  .toast .prog{position:absolute;left:16px;right:16px;bottom:9px;height:2.5px;border-radius:2px;overflow:hidden;}
+  .toast .prog > i{display:block;height:100%;width:100%;transform-origin:left;border-radius:2px;}
+  .toast.in .prog > i{animation:drain 3.6s linear forwards;}
+  @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+  /* ── Direction A — Navy pill (premium mono) ── */
+  .A{background:linear-gradient(180deg,var(--navy-800),var(--navy));box-shadow:0 18px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(245,239,230,.06);}
+  .A .grab{background:var(--ivory);}
+  .A .ttl{color:var(--ivory);}
+  .A .desc{color:rgba(245,239,230,.6);}
+  .A.ok .ic{background:var(--ok-on-navy);}
+  .A.err .ic{background:var(--err-on-navy);}
+  .A .prog{background:rgba(245,239,230,.12);}
+  .A.ok .prog > i{background:var(--ok);}
+  .A.err .prog > i{background:#E2603C;}
+
+  /* ── Direction B — White card (Airbnb) ── */
+  .B{background:#FFFFFF;box-shadow:0 16px 38px rgba(26,26,46,.18), 0 2px 8px rgba(26,26,46,.08);}
+  .B .grab{background:#C9C2B6;}
+  .B .ttl{color:var(--ink);}
+  .B .desc{color:var(--muted);}
+  .B.ok .ic{background:var(--ok-tint);}
+  .B.err .ic{background:var(--err-tint);}
+  .B .prog{background:#EFEAE0;}
+  .B.ok .prog > i{background:var(--ok);}
+  .B.err .prog > i{background:var(--err);}
+
+  .hint{position:absolute;bottom:92px;left:0;right:0;text-align:center;color:rgba(245,239,230,.45);font-size:11.5px;font-weight:500;z-index:6;pointer-events:none;}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:460px;}
+  .seg{display:flex;background:#1c1c2b;border:1px solid rgba(245,239,230,.08);border-radius:14px;padding:4px;gap:4px;}
+  .seg button{appearance:none;border:0;background:transparent;color:rgba(245,239,230,.6);font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:10px;cursor:pointer;font-family:inherit;}
+  .seg button.on{background:var(--ivory);color:var(--navy);}
+  .btn{appearance:none;border:0;border-radius:13px;padding:12px 18px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .btn.ok{background:var(--ok);color:#fff;}
+  .btn.err{background:#fff;color:var(--err);border:1.5px solid var(--err);}
+  .legend{color:rgba(245,239,230,.5);font-size:11.5px;font-weight:500;text-align:center;max-width:430px;line-height:1.6;}
+  .legend b{color:rgba(245,239,230,.8);font-weight:600;}
+</style>
+</head>
+<body>
+  <h1>Reglo · Toast — redesign</h1>
+  <p class="sub">Stile Airbnb, mono-navy, niente pink. <b style="color:rgba(245,239,230,.8)">Trascina il toast verso l'alto</b> per chiuderlo, oppure aspetta che si chiuda da solo.</p>
+
+  <div class="controls">
+    <div class="seg" id="dirSeg">
+      <button data-dir="A" class="on">Direzione A · Navy pill</button>
+      <button data-dir="B">Direzione B · White card</button>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="app">
+      <div class="greet">Ciao Tiziano<small>Ecco la tua giornata</small></div>
+      <div class="card-ghost"></div>
+      <div class="row-ghost"></div>
+      <div class="row-ghost"></div>
+      <div class="row-ghost"></div>
+    </div>
+
+    <div class="toastLayer" id="layer"></div>
+    <div class="hint">↑ trascina verso l'alto per chiudere</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn ok" onclick="show('ok')">Mostra conferma</button>
+    <button class="btn err" onclick="show('err')">Mostra errore</button>
+  </div>
+  <p class="legend">
+    <b>Conferma</b>: icona ✓ verde sobrio · <b>Errore</b>: icona avviso rosso terracotta (Airbnb, non pink).<br>
+    Barra sottile = auto-dismiss (~3,6s). Maniglia in alto = trascinabile. Pesi 500–600.
+  </p>
+
+<script>
+  var DIR = 'A';
+  var layer = document.getElementById('layer');
+
+  var ICONS = {
+    ok:  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    err: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><circle cx="12" cy="16.2" r="0.2" fill="{c}" stroke-width="1.6"/></svg>'
+  };
+  var COPY = {
+    ok:  { ttl:'Guida prenotata', desc:'Martedì 17 giu · 15:00 con Marco' },
+    err: { ttl:'Slot non più disponibile', desc:'Qualcun altro l’ha preso. Riprova.' }
+  };
+  var ICON_COLOR = {
+    A: { ok:'#34D399', err:'#F08A6B' },
+    B: { ok:'#0E9F6E', err:'#C13515' }
+  };
+
+  function show(kind){
+    layer.innerHTML='';
+    var t = document.createElement('div');
+    t.className = 'toast ' + DIR + ' ' + kind;
+    var c = ICON_COLOR[DIR][kind];
+    t.innerHTML =
+      '<div class="grab"></div>'+
+      '<div class="body">'+
+        '<div class="ic">'+ ICONS[kind].replace(/\{c\}/g, c) +'</div>'+
+        '<div class="txt"><div class="ttl">'+COPY[kind].ttl+'</div><div class="desc">'+COPY[kind].desc+'</div></div>'+
+      '</div>'+
+      '<div class="prog"><i></i></div>';
+    layer.appendChild(t);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('in'); }); });
+
+    var dead=false, autoT;
+    function kill(up){
+      if(dead) return; dead=true; clearTimeout(autoT);
+      t.style.transition='transform .3s cubic-bezier(.4,0,1,1), opacity .25s ease';
+      t.style.transform='translateY('+(up||-160)+'px)'; t.style.opacity='0';
+      setTimeout(function(){ t.remove(); }, 320);
+    }
+    autoT=setTimeout(function(){ kill(-160); }, 3600);
+
+    // drag up to dismiss
+    var startY=null, cur=0;
+    function down(e){ startY=(e.touches?e.touches[0].clientY:e.clientY); t.style.transition='none'; t.style.cursor='grabbing'; clearTimeout(autoT); var anim=t.querySelector('.prog > i'); if(anim) anim.style.animationPlayState='paused'; }
+    function move(e){ if(startY===null)return; var y=(e.touches?e.touches[0].clientY:e.clientY); cur=Math.min(0, y-startY); t.style.transform='translateY('+cur+'px)'; t.style.opacity = String(Math.max(0, 1 + cur/120)); }
+    function up(){ if(startY===null)return; startY=null; t.style.cursor='grab';
+      if(cur < -46){ kill(-180); }
+      else { t.style.transition='transform .3s cubic-bezier(.16,1,.3,1), opacity .2s'; t.style.transform='translateY(0)'; t.style.opacity='1'; autoT=setTimeout(function(){ kill(-160); }, 2200); var anim=t.querySelector('.prog > i'); if(anim) anim.style.animationPlayState='running'; }
+      cur=0;
+    }
+    t.addEventListener('mousedown',down); window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+    t.addEventListener('touchstart',down,{passive:true}); t.addEventListener('touchmove',move,{passive:true}); t.addEventListener('touchend',up);
+  }
+
+  document.getElementById('dirSeg').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    DIR=b.dataset.dir;
+    [].forEach.call(this.children,function(x){x.classList.toggle('on',x===b);});
+    show(layer.querySelector('.toast.err')?'err':'ok');
+  });
+
+  // initial
+  show('ok');
+</script>
+</body>
+</html>

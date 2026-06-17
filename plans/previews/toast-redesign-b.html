@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reglo · Toast B (Airbnb, light, trascinabile)</title>
+<style>
+  :root{--ink:#1A1A2E;--muted:#717784;--green:#157F4F;--green-t:#E9F3ED;--red:#BB3B30;--red-t:#F8EBE8;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;background:#E7E1D6;
+    display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px 16px 38px;min-height:100%;color:var(--ink);}
+  h1{font-size:16px;font-weight:600;margin:0;}
+  .sub{color:var(--muted);font-size:12.5px;font-weight:500;margin:-8px 0 2px;text-align:center;max-width:440px;line-height:1.5;}
+  .phone{position:relative;width:390px;max-width:96vw;height:700px;border-radius:46px;overflow:hidden;
+    background:linear-gradient(180deg,#FBF8F2 0%,#F3ECE0 100%);box-shadow:0 26px 70px rgba(40,34,24,.32),inset 0 0 0 1px rgba(0,0,0,.04);}
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:30px;background:#efe7d8;border-radius:18px;z-index:5;}
+  .app{position:absolute;inset:0;padding:62px 22px 0;}
+  .greet{font-weight:600;font-size:25px;}.greet small{display:block;font-size:13px;font-weight:500;color:#8a8475;margin-top:6px;}
+  .hero{margin-top:22px;height:150px;border-radius:22px;background:#fff;box-shadow:0 8px 22px rgba(40,34,24,.08);}
+  .rowg{margin-top:14px;height:62px;border-radius:16px;background:#fff;box-shadow:0 4px 14px rgba(40,34,24,.05);}
+  .layer{position:absolute;top:0;left:0;right:0;padding:54px 14px 0;z-index:20;pointer-events:none;}
+  .toast{pointer-events:auto;position:relative;margin:0 auto;width:100%;max-width:360px;background:#fff;border-radius:20px;
+    box-shadow:0 12px 32px rgba(26,26,46,.16),0 3px 8px rgba(26,26,46,.07);
+    cursor:grab;touch-action:none;user-select:none;transform:translateY(-150%);opacity:0;
+    transition:transform .44s cubic-bezier(.16,1,.3,1),opacity .3s ease;will-change:transform,opacity;}
+  .toast.in{transform:translateY(0);opacity:1;}
+  .body{display:flex;align-items:center;gap:14px;padding:16px 18px;}
+  .ic{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .ttl{font-size:15.5px;font-weight:600;letter-spacing:.1px;}
+  .desc{font-size:13px;font-weight:500;color:var(--muted);margin-top:3px;line-height:1.35;}
+  .prog{position:absolute;left:18px;right:18px;bottom:10px;height:2px;border-radius:2px;background:#EFEAE0;overflow:hidden;}
+  .prog>i{display:block;height:100%;width:100%;transform-origin:left;border-radius:2px;}
+  .toast.in .prog>i{animation:drain 3.6s linear forwards;}
+  @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+  .ok .prog>i{background:var(--green);} .err .prog>i{background:var(--red);}
+  .soft.ok .ic{background:var(--green-t);} .soft.err .ic{background:var(--red-t);}
+  .fill.ok .ic{background:var(--green);} .fill.err .ic{background:var(--red);}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;}
+  .seg{display:flex;background:#fff;border:1px solid rgba(26,26,46,.08);border-radius:14px;padding:4px;gap:4px;box-shadow:0 2px 8px rgba(40,34,24,.06);}
+  .seg button{appearance:none;border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;padding:8px 13px;border-radius:10px;cursor:pointer;font-family:inherit;}
+  .seg button.on{background:var(--ink);color:#fff;}
+  .btn{appearance:none;border:0;border-radius:13px;padding:12px 18px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(40,34,24,.10);}
+  .btn.ok{background:var(--green);color:#fff;} .btn.err{background:#fff;color:var(--red);border:1.5px solid #E7C9C4;}
+  .legend{color:#8a8475;font-size:11.5px;font-weight:500;text-align:center;}
+</style></head><body>
+  <h1>Reglo · Toast — Direzione B (light)</h1>
+  <p class="sub">Card bianca Airbnb, niente maniglia: <b>trascina la card verso l'alto</b> per chiuderla. Confronta i due trattamenti dell'icona.</p>
+  <div class="controls"><div class="seg" id="seg">
+    <button data-p="soft" class="on">Soft</button>
+    <button data-p="fill">Pieno</button>
+  </div></div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="app"><div class="greet">Ciao Tiziano<small>Ecco la tua giornata</small></div><div class="hero"></div><div class="rowg"></div><div class="rowg"></div></div>
+    <div class="layer" id="layer"></div>
+  </div>
+  <div class="controls">
+    <button class="btn ok" onclick="show('ok')">Mostra conferma</button>
+    <button class="btn err" onclick="show('err')">Mostra errore</button>
+  </div>
+  <p class="legend">Verde foresta · rosso mattone (rifiniti, niente neon) · icona circolare · trascinabile su</p>
+<script>
+  var P='soft', layer=document.getElementById('layer');
+  var CHK=function(c){return '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';};
+  var ALR=function(c){return '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.6"/><path d="M12 16.2h.01"/></svg>';};
+  var COPY={ok:{t:'Guida prenotata',d:'Martedì 17 giu · 15:00 con Marco'},err:{t:'Slot non più disponibile',d:'Qualcun altro l’ha preso. Riprova.'}};
+  function glyphColor(kind){ return P==='fill' ? '#FFFFFF' : (kind==='ok'?'#157F4F':'#BB3B30'); }
+  function show(kind){
+    layer.innerHTML='';
+    var t=document.createElement('div'); t.className='toast '+P+' '+kind;
+    var c=glyphColor(kind);
+    t.innerHTML='<div class="body"><div class="ic">'+(kind==='ok'?CHK(c):ALR(c))+'</div>'+
+      '<div><div class="ttl">'+COPY[kind].t+'</div><div class="desc">'+COPY[kind].d+'</div></div></div><div class="prog"><i></i></div>';
+    layer.appendChild(t);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){t.classList.add('in');});});
+    var dead=false,auto;
+    function kill(up){if(dead)return;dead=true;clearTimeout(auto);t.style.transition='transform .3s cubic-bezier(.4,0,1,1),opacity .25s';t.style.transform='translateY('+(up||-170)+'px)';t.style.opacity='0';setTimeout(function(){t.remove();},320);}
+    auto=setTimeout(function(){kill(-170);},3600);
+    var sy=null,cur=0;
+    function dn(e){sy=(e.touches?e.touches[0].clientY:e.clientY);t.style.transition='none';t.style.cursor='grabbing';clearTimeout(auto);var a=t.querySelector('.prog>i');if(a)a.style.animationPlayState='paused';}
+    function mv(e){if(sy===null)return;var y=(e.touches?e.touches[0].clientY:e.clientY);cur=Math.min(0,y-sy);t.style.transform='translateY('+cur+'px)';t.style.opacity=String(Math.max(0,1+cur/120));}
+    function up(){if(sy===null)return;sy=null;t.style.cursor='grab';if(cur<-46){kill(-190);}else{t.style.transition='transform .3s cubic-bezier(.16,1,.3,1),opacity .2s';t.style.transform='translateY(0)';t.style.opacity='1';auto=setTimeout(function(){kill(-170);},2200);var a=t.querySelector('.prog>i');if(a)a.style.animationPlayState='running';}cur=0;}
+    t.addEventListener('mousedown',dn);window.addEventListener('mousemove',mv);window.addEventListener('mouseup',up);
+    t.addEventListener('touchstart',dn,{passive:true});t.addEventListener('touchmove',mv,{passive:true});t.addEventListener('touchend',up);
+  }
+  document.getElementById('seg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;P=b.dataset.p;[].forEach.call(this.children,function(x){x.classList.toggle('on',x===b);});show(layer.querySelector('.toast.err')?'err':'ok');});
+  show('ok');
+</script>
+</body></html>
