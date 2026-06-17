@@ -311,7 +311,7 @@ type GridBookableProps = GhostSharedValues & {
   /** Gesture released — ghost placed, show CTA. */
   onPlace: (col: number, start: number, dur: number) => void;
   /** Quick tap on free space: create a placed ghost right there… */
-  onTapCreate: (col: number, start: number) => void;
+  onTapCreate: (col: number, start: number, dur: number) => void;
   /** …or dismiss the existing one. */
   onTapDismiss: () => void;
 };
@@ -385,8 +385,15 @@ const GridBookableWindow = ({
       if (ghostOn) { runOnJS(onTapDismiss)(); return; }
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
       const localMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      const start = Math.max(DAY_MIN, Math.min(DAY_MAX - defaultDur, localMin));
-      runOnJS(onTapCreate)(colIdx, start);
+      // Birth INSIDE this free segment so it never overlaps the adjacent block.
+      let dur = defaultDur;
+      let start = localMin;
+      if (windowEnd - windowStart < dur) {
+        start = windowStart; dur = windowEnd - windowStart;
+      } else {
+        start = Math.max(windowStart, Math.min(windowEnd - dur, localMin));
+      }
+      runOnJS(onTapCreate)(colIdx, start, dur);
     });
 
   const gesture = Gesture.Exclusive(pan, tap);
@@ -640,14 +647,14 @@ const WeekPage = React.memo(function WeekPage({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [setGhostLabels, onGhostChange, weekDays]);
 
-  const ghostTapCreate = useCallback((col: number, start: number) => {
-    gCol.value = col; gStart.value = start; gDur.value = defaultDur; gLive.value = 0;
-    setGhostLabels(start, defaultDur);
+  const ghostTapCreate = useCallback((col: number, start: number, dur: number) => {
+    gCol.value = col; gStart.value = start; gDur.value = dur; gLive.value = 0;
+    setGhostLabels(start, dur);
     setGhostOn(true);
-    onGhostChange({ date: weekDays[col], startMin: start, durMin: defaultDur });
+    onGhostChange({ date: weekDays[col], startMin: start, durMin: dur });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setGhostLabels, onGhostChange, weekDays, defaultDur]);
+  }, [setGhostLabels, onGhostChange, weekDays]);
 
   const ghostTapDismiss = useCallback(() => {
     setGhostOn(false);
