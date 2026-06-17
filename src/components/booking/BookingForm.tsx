@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { bookingSheetStore, type BookingResultItem } from '../../stores/bookingSheetStore';
+import { bookingSheetStore } from '../../stores/bookingSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
 import { studentPickerStore } from '../../stores/studentPickerStore';
@@ -19,7 +19,7 @@ import { locationPickerStore } from '../../stores/locationPickerStore';
 import { locationFormStore } from '../../stores/locationFormStore';
 import { optionsPickerStore } from '../../stores/optionsPickerStore';
 import { regloApi } from '../../services/regloApi';
-import type { MobileBookingOptions, AutoscuolaAppointment } from '../../types/regloApi';
+import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
@@ -234,33 +234,32 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     router.push('/(tabs)/home/select-options');
   };
 
-  // Truly-optimistic: insert the provisional row(s) and dismiss the sheet BEFORE
-  // the network call (instant feel, like the student flow), then resolve in the
-  // background — reconcile on success, roll the row(s) back on failure / cancel.
-  const runOptimistic = (
-    items: BookingResultItem[],
+  // Non-optimistic: keep the sheet open with a button spinner, run the create,
+  // refresh the parent's agenda from the BE, then close. The UI only shows the
+  // booking once the BE has confirmed it.
+  const runBooking = (
     doBook: (skip?: boolean) => Promise<unknown>,
-    onSuccess: (result: unknown, ids: string[]) => void,
+    successMessage: (result: unknown) => string,
     initialSkip = false,
   ) => {
-    const ids = items.map((i) => i.id);
-    data.onOptimisticInsert(items);
-    router.back();
+    setPending(true);
     const settle = async (skip = false) => {
       try {
         const result = await doBook(skip);
-        onSuccess(result, ids);
+        await data.onApplied();
+        data.onDone(successMessage(result));
+        router.back();
       } catch (err: unknown) {
         const payload = (err as { payload?: Record<string, unknown> })?.payload;
         if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
           const msg = typeof payload.message === 'string' ? payload.message : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
           Alert.alert('Limite settimanale', msg, [
-            { text: 'Annulla', style: 'cancel', onPress: () => data.onOptimisticRemove(ids) },
+            { text: 'Annulla', style: 'cancel', onPress: () => setPending(false) },
             { text: 'Procedi', onPress: () => { void settle(true); } },
           ]);
           return;
         }
-        data.onOptimisticRemove(ids);
+        setPending(false);
         Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella prenotazione');
       }
     };
@@ -296,22 +295,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
-    const item: BookingResultItem = {
-      id: `provisional-${start.getTime()}`,
-      studentId, startsAt: start.toISOString(), endsAt: end.toISOString(),
-      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, locationName, locationAddress,
-      type: lessonTypes[0] ?? 'guida', types: lessonTypes,
-    };
-    const book = (skip = false) => runOptimistic([item], (s2) => regloApi.confirmInstructorBooking({
+    const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
       studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
       vehicleId: vehiclesEnabled ? vehicleId : null, locationId, ...typesPayload,
       ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
-    }), (result, ids) => {
-      // Single booking returns the real appointment → swap the provisional row in
-      // place (no full refetch ⇒ no "scatto"/remount). Toast only.
-      data.onOptimisticReplace(ids[0], result as AutoscuolaAppointment);
-      data.onDone('Guida prenotata.');
-    }, skip);
+    }), () => 'Guida prenotata.', skip);
     const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
     if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
     book();
@@ -327,22 +315,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       const end = new Date(start.getTime() + entry.duration * 60 * 1000);
       return { startsAt: start.toISOString(), endsAt: end.toISOString() };
     });
-    // Batch endpoint returns only a count (no ids), so insert provisional rows.
-    const items: BookingResultItem[] = payloadEntries.map((e, i) => ({
-      id: `provisional-${new Date(e.startsAt).getTime()}-${i}`,
-      studentId, startsAt: e.startsAt, endsAt: e.endsAt,
-      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, locationName, locationAddress,
-      type: lessonTypes[0] ?? 'guida', types: lessonTypes,
-    }));
-    const book = (skip = false) => runOptimistic(items, (s2) => regloApi.confirmInstructorBookingBatch({
+    const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBookingBatch({
       studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null, ...typesPayload,
       ...(s2 ? { skipWeeklyLimitCheck: true } : {}), entries: payloadEntries,
-    }), (result, ids) => {
-      // Batch returns only a count (no ids) → lightweight agenda refetch that
-      // merges the real rows over the provisionals in place (matched by identity).
-      data.onReconcile(ids);
-      data.onDone(`${(result as { created: number }).created} guide prenotate.`);
-    }, skip);
+    }), (result) => `${(result as { created: number }).created} guide prenotate.`, skip);
     const nowWeek = isoWeekStartUTC(new Date());
     const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
     if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;

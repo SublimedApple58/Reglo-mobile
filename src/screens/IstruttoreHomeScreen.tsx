@@ -51,7 +51,7 @@ import { Input } from '../components/Input';
 import { CalendarDrawer } from '../components/CalendarDrawer';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { homeAddSheetStore } from '../stores/homeAddSheetStore';
-import { bookingSheetStore, type BookingResultItem } from '../stores/bookingSheetStore';
+import { bookingSheetStore } from '../stores/bookingSheetStore';
 import { blockSheetStore } from '../stores/blockSheetStore';
 import { sickLeaveSheetStore } from '../stores/sickLeaveSheetStore';
 import { examSheetStore } from '../stores/examSheetStore';
@@ -185,19 +185,6 @@ const getLessonIdentityKey = (lesson: AutoscuolaAppointmentWithRelations) => {
     lesson.endsAt ?? '',
   ].join(':');
 };
-
-// Loose identity used to match a provisional (optimistic) booking against the
-// real row the BE returns — ignores slotId (the provisional has none) and rounds
-// startsAt to the minute. Used to re-inject still-in-flight bookings into any
-// refetch so a concurrent loadData() (e.g. the screen-focus listener firing when
-// the booking modal closes) can never wipe a guida that isn't committed yet.
-// Same idea as looseIdentityKey but for instructor blocks (provisional block has
-// no real id yet): match by instructor + startsAt-to-the-minute.
-const looseBlockKey = (b: { instructorId: string; startsAt: string }) =>
-  `${b.instructorId}:${Math.floor(new Date(b.startsAt).getTime() / 60000)}`;
-
-const looseIdentityKey = (a: { studentId: string; startsAt: string }) =>
-  `${a.studentId}:${Math.floor(new Date(a.startsAt).getTime() / 60000)}`;
 
 const dedupeAppointments = (items: AutoscuolaAppointmentWithRelations[]) => {
   const map = new Map<string, AutoscuolaAppointmentWithRelations>();
@@ -617,7 +604,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     from.setDate(from.getDate() - 7);
     from.setHours(0, 0, 0, 0);
     const to = new Date();
-    to.setDate(to.getDate() + 21);
+    // Baseline forward reach before settings load (recentered to the real
+    // booking horizon below, once availabilityWeeks is known). +21 was shorter
+    // than the booking horizon, so a lesson booked ~3+ weeks out (e.g. July) fell
+    // outside the window and vanished after booking. 35d is a safe floor.
+    to.setDate(to.getDate() + 35);
     to.setHours(23, 59, 59, 999);
     return { from: from.toISOString(), to: to.toISOString() };
   });
@@ -756,7 +747,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     );
     setInstructorBlocks(freshBlocks);
     setAppointments(
-      stripDeleted(dedupeAppointments(bootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item))))
+      dedupeAppointments(bootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item)))
     );
     setInitialLoading(false);
     setRangeLoading(false);
@@ -783,55 +774,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     }
   }, [bootstrapCached.data, settingsCached.data, instructorSettingsCached.data, holidaysCached.data, effectiveInstructorId, instructorId]);
 
-  // Optimistic bookings still in flight (provisional id → built row). Any wholesale
-  // refetch re-injects these so a concurrent loadData() never wipes a guida that
-  // the BE hasn't committed yet. Entries are removed when the booking settles
-  // (replace/reconcile/rollback) or once the server starts returning the real row.
-  const pendingProvisionalsRef = useRef<Map<string, AutoscuolaAppointmentWithRelations>>(new Map());
-  const injectPending = useCallback(
-    (list: AutoscuolaAppointmentWithRelations[], fromMs: number, toMs: number) => {
-      if (pendingProvisionalsRef.current.size === 0) return list;
-      const present = new Set(list.map(looseIdentityKey));
-      // Prune provisionals the server now returns (committed + visible).
-      for (const [id, p] of pendingProvisionalsRef.current) {
-        if (present.has(looseIdentityKey(p))) pendingProvisionalsRef.current.delete(id);
-      }
-      const extra: AutoscuolaAppointmentWithRelations[] = [];
-      for (const p of pendingProvisionalsRef.current.values()) {
-        const t = new Date(p.startsAt).getTime();
-        if (t >= fromMs && t <= toMs && !present.has(looseIdentityKey(p))) extra.push(p);
-      }
-      return extra.length ? dedupeAppointments([...list, ...extra]) : list;
-    },
-    [],
-  );
-
-  // Tombstone for optimistically-deleted guide ("Elimina definitivamente"). The
-  // mirror of injectPending: a focus/stale refetch that races the (already
-  // committed) delete would otherwise re-add the guide for a beat → the ugly
-  // "disappears, flickers back, then disappears again" ping-pong. stripDeleted
-  // filters tombstoned ids out of any freshly fetched list.
-  const deletedIdsRef = useRef<Set<string>>(new Set());
-  const stripDeleted = useCallback((list: AutoscuolaAppointmentWithRelations[]) => {
-    if (deletedIdsRef.current.size === 0) return list;
-    return list.filter((a) => !deletedIdsRef.current.has(a.id));
-  }, []);
-
-  // Same guard for instructor blocks (Blocca slot / Malattia optimistic insert):
-  // a focus-triggered loadData must not wipe a block the BE hasn't committed yet.
-  const pendingBlocksRef = useRef<Map<string, InstructorBlock>>(new Map());
-  const injectPendingBlocks = useCallback((list: InstructorBlock[]) => {
-    if (pendingBlocksRef.current.size === 0) return list;
-    const present = new Set(list.map(looseBlockKey));
-    for (const [id, b] of pendingBlocksRef.current) {
-      if (present.has(looseBlockKey(b))) pendingBlocksRef.current.delete(id);
-    }
-    const extra: InstructorBlock[] = [];
-    for (const b of pendingBlocksRef.current.values()) {
-      if (!present.has(looseBlockKey(b))) extra.push(b);
-    }
-    return extra.length ? [...list, ...extra] : list;
-  }, []);
 
   const loadData = useCallback(async (opts?: { force?: boolean }): Promise<AutoscuolaAppointmentWithRelations[]> => {
     if (!instructorId && !ownerMode) return [];
@@ -943,7 +885,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           mergedBlocks.push(sb);
         }
       }
-      setInstructorBlocks(injectPendingBlocks(mergedBlocks));
+      setInstructorBlocks(mergedBlocks);
       const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
       const matchesScope = (item: { instructorId?: string | null }) =>
         effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
@@ -953,21 +895,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       const nextFeaturedAppointments = dedupeAppointments(
         featuredAppointmentsResponse.filter((item) => matchesScope(item) && notCancelled(item)),
       );
-      // Tombstone prune: once the BE no longer returns a deleted id (cancel
-      // committed), drop it from the tombstone so it can never re-appear nor
-      // wrongly hide a future booking that reuses the slot.
-      if (deletedIdsRef.current.size) {
-        const activeIds = new Set(nextAppointments.map((a) => a.id));
-        for (const id of deletedIdsRef.current) {
-          if (!activeIds.has(id)) deletedIdsRef.current.delete(id);
-        }
-      }
-      // Re-inject any still-in-flight optimistic bookings so a focus-triggered
-      // refetch can't wipe a guida the BE hasn't committed yet; strip any guide
-      // pending deletion so it doesn't flicker back.
-      const mergedAppointments = stripDeleted(injectPending(nextAppointments, from.getTime(), to.getTime()));
+      const mergedAppointments = nextAppointments;
       setAppointments(mergedAppointments);
-      setFeaturedAppointments(stripDeleted(injectPending(nextFeaturedAppointments, featuredFrom.getTime(), featuredTo.getTime())));
+      setFeaturedAppointments(nextFeaturedAppointments);
       // Background revalidation over an already-painted window → gentle cross-fade
       // to the fresh data (not on a brand-new window load, which shows a skeleton).
       if (!shouldShowRangeSkeleton) {
@@ -989,7 +919,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         }
       }
     }
-  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, injectPending, injectPendingBlocks, stripDeleted, queryClient, activeCompanyId]);
+  }, [loadRange, instructorId, ownerMode, effectiveInstructorId, queryClient, activeCompanyId]);
 
   const loadOutOfAvailability = useCallback(async () => {
     if (!instructorId && !ownerMode) return;
@@ -1115,10 +1045,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // refreshes keep the (week) grid painted instead of flashing a loader.
   const appointmentsLoading = (initialLoading || rangeLoading) && appointments.length === 0;
 
-
-  // openBlockDrawer / openSickLeaveDrawer are defined further down, after
-  // reconcileProvisionalBlocks (they reference it in their optimistic callbacks).
-
   const handleDeleteBlock = useCallback(async (blockId: string) => {
     try {
       await regloApi.deleteInstructorBlock(blockId);
@@ -1152,27 +1078,37 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // gruppo" page sheet (roster, instructor/vehicle, sposta, annulla). Loads the
   // instructor + vehicle lists for the in-modal pickers, then seeds the store.
   const openGroupLessonManage = useCallback(
-    async (groupLessonId: string) => {
-      try {
-        const vehiclesEnabled = settings?.vehiclesEnabled !== false;
+    (groupLessonId: string) => {
+      const vehiclesEnabled = settings?.vehiclesEnabled !== false;
+      // Open the sheet IMMEDIATELY. Previously this awaited getInstructors +
+      // getVehicles BEFORE pushing, so the group-lesson sheet lagged noticeably
+      // vs the normal "Gestisci guida" (which opens from local data). Seed with
+      // empty picker lists and push now; the lists fill in a beat later from a
+      // background fetch (the screen reads them reactively from the store).
+      groupLessonManageStore.set({
+        groupLessonId,
+        instructors: [],
+        vehicles: [],
+        vehiclesEnabled,
+        readOnly: ownerMode,
+        onChanged: () => { loadData(); },
+      });
+      router.push('/(tabs)/home/manage-group-lesson');
+      void (async () => {
         const [instructorsRes, vehiclesRes] = await Promise.all([
           regloApi.getInstructors().catch(() => [] as AutoscuolaInstructor[]),
           vehiclesEnabled
             ? regloApi.getVehicles().catch(() => [] as AutoscuolaVehicle[])
             : Promise.resolve([] as AutoscuolaVehicle[]),
         ]);
+        const cur = groupLessonManageStore.get();
+        if (cur?.groupLessonId !== groupLessonId) return; // sheet closed/changed
         groupLessonManageStore.set({
-          groupLessonId,
+          ...cur,
           instructors: (instructorsRes ?? []).filter((i) => i.status !== 'inactive'),
           vehicles: (vehiclesRes ?? []).filter((v) => v.status === 'active'),
-          vehiclesEnabled,
-          readOnly: ownerMode,
-          onChanged: () => { loadData(); },
         });
-        router.push('/(tabs)/home/manage-group-lesson');
-      } catch (e) {
-        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
-      }
+      })();
     },
     [loadData, router, settings?.vehiclesEnabled, ownerMode],
   );
@@ -1979,9 +1915,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
   // Recenter the fetch window only when the selected day nears an edge. Staying
   // inside the loaded window is a no-op → no refetch, no skeleton (pure client
-  // filter). The generous span (-7/+21) prefetches neighbours for both the day
-  // grid and week swipes; SWR keeps the visible day painted during a recenter.
+  // filter). The span (-7 / +booking-horizon) prefetches neighbours for the day
+  // grid and week swipes AND covers everything bookable; SWR keeps the visible
+  // day painted during a recenter.
   useEffect(() => {
+    // Forward reach = the school's booking horizon (availabilityWeeks) + buffer,
+    // so everything bookable is loaded and a just-booked lesson never vanishes;
+    // navigating further still recenters the window and refetches on demand.
+    const forwardDays = Math.max(35, (Number(settings?.availabilityWeeks) || 4) * 7 + 7);
     setLoadRange((prev) => {
       const sel = new Date(selectedDate);
       sel.setHours(0, 0, 0, 0);
@@ -1989,18 +1930,21 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       const prevFrom = new Date(prev.from).getTime();
       const prevTo = new Date(prev.to).getTime();
       const MARGIN = 86400000; // 1 day
-      if (selMs >= prevFrom + MARGIN && selMs <= prevTo - MARGIN) return prev;
+      const desiredTo = selMs + forwardDays * MARGIN;
+      // No-op only if the selected day sits comfortably inside the window AND the
+      // window still reaches the booking horizon (it may not once settings load).
+      if (selMs >= prevFrom + MARGIN && selMs <= prevTo - MARGIN && prevTo >= desiredTo - MARGIN) return prev;
       const from = new Date(selectedDate);
       from.setDate(from.getDate() - 7);
       from.setHours(0, 0, 0, 0);
       const to = new Date(selectedDate);
-      to.setDate(to.getDate() + 21);
+      to.setDate(to.getDate() + forwardDays);
       to.setHours(23, 59, 59, 999);
       const next = { from: from.toISOString(), to: to.toISOString() };
       if (next.from === prev.from && next.to === prev.to) return prev;
       return next;
     });
-  }, [selectedDate]);
+  }, [selectedDate, settings?.availabilityWeeks]);
 
   useEffect(() => {
     if (agendaViewMode === 'week' || agendaViewMode === 'grid') {
@@ -2126,27 +2070,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         return;
       }
 
-      // Optimistic update: patch the status everywhere it shows immediately, so
-      // the home list / featured card reflect it without waiting on the BE.
+      // No optimistic update: wait for the BE, then refresh from it. The spinner
+      // (pendingAction) stays up the whole time so the action doesn't feel dead.
       const lessonId = lesson.id;
-      const optimistic: Partial<AutoscuolaAppointmentWithRelations> = {
-        status: action,
-        ...(types.length ? { types, type: types[0] } : {}),
-      };
-      const previous: Partial<AutoscuolaAppointmentWithRelations> = {
-        status: lesson.status,
-        type: lesson.type,
-        types: lesson.types,
-      };
-      const applyPatch = (patch: Partial<AutoscuolaAppointmentWithRelations>) => {
-        const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
-          arr.map((a) => (a.id === lessonId ? { ...a, ...patch } : a));
-        setAppointments((p) => map(p));
-        setFeaturedAppointments((p) => map(p));
-        setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patch } : p));
-      };
-
-      applyPatch(optimistic);
       setPendingAction(action);
       setError(null);
 
@@ -2156,14 +2082,13 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           lessonType: types[0] || undefined,
           lessonTypes: types.length ? types : undefined,
         });
+        // Refresh from the BE before closing so the list/card show the true state.
+        await loadData();
         setToast({ text: 'Stato aggiornato', tone: 'success' });
         if (options?.closeDrawerOnSuccess) {
           setSheetLesson(null);
         }
-        // Reconcile with the BE in the background (keeps derived fields fresh).
-        void loadData();
       } catch (err) {
-        applyPatch(previous); // roll back the optimistic change
         const message = err instanceof Error ? err.message : 'Errore aggiornando stato';
         setError(message);
         setToast({ text: message, tone: 'danger' });
@@ -2209,52 +2134,30 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       return false;
     }
 
-    // Optimistic update: patch the changed fields everywhere they show, close the
-    // sheet immediately, then reconcile with the BE in the background.
+    // No optimistic update: wait for the BE, refresh from it, then report success
+    // so the caller can close. The caller keeps its spinner while this awaits.
     const lessonId = lesson.id;
-    const optimistic: Partial<AutoscuolaAppointmentWithRelations> = {
-      ...(payload.lessonTypes ? { types: payload.lessonTypes, type: payload.lessonType } : {}),
-      ...(payload.rating !== undefined ? { rating: payload.rating } : {}),
-      ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
-    };
-    const previous: Partial<AutoscuolaAppointmentWithRelations> = {
-      types: lesson.types,
-      type: lesson.type,
-      rating: lesson.rating,
-      notes: lesson.notes,
-    };
-    const applyPatch = (patch: Partial<AutoscuolaAppointmentWithRelations>) => {
-      const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
-        arr.map((a) => (a.id === lessonId ? { ...a, ...patch } : a));
-      setAppointments((p) => map(p));
-      setFeaturedAppointments((p) => map(p));
-      setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patch } : p));
-    };
-
-    applyPatch(optimistic);
     setToast(null);
     setError(null);
 
-    void (async () => {
-      try {
-        await regloApi.updateAppointmentDetails(lessonId, payload);
-        setToast({ text: 'Dettagli guida salvati.', tone: 'success' });
-        void loadData();
-      } catch (err) {
-        applyPatch(previous); // roll back the optimistic change
-        const message = err instanceof Error ? err.message : 'Errore aggiornando dettagli';
-        setError(message);
-        setToast({ text: message, tone: 'danger' });
-      }
-    })();
-
-    return true;
+    try {
+      await regloApi.updateAppointmentDetails(lessonId, payload);
+      await loadData();
+      setToast({ text: 'Dettagli guida salvati.', tone: 'success' });
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Errore aggiornando dettagli';
+      setError(message);
+      setToast({ text: message, tone: 'danger' });
+      return false;
+    }
   };
 
-  // Instructor reassignment — checks availability, then auto-saves (optimistic).
-  // Uses Alert (not toast) for the failure path since toasts render under the
-  // modal route and would be invisible while the sheet stays open.
-  const changeLessonInstructor = (
+  // Instructor reassignment — checks availability, then auto-saves. No optimistic
+  // update: the row reflects the change only after the BE confirms (and we refresh
+  // the drawer from it). Uses Alert (not toast) for the failure path since toasts
+  // render under the modal route and would be invisible while the sheet stays open.
+  const changeLessonInstructor = async (
     lesson: AutoscuolaAppointmentWithRelations,
     instructor: { id: string; name: string },
   ) => {
@@ -2267,29 +2170,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       Alert.alert('Guida non modificabile', 'Non puoi cambiare istruttore per una guida conclusa o annullata.');
       return;
     }
-    const prevId = lesson.instructorId;
-    const prevInstr = lesson.instructor;
-    const patch = (patchData: Partial<AutoscuolaAppointmentWithRelations>) => {
-      const map = (arr: AutoscuolaAppointmentWithRelations[]) =>
-        arr.map((a) => (a.id === lessonId ? { ...a, ...patchData } : a));
-      setAppointments((p) => map(p));
-      setFeaturedAppointments((p) => map(p));
-      setSheetLesson((p) => (p && p.id === lessonId ? { ...p, ...patchData } : p));
-    };
-    // Optimistic update so the row reflects the choice immediately. The BE
-    // validates instructor availability and rejects on conflict.
-    patch({ instructorId: instructor.id, instructor: instructor as any });
 
-    void (async () => {
-      try {
-        await regloApi.updateAppointmentDetails(lessonId, { instructorId: instructor.id });
-        setToast({ text: 'Istruttore aggiornato.', tone: 'success' });
-        void loadData();
-      } catch (err: unknown) {
-        patch({ instructorId: prevId, instructor: prevInstr }); // roll back
-        Alert.alert('Istruttore non aggiornato', err instanceof Error ? err.message : 'Errore aggiornando istruttore.');
-      }
-    })();
+    try {
+      await regloApi.updateAppointmentDetails(lessonId, { instructorId: instructor.id });
+      await refreshAndSyncDrawer(lessonId);
+      setToast({ text: 'Istruttore aggiornato.', tone: 'success' });
+    } catch (err: unknown) {
+      Alert.alert('Istruttore non aggiornato', err instanceof Error ? err.message : 'Errore aggiornando istruttore.');
+    }
   };
 
   const handleStatusAction = async (action: InstructorActionStatus, lessonTypes: string[]) => {
@@ -2323,12 +2211,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             style: 'destructive',
             onPress: async () => {
               const lessonId = lesson.id;
-              // Optimistic removal + tombstone so a focus/stale refetch racing the
-              // (already committed) delete can't flicker the guide back.
-              deletedIdsRef.current.add(lessonId);
-              setAppointments((prev) => prev.filter((a) => a.id !== lessonId));
-              setFeaturedAppointments((prev) => prev.filter((a) => a.id !== lessonId));
-              setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
+              // No optimistic removal: wait for the BE, refresh from it, then close.
               setPendingAction('save_details');
               setToast(null);
               try {
@@ -2336,26 +2219,23 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 if (!res?.success) {
                   throw new Error(res?.message || 'Impossibile eliminare la guida.');
                 }
+                await loadData();
+                setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
                 setToast({ text: 'Guida eliminata definitivamente.', tone: 'success' });
-                // Fresh fetch confirms the cancel and prunes the tombstone.
-                void loadData();
               } catch (err) {
                 // The cancel often commits server-side even when the client call
                 // times out (slow student notifications on the BE) — so don't cry
-                // wolf. loadData prunes the tombstone IFF the BE no longer returns
-                // the guide as active; use that to tell a real failure from a
-                // slow-but-successful delete.
-                await loadData();
-                if (deletedIdsRef.current.has(lessonId)) {
-                  // Still active on the BE → genuine failure: restore it + error.
-                  deletedIdsRef.current.delete(lessonId);
-                  await loadData();
+                // wolf. Refresh and check the BE truth: if the guide is no longer
+                // active, the delete actually succeeded.
+                const refreshed = await loadData();
+                const stillActive = refreshed.some((a) => a.id === lessonId);
+                if (stillActive) {
                   setToast({
                     text: err instanceof Error ? err.message : 'Errore durante l’eliminazione.',
                     tone: 'danger',
                   });
                 } else {
-                  // Cancel actually committed → confirm instead of a false error.
+                  setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
                   setToast({ text: 'Guida eliminata definitivamente.', tone: 'success' });
                 }
               } finally {
@@ -2439,8 +2319,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       stateLabel: getLessonStateLabel(lesson, now),
       durationText: durationLabel(lesson),
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
-      // Resolve from the relation, falling back to the vehicles list so an
-      // optimistic vehicleId-only change reflects the new name immediately.
+      // Resolve from the relation, falling back to the vehicles list by id.
       vehicleText: lesson.vehicle?.name ?? vehicles.find((v) => v.id === lesson.vehicleId)?.name ?? 'Da assegnare',
       vehicles: vehicleOptions,
       defaultLocation,
@@ -2487,43 +2366,27 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           handlePermanentDelete(lesson);
         }
       },
-      onChangeLocation: (location) => {
+      onChangeLocation: async (location) => {
         const lessonId = lesson.id;
-        const prevId = lesson.locationId;
-        const prevLoc = lesson.location;
-        if (location.id === prevId) return; // already the current location — nothing to save
-        setSheetLesson((prev) =>
-          prev && prev.id === lessonId ? { ...prev, locationId: location.id, location } : prev,
-        );
-        regloApi
-          .updateAppointmentDetails(lessonId, { locationId: location.id })
-          .catch((err) => {
-            setSheetLesson((prev) =>
-              prev && prev.id === lessonId ? { ...prev, locationId: prevId, location: prevLoc } : prev,
-            );
-            setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.', tone: 'danger' });
-          });
+        if (location.id === lesson.locationId) return; // already the current location — nothing to save
+        // No optimistic update: persist, then refresh the drawer from the BE.
+        try {
+          await regloApi.updateAppointmentDetails(lessonId, { locationId: location.id });
+          await refreshAndSyncDrawer(lessonId);
+        } catch (err) {
+          setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il luogo.', tone: 'danger' });
+        }
       },
-      onChangeVehicle: (vehicleId) => {
+      onChangeVehicle: async (vehicleId) => {
         const lessonId = lesson.id;
-        const prevId = lesson.vehicleId;
-        const prevVehicle = lesson.vehicle;
-        if ((vehicleId ?? null) === (prevId ?? null)) return; // already current — nothing to save
-        // Optimistic: set vehicleId only + clear the stale relation; vehicleText
-        // resolves the new name from the vehicles list. Server refresh syncs the
-        // full relation afterwards.
-        setSheetLesson((prev) =>
-          prev && prev.id === lessonId ? { ...prev, vehicleId: vehicleId ?? null, vehicle: null } : prev,
-        );
-        regloApi
-          .updateAppointmentDetails(lessonId, { vehicleId: vehicleId ?? null })
-          .then(() => { void refreshAndSyncDrawer(lessonId); })
-          .catch((err) => {
-            setSheetLesson((prev) =>
-              prev && prev.id === lessonId ? { ...prev, vehicleId: prevId, vehicle: prevVehicle } : prev,
-            );
-            setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il veicolo.', tone: 'danger' });
-          });
+        if ((vehicleId ?? null) === (lesson.vehicleId ?? null)) return; // already current — nothing to save
+        // No optimistic update: persist, then refresh the drawer from the BE.
+        try {
+          await regloApi.updateAppointmentDetails(lessonId, { vehicleId: vehicleId ?? null });
+          await refreshAndSyncDrawer(lessonId);
+        } catch (err) {
+          setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il veicolo.', tone: 'danger' });
+        }
       },
       onClosed: () => { setSheetLesson(null); },
     };
@@ -2622,210 +2485,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // New booking via the native modal route (same component family as Gestione guida).
   // Builds a provisional agenda row from a just-created booking so it shows
   // immediately; loadData() later replaces the whole array with BE data.
-  const buildProvisionalAppointment = useCallback(
-    (item: BookingResultItem): AutoscuolaAppointmentWithRelations => {
-      const stu = students.find((s) => s.id === item.studentId);
-      const veh = item.vehicleId ? vehicles.find((v) => v.id === item.vehicleId) : null;
-      const nowIso = new Date().toISOString();
-      return {
-        id: item.id,
-        companyId: '',
-        studentId: item.studentId,
-        caseId: null,
-        slotId: null,
-        type: item.type,
-        types: item.types,
-        rating: null,
-        startsAt: item.startsAt,
-        endsAt: item.endsAt,
-        status: 'scheduled',
-        instructorId: instructorId ?? null,
-        vehicleId: item.vehicleId,
-        locationId: item.locationId,
-        notes: null,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        student: {
-          id: item.studentId,
-          companyId: '',
-          firstName: stu?.firstName ?? '',
-          lastName: stu?.lastName ?? '',
-          email: null,
-          phone: stu?.phone ?? null,
-          status: 'active',
-          notes: null,
-          assignedInstructorId: stu?.assignedInstructorId ?? null,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        },
-        case: null,
-        instructor: null,
-        vehicle: veh
-          ? { id: veh.id, companyId: '', name: veh.name, plate: null, status: 'active', assignedInstructorId: veh.assignedInstructorId ?? null, followsInstructorAvailability: true, licenseCategory: veh.licenseCategory ?? 'B', transmission: veh.transmission ?? 'manual', createdAt: nowIso, updatedAt: nowIso }
-          : null,
-        location: item.locationId
-          ? { id: item.locationId, companyId: '', createdByUserId: null, name: item.locationName ?? '', address: item.locationAddress ?? null, latitude: null, longitude: null, placeId: null, isDefault: false, isPrecise: false }
-          : null,
-      };
-    },
-    [students, vehicles, instructorId],
-  );
-
-  // Batch booking returns no ids, so we must refetch to learn the real rows. This
-  // is a LIGHTWEIGHT reconcile (agenda + featured only — NOT the full loadData
-  // that also replaces settings/students/vehicles and reflows the whole screen):
-  // it merges the fresh real rows over the provisionals in place, matched by a
-  // loose identity (student + startsAt to the minute, ignoring slotId), so the
-  // visible rows update instead of the list being wiped and rebuilt.
-  const reconcileProvisionals = useCallback(
-    async (provisionalIds: string[]) => {
-      if (!instructorId) return;
-      const idSet = new Set(provisionalIds);
-      const looseKey = (a: AutoscuolaAppointmentWithRelations) =>
-        `${a.studentId}:${Math.floor(new Date(a.startsAt).getTime() / 60000)}`;
-      try {
-        const from = calendarRange ? new Date(calendarRange.from) : new Date();
-        const to = calendarRange ? new Date(calendarRange.to) : new Date();
-        if (!calendarRange) {
-          from.setDate(from.getDate() - 1);
-          from.setHours(0, 0, 0, 0);
-          to.setDate(to.getDate() + 14);
-          to.setHours(23, 59, 59, 999);
-        }
-        const featuredFrom = new Date();
-        featuredFrom.setDate(featuredFrom.getDate() - 1);
-        featuredFrom.setHours(0, 0, 0, 0);
-        const featuredTo = new Date();
-        featuredTo.setDate(featuredTo.getDate() + 60);
-        featuredTo.setHours(23, 59, 59, 999);
-        const [agendaBootstrap, featuredResp] = await Promise.all([
-          regloApi.getAgendaBootstrap({
-            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
-            from: from.toISOString(),
-            to: to.toISOString(),
-            limit: 280,
-          }),
-          regloApi.getAppointments({
-            ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}),
-            from: featuredFrom.toISOString(),
-            to: featuredTo.toISOString(),
-            limit: 220,
-            light: true,
-          }),
-        ]);
-        const notCancelled = (item: { status?: string | null }) =>
-          (item.status ?? '').toLowerCase() !== 'cancelled';
-        const matchesScope = (item: { instructorId?: string | null }) =>
-          effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
-        const freshAgenda = dedupeAppointments(
-          agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i)),
-        );
-        const freshFeatured = dedupeAppointments(
-          featuredResp.filter((i) => matchesScope(i) && notCancelled(i)),
-        );
-        const mergeReplace = (
-          prev: AutoscuolaAppointmentWithRelations[],
-          fresh: AutoscuolaAppointmentWithRelations[],
-        ) => {
-          const freshByKey = new Map(fresh.map((a) => [looseKey(a), a]));
-          const used = new Set<string>();
-          const out: AutoscuolaAppointmentWithRelations[] = [];
-          for (const a of prev) {
-            if (idSet.has(a.id)) {
-              const real = freshByKey.get(looseKey(a));
-              // Keep the provisional if the real row isn't back yet (replica lag):
-              // never let a just-booked guide vanish. A later loadData reconciles.
-              if (real) {
-                // Re-track under the real id (cleared by injectPending once a
-                // refetch returns it) so a stale loadData can't wipe it.
-                pendingProvisionalsRef.current.delete(a.id);
-                pendingProvisionalsRef.current.set(real.id, real);
-              }
-              out.push(real ?? a);
-              used.add(looseKey(real ?? a));
-            } else {
-              out.push(a);
-              used.add(looseKey(a));
-            }
-          }
-          for (const a of fresh) {
-            if (!used.has(looseKey(a))) out.push(a);
-          }
-          return dedupeAppointments(out);
-        };
-        setAppointments((prev) => mergeReplace(prev, freshAgenda));
-        setFeaturedAppointments((prev) => mergeReplace(prev, freshFeatured));
-      } catch {
-        // On failure, drop the provisionals so we don't leave ghost rows.
-        setAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
-        setFeaturedAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
-      }
-    },
-    [instructorId, effectiveInstructorId, calendarRange],
-  );
-
-  // Lightweight reconcile for optimistic instructor blocks (Blocca slot / Malattia):
-  // refetch blocks over a wide window and swap the provisionals for the real rows
-  // (matched by instructor + startsAt-to-the-minute), keeping any not-yet-returned
-  // provisional until the BE catches up. For sick leave, also refresh agenda +
-  // featured so the conflicting guides the BE cancelled drop out of the list.
-  const reconcileProvisionalBlocks = useCallback(
-    async (provisionalIds: string[], opts?: { refreshAppointments?: boolean }) => {
-      if (!instructorId) return;
-      const idSet = new Set(provisionalIds);
-      try {
-        const bFrom = new Date(); bFrom.setDate(bFrom.getDate() - 1); bFrom.setHours(0, 0, 0, 0);
-        const bTo = new Date(); bTo.setDate(bTo.getDate() + 60); bTo.setHours(23, 59, 59, 999);
-        const freshBlocks = (await regloApi.getInstructorBlocks({
-          instructorId: effectiveInstructorId ?? instructorId,
-          from: bFrom.toISOString(),
-          to: bTo.toISOString(),
-        })).filter((b) => (effectiveInstructorId ? b.instructorId === effectiveInstructorId : true));
-        const freshByKey = new Map(freshBlocks.map((b) => [looseBlockKey(b), b]));
-        setInstructorBlocks((prev) => {
-          const used = new Set<string>();
-          const out: InstructorBlock[] = [];
-          for (const b of prev) {
-            if (idSet.has(b.id)) {
-              const real = freshByKey.get(looseBlockKey(b));
-              if (real) {
-                pendingBlocksRef.current.delete(b.id);
-                pendingBlocksRef.current.set(real.id, real);
-                out.push(real); used.add(looseBlockKey(real));
-              } else { out.push(b); used.add(looseBlockKey(b)); }
-            } else { out.push(b); used.add(looseBlockKey(b)); }
-          }
-          for (const b of freshBlocks) { if (!used.has(looseBlockKey(b))) out.push(b); }
-          const seen = new Set<string>();
-          return out.filter((b) => (seen.has(b.id) ? false : (seen.add(b.id), true)));
-        });
-        if (opts?.refreshAppointments) {
-          const aFrom = calendarRange ? new Date(calendarRange.from) : new Date();
-          const aTo = calendarRange ? new Date(calendarRange.to) : new Date();
-          if (!calendarRange) { aFrom.setDate(aFrom.getDate() - 1); aFrom.setHours(0, 0, 0, 0); aTo.setDate(aTo.getDate() + 14); aTo.setHours(23, 59, 59, 999); }
-          const fFrom = new Date(); fFrom.setDate(fFrom.getDate() - 1); fFrom.setHours(0, 0, 0, 0);
-          const fTo = new Date(); fTo.setDate(fTo.getDate() + 60); fTo.setHours(23, 59, 59, 999);
-          const [agendaBootstrap, featuredResp] = await Promise.all([
-            regloApi.getAgendaBootstrap({ ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}), from: aFrom.toISOString(), to: aTo.toISOString(), limit: 280 }),
-            regloApi.getAppointments({ ...(effectiveInstructorId ? { instructorId: effectiveInstructorId } : {}), from: fFrom.toISOString(), to: fTo.toISOString(), limit: 220, light: true }),
-          ]);
-          const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
-          const matchesScope = (item: { instructorId?: string | null }) => (effectiveInstructorId ? item.instructorId === effectiveInstructorId : true);
-          setAppointments(stripDeleted(injectPending(dedupeAppointments(agendaBootstrap.appointments.filter((i) => matchesScope(i) && notCancelled(i))), aFrom.getTime(), aTo.getTime())));
-          setFeaturedAppointments(stripDeleted(injectPending(dedupeAppointments(featuredResp.filter((i) => matchesScope(i) && notCancelled(i))), fFrom.getTime(), fTo.getTime())));
-        }
-      } catch {
-        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
-        provisionalIds.forEach((id) => pendingBlocksRef.current.delete(id));
-      }
-    },
-    [instructorId, effectiveInstructorId, calendarRange, injectPending],
-  );
-
-  // "Blocca slot" + "Malattia": seed the store with the viewed day + instructor +
-  // optimistic callbacks, then push the route. Same optimistic model as bookings:
-  // the block(s) appear instantly, a focus-loadData can't wipe them (pendingBlocks
-  // guard), and the real rows reconcile in place on success.
+  // "Blocca slot" + "Malattia": seed the store with the viewed day + instructor,
+  // then push the route. Non-optimistic: the form runs the create, then onApplied
+  // (loadData) refreshes the agenda from the BE before the sheet closes.
   // Seeds blockSheetStore for the dedicated block-slot route AND the quick-book
   // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
   const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number) => {
@@ -2833,19 +2495,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       initialDate: initialDate.toISOString(),
       ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
       instructorId: effectiveInstructorId ?? instructorId ?? '',
-      onOptimisticInsert: (blocks) => {
-        blocks.forEach((b) => pendingBlocksRef.current.set(b.id, b));
-        setInstructorBlocks((prev) => [...prev, ...blocks]);
-      },
-      onOptimisticRemove: (ids) => {
-        const idSet = new Set(ids);
-        ids.forEach((id) => pendingBlocksRef.current.delete(id));
-        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
-      },
-      onReconcile: (ids) => { void reconcileProvisionalBlocks(ids); },
+      onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
-  }, [effectiveInstructorId, instructorId, reconcileProvisionalBlocks]);
+  }, [effectiveInstructorId, instructorId, loadData]);
 
   const openBlockDrawer = useCallback(() => {
     seedBlockStore(selectedDate);
@@ -2856,21 +2509,13 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     sickLeaveSheetStore.set({
       initialDate: selectedDate.toISOString(),
       instructorId: effectiveInstructorId ?? instructorId ?? '',
-      onOptimisticInsert: (blocks) => {
-        blocks.forEach((b) => pendingBlocksRef.current.set(b.id, b));
-        setInstructorBlocks((prev) => [...prev, ...blocks]);
-      },
-      onOptimisticRemove: (ids) => {
-        const idSet = new Set(ids);
-        ids.forEach((id) => pendingBlocksRef.current.delete(id));
-        setInstructorBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
-      },
-      // Sick leave also cancels conflicting guides → refresh appointments so they drop out.
-      onReconcile: (ids) => { void reconcileProvisionalBlocks(ids, { refreshAppointments: true }); },
+      // Sick leave also cancels conflicting guides → loadData refreshes the agenda
+      // from the BE so they drop out.
+      onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
     router.push('/(tabs)/home/sick-leave');
-  }, [selectedDate, effectiveInstructorId, instructorId, reconcileProvisionalBlocks, router]);
+  }, [selectedDate, effectiveInstructorId, instructorId, loadData, router]);
 
   const openCreateExam = useCallback(() => {
     examSheetStore.set({
@@ -2909,82 +2554,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         ? { id: defaultLocation.id, name: defaultLocation.name, address: defaultLocation.address ?? null }
         : null,
       bookedDateKeys: Array.from(bookedDatesSet),
-      onOptimisticInsert: (items) => {
-        const provisionals = items.map(buildProvisionalAppointment);
-        // Track them as in-flight so any concurrent loadData() (e.g. the focus
-        // listener firing when this modal closes) re-injects them instead of
-        // wiping them. Cleared when the booking settles or the BE returns it.
-        provisionals.forEach((p) => pendingProvisionalsRef.current.set(p.id, p));
-        // Only insert into the agenda list that's actually loaded (the selected
-        // day/week scope). A booking for another day must NOT flash on the
-        // current day — loadData() will fetch it when that day is opened.
-        const inAgendaScope = (iso: string) => {
-          const t = new Date(iso).getTime();
-          if (calendarRange) {
-            return t >= new Date(calendarRange.from).getTime() && t <= new Date(calendarRange.to).getTime();
-          }
-          return isSameDay(selectedDate, iso);
-        };
-        const agendaItems = provisionals.filter((p) => inAgendaScope(p.startsAt));
-        if (agendaItems.length) {
-          setAppointments((prev) => dedupeAppointments([...prev, ...agendaItems]));
-        }
-        // Featured ("prossima guida") pool spans ~[-1d, +60d] (mirror of loadData);
-        // insert upcoming bookings within it so the hero stays consistent.
-        const featStart = new Date(); featStart.setDate(featStart.getDate() - 1); featStart.setHours(0, 0, 0, 0);
-        const featEnd = new Date(); featEnd.setDate(featEnd.getDate() + 60); featEnd.setHours(23, 59, 59, 999);
-        const featuredItems = provisionals.filter((p) => {
-          const t = new Date(p.startsAt).getTime();
-          return t >= featStart.getTime() && t <= featEnd.getTime();
-        });
-        if (featuredItems.length) {
-          setFeaturedAppointments((prev) => dedupeAppointments([...prev, ...featuredItems]));
-        }
-      },
-      onOptimisticRemove: (ids) => {
-        const idSet = new Set(ids);
-        ids.forEach((id) => pendingProvisionalsRef.current.delete(id));
-        setAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
-        setFeaturedAppointments((prev) => prev.filter((a) => !idSet.has(a.id)));
-      },
-      // Single booking: the API returned the real appointment → patch the
-      // provisional row in place (keep its already-built relations, swap in the
-      // real id/slotId/status). No refetch ⇒ no full-screen reflow ("scatto").
-      onOptimisticReplace: (provisionalId, real) => {
-        // Build the real row from the tracked provisional (keeps the form's
-        // relations) merged with the API's real id/slotId/status/timestamps.
-        const prevRow = pendingProvisionalsRef.current.get(provisionalId);
-        pendingProvisionalsRef.current.delete(provisionalId);
-        const realRow: AutoscuolaAppointmentWithRelations | null = prevRow
-          ? {
-              ...prevRow,
-              id: real.id,
-              slotId: real.slotId ?? null,
-              status: real.status ?? prevRow.status,
-              type: real.type ?? prevRow.type,
-              types: real.types ?? prevRow.types,
-              startsAt: real.startsAt ?? prevRow.startsAt,
-              endsAt: real.endsAt ?? prevRow.endsAt,
-              vehicleId: real.vehicleId ?? prevRow.vehicleId,
-              locationId: real.locationId ?? prevRow.locationId,
-              instructorId: real.instructorId ?? prevRow.instructorId,
-              createdAt: real.createdAt ?? prevRow.createdAt,
-              updatedAt: real.updatedAt ?? prevRow.updatedAt,
-            }
-          : null;
-        // Keep tracking the REAL row until a refetch actually returns it, so a
-        // stale in-flight loadData (fetched before the booking committed) that
-        // resolves now can't wipe it. injectPending prunes it once the BE returns it.
-        if (realRow) pendingProvisionalsRef.current.set(real.id, realRow);
-        const patch = (a: AutoscuolaAppointmentWithRelations) =>
-          a.id === provisionalId ? (realRow ?? a) : a;
-        setAppointments((prev) => prev.map(patch));
-        setFeaturedAppointments((prev) => prev.map(patch));
-      },
-      onReconcile: (ids) => { void reconcileProvisionals(ids); },
+      onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
-  }, [canInstructorBook, settings?.vehiclesEnabled, settings?.availabilityWeeks, instructorId, selectedDate, calendarRange, bookingDurations, vehicles, bookingStudentOptions, defaultLocation, bookedDatesSet, reconcileProvisionals, buildProvisionalAppointment]);
+  }, [canInstructorBook, settings?.vehiclesEnabled, settings?.availabilityWeeks, instructorId, bookingDurations, vehicles, bookingStudentOptions, defaultLocation, bookedDatesSet, loadData]);
 
   const openNewBooking = useCallback(() => {
     if (!canInstructorBook) {
@@ -3081,7 +2654,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 </View>
                 <Text style={oobStyles.bannerText}>
                   <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
-                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilit\u00E0
+                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
                 </Text>
                 <Text style={oobStyles.bannerAction}>Gestisci</Text>
                 <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />

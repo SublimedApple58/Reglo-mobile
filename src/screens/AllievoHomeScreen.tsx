@@ -212,12 +212,21 @@ export const AllievoHomeScreen = () => {
   );
   const selectedStudentId = selectedStudent?.id ?? null;
 
+  // Settings drive the booking horizon used to size the appointment window below.
+  const settingsQuery = useAutoscuolaSettings();
+
   // ── Appointment query params (computed from calendarRange) ──
   const appointmentParams = useMemo(() => {
     if (!selectedStudentId) return null;
     const defaultFrom = addDays(new Date(), -7);
     defaultFrom.setHours(0, 0, 0, 0);
-    const defaultTo = addDays(new Date(), 30);
+    // Forward floor = the school's booking horizon (availabilityWeeks) + buffer.
+    // The home "prossime guide" list isn't navigable, so the window must cover
+    // everything bookable — otherwise a lesson booked weeks out (e.g. July) is
+    // outside the window and vanishes after booking. Navigating the calendar
+    // still extends `to` further on demand (selectedTo below).
+    const horizonWeeks = Number(settingsQuery.data?.availabilityWeeks) || 4;
+    const defaultTo = addDays(new Date(), Math.max(35, horizonWeeks * 7 + 7));
     defaultTo.setHours(23, 59, 59, 999);
     const selectedFrom = calendarRange ? new Date(calendarRange.from) : new Date(defaultFrom);
     selectedFrom.setHours(0, 0, 0, 0);
@@ -232,19 +241,24 @@ export const AllievoHomeScreen = () => {
       limit: 280,
       light: true,
     };
-  }, [selectedStudentId, calendarRange]);
+  }, [selectedStudentId, calendarRange, settingsQuery.data?.availabilityWeeks]);
 
   // ── Query hooks (data from cache on cold start, background refetch) ──
   const appointmentsQuery = useAppointments(appointmentParams);
-  const settingsQuery = useAutoscuolaSettings();
   const bookingOptionsQuery = useBookingOptions(selectedStudentId);
 
   // Derive data from hooks (fallback to empty/null for loading state)
   const allAppointments = appointmentsQuery.data;
-  const appointments = useMemo(
-    () => (allAppointments ?? []).filter((item) => selectedStudentId ? item.studentId === selectedStudentId : true),
-    [allAppointments, selectedStudentId]
-  );
+
+  // No optimistic overlay: the list shows exactly what the BE returns. After a
+  // booking/cancel, the flow awaits the mutation + refetch before updating the UI.
+  const appointments = useMemo(() => {
+    const base = allAppointments ?? [];
+    return base.filter((item) =>
+      selectedStudentId ? item.studentId === selectedStudentId : true,
+    );
+  }, [allAppointments, selectedStudentId]);
+
   const settings = settingsQuery.data ?? null;
   const bookingOptions = bookingOptionsQuery.data ?? null;
 
@@ -254,10 +268,14 @@ export const AllievoHomeScreen = () => {
   const studentDataReady = !!appointmentsQuery.data || appointmentsQuery.isError;
 
   // ── Invalidation helper (replaces loadData) ──
-  const invalidateAllData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    queryClient.invalidateQueries({ queryKey: ['autoscuola-settings'] });
-    queryClient.invalidateQueries({ queryKey: ['booking-options'] });
+  // Returns a promise that resolves once the refetch lands, so booking/cancel
+  // flows can await it and update the UI only when the BE data is in.
+  const invalidateAllData = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+      queryClient.invalidateQueries({ queryKey: ['autoscuola-settings'] }),
+      queryClient.invalidateQueries({ queryKey: ['booking-options'] }),
+    ]);
   }, [queryClient]);
 
   // ── Mutation hooks ──
@@ -391,29 +409,11 @@ export const AllievoHomeScreen = () => {
       onConfirmBooking: () => {
         const s = bookingFlowStore.get();
         if (!s?.selectedSlot || !selectedStudentId) return;
+        // No optimistic insert: keep the sheet in its loading state, wait for the
+        // BE + refetch, then dismiss and celebrate. The lesson appears only once
+        // the server has confirmed it.
         bookingFlowStore.set({ loading: true });
         const slot = s.selectedSlot;
-        // Optimistic insert
-        const provisionalId = `provisional-${Date.now()}`;
-        const provisionalAppt: AutoscuolaAppointmentWithRelations = {
-          id: provisionalId, companyId: '', studentId: selectedStudentId,
-          caseId: null, slotId: null,
-          type: canSelectLessonType ? (s.selectedLessonTypes[0] ?? 'guida') : 'guida',
-          startsAt: slot.startsAt, endsAt: slot.endsAt, status: 'scheduled',
-          instructorId: s.selectedInstructorId, vehicleId: null, locationId: null,
-          notes: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-          student: selectedStudent!, case: null,
-          instructor: s.selectedInstructorId ? (instructors.find((i) => i.id === s.selectedInstructorId) ?? null) : null,
-          vehicle: null, location: null,
-        };
-        queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-          { queryKey: ['appointments'] },
-          (old) => old ? [...old, provisionalAppt] : [provisionalAppt],
-        );
-        // Dismiss both sheets (slots + booking) and cleanup store
-        router.dismiss(2);
-        bookingFlowStore.clear();
-        triggerBookingCelebration();
         regloApi.createBookingRequest({
           studentId: selectedStudentId,
           preferredDate: toDateString(s.preferredDate),
@@ -421,19 +421,19 @@ export const AllievoHomeScreen = () => {
           ...(canSelectLessonType ? { lessonType: s.selectedLessonTypes[0], types: s.selectedLessonTypes } : {}),
           ...(s.selectedInstructorId ? { instructorId: s.selectedInstructorId } : {}),
           selectedStartsAt: slot.startsAt,
-        }).then((response) => {
-          if (response.matched) { invalidateAllData(); return; }
-          queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-            { queryKey: ['appointments'] },
-            (old) => old?.filter((a) => a.id !== provisionalId),
-          );
+        }).then(async (response) => {
+          if (response.matched) {
+            await invalidateAllData();
+            router.dismiss(2);
+            bookingFlowStore.clear();
+            triggerBookingCelebration();
+            return;
+          }
+          bookingFlowStore.set({ loading: false });
           setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
-          invalidateAllData();
+          await invalidateAllData();
         }).catch((err) => {
-          queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-            { queryKey: ['appointments'] },
-            (old) => old?.filter((a) => a.id !== provisionalId),
-          );
+          bookingFlowStore.set({ loading: false });
           // Surface the server message (e.g. the weekly-limit rejection
           // "Hai raggiunto il limite massimo di N guide settimanali…") instead
           // of a generic error, so the student understands why it was blocked.
@@ -479,37 +479,10 @@ export const AllievoHomeScreen = () => {
     if (!selectedStudentId || !bookingSelectedSlot) return;
     setBookingLoading(true);
     try {
-      // Optimistic: inject provisional appointment into cache immediately
-      const optimisticId = `optimistic-${Date.now()}`;
-      const optimisticAppt = {
-        id: optimisticId,
-        companyId: activeCompanyId ?? '',
-        studentId: selectedStudentId,
-        caseId: null,
-        slotId: null,
-        type: 'guida',
-        types: canSelectLessonType ? selectedLessonTypes : [],
-        rating: null,
-        startsAt: bookingSelectedSlot.startsAt,
-        endsAt: bookingSelectedSlot.endsAt,
-        status: 'scheduled',
-        instructorId: selectedInstructorId ?? null,
-        vehicleId: null,
-        notes: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        student: { id: selectedStudentId, name: '' } as any,
-        case: null,
-        instructor: selectedInstructorId
-          ? (instructors.find((i) => i.id === selectedInstructorId) ?? null)
-          : null,
-        vehicle: null,
-      };
-      queryClient.setQueriesData<any[]>(
-        { queryKey: ['appointments'] },
-        (old) => old ? [optimisticAppt, ...old] : [optimisticAppt],
-      );
-      bookSlotMutation.mutate({
+      // No optimistic insert: await the booking + refetch (the mutation invalidates
+      // on success), then close and celebrate. The lesson appears only once the BE
+      // has confirmed it.
+      await bookSlotMutation.mutateAsync({
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         selectedStartsAt: bookingSelectedSlot.startsAt,
@@ -1223,46 +1196,10 @@ export const AllievoHomeScreen = () => {
     setFreeChoiceBooking(true);
     setToast(null);
 
-    // Close modal immediately for optimistic UX
+    // No optimistic insert: keep the modal open with its spinner, wait for the BE
+    // + refetch, then close and celebrate on success. The lesson appears only once
+    // the server has confirmed it.
     const slot = bookingSelectedSlot;
-    setBookingOpen(false);
-    setBookingSelectedSlot(null);
-    setBookingSlots([]);
-    triggerBookingCelebration();
-
-    // Add provisional appointment to cache immediately
-    const provisionalId = `provisional-${Date.now()}`;
-    const provisionalAppointment: AutoscuolaAppointmentWithRelations = {
-      id: provisionalId,
-      companyId: '',
-      studentId: selectedStudentId,
-      caseId: null,
-      slotId: null,
-      type: canSelectLessonType ? (selectedLessonTypes[0] ?? 'guida') : 'guida',
-      startsAt: slot.startsAt,
-      endsAt: slot.endsAt,
-      status: 'scheduled',
-      instructorId: selectedInstructorId,
-      vehicleId: null,
-      locationId: null,
-      notes: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      student: selectedStudent!,
-      case: null,
-      instructor: selectedInstructorId
-        ? (instructors.find((i) => i.id === selectedInstructorId) ?? null)
-        : null,
-      vehicle: null,
-      location: null,
-    };
-
-    // Inject into all active appointment queries
-    queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-      { queryKey: ['appointments'] },
-      (old) => old ? [...old, provisionalAppointment] : [provisionalAppointment],
-    );
-
     try {
       const response = await regloApi.createBookingRequest({
         studentId: selectedStudentId,
@@ -1273,22 +1210,16 @@ export const AllievoHomeScreen = () => {
         selectedStartsAt: slot.startsAt,
       });
       if (response.matched) {
-        invalidateAllData();
+        await invalidateAllData();
+        setBookingOpen(false);
+        setBookingSelectedSlot(null);
+        setBookingSlots([]);
+        triggerBookingCelebration();
         return;
       }
-      // Slot taken — remove provisional, show error
-      queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-        { queryKey: ['appointments'] },
-        (old) => old?.filter((a) => a.id !== provisionalId),
-      );
       setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
-      invalidateAllData();
+      await invalidateAllData();
     } catch (err) {
-      // Remove provisional on error
-      queryClient.setQueriesData<AutoscuolaAppointmentWithRelations[]>(
-        { queryKey: ['appointments'] },
-        (old) => old?.filter((a) => a.id !== provisionalId),
-      );
       setToast({
         text: err instanceof Error ? err.message : 'Errore nella prenotazione',
         tone: 'danger',
@@ -1309,21 +1240,13 @@ export const AllievoHomeScreen = () => {
     if (creatingSwap) return;
     setCreatingSwap(true);
     setToast(null);
-    // Optimistic: mark the lesson immediately with a temp offer id.
-    const tempOfferId = `temp-${appointmentId}`;
-    setMySwapByAppointment((prev) => new Map(prev).set(appointmentId, tempOfferId));
+    // No optimistic marker: the spinner (creatingSwap) covers the wait; the swap
+    // marker appears from the BE once refreshMySwaps lands.
     try {
       await regloApi.createSwapOffer(appointmentId);
+      await refreshMySwaps();
       setToast({ text: 'Richiesta di sostituzione inviata!', tone: 'success' });
-      refreshMySwaps(); // reconcile temp id → real offer id (background)
     } catch (err) {
-      // Revert only if our optimistic entry is still the temp one.
-      setMySwapByAppointment((prev) => {
-        if (prev.get(appointmentId) !== tempOfferId) return prev;
-        const next = new Map(prev);
-        next.delete(appointmentId);
-        return next;
-      });
       setToast({
         text: err instanceof Error ? err.message : 'Errore durante la richiesta di scambio',
         tone: 'danger',
@@ -1336,22 +1259,12 @@ export const AllievoHomeScreen = () => {
   const handleRevokeSwap = async (offerId: string) => {
     if (!selectedStudentId) return;
     setToast(null);
-    // Optimistic: drop the marker immediately (capture entry for revert).
-    const entry = Array.from(mySwapByAppointment.entries()).find(([, oId]) => oId === offerId);
-    setMySwapByAppointment((prev) => {
-      if (!entry) return prev;
-      const next = new Map(prev);
-      next.delete(entry[0]);
-      return next;
-    });
+    // No optimistic drop: wait for the BE, then refresh the markers from it.
     try {
       await regloApi.cancelSwapOffer(offerId, selectedStudentId);
+      await refreshMySwaps();
       setToast({ text: 'Richiesta di sostituzione revocata', tone: 'info' });
-      refreshMySwaps(); // reconcile in background
     } catch (err) {
-      if (entry) {
-        setMySwapByAppointment((prev) => new Map(prev).set(entry[0], entry[1]));
-      }
       setToast({
         text: err instanceof Error ? err.message : 'Errore durante la revoca',
         tone: 'danger',
@@ -1362,6 +1275,8 @@ export const AllievoHomeScreen = () => {
   const executeCancel = async (appointmentId: string) => {
     setToast(null);
     setCancellingAppointmentId(null);
+    // No optimistic removal: the cancel mutation invalidates + refetches on settle,
+    // so the lesson drops once the BE confirms it.
     cancelMutation.mutate(appointmentId, {
       onSuccess: () => {
         notificationEvents.requestRefresh();

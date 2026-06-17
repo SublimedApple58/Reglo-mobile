@@ -1,24 +1,17 @@
 /**
  * Drives the native `home/sick-leave` formSheet — the instructor's "Malattia"
- * flow. The parent (IstruttoreHomeScreen) seeds the day + instructor + optimistic
- * callbacks; the route builds the provisional sick_leave block(s) (one per day),
- * inserts them, dismisses, then runs `regloApi.createInstructorSickLeave` and
- * reconciles (which also refreshes the agenda so the cancelled guides drop out).
- * Mirrors `blockSheetStore`.
+ * flow. The parent (IstruttoreHomeScreen) seeds the day + instructor; the route
+ * runs `regloApi.createInstructorSickLeave`, awaits it, then calls `onApplied`
+ * (parent refreshes its agenda from the BE, so the cancelled guides drop out) and
+ * `onDone` (toast). Non-optimistic. Mirrors `blockSheetStore`.
  */
-import type { InstructorBlock } from '../types/regloApi';
-
 export type SickLeaveSheetData = {
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
-  /** The instructor the sick leave belongs to (for the provisional rows + scope). */
+  /** The instructor the sick leave belongs to (for scope). */
   instructorId: string;
-  /** Insert the provisional sick_leave block(s) immediately (optimistic). */
-  onOptimisticInsert: (blocks: InstructorBlock[]) => void;
-  /** Roll the provisional block(s) back on failure. */
-  onOptimisticRemove: (provisionalIds: string[]) => void;
-  /** On success: reconcile blocks + refresh the agenda (cancelled guides drop out). */
-  onReconcile: (provisionalIds: string[]) => void;
+  /** After the create succeeds: refresh the parent's agenda from the BE. */
+  onApplied: () => Promise<void>;
   /** Success toast. */
   onDone: (message: string) => void;
 };

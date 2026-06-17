@@ -2,31 +2,10 @@
  * Drives the native `home/new-booking` modal route — the instructor's full
  * "Nuova prenotazione" flow (single + multi booking, location pick/create).
  * The parent (IstruttoreHomeScreen) seeds the available data; the route owns the
- * form + the regloApi create calls and calls `onDone` so the parent refreshes
- * its list + shows a success toast. Mirrors `quickBookStore` / `manageLessonStore`.
+ * form + the regloApi create calls. After a create succeeds it calls `onApplied`
+ * (parent refreshes its agenda from the BE), then `onDone` (success toast).
  */
-import type { AutoscuolaAppointment } from '../types/regloApi';
-
 export type BookingStudentOption = { value: string; label: string; subtitle: string | null };
-
-/**
- * Minimal descriptor of a just-created booking, handed back to the parent so it
- * can insert a provisional row into its agenda immediately (optimistic) before
- * reconciliation. `id` is a `provisional-…` placeholder until the real row
- * arrives (single → `onOptimisticReplace`, batch → `onReconcile`).
- */
-export type BookingResultItem = {
-  id: string;
-  studentId: string;
-  startsAt: string;
-  endsAt: string;
-  vehicleId: string | null;
-  locationId: string | null;
-  locationName: string | null;
-  locationAddress: string | null;
-  type: string;
-  types: string[];
-};
 
 export type BookingSheetData = {
   canBook: boolean;
@@ -51,19 +30,11 @@ export type BookingSheetData = {
   /** Keys `${y}-${m}-${d}` of days with bookings, for the calendar dots. */
   bookedDateKeys: string[];
   /**
-   * Truly-optimistic flow: the route inserts `items` and dismisses *before* the
-   * network call, so the booking shows instantly. The network then resolves:
-   *  - single success → `onOptimisticReplace(provisionalId, real)` swaps the
-   *    provisional row for the real appointment IN PLACE (no refetch, no reflow)
-   *  - batch success → `onReconcile(ids)` does a lightweight agenda refetch and
-   *    merges the real rows over the provisionals (matched by student+startsAt)
-   *  - either success also calls `onDone(message)` to show the toast
-   *  - failure / weekly-limit cancel → `onOptimisticRemove(ids)` rolls them back
+   * Non-optimistic flow: the route does the network create call, awaits it, then
+   * calls `onApplied()` so the parent refreshes its agenda from the BE, then
+   * `onDone(message)` to show the toast, then dismisses. No provisional rows.
    */
-  onOptimisticInsert: (items: BookingResultItem[]) => void;
-  onOptimisticRemove: (ids: string[]) => void;
-  onOptimisticReplace: (provisionalId: string, real: AutoscuolaAppointment) => void;
-  onReconcile: (provisionalIds: string[]) => void;
+  onApplied: () => Promise<void>;
   onDone: (message: string) => void;
 };
 

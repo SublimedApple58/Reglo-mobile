@@ -1,12 +1,10 @@
 /**
  * Drives the native `home/block-slot` formSheet — the instructor's "Blocca slot"
- * flow. The parent (IstruttoreHomeScreen) seeds the day + instructor + optimistic
- * callbacks; the route builds the provisional block(s), inserts them, dismisses,
- * then runs `regloApi.createInstructorBlock` and reconciles. Same optimistic model
- * as bookings. Mirrors `sickLeaveSheetStore`.
+ * flow. The parent (IstruttoreHomeScreen) seeds the day + instructor; the route
+ * runs `regloApi.createInstructorBlock`, awaits it, then calls `onApplied`
+ * (parent refreshes its agenda from the BE) and `onDone` (toast). Non-optimistic.
+ * Mirrors `sickLeaveSheetStore`.
  */
-import type { InstructorBlock } from '../types/regloApi';
-
 export type BlockSheetData = {
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
@@ -16,14 +14,10 @@ export type BlockSheetData = {
    * Undefined for the FAB "Blocca slot" flow.
    */
   presetStartMinutes?: number;
-  /** The instructor the block belongs to (for the provisional row + scope match). */
+  /** The instructor the block belongs to (for scope match). */
   instructorId: string;
-  /** Insert the provisional block(s) immediately (optimistic). */
-  onOptimisticInsert: (blocks: InstructorBlock[]) => void;
-  /** Roll the provisional block(s) back on failure. */
-  onOptimisticRemove: (provisionalIds: string[]) => void;
-  /** On success: swap the provisional block(s) for the real rows (refetch). */
-  onReconcile: (provisionalIds: string[]) => void;
+  /** After the create succeeds: refresh the parent's agenda from the BE. */
+  onApplied: () => Promise<void>;
   /** Success toast. */
   onDone: (message: string) => void;
 };

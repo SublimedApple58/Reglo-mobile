@@ -15,7 +15,6 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { dateRangeStore } from '../../../src/stores/dateRangeStore';
 import { regloApi } from '../../../src/services/regloApi';
-import type { InstructorBlock } from '../../../src/types/regloApi';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { Button } from '../../../src/components/Button';
 import { colors } from '../../../src/theme/colors';
@@ -112,37 +111,13 @@ export default function SickLeaveScreen() {
 
   const rangeDays = Math.round((fromYMD(toYMD(endDate)).getTime() - fromYMD(toYMD(startDate)).getTime()) / 86400000) + 1;
 
-  // Optimistic: build the provisional sick_leave block(s) — one per day in the
-  // range, full day (or from the chosen time on day 1 for half-day), exactly as
-  // the BE does — insert + dismiss BEFORE the network call, then reconcile on
-  // success (which also drops the cancelled guides) / roll back on failure.
+  // Non-optimistic: keep the sheet open with a button spinner, register the sick
+  // leave (the BE creates the block(s) and cancels the overlapping guides), then
+  // refresh the parent's agenda from the BE so the cancelled guides drop out, and
+  // close.
   const confirm = () => {
     if (invalidRange) { Alert.alert('Periodo non valido', 'La data di fine deve essere uguale o successiva a quella di inizio.'); return; }
-    const nowIso = new Date().toISOString();
-    const start = fromYMD(toYMD(startDate));
-    const end = fromYMD(toYMD(multiDay ? endDate : startDate));
-    const blocks: InstructorBlock[] = [];
-    let i = 0;
-    for (const d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
-      const s = new Date(d);
-      if (i === 0 && halfDay) s.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
-      else s.setHours(0, 0, 0, 0);
-      const e = new Date(d); e.setHours(23, 59, 0, 0);
-      blocks.push({
-        id: `provisional-sick-${start.getTime()}-${i}`,
-        companyId: '',
-        instructorId: data.instructorId,
-        startsAt: s.toISOString(),
-        endsAt: e.toISOString(),
-        reason: 'sick_leave',
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      });
-      i++;
-    }
-    const ids = blocks.map((b) => b.id);
-    data.onOptimisticInsert(blocks);
-    router.back();
+    setPending(true);
     void (async () => {
       try {
         const result = await regloApi.createInstructorSickLeave({
@@ -150,10 +125,11 @@ export default function SickLeaveScreen() {
           endDate: toYMD(multiDay ? endDate : startDate),
           ...(halfDay ? { startTime: fmtTime(startTime) } : {}),
         });
-        data.onReconcile(ids);
+        await data.onApplied();
         data.onDone(`Malattia registrata. ${result.appointmentsCancelled} guide cancellate.`);
+        router.back();
       } catch (err) {
-        data.onOptimisticRemove(ids);
+        setPending(false);
         Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella registrazione malattia');
       }
     })();

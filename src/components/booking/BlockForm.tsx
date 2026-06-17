@@ -15,7 +15,6 @@ import { blockSheetStore } from '../../stores/blockSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
 import { regloApi } from '../../services/regloApi';
-import type { InstructorBlock } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { colors } from '../../theme/colors';
@@ -120,35 +119,15 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     router.push('/(tabs)/home/time-picker');
   };
 
-  // Optimistic: build the provisional block(s) (one, or N for recurring — the BE
-  // creates N offset by 1 week), insert + dismiss BEFORE the network call, then
-  // reconcile on success / roll back on failure. Mirrors the booking flow.
+  // Non-optimistic: keep the sheet open with a button spinner, create the block(s)
+  // (one, or N for recurring — the BE creates N offset by 1 week), refresh the
+  // parent's agenda from the BE, then close.
   const confirm = () => {
     const startsAt = new Date(date); startsAt.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
     const endsAt = new Date(date); endsAt.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
     if (endsAt <= startsAt) { Alert.alert('Orario non valido', "L'ora di fine deve essere dopo l'inizio."); return; }
-    const nowIso = new Date().toISOString();
     const reasonVal = reason.trim() || null;
-    const count = recurring ? recurringWeeks : 1;
-    const baseTs = startsAt.getTime();
-    const blocks: InstructorBlock[] = [];
-    for (let i = 0; i < count; i++) {
-      const sd = new Date(startsAt); sd.setDate(sd.getDate() + i * 7);
-      const ed = new Date(endsAt); ed.setDate(ed.getDate() + i * 7);
-      blocks.push({
-        id: `provisional-block-${baseTs}-${i}`,
-        companyId: '',
-        instructorId: data.instructorId,
-        startsAt: sd.toISOString(),
-        endsAt: ed.toISOString(),
-        reason: reasonVal,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      });
-    }
-    const ids = blocks.map((b) => b.id);
-    data.onOptimisticInsert(blocks);
-    router.back();
+    setPending(true);
     void (async () => {
       try {
         await regloApi.createInstructorBlock({
@@ -156,10 +135,11 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
           ...(reasonVal ? { reason: reasonVal } : {}),
           ...(recurring ? { recurring: true, recurringWeeks } : {}),
         });
-        data.onReconcile(ids);
+        await data.onApplied();
         data.onDone('Slot bloccato.');
+        router.back();
       } catch (err) {
-        data.onOptimisticRemove(ids);
+        setPending(false);
         Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nel blocco slot');
       }
     })();

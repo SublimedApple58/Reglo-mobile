@@ -214,44 +214,34 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
       available: day.available,
       ranges: day.ranges.length ? day.ranges : [...DEFAULT_RANGES],
       openTimePicker,
-      onSave: (available, ranges) => {
-        // Optimistic + instant: write through the query cache now, persist in the background.
+      onSave: async (available, ranges) => {
+        // No optimistic write: persist, then refetch the week from the BE.
         const finalRanges = available ? (ranges.length ? ranges : [...DEFAULT_RANGES]) : [];
-        const prev = queryClient.getQueryData<DayState[]>(weekKey) ?? days;
-        const next = prev.map((d) =>
-          d.date === day.date ? { ...d, available, ranges: available ? finalRanges : d.ranges } : d,
-        );
-        queryClient.setQueryData(weekKey, next);
-        regloApi
-          .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: finalRanges })
-          .catch(() => {
-            // Revert on failure.
-            queryClient.setQueryData(weekKey, prev);
-            onToast('Errore nel salvataggio', 'danger');
-          });
+        try {
+          await regloApi.setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: finalRanges });
+          await queryClient.invalidateQueries({ queryKey: weekKey });
+        } catch {
+          onToast('Errore nel salvataggio', 'danger');
+        }
       },
     });
     router.push('/(tabs)/role/publish-day' as never);
   };
 
-  // ── Inline day on/off (optimistic, no sheet) ──
-  const toggleDayInline = (index: number) => {
+  // ── Inline day on/off (no sheet) ──
+  const toggleDayInline = async (index: number) => {
     const day = days[index];
     if (!day) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const nextAvailable = !day.available;
-    // Keep the ranges when turning off, so they come back on re-enable.
-    const keptRanges = nextAvailable ? (day.ranges.length ? day.ranges : [...DEFAULT_RANGES]) : day.ranges;
-    const persistRanges = nextAvailable ? keptRanges : [];
-    const prev = queryClient.getQueryData<DayState[]>(weekKey) ?? days;
-    const next = prev.map((d) => (d.date === day.date ? { ...d, available: nextAvailable, ranges: keptRanges } : d));
-    queryClient.setQueryData(weekKey, next);
-    regloApi
-      .setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: persistRanges })
-      .catch(() => {
-        queryClient.setQueryData(weekKey, prev);
-        onToast('Errore nel salvataggio', 'danger');
-      });
+    const persistRanges = nextAvailable ? (day.ranges.length ? day.ranges : [...DEFAULT_RANGES]) : [];
+    // No optimistic write: persist, then refetch the week from the BE.
+    try {
+      await regloApi.setDailyAvailabilityOverride({ ownerType: 'instructor', ownerId: instructorId, date: day.date, ranges: persistRanges });
+      await queryClient.invalidateQueries({ queryKey: weekKey });
+    } catch {
+      onToast('Errore nel salvataggio', 'danger');
+    }
   };
 
   // ── Publish / Unpublish ──
@@ -259,9 +249,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     setPublishing(true);
     try {
       await regloApi.publishWeek({ weekStart, instructorId });
-      queryClient.setQueryData<string[]>(railKey, (prev) => {
-        const s = new Set(prev ?? []); s.add(weekStart); return [...s];
-      });
+      await queryClient.invalidateQueries({ queryKey: railKey });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onToast('Settimana pubblicata');
     } catch (err) {
@@ -275,7 +263,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     setPublishing(true);
     try {
       await regloApi.unpublishWeek({ weekStart, instructorId });
-      queryClient.setQueryData<string[]>(railKey, (prev) => (prev ?? []).filter((w) => w !== weekStart));
+      await queryClient.invalidateQueries({ queryKey: railKey });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       onToast('Pubblicazione ritirata');
     } catch (err) {
