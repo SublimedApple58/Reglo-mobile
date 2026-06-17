@@ -6,13 +6,12 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing } from '../theme';
+import { colors, spacing } from '../theme';
 
 export type ToastTone = 'success' | 'info' | 'danger';
 
@@ -25,12 +24,12 @@ type ToastNoticeProps = {
 
 type ToneConfig = { icon: keyof typeof Ionicons.glyphMap; accent: string };
 
-// Light-theme, Airbnb-restrained, mono-navy. Soft outline glyphs (no icon chip),
-// refined hues — forest green / brick red — never neon, never pink.
+// Light-theme, Airbnb-restrained, mono-navy. Soft outline glyphs (no icon chip).
+// Colours are the app's own semantic tokens — bright green / luminous red.
 const toneConfig: Record<ToastTone, ToneConfig> = {
-  success: { icon: 'checkmark', accent: '#157F4F' },
-  info: { icon: 'information-circle-outline', accent: '#1A1A2E' },
-  danger: { icon: 'alert-circle-outline', accent: '#BB3B30' },
+  success: { icon: 'checkmark', accent: colors.positive }, // #22C55E
+  info: { icon: 'information-circle-outline', accent: colors.primary }, // navy
+  danger: { icon: 'alert-circle-outline', accent: colors.destructive }, // #EF4444
 };
 
 const HIDDEN_Y = -160; // off-screen (upward) resting position
@@ -93,7 +92,8 @@ export const ToastNotice = ({
     translateY.value = HIDDEN_Y;
     opacity.value = 0;
     bar.value = 1;
-    translateY.value = withSpring(0, { damping: 18, stiffness: 280 });
+    // Clean slide-in, no spring/overshoot (no bounce).
+    translateY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
     opacity.value = withTiming(1, { duration: 220 });
     // The drain bar drives auto-dismiss: when it reaches 0, play the exit.
     bar.value = withTiming(0, { duration: durationMs }, (finished) => {
@@ -123,8 +123,8 @@ export const ToastNotice = ({
           if (finished) runOnJS(finishRemoval)(id);
         });
       } else {
-        // Snap back and resume the countdown over the remaining time.
-        translateY.value = withSpring(0, { damping: 18, stiffness: 260 });
+        // Settle back (no bounce) and resume the countdown over the remaining time.
+        translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
         opacity.value = withTiming(1, { duration: 160 });
         bar.value = withTiming(0, { duration: bar.value * durationMs }, (finished) => {
           if (finished && id === liveId.value) runOnJS(playExit)(id);
