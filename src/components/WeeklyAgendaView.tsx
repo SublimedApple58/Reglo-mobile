@@ -75,8 +75,8 @@ const FIRST_HOUR = 7;
 // labeled "23:00" and covers 23:00–24:00, so events ending up to midnight render.
 const LAST_HOUR = 24;
 const ROW_H = 56;
-const GUTTER_W = 34;
-const COL_GAP = 4;        // gap between day columns (Airbnb-ish breathing room)
+const GUTTER_W = 32;
+const COL_GAP = 3;        // gap between day columns (Airbnb-ish breathing room)
 const GRID_TOP_PAD = 12;  // breathing room so the first hour label isn't clipped
 
 // Ghost-block booking.
@@ -842,7 +842,7 @@ const WeekPage = React.memo(function WeekPage({
               <View
                 key={`avt-${colIdx}-${i}`}
                 pointerEvents="none"
-                style={[styles.availTint, { top, height, left: colX(colIdx) + 3, width: colW - 6 }]}
+                style={[styles.availTint, { top, height, left: colX(colIdx) + 2, width: colW - 4 }]}
               />
             );
           }),
@@ -870,7 +870,7 @@ const WeekPage = React.memo(function WeekPage({
             return (
               <GridBookableWindow
                 key={`bk-${colIdx}-${si}`}
-                top={top} height={height} left={colX(colIdx) + 3} width={colW - 6}
+                top={top} height={height} left={colX(colIdx) + 2} width={colW - 4}
                 windowStart={sMin} windowEnd={eMin}
                 colIdx={colIdx} colW={colW} defaultDur={defaultDur} ghostOn={ghostOn}
                 gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
@@ -890,7 +890,7 @@ const WeekPage = React.memo(function WeekPage({
               top: sk.top * ROW_H,
               height: sk.h * ROW_H,
               left: colX(sk.col) + 3,
-              width: colW - 6,
+              width: colW - 4,
               borderRadius: 12,
             }}
           />
@@ -914,7 +914,7 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressAppointment(appt)}
                 style={({ pressed }) => [
                   styles.lesson,
-                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: pressed ? look.pressed : look.bg },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: pressed ? look.pressed : look.bg },
                 ]}
               >
                 <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
@@ -945,7 +945,7 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(appts)}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: EXAM_LOOK.bg, borderColor: EXAM_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, borderColor: EXAM_LOOK.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
                 <Ionicons name="school" size={11} color={EXAM_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
@@ -977,7 +977,7 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: GROUP_LOOK.bg, borderColor: GROUP_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: GROUP_LOOK.bg, borderColor: GROUP_LOOK.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
                 <Ionicons name="people" size={11} color={GROUP_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
@@ -1016,7 +1016,7 @@ const WeekPage = React.memo(function WeekPage({
                 disabled={!onPressBlock}
                 style={[
                   styles.block,
-                  { top, height, left: colX(colIdx) + 3, width: colW - 6, backgroundColor: tint.bg, borderColor: tint.border },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: tint.bg, borderColor: tint.border },
                 ]}
               >
                 <Ionicons name={tint.icon} size={11} color={tint.text} style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85 }} />
@@ -1080,7 +1080,9 @@ export default function WeeklyAgendaView({
 }: WeeklyAgendaViewProps) {
   const { width: screenWidth } = useWindowDimensions();
   const pageWidth = screenWidth;
-  const gridWidth = screenWidth - GUTTER_W - 24;
+  // Reclaim the wasted right margin (was -24) so the 6 day columns get a bit
+  // more width; keep a small 8px breathing edge.
+  const gridWidth = screenWidth - GUTTER_W - 8;
   const colW = (gridWidth - COL_GAP * 5) / 6;
 
   const today = useMemo(() => new Date(), []);
@@ -1418,8 +1420,8 @@ const styles = StyleSheet.create({
   lesson: {
     position: 'absolute',
     borderRadius: 13,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
     overflow: 'hidden',
     zIndex: 4,
     shadowColor: '#0D0D16',
@@ -1434,8 +1436,8 @@ const styles = StyleSheet.create({
   eventCard: {
     position: 'absolute',
     borderRadius: 13,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
     overflow: 'hidden',
     zIndex: 4,
     borderWidth: 1.5,

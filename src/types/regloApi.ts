@@ -217,6 +217,8 @@ export type GroupLessonParticipant = {
   appointmentId: Uuid;
   studentId: Uuid;
   studentName: string | null;
+  /** Per-student note on this seat (instructor → student), null if none. */
+  notes: string | null;
 };
 
 export type GroupLesson = {
@@ -1103,4 +1105,9 @@ export type StartExamSchedaSessionResult = {
   resuming: boolean;
   correctCount: number;
   wrongCount: number;
+};
+
+// Public app config (pre-login) — drives the force-update gate.
+export type AppConfig = {
+  minSupportedVersion: { ios: string; android: string };
 };

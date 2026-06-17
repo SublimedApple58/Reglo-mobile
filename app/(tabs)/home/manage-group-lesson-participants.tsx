@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -138,6 +139,31 @@ export default function ManageGroupLessonParticipantsScreen() {
       .finally(() => setInviting(false));
   };
 
+  // Per-student note: the note lives on the participant's seat appointment, so
+  // we reuse the standard appointment-details update. The student sees it in
+  // their "Le mie note" section.
+  const openNote = (p: GroupLesson['participants'][number]) => {
+    if (busy) return;
+    notesEditorStore.set({
+      title: 'Nota allievo',
+      subtitle: `Nota per ${p.studentName ?? 'questo allievo'} — la vedrà nella sua app.`,
+      placeholder: 'Scrivi una nota per questo allievo…',
+      initial: p.notes ?? '',
+      onSave: async (text) => {
+        try {
+          await regloApi.updateAppointmentDetails(p.appointmentId, { notes: text.trim() });
+          seed?.onChanged?.();
+          await refreshLocal();
+          return true;
+        } catch (e) {
+          Alert.alert('Errore', e instanceof Error ? e.message : 'Impossibile salvare la nota.');
+          return false;
+        }
+      },
+    });
+    router.push('/(tabs)/home/edit-notes');
+  };
+
   return (
     <View style={[s.root, { paddingBottom: insets.bottom + 16 }]}>
       {/* Top bar — title + X */}
@@ -159,15 +185,34 @@ export default function ManageGroupLessonParticipantsScreen() {
               {idx > 0 ? <View style={s.divider} /> : null}
               <View style={[s.row, removingId === p.studentId && { opacity: 0.4 }]}>
                 <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
-                <Text style={s.name} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
+                <Pressable
+                  onPress={() => openNote(p)}
+                  disabled={busy}
+                  style={({ pressed }) => [{ flex: 1, gap: 2 }, pressed && { opacity: 0.5 }]}
+                  accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
+                >
+                  <Text style={[s.name, { flex: 0 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
+                  {p.notes?.trim() ? (
+                    <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
+                  ) : null}
+                </Pressable>
+                <Pressable
+                  onPress={() => openNote(p)}
+                  disabled={busy}
+                  hitSlop={6}
+                  style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
+                  accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
+                >
+                  <Ionicons name={p.notes?.trim() ? 'create' : 'create-outline'} size={19} color={p.notes?.trim() ? '#6B7280' : '#B0B4BD'} />
+                </Pressable>
                 <Pressable
                   onPress={() => handleRemove(p.studentId, p.studentName)}
                   disabled={busy}
-                  hitSlop={8}
-                  style={({ pressed }) => [s.trash, pressed && { opacity: 0.5 }]}
+                  hitSlop={6}
+                  style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
                   accessibilityLabel="Rimuovi allievo"
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={20} color="#E5484D" />
+                  <Ionicons name="close" size={18} color="#B0B4BD" />
                 </Pressable>
               </View>
             </View>
@@ -235,7 +280,8 @@ const s = StyleSheet.create({
   addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
   rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
-  trash: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  notePreview: { fontSize: 13, fontWeight: '400', color: '#6B7280' },
+  actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E9EBF2', marginLeft: 47 },
 
   emptyText: { fontSize: 13, fontWeight: '400', color: '#94A3B8', paddingVertical: 8 },

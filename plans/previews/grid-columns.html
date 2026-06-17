@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Griglia — colonne OLD vs NEW</title>
+<style>
+  :root{--navy:#1A1A2E;--mut:#AEB4CC;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0B0B12;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;gap:40px;justify-content:center;padding:36px 20px;color:#fff}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:13px;font-weight:600;color:#9aa0b2}
+  .phone{width:390px;background:#FDFDFD;border-radius:30px;padding:14px 0 18px}
+  .hdr{display:flex;padding:0 0 8px}
+  .gut{flex:0 0 var(--gut);text-align:right;padding-right:4px}
+  .gutlbl{font-size:10px;color:var(--mut);font-weight:500}
+  .days{display:flex;flex:1}
+  .dayhead{text-align:center;font-size:12px;font-weight:600;color:var(--navy)}
+  .grid{display:flex;position:relative}
+  .colwrap{display:flex;flex-direction:column;gap:var(--gap)}
+  .hourline{height:56px;border-top:1px solid #EDEFF5;position:relative}
+  /* block */
+  .blk{border-radius:13px;overflow:hidden;color:#fff;box-shadow:0 4px 10px rgba(13,13,22,.28)}
+  .blkName{font-size:11px;font-weight:600;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .blkTime{font-size:9px;font-weight:500;margin-top:2px;opacity:.85;white-space:nowrap}
+  .exam{background:#EEF0FF;color:#4F46E5;border:1.5px solid #C9CCF7}
+  .guida{background:#1A1A2E}
+  .group{background:#ECFDF5;color:#0F766E;border:1.5px solid #A7F3D0}
+</style></head>
+<body>
+  <!-- OLD -->
+  <div class="col">
+    <div class="cap">PRIMA — colonna ~52px, testo utile ~30px</div>
+    <div class="phone" style="--gut:34px;--gap:4px;--col:52px;--cardw:46px;--pad:8px;--cardml:3px">
+      <div class="hdr"><div class="gut"></div>
+        <div class="days">
+          <div class="dayhead" style="width:52px;margin-left:0">Lun</div>
+          <div class="dayhead" style="width:52px;margin-left:4px">Mar</div>
+          <div class="dayhead" style="width:52px;margin-left:4px">Mer</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div style="width:34px">
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">08</span></div>
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">09</span></div>
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">10</span></div>
+        </div>
+        <div style="position:relative;flex:1;height:168px">
+          <div class="blk guida" style="position:absolute;top:3px;left:3px;width:46px;height:50px;padding:6px 8px"><div class="blkName">Rossi Marco</div><div class="blkTime">08:00</div></div>
+          <div class="blk exam" style="position:absolute;top:59px;left:calc(56px + 3px);width:46px;height:50px;padding:6px 8px"><div class="blkName">Esame</div><div class="blkTime">09:00</div></div>
+          <div class="blk group" style="position:absolute;top:115px;left:calc(112px + 3px);width:46px;height:50px;padding:6px 8px"><div class="blkName">Gruppo</div><div class="blkTime">10:00</div></div>
+          <div class="blk guida" style="position:absolute;top:3px;left:calc(56px + 3px);width:46px;height:50px;padding:6px 8px"><div class="blkName">Bianchi Giulia</div><div class="blkTime">08:00</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW -->
+  <div class="col">
+    <div class="cap">DOPO — colonna ~56px, testo utile ~42px</div>
+    <div class="phone" style="--gut:32px;--gap:3px;--col:56px;--cardw:52px;--pad:5px;--cardml:2px">
+      <div class="hdr"><div class="gut"></div>
+        <div class="days">
+          <div class="dayhead" style="width:56px;margin-left:0">Lun</div>
+          <div class="dayhead" style="width:56px;margin-left:3px">Mar</div>
+          <div class="dayhead" style="width:56px;margin-left:3px">Mer</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div style="width:32px">
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">08</span></div>
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">09</span></div>
+          <div class="hourline"><span class="gutlbl" style="position:absolute;top:-7px;left:4px">10</span></div>
+        </div>
+        <div style="position:relative;flex:1;height:168px">
+          <div class="blk guida" style="position:absolute;top:3px;left:2px;width:52px;height:51px;padding:5px"><div class="blkName">Rossi Marco</div><div class="blkTime">08:00</div></div>
+          <div class="blk exam" style="position:absolute;top:58px;left:calc(59px + 2px);width:52px;height:51px;padding:5px"><div class="blkName">Esame</div><div class="blkTime">09:00</div></div>
+          <div class="blk group" style="position:absolute;top:113px;left:calc(118px + 2px);width:52px;height:51px;padding:5px"><div class="blkName">Gruppo</div><div class="blkTime">10:00</div></div>
+          <div class="blk guida" style="position:absolute;top:3px;left:calc(59px + 2px);width:52px;height:51px;padding:5px"><div class="blkName">Bianchi Giulia</div><div class="blkTime">08:00</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body></html>

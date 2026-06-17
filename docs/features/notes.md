@@ -17,6 +17,7 @@ Instructor writes notes/ratings on completed lessons. Students view their notes.
 ## Design (StudentMyNotesScreen)
 - Collapsible iOS large-title + sticky **blur header** (no back arrow — it's a tab), off-white `colors.background`, no beige.
 - Note cards: white surface, radius 24, concentrated neutral shadow, pink date chip (brand touch), gold `StarRating`, per-type tinted chips (`TYPE_THEME`: manovre/urbano/extraurbano/notturna/autostrada/parcheggio). Exam entries: violet left accent + "Esame" badge.
+- **Group-lesson notes** (`type==='group_lesson'`, 2026-06-16): teal sibling of the exam card — teal left accent `#10B981`, teal date chip (`#D1FAE5`/`#0F766E`), "Guida di gruppo" badge (people icon). These are the **per-student notes** the instructor wrote on the group-lesson seat; they arrive through the same `getAppointments` path (no new API), so a participant simply sees them here. See `group-lessons.md`.
 - Empty state: Fluent 3D `fluent-memo.png` in a soft white circle.
 - No longer wraps in `Screen` / uses the timeline rail; built like `SwapOffersScreen`.
 

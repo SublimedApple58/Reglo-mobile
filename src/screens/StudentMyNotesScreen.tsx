@@ -133,20 +133,21 @@ export const StudentMyNotesScreen = () => {
   }));
 
   const renderCard = (appt: AutoscuolaAppointmentWithRelations, i: number) => {
+    const isGroup = (appt.type ?? '').trim().toLowerCase() === 'group_lesson';
     const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
     const allTypes = (appt.types?.length ? appt.types : appt.type ? [appt.type] : []).filter(
-      (t: string) => t !== 'guida' && t !== 'esame'
+      (t: string) => t !== 'guida' && t !== 'esame' && t !== 'group_lesson'
     );
     const instructorName = appt.instructor?.name ?? 'Istruttore';
 
     return (
       <Animated.View key={appt.id} entering={FadeInDown.delay(i * 40).duration(260)}>
-        <View style={[st.card, isExam && st.examCard]}>
+        <View style={[st.card, isExam && st.examCard, isGroup && st.groupCard]}>
           {/* Top: date + rating */}
           <View style={st.cardTop}>
-            <View style={[st.dateChip, isExam && { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : '#14141F'} />
-              <Text style={[st.dateChipText, isExam && { color: '#7C3AED' }]}>
+            <View style={[st.dateChip, isExam && { backgroundColor: '#EDE9FE' }, isGroup && { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : isGroup ? '#0F766E' : '#14141F'} />
+              <Text style={[st.dateChipText, isExam && { color: '#7C3AED' }, isGroup && { color: '#0F766E' }]}>
                 {formatDay(appt.startsAt)}
               </Text>
             </View>
@@ -155,8 +156,15 @@ export const StudentMyNotesScreen = () => {
 
           <Text style={st.cardTime}>{timeRange(appt.startsAt, appt.endsAt)}</Text>
 
-          {/* Type chips / exam badge */}
-          {isExam ? (
+          {/* Group-lesson badge / exam badge / type chips */}
+          {isGroup ? (
+            <View style={st.chipsRow}>
+              <View style={st.groupBadge}>
+                <Ionicons name="people" size={13} color="#0F766E" />
+                <Text style={st.groupBadgeText}>Guida di gruppo</Text>
+              </View>
+            </View>
+          ) : isExam ? (
             <View style={st.chipsRow}>
               <View style={st.examBadge}>
                 <Ionicons name="school" size={13} color="#7C3AED" />
@@ -286,6 +294,7 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   examCard: { borderLeftWidth: 3, borderLeftColor: '#7C3AED' },
+  groupCard: { borderLeftWidth: 3, borderLeftColor: '#10B981' },
 
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateChip: {
@@ -313,6 +322,16 @@ const st = StyleSheet.create({
     paddingVertical: 6,
   },
   examBadgeText: { fontSize: 12, fontWeight: '700', color: '#7C3AED', letterSpacing: 0.2 },
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#D1FAE5',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  groupBadgeText: { fontSize: 12, fontWeight: '700', color: '#0F766E', letterSpacing: 0.2 },
 
   note: { fontSize: 15, fontWeight: '400', color: colors.textPrimary, lineHeight: 22, marginTop: 14 },
 

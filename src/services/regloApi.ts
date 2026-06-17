@@ -2,6 +2,7 @@ import { authStorage, createApiClient } from './apiClient';
 import {
   AgendaBootstrapParams,
   AgendaBootstrapPayload,
+  AppConfig,
   AuthPayload,
   AutoscuolaAppointment,
   AutoscuolaAppointmentWithRelations,
@@ -107,6 +108,9 @@ export const createRegloApi = (baseUrl?: string) => {
   const client = createApiClient(baseUrl);
 
   return {
+    // Public, pre-login: drives the force-update gate (minimum supported version).
+    getAppConfig: async () =>
+      client.request<AppConfig>('/api/mobile/app-config'),
     login: async (input: LoginInput) => {
       const payload = await client.request<AuthPayload>('/api/mobile/auth/login', {
         method: 'POST',

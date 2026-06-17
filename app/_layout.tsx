@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StyleSheet } from 'react-native';
@@ -10,6 +10,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
+import { ForceUpdateScreen } from '../src/screens/ForceUpdateScreen';
+import { currentAppVersion, isBelowVersion, isLegacyBlocked } from '../src/config/forceUpdate';
+import { regloApi } from '../src/services/regloApi';
 import { peekLaunchPushIntent } from '../src/services/pushNotifications';
 import { colors } from '../src/theme';
 
@@ -149,7 +152,44 @@ const AuthGate = () => {
   return <Slot />;
 };
 
+// Backend-driven force-update gate: on launch, ask the backend for the minimum
+// supported version and block (ForceUpdateScreen) if this build is below it.
+// Works on iOS + Android, toggled from the backend. Fails OPEN — any error/no
+// network → never blocks. Disabled in dev.
+function useForceUpdate(): boolean {
+  const [blocked, setBlocked] = useState(false);
+  useEffect(() => {
+    if (__DEV__) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await regloApi.getAppConfig();
+        const running = currentAppVersion();
+        const min =
+          Platform.OS === 'ios'
+            ? cfg?.minSupportedVersion?.ios
+            : cfg?.minSupportedVersion?.android;
+        if (!cancelled && running && min && isBelowVersion(running, min)) {
+          setBlocked(true);
+        }
+      } catch {
+        // fail open — never block the app on a config/network error
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return blocked;
+}
+
 export default function RootLayout() {
+  const forceUpdate = useForceUpdate();
+  // Sync legacy block fires before any app screen renders (safe on old binaries);
+  // the backend-driven `forceUpdate` handles dynamic raises for 2.0.0+ binaries.
+  if (isLegacyBlocked() || forceUpdate) {
+    return <ForceUpdateScreen />;
+  }
   return (
     <PersistQueryClientProvider
       client={queryClient}

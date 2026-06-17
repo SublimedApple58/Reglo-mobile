@@ -67,7 +67,8 @@ When modifying a feature, read its connected features to verify nothing breaks.
 ### Group Lessons (manage)
 - → **IstruttoreHome**: `openGroupLessonManage(groupLessonId)` opens `home/manage-group-lesson` (page sheet) from both the day-detail card and the hour-grid card (`openLessonDrawer` short-circuit on `type==='group_lesson'`). Refreshes via `loadData()` on `onChanged`.
 - → **Pickers (reused)**: `manage-lesson-instructor` (instructorPickerStore), `select-options` (optionsPickerStore — veicolo / durata / aggiungi-allievo), `select-date` (dayPickerStore), `time-picker` (timePickerStore). Changing any of these shared picker stores/routes affects this modal too.
-- → **Backend**: `getGroupLesson` (GET), `updateGroupLesson` (PATCH — applies to all participants), `cancelGroupLesson`, `add/removeGroupLessonParticipant`, `inviteToGroupLesson`, `getEligibleGroupLessonInvitees`, `getInstructors`, `getVehicles`.
+- → **Backend**: `getGroupLesson` (GET, now returns `participants[].notes`), `updateGroupLesson` (PATCH — applies to all participants), `cancelGroupLesson`, `add/removeGroupLessonParticipant`, `inviteToGroupLesson`, `getEligibleGroupLessonInvitees`, `getInstructors`, `getVehicles`.
+- → **Notes (per-allievo, 2026-06-16)**: the roster (`manage-group-lesson-participants`) writes a per-student note via `updateAppointmentDetails(appointmentId, {notes})` on the seat appointment. The student reads it in **StudentMyNotes** (teal `group_lesson` card) — same `getAppointments` path, no new endpoint.
 - → **Vehicles**: vehicle picker subtitle uses `plate` + `licenseCategory`; gated on `settings.vehiclesEnabled`.
 
 ### Instructor Manage

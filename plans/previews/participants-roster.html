@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Partecipanti — roster rivisto</title>
+<style>
+  :root{--bg:#FDFDFD;--navy:#1A1A2E;--muted:#94A3B8;--teal:#0F766E;--sec:#6B7280;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0B0B12;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;justify-content:center;gap:30px;flex-wrap:wrap;padding:40px 18px;color:var(--navy)}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12px;font-weight:600;color:#9aa0b2}
+  .sheet{width:380px;background:var(--bg);border-radius:26px;padding:20px 20px 26px}
+  .topBar{display:flex;align-items:center;justify-content:space-between}
+  .title{font-size:20px;font-weight:600;color:var(--navy);letter-spacing:-.3px}
+  .xbtn{width:34px;height:34px;border-radius:17px;background:#EFEFF1;display:flex;align-items:center;justify-content:center}
+  .subtitle{font-size:13px;color:var(--muted);margin-top:6px}
+  .list{margin-top:12px}
+  .row{display:flex;align-items:center;gap:13px;padding:13px 0}
+  .avatar{width:34px;height:34px;border-radius:17px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--navy)}
+  .addIcon{width:34px;height:34px;border-radius:11px;background:#F4F5F9;display:flex;align-items:center;justify-content:center}
+  .grow{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .name{font-size:15px;font-weight:500;color:var(--navy)}
+  .noteEmpty{font-size:13px;font-weight:500;color:var(--teal)}
+  .notePreview{font-size:13px;font-weight:400;color:var(--sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rowSub{font-size:13px;color:var(--muted)}
+  .removeBtn{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center}
+  .divider{height:1px;background:#E9EBF2;margin-left:47px}
+  .chev{color:#C7CBD1}
+  .inviteCard{display:flex;align-items:center;gap:14px;background:#fff;border-radius:18px;padding:14px;border:1px solid #ECECEC;
+    box-shadow:0 6px 14px rgba(26,26,46,.06);margin-top:8px}
+  .inviteIcon{width:40px;height:40px;border-radius:13px;background:#F4F5F9;display:flex;align-items:center;justify-content:center}
+  .inviteTitle{font-size:15px;font-weight:600;color:var(--navy)}
+  .inviteSub{font-size:13px;color:var(--muted)}
+  svg{display:block}
+</style></head>
+<body>
+  <div class="col">
+    <div class="cap">DOPO — riga partecipante ripulita (✕ discreta, "Aggiungi nota" come cue, nessuna icona colorata)</div>
+    <div class="sheet">
+      <div class="topBar">
+        <div class="title">Partecipanti</div>
+        <div class="xbtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+      </div>
+      <div class="subtitle">1 su 3 posti occupati</div>
+      <div class="list">
+
+        <div class="row">
+          <div class="avatar">A3</div>
+          <div class="grow">
+            <div class="name">Allievo 3</div>
+          </div>
+          <div class="removeBtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B0B4BD" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
+          <div class="removeBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B0B4BD" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="avatar">GV</div>
+          <div class="grow">
+            <div class="name">Giulia Verdi</div>
+            <div class="notePreview">Buona in rotonda, attenzione agli specchietti prima dei cambi…</div>
+          </div>
+          <div class="removeBtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="#6B7280" stroke="#6B7280" stroke-width="1"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
+          <div class="removeBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B0B4BD" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="addIcon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#717171" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="grow">
+            <div class="name">Aggiungi allievo</div>
+            <div class="rowSub">Seleziona un allievo idoneo</div>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+
+      <div class="inviteCard">
+        <div class="inviteIcon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></div>
+        <div style="flex:1">
+          <div class="inviteTitle">Invita allievi idonei</div>
+          <div class="inviteSub">Apri i 2 posti liberi agli allievi idonei</div>
+        </div>
+        <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+  </div>
+</body></html>

@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { groupLessonManageStore } from '../../../src/stores/groupLessonManageStore';
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
-import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
@@ -198,21 +197,6 @@ export default function ManageGroupLessonScreen() {
       },
     });
     router.push('/(tabs)/home/select-options');
-  };
-
-  const openNotesEditor = () => {
-    if (!lesson) return;
-    notesEditorStore.set({
-      title: 'Note',
-      subtitle: 'Note operative sulla guida di gruppo.',
-      initial: lesson.notes ?? '',
-      onSave: async (text) => {
-        const next = text.trim();
-        if (next === (lesson.notes ?? '').trim()) return true; // no-op
-        return run(() => regloApi.updateGroupLesson({ groupLessonId, notes: next || null }));
-      },
-    });
-    router.push('/(tabs)/home/edit-notes');
   };
 
   const openParticipants = () => {
@@ -412,33 +396,8 @@ export default function ManageGroupLessonScreen() {
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
           )}
-          {/* Note — operative dell'istruttore sul gruppo. Read-only: solo se presenti. */}
-          {readOnly ? (
-            lesson?.notes?.trim() ? (
-              <>
-                <View style={s.rowDivider} />
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><Ionicons name="document-text-outline" size={23} color="#1A1A2E" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Note</Text>
-                    <Text style={s.detailValue} numberOfLines={2}>{lesson.notes!.trim()}</Text>
-                  </View>
-                </View>
-              </>
-            ) : null
-          ) : (
-            <>
-              <View style={s.rowDivider} />
-              <Pressable onPress={openNotesEditor} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                <View style={s.detailIcon}><Ionicons name="document-text-outline" size={23} color="#1A1A2E" /></View>
-                <View style={s.detailBody}>
-                  <Text style={s.detailLabel}>Note</Text>
-                  <RowValue text={lesson?.notes?.trim() || 'Aggiungi note'} loaded={!!lesson} width={180} lines={2} />
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-              </Pressable>
-            </>
-          )}
+          {/* Le note ora sono per-allievo: si scrivono dal roster partecipanti
+              (ogni iscritto ha la sua nota, visibile all'allievo nella sua app). */}
         </View>
 
         {/* Partecipanti — card 3D CTA → roster sheet. Read-only = card statica. */}
