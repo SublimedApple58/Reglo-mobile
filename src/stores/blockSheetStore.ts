@@ -14,6 +14,9 @@ export type BlockSheetData = {
    * Undefined for the FAB "Blocca slot" flow.
    */
   presetStartMinutes?: number;
+  /** Quick-book only: the grid ghost's duration (any length) → seeds the end time.
+   * The block keeps the exact ghost duration (NO snap to guide durations). */
+  presetDurationMinutes?: number;
   /** The instructor the block belongs to (for scope match). */
   instructorId: string;
   /** After the create succeeds: refresh the parent's agenda from the BE. */

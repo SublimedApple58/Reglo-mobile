@@ -88,7 +88,8 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     const start = data.presetStartMinutes != null
       ? dateAtMinutes(data.initialDate, data.presetStartMinutes)
       : normalizeToQuarter(new Date());
-    const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
+    // Keep the grid ghost's exact duration for a block (no snap); default 60'.
+    const end = new Date(start); end.setMinutes(end.getMinutes() + (data.presetDurationMinutes ?? 60));
     setDate(new Date(data.initialDate));
     setStartTime(start);
     setEndTime(end);

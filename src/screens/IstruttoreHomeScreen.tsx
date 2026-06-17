@@ -2497,10 +2497,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // (loadData) refreshes the agenda from the BE before the sheet closes.
   // Seeds blockSheetStore for the dedicated block-slot route AND the quick-book
   // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
-  const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number) => {
+  const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number, presetDurationMinutes?: number) => {
     blockSheetStore.set({
       initialDate: initialDate.toISOString(),
       ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
+      ...(presetDurationMinutes != null ? { presetDurationMinutes } : {}),
       instructorId: effectiveInstructorId ?? instructorId ?? '',
       onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
@@ -2584,10 +2585,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       return;
     }
     const preset = Math.max(windowStart, Math.min(windowEnd - 15, startMinutes));
-    // The ghost duration (free 15' steps) is carried through AS-IS — any duration,
-    // not snapped to the allowed guide durations.
+    // The ghost duration (free 15' steps) is carried through AS-IS. The booking
+    // (guida) form snaps it to the nearest guide duration; the block (blocca slot)
+    // form keeps it exact.
     seedBookingStore(date, preset, durationMinutes ?? undefined);
-    seedBlockStore(date, preset);
+    seedBlockStore(date, preset, durationMinutes ?? undefined);
     router.push('/(tabs)/home/quick-book');
   }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
 
