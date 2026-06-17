@@ -105,6 +105,47 @@ function fitAllowedDur(raw: number, allowed: number[], maxFit: number): number {
   return best === -1 ? smallest : best;
 }
 
+// ── Overlap prevention ──
+// `free` is a flat list of free segments [s0,e0,s1,e1,…] (minutes from midnight,
+// the day minus guides/blocks). The ghost must always fit inside ONE free
+// segment so it can never be dragged/resized on top of an existing block.
+
+// Clamp a candidate start so [start, start+dur] fits inside the nearest free
+// segment that can hold it. Returns -1 if no segment in this column fits `dur`.
+function clampStartToFree(start: number, dur: number, free: number[]): number {
+  'worklet';
+  const center = start + dur / 2;
+  let best = -1;
+  let bestDist = 1e9;
+  for (let i = 0; i + 1 < free.length; i += 2) {
+    const gs = free[i];
+    const ge = free[i + 1];
+    if (ge - gs < dur) continue;
+    let cs = start;
+    if (cs < gs) cs = gs;
+    if (cs > ge - dur) cs = ge - dur;
+    const d = Math.abs((cs + dur / 2) - center);
+    if (d < bestDist) { bestDist = d; best = cs; }
+  }
+  return best;
+}
+// End of the free segment containing `pos` — the cap for a downward resize.
+function freeSegEnd(pos: number, free: number[]): number {
+  'worklet';
+  for (let i = 0; i + 1 < free.length; i += 2) {
+    if (pos >= free[i] && pos <= free[i + 1]) return free[i + 1];
+  }
+  return DAY_MAX;
+}
+// Start of the free segment containing `pos` — the cap for an upward resize.
+function freeSegStart(pos: number, free: number[]): number {
+  'worklet';
+  for (let i = 0; i + 1 < free.length; i += 2) {
+    if (pos >= free[i] && pos <= free[i + 1]) return free[i];
+  }
+  return DAY_MIN;
+}
+
 // Horizontal week carousel: half a year of swipe each way, centered on "today".
 const WEEK_SPAN = 26;
 
@@ -249,6 +290,8 @@ type GhostSharedValues = {
   gStart: SharedValue<number>;
   gDur: SharedValue<number>;
   gLive: SharedValue<number>;
+  /** Free segments per column (flat [s0,e0,…]) — the ghost must stay inside one. */
+  gFree: SharedValue<number[][]>;
 };
 
 type GridBookableProps = GhostSharedValues & {
@@ -281,7 +324,7 @@ type GridBookableProps = GhostSharedValues & {
 // the current one. The surface itself stays invisible.
 const GridBookableWindow = ({
   top, height, left, width, windowStart, windowEnd, colIdx, colW, defaultDur, ghostOn,
-  gCol, gStart, gDur, gLive, onArm, onStep, onPlace, onTapCreate, onTapDismiss,
+  gCol, gStart, gDur, gLive, gFree, onArm, onStep, onPlace, onTapCreate, onTapDismiss,
 }: GridBookableProps) => {
   const baseStart = useSharedValue(0);
   const baseCol = useSharedValue(0);
@@ -291,13 +334,19 @@ const GridBookableWindow = ({
     .onStart((e) => {
       const frac = Math.max(0, Math.min(1, e.y / Math.max(height, 1)));
       const centerMin = windowStart + Math.round((frac * (windowEnd - windowStart)) / STEP) * STEP;
-      // Birth a default-duration block centered on the finger, clamped to the day.
-      let start = Math.round((centerMin - defaultDur / 2) / STEP) * STEP;
-      start = Math.max(DAY_MIN, Math.min(DAY_MAX - defaultDur, start));
-      gCol.value = colIdx; gStart.value = start; gDur.value = defaultDur;
+      // Birth a default-duration block centered on the finger, kept INSIDE this
+      // free segment so it never overlaps the adjacent guide/block.
+      let dur = defaultDur;
+      let start = Math.round((centerMin - dur / 2) / STEP) * STEP;
+      if (windowEnd - windowStart < dur) {
+        start = windowStart; dur = windowEnd - windowStart;
+      } else {
+        start = Math.max(windowStart, Math.min(windowEnd - dur, start));
+      }
+      gCol.value = colIdx; gStart.value = start; gDur.value = dur;
       gLive.value = withTiming(1, { duration: 140 });
       baseStart.value = start; baseCol.value = colIdx;
-      runOnJS(onArm)(start, defaultDur);
+      runOnJS(onArm)(start, dur);
     })
     .onUpdate((e) => {
       const steps = Math.round(e.translationY / PX_PER_STEP);
@@ -305,6 +354,13 @@ const GridBookableWindow = ({
       const col = Math.max(0, Math.min(5, baseCol.value + cols));
       let start = baseStart.value + steps * STEP;
       start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
+      // Keep the ghost inside a free segment — never let it overlap a block.
+      const free = gFree.value[col] ?? [];
+      if (free.length) {
+        const cs = clampStartToFree(start, gDur.value, free);
+        if (cs < 0) return; // no free slot in this column fits → don't move there
+        start = cs;
+      }
       if (col !== gCol.value || start !== gStart.value) {
         gCol.value = col; gStart.value = start;
         runOnJS(onStep)(start, gDur.value);
@@ -359,7 +415,7 @@ type GhostBlockProps = GhostSharedValues & {
 // The ghost lives entirely on shared values: position/size animate on the UI
 // thread (zero React re-renders while dragging); the time/duration labels go
 // through the tiny ghost*Label stores (re-render just two <Text>).
-const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, onLift, onStep, onPlace }: GhostBlockProps) => {
+const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift, onStep, onPlace }: GhostBlockProps) => {
   const baseStart = useSharedValue(0);
   const baseCol = useSharedValue(0);
   const baseEnd = useSharedValue(0);
@@ -384,17 +440,22 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, onLift, onSte
       .onUpdate((e) => {
         // Drag finely, but snap the resulting DURATION to an allowed lesson length.
         const delta = Math.round(e.translationY / PX_PER_STEP) * STEP;
+        const free = gFree.value[gCol.value] ?? [];
         if (edge === 'top') {
+          // Can't grow up past the top of the current free segment.
+          const minStart = free.length ? freeSegStart(baseEnd.value, free) : DAY_MIN;
           const rawDur = baseEnd.value - (baseStart.value + delta);
-          const nd = fitAllowedDur(rawDur, allowedDur, baseEnd.value - DAY_MIN);
+          const nd = fitAllowedDur(rawDur, allowedDur, baseEnd.value - minStart);
           const ns = baseEnd.value - nd;
           if (ns !== gStart.value) {
             gStart.value = ns; gDur.value = nd;
             runOnJS(onStep)(ns, nd);
           }
         } else {
+          // Can't grow down past the end of the current free segment.
+          const maxEnd = free.length ? freeSegEnd(baseStart.value, free) : DAY_MAX;
           const rawDur = (baseEnd.value + delta) - baseStart.value;
-          const nd = fitAllowedDur(rawDur, allowedDur, DAY_MAX - baseStart.value);
+          const nd = fitAllowedDur(rawDur, allowedDur, maxEnd - baseStart.value);
           if (nd !== gDur.value) {
             gDur.value = nd;
             runOnJS(onStep)(baseStart.value, nd);
@@ -433,6 +494,13 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, onLift, onSte
       const col = Math.max(0, Math.min(5, baseCol.value + cols));
       let start = baseStart.value + steps * STEP;
       start = Math.max(DAY_MIN, Math.min(DAY_MAX - gDur.value, start));
+      // Keep the ghost inside a free segment — never let it overlap a block.
+      const free = gFree.value[col] ?? [];
+      if (free.length) {
+        const cs = clampStartToFree(start, gDur.value, free);
+        if (cs < 0) return; // no free slot in this column fits → don't move there
+        start = cs;
+      }
       if (col !== gCol.value || start !== gStart.value) {
         gCol.value = col; gStart.value = start;
         runOnJS(onStep)(start, gDur.value);
@@ -541,6 +609,7 @@ const WeekPage = React.memo(function WeekPage({
   const gStart = useSharedValue(DAY_MIN);
   const gDur = useSharedValue(defaultDur);
   const gLive = useSharedValue(0);
+  const gFree = useSharedValue<number[][]>([]);
   const [ghostOn, setGhostOn] = useState(false);
 
   const setGhostLabels = useCallback((start: number, dur: number) => {
@@ -722,6 +791,13 @@ const WeekPage = React.memo(function WeekPage({
     });
   }, [weekDays, appointmentsByCol, blocksByCol]);
 
+  // Keep the UI-thread copy of the free segments per column in sync, so the
+  // ghost-drag worklets can clamp the block to never overlap a guide/block.
+  useEffect(() => {
+    gFree.value = bookableByCol.map((c) => c.segments.flat());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookableByCol]);
+
   const holidayCols = useMemo(
     () => new Set(weekDays.map((d, i) => (holidays.has(toDateKey(d)) ? i : -1)).filter((i) => i >= 0)),
     [weekDays, holidays],
@@ -891,7 +967,7 @@ const WeekPage = React.memo(function WeekPage({
                 top={top} height={height} left={colX(colIdx) + 2} width={colW - 4}
                 windowStart={sMin} windowEnd={eMin}
                 colIdx={colIdx} colW={colW} defaultDur={defaultDur} ghostOn={ghostOn}
-                gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
+                gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive} gFree={gFree}
                 onArm={ghostArm} onStep={ghostStep} onPlace={ghostPlace}
                 onTapCreate={ghostTapCreate} onTapDismiss={ghostTapDismiss}
               />
@@ -1054,7 +1130,7 @@ const WeekPage = React.memo(function WeekPage({
           <GhostBlock
             colW={colW}
             allowedDur={allowedDur}
-            gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive}
+            gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive} gFree={gFree}
             onLift={ghostLift} onStep={ghostStep} onPlace={ghostPlace}
           />
         )}

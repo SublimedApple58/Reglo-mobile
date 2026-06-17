@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<style>
+  :root{--navy:#1A1A2E;--grey:#717171;--muted:#94A3B8;--n100:#E9EBF2;--teal:#0F766E;}
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;}
+  body{background:#E7E1D6;padding:30px 24px;width:430px;}
+  .sheet{background:#FDFDFD;border-radius:24px;padding:18px 20px 24px;box-shadow:0 -10px 40px rgba(0,0,0,.12);}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:10px 0 16px;}
+  .title{font-size:22px;font-weight:600;color:var(--navy);letter-spacing:-.4px;}
+  .x{width:34px;height:34px;border-radius:17px;background:#EFF0F3;display:flex;align-items:center;justify-content:center;color:#6B7280;font-size:18px;}
+  /* group card (mint) */
+  .card{background:#ECFDF5;border-radius:20px;padding:16px;box-shadow:0 8px 18px rgba(16,185,129,.18);}
+  .glHead{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  .people{width:40px;height:40px;object-fit:contain;}
+  .glLabel{font-size:12px;font-weight:600;color:var(--teal);}
+  .glCount{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.2px;margin-top:2px;}
+  .chip{margin-left:auto;padding:3px 10px;border-radius:999px;background:var(--n100);font-size:11.5px;font-weight:600;color:var(--navy);}
+  .time{font-size:13.5px;color:var(--grey);font-weight:500;margin-top:2px;}
+  .meta{font-size:13px;color:var(--muted);margin-top:2px;}
+  .actions{display:flex;gap:10px;margin-top:14px;}
+  .btn{flex:1;border-radius:999px;padding:14px;text-align:center;font-size:15px;font-weight:600;}
+  .cancella{background:#fff;color:#DC2626;border:1.5px solid #F0C9C9;}
+  .mantieni{background:var(--navy);color:#fff;}
+</style></head><body>
+  <div class="sheet">
+    <div class="head"><div class="title">Guide fuori disponibilità</div><div class="x">✕</div></div>
+    <div class="card">
+      <div class="glHead">
+        <img class="people" src="file:///Users/tizianodifelice/reglo-mobile/assets/icons/fluent-people.png" />
+        <div><div class="glLabel">Guida di gruppo</div><div class="glCount">2 allievi</div></div>
+        <div class="chip">Istruttore</div>
+      </div>
+      <div class="time">sab 20 giu · 16:15 – 19:15</div>
+      <div class="meta">Tiziano Istruttore 1</div>
+      <div class="meta">Ford fiesta (1234566)</div>
+      <div class="actions">
+        <div class="btn cancella">Cancella</div>
+        <div class="btn mantieni">Mantieni</div>
+      </div>
+    </div>
+  </div>
+</body></html>

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+const FLUENT_PEOPLE = require('../../../assets/icons/fluent-people.png');
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -88,25 +90,41 @@ export default function OutOfAvailabilityScreen() {
             const anyPending = pending !== null;
             const isGroup = group.isGroupLesson;
             const canOpen = isGroup && !!group.groupLessonId && !!data.onOpenGroupLesson;
-            const inner = (
+            const actions = (
+              <View style={s.actions}>
+                <View style={{ flex: 1 }}>
+                  <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(group, 'cancel')} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(group, 'approve')} />
+                </View>
+              </View>
+            );
+            const inner = isGroup ? (
               <>
-                <View style={s.cardHead}>
-                  {isGroup ? <View style={s.glIcon}><Ionicons name="people" size={15} color="#0F766E" /></View> : null}
-                  <Text style={s.studentName} numberOfLines={1}>{isGroup ? 'Guida di gruppo' : apt.studentName}</Text>
+                <View style={s.glHead}>
+                  <Image source={FLUENT_PEOPLE} style={s.glPeople} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.glLabel}>Guida di gruppo</Text>
+                    <Text style={s.glCount}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text>
+                  </View>
                   <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
                 </View>
                 <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
-                {isGroup ? <Text style={s.meta}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text> : null}
                 {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
                 {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
-                <View style={s.actions}>
-                  <View style={{ flex: 1 }}>
-                    <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(group, 'cancel')} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(group, 'approve')} />
-                  </View>
+                {actions}
+              </>
+            ) : (
+              <>
+                <View style={s.cardHead}>
+                  <Text style={s.studentName} numberOfLines={1}>{apt.studentName}</Text>
+                  <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
                 </View>
+                <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
+                {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
+                {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
+                {actions}
               </>
             );
             return canOpen ? (
@@ -142,9 +160,12 @@ const s = StyleSheet.create({
   empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 40 },
 
   card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, gap: 4, ...ELEV },
-  // Group lesson cards take the app's teal group-lesson accent.
-  groupCard: { borderLeftWidth: 3, borderLeftColor: '#10B981' },
-  glIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
+  // Group lesson cards take the app's teal group-lesson style (mint card).
+  groupCard: { backgroundColor: '#ECFDF5', shadowColor: '#10B981', shadowOpacity: 0.18 },
+  glHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  glPeople: { width: 40, height: 40 },
+  glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
+  glCount: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
   studentName: { flex: 1, fontSize: 16, fontWeight: '600', color: NAVY },
   chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: N100 },
