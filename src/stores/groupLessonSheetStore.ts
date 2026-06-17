@@ -3,12 +3,14 @@
  * di gruppo" flow. The parent (IstruttoreHomeScreen) seeds the initial day + a
  * success callback; the route loads its own vehicles/instructors/eligible
  * students, runs `regloApi.createGroupLesson` (optionally broadcasting an invite),
- * then on success calls `onDone` (toast) and dismisses. The home's focus listener
- * reloads the agenda so the new group lesson appears. Seed-and-callback pattern.
+ * then on success calls `onApplied` (parent refreshes its agenda from the BE) and
+ * `onDone` (toast), then dismisses. Seed-and-callback pattern.
  */
 export type GroupLessonSheetData = {
   /** ISO string of the day the sheet opens on (default lesson date). */
   initialDate: string;
+  /** After the create succeeds: refresh the parent's agenda from the BE. */
+  onApplied: () => Promise<void>;
   /** Success toast after the group lesson is created. */
   onDone: (message: string) => void;
 };

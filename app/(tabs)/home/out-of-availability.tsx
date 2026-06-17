@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { outOfAvailStore } from '../../../src/stores/outOfAvailStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { OutOfAvailabilityAppointment } from '../../../src/types/regloApi';
+import { groupOutOfAvailability, type OobGroup } from '../../../src/utils/outOfAvailability';
 import { Button } from '../../../src/components/Button';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -30,9 +31,11 @@ export default function OutOfAvailabilityScreen() {
   const data = useSyncExternalStore(outOfAvailStore.subscribe, outOfAvailStore.get);
 
   const [items, setItems] = useState<OutOfAvailabilityAppointment[]>(data?.appointments ?? []);
-  // Track BOTH the row and which action is running, so the spinner shows on the
+  // A group lesson's participants are ONE entry, not N separate guide.
+  const groups = useMemo(() => groupOutOfAvailability(items), [items]);
+  // Track BOTH the group and which action is running, so the spinner shows on the
   // exact button the user pressed (not the sibling).
-  const [pending, setPending] = useState<{ id: string; action: 'cancel' | 'approve' } | null>(null);
+  const [pending, setPending] = useState<{ key: string; action: 'cancel' | 'approve' } | null>(null);
 
   useEffect(() => {
     if (data) setItems(data.appointments);
@@ -40,13 +43,17 @@ export default function OutOfAvailabilityScreen() {
 
   if (!data) return <View style={s.root} />;
 
-  const runAction = async (apt: OutOfAvailabilityAppointment, action: 'cancel' | 'approve') => {
+  const runAction = async (group: OobGroup, action: 'cancel' | 'approve') => {
     if (pending) return;
-    setPending({ id: apt.id, action });
+    setPending({ key: group.key, action });
     try {
-      if (action === 'cancel') await regloApi.cancelAppointment(apt.id);
-      else await regloApi.approveAvailabilityOverride(apt.id);
-      const next = items.filter((a) => a.id !== apt.id);
+      // Apply to every seat of the (group) lesson.
+      for (const id of group.ids) {
+        if (action === 'cancel') await regloApi.cancelAppointment(id);
+        else await regloApi.approveAvailabilityOverride(id);
+      }
+      const removed = new Set(group.ids);
+      const next = items.filter((a) => !removed.has(a.id));
       setItems(next);
       data.onChanged();
       if (next.length === 0) router.back();
@@ -66,28 +73,31 @@ export default function OutOfAvailabilityScreen() {
         </Pressable>
       </View>
 
-      {items.length === 0 ? (
+      {groups.length === 0 ? (
         <Text style={s.empty}>Nessuna guida fuori disponibilità.</Text>
       ) : (
         <View style={{ gap: 12 }}>
-          {items.map((apt) => {
-            const rowPending = pending?.id === apt.id;
+          {groups.map((group) => {
+            const apt = group.rep;
+            const rowPending = pending?.key === group.key;
             const anyPending = pending !== null;
+            const title = group.isGroupLesson ? 'Guida di gruppo' : apt.studentName;
             return (
-              <View key={apt.id} style={[s.card, rowPending && { opacity: 0.6 }]}>
+              <View key={group.key} style={[s.card, rowPending && { opacity: 0.6 }]}>
                 <View style={s.cardHead}>
-                  <Text style={s.studentName} numberOfLines={1}>{apt.studentName}</Text>
+                  <Text style={s.studentName} numberOfLines={1}>{title}</Text>
                   <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
                 </View>
                 <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
+                {group.isGroupLesson ? <Text style={s.meta}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text> : null}
                 {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
                 {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
                 <View style={s.actions}>
                   <View style={{ flex: 1 }}>
-                    <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(apt, 'cancel')} />
+                    <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(group, 'cancel')} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(apt, 'approve')} />
+                    <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(group, 'approve')} />
                   </View>
                 </View>
               </View>

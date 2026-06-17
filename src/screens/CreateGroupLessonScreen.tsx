@@ -237,6 +237,7 @@ export const CreateGroupLessonScreen = () => {
       if (openInvites && res.participants < capacity) {
         await regloApi.inviteToGroupLesson(res.groupLessonId).catch(() => null);
       }
+      await data.onApplied();
       data.onDone('Guida di gruppo creata.');
       router.back();
     } catch (err) {

@@ -20,6 +20,7 @@ import {
   Pressable,
   ScrollView,
   FlatList,
+  RefreshControl,
   StyleSheet,
   useWindowDimensions,
   type NativeSyntheticEvent,
@@ -64,6 +65,9 @@ type WeeklyAgendaViewProps = {
   studentCompletedMinutes?: Record<string, number>;
   /** Availability windows keyed by YYYY-MM-DD (minutes since midnight). */
   weekAvailabilityByDate?: Record<string, AvailWindow[]>;
+  /** Pull-to-refresh on the grid. */
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 /* ------------------------------------------------------------------ */
@@ -513,6 +517,9 @@ type WeekPageProps = {
   onGhostChange: (info: { date: Date; startMin: number; durMin: number } | null) => void;
   /** Parent bumps this to clear the ghost (CTA ✕ / confirm / week swipe). */
   ghostDismissTick: number;
+  /** Pull-to-refresh on the vertical grid scroll. */
+  refreshing: boolean;
+  onRefresh?: () => void;
 };
 
 const WeekPage = React.memo(function WeekPage({
@@ -520,6 +527,7 @@ const WeekPage = React.memo(function WeekPage({
   weekAvailabilityByDate, readOnly, loading,
   onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
   canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick,
+  refreshing, onRefresh,
 }: WeekPageProps) {
   const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
   const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
@@ -807,6 +815,16 @@ const WeekPage = React.memo(function WeekPage({
         nestedScrollEnabled
         contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 28, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#1A1A2E"
+              colors={['#1A1A2E']}
+            />
+          ) : undefined
+        }
       >
         {/* Column canvases — recessed grey = closed/unavailable */}
         {weekDays.map((_day, colIdx) => {
@@ -1077,6 +1095,8 @@ export default function WeeklyAgendaView({
   loading = false,
   studentCompletedMinutes = {},
   weekAvailabilityByDate = {},
+  refreshing = false,
+  onRefresh,
 }: WeeklyAgendaViewProps) {
   const { width: screenWidth } = useWindowDimensions();
   const pageWidth = screenWidth;
@@ -1178,10 +1198,12 @@ export default function WeeklyAgendaView({
       defaultDur={defaultDur}
       onGhostChange={handleGhostChange}
       ghostDismissTick={ghostDismissTick}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-      onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick]);
+      onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, refreshing, onRefresh]);
 
   return (
     <View style={styles.container}>

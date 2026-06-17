@@ -57,6 +57,7 @@ import { sickLeaveSheetStore } from '../stores/sickLeaveSheetStore';
 import { examSheetStore } from '../stores/examSheetStore';
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
+import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
 import { InlineLocationForm } from '../components/InlineLocationForm';
@@ -1116,10 +1117,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const openCreateGroupLesson = useCallback(() => {
     groupLessonSheetStore.set({
       initialDate: selectedDate.toISOString(),
+      onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
     router.push('/(tabs)/home/create-group-lesson');
-  }, [selectedDate, router]);
+  }, [selectedDate, loadData, router]);
 
 
 
@@ -1129,6 +1131,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const featuredLesson = useMemo(
     () => pickFeaturedLesson(featuredAppointments, now),
     [featuredAppointments, now],
+  );
+  // Out-of-availability banner count: a group lesson's participants are ONE guida.
+  const outOfAvailCount = useMemo(
+    () => groupOutOfAvailability(outOfAvailAppointments).length,
+    [outOfAvailAppointments],
   );
   // `appointments` now holds the whole fetch window; the day grid renders only
   // the selected day. Filtering here (instead of refetching per day) is what
@@ -2653,8 +2660,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                   <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
                 </View>
                 <Text style={oobStyles.bannerText}>
-                  <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
-                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+                  <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
+                  {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
                 </Text>
                 <Text style={oobStyles.bannerAction}>Gestisci</Text>
                 <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
@@ -2707,8 +2714,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
               </View>
               <Text style={oobStyles.bannerText}>
-                <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
-                {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+                <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
+                {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
               </Text>
               <Text style={oobStyles.bannerAction}>Gestisci</Text>
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
@@ -3558,11 +3565,18 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             const live = pickFeaturedLesson(today, now);
             if (!live) return null;
             const isExam = live.type === 'esame';
+            const isGroup = live.type === 'group_lesson';
+            // Group lessons are ONE lesson, never marked present/absent here, and
+            // tapping opens the group-lesson management (not a single-student drawer).
+            const groupCount = isGroup
+              ? today.filter((a) => a.type === 'group_lesson' && a.groupLessonId === live.groupLessonId
+                  && !String(a.id).startsWith('gl-empty:') && normalizeStatus(a.status) !== 'cancelled').length
+              : 0;
             const inProgress = isLessonInProgressWindow(live, now);
             const st = normalizeStatus(live.status);
             const isCheckedIn = st === 'checked_in';
             const avail = getActionAvailability(live, now, settings?.autoCheckinEnabled);
-            const showActions = !ownerMode && !isExam && inProgress && avail.enabled && st !== 'proposal';
+            const showActions = !ownerMode && !isExam && !isGroup && inProgress && avail.enabled && st !== 'proposal';
             const sameSlot = isExam
               ? today.filter((a) => a.type === 'esame' && a.startsAt === live.startsAt && (a.endsAt ?? '') === (live.endsAt ?? '') && a.instructorId === live.instructorId && normalizeStatus(a.status) !== 'cancelled')
               : [];
@@ -3580,6 +3594,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 lesson={live}
                 isExam={isExam}
                 examCount={sameSlot.length}
+                isGroup={isGroup}
+                groupCount={groupCount}
                 inProgress={inProgress}
                 isCheckedIn={isCheckedIn}
                 showActions={showActions}
@@ -3600,6 +3616,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                       notes: live.notes,
                       appointments: sameSlot.length ? sameSlot : [live],
                     });
+                  } else if (isGroup && live.groupLessonId) {
+                    openGroupLessonManage(live.groupLessonId);
                   } else {
                     openLessonDrawer(live);
                   }
@@ -3698,8 +3716,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                   <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
                 </View>
                 <Text style={oobStyles.bannerText}>
-                  <Text style={oobStyles.bannerCount}>{outOfAvailAppointments.length}</Text>
-                  {' '}guid{outOfAvailAppointments.length === 1 ? 'a' : 'e'} fuori disponibilità
+                  <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
+                  {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
                 </Text>
                 <Text style={oobStyles.bannerAction}>Gestisci</Text>
                 <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
@@ -3714,6 +3732,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             anchorDate={selectedDate}
             readOnly={ownerMode}
             loading={appointmentsLoading}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             studentCompletedMinutes={studentCompletedMinutes}
             weekAvailabilityByDate={weekAvailability}
             onDateChange={(monday) => {

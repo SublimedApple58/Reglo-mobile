@@ -9,6 +9,8 @@ type Props = {
   lesson: AutoscuolaAppointmentWithRelations;
   isExam: boolean;
   examCount: number;
+  isGroup?: boolean;
+  groupCount?: number;
   inProgress: boolean;
   isCheckedIn: boolean;
   showActions: boolean;
@@ -29,14 +31,18 @@ type Props = {
  * existing featured-lesson + check-in logic in IstruttoreHomeScreen.
  */
 export const WeeklyLiveCard = ({
-  lesson, isExam, examCount, inProgress, isCheckedIn, showActions, isPending, pendingAction,
+  lesson, isExam, examCount, isGroup = false, groupCount = 0,
+  inProgress, isCheckedIn, showActions, isPending, pendingAction,
   topLabel, timeText, vehicleText, onPresent, onAbsent, onOpen,
 }: Props) => {
   const name = `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo';
   const initials = `${lesson.student?.firstName?.[0] ?? ''}${lesson.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
-  const metaLine = inProgress
-    ? (isExam ? timeText : (vehicleText ?? ''))
-    : [timeText, isExam ? null : vehicleText].filter(Boolean).join(' · ');
+  const groupLabel = `${groupCount} alliev${groupCount === 1 ? 'o' : 'i'}`;
+  const metaLine = isGroup
+    ? [groupLabel, timeText, vehicleText].filter(Boolean).join(' · ')
+    : inProgress
+      ? (isExam ? timeText : (vehicleText ?? ''))
+      : [timeText, isExam ? null : vehicleText].filter(Boolean).join(' · ');
 
   const Kicker = (
     <View style={styles.head}>
@@ -55,15 +61,17 @@ export const WeeklyLiveCard = ({
       <View style={styles.top}>
         {isExam ? (
           <Image source={FLUENT_GRADUATE} style={styles.examIcon} />
+        ) : isGroup ? (
+          <View style={styles.avatar}><Ionicons name="people" size={22} color="#1A1A2E" /></View>
         ) : (
           <View style={styles.avatar}><Text style={styles.avatarTx}>{initials}</Text></View>
         )}
         <View style={{ flex: 1 }}>
           {isExam ? <Text style={styles.examKicker}>Esame di guida</Text> : null}
           <Text style={styles.name} numberOfLines={1}>
-            {isExam ? `${examCount} ${examCount === 1 ? 'allievo' : 'allievi'}` : name}
+            {isGroup ? 'Guida di gruppo' : isExam ? `${examCount} ${examCount === 1 ? 'allievo' : 'allievi'}` : name}
           </Text>
-          {!isExam && inProgress && isCheckedIn ? (
+          {!isExam && !isGroup && inProgress && isCheckedIn ? (
             <View style={styles.donePill}>
               <Ionicons name="checkmark" size={13} color="#16A34A" />
               <Text style={styles.donePillTx}>Presente</Text>
