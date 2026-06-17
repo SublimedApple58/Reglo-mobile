@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
@@ -42,12 +43,30 @@ export default function ManageLessonDetailsScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
+
+      <SheetScaffold
+        keyboardAware
+        contentContainerStyle={s.scaffoldBody}
+        footer={
+          <Pressable
+            onPress={handleSave}
+            disabled={!editable}
+            style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
+          >
+            {pendingAction === 'save_details' ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={s.saveText}>Salva</Text>
+            )}
+          </Pressable>
+        }
+      >
       <View style={s.headerBlock}>
         <Text style={s.title}>Dettagli guida</Text>
         <Text style={s.subtitle}>Tipo, valutazione e note di questa guida.</Text>
@@ -98,24 +117,15 @@ export default function ManageLessonDetailsScreen() {
           editable={editable}
         />
       </View>
-
-      <Pressable
-        onPress={handleSave}
-        disabled={!editable}
-        style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
-      >
-        {pendingAction === 'save_details' ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={s.saveText}>Salva</Text>
-        )}
-      </Pressable>
+      </SheetScaffold>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
+  scaffoldBody: { gap: 20 },
+  saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 4 },

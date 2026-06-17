@@ -1,11 +1,12 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
 const statusLabel = (status: string | null | undefined) => {
   const s = (status ?? '').trim().toLowerCase();
@@ -48,13 +49,47 @@ export default function LessonDetailScreen() {
   const hasActiveSwap = !!activeSwapOfferId;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}>
+      <SheetScaffold
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}
+        footer={
+          isFuture && (canSwap || canCancel || hasActiveSwap) ? (
+            <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, gap: 8, marginTop: 18 }}>
+              {hasActiveSwap ? (
+                <Pressable
+                  style={({ pressed }) => [s.revokeBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                  onPress={() => { router.back(); setTimeout(() => onRevokeSwap?.(activeSwapOfferId!), 350); }}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                  <Text style={s.revokeText}>Revoca richiesta sostituzione</Text>
+                </Pressable>
+              ) : canSwap ? (
+                <Pressable
+                  style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                  onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
+                >
+                  <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
+                  <Text style={s.swapText}>Cerca sostituto</Text>
+                </Pressable>
+              ) : null}
+              {canCancel && (
+                <Pressable
+                  style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                  onPress={() => { router.back(); setTimeout(() => onCancel(lesson.id), 350); }}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                  <Text style={s.cancelText}>Annulla guida</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null
+        }
+      >
         {/* Header (flat) */}
         <View style={s.header}>
           <View style={s.headerTopRow}>
@@ -147,39 +182,7 @@ export default function LessonDetailScreen() {
             </>
           )}
         </View>
-
-        {/* Action buttons */}
-        {isFuture && (canSwap || canCancel || hasActiveSwap) && (
-          <View style={{ gap: 8, marginTop: 32 }}>
-            {hasActiveSwap ? (
-              <Pressable
-                style={({ pressed }) => [s.revokeBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                onPress={() => { router.back(); setTimeout(() => onRevokeSwap?.(activeSwapOfferId!), 350); }}
-              >
-                <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                <Text style={s.revokeText}>Revoca richiesta sostituzione</Text>
-              </Pressable>
-            ) : canSwap ? (
-              <Pressable
-                style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
-              >
-                <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
-                <Text style={s.swapText}>Cerca sostituto</Text>
-              </Pressable>
-            ) : null}
-            {canCancel && (
-              <Pressable
-                style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                onPress={() => { router.back(); setTimeout(() => onCancel(lesson.id), 350); }}
-              >
-                <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                <Text style={s.cancelText}>Annulla guida</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-      </View>
+      </SheetScaffold>
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
+import { TALL_SHEET, HUG_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function NotesLayout() {
   return (
@@ -8,46 +9,11 @@ export default function NotesLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="[studentId]" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="cluster-settings" />
-      <Stack.Screen
-        name="time-picker"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="group-students"
-        options={{ presentation: 'modal', headerShown: false }}
-      />
-      <Stack.Screen
-        name="booking-rules"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="limits"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="extras"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="time-picker" options={HUG_SHEET} />
+      <Stack.Screen name="group-students" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="booking-rules" options={TALL_SHEET} />
+      <Stack.Screen name="limits" options={TALL_SHEET} />
+      <Stack.Screen name="extras" options={TALL_SHEET} />
     </Stack>
   );
 }

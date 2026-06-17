@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,7 +35,7 @@ export default function QuickBookScreen() {
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }] }));
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topbar}>
         <View style={s.seg} onLayout={(e) => setTabsW(e.nativeEvent.layout.width)}>
           {pillW > 0 && <Animated.View style={[s.segPill, { width: pillW }, pillStyle]} />}

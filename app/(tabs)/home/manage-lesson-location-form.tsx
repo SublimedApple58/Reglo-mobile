@@ -1,8 +1,9 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { InlineLocationForm } from '../../../src/components/InlineLocationForm';
 import { colors } from '../../../src/theme/colors';
@@ -13,26 +14,28 @@ export default function ManageLessonLocationFormScreen() {
   const data = useSyncExternalStore(locationFormStore.subscribe, locationFormStore.get);
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Aggiungi luogo</Text>
-        <Text style={s.subtitle}>Crea un nuovo punto di ritrovo.</Text>
-      </View>
-      {data ? (
-        <InlineLocationForm
-          initialValue={data.initial}
-          onCancel={() => router.back()}
-          onSubmit={async (values) => {
-            await data.onSubmit(values);
-            router.back();
-          }}
-        />
-      ) : null}
+      <SheetScaffold keyboardAware>
+        <View style={s.headerBlock}>
+          <Text style={s.title}>Aggiungi luogo</Text>
+          <Text style={s.subtitle}>Crea un nuovo punto di ritrovo.</Text>
+        </View>
+        {data ? (
+          <InlineLocationForm
+            initialValue={data.initial}
+            onCancel={() => router.back()}
+            onSubmit={async (values) => {
+              await data.onSubmit(values);
+              router.back();
+            }}
+          />
+        ) : null}
+      </SheetScaffold>
     </View>
   );
 }

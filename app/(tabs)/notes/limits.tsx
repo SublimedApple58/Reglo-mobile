@@ -1,8 +1,9 @@
 import React, { useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SelectableChip } from '../../../src/components/SelectableChip';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
 import { colors } from '../../../src/theme/colors';
@@ -52,7 +53,7 @@ export default function LimitsScreen() {
   const rangeOn = restrictedTimeEnabled ?? cd.restrictedTimeRangeEnabled;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -63,6 +64,19 @@ export default function LimitsScreen() {
         <Text style={s.subtitle}>Cutoff, limite settimanale e fasce orarie.</Text>
       </View>
 
+      <SheetScaffold
+        style={{ gap: 16 }}
+        contentContainerStyle={{ gap: 16 }}
+        footer={
+          <Pressable
+            onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
+            disabled={saving}
+            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, saving && { opacity: 0.6 }]}
+          >
+            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
+          </Pressable>
+        }
+      >
       {/* Cutoff */}
       <View style={s.card}>
         <ToggleRow label="Cutoff prenotazione" on={cutoffOn} onChange={setBookingCutoffEnabled} />
@@ -106,14 +120,7 @@ export default function LimitsScreen() {
           </>
         ) : null}
       </View>
-
-      <Pressable
-        onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
-        disabled={saving}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, saving && { opacity: 0.6 }]}
-      >
-        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
-      </Pressable>
+      </SheetScaffold>
     </View>
   );
 }

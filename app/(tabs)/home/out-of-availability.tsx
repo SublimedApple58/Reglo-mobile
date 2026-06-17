@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const FLUENT_PEOPLE = require('../../../assets/icons/fluent-people.png');
@@ -11,6 +11,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import type { OutOfAvailabilityAppointment } from '../../../src/types/regloApi';
 import { groupOutOfAvailability, type OobGroup } from '../../../src/utils/outOfAvailability';
 import { Button } from '../../../src/components/Button';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -72,7 +73,7 @@ export default function OutOfAvailabilityScreen() {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title} numberOfLines={1}>Guide fuori disponibilità</Text>
         <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
@@ -80,6 +81,7 @@ export default function OutOfAvailabilityScreen() {
         </Pressable>
       </View>
 
+      <SheetScaffold>
       {groups.length === 0 ? (
         <Text style={s.empty}>Nessuna guida fuori disponibilità.</Text>
       ) : (
@@ -143,6 +145,7 @@ export default function OutOfAvailabilityScreen() {
           })}
         </View>
       )}
+      </SheetScaffold>
     </View>
   );
 }

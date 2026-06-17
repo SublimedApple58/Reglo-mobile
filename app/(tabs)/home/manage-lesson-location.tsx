@@ -1,8 +1,9 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { InlineLocationPicker } from '../../../src/components/InlineLocationPicker';
 import { colors } from '../../../src/theme/colors';
@@ -13,7 +14,7 @@ export default function ManageLessonLocationScreen() {
   const data = useSyncExternalStore(locationPickerStore.subscribe, locationPickerStore.get);
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -24,14 +25,16 @@ export default function ManageLessonLocationScreen() {
         <Text style={s.subtitle}>Dove inizia questa guida.</Text>
       </View>
 
-      {data ? (
-        <InlineLocationPicker
-          showSearch={false}
-          selectedLocationId={data.selectedLocationId}
-          onSelect={(loc) => { data.onSelect(loc); router.back(); }}
-          onRequestCreate={data.onRequestCreate}
-        />
-      ) : null}
+      <SheetScaffold>
+        {data ? (
+          <InlineLocationPicker
+            showSearch={false}
+            selectedLocationId={data.selectedLocationId}
+            onSelect={(loc) => { data.onSelect(loc); router.back(); }}
+            onRequestCreate={data.onRequestCreate}
+          />
+        ) : null}
+      </SheetScaffold>
     </View>
   );
 }

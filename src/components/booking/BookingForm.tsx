@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -350,16 +351,19 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .join(', ') || 'Guida';
   const vehicleValue = vehicles.find((v) => v.id === vehicleId)?.name ?? null;
 
-  // Embedded (quick-book formSheet, fitToContents) hugs its content → plain View,
-  // no flex ScrollView (a flex ScrollView would collapse to 0 inside a content-
-  // hugging sheet). The standalone route fills the screen → scrollable.
-  const Wrapper: React.ComponentType<any> = embedded ? View : ScrollView;
-  const wrapperProps = embedded
-    ? { style: s.content }
-    : { style: { flex: 1 }, contentContainerStyle: s.content, keyboardShouldPersistTaps: 'handled' as const, showsVerticalScrollIndicator: false };
+  // iOS embedded (quick-book formSheet, fitToContents) hugs its content → plain
+  // View, no flex ScrollView (a flex ScrollView would collapse to 0 inside a
+  // content-hugging sheet). The standalone route fills the screen → scrollable.
+  // Android can't re-measure a fitToContents sheet, so the route uses a fixed
+  // tall detent (TALL_SHEET) and the body must scroll with a pinned footer too.
+  const scrollBody = !embedded || Platform.OS === 'android';
+  const Wrapper: React.ComponentType<any> = scrollBody ? ScrollView : View;
+  const wrapperProps = scrollBody
+    ? { style: { flex: 1 }, contentContainerStyle: s.content, keyboardShouldPersistTaps: 'handled' as const, showsVerticalScrollIndicator: false }
+    : { style: s.content };
 
   return (
-    <View style={embedded ? s.rootHug : [s.root, { paddingTop: 14 }]}>
+    <View style={embedded ? [s.rootHug, Platform.OS === 'android' && { flex: 1 }] : [s.root, { paddingTop: 14 }]}>
       {!embedded && (
         <View style={s.topbar}>
           <View style={{ flex: 1 }} />

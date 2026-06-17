@@ -1,8 +1,9 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { bookingFlowStore } from '../../../src/stores/bookingFlowStore';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { formatDay } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -81,14 +82,34 @@ export default function BookingFlowScreen() {
 
   const handleClose = () => { router.back(); onClose(); };
 
-  return (
-    <View style={s.root}>
-      {/* Title row */}
-      <View style={s.titleRow}>
-        <Text style={s.title}>{step === 1 ? 'Prenota una guida' : 'Scegli un orario'}</Text>
-      </View>
+  const isAndroid = Platform.OS === 'android';
 
-      <View style={{ paddingHorizontal: spacing.md, paddingBottom: 20, gap: 28 }}>
+  return (
+    <View style={[s.root, isAndroid && { flex: 1 }]}>
+      <SheetScaffold
+        footer={
+          /* Footer */
+          <View style={s.footer}>
+            {!isDateAvailable && <Text style={s.unavailable}>Nessuna disponibilità per il giorno selezionato</Text>}
+            <Pressable
+              onPress={loading || !isDateAvailable ? undefined : onSearchSlots}
+              disabled={loading || !isDateAvailable}
+              style={({ pressed }) => [s.cta, (loading || !isDateAvailable) && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+            >
+              {loading
+                ? <ActivityIndicator color="#FFF" />
+                : <Text style={s.ctaText}>Cerca disponibilità</Text>
+              }
+            </Pressable>
+          </View>
+        }
+      >
+        {/* Title row */}
+        <View style={s.titleRow}>
+          <Text style={s.title}>{step === 1 ? 'Prenota una guida' : 'Scegli un orario'}</Text>
+        </View>
+
+        <View style={{ paddingHorizontal: spacing.md, paddingBottom: 20, gap: 28 }}>
         {/* Giorno */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>Giorno</Text>
@@ -182,22 +203,8 @@ export default function BookingFlowScreen() {
             </Text>
           </View>
         ) : null}
-      </View>
-
-      {/* Footer */}
-      <View style={s.footer}>
-        {!isDateAvailable && <Text style={s.unavailable}>Nessuna disponibilità per il giorno selezionato</Text>}
-        <Pressable
-          onPress={loading || !isDateAvailable ? undefined : onSearchSlots}
-          disabled={loading || !isDateAvailable}
-          style={({ pressed }) => [s.cta, (loading || !isDateAvailable) && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-        >
-          {loading
-            ? <ActivityIndicator color="#FFF" />
-            : <Text style={s.ctaText}>Cerca disponibilità</Text>
-          }
-        </Pressable>
-      </View>
+        </View>
+      </SheetScaffold>
 
       {/* Calendar modal */}
       <Modal visible={calendarOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setField('calendarOpen', false)}>

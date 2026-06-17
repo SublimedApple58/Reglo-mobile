@@ -1,7 +1,8 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { hoursPeriodStore } from '../../../src/stores/hoursPeriodStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -111,16 +112,30 @@ export default function HoursPeriodScreen() {
     : 'Seleziona un periodo';
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Periodo</Text>
+      <SheetScaffold
+        footer={
+          <View style={s.footer}>
+            <Text style={s.summary}>{summary}</Text>
+            <Pressable
+              onPress={canApply ? handleApply : undefined}
+              disabled={!canApply}
+              style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={s.ctaText}>Applica</Text>
+            </Pressable>
+          </View>
+        }
+      >
+        <Text style={s.title}>Periodo</Text>
 
-      {/* Presets */}
-      <View style={s.presetRow}>
+        {/* Presets */}
+        <View style={s.presetRow}>
         {[
           { key: 'week', label: 'Questa settimana', p: presets.week },
           { key: 'month', label: 'Questo mese', p: presets.month },
@@ -180,19 +195,8 @@ export default function HoursPeriodScreen() {
             </Pressable>
           );
         })}
-      </View>
-
-      {/* Summary + apply */}
-      <View style={s.footer}>
-        <Text style={s.summary}>{summary}</Text>
-        <Pressable
-          onPress={canApply ? handleApply : undefined}
-          disabled={!canApply}
-          style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={s.ctaText}>Applica</Text>
-        </Pressable>
-      </View>
+        </View>
+      </SheetScaffold>
     </View>
   );
 }

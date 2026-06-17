@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { formatDay, formatTime } from '../../../src/utils/date';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
 const FADE_MS = 320;
 
@@ -134,7 +135,7 @@ export default function GroupLessonDetailScreen() {
   };
 
   return (
-    <View style={s.sheet}>
+    <View style={[s.sheet, Platform.OS === 'android' && { flex: 1 }]}>
       {/* Top action bar — X close */}
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
@@ -142,7 +143,27 @@ export default function GroupLessonDetailScreen() {
         </Pressable>
       </View>
 
-      <View style={[s.content, { paddingBottom: insets.bottom + 16 }]}>
+      <SheetScaffold
+        contentContainerStyle={s.content}
+        footer={
+          /* Ritiro */
+          <Pressable
+            onPress={confirmWithdraw}
+            disabled={!ready || busy}
+            style={({ pressed }) => [s.withdrawPill, { width: 'auto', marginTop: 28, marginHorizontal: 20, marginBottom: insets.bottom + 16 }, (pressed || busy || !ready) && { opacity: 0.85 }]}
+            accessibilityLabel="Ritira iscrizione"
+          >
+            {busy ? (
+              <ActivityIndicator color="#E5484D" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="exit-run" size={20} color="#E5484D" />
+                <Text style={s.withdrawText}>Ritira iscrizione</Text>
+              </>
+            )}
+          </Pressable>
+        }
+      >
         {/* Hero — giorno + orario in risalto */}
         <View style={s.hero}>
           <Text style={s.kicker}>Guida di gruppo</Text>
@@ -206,24 +227,7 @@ export default function GroupLessonDetailScreen() {
             </>
           ) : null}
         </View>
-
-        {/* Ritiro */}
-        <Pressable
-          onPress={confirmWithdraw}
-          disabled={!ready || busy}
-          style={({ pressed }) => [s.withdrawPill, (pressed || busy || !ready) && { opacity: 0.85 }]}
-          accessibilityLabel="Ritira iscrizione"
-        >
-          {busy ? (
-            <ActivityIndicator color="#E5484D" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="exit-run" size={20} color="#E5484D" />
-              <Text style={s.withdrawText}>Ritira iscrizione</Text>
-            </>
-          )}
-        </Pressable>
-      </View>
+      </SheetScaffold>
     </View>
   );
 }

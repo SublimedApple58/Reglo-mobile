@@ -1,7 +1,8 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore, type InstrAvailabilityMode } from '../../../src/stores/instructorSettingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -21,44 +22,48 @@ export default function AvailabilityModeScreen() {
   const { onPickAvailabilityMode } = data;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Disponibilità</Text>
-      <Text style={s.subtitle}>Come gestisci gli orari in cui sei prenotabile.</Text>
-
-      <View style={s.list}>
-        {OPTIONS.map((opt) => {
-          const active = selected === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => setSelected(opt.value)}
-              style={({ pressed }) => [s.optRow, active && s.optRowActive, pressed && { opacity: 0.9 }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={s.optLabel}>{opt.label}</Text>
-                <Text style={s.optDesc}>{opt.desc}</Text>
-              </View>
-              {active ? (
-                <View style={s.check}><Ionicons name="checkmark" size={15} color="#FFFFFF" /></View>
-              ) : (
-                <View style={s.radio} />
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Pressable
-        onPress={() => { onPickAvailabilityMode(selected); router.back(); }}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }]}
+      <SheetScaffold
+        footer={
+          <Pressable
+            onPress={() => { onPickAvailabilityMode(selected); router.back(); }}
+            style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={s.ctaText}>Salva</Text>
+          </Pressable>
+        }
       >
-        <Text style={s.ctaText}>Salva</Text>
-      </Pressable>
+        <Text style={s.title}>Disponibilità</Text>
+        <Text style={s.subtitle}>Come gestisci gli orari in cui sei prenotabile.</Text>
+
+        <View style={s.list}>
+          {OPTIONS.map((opt) => {
+            const active = selected === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => setSelected(opt.value)}
+                style={({ pressed }) => [s.optRow, active && s.optRowActive, pressed && { opacity: 0.9 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.optLabel}>{opt.label}</Text>
+                  <Text style={s.optDesc}>{opt.desc}</Text>
+                </View>
+                {active ? (
+                  <View style={s.check}><Ionicons name="checkmark" size={15} color="#FFFFFF" /></View>
+                ) : (
+                  <View style={s.radio} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </SheetScaffold>
     </View>
   );
 }

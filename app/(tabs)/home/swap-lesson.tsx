@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { swapStore } from '../../../src/stores/swapStore';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -68,12 +70,13 @@ export default function SwapLessonScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
+      <SheetScaffold keyboardAware contentContainerStyle={{ gap: 14 }}>
       <View style={s.headerBlock}>
         <Text style={s.title}>Scambia con…</Text>
         <Text style={s.subtitle}>Scegli una guida con cui scambiare.</Text>
@@ -133,6 +136,7 @@ export default function SwapLessonScreen() {
           </View>
         ))
       )}
+      </SheetScaffold>
     </View>
   );
 }

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { SheetScaffold } from '../components/SheetScaffold';
 
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
@@ -247,13 +250,28 @@ export const CreateGroupLessonScreen = () => {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Guida di gruppo</Text>
         <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
           <Ionicons name="close" size={20} color={NAVY} />
         </Pressable>
       </View>
+
+      <SheetScaffold
+        footer={loading ? null : (
+          <View style={s.footer}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+              <Text style={s.sumKey}>Riepilogo</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{capacity} allievi · {durationLabel}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
+            </View>
+            <View style={{ flexShrink: 0 }}>
+              <Button label="Crea" tone="primary" loading={saving} disabled={!vehicleId} onPress={handleCreate} />
+            </View>
+          </View>
+        )}
+      >
       <Text style={s.lede}>1 istruttore · 1 veicolo · fino a {capacity} allievi</Text>
 
       {loading ? (
@@ -302,19 +320,9 @@ export const CreateGroupLessonScreen = () => {
             </View>
             <ToggleSwitch value={openInvites} onValueChange={setOpenInvites} disabled={saving} />
           </View>
-
-          <View style={s.footer}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-              <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{capacity} allievi · {durationLabel}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
-            </View>
-            <View style={{ flexShrink: 0 }}>
-              <Button label="Crea" tone="primary" loading={saving} disabled={!vehicleId} onPress={handleCreate} />
-            </View>
-          </View>
         </>
       )}
+      </SheetScaffold>
     </View>
   );
 };

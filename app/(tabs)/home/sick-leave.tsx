@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
 import { sickLeaveSheetStore } from '../../../src/stores/sickLeaveSheetStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
@@ -141,13 +144,27 @@ export default function SickLeaveScreen() {
   const summarySub = halfDay ? `Dalle ${fmtTime(startTime)}` : 'Tutto il giorno';
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Registra malattia</Text>
         <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
           <Ionicons name="close" size={20} color={NAVY} />
         </Pressable>
       </View>
+      <SheetScaffold
+        footer={(
+          <View style={s.footer}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+              <Text style={s.sumKey}>Riepilogo</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{summaryMain}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{summarySub}</Text>
+            </View>
+            <View style={{ flexShrink: 0 }}>
+              <Button label="Conferma malattia" tone="primary" loading={pending} disabled={pending || invalidRange} onPress={confirm} />
+            </View>
+          </View>
+        )}
+      >
       <Text style={s.lead}>Le guide in conflitto verranno cancellate.</Text>
 
       {/* Date — singolo giorno o periodo (un solo calendario range) */}
@@ -191,17 +208,7 @@ export default function SickLeaveScreen() {
           <Row icon="time-outline" label="Orario di inizio" value={fmtTime(startTime)} onPress={openTimePicker} disabled={pending} />
         </View>
       ) : null}
-
-      <View style={s.footer}>
-        <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-          <Text style={s.sumKey}>Riepilogo</Text>
-          <Text style={s.sumVal} numberOfLines={1}>{summaryMain}</Text>
-          <Text style={s.sumSub} numberOfLines={1}>{summarySub}</Text>
-        </View>
-        <View style={{ flexShrink: 0 }}>
-          <Button label="Conferma malattia" tone="primary" loading={pending} disabled={pending || invalidRange} onPress={confirm} />
-        </View>
-      </View>
+      </SheetScaffold>
     </View>
   );
 }

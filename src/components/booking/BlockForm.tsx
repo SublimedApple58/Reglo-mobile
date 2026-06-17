@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SheetScaffold } from '../SheetScaffold';
 import { blockSheetStore } from '../../stores/blockSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
@@ -149,7 +151,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const canConfirm = !pending && !invalidRange;
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
       {!embedded && (
         <View style={s.header}>
           <Text style={s.title}>Blocca slot</Text>
@@ -159,6 +161,21 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
         </View>
       )}
 
+      <SheetScaffold
+        keyboardAware
+        footer={
+          <View style={s.footer}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+              <Text style={s.sumKey}>Riepilogo</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{fmtDay(date)}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{fmtTime(startTime)}–{fmtTime(endTime)}{recurring ? ` · ${recurringWeeks} sett.` : ''}</Text>
+            </View>
+            <View style={{ flexShrink: 0 }}>
+              <Button label="Blocca slot" tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
+            </View>
+          </View>
+        }
+      >
       {/* Giorno + orari */}
       <View style={s.group}>
         <Row icon="calendar-outline" label="Giorno" value={fmtDay(date)} onPress={openDatePicker} disabled={pending} />
@@ -205,17 +222,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
           </View>
         </>
       ) : null}
-
-      <View style={s.footer}>
-        <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-          <Text style={s.sumKey}>Riepilogo</Text>
-          <Text style={s.sumVal} numberOfLines={1}>{fmtDay(date)}</Text>
-          <Text style={s.sumSub} numberOfLines={1}>{fmtTime(startTime)}–{fmtTime(endTime)}{recurring ? ` · ${recurringWeeks} sett.` : ''}</Text>
-        </View>
-        <View style={{ flexShrink: 0 }}>
-          <Button label="Blocca slot" tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
-        </View>
-      </View>
+      </SheetScaffold>
     </View>
   );
 }

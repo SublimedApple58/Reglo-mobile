@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Input } from '../../../src/components/Input';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { useSession } from '../../../src/context/SessionContext';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -36,38 +37,46 @@ export default function MoreProfileEditScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Modifica profilo</Text>
-
-      <View style={s.field}>
-        <Text style={s.label}>Nome completo</Text>
-        <Input placeholder="Nome" value={name} onChangeText={(t) => { setName(t); setError(null); }} />
-      </View>
-      <View style={s.field}>
-        <Text style={s.label}>Numero di cellulare</Text>
-        <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      </View>
-
-      {error ? <Text style={s.error}>{error}</Text> : null}
-
-      <Pressable
-        onPress={handleSave}
-        disabled={saving}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
+      <SheetScaffold
+        keyboardAware
+        style={s.body}
+        contentContainerStyle={s.body}
+        footer={
+          <Pressable
+            onPress={handleSave}
+            disabled={saving}
+            style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
+          >
+            <Text style={s.ctaText}>{saving ? 'Salvataggio...' : 'Salva'}</Text>
+          </Pressable>
+        }
       >
-        <Text style={s.ctaText}>{saving ? 'Salvataggio...' : 'Salva'}</Text>
-      </Pressable>
+        <Text style={s.title}>Modifica profilo</Text>
+
+        <View style={s.field}>
+          <Text style={s.label}>Nome completo</Text>
+          <Input placeholder="Nome" value={name} onChangeText={(t) => { setName(t); setError(null); }} />
+        </View>
+        <View style={s.field}>
+          <Text style={s.label}>Numero di cellulare</Text>
+          <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        </View>
+
+        {error ? <Text style={s.error}>{error}</Text> : null}
+      </SheetScaffold>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
+  body: { gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },

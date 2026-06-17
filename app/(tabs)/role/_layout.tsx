@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
+import { TALL_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function RoleLayout() {
   return (
@@ -10,15 +11,7 @@ export default function RoleLayout() {
         name="availability-exception"
         options={{ presentation: 'modal', headerShown: false }}
       />
-      <Stack.Screen
-        name="publish-day"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="publish-day" options={TALL_SHEET} />
       <Stack.Screen
         name="time-picker"
         options={{

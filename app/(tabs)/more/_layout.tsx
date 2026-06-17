@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
+import { TALL_SHEET, HUG_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function MoreLayout() {
   return (
@@ -11,51 +12,11 @@ export default function MoreLayout() {
       <Stack.Screen name="instructors-overview" />
       <Stack.Screen name="locations" />
       <Stack.Screen name="vehicles" />
-      <Stack.Screen
-        name="profile-edit"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="agenda-view"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="availability-mode"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="agenda-settings"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="location-form"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="profile-edit" options={TALL_SHEET} />
+      <Stack.Screen name="agenda-view" options={TALL_SHEET} />
+      <Stack.Screen name="availability-mode" options={TALL_SHEET} />
+      <Stack.Screen name="agenda-settings" options={TALL_SHEET} />
+      <Stack.Screen name="location-form" options={TALL_SHEET} />
       <Stack.Screen
         name="vehicle-form"
         options={{
@@ -66,24 +27,8 @@ export default function MoreLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        name="time-picker"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="hours-period"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="time-picker" options={HUG_SHEET} />
+      <Stack.Screen name="hours-period" options={TALL_SHEET} />
     </Stack>
   );
 }

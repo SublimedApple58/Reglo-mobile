@@ -1,9 +1,10 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { dateRangeStore } from '../../../src/stores/dateRangeStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -83,7 +84,7 @@ export default function SelectDateRangeScreen() {
     : 'Tocca il giorno di inizio e quello di fine';
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 16 }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom + 16 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>{data.title ?? 'Seleziona periodo'}</Text>
         <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
@@ -91,6 +92,20 @@ export default function SelectDateRangeScreen() {
         </Pressable>
       </View>
 
+      <SheetScaffold
+        footer={
+          <View style={s.footer}>
+            <Text style={s.summary}>{summary}</Text>
+            <Pressable
+              onPress={canApply ? handleApply : undefined}
+              disabled={!canApply}
+              style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={s.ctaText}>Applica</Text>
+            </Pressable>
+          </View>
+        }
+      >
       <View style={s.calHeader}>
         <Pressable onPress={() => canGoPrev && goMonth(-1)} hitSlop={12} style={s.calArrow} disabled={!canGoPrev}>
           <Ionicons name="chevron-back" size={18} color={canGoPrev ? NAVY : '#D1D5DB'} />
@@ -130,17 +145,7 @@ export default function SelectDateRangeScreen() {
           );
         })}
       </View>
-
-      <View style={s.footer}>
-        <Text style={s.summary}>{summary}</Text>
-        <Pressable
-          onPress={canApply ? handleApply : undefined}
-          disabled={!canApply}
-          style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={s.ctaText}>Applica</Text>
-        </Pressable>
-      </View>
+      </SheetScaffold>
     </View>
   );
 }

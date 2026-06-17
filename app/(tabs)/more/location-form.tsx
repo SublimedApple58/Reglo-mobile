@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { colors } from '../../../src/theme/colors';
@@ -150,13 +152,25 @@ export default function LocationFormScreen() {
   if (!data) return <View style={s.root} />;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>{initialValue ? 'Modifica luogo' : 'Aggiungi luogo'}</Text>
+      <SheetScaffold
+        keyboardAware
+        footer={
+          <Pressable
+            onPress={canSubmit && !saving ? handleSubmit : undefined}
+            disabled={!canSubmit || saving}
+            style={({ pressed }) => [s.cta, (!canSubmit || saving) && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+          >
+            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva luogo</Text>}
+          </Pressable>
+        }
+      >
+        <Text style={s.title}>{initialValue ? 'Modifica luogo' : 'Aggiungi luogo'}</Text>
 
         <Text style={s.label}>Nome del luogo</Text>
         <TextInput
@@ -218,14 +232,7 @@ export default function LocationFormScreen() {
         ) : null}
 
         {error ? <Text style={s.error}>{error}</Text> : null}
-
-        <Pressable
-          onPress={canSubmit && !saving ? handleSubmit : undefined}
-          disabled={!canSubmit || saving}
-          style={({ pressed }) => [s.cta, (!canSubmit || saving) && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
-        >
-          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva luogo</Text>}
-        </Pressable>
+      </SheetScaffold>
     </View>
   );
 }

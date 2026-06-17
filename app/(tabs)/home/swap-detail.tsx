@@ -1,7 +1,8 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
@@ -33,12 +34,13 @@ export default function SwapDetailScreen() {
   const { appointment } = offer;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
+      <SheetScaffold>
       <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}>
         {/* Hero */}
         <View style={s.heroRow}>
@@ -130,6 +132,7 @@ export default function SwapDetailScreen() {
           </Pressable>
         )}
       </View>
+      </SheetScaffold>
     </View>
   );
 }

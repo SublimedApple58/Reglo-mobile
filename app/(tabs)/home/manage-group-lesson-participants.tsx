@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
 const initialsOf = (name: string | null) => {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -165,7 +166,7 @@ export default function ManageGroupLessonParticipantsScreen() {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 16 }]}>
+    <View style={[s.root, Platform.OS === 'android' ? { flex: 1 } : { paddingBottom: insets.bottom + 16 }]}>
       {/* Top bar — title + X */}
       <View style={s.topBar}>
         <Text style={s.title}>Partecipanti</Text>
@@ -173,10 +174,33 @@ export default function ManageGroupLessonParticipantsScreen() {
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.subtitle}>{filled} su {capacity} posti occupati</Text>
 
-      {/* Roster — FLAT rows on the background (no card) */}
-      <View style={s.list}>
+      <SheetScaffold
+        contentContainerStyle={s.scaffoldBody}
+        footer={
+          /* Invita allievi idonei — CTA a parte, card "easy" (non primary) */
+          <View style={[s.footerWrap, { paddingBottom: insets.bottom + 16 }]}>
+            {openSeats > 0 ? (
+              <Pressable onPress={handleInvite} disabled={busy} style={({ pressed }) => [s.inviteCard, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
+                <View style={s.inviteIcon}>
+                  {inviting ? <ActivityIndicator size="small" color="#1A1A2E" /> : <Ionicons name="paper-plane-outline" size={20} color="#1A1A2E" />}
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.inviteTitle}>Invita allievi idonei</Text>
+                  <Text style={s.inviteSub}>Apri i {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'} agli allievi idonei</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+              </Pressable>
+            ) : (
+              <Text style={s.fullText}>Posti esauriti.</Text>
+            )}
+          </View>
+        }
+      >
+        <Text style={s.subtitle}>{filled} su {capacity} posti occupati</Text>
+
+        {/* Roster — FLAT rows on the background (no card) */}
+        <View style={s.list}>
         {lesson.participants.length === 0 && !adding ? (
           <Text style={s.emptyText}>Nessun iscritto. Aggiungi un allievo o invia gli inviti.</Text>
         ) : (
@@ -244,29 +268,16 @@ export default function ManageGroupLessonParticipantsScreen() {
             </Pressable>
           </>
         ) : null}
-      </View>
-
-      {/* Invita allievi idonei — CTA a parte, card "easy" (non primary) */}
-      {openSeats > 0 ? (
-        <Pressable onPress={handleInvite} disabled={busy} style={({ pressed }) => [s.inviteCard, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-          <View style={s.inviteIcon}>
-            {inviting ? <ActivityIndicator size="small" color="#1A1A2E" /> : <Ionicons name="paper-plane-outline" size={20} color="#1A1A2E" />}
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={s.inviteTitle}>Invita allievi idonei</Text>
-            <Text style={s.inviteSub}>Apri i {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'} agli allievi idonei</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
-        </Pressable>
-      ) : (
-        <Text style={s.fullText}>Posti esauriti.</Text>
-      )}
+        </View>
+      </SheetScaffold>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: 20, paddingTop: 16, gap: 14 },
+  scaffoldBody: { gap: 14 },
+  footerWrap: { marginTop: 14 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFEFF1', alignItems: 'center', justifyContent: 'center' },

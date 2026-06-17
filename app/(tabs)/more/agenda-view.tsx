@@ -1,7 +1,8 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore, type AgendaViewMode } from '../../../src/stores/instructorSettingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -20,40 +21,42 @@ export default function AgendaViewScreen() {
   const { agendaViewMode, onPickAgendaView } = data;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Vista agenda</Text>
-      <Text style={s.subtitle}>Come visualizzi l'agenda delle guide.</Text>
+      <SheetScaffold>
+        <Text style={s.title}>Vista agenda</Text>
+        <Text style={s.subtitle}>Come visualizzi l'agenda delle guide.</Text>
 
-      <View style={s.list}>
-        {OPTIONS.map((opt) => {
-          const active = agendaViewMode === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => { onPickAgendaView(opt.value); router.back(); }}
-              style={({ pressed }) => [s.optRow, active && s.optRowActive, pressed && { opacity: 0.9 }]}
-            >
-              <View style={s.optIcon}>
-                <Ionicons name={opt.icon} size={20} color={active ? '#1A1A2E' : '#9CA3AF'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.optLabel}>{opt.label}</Text>
-                <Text style={s.optDesc}>{opt.desc}</Text>
-              </View>
-              {active ? (
-                <View style={s.check}><Ionicons name="checkmark" size={15} color="#FFFFFF" /></View>
-              ) : (
-                <View style={s.radio} />
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
+        <View style={s.list}>
+          {OPTIONS.map((opt) => {
+            const active = agendaViewMode === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => { onPickAgendaView(opt.value); router.back(); }}
+                style={({ pressed }) => [s.optRow, active && s.optRowActive, pressed && { opacity: 0.9 }]}
+              >
+                <View style={s.optIcon}>
+                  <Ionicons name={opt.icon} size={20} color={active ? '#1A1A2E' : '#9CA3AF'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.optLabel}>{opt.label}</Text>
+                  <Text style={s.optDesc}>{opt.desc}</Text>
+                </View>
+                {active ? (
+                  <View style={s.check}><Ionicons name="checkmark" size={15} color="#FFFFFF" /></View>
+                ) : (
+                  <View style={s.radio} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </SheetScaffold>
     </View>
   );
 }

@@ -1,7 +1,8 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import RangesEditor from '../../../src/components/RangesEditor';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { publishDayStore } from '../../../src/stores/publishDayStore';
@@ -47,45 +48,50 @@ export default function PublishDayScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
 
-      <View style={s.headerBlock}>
-        <Image source={FLUENT_CLOCK} style={s.headerIcon} />
-        <Text style={s.title}>{data.dayLabel}</Text>
-        <Text style={s.subtitle}>Scegli i tuoi orari per questo giorno.</Text>
-      </View>
-
-      <View style={s.toggleRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.toggleLabel}>Disponibile</Text>
-          <Text style={s.toggleDesc}>{available ? 'Gli allievi possono prenotare' : 'Giorno di riposo'}</Text>
-        </View>
-        <ToggleSwitch value={available} onValueChange={setAvailable} />
-      </View>
-
-      {available && (
-        <View>
-          <Text style={s.label}>FASCE ORARIE</Text>
-          <RangesEditor
-            ranges={ranges}
-            onChange={setRanges}
-            onPickTime={handlePickTime}
-            onAddRange={() => setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }])}
-          />
-        </View>
-      )}
-
-      <Pressable
-        onPress={handleSave}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
+      <SheetScaffold
+        contentContainerStyle={{ gap: 18, paddingBottom: 18 }}
+        footer={
+          <Pressable
+            onPress={handleSave}
+            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
+          >
+            <Text style={s.ctaText}>Salva</Text>
+          </Pressable>
+        }
       >
-        <Text style={s.ctaText}>Salva</Text>
-      </Pressable>
+        <View style={s.headerBlock}>
+          <Image source={FLUENT_CLOCK} style={s.headerIcon} />
+          <Text style={s.title}>{data.dayLabel}</Text>
+          <Text style={s.subtitle}>Scegli i tuoi orari per questo giorno.</Text>
+        </View>
+
+        <View style={s.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.toggleLabel}>Disponibile</Text>
+            <Text style={s.toggleDesc}>{available ? 'Gli allievi possono prenotare' : 'Giorno di riposo'}</Text>
+          </View>
+          <ToggleSwitch value={available} onValueChange={setAvailable} />
+        </View>
+
+        {available && (
+          <View>
+            <Text style={s.label}>FASCE ORARIE</Text>
+            <RangesEditor
+              ranges={ranges}
+              onChange={setRanges}
+              onPickTime={handlePickTime}
+              onAddRange={() => setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }])}
+            />
+          </View>
+        )}
+      </SheetScaffold>
     </View>
   );
 }

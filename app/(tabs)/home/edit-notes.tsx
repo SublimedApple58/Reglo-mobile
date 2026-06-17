@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -44,35 +45,42 @@ export default function EditNotesScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>{data.title}</Text>
-        {data.subtitle ? <Text style={s.subtitle}>{data.subtitle}</Text> : null}
-      </View>
-
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder={data.placeholder ?? 'Aggiungi note operative o osservazioni.'}
-        placeholderTextColor={colors.textMuted}
-        multiline
-        style={s.notes}
-        editable={!saving}
-        autoFocus
-      />
-
-      <Pressable
-        onPress={handleSave}
-        disabled={saving}
-        style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.9 }, saving && { opacity: 0.7 }]}
+      <SheetScaffold
+        keyboardAware
+        style={{ gap: 20 }}
+        contentContainerStyle={{ gap: 20 }}
+        footer={(
+          <Pressable
+            onPress={handleSave}
+            disabled={saving}
+            style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.9 }, saving && { opacity: 0.7 }]}
+          >
+            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveText}>Salva</Text>}
+          </Pressable>
+        )}
       >
-        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveText}>Salva</Text>}
-      </Pressable>
+        <View style={s.headerBlock}>
+          <Text style={s.title}>{data.title}</Text>
+          {data.subtitle ? <Text style={s.subtitle}>{data.subtitle}</Text> : null}
+        </View>
+
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder={data.placeholder ?? 'Aggiungi note operative o osservazioni.'}
+          placeholderTextColor={colors.textMuted}
+          multiline
+          style={s.notes}
+          editable={!saving}
+          autoFocus
+        />
+      </SheetScaffold>
     </View>
   );
 }

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { SheetScaffold } from '../components/SheetScaffold';
 
 import { examSheetStore } from '../stores/examSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
@@ -235,7 +238,7 @@ export const CreateExamScreen = () => {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Crea esame</Text>
         <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
@@ -243,6 +246,21 @@ export const CreateExamScreen = () => {
         </Pressable>
       </View>
 
+      <SheetScaffold
+        keyboardAware
+        footer={loading ? null : (
+          <View style={s.footer}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+              <Text style={s.sumKey}>Riepilogo</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{summary}</Text>
+              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)} · ${durLabel(duration)}` : ' · orario da definire'}</Text>
+            </View>
+            <View style={{ flexShrink: 0 }}>
+              <Button label="Crea esame" tone="primary" loading={saving} disabled={selectedIds.length === 0} onPress={handleCreate} />
+            </View>
+          </View>
+        )}
+      >
       {loading ? (
         <View style={s.loadingBox}>
           <ActivityIndicator color={colors.primary} />
@@ -313,20 +331,9 @@ export const CreateExamScreen = () => {
             multiline
             textAlignVertical="top"
           />
-
-          {/* Footer: riepilogo + CTA */}
-          <View style={s.footer}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-              <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{summary}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)} · ${durLabel(duration)}` : ' · orario da definire'}</Text>
-            </View>
-            <View style={{ flexShrink: 0 }}>
-              <Button label="Crea esame" tone="primary" loading={saving} disabled={selectedIds.length === 0} onPress={handleCreate} />
-            </View>
-          </View>
         </>
       )}
+      </SheetScaffold>
     </View>
   );
 };

@@ -1,7 +1,8 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { allLessonsStore } from '../../../src/stores/allLessonsStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
@@ -28,7 +29,7 @@ export default function AllLessonsScreen() {
   const { lessons, onOpenDetail } = data;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -39,6 +40,7 @@ export default function AllLessonsScreen() {
         <Text style={s.subtitle}>{lessons.length} {lessons.length === 1 ? 'guida' : 'guide'} in programma</Text>
       </View>
 
+      <SheetScaffold>
       <View style={s.list}>
         {lessons.map((lesson, idx) => {
           const bg = CARD_COLORS[idx % CARD_COLORS.length];
@@ -70,6 +72,7 @@ export default function AllLessonsScreen() {
           );
         })}
       </View>
+      </SheetScaffold>
     </View>
   );
 }

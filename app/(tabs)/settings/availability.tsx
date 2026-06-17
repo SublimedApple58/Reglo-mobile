@@ -1,7 +1,8 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { settingsStore, SlotTarget } from '../../../src/stores/settingsStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { colors } from '../../../src/theme/colors';
@@ -32,78 +33,87 @@ export default function AvailabilityScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Disponibilità</Text>
 
-      {!hasProfile ? (
-        <Text style={s.hint}>Profilo non collegato alla company attiva.</Text>
-      ) : (
-        <>
-          <Text style={s.hint}>Ripetizione ogni {weeks} settimane</Text>
+      <SheetScaffold
+        style={{ gap: 16 }}
+        contentContainerStyle={{ gap: 16 }}
+        footer={
+          hasProfile ? (
+            <Pressable
+              onPress={() => { onSaveAvailability(); router.back(); }}
+              disabled={availabilitySaving}
+              style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, availabilitySaving && { opacity: 0.6 }]}
+            >
+              <Text style={s.ctaText}>{availabilitySaving ? 'Salvataggio...' : 'Salva'}</Text>
+            </Pressable>
+          ) : null
+        }
+      >
+        <Text style={s.title}>Disponibilità</Text>
 
-          <View style={s.dayRow}>
-            {[1, 2, 3, 4, 5, 6].map((d) => {
-              const active = availabilityDays.includes(d);
-              return (
-                <Pressable key={d} onPress={() => toggleDay(d)} style={[s.day, active ? s.dayOn : s.dayOff]}>
-                  <Text style={[s.dayText, active ? s.dayTextOn : s.dayTextOff]}>{DAY_LETTERS[d]}</Text>
+        {!hasProfile ? (
+          <Text style={s.hint}>Profilo non collegato alla company attiva.</Text>
+        ) : (
+          <>
+            <Text style={s.hint}>Ripetizione ogni {weeks} settimane</Text>
+
+            <View style={s.dayRow}>
+              {[1, 2, 3, 4, 5, 6].map((d) => {
+                const active = availabilityDays.includes(d);
+                return (
+                  <Pressable key={d} onPress={() => toggleDay(d)} style={[s.day, active ? s.dayOn : s.dayOff]}>
+                    <Text style={[s.dayText, active ? s.dayTextOn : s.dayTextOff]}>{DAY_LETTERS[d]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 8 }}>
+                <Pressable onPress={toggleMorning} style={s.slotRow}>
+                  <Text style={[s.slotLabel, { color: morningActive ? '#1A1A2E' : '#9CA3AF' }]}>Mattina</Text>
+                  <View style={[s.slotDot, { backgroundColor: morningActive ? '#22C55E' : '#D1D5DB' }]} />
                 </Pressable>
-              );
-            })}
-          </View>
+                {morningActive && (
+                  <View style={s.timeRow}>
+                    <Pressable style={s.timeCard} onPress={() => openPicker('morningStart', morningStart)}>
+                      <Text style={s.timeText}>{toTimeStr(morningStart)}</Text>
+                    </Pressable>
+                    <Text style={s.sep}>—</Text>
+                    <Pressable style={s.timeCard} onPress={() => openPicker('morningEnd', morningEnd)}>
+                      <Text style={s.timeText}>{toTimeStr(morningEnd)}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
 
-          <View style={{ gap: 10 }}>
-            <View style={{ gap: 8 }}>
-              <Pressable onPress={toggleMorning} style={s.slotRow}>
-                <Text style={[s.slotLabel, { color: morningActive ? '#1A1A2E' : '#9CA3AF' }]}>Mattina</Text>
-                <View style={[s.slotDot, { backgroundColor: morningActive ? '#22C55E' : '#D1D5DB' }]} />
-              </Pressable>
-              {morningActive && (
-                <View style={s.timeRow}>
-                  <Pressable style={s.timeCard} onPress={() => openPicker('morningStart', morningStart)}>
-                    <Text style={s.timeText}>{toTimeStr(morningStart)}</Text>
-                  </Pressable>
-                  <Text style={s.sep}>—</Text>
-                  <Pressable style={s.timeCard} onPress={() => openPicker('morningEnd', morningEnd)}>
-                    <Text style={s.timeText}>{toTimeStr(morningEnd)}</Text>
-                  </Pressable>
-                </View>
-              )}
+              <View style={{ gap: 8 }}>
+                <Pressable onPress={toggleAfternoon} style={s.slotRow}>
+                  <Text style={[s.slotLabel, { color: afternoonActive ? '#1A1A2E' : '#9CA3AF' }]}>Pomeriggio</Text>
+                  <View style={[s.slotDot, { backgroundColor: afternoonActive ? '#22C55E' : '#D1D5DB' }]} />
+                </Pressable>
+                {afternoonActive && (
+                  <View style={s.timeRow}>
+                    <Pressable style={s.timeCard} onPress={() => openPicker('afternoonStart', afternoonStart)}>
+                      <Text style={s.timeText}>{toTimeStr(afternoonStart)}</Text>
+                    </Pressable>
+                    <Text style={s.sep}>—</Text>
+                    <Pressable style={s.timeCard} onPress={() => openPicker('afternoonEnd', afternoonEnd)}>
+                      <Text style={s.timeText}>{toTimeStr(afternoonEnd)}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
             </View>
-
-            <View style={{ gap: 8 }}>
-              <Pressable onPress={toggleAfternoon} style={s.slotRow}>
-                <Text style={[s.slotLabel, { color: afternoonActive ? '#1A1A2E' : '#9CA3AF' }]}>Pomeriggio</Text>
-                <View style={[s.slotDot, { backgroundColor: afternoonActive ? '#22C55E' : '#D1D5DB' }]} />
-              </Pressable>
-              {afternoonActive && (
-                <View style={s.timeRow}>
-                  <Pressable style={s.timeCard} onPress={() => openPicker('afternoonStart', afternoonStart)}>
-                    <Text style={s.timeText}>{toTimeStr(afternoonStart)}</Text>
-                  </Pressable>
-                  <Text style={s.sep}>—</Text>
-                  <Pressable style={s.timeCard} onPress={() => openPicker('afternoonEnd', afternoonEnd)}>
-                    <Text style={s.timeText}>{toTimeStr(afternoonEnd)}</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          </View>
-
-          <Pressable
-            onPress={() => { onSaveAvailability(); router.back(); }}
-            disabled={availabilitySaving}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, availabilitySaving && { opacity: 0.6 }]}
-          >
-            <Text style={s.ctaText}>{availabilitySaving ? 'Salvataggio...' : 'Salva'}</Text>
-          </Pressable>
-        </>
-      )}
+          </>
+        )}
+      </SheetScaffold>
     </View>
   );
 }

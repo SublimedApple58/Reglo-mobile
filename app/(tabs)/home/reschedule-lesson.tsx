@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { rescheduleStore } from '../../../src/stores/rescheduleStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -101,12 +102,28 @@ export default function RescheduleLessonScreen() {
   };
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn} disabled={pending}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
+      <SheetScaffold
+        contentContainerStyle={{ gap: 14 }}
+        footer={
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
+          >
+            {pending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={s.confirmText}>Conferma spostamento</Text>
+            )}
+          </Pressable>
+        }
+      >
       <View style={s.headerBlock}>
         <Text style={s.title} numberOfLines={1}>Sposta guida di {studentName}</Text>
         <Text style={s.subtitle}>Oggi: {slotLabel(originalStart)}</Text>
@@ -179,18 +196,7 @@ export default function RescheduleLessonScreen() {
           <Text style={s.errorText}>{serverError}</Text>
         </View>
       ) : null}
-
-      <Pressable
-        onPress={handleSubmit}
-        disabled={!canSubmit}
-        style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
-      >
-        {pending ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={s.confirmText}>Conferma spostamento</Text>
-        )}
-      </Pressable>
+      </SheetScaffold>
     </View>
   );
 }

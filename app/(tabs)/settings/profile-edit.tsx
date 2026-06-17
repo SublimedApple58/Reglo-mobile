@@ -1,7 +1,8 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { Input } from '../../../src/components/Input';
 import { settingsStore } from '../../../src/stores/settingsStore';
 import { colors } from '../../../src/theme/colors';
@@ -16,30 +17,38 @@ export default function ProfileEditScreen() {
   const { name, phone, saving, setName, setPhone, onSaveProfile } = data;
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
         </Pressable>
       </View>
-      <Text style={s.title}>Modifica profilo</Text>
 
-      <View style={s.field}>
-        <Text style={s.label}>Nome completo</Text>
-        <Input placeholder="Nome" value={name} onChangeText={setName} />
-      </View>
-      <View style={s.field}>
-        <Text style={s.label}>Numero di cellulare</Text>
-        <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      </View>
-
-      <Pressable
-        onPress={() => { onSaveProfile(); router.back(); }}
-        disabled={saving}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
+      <SheetScaffold
+        keyboardAware
+        style={{ gap: 16 }}
+        contentContainerStyle={{ gap: 16 }}
+        footer={
+          <Pressable
+            onPress={() => { onSaveProfile(); router.back(); }}
+            disabled={saving}
+            style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
+          >
+            <Text style={s.ctaText}>{saving ? 'Salvataggio...' : 'Salva'}</Text>
+          </Pressable>
+        }
       >
-        <Text style={s.ctaText}>{saving ? 'Salvataggio...' : 'Salva'}</Text>
-      </Pressable>
+        <Text style={s.title}>Modifica profilo</Text>
+
+        <View style={s.field}>
+          <Text style={s.label}>Nome completo</Text>
+          <Input placeholder="Nome" value={name} onChangeText={setName} />
+        </View>
+        <View style={s.field}>
+          <Text style={s.label}>Numero di cellulare</Text>
+          <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        </View>
+      </SheetScaffold>
     </View>
   );
 }
