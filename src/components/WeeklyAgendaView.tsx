@@ -105,6 +105,17 @@ function fitAllowedDur(raw: number, allowed: number[], maxFit: number): number {
   return best === -1 ? smallest : best;
 }
 
+// Snap a raw duration to a free 15-min step (any length — NOT limited to the
+// allowed guide durations), clamped to [STEP, cap].
+function snapDurFree(raw: number, cap: number): number {
+  'worklet';
+  let d = Math.round(raw / STEP) * STEP;
+  const capSnap = Math.floor(cap / STEP) * STEP;
+  if (d > capSnap) d = capSnap;
+  if (d < STEP) d = STEP;
+  return d;
+}
+
 // ── Overlap prevention ──
 // `free` is a flat list of free segments [s0,e0,s1,e1,…] (minutes from midnight,
 // the day minus guides/blocks). The ghost must always fit inside ONE free
@@ -452,7 +463,7 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
           // Can't grow up past the top of the current free segment.
           const minStart = free.length ? freeSegStart(baseEnd.value, free) : DAY_MIN;
           const rawDur = baseEnd.value - (baseStart.value + delta);
-          const nd = fitAllowedDur(rawDur, allowedDur, baseEnd.value - minStart);
+          const nd = snapDurFree(rawDur, baseEnd.value - minStart);
           const ns = baseEnd.value - nd;
           if (ns !== gStart.value) {
             gStart.value = ns; gDur.value = nd;
@@ -462,7 +473,7 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
           // Can't grow down past the end of the current free segment.
           const maxEnd = free.length ? freeSegEnd(baseStart.value, free) : DAY_MAX;
           const rawDur = (baseEnd.value + delta) - baseStart.value;
-          const nd = fitAllowedDur(rawDur, allowedDur, maxEnd - baseStart.value);
+          const nd = snapDurFree(rawDur, maxEnd - baseStart.value);
           if (nd !== gDur.value) {
             gDur.value = nd;
             runOnJS(onStep)(baseStart.value, nd);

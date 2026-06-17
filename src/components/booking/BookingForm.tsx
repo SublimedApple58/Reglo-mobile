@@ -128,7 +128,9 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         ? dateAtMinutes(data.initialDate, data.presetStartMinutes)
         : normalizeToQuarter(new Date()),
     );
-    setDuration(data.durations.includes(data.defaultDuration) ? data.defaultDuration : (data.durations[0] ?? 60));
+    // Honor the seeded duration as-is (the grid ghost can set ANY duration, not
+    // only the preset guide durations).
+    setDuration(data.defaultDuration || data.durations[0] || 60);
     setLocationId(data.defaultLocation?.id ?? null);
     setLocationName(data.defaultLocation?.name ?? null);
     setLocationAddress(data.defaultLocation?.address ?? null);
@@ -208,9 +210,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   };
 
   const openDuration = () => {
+    // Include the current duration so a custom (grid-ghost) length stays selectable.
+    const opts = Array.from(new Set([duration, ...durations])).sort((a, b) => a - b);
     optionsPickerStore.set({
       title: 'Durata', multi: false, selected: [String(duration)],
-      options: durations.map((d) => ({ value: String(d), label: `${d} min` })),
+      options: opts.map((d) => ({ value: String(d), label: `${d} min` })),
       onConfirm: (v) => { const n = Number(v[0]); if (!Number.isNaN(n)) setDuration(n); },
     });
     router.push('/(tabs)/home/select-options');

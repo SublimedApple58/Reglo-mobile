@@ -2584,16 +2584,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       return;
     }
     const preset = Math.max(windowStart, Math.min(windowEnd - 15, startMinutes));
-    // Ghost-block duration (free 15' steps) → closest allowed booking duration.
-    const presetDur = durationMinutes != null && bookingDurations.length
-      ? bookingDurations.reduce((best, d) =>
-          Math.abs(d - durationMinutes) < Math.abs(best - durationMinutes) ? d : best,
-        bookingDurations[0])
-      : undefined;
-    seedBookingStore(date, preset, presetDur);
+    // The ghost duration (free 15' steps) is carried through AS-IS — any duration,
+    // not snapped to the allowed guide durations.
+    seedBookingStore(date, preset, durationMinutes ?? undefined);
     seedBlockStore(date, preset);
     router.push('/(tabs)/home/quick-book');
-  }, [canInstructorBook, bookingDurations, seedBookingStore, seedBlockStore, router]);
+  }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
 
   const userName = user?.name?.split(' ')[0] ?? (ownerMode ? 'Titolare' : 'Istruttore');
 
