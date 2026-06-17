@@ -11,6 +11,8 @@ export type OutOfAvailData = {
   appointments: OutOfAvailabilityAppointment[];
   /** Called after each action so the home reloads the banner count + agenda. */
   onChanged: () => void;
+  /** Open the group-lesson management for a tapped group-lesson card. */
+  onOpenGroupLesson?: (groupLessonId: string) => void;
 };
 
 let _data: OutOfAvailData | null = null;

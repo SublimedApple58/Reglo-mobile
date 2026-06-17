@@ -2650,7 +2650,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 onPress={() => {
                   outOfAvailStore.set({
                     appointments: outOfAvailAppointments,
-                    onChanged: () => { loadOutOfAvailability(); loadData(); },
+onChanged: () => { loadOutOfAvailability(); loadData(); },
+                    onOpenGroupLesson: openGroupLessonManage,
                   });
                   router.push('/(tabs)/home/out-of-availability');
                 }}
@@ -2704,7 +2705,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               onPress={() => {
                 outOfAvailStore.set({
                   appointments: outOfAvailAppointments,
-                  onChanged: () => { loadOutOfAvailability(); loadData(); },
+onChanged: () => { loadOutOfAvailability(); loadData(); },
+                  onOpenGroupLesson: openGroupLessonManage,
                 });
                 router.push('/(tabs)/home/out-of-availability');
               }}
@@ -3706,7 +3708,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
                 onPress={() => {
                   outOfAvailStore.set({
                     appointments: outOfAvailAppointments,
-                    onChanged: () => { loadOutOfAvailability(); loadData(); },
+onChanged: () => { loadOutOfAvailability(); loadData(); },
+                    onOpenGroupLesson: openGroupLessonManage,
                   });
                   router.push('/(tabs)/home/out-of-availability');
                 }}

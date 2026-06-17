@@ -47,10 +47,15 @@ export default function OutOfAvailabilityScreen() {
     if (pending) return;
     setPending({ key: group.key, action });
     try {
-      // Apply to every seat of the (group) lesson.
-      for (const id of group.ids) {
-        if (action === 'cancel') await regloApi.cancelAppointment(id);
-        else await regloApi.approveAvailabilityOverride(id);
+      if (action === 'cancel' && group.isGroupLesson && group.groupLessonId) {
+        // Cancel the whole group lesson in one shot (cancels every seat).
+        await regloApi.cancelGroupLesson(group.groupLessonId);
+      } else {
+        // Apply to every seat (single lesson, or "Mantieni" on a group).
+        for (const id of group.ids) {
+          if (action === 'cancel') await regloApi.cancelAppointment(id);
+          else await regloApi.approveAvailabilityOverride(id);
+        }
       }
       const removed = new Set(group.ids);
       const next = items.filter((a) => !removed.has(a.id));
@@ -81,15 +86,17 @@ export default function OutOfAvailabilityScreen() {
             const apt = group.rep;
             const rowPending = pending?.key === group.key;
             const anyPending = pending !== null;
-            const title = group.isGroupLesson ? 'Guida di gruppo' : apt.studentName;
-            return (
-              <View key={group.key} style={[s.card, rowPending && { opacity: 0.6 }]}>
+            const isGroup = group.isGroupLesson;
+            const canOpen = isGroup && !!group.groupLessonId && !!data.onOpenGroupLesson;
+            const inner = (
+              <>
                 <View style={s.cardHead}>
-                  <Text style={s.studentName} numberOfLines={1}>{title}</Text>
+                  {isGroup ? <View style={s.glIcon}><Ionicons name="people" size={15} color="#0F766E" /></View> : null}
+                  <Text style={s.studentName} numberOfLines={1}>{isGroup ? 'Guida di gruppo' : apt.studentName}</Text>
                   <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
                 </View>
                 <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
-                {group.isGroupLesson ? <Text style={s.meta}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text> : null}
+                {isGroup ? <Text style={s.meta}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text> : null}
                 {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
                 {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
                 <View style={s.actions}>
@@ -100,6 +107,19 @@ export default function OutOfAvailabilityScreen() {
                     <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(group, 'approve')} />
                   </View>
                 </View>
+              </>
+            );
+            return canOpen ? (
+              <Pressable
+                key={group.key}
+                onPress={() => { if (!anyPending && group.groupLessonId) data.onOpenGroupLesson?.(group.groupLessonId); }}
+                style={({ pressed }) => [s.card, s.groupCard, rowPending && { opacity: 0.6 }, pressed && { opacity: 0.97 }]}
+              >
+                {inner}
+              </Pressable>
+            ) : (
+              <View key={group.key} style={[s.card, isGroup && s.groupCard, rowPending && { opacity: 0.6 }]}>
+                {inner}
               </View>
             );
           })}
@@ -122,7 +142,10 @@ const s = StyleSheet.create({
   empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 40 },
 
   card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, gap: 4, ...ELEV },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
+  // Group lesson cards take the app's teal group-lesson accent.
+  groupCard: { borderLeftWidth: 3, borderLeftColor: '#10B981' },
+  glIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
   studentName: { flex: 1, fontSize: 16, fontWeight: '600', color: NAVY },
   chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: N100 },
   chipTxt: { fontSize: 11.5, fontWeight: '600', color: NAVY },

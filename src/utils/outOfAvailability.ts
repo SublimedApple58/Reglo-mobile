@@ -9,6 +9,8 @@ export type OobGroup = {
   /** Participant count (1 for a normal lesson). */
   count: number;
   isGroupLesson: boolean;
+  /** The group lesson id (for a group lesson) — to open its detail / cancel it. */
+  groupLessonId: string | null;
 };
 
 /**
@@ -37,5 +39,6 @@ export function groupOutOfAvailability(
     ids: list.map((a) => a.id),
     count: list.length,
     isGroupLesson: list[0].type === 'group_lesson',
+    groupLessonId: list[0].groupLessonId,
   }));
 }

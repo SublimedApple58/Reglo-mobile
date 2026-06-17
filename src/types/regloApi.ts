@@ -829,6 +829,7 @@ export type OutOfAvailabilityAppointment = {
   endsAt: string;
   type: string;
   status: string;
+  groupLessonId: string | null;
   studentName: string;
   instructorName: string | null;
   vehicleName: string | null;
