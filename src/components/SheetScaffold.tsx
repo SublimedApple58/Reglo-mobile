@@ -74,6 +74,10 @@ function AndroidScaffold({
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         scrollEnabled={scrollEnabled}
+        // Android: RN ScrollView defaults nestedScrollEnabled=false, so the native
+        // form sheet steals the vertical pan (drags/dismisses instead of scrolling
+        // the body). Enabling it hands the gesture to this scroll view. No-op iOS.
+        nestedScrollEnabled
       >
         {children}
       </ScrollView>

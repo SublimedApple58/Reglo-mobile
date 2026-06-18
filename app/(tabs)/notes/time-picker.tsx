@@ -67,7 +67,7 @@ export default function NotesTimePickerScreen() {
         <View style={s.column}>
           <Text style={s.columnLabel}>Ore</Text>
           <View style={s.scrollContainer}>
-            <ScrollView ref={hourScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+            <ScrollView nestedScrollEnabled ref={hourScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
               {HOURS.map((h) => {
                 const selected = h === hour;
                 return (
@@ -83,7 +83,7 @@ export default function NotesTimePickerScreen() {
         <View style={s.column}>
           <Text style={s.columnLabel}>Minuti</Text>
           <View style={s.scrollContainer}>
-            <ScrollView ref={minuteScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+            <ScrollView nestedScrollEnabled ref={minuteScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
               {MINUTES.map((m) => {
                 const selected = m === minute;
                 return (
