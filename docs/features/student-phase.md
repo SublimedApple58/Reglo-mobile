@@ -14,9 +14,10 @@ L'app cambia completamente in base alla fase dell'allievo: **AWAITING** → **TE
 | Switch home per fase | `src/screens/RoleHomeScreen.tsx` |
 | Home AWAITING | `src/screens/AllievoAwaitingScreen.tsx` (nuovo) |
 | Home TEORIA | `src/screens/AllievoTheoryHomeScreen.tsx` |
-| Home PRATICA | `src/screens/AllievoHomeScreen.tsx` (header con `PhaseProgressBar compact`) |
+| Home PRATICA | `src/screens/AllievoHomeScreen.tsx` |
 | Schermata PATENTATO | `src/screens/AllievoLicensedScreen.tsx` |
-| Componente progress bar | `src/components/PhaseProgressBar.tsx` |
+| Componente timeline percorso | `src/components/PhaseTimeline.tsx` (verticale, 4 step) — usato in `AllievoAwaitingScreen` |
+| Icone 3D percorso | `assets/icons-3d/` (rocket, clock, notebook, file-text, license — 3dicons.co clay, tinta navy, CC0) |
 | Notifiche kinds | `src/types/notifications.ts` (`theory_exam_countdown`, `theory_quiz_inactivity`) |
 | Inbox rendering | `src/screens/NotificationInboxScreen.tsx` |
 
@@ -24,7 +25,7 @@ L'app cambia completamente in base alla fase dell'allievo: **AWAITING** → **TE
 
 | Fase | Home | Tabs visibili | Booking guida |
 |------|------|---------------|---------------|
-| AWAITING | `AllievoAwaitingScreen` (duck-clock + testo, nessuna CTA) | Solo `home` (niente settings, notes, swaps, quiz) | Bloccato server-side ("Il tuo percorso non è ancora stato attivato dall'autoscuola.") |
+| AWAITING | `AllievoAwaitingScreen` (hero razzo 3D + timeline percorso, nessuna CTA) | Solo `home` (niente settings, notes, swaps, quiz) | Bloccato server-side ("Il tuo percorso non è ancora stato attivato dall'autoscuola.") |
 | TEORIA | `AllievoTheoryHomeScreen` (riepilogo + progress bar + countdown + CTA quiz) | `home`, `quiz` (solo se `hasQuizAccess`), eventuali `notes` se abilitato | Bloccato server-side ("Le lezioni di guida saranno disponibili dopo l'esame di teoria.") |
 | PRATICA | `AllievoHomeScreen` + `PhaseProgressBar compact` in cima | `home`, `swaps` (se enabled), `notes` (se enabled), `settings` | Disponibile |
 | PATENTATO | `AllievoLicensedScreen` (saluto + progress bar 100% + logout) | Solo `home` | Bloccato (fase nascosta in app) |
@@ -58,11 +59,12 @@ In AWAITING e in PRATICA/PATENTATO la tab non è renderizzata e non è raggiungi
 
 ## Home AWAITING
 
-Schermata neutra:
+Schermata neutra, redesign stile Airbnb (mono-navy), scrollabile:
 
-- Illustrazione: `duck-clock.png` in cerchio bianco (cornice surface + shadow soft)
-- Titolo: "Ci siamo quasi, {firstName}" (o "Ci siamo quasi" senza nome)
-- Sottotitolo: "Stai per iniziare il tuo percorso. La tua autoscuola attiverà l'accesso a breve. Riceverai una notifica appena sarà pronto."
+- **Hero**: icona 3D clay `rocket.png` (tinta navy) che fluttua con ombra soft — niente più cornice/cerchio bianco, niente paperotto.
+- **Titolo**: "Ci siamo quasi, {firstName}" (o "Ci siamo quasi" senza nome), weight 600.
+- **Sottotitolo**: "Stai per iniziare il tuo percorso. La tua autoscuola attiverà l'accesso a breve: ti avviseremo appena sarà pronto."
+- **Card "IL TUO PERCORSO"**: `PhaseTimeline` verticale (vedi sotto).
 - **Nessuna CTA**. L'allievo non ha azioni da compiere — è il titolare che lo attiva dal web.
 
 ## Home TEORIA
@@ -79,9 +81,20 @@ Schermata neutra:
 
 (invariata) Centrata: icona trofeo + titolo "Congratulazioni" + progress 100% + logout.
 
-## Progress bar (`PhaseProgressBar`)
+## Timeline percorso (`PhaseTimeline`)
 
-3 checkpoint orizzontali: Teoria → Foglio rosa → Patente. Track riempito secondo la fase corrente. AWAITING attualmente non rappresentato nella progress bar (vive prima del checkpoint Teoria).
+Timeline **verticale a itinerario** (stile Airbnb), 4 step con icona 3D clay (tinta navy) + titolo + sottotitolo:
+
+| Step | Icona | Sottotitolo |
+|------|-------|-------------|
+| In attesa | `clock.png` | Stiamo attivando il tuo accesso |
+| Teoria | `notebook.png` | Quiz e lezioni per l'esame di teoria |
+| Foglio rosa | `file-text.png` | Inizi le guide in auto |
+| Patente | `license.png` | Pronto a metterti al volante |
+
+Lo step corrispondente a `phase` è "active" (anello navy + pill "In corso"); gli step precedenti "done" (connettore navy), i successivi "future" (smorzati). In AWAITING l'attivo è "In attesa".
+
+> Nota: `PhaseProgressBar` (vecchio stepper orizzontale 3-step) è stato **rimosso** — era importato solo da questa schermata. Le sezioni TEORIA/PATENTATO qui sotto descrivono il design di prodotto previsto; verificare nel codice il componente progress effettivamente usato da quelle schermate.
 
 ## Notifiche fase TEORIA
 
