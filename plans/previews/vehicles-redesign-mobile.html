@@ -3,18 +3,17 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Reglo Mobile — Veicoli (Airbnb-faithful v3)</title>
+<title>Reglo Mobile — Veicoli (Airbnb v4)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#1A1A2E; --navy400:#6E7596; --navy100:#E9EBF2; --navy50:#F3F4F9;
-    --ink:#1C1C1E; --ink2:#717171; --muted:#A0A0A8; --hair:#EBEBEB; --line:#DDDDDD;
-    --page:#F7F7F5;
+    --ink:#1C1C1E; --ink2:#6E6E76; --muted:#A0A0A8; --hair:#EDEDEF; --line:#DDDDDD;
+    --page:#F6F6F4;
     --emerald-bg:#E7F6EF; --emerald-fg:#0E7A59; --amber-bg:#FBEFCE; --amber-fg:#8A5B00;
-    /* diffuse, elegant Airbnb shadows */
-    --sh:0 1px 3px rgba(0,0,0,.03), 0 10px 30px rgba(20,20,40,.085);
+    --sh:0 1px 2px rgba(0,0,0,.035), 0 9px 26px rgba(20,20,40,.09);
     --sh-hi:0 2px 6px rgba(0,0,0,.04), 0 18px 44px rgba(20,20,40,.12);
     --sh-pill:0 3px 10px rgba(0,0,0,.12);
     --sh-btn:0 12px 26px rgba(26,26,46,.34);
@@ -39,25 +38,18 @@
   .h2{font-size:28px;font-weight:600;line-height:1.1;margin:8px 0 4px;letter-spacing:-.03em}
   .lead{font-size:14.5px;color:var(--ink2);font-weight:400;margin:0 0 22px}
 
-  /* photo-like thumbnail tiles (tinted per type) */
-  .tile{border-radius:18px;box-shadow:var(--sh-tile);display:flex;align-items:center;justify-content:center;flex:none;position:relative;overflow:hidden}
-  .tile .em{filter:drop-shadow(0 3px 3px rgba(20,20,40,.25));font-size:1em}
-  .tile.moto{background:linear-gradient(150deg,#FBF7EF 0%,#EFE7D6 100%)}
-  .tile.car{background:linear-gradient(150deg,#F1F5FB 0%,#DDE6F2 100%)}
-  .tile.neutral{background:linear-gradient(150deg,#FFFFFF 0%,#ECEEF4 100%)}
+  .tile{border-radius:18px;background:linear-gradient(150deg,#FFFFFF 0%,#ECEEF4 100%);
+    box-shadow:var(--sh-tile);display:flex;align-items:center;justify-content:center;flex:none}
+  .tile .em{filter:drop-shadow(0 3px 3px rgba(20,20,40,.24))}
   .tile.lg{width:66px;height:66px;font-size:31px}
-  .tile.md{width:60px;height:60px;font-size:28px}
+  .tile.md{width:58px;height:58px;font-size:27px}
   .tile.sm{width:32px;height:32px;font-size:16px;border-radius:11px}
 
-  /* Airbnb stacked field: small label inside, value below */
-  .ffield{border:1px solid var(--line);border-radius:16px;background:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh)}
-  .ffield .fl{font-size:11.5px;font-weight:600;color:var(--ink2);letter-spacing:.01em}
-  .ffield .fv{font-size:16px;font-weight:600;margin-top:2px;letter-spacing:-.01em}
-  .ffield .chev{color:var(--muted);font-size:14px}
-  .two{display:flex;gap:12px}.two>div{flex:1}
-
   .lab{font-size:13.5px;font-weight:600;color:var(--ink);margin:20px 0 10px}
-  /* segmented */
+  .field{height:55px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:space-between;
+    padding:0 17px;font-size:16px;font-weight:500;box-shadow:var(--sh)}
+  .field .chev{color:var(--muted);font-size:14px}
+
   .seg{display:flex;background:#EBEBED;border-radius:30px;padding:5px;gap:3px;box-shadow:inset 0 1px 3px rgba(0,0,0,.07)}
   .seg button{flex:1;border:0;background:transparent;font-family:inherit;font-size:14.5px;font-weight:500;color:var(--ink2);height:43px;border-radius:24px}
   .seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:var(--sh-pill)}
@@ -73,10 +65,14 @@
   .bbtn{height:52px;padding:0 36px;background:var(--navy);color:#fff;border-radius:15px;font-size:16px;font-weight:600;display:flex;align-items:center;box-shadow:var(--sh-btn)}
 
   /* list */
-  .listhead{padding:2px 2px 6px}
+  .listhead{padding:2px 2px 14px}
   .listhead .big{font-size:30px;font-weight:600;letter-spacing:-.03em}
-  .listhead .cnt{font-size:14px;color:var(--ink2);margin-top:3px}
-  .sec{font-size:13px;font-weight:600;color:var(--ink2);margin:18px 2px 11px;letter-spacing:.01em}
+  /* floating Airbnb search bar */
+  .search{display:flex;align-items:center;gap:11px;background:#fff;border-radius:9999px;padding:14px 18px;box-shadow:var(--sh);margin-bottom:18px}
+  .search .mg{width:17px;height:17px;border:2px solid var(--ink);border-radius:50%;position:relative;flex:none}
+  .search .mg::after{content:"";position:absolute;width:6px;height:2px;background:var(--ink);transform:rotate(45deg);bottom:-1px;right:-4px;border-radius:2px}
+  .search .ph{font-size:15px;font-weight:600;color:var(--ink)}
+  .search .ph small{display:block;font-size:12px;color:var(--ink2);font-weight:400;margin-top:1px}
   .vcard{display:flex;align-items:center;gap:15px;background:#fff;border-radius:20px;padding:13px;margin-bottom:14px;box-shadow:var(--sh)}
   .vname{font-size:16.5px;font-weight:600;display:flex;align-items:center;gap:8px;letter-spacing:-.01em}
   .vbadges{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
@@ -89,7 +85,6 @@
   .me{font-size:10.5px;font-weight:700;color:#fff;background:var(--navy);padding:3px 9px;border-radius:9999px;letter-spacing:.02em}
   .fab{position:absolute;right:22px;bottom:28px;width:58px;height:58px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:27px;box-shadow:var(--sh-btn)}
 
-  /* detail */
   .dcard{background:#fff;border-radius:24px;box-shadow:var(--sh-hi);padding:22px;margin-top:6px}
   .dtop{display:flex;align-items:center;gap:15px;padding-bottom:8px}
   .dtitle{font-size:18px;font-weight:600}.dsub{font-size:13.5px;color:var(--ink2);font-weight:400;margin-top:3px}
@@ -105,8 +100,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Veicoli — redesign UI mobile · Airbnb fedele v3</h1>
-  <p class="sub">Campi a etichetta interna (stile “Dove/Quando/Chi”), thumbnail foto-like tinte per tipo, lista a sezioni, ombre diffuse, tanta aria — col nostro <b>navy #1A1A2E</b>.</p>
+  <h1>Veicoli — redesign UI mobile · Airbnb v4</h1>
+  <p class="sub">Direzione “pulita” (come la versione che ti piaceva): campi a riga singola, tile neutre, lista piatta + barra di ricerca flottante in cima. Navy <b>#1A1A2E</b>.</p>
 
   <div class="grid">
 
@@ -122,7 +117,7 @@
           <div class="lab">Modalità di utilizzo</div>
           <div class="seg"><button>Aperto</button><button>Pool</button><button class="on">Esclusivo</button></div>
           <div class="lab">Istruttore</div>
-          <div class="ffield"><div><div class="fl">ISTRUTTORE ESCLUSIVO</div><div class="fv">Mario Rossi</div></div><span class="chev">⌄</span></div>
+          <div class="field">Mario Rossi <span class="chev">⌄</span></div>
           <div class="help">Riservato a Mario, nascosto agli altri. Un istruttore può avere più mezzi esclusivi — la sua auto e la sua moto.</div>
           <div class="toggle"><div><div class="t">Segue la disponibilità dell’istruttore</div><div class="s">Disponibile quando lo è Mario</div></div><div class="sw"><i></i></div></div>
         </div>
@@ -137,13 +132,12 @@
         <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
         <div class="body">
           <div class="toprow"></div>
-          <div class="listhead"><div class="big">Veicoli</div><div class="cnt">5 mezzi · 2 tuoi</div></div>
-          <div class="sec">I tuoi mezzi</div>
-          <div class="vcard"><div class="tile md moto"><span class="em">🏍️</span></div><div><div class="vname">Kawasaki Ninja 125 <span class="me">TUO</span></div><div class="vbadges"><span class="b cat">A1 · Manuale</span><span class="b excl">Esclusivo</span></div></div><span class="chevr">›</span></div>
-          <div class="vcard"><div class="tile md moto"><span class="em">🏍️</span></div><div><div class="vname">Honda CB500 <span class="me">TUO</span></div><div class="vbadges"><span class="b cat">A2 · Manuale</span><span class="b excl">Esclusivo</span></div></div><span class="chevr">›</span></div>
-          <div class="sec">Condivisi</div>
-          <div class="vcard"><div class="tile md car"><span class="em">🚗</span></div><div><div class="vname">Fiat Panda</div><div class="vbadges"><span class="b cat">B · Manuale</span><span class="b pool">Pool · 3</span></div></div><span class="chevr">›</span></div>
-          <div class="vcard" style="opacity:.62"><div class="tile md neutral"><span class="em">🛵</span></div><div><div class="vname">Piaggio Liberty</div><div class="vbadges"><span class="b cat">AM · Manuale</span><span class="b amber">Manutenzione</span></div></div><span class="chevr">›</span></div>
+          <div class="listhead"><div class="big">Veicoli</div></div>
+          <div class="search"><span class="mg"></span><span class="ph">Cerca un mezzo<small>5 veicoli · 2 tuoi</small></span></div>
+          <div class="vcard"><div class="tile md"><span class="em">🏍️</span></div><div><div class="vname">Kawasaki Ninja 125 <span class="me">TUO</span></div><div class="vbadges"><span class="b cat">A1 · Manuale</span><span class="b excl">Esclusivo</span></div></div><span class="chevr">›</span></div>
+          <div class="vcard"><div class="tile md"><span class="em">🚗</span></div><div><div class="vname">Fiat Panda</div><div class="vbadges"><span class="b cat">B · Manuale</span><span class="b pool">Pool · 3</span></div></div><span class="chevr">›</span></div>
+          <div class="vcard"><div class="tile md"><span class="em">🚙</span></div><div><div class="vname">Renault Clio</div><div class="vbadges"><span class="b cat">B · Auto</span><span class="b">Aperto</span></div></div><span class="chevr">›</span></div>
+          <div class="vcard" style="opacity:.62"><div class="tile md"><span class="em">🛵</span></div><div><div class="vname">Piaggio Liberty</div><div class="vbadges"><span class="b cat">AM · Manuale</span><span class="b amber">Manutenzione</span></div></div><span class="chevr">›</span></div>
         </div>
         <div class="fab">＋</div>
       </div></div>
@@ -159,11 +153,11 @@
           <div class="h2">Guida di Giulia</div>
           <div class="lead">Lunedì 24 giugno</div>
           <div class="dcard">
-            <div class="dtop"><div class="tile lg moto"><span class="em">🏍️</span></div><div><div class="dtitle">Giulia Bianchi</div><div class="dsub">Patente A1 · 90 minuti</div></div></div>
+            <div class="dtop"><div class="tile lg"><span class="em">🏍️</span></div><div><div class="dtitle">Giulia Bianchi</div><div class="dsub">Patente A1 · 90 minuti</div></div></div>
             <div class="kv"><span class="k">Orario</span><span class="v">10:00 – 11:30</span></div>
             <div class="kv"><span class="k">Istruttore</span><span class="v">Mario Rossi</span></div>
-            <div class="kv"><span class="k">Veicolo (moto)</span><span class="v vehline"><span class="tile sm moto"><span class="em">🏍️</span></span>Ninja 125</span></div>
-            <div class="kv"><span class="k">Auto al seguito</span><span class="v vehline"><span class="tile sm car"><span class="em">🚗</span></span>Fiat Panda</span></div>
+            <div class="kv"><span class="k">Veicolo (moto)</span><span class="v vehline"><span class="tile sm"><span class="em">🏍️</span></span>Ninja 125</span></div>
+            <div class="kv"><span class="k">Auto al seguito</span><span class="v vehline"><span class="tile sm"><span class="em">🚗</span></span>Fiat Panda</span></div>
           </div>
           <div class="note"><div class="i">i</div><div>Questa guida occupa <b>due mezzi</b>: la moto e l’auto al seguito. Entrambi risultano occupati per chiunque altro in questa fascia.</div></div>
           <div class="shead">In agenda</div>
