@@ -214,11 +214,26 @@ export const VehiclesScreen = () => {
         ) : (
           vehicles.map((vehicle, i) => {
             const isActive = vehicle.status !== 'inactive';
-            const isMine = !!instructorId && vehicle.assignedInstructorId === instructorId;
+            // "Mine" = reserved to me OR in my shared pool.
+            const isMine =
+              !!instructorId &&
+              (vehicle.assignedInstructorId === instructorId ||
+                (vehicle.poolInstructorIds ?? []).includes(instructorId));
             const licenseLabel = `${vehicle.licenseCategory} · ${transmissionLabel(vehicle.transmission)}`;
-            const sub = isActive
-              ? [vehicle.plate, licenseLabel].filter(Boolean).join(' · ')
-              : [vehicle.plate, licenseLabel, 'Inattivo'].filter(Boolean).join(' · ');
+            const usageLabel = vehicle.assignedInstructorId
+              ? 'Esclusivo'
+              : (vehicle.poolInstructorIds?.length ?? 0) > 0
+                ? `Pool · ${vehicle.poolInstructorIds.length}`
+                : 'Aperto';
+            const statusTag =
+              vehicle.status === 'inactive'
+                ? 'Inattivo'
+                : vehicle.status === 'maintenance'
+                  ? 'Manutenzione'
+                  : null;
+            const sub = [vehicle.plate, licenseLabel, usageLabel, statusTag]
+              .filter(Boolean)
+              .join(' · ');
             return (
               <React.Fragment key={vehicle.id}>
                 {i > 0 ? <View style={styles.divider} /> : null}

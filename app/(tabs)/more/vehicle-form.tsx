@@ -54,7 +54,6 @@ export default function VehicleFormScreen() {
     Boolean(initial?.assignedInstructorId) &&
     initial?.assignedInstructorId !== sessionInstructorId;
   const canSelfAssign = !isOwnerActor && Boolean(sessionInstructorId) && !assignedToOther;
-  const canEditAssignment = isOwnerActor || canSelfAssign;
 
   const [name, setName] = useState(initial?.name ?? '');
   const [plate, setPlate] = useState(initial?.plate ?? '');
@@ -71,12 +70,27 @@ export default function VehicleFormScreen() {
   const [assignedInstructorId, setAssignedInstructorId] = useState<string>(
     initial?.assignedInstructorId ?? '',
   );
+  // Usage mode (owner): open = all instructors, pool = explicit list, exclusive
+  // = reserved to one. Derived from the loaded vehicle.
+  const [mode, setMode] = useState<'open' | 'pool' | 'exclusive'>(
+    initial?.assignedInstructorId
+      ? 'exclusive'
+      : (initial?.poolInstructorIds?.length ?? 0) > 0
+        ? 'pool'
+        : 'open',
+  );
+  const [poolInstructorIds, setPoolInstructorIds] = useState<string[]>(
+    initial?.poolInstructorIds ?? [],
+  );
+  // Temporary out-of-service: excluded from matching but keeps assignment/pool.
+  const [maintenance, setMaintenance] = useState(initial?.status === 'maintenance');
   const [instructors, setInstructors] = useState<Array<{ id: string; name: string }>>([]);
-  const isAssigned = Boolean(assignedInstructorId);
+  const isAssigned = mode === 'exclusive' && Boolean(assignedInstructorId);
   const [followsAvail, setFollowsAvail] = useState(
     initial?.followsInstructorAvailability ?? true,
   );
-  const showOwnAvailability = !isAssigned || !followsAvail;
+  // Exclusive vehicles can follow their instructor; pool/open vehicles use own hours.
+  const showOwnAvailability = !(mode === 'exclusive' && followsAvail);
 
   // Load instructors for the assignment picker (owner only, edit mode).
   useEffect(() => {
@@ -259,6 +273,7 @@ export default function VehicleFormScreen() {
         status?: string;
         followsInstructorAvailability?: boolean;
         assignedInstructorId?: string | null;
+        poolInstructorIds?: string[];
         licenseCategory?: LicenseCategory;
         transmission?: Transmission;
       } = {
@@ -267,9 +282,17 @@ export default function VehicleFormScreen() {
         licenseCategory,
         transmission,
       };
-      if (active) patch.status = 'active';
-      if (isAssigned) patch.followsInstructorAvailability = followsAvail;
-      if (canEditAssignment) patch.assignedInstructorId = assignedInstructorId || null;
+      if (active) patch.status = maintenance ? 'maintenance' : 'active';
+      if (isOwnerActor) {
+        // Owner drives the usage mode → exclusive owner + shared pool + own avail.
+        patch.assignedInstructorId = mode === 'exclusive' ? assignedInstructorId || null : null;
+        patch.poolInstructorIds = mode === 'pool' ? poolInstructorIds : [];
+        patch.followsInstructorAvailability = mode === 'exclusive' ? followsAvail : false;
+      } else if (canSelfAssign) {
+        // Instructor can only assign/unassign the vehicle to themselves.
+        patch.assignedInstructorId = assignedInstructorId || null;
+        if (assignedInstructorId) patch.followsInstructorAvailability = followsAvail;
+      }
       await regloApi.updateVehicle(initial.id, patch);
       if (!active && initial.status !== 'inactive') {
         await regloApi.deleteVehicle(initial.id);
@@ -382,20 +405,76 @@ export default function VehicleFormScreen() {
             <ToggleSwitch value={active} onValueChange={setActive} />
           </View>
 
-          {isOwnerActor ? (
-            <Pressable
-              onPress={openInstructorPicker}
-              style={({ pressed }) => [s.pickerRow, pressed && { opacity: 0.85 }]}
-            >
+          {isOwnerActor && active ? (
+            <View style={s.toggleRow}>
               <View style={{ flex: 1 }}>
-                <Text style={s.toggleTitle}>Istruttore assegnato</Text>
+                <Text style={s.toggleTitle}>In manutenzione</Text>
                 <Text style={s.toggleSub}>
-                  {assignedInstructorName ?? (assignedInstructorId ? 'Assegnato' : 'Nessuno')}
-                  {' · le guide con lui useranno questo veicolo'}
+                  Escluso dalle nuove prenotazioni; gli appuntamenti già fissati restano.
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-            </Pressable>
+              <ToggleSwitch value={maintenance} onValueChange={setMaintenance} />
+            </View>
+          ) : null}
+
+          {isOwnerActor ? (
+            <View style={s.subSec}>
+              <Text style={s.subLabel}>Modalità di utilizzo</Text>
+              <View style={s.modeSeg}>
+                {([['open', 'Aperto'], ['pool', 'Pool'], ['exclusive', 'Esclusivo']] as const).map(
+                  ([m, label]) => (
+                    <Pressable
+                      key={m}
+                      onPress={() => setMode(m)}
+                      style={[s.modeBtn, mode === m && s.modeBtnOn]}
+                    >
+                      <Text style={[s.modeBtnText, mode === m && s.modeBtnTextOn]}>{label}</Text>
+                    </Pressable>
+                  ),
+                )}
+              </View>
+
+              {mode === 'open' ? (
+                <Text style={s.modeHelp}>Tutti gli istruttori possono usare questo veicolo.</Text>
+              ) : mode === 'pool' ? (
+                <>
+                  <Text style={s.modeHelp}>Solo gli istruttori selezionati possono usarlo.</Text>
+                  <View style={s.chipWrap}>
+                    {instructors.map((ins) => {
+                      const on = poolInstructorIds.includes(ins.id);
+                      return (
+                        <Pressable
+                          key={ins.id}
+                          onPress={() =>
+                            setPoolInstructorIds((prev) =>
+                              on ? prev.filter((id) => id !== ins.id) : [...prev, ins.id],
+                            )
+                          }
+                          style={[s.chip, on && s.chipOn]}
+                        >
+                          <Text style={[s.chipText, on && s.chipTextOn]}>{ins.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={openInstructorPicker}
+                    style={({ pressed }) => [s.pickerRowTight, pressed && { opacity: 0.85 }]}
+                  >
+                    <Text style={s.timeVal}>
+                      {assignedInstructorName ?? (assignedInstructorId ? 'Assegnato' : 'Scegli istruttore')}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                  </Pressable>
+                  <Text style={s.modeHelp}>
+                    Riservato a un istruttore, nascosto agli altri. Un istruttore può avere più mezzi esclusivi.
+                  </Text>
+                </>
+              )}
+            </View>
           ) : canSelfAssign ? (
             <View style={s.toggleRow}>
               <View style={{ flex: 1 }}>
@@ -527,6 +606,19 @@ const s = StyleSheet.create({
 
   subSec: { marginTop: 26, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB' },
   subLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14 },
+
+  modeSeg: { flexDirection: 'row', backgroundColor: '#EBEBED', borderRadius: 24, padding: 5, gap: 3 },
+  modeBtn: { flex: 1, height: 42, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  modeBtnOn: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
+  modeBtnText: { fontSize: 14, fontWeight: '500', color: '#6E7596' },
+  modeBtnTextOn: { color: '#1A1A2E', fontWeight: '600' },
+  modeHelp: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 12, lineHeight: 18 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 14 },
+  chip: { borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 9999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF' },
+  chipOn: { backgroundColor: '#1A1A2E', borderColor: '#1A1A2E' },
+  chipText: { fontSize: 14, fontWeight: '500', color: '#1A1A2E' },
+  chipTextOn: { color: '#FFFFFF', fontWeight: '600' },
+  pickerRowTight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 15, backgroundColor: '#FFFFFF', marginTop: 14 },
 
   days: { flexDirection: 'row', gap: 8 },
   day: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },

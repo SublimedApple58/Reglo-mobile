@@ -147,10 +147,13 @@ export type AutoscuolaVehicle = {
   companyId: Uuid;
   name: string;
   plate: string | null;
+  // active | inactive | maintenance.
   status: string;
-  // Fixed-vehicle assignment: when set, this vehicle is the instructor's
-  // dedicated car and is auto-used for bookings made with that instructor.
+  // Exclusive owner: when set, the vehicle is reserved to this instructor and
+  // hidden from others. An instructor may own several exclusive vehicles.
   assignedInstructorId: Uuid | null;
+  // Shared-pool membership. Empty + no exclusive owner = open to all instructors.
+  poolInstructorIds: Uuid[];
   followsInstructorAvailability: boolean;
   // License category (B | AM | A1 | A2 | A) + transmission (manual | automatic)
   // this vehicle serves. Drives category-aware matching (Vehicles module).
@@ -209,6 +212,8 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   case: AutoscuolaCase | null;
   instructor: AutoscuolaInstructor | null;
   vehicle: AutoscuolaVehicle | null;
+  // Follow car (auto al seguito) for moto lessons, when the school requires it.
+  followVehicle?: AutoscuolaVehicle | null;
   location: AutoscuolaLocation | null;
 };
 
@@ -495,6 +500,9 @@ export type CreateVehicleInput = {
   plate?: string;
   licenseCategory?: LicenseCategory;
   transmission?: Transmission;
+  assignedInstructorId?: Uuid | null;
+  poolInstructorIds?: Uuid[];
+  followsInstructorAvailability?: boolean;
 };
 export type UpdateInstructorInput = {
   name?: string;
@@ -505,8 +513,10 @@ export type UpdateInstructorInput = {
 export type UpdateVehicleInput = {
   name?: string;
   plate?: string | null;
+  // active | inactive | maintenance.
   status?: string;
   assignedInstructorId?: Uuid | null;
+  poolInstructorIds?: Uuid[];
   followsInstructorAvailability?: boolean;
   licenseCategory?: LicenseCategory;
   transmission?: Transmission;
@@ -700,6 +710,9 @@ export type AutoscuolaSettings = {
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
   vehiclesEnabled?: boolean;
+  // "Auto al seguito" opt-in per license category (moto): a guida for an enabled
+  // category additionally reserves a follow car.
+  followCarRules?: Partial<Record<'AM' | 'A1' | 'A2' | 'A', { enabled: boolean }>>;
   groupLessonsEnabled?: boolean;
   quizEnabled?: boolean;
 };
