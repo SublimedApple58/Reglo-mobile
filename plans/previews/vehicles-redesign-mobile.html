@@ -96,6 +96,16 @@
   .shead{font-size:15px;font-weight:600;margin:24px 2px 12px}
   .agenda{background:#fff;border-radius:16px;box-shadow:var(--sh);padding:15px 16px;border-left:4px solid var(--navy)}
   .atime{font-size:15px;font-weight:600}
+
+  /* native modal (page sheet) presentation */
+  .peek{padding:0 22px}
+  .peek .big{font-size:30px;font-weight:600;letter-spacing:-.03em;margin-top:6px;opacity:.4}
+  .peek .srch{height:50px;border-radius:9999px;background:#fff;box-shadow:var(--sh);margin-top:16px;opacity:.4}
+  .scrim{position:absolute;inset:0;background:rgba(15,15,25,.34);z-index:3}
+  .sheet{position:absolute;left:0;right:0;bottom:0;top:64px;z-index:4;background:var(--page);
+    border-radius:24px 24px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;overflow:hidden}
+  .sheet .shbody{flex:1;padding:0 22px}
+  .sheet .toprow{height:52px}
 </style>
 </head>
 <body>
@@ -105,23 +115,29 @@
 
   <div class="grid">
 
-    <!-- 1 -->
+    <!-- 1 : native modal (page sheet) -->
     <div class="col">
-      <p class="clabel">1 · Form veicolo (sheet)</p>
+      <p class="clabel">1 · Modifica veicolo (Modal nativa)</p>
       <div class="phone"><div class="screen"><div class="notch"></div>
         <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
-        <div class="body">
-          <div class="toprow"><div class="x">✕</div></div>
-          <div class="h2">Modifica veicolo</div>
-          <div class="lead">Kawasaki Ninja 125 · A1</div>
-          <div class="lab">Modalità di utilizzo</div>
-          <div class="seg"><button>Aperto</button><button>Pool</button><button class="on">Esclusivo</button></div>
-          <div class="lab">Istruttore</div>
-          <div class="field">Mario Rossi <span class="chev">⌄</span></div>
-          <div class="help">Riservato a Mario, nascosto agli altri. Un istruttore può avere più mezzi esclusivi — la sua auto e la sua moto.</div>
-          <div class="toggle"><div><div class="t">Segue la disponibilità dell’istruttore</div><div class="s">Disponibile quando lo è Mario</div></div><div class="sw"><i></i></div></div>
+        <!-- parent (Veicoli list) dimmed behind -->
+        <div class="peek"><div class="big">Veicoli</div><div class="srch"></div></div>
+        <div class="scrim"></div>
+        <!-- the native modal sheet sliding up -->
+        <div class="sheet">
+          <div class="shbody">
+            <div class="toprow"><div class="x">✕</div></div>
+            <div class="h2">Modifica veicolo</div>
+            <div class="lead">Kawasaki Ninja 125 · A1</div>
+            <div class="lab">Modalità di utilizzo</div>
+            <div class="seg"><button>Aperto</button><button>Pool</button><button class="on">Esclusivo</button></div>
+            <div class="lab">Istruttore</div>
+            <div class="field">Mario Rossi <span class="chev">⌄</span></div>
+            <div class="help">Riservato a Mario, nascosto agli altri. Un istruttore può avere più mezzi esclusivi — la sua auto e la sua moto.</div>
+            <div class="toggle"><div><div class="t">Segue la disponibilità dell’istruttore</div><div class="s">Disponibile quando lo è Mario</div></div><div class="sw"><i></i></div></div>
+          </div>
+          <div class="bbar"><div class="blink">Annulla</div><div class="bbtn">Salva</div></div>
         </div>
-        <div class="bbar"><div class="blink">Annulla</div><div class="bbtn">Salva</div></div>
       </div></div>
     </div>
 
