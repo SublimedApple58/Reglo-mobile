@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reglo · Conferma elimina account</title>
+<style>
+  :root{--ink:#1A1A2E;--muted:#6B7280;--red:#DC2626;--red-t:#FEECEC;--line:#ECECEF;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;background:#E7E1D6;
+    display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px 16px;min-height:100%;color:var(--ink);}
+  h1{font-size:16px;font-weight:600;margin:0;}
+  .sub{color:var(--muted);font-size:12.5px;font-weight:500;margin:-8px 0 2px;text-align:center;max-width:420px;line-height:1.5;}
+  .phone{position:relative;width:390px;max-width:96vw;height:680px;border-radius:46px;overflow:hidden;
+    background:#000;box-shadow:0 26px 70px rgba(40,34,24,.32);}
+  /* dimmed settings behind */
+  .behind{position:absolute;inset:0;background:#F3ECE0;padding:64px 20px;}
+  .behind .row{display:flex;align-items:center;gap:12px;padding:15px 4px;border-bottom:1px solid #E9E2D5;color:#1A1A2E;font-weight:600;font-size:15px;}
+  .behind .row.esci{color:#1A1A2E;}
+  .scrim{position:absolute;inset:0;background:rgba(20,18,26,.42);}
+  /* native page sheet */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:24px 24px 0 0;padding:10px 22px 28px;
+    box-shadow:0 -10px 40px rgba(0,0,0,.18);}
+  .x{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;background:#F2F0EC;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .ic{width:54px;height:54px;border-radius:50%;background:var(--red-t);display:flex;align-items:center;justify-content:center;margin:18px auto 14px;}
+  .title{font-size:19px;font-weight:600;text-align:center;letter-spacing:.1px;}
+  .desc{font-size:13.5px;font-weight:500;color:var(--muted);text-align:center;line-height:1.5;margin:8px 6px 20px;}
+  .lbl{font-size:12.5px;font-weight:600;color:var(--ink);margin:0 2px 7px;}
+  .lbl b{color:var(--red);}
+  .input{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:14px 15px;font-size:16px;font-weight:600;letter-spacing:1px;color:var(--ink);font-family:inherit;outline:none;}
+  .input:focus{border-color:#1A1A2E;}
+  .input.ok{border-color:var(--red);}
+  .btns{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
+  .btn{border:0;border-radius:14px;padding:15px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;}
+  .btn.del{background:var(--red);color:#fff;}
+  .btn.del:disabled{background:#F0D4D4;color:#fff;cursor:not-allowed;}
+  .btn.cancel{background:#fff;color:var(--ink);}
+  .hint{text-align:center;font-size:11.5px;color:#9a9384;margin-top:14px;font-weight:500;}
+</style></head><body>
+  <h1>Reglo · Conferma "Elimina account"</h1>
+  <p class="sub">Modale nativa con attrito: il pulsante si attiva solo dopo aver scritto <b>ELIMINA</b>. Impossibile cancellarsi per sbaglio.</p>
+
+  <div class="phone">
+    <div class="behind">
+      <div class="row">Profilo</div>
+      <div class="row">Notifiche</div>
+      <div class="row esci">Esci</div>
+      <div class="row" style="color:#DC2626">Elimina account</div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <button class="x" aria-label="Chiudi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></div>
+      <div class="title">Eliminare l'account?</div>
+      <div class="desc">Questa azione è <b style="color:#1A1A2E">definitiva</b>. Perderai l'accesso all'app, verrai rimosso da tutte le autoscuole e i tuoi dati profilo verranno cancellati.</div>
+      <div class="lbl">Scrivi <b>ELIMINA</b> per confermare</div>
+      <input class="input" id="inp" placeholder="ELIMINA" autocomplete="off" autocapitalize="characters" />
+      <div class="btns">
+        <button class="btn del" id="del" disabled>Elimina definitivamente</button>
+        <button class="btn cancel">Annulla</button>
+      </div>
+      <div class="hint">Il pulsante resta disattivato finché non scrivi ELIMINA</div>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:0">In più sposterò "Elimina account" un po' staccato da "Esci", così è anche difficile sbagliare riga.</p>
+<script>
+  var inp=document.getElementById('inp'), del=document.getElementById('del');
+  inp.addEventListener('input',function(){var ok=inp.value.trim().toUpperCase()==='ELIMINA';del.disabled=!ok;inp.classList.toggle('ok',ok);});
+  document.querySelector('.btn.cancel').addEventListener('click',function(){inp.value='';del.disabled=true;inp.classList.remove('ok');});
+</script>
+</body></html>
