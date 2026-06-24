@@ -24,7 +24,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Type | Used by (screen count) |
 |------|----------------------|
-| `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens (14) |
+| `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens (14) — since 2026-06-24 carries `followVehicle` (auto al seguito); a moto lesson reserves **2 vehicles** (moto + follow car). Display it wherever `vehicle.name` is shown. |
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |

@@ -11,7 +11,19 @@ Instructor/owner management of the driving school's vehicles: list, create, rena
 - `app/(tabs)/more/time-picker.tsx` — formSheet time picker for the availability start/end (seeded via `timePickerStore`). Mirror of `notes/time-picker.tsx`.
 - `src/stores/vehicleFormStore.ts` — publishes `{ initial, availabilityWeeks, onChanged }` to the form route.
 
-## Fixed vehicle per instructor (2026-06-09)
+## Usage modes + auto al seguito (2026-06-24 redesign)
+The 1:1 fixed-vehicle model below is **superseded**. Instructor↔vehicle is now **many-to-many** with three usage modes, and a moto lesson can reserve **two vehicles** (moto + follow car). Backend reference: `reglo/docs/features/vehicles.md` + memory `project_vehicles_redesign`.
+
+- **Three modes** in `more/vehicle-form.tsx` (owner only; a plain instructor still just self-assigns exclusivity):
+  - **Esclusivo** — `assignedInstructorId` = the one instructor who owns the vehicle (an instructor may own several now; no more silent stealing). Exclusive-only `followsInstructorAvailability` toggle.
+  - **Pool** — `poolInstructorIds` (multiselect chips): only those instructors can draw it.
+  - **Aperto** — no exclusive owner + empty pool = all instructors (the default, = pre-redesign behaviour).
+  - A segmented "Modalità di utilizzo" control switches between the three; the payload maps mode → `assignedInstructorId` + `poolInstructorIds`.
+- **Manutenzione**: an "In manutenzione" toggle sets `status:'maintenance'` — excluded from matching like inactive, but keeps its assignment and does NOT cancel existing appointments.
+- **Auto al seguito (follow car)**: when an instructor does a moto lesson and the company enabled the rule for that moto category, the lesson reserves a moto + a category-B car. Mobile **displays** the follow car (read-only) as `Moto + Auto` in the instructor agenda meta, lesson drawer, live card and `StudentNotesDetailScreen` timeline — sourced from `AutoscuolaAppointmentWithRelations.followVehicle` (the `role="follow"` join row, delivered by the agenda bootstrap). The follow car is auto-resolved by the BE matcher; mobile does not pick it.
+- **`VehiclesScreen` subtitle**: shows the usage mode + a maintenance/inactive tag; `isMine` = exclusive-to-me **OR** in-my-pool.
+
+## Fixed vehicle per instructor (2026-06-09 — SUPERSEDED by the 2026-06-24 redesign above)
 A vehicle can be the **fixed vehicle of one instructor** (1:1). Bookings made with that instructor auto-use it (the student never picks). Optional/nullable. **All assignment lives in the Veicoli section** (`app/(tabs)/more/vehicle-form.tsx`) — NOT in cluster settings, so instructors without a cluster can still self-assign.
 - **Owner** (`isOwner(autoscuolaRole)`): an "Istruttore assegnato" picker (ActionSheet; instructors via `regloApi.getInstructors`).
 - **Instructor** (non-owner): a "Assegna a me questo veicolo" `ToggleSwitch` (uses `session.instructorId`). If the vehicle is already bound to a *different* instructor, a read-only "Assegnato a un altro istruttore" note is shown instead (no stealing).
@@ -31,8 +43,8 @@ Ogni veicolo serve **una** categoria patente (`B | AM | A1 | A2 | A`) + un cambi
 - **Quick-book** (`IstruttoreHomeScreen`): invariato — il veicolo fisso è idoneo per definizione; il literal veicolo provvisorio passa `licenseCategory`/`transmission`.
 
 ## Data & API
-- Type `AutoscuolaVehicle` (`name`, `plate`, `status`, `assignedInstructorId`, `followsInstructorAvailability`, `licenseCategory`, `transmission`). `CreateVehicleInput`/`UpdateVehicleInput` accettano `licenseCategory?`/`transmission?`. `StudentPhasePayload` (da `getMyPhase`) include `licenseCategory?`/`transmission?` (info).
-- `regloApi.getVehicles` / `createVehicle({name, plate?})` / `updateVehicle(id, {name?, plate?, status?, assignedInstructorId?, followsInstructorAvailability?})` / `deleteVehicle(id)`.
+- Type `AutoscuolaVehicle` (`name`, `plate`, `status` ora `active|inactive|maintenance`, `assignedInstructorId` = esclusivo, `poolInstructorIds`, `followsInstructorAvailability`, `licenseCategory`, `transmission`). `CreateVehicleInput`/`UpdateVehicleInput` accettano `assignedInstructorId?`/`poolInstructorIds?`/`licenseCategory?`/`transmission?`/`status?`. `AutoscuolaAppointmentWithRelations` ha `followVehicle?` (auto al seguito). `AutoscuolaSettings` ha `followCarRules` (per-categoria moto). `StudentPhasePayload` (da `getMyPhase`) include `licenseCategory?`/`transmission?` (info).
+- `regloApi.getVehicles` / `createVehicle({name, plate?, ...})` / `updateVehicle(id, {name?, plate?, status?, assignedInstructorId?, poolInstructorIds?, followsInstructorAvailability?})` / `deleteVehicle(id)`.
 - `regloApi.getInstructors()` (owner picker only).
   - **Activation** = `updateVehicle(id, {status:'active'})`. **Deactivation** = `deleteVehicle(id)` (soft-delete = status inactive). This split is intentional — preserved from the original screens.
 - Availability: `get/create/deleteAvailabilitySlots({ ownerType:'vehicle', ownerId })`, horizon `settings.availabilityWeeks` (`getAutoscuolaSettings`, default 4). Save = clear the day window then recreate if any day is selected (deselecting all clears availability).
@@ -51,3 +63,4 @@ Ogni veicolo serve **una** categoria patente (`B | AM | A1 | A2 | A`) + un cambi
 
 ## History
 - Migrated from heavy cards + `BottomSheet` + `TimePickerDrawer` to flat list + formSheet routes (2026-06-09). Owner/Instructor unified into `VehiclesScreen`. Removed the per-row availability prefetch the Owner screen used to do (7 × N requests on load) — availability now only loads inside the edit form.
+- **2026-06-24 redesign**: 1:1 fixed vehicle → M:N pool/esclusività + manutenzione; `vehicle-form.tsx` got the segmented "Modalità di utilizzo" + pool chips + maintenance toggle (native Modal). Added read-only auto al seguito display across the instructor agenda. See the "Usage modes + auto al seguito" section.
