@@ -3,6 +3,10 @@ import { Platform } from 'react-native';
 import { ApiError, ApiResponse, ApiSuccess } from '../types/regloApi';
 
 const DEFAULT_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://app.reglo.it/api';
+// When pointing at a Vercel protection-gated deployment (e.g. staging), every
+// request must carry the "Protection Bypass for Automation" header. Set only in
+// the `:staging` builds; absent (and ignored) for local/prod.
+const VERCEL_BYPASS = process.env.EXPO_PUBLIC_VERCEL_BYPASS;
 const TOKEN_KEY = 'reglo_token';
 const COMPANY_KEY = 'reglo_active_company_id';
 const IS_WEB = Platform.OS === 'web';
@@ -143,6 +147,12 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
+      ...(VERCEL_BYPASS
+        ? {
+            'x-vercel-protection-bypass': VERCEL_BYPASS,
+            'x-vercel-set-bypass-cookie': 'true',
+          }
+        : {}),
       ...options.headers,
     };
 

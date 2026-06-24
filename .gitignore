@@ -45,3 +45,6 @@ yarn-error.*
 service-account*.json
 build-*.ipa
 build-*.aab
+
+# Vercel staging protection-bypass secret (local only)
+.staging-bypass

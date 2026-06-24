@@ -8,6 +8,8 @@
     "ios": "expo run:ios",
     "ios:local": "EXPO_PUBLIC_API_URL=http://localhost:3000/api expo run:ios",
     "android:local": "EXPO_PUBLIC_API_URL=http://10.0.2.2:3000/api expo run:android",
+    "ios:staging": "EXPO_PUBLIC_API_URL=https://staging.reglo.it/api EXPO_PUBLIC_VERCEL_BYPASS=$(cat .staging-bypass 2>/dev/null) expo run:ios",
+    "android:staging": "EXPO_PUBLIC_API_URL=https://staging.reglo.it/api EXPO_PUBLIC_VERCEL_BYPASS=$(cat .staging-bypass 2>/dev/null) expo run:android",
     "ios:prod": "expo run:ios",
     "web": "expo start --web"
   },
