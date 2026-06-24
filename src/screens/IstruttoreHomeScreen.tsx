@@ -2327,7 +2327,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       durationText: durationLabel(lesson),
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
       // Resolve from the relation, falling back to the vehicles list by id.
-      vehicleText: lesson.vehicle?.name ?? vehicles.find((v) => v.id === lesson.vehicleId)?.name ?? 'Da assegnare',
+      // Append the auto al seguito (follow car) when present.
+      vehicleText:
+        [
+          lesson.vehicle?.name ?? vehicles.find((v) => v.id === lesson.vehicleId)?.name,
+          lesson.followVehicle?.name,
+        ]
+          .filter(Boolean)
+          .join(' + ') || 'Da assegnare',
       vehicles: vehicleOptions,
       defaultLocation,
       isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
@@ -3180,9 +3187,13 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   const showActions = isActive && (!isCheckedIn || settings?.autoCheckinEnabled) && actionAvail.enabled && st !== 'proposal';
                   const initials = `${a.student?.firstName?.[0] ?? ''}${a.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
                   const nm = `${calendarScope === 'all' && a.instructor?.name ? a.instructor.name + ' · ' : ''}${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim();
+                  const vehicleLabel =
+                    settings?.vehiclesEnabled !== false
+                      ? [a.vehicle?.name, a.followVehicle?.name].filter(Boolean).join(' + ') || null
+                      : null;
                   const meta = config.isExam
                     ? `Esame · ${durationLabel(a)}`
-                    : [settings?.vehiclesEnabled !== false ? a.vehicle?.name : null, durationLabel(a)].filter(Boolean).join(' · ');
+                    : [vehicleLabel, durationLabel(a)].filter(Boolean).join(' · ');
                   return (
                     <View key={a.id} style={styles.itinRow}>
                       {lineState === 'now' && nowMin !== null ? (
@@ -3587,7 +3598,9 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               : mins < 60 ? `Tra ${mins} min`
               : `Alle ${formatTime(live.startsAt)}`;
             const timeText = `${formatTime(live.startsAt)}${live.endsAt ? ` – ${formatTime(live.endsAt)}` : ''}`;
-            const vehicleText = !isExam && settings?.vehiclesEnabled !== false ? (live.vehicle?.name ?? null) : null;
+            const vehicleText = !isExam && settings?.vehiclesEnabled !== false
+              ? ([live.vehicle?.name, live.followVehicle?.name].filter(Boolean).join(' + ') || null)
+              : null;
             const pa = pendingAction === 'checked_in' || pendingAction === 'no_show' ? pendingAction : null;
             return (
               <WeeklyLiveCard
