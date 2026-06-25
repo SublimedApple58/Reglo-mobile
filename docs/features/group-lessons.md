@@ -44,3 +44,9 @@ La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "d
 
 ## Connected features
 - Backend `reglo/docs/features/group-lessons.md`, `vehicles` (patenti → filtro invitabili), `notifications` (kind nuovo), pagamenti.
+
+## Moto group lessons (kind="moto", 2026-06-25)
+A second flavour: a **fleet of motos** + **one shared follow car**; each participant rides their **own** moto (mixed A1/A2/A allowed) — the moto is **auto-assigned** by the backend on enrol, so the student picker just lists eligible students (a compatible fleet moto must be free).
+- **Types** (`src/types/regloApi.ts`): `GroupLesson.kind/followVehicleId/followVehicleName/fleet`, `GroupLessonParticipant.vehicleName/licenseCategory`, `CreateGroupLessonInput.kind/vehicleIds/followVehicleId`.
+- **Create** (`CreateGroupLessonScreen`): Standard/Moto segmented toggle; moto → multi-picker "Moto della guida" (fleet) + "Auto al seguito" picker; capacity = fleet size; follow car required when `settings.followCarRules` enables a fleet category.
+- **Manage** participants stays on **web** (`GroupLessonManageDialog`). Mobile agenda/inbox screens render group lessons as today; a moto participant's assigned moto flows through the appointment `vehicle`.

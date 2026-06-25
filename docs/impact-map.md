@@ -138,3 +138,7 @@ When `../reglo/` backend changes:
 | New lesson type | `src/utils/lessonTypes.ts` + screens showing lesson type labels |
 | Student phase model change | `src/types/regloApi.ts` (StudentPhasePayload), `useMyPhase`, `useStudentPhase`, `_layout.tsx`, `RoleHomeScreen` |
 | New theory reminder push kind | `src/types/notifications.ts` + `NotificationInboxScreen` (icon + title + subtitle) |
+
+### Group Lessons MOTO (kind="moto", 2026-06-25)
+- → **Backend**: a moto group has a moto **fleet** + one shared **follow car**; each participant gets an auto-assigned moto (mixed categories OK). Types `GroupLesson.kind/followVehicle*/fleet`, `GroupLessonParticipant.vehicleName/licenseCategory`, `CreateGroupLessonInput.kind/vehicleIds/followVehicleId` (`src/types/regloApi.ts`). Service `createGroupLesson`/`updateGroupLesson` forward the new fields.
+- → **CreateGroupLessonScreen**: Standard/Moto segmented toggle; moto = multi-picker fleet (`optionsPickerStore` multi) + follow-car picker; capacity = fleet size; follow car required when `settings.followCarRules` enables a fleet category. Management of participants stays on web.
