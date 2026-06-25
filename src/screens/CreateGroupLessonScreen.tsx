@@ -23,7 +23,7 @@ import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import type { AutoscuolaStudent, AutoscuolaVehicle, AutoscuolaInstructor } from '../types/regloApi';
+import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -54,6 +54,18 @@ const initialsOf = (first: string, last: string) => {
   const f = (first ?? '').trim(); const l = (last ?? '').trim();
   if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
   return (f || l || '?').slice(0, 2).toUpperCase();
+};
+
+// A vehicle the instructor can actually use: exclusively assigned to them, or
+// open/shared-pool they belong to (mirrors the backend vehicle-resolution access
+// rules). Vehicles exclusive to another instructor are hidden.
+const instructorCanUseVehicle = (
+  v: { assignedInstructorId?: string | null; poolInstructorIds?: string[] | null },
+  instructorId: string,
+) => {
+  if (v.assignedInstructorId) return v.assignedInstructorId === instructorId;
+  const pool = v.poolInstructorIds ?? [];
+  return pool.length === 0 || pool.includes(instructorId);
 };
 
 // Exact license match, null-permissive on either side (mirrors backend vehicleServesLicense).
@@ -87,9 +99,7 @@ export const CreateGroupLessonScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<AutoscuolaVehicle[]>([]);
-  const [instructors, setInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
-  const [selfInstructorId, setSelfInstructorId] = useState<string | null>(null);
 
   const [startAt, setStartAt] = useState<Date>(() => (data ? new Date(data.initialDate) : new Date()));
   const [durationMin, setDurationMin] = useState<number>(180);
@@ -113,19 +123,16 @@ export const CreateGroupLessonScreen = () => {
       ]);
       setVehicles(veh.filter((v) => v.status === 'active'));
       if (settings) {
-        setSelfInstructorId(settings.instructorId ?? null);
+        // This sheet is opened from the instructor home → the group lesson is
+        // always for the creating instructor (no instructor picker).
         setInstructorId(settings.instructorId ?? null);
         setStudents((settings.students ?? []) as unknown as AutoscuolaStudent[]);
         setFollowCarRules(
           (settings as { followCarRules?: Record<string, { enabled: boolean }> }).followCarRules ?? {},
         );
       }
-      const [allStudents, instr] = await Promise.all([
-        regloApi.getStudents().catch(() => [] as AutoscuolaStudent[]),
-        regloApi.getInstructors().catch(() => [] as AutoscuolaInstructor[]),
-      ]);
+      const allStudents = await regloApi.getStudents().catch(() => [] as AutoscuolaStudent[]);
       if (allStudents.length) setStudents(allStudents);
-      setInstructors(instr);
     } catch {
       Alert.alert('Errore', 'Errore nel caricamento dati.');
     } finally {
@@ -144,8 +151,14 @@ export const CreateGroupLessonScreen = () => {
 
   const isMoto = kind === 'moto';
   const MOTO_CATS = useMemo(() => new Set(['AM', 'A1', 'A2', 'A']), []);
-  const motoVehicles = useMemo(() => vehicles.filter((v) => v.licenseCategory && MOTO_CATS.has(v.licenseCategory)), [vehicles, MOTO_CATS]);
-  const carVehicles = useMemo(() => vehicles.filter((v) => v.licenseCategory === 'B'), [vehicles]);
+  // Only the instructor's accessible vehicles are pickable (fleet, follow car,
+  // and the standard vehicle). Vehicles exclusive to others are not shown.
+  const accessibleVehicles = useMemo(
+    () => (instructorId ? vehicles.filter((v) => instructorCanUseVehicle(v, instructorId)) : vehicles),
+    [vehicles, instructorId],
+  );
+  const motoVehicles = useMemo(() => accessibleVehicles.filter((v) => v.licenseCategory && MOTO_CATS.has(v.licenseCategory)), [accessibleVehicles, MOTO_CATS]);
+  const carVehicles = useMemo(() => accessibleVehicles.filter((v) => v.licenseCategory === 'B'), [accessibleVehicles]);
   const fleet = useMemo(() => vehicles.filter((v) => fleetIds.includes(v.id)), [vehicles, fleetIds]);
   const followVehicle = useMemo(() => vehicles.find((v) => v.id === followVehicleId) ?? null, [vehicles, followVehicleId]);
   const followCarRequired = useMemo(
@@ -224,7 +237,7 @@ export const CreateGroupLessonScreen = () => {
   const openVehiclePicker = () => {
     optionsPickerStore.set({
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
-      options: vehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
+      options: accessibleVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
       onConfirm: (vals) => { setVehicleId(vals[0] ?? null); setSelectedIds([]); },
     });
     router.push('/(tabs)/home/select-options');
@@ -252,14 +265,6 @@ export const CreateGroupLessonScreen = () => {
     });
     router.push('/(tabs)/home/select-options');
   };
-  const openInstructorPicker = () => {
-    optionsPickerStore.set({
-      title: 'Istruttore', multi: false, selected: instructorId ? [instructorId] : [],
-      options: instructors.map((i) => ({ value: i.id, label: i.name, subtitle: i.id === selfInstructorId ? 'Tu' : null })),
-      onConfirm: (vals) => setInstructorId(vals[0] ?? null),
-    });
-    router.push('/(tabs)/home/select-options');
-  };
   const openStudentsPicker = () => {
     const options: ExamStudentOption[] = eligibleStudents.map((st) => ({
       value: st.id, label: `${st.firstName} ${st.lastName}`.trim(),
@@ -275,7 +280,6 @@ export const CreateGroupLessonScreen = () => {
   };
 
   const durationLabel = DURATIONS.find((d) => d.value === String(durationMin))?.label ?? `${durationMin} min`;
-  const instructorName = instructors.find((i) => i.id === instructorId)?.name ?? (instructorId === selfInstructorId ? 'Tu' : null);
   const studentsValue = selectedStudents.length === 0
     ? null
     : selectedStudents.length === 1
@@ -379,8 +383,6 @@ export const CreateGroupLessonScreen = () => {
                 <Row icon="car-outline" label={`Auto al seguito${followCarRequired ? ' (richiesta)' : ''}`} value={followVehicle ? followVehicle.name : null} placeholder="Nessuna" onPress={openFollowCarPicker} disabled={saving} />
               </>
             )}
-            <View style={s.divider} />
-            <Row icon="person-outline" label="Istruttore" value={instructorName} placeholder="Seleziona istruttore" onPress={openInstructorPicker} disabled={saving} />
           </View>
 
           {isMoto ? (
