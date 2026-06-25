@@ -31,3 +31,15 @@ export const HUG_SHEET = {
   ...BASE,
   sheetAllowedDetents: 'fitToContents' as const,
 } as const;
+
+/**
+ * Variable-length forms that can grow TALLER THAN THE SCREEN (e.g. a form whose
+ * sections toggle on/off). A `fitToContents` form sheet clips the overflow on
+ * iOS (it hugs content but cannot exceed the max detent and does not scroll), so
+ * these use a full-height **page sheet** (`presentation: 'modal'`) and scroll
+ * their own body with a pinned footer on BOTH platforms.
+ */
+export const PAGE_SHEET = {
+  presentation: 'modal',
+  headerShown: false,
+} as const;

@@ -2,17 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { SheetScaffold } from '../components/SheetScaffold';
 
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
@@ -32,6 +31,8 @@ const MUTED = '#94A3B8';
 const TEAL = '#0F766E';
 const N50 = '#F4F5F9';
 const N100 = '#E9EBF2';
+
+const SEG_PAD = 5;
 
 const CAPACITY_OPTIONS = [
   { value: '3', label: '3 allievi' },
@@ -153,6 +154,16 @@ export const CreateGroupLessonScreen = () => {
   );
   // Moto: real cap = fleet size; standard: the chosen value.
   const effectiveCapacity = isMoto ? fleetIds.length : capacity;
+
+  // Airbnb segmented — sliding white pill (same logic as quick-book.tsx).
+  const [segW, setSegW] = useState(0);
+  const pillW = segW ? (segW - SEG_PAD * 2) / 2 : 0;
+  const pillX = useSharedValue(0);
+  useEffect(() => {
+    if (!pillW) return;
+    pillX.value = withTiming((isMoto ? 1 : 0) * pillW, { duration: 220 });
+  }, [isMoto, pillW, pillX]);
+  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }] }));
 
   // Eligible to PRE-ADD: opted-in + license-compatible. Standard = the single
   // vehicle; moto = any moto still in the chosen fleet.
@@ -307,7 +318,7 @@ export const CreateGroupLessonScreen = () => {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
+    <View style={[s.root, { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Guida di gruppo</Text>
         <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
@@ -315,19 +326,11 @@ export const CreateGroupLessonScreen = () => {
         </Pressable>
       </View>
 
-      <SheetScaffold
-        footer={loading ? null : (
-          <View style={s.footer}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-              <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{effectiveCapacity} allievi · {durationLabel}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
-            </View>
-            <View style={{ flexShrink: 0 }}>
-              <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={handleCreate} />
-            </View>
-          </View>
-        )}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 14 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
       <Text style={s.lede}>1 istruttore · {isMoto ? `${effectiveCapacity || '—'} moto + auto al seguito` : '1 veicolo'} · fino a {effectiveCapacity || '—'} allievi</Text>
 
@@ -335,8 +338,9 @@ export const CreateGroupLessonScreen = () => {
         <View style={s.loadingBox}><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <>
-          {/* Tipo: standard (1 veicolo) vs moto (flotta + auto al seguito) */}
-          <View style={s.segment}>
+          {/* Tipo: standard (1 veicolo) vs moto (flotta + auto al seguito) — Airbnb sliding pill */}
+          <View style={s.seg} onLayout={(e) => setSegW(e.nativeEvent.layout.width)}>
+            {pillW > 0 && <Animated.View style={[s.segPill, { width: pillW }, pillStyle]} />}
             {(['standard', 'moto'] as const).map((k) => {
               const active = kind === k;
               return (
@@ -344,10 +348,11 @@ export const CreateGroupLessonScreen = () => {
                   key={k}
                   onPress={() => { setKind(k); setSelectedIds([]); }}
                   disabled={saving}
-                  style={[s.segmentBtn, active && s.segmentBtnActive]}
+                  style={s.segItem}
+                  hitSlop={6}
                 >
-                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#FFFFFF' : NAVY} />
-                  <Text style={[s.segmentTxt, active && s.segmentTxtActive]}>{k === 'moto' ? 'Moto' : 'Standard'}</Text>
+                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#1A1A2E' : '#717171'} />
+                  <Text style={[s.segText, active && s.segTextActive]}>{k === 'moto' ? 'Moto' : 'Standard'}</Text>
                 </Pressable>
               );
             })}
@@ -412,7 +417,20 @@ export const CreateGroupLessonScreen = () => {
           </View>
         </>
       )}
-      </SheetScaffold>
+      </ScrollView>
+
+      {!loading ? (
+        <View style={[s.footer, { paddingBottom: insets.bottom + 6 }]}>
+          <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+            <Text style={s.sumKey}>Riepilogo</Text>
+            <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{effectiveCapacity} allievi · {durationLabel}</Text>
+            <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
+          </View>
+          <View style={{ flexShrink: 0 }}>
+            <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={handleCreate} />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -426,11 +444,15 @@ const s = StyleSheet.create({
   lede: { fontSize: 13, fontWeight: '500', color: MUTED, marginBottom: 14 },
   close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
-  segment: { flexDirection: 'row', backgroundColor: N50, borderRadius: 14, padding: 4, gap: 4, marginBottom: 14 },
-  segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 11 },
-  segmentBtnActive: { backgroundColor: NAVY },
-  segmentTxt: { fontSize: 14, fontWeight: '600', color: NAVY },
-  segmentTxtActive: { color: '#FFFFFF' },
+  /* Airbnb segmented control (= quick-book.tsx): sliding white pill on grey track */
+  seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: SEG_PAD, position: 'relative', marginBottom: 14 },
+  segPill: {
+    position: 'absolute', top: SEG_PAD, bottom: SEG_PAD, left: SEG_PAD, borderRadius: 999, backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
+  },
+  segItem: { flex: 1, flexDirection: 'row', gap: 7, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
+  segTextActive: { color: '#1A1A2E', fontWeight: '700' },
   hint: { fontSize: 12.5, color: MUTED, marginTop: -4, marginBottom: 14, paddingHorizontal: 4, lineHeight: 17 },
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
   studentsRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },

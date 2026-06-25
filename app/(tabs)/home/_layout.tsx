@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET } from '../../../src/utils/sheetPresentation';
+import { TALL_SHEET, HUG_SHEET, PAGE_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function HomeLayout() {
   return (
@@ -22,7 +22,7 @@ export default function HomeLayout() {
       <Stack.Screen name="sick-leave" options={TALL_SHEET} />
       <Stack.Screen name="select-date-range" options={TALL_SHEET} />
       <Stack.Screen name="create-exam" options={TALL_SHEET} />
-      <Stack.Screen name="create-group-lesson" options={TALL_SHEET} />
+      <Stack.Screen name="create-group-lesson" options={PAGE_SHEET} />
       <Stack.Screen name="select-student" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="select-exam-students" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="out-of-availability" options={TALL_SHEET} />
