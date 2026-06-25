@@ -257,6 +257,9 @@ export const createRegloApi = (baseUrl?: string) => {
       endsAt?: string;
       instructorId?: string | null;
       vehicleId?: string | null;
+      /** Moto group: replace the fleet / change the shared follow car. */
+      vehicleIds?: string[];
+      followVehicleId?: string | null;
       /** Capienza massima (3 o 4) — il BE rifiuta sotto gli iscritti attuali. */
       capacity?: number;
       notes?: string | null;

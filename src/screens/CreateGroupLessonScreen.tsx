@@ -93,7 +93,12 @@ export const CreateGroupLessonScreen = () => {
   const [startAt, setStartAt] = useState<Date>(() => (data ? new Date(data.initialDate) : new Date()));
   const [durationMin, setDurationMin] = useState<number>(180);
   const [capacity, setCapacity] = useState<number>(3);
+  const [kind, setKind] = useState<'standard' | 'moto'>('standard');
   const [vehicleId, setVehicleId] = useState<string | null>(null);
+  // Moto group: the chosen fleet of motos + one shared follow car.
+  const [fleetIds, setFleetIds] = useState<string[]>([]);
+  const [followVehicleId, setFollowVehicleId] = useState<string | null>(null);
+  const [followCarRules, setFollowCarRules] = useState<Record<string, { enabled: boolean }>>({});
   const [instructorId, setInstructorId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openInvites, setOpenInvites] = useState(true);
@@ -110,6 +115,9 @@ export const CreateGroupLessonScreen = () => {
         setSelfInstructorId(settings.instructorId ?? null);
         setInstructorId(settings.instructorId ?? null);
         setStudents((settings.students ?? []) as unknown as AutoscuolaStudent[]);
+        setFollowCarRules(
+          (settings as { followCarRules?: Record<string, { enabled: boolean }> }).followCarRules ?? {},
+        );
       }
       const [allStudents, instr] = await Promise.all([
         regloApi.getStudents().catch(() => [] as AutoscuolaStudent[]),
@@ -133,12 +141,29 @@ export const CreateGroupLessonScreen = () => {
 
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === vehicleId) ?? null, [vehicles, vehicleId]);
 
-  // Eligible to PRE-ADD: opted-in + license-compatible with the chosen vehicle.
+  const isMoto = kind === 'moto';
+  const MOTO_CATS = useMemo(() => new Set(['AM', 'A1', 'A2', 'A']), []);
+  const motoVehicles = useMemo(() => vehicles.filter((v) => v.licenseCategory && MOTO_CATS.has(v.licenseCategory)), [vehicles, MOTO_CATS]);
+  const carVehicles = useMemo(() => vehicles.filter((v) => v.licenseCategory === 'B'), [vehicles]);
+  const fleet = useMemo(() => vehicles.filter((v) => fleetIds.includes(v.id)), [vehicles, fleetIds]);
+  const followVehicle = useMemo(() => vehicles.find((v) => v.id === followVehicleId) ?? null, [vehicles, followVehicleId]);
+  const followCarRequired = useMemo(
+    () => isMoto && fleet.some((v) => followCarRules[v.licenseCategory ?? '']?.enabled === true),
+    [isMoto, fleet, followCarRules],
+  );
+  // Moto: real cap = fleet size; standard: the chosen value.
+  const effectiveCapacity = isMoto ? fleetIds.length : capacity;
+
+  // Eligible to PRE-ADD: opted-in + license-compatible. Standard = the single
+  // vehicle; moto = any moto still in the chosen fleet.
   const eligibleStudents = useMemo(
-    () => students.filter((st) =>
-      (st.groupLessonsOptIn ?? false) && vehicleServesStudent(selectedVehicle, st),
-    ),
-    [students, selectedVehicle],
+    () =>
+      students.filter((st) => {
+        if (!(st.groupLessonsOptIn ?? false)) return false;
+        if (isMoto) return fleet.length > 0 && fleet.some((v) => vehicleServesStudent(v, st));
+        return vehicleServesStudent(selectedVehicle, st);
+      }),
+    [students, selectedVehicle, isMoto, fleet],
   );
   const selectedStudents = useMemo(
     () => eligibleStudents.filter((st) => selectedIds.includes(st.id)),
@@ -193,6 +218,29 @@ export const CreateGroupLessonScreen = () => {
     });
     router.push('/(tabs)/home/select-options');
   };
+  const openFleetPicker = () => {
+    optionsPickerStore.set({
+      title: 'Moto della guida', multi: true, selected: fleetIds,
+      options: motoVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
+      onConfirm: (vals) => {
+        setFleetIds(vals);
+        // Trim pre-selected students beyond the new fleet size.
+        setSelectedIds((prev) => prev.slice(0, vals.length));
+      },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+  const openFollowCarPicker = () => {
+    optionsPickerStore.set({
+      title: 'Auto al seguito', multi: false, selected: followVehicleId ? [followVehicleId] : ['__none__'],
+      options: [
+        { value: '__none__', label: 'Nessuna', subtitle: null },
+        ...carVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
+      ],
+      onConfirm: (vals) => setFollowVehicleId(vals[0] && vals[0] !== '__none__' ? vals[0] : null),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
   const openInstructorPicker = () => {
     optionsPickerStore.set({
       title: 'Istruttore', multi: false, selected: instructorId ? [instructorId] : [],
@@ -210,7 +258,7 @@ export const CreateGroupLessonScreen = () => {
     examStudentsStore.set({
       selectedIds,
       options,
-      onConfirm: (ids) => setSelectedIds(ids.slice(0, capacity)),
+      onConfirm: (ids) => setSelectedIds(ids.slice(0, effectiveCapacity)),
     });
     router.push('/(tabs)/home/select-exam-students');
   };
@@ -221,23 +269,32 @@ export const CreateGroupLessonScreen = () => {
     ? null
     : selectedStudents.length === 1
       ? `${selectedStudents[0].firstName} ${selectedStudents[0].lastName}`.trim()
-      : `${selectedStudents.length}/${capacity} allievi`;
+      : `${selectedStudents.length}/${effectiveCapacity} allievi`;
+
+  const fleetValue = fleet.length === 0 ? null : `${fleet.length} ${fleet.length === 1 ? 'moto' : 'moto'} · ${fleet.length} posti`;
+  const canCreate = isMoto ? fleetIds.length > 0 && (!followCarRequired || !!followVehicleId) : !!vehicleId;
 
   const handleCreate = async () => {
-    if (!vehicleId) { Alert.alert('Veicolo', 'Seleziona il veicolo della guida di gruppo.'); return; }
+    if (isMoto) {
+      if (fleetIds.length === 0) { Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.'); return; }
+      if (followCarRequired && !followVehicleId) { Alert.alert('Auto al seguito', "Per queste moto è richiesta un'auto al seguito."); return; }
+    } else if (!vehicleId) {
+      Alert.alert('Veicolo', 'Seleziona il veicolo della guida di gruppo.'); return;
+    }
     setSaving(true);
     try {
       const endsAt = new Date(startAt.getTime() + durationMin * 60 * 1000);
       const res = await regloApi.createGroupLesson({
         startsAt: startAt.toISOString(),
         endsAt: endsAt.toISOString(),
-        vehicleId,
         instructorId: instructorId ?? undefined,
-        capacity,
+        ...(isMoto
+          ? { kind: 'moto' as const, vehicleIds: fleetIds, followVehicleId: followVehicleId ?? undefined, capacity: effectiveCapacity }
+          : { vehicleId, capacity }),
         studentIds: selectedIds,
       });
       // Optionally broadcast an invite for the remaining seats.
-      if (openInvites && res.participants < capacity) {
+      if (openInvites && res.participants < effectiveCapacity) {
         await regloApi.inviteToGroupLesson(res.groupLessonId).catch(() => null);
       }
       await data.onApplied();
@@ -263,41 +320,74 @@ export const CreateGroupLessonScreen = () => {
           <View style={s.footer}>
             <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
               <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{capacity} allievi · {durationLabel}</Text>
+              <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{effectiveCapacity} allievi · {durationLabel}</Text>
               <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>
-              <Button label="Crea" tone="primary" loading={saving} disabled={!vehicleId} onPress={handleCreate} />
+              <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={handleCreate} />
             </View>
           </View>
         )}
       >
-      <Text style={s.lede}>1 istruttore · 1 veicolo · fino a {capacity} allievi</Text>
+      <Text style={s.lede}>1 istruttore · {isMoto ? `${effectiveCapacity || '—'} moto + auto al seguito` : '1 veicolo'} · fino a {effectiveCapacity || '—'} allievi</Text>
 
       {loading ? (
         <View style={s.loadingBox}><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <>
+          {/* Tipo: standard (1 veicolo) vs moto (flotta + auto al seguito) */}
+          <View style={s.segment}>
+            {(['standard', 'moto'] as const).map((k) => {
+              const active = kind === k;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => { setKind(k); setSelectedIds([]); }}
+                  disabled={saving}
+                  style={[s.segmentBtn, active && s.segmentBtnActive]}
+                >
+                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#FFFFFF' : NAVY} />
+                  <Text style={[s.segmentTxt, active && s.segmentTxtActive]}>{k === 'moto' ? 'Moto' : 'Standard'}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={s.group}>
             <Row icon="calendar-outline" label="Giorno" value={fmtDay(startAt)} onPress={openDatePicker} disabled={saving} />
             <View style={s.divider} />
             <Row icon="time-outline" label="Ora inizio" value={fmtTime(startAt)} onPress={openTimePicker} disabled={saving} />
             <View style={s.divider} />
             <Row icon="hourglass-outline" label="Durata" value={durationLabel} onPress={openDurationPicker} disabled={saving} />
-            <View style={s.divider} />
-            <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
-            <View style={s.divider} />
-            <Row icon="car-outline" label="Veicolo" value={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : null} placeholder="Seleziona veicolo" onPress={openVehiclePicker} disabled={saving} />
+            {!isMoto ? (
+              <>
+                <View style={s.divider} />
+                <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
+                <View style={s.divider} />
+                <Row icon="car-outline" label="Veicolo" value={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : null} placeholder="Seleziona veicolo" onPress={openVehiclePicker} disabled={saving} />
+              </>
+            ) : (
+              <>
+                <View style={s.divider} />
+                <Row icon="bicycle-outline" label="Moto della guida" value={fleetValue} placeholder={motoVehicles.length ? 'Seleziona le moto' : 'Nessuna moto disponibile'} onPress={openFleetPicker} disabled={saving || motoVehicles.length === 0} />
+                <View style={s.divider} />
+                <Row icon="car-outline" label={`Auto al seguito${followCarRequired ? ' (richiesta)' : ''}`} value={followVehicle ? followVehicle.name : null} placeholder="Nessuna" onPress={openFollowCarPicker} disabled={saving} />
+              </>
+            )}
             <View style={s.divider} />
             <Row icon="person-outline" label="Istruttore" value={instructorName} placeholder="Seleziona istruttore" onPress={openInstructorPicker} disabled={saving} />
           </View>
 
+          {isMoto ? (
+            <Text style={s.hint}>Ogni allievo idoneo riceve automaticamente una moto della flotta. La capienza è pari al numero di moto scelte.</Text>
+          ) : null}
+
           {/* Students pre-add */}
-          <Pressable onPress={openStudentsPicker} disabled={saving || !vehicleId} style={({ pressed }) => [s.group, s.studentsRow, pressed && { opacity: 0.55 }, !vehicleId && { opacity: 0.5 }]}>
+          <Pressable onPress={openStudentsPicker} disabled={saving || (isMoto ? fleetIds.length === 0 : !vehicleId)} style={({ pressed }) => [s.group, s.studentsRow, pressed && { opacity: 0.55 }, (isMoto ? fleetIds.length === 0 : !vehicleId) && { opacity: 0.5 }]}>
             <View style={s.rowIcon}><Ionicons name="people-outline" size={22} color={NAVY} /></View>
             <View style={s.rowBody}>
               <Text style={s.rowLabel}>Allievi (pre-inserisci)</Text>
-              {studentsValue ? <Text style={s.rowValue} numberOfLines={1}>{studentsValue}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{vehicleId ? 'Seleziona allievi abilitati' : 'Scegli prima il veicolo'}</Text>}
+              {studentsValue ? <Text style={s.rowValue} numberOfLines={1}>{studentsValue}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{(isMoto ? fleetIds.length > 0 : !!vehicleId) ? 'Seleziona allievi idonei' : isMoto ? 'Scegli prima le moto' : 'Scegli prima il veicolo'}</Text>}
             </View>
             {selectedStudents.length > 0 ? (
               <View style={s.avatarStack}>
@@ -336,6 +426,12 @@ const s = StyleSheet.create({
   lede: { fontSize: 13, fontWeight: '500', color: MUTED, marginBottom: 14 },
   close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
+  segment: { flexDirection: 'row', backgroundColor: N50, borderRadius: 14, padding: 4, gap: 4, marginBottom: 14 },
+  segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 11 },
+  segmentBtnActive: { backgroundColor: NAVY },
+  segmentTxt: { fontSize: 14, fontWeight: '600', color: NAVY },
+  segmentTxtActive: { color: '#FFFFFF' },
+  hint: { fontSize: 12.5, color: MUTED, marginTop: -4, marginBottom: 14, paddingHorizontal: 4, lineHeight: 17 },
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
   studentsRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },

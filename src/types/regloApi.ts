@@ -224,6 +224,17 @@ export type GroupLessonParticipant = {
   studentName: string | null;
   /** Per-student note on this seat (instructor → student), null if none. */
   notes: string | null;
+  /** Moto group: the moto assigned to this participant (null otherwise). */
+  vehicleName?: string | null;
+  licenseCategory?: string | null;
+};
+
+/** A moto in a group's fleet (kind="moto"). */
+export type GroupLessonFleetVehicle = {
+  id: Uuid;
+  name: string;
+  licenseCategory: string | null;
+  transmission: string | null;
 };
 
 export type GroupLesson = {
@@ -232,6 +243,8 @@ export type GroupLesson = {
   endsAt: IsoDate | null;
   capacity: number;
   status: string;
+  /** "standard" (one shared vehicle) | "moto" (moto fleet + shared follow car). */
+  kind?: string;
   priceAmount: number;
   notes: string | null;
   instructorId: Uuid | null;
@@ -240,6 +253,11 @@ export type GroupLesson = {
   vehicleName: string | null;
   licenseCategory: string | null;
   transmission: string | null;
+  /** Moto group: shared follow car. */
+  followVehicleId?: Uuid | null;
+  followVehicleName?: string | null;
+  /** Moto group: the reserved moto fleet. */
+  fleet?: GroupLessonFleetVehicle[];
   filledSeats: number;
   openSeats: number;
   participants: GroupLessonParticipant[];
@@ -264,7 +282,13 @@ export type GroupLessonInvitee = { id: Uuid; name: string | null };
 export type CreateGroupLessonInput = {
   startsAt: IsoDate;
   endsAt: IsoDate;
+  /** "standard" (default) | "moto" (fleet + shared follow car). */
+  kind?: 'standard' | 'moto';
   vehicleId?: Uuid | null;
+  /** Moto group: the chosen moto fleet. */
+  vehicleIds?: Uuid[];
+  /** Moto group: shared follow car (category B). */
+  followVehicleId?: Uuid | null;
   instructorId?: Uuid | null;
   /** Capienza massima (3 o 4 allievi). Default BE: 3. */
   capacity?: number;
