@@ -1,148 +1,77 @@
-# Handoff — Redesign mobile Reglo
+# Handoff — Esperienza allievo MOTO coerente (UI moto-aware)
 
-_Per il prossimo agente, anche senza memoria della sessione. Questo file NON è un changelog: contiene solo dove si lavora, come si lavora, e le info operative che servono per andare avanti. Le cose già fatte stanno in git + nelle memorie._
+_Per il prossimo agente, anche senza memoria di sessione. NON è un changelog: contiene obiettivo, dove e come lavorare, situazione finale ideale. Le cose già fatte stanno in git + nelle memorie._
 
-## Cosa stiamo facendo
+Branch: **`feature/vehicles-redesign`** (reglo-mobile + reglo). Da fare prima del rilascio della feature veicoli / guide di gruppo moto.
 
-Rifacimento UI dell'app mobile (`/Users/tizianodifelice/reglo-mobile` — Expo 54, RN 0.81.5, Expo Router 6). Direzione: **mono-navy, premium, minimale**. Tutto sul branch **`feature/student-phase`** (entrambi i repo sono lì).
+## Obiettivo
+Un allievo che fa un **percorso moto** (categoria patente `AM | A1 | A2 | A`) oggi vede un'app **tutta orientata all'auto**: hero con la macchina da corsa 🏎️, card guide con la 🚗, icona Home "auto" nella tab bar. Va resa **coerente col percorso moto** (iconografia / illustrazioni / wording moto) **mantenendo identica la struttura e il layout dell'app** — si sostituiscono solo asset/icone/etichette auto-specifici, mai la disposizione. Gli allievi auto (categoria `B`) devono restare **invariati**.
 
-**PROSSIMO PASSO PRINCIPALE → rifinire la home istruttore SETTIMANALE** (polish Airbnb + design system: vedi sezione omonima a fondo file). La home OWNER/TITOLARE è ora **allineata a quella istruttore** (vedi "Stato corrente — Home Owner/Titolare"): da verificare su iPhone reale.
-
-Le GUIDE DI GRUPPO (feature full-stack) sono FATTE/ultimate (vedi "Stato corrente — Guide di gruppo"). Il redesign vista settimana istruttore è FATTO; rifinitura ulteriore in coda (fondo file).
-
----
-
-## Stato corrente — Guide di gruppo (full-stack, IN CORSO)
-
-Guida con **1 istruttore + 1 veicolo + fino a 3 allievi** (3-4h), evento distinto in agenda (accento **teal**, gemella della card esame viola). Feature **opzionale** (`limits.groupLessonsEnabled`, default OFF), **opt-in per-allievo** (`CompanyMember.groupLessonsOptIn`, default false), **non scala crediti** ma genera voce "da pagare" al prezzo guida standard (`lessonPrice60`, opzione A — niente prezzo dedicato). Doc complete: `reglo/docs/features/group-lessons.md` + `reglo-mobile/docs/features/group-lessons.md`. Preview: `plans/frontend/010-group-lessons-preview.html`, tab notifiche `011-inbox-tab-preview.html`.
-
-### FATTO
-- **Backend** (`reglo`): modelli `AutoscuolaGroupLesson`/`...Invite`/`...InviteResponse` + `Appointment.groupLessonId` + `CompanyMember.groupLessonsOptIn` (migration `20260610120000_add_group_lessons`). Azioni: create/update/cancel, add/remove participant, `getGroupLesson(sForAgenda)`, `listEligibleGroupLessonInvitees`, opt-in; inviti `inviteToGroupLesson`/`broadcastGroupLessonInvite` (push `kind:group_lesson_invite`)/`respondGroupLessonInvite` (accept multi-posto `SELECT … FOR UPDATE`)/`getGroupLessonInvites`. API in `app/api/autoscuole/group-lessons/`.
-- **Web**: toggle in StudentsTab, opt-in nel drawer allievo, card teal + popover "Gestisci guida di gruppo" (roster add/remove, invita, cambia istruttore/veicolo, sposta-per-tutti, annulla) in tutte e 3 le viste agenda. **Creazione da web** (`GroupLessonCreateDialog`, voce "Nuovo → Guida di gruppo" gated su `groupLessonsEnabled`). **Guide vuote** sintetizzate come card placeholder (`gl-empty:<id>`) così sono gestibili/annullabili.
-- **Mobile**: tab **"Notifiche"** in basso (icona vassoio + pill rossa conteggio, hook `useUnreadNotifications`) al posto della campanella; agenda card teal (DayItinerary/WeeklyOverview/IstruttoreHomeScreen); create flow (`CreateGroupLessonScreen`); opt-in editabile in `StudentNotesDetailScreen`; schermo adesione allievo `GroupLessonInvitesScreen` (route `home/group-lesson-invites`) **redesign Airbnb/mono-navy, niente prezzo mostrato** (data in primo piano, posti a pallini, "Non scala i tuoi crediti"); **CTA "Guide di gruppo" in home allievo** (gemella di "Scambi", badge teal conteggio inviti) gated su `groupLessonsEnabled && groupLessonsOptIn`. Preview: `plans/frontend/012-group-lessons-airbnb-preview.html`.
-
-### Bug risolti (lezioni imparate)
-- **Niente gate disponibilità** allievo (è un evento a orario fisso, non una prenotazione): la disponibilità allievo va IGNORATA — vale in generale nel prodotto.
-- Recovery inbox: **replicare il pattern inline-prisma dei blocchi vicini** in `app/api/autoscuole/notifications/route.ts`, NON chiamare server-action `"use server"` annidate (lanciava in silenzio: schema limit max 20 vs mobile che chiede 30).
-- **Un solo invito per guida**: `broadcastGroupLessonInvite` fa `supersede` dei precedenti broadcasted; dedup difensivo per `groupLessonId` in `getGroupLessonInvites` + recovery route.
-
-### PROSSIMO STEP — ultimare del tutto
-1. **FATTO** — Web: card agenda raggruppate per `groupLessonId` (collasso nel memo `regularAppointments` di `AutoscuoleAgendaPage`: una riga rappresentante per guida, titolo "Guida di gruppo · N/3", niente nome partecipante). Vale per tutte e 3 le viste agenda.
-2. **FATTO** — Mobile vista giornaliera istruttore: i partecipanti sono ora collassati in **una sola card** (hour-grid `timelineItems` kind `groupLesson` + day-detail), card più grande, teal, **senza nome allievo**, pallini posti. Il tap su una card di gruppo (entrambe le viste) apre la **modal dedicata "Gestisci guida di gruppo"** (`manage-group-lesson` page sheet, design clonato da `manage-lesson`: ring posti/capienza teal, righe Istruttore/Veicolo auto-save, CTA 3D Partecipanti → roster sheet, Sposta + cestino).
-3. **FATTO** — Guide vuote (0 iscritti): ora `getAutoscuolaAgendaBootstrapAction` (backend, **fonte unica condivisa web+mobile**) sintetizza una riga `gl-empty:<glId>` per ogni guida `scheduled` senza partecipanti attivi (gated su `groupLessonsEnabled`, rispetta i filtri). Web: il collasso `regularAppointments` la tratta come `filled=0`. Mobile: `weeklyAgenda.ts` + `IstruttoreHomeScreen.timelineItems` escludono le righe `gl-empty:` dal conteggio iscritti → mostrano `0/3` corretto. Rimosso il vecchio fetch bespoke web. Così l'istruttore vede e gestisce/annulla le guide vuote su entrambe le piattaforme (niente più inviti orfani).
-4. **FATTO (2026-06-10)** — comportamento partecipazione guida di gruppo (decisione A):
-   - **Ritiro allievo**: implementato. Nuova action `withdrawFromGroupLesson` + route `POST /api/autoscuole/group-lessons/[id]/withdraw`; sheet allievo dedicato `home/group-lesson-detail` + card teal in `AllievoHomeScreen`. Posto liberato → re-broadcast; **push all'istruttore** sul ritiro.
-   - **Rimozione istruttore**: `removeGroupLessonParticipant` ora passa dall'helper condiviso — funziona anche **dopo** la guida (→ tardiva).
-   - **"Da pagare" / cancellazioni (A)**: helper unico `cancelGroupLessonParticipantAppointment` — prima del cutoff = posto liberato senza addebito; dopo cutoff/guida avvenuta = resta "da pagare" + entra nelle *cancellazioni tardive* (`cancellationKind:'manual_cancel'` + `penaltyCutoffAt`, inbox già type-agnostica). Campi penale ora settati alla creazione dei posti (`getGroupLessonPenaltySnapshot`). `getGroupLesson` reso **student-safe** (solo iscritti, nomi mascherati). **Nessuna migration.** Type-check verde su entrambi i repo. Preview UI approvata: `plans/frontend/013-student-group-lesson-preview.html`. **Da verificare su iPhone reale** (sotto, punto 5).
-5. Verificare su **TestFlight/iPhone reale** push reale (sul simulatore i push non arrivano: l'inbox si popola solo via recovery pull).
-6. Doc da tenere allineate a ogni modifica (`features/group-lessons.md` ambo i repo, `notifications.md`, `prod-release-migrations.md` #11).
-
----
+Tema collegato (stessa esperienza): nelle **guide di gruppo moto** l'allievo non vede mai la moto assegnata né l'auto al seguito — il dato c'è già nell'API ma non è renderizzato (punto 4 sotto).
 
 ## Regole di lavoro (SEMPRE)
-
-1. **Prima di QUALSIASI lavoro UI**: applica la skill **`/ui-ux-pro-max`** e leggi il design system.
-2. **Design-first**: per UI nuove/non banali, definisci la direzione e — se serve — genera una preview (HTML in `plans/frontend/`, o nano-banana/Stitch) e falla approvare **prima** di toccare il codice di produzione.
+1. **Prima di QUALSIASI lavoro UI**: applica la skill **`/ui-ux-pro-max`** e leggi `docs/design-system.md`.
+2. **Mono-navy**, niente rosa, font weight **500/600** (mai 700+). Vedi memorie `project_mobile_navy_mono`, `feedback_font_weight`.
 3. **Niente deploy / OTA senza ok esplicito dell'utente.**
-4. Decisioni di design: chiariscile **in chat** (non popup), a meno che l'utente non chieda i select.
+4. Type-check mobile: `./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "TabNavigator" | grep "error TS"` (`noUnusedLocals` OFF; l'errore `TabNavigator` è pre-esistente).
 
----
+## Il segnale da usare (già disponibile)
+- L'allievo conosce la propria categoria: in `AllievoHomeScreen.tsx` ci sono già `studentLicenseCategory` + `studentTransmission` (intorno a riga ~160) e `studentLicenseLabel` (es. "A2 · Manuale", riga ~163, già corretto — tenerlo).
+- Per-guida è più preciso usare la **categoria del veicolo dell'appuntamento**: `appointment.vehicle?.licenseCategory` (gli appuntamenti includono già `vehicle`). Per una guida di gruppo moto, la moto dell'allievo è in `getGroupLesson().participants[self].vehicleName/licenseCategory`.
+- **Manca un helper**: `src/utils/license.ts` ha `LICENSE_CATEGORY_LABELS`/`transmissionLabel` ma **non** `isMotoLicenseCategory`. Aggiungerlo (mirror del backend `reglo/lib/autoscuole/license.ts`):
+  ```ts
+  export const MOTO_LICENSE_CATEGORIES: LicenseCategory[] = ['AM', 'A1', 'A2', 'A'];
+  export const isMotoLicenseCategory = (c?: string | null) =>
+    !!c && (MOTO_LICENSE_CATEGORIES as string[]).includes(c);
+  ```
 
-## Design system — dove trovarlo
+## Asset da aggiungere
+Oggi esistono solo `assets/icons/fluent-car.png` e `assets/icons/fluent-racing.png` (auto). **Serve un'icona 3D moto** (es. `fluent-motorcycle.png`) nello **stesso stile/pipeline** delle altre fluent 3D — vedi memoria `reference_3d_icons_pipeline`: pack **Microsoft Fluent 3D** (MIT, raw github), de-pink (hue-shift rosa/rosso→blu/navy), in RN **mai `tintColor`** (l'icona è già colorata). Ritaglio/dimensioni coerenti con `fluent-car.png`. Se non c'è un "motorcycle" 3D adeguato, valutare moto/scooter equivalente in tono mono-navy.
 
-| Cosa | Dove |
-|------|------|
-| **Doc completo** | `reglo-mobile/docs/design-system.md` — leggilo prima di scrivere UI |
-| Token colori / spacing / tipografia | `src/theme/colors.ts`, `spacing.ts`, `typography.ts` (export unificato `src/theme/index.ts`) |
-| Mapping mobile↔web | `reglo/docs/design-system.md` sez. 10 (palette condivisa, stessi hex) |
+Introdurre **un helper unico** per non sparpagliare la scelta in ogni schermata:
+```ts
+// es. src/utils/lessonArt.ts
+export const lessonArtSource = (licenseCategory?: string | null) =>
+  isMotoLicenseCategory(licenseCategory)
+    ? require('../../assets/icons/fluent-motorcycle.png')
+    : require('../../assets/icons/fluent-car.png');
+```
+(per l'hero c'è la variante "racing" 🏎️ `fluent-racing.png`: o si crea una moto sportiva equivalente, oppure si usa la moto normale anche nell'hero — decisione di design.)
 
-**Palette: MONO-NAVY, niente rosa, si tiene il giallo.** `colors.primary = #1A1A2E`, `colors.accent = #FACC15`. La vecchia scala `pink` è ora `navy`. Scala navy: `50:#F4F5F9 100:#E9EBF2 200:#D6D9E6 300:#AEB4CC 400:#6E7596 500:#1A1A2E 600:#14141F 700:#0D0D16`. **Non reintrodurre il rosa.**
+## File da toccare
 
-**Pattern già consolidati (seguirli, non reinventare):** design-system §6.3 (`Button.loading` = spinner, mai label-swap), §7.5 (form a card: card 3D bianca = primario · lista piatta = secondario · banner N50 = optional), §7.6 (ogni sotto-input apre una **route nativa** seminata via store+callback, con tabella route/store).
+### 1. `src/screens/AllievoHomeScreen.tsx` (cuore del problema)
+Illustrazioni `require()` hardcoded su auto (numeri di riga indicativi, verificarli):
+- **Hero "prossima guida"** — `fluent-racing.png` (~riga 1622) → per moto: icona moto.
+- **Mini-card guide imminenti** (carosello "Vedi tutte le guide") — `fluent-car.png` (~riga 1703) → moto. Meglio **per-guida** su `appointment.vehicle?.licenseCategory` (resta corretto anche in casi misti).
+- **Empty state** ("Le tue guide", nessuna guida) — `fluent-car.png` (~riga 1494) → moto se allievo moto.
+- **Prompt esame** — `fluent-car.png` (~riga 1555) → moto-izzare per coerenza.
 
----
+### 2. `app/(tabs)/home/all-lessons.tsx`
+Usa `fluent-car.png` per le righe guida → stessa logica per-guida moto-aware.
 
-## Navigazione docs (prima di ogni modifica)
+### 3. `src/components/GlassTabBar.tsx` (icona Home tab)
+`ICON_MAP.home = 'car-sport-outline'` (riga 19). Esiste **già** un pattern di override context-aware (righe ~158-160: `isStudentTeoria && route.name === 'home'`). Aggiungere un override analogo: se l'allievo è moto → home icon moto. Ionicons non ha "motorcycle"; l'app usa già **`'bicycle-outline'`** come proxy moto lato istruttore — usare quello (o una soluzione migliore concordata). Serve esporre il flag "studente moto" in quel punto (come per `isStudentTeoria`).
 
-Ogni repo ha `docs/` con `INDEX.md`, `impact-map.md`, `features/`, `architecture/`. Mobile: `docs/INDEX.md` → feature → `features/<x>.md` → `impact-map.md`. Pattern riutilizzabili in `docs/patterns/`. Leggi anche `reglo-mobile/CLAUDE.md` e la root `/Users/tizianodifelice/CLAUDE.md`.
+### 4. Guide di GRUPPO moto — lato allievo (gap di visualizzazione, non di logica)
+- `app/(tabs)/home/group-lesson-detail.tsx`: oggi mostra `lesson.vehicleName` (~riga 95) che per un gruppo **moto è `null`** → la riga veicolo sparisce. Mostrare invece **la moto assegnata all'allievo**: `lesson.participants` → la voce dell'utente loggato → `vehicleName` (+ `licenseCategory`), più l'**auto al seguito** `lesson.followVehicleName`, ed etichetta/icona "guida di gruppo **moto**". (Tutti i campi sono già nel payload: `kind`, `fleet`, `followVehicleName`, `participants[].vehicleName`.)
+- `src/screens/GroupLessonInvitesScreen.tsx` (~righe 138-168): la riga veicolo (`inv.vehicleName`) è `null` per i gruppi moto → non appare. Indicare almeno che è una guida **moto** ("ti verrà assegnata una moto"). NB: richiede una **piccola aggiunta backend** — esporre `kind` nel payload invito (`getGroupLessonInvites` / `broadcastGroupLessonInvite` in `reglo/lib/actions/autoscuole-availability.actions.ts`), perché la moto specifica si conosce solo all'accettazione.
+- Card "Guida di gruppo" nella home allievo (`AllievoHomeScreen`, ~righe 1729-1763, icona `fluent-people.png` ~1800): opzionale, mostrare la moto assegnata quando disponibile.
 
----
+### 5. `src/screens/StudentNotesDetailScreen.tsx`
+Verificare l'iconografia/veicolo nel dettaglio guida/note dell'allievo e renderla moto-aware dove serve.
 
-## Convenzioni e gotcha (per non sbatterci)
+## Vincoli
+- **Struttura/layout invariati**: si sostituiscono solo asset/icone/etichette auto-specifici. Niente nuove sezioni o riorganizzazioni.
+- **Non rompere gli allievi auto (B)**: tutto identico per categoria `B` (default = ramo auto attuale).
+- Riusare un **helper unico** (`lessonArtSource` / `isMotoLicenseCategory`) invece di duplicare i `require` condizionali ovunque.
+- `fluent-*` 3D in RN: **mai `tintColor`**.
 
-1. **Header blur collassabile → root `<View style={{flex:1}}>`, MAI `<Screen>`** (aggiunge `paddingTop: insets.top` → doppio padding, header rotto). L'inset si gestisce con una View padre attorno all'`Animated.ScrollView`. Vedi `docs/patterns/collapsible-hero-screen.md`.
-2. **RN ignora `paddingTop` sullo `style` di uno ScrollView**: usa una View padre con padding.
-3. **`contentContainerStyle.gap` si applica tra OGNI figlio diretto** dello ScrollView → gap fantasma; occhio a `stickyHeaderIndices` quando aggiungi/togli figli.
-4. **Form sheet nativo content-hugging** = route Expo Router `presentation:'formSheet'` + `sheetAllowedDetents:'fitToContents'` + **NO ScrollView** + root senza `flex:1`. `NativeFormSheet` NON è nativo (è un `<Modal>` custom). Liste scrollabili a lunghezza variabile → `presentation:'modal'` (page sheet). Chiusura sheet = **X in alto a destra**, non handle.
-5. **CTA dei picker** (`select-options`, `select-exam-students`): pill navy custom (`height 54, borderRadius 27`, ombra navy, testo bianco 600), NON il componente `Button`. Nei **footer dei form** (block-slot/sick-leave/create-exam) invece si usa `<Button loading>`.
-6. **Font weight 500/600, mai 700/800** di default (l'utente odia il bold pesante).
-7. **Edit tool**: em-dash `──` e `·` rompono il match esatto → `perl -i` per cancellazioni a range. `grep -Z` su macOS non emette null → `while IFS= read -r f`.
-8. **Type-check mobile**: `./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "TabNavigator" | grep "error TS"`. `noUnusedLocals` è OFF.
+## Situazione finale ideale
+Un allievo A2/A apre l'app e vede un'esperienza **coerentemente moto**: hero e card guide con icona moto, icona Home moto nella tab bar, empty state moto; nel dettaglio di una guida di gruppo moto vede **"La tua moto: …"** + **"Auto al seguito: …"** e l'etichetta "guida di gruppo moto"; l'invito segnala che è una guida moto. Un allievo B continua a vedere esattamente l'app di oggi (auto). La scelta dell'icona è guidata dalla **categoria del veicolo della guida** (fallback: categoria patente dell'allievo) via un helper condiviso.
 
----
+## Contesto feature gruppo-moto (per capire i dati)
+La feature "guide di gruppo moto" (kind="moto": flotta di moto + 1 auto al seguito condivisa, ogni allievo riceve una moto auto-assegnata) è **già fatta** BE+web+mobile-creazione e documentata in `reglo/docs/features/group-lessons.md` (sezione "Moto group lessons") e `reglo-mobile/docs/features/group-lessons.md`. Memoria: `project_group_moto_lessons`. Il payload `getGroupLesson` espone già `kind`, `fleet`, `followVehicleName`, e `participants[].vehicleName` (la moto del singolo). Questo handoff riguarda **solo la resa UI lato allievo moto**, non la logica.
 
-## Git — dove siamo
-
-- Branch di sviluppo redesign: **`feature/student-phase`** su entrambi i repo. Branch prod: `main` (reglo) / `master` (reglo-mobile).
-- **Lavora solo su `feature/student-phase`.** ⚠️ `master` mobile NON builda da solo (mancano ~66 asset che vivono solo su `feature/student-phase`): niente OTA da master.
-- **Non deployare in prod da `feature/student-phase`**: spedirebbe tutto il redesign + WIP. Vale per Vercel (web) e per `trigger:deploy:prod` (usa il working tree corrente).
-- C'è lavoro BE **non committato** nel repo `reglo` (audit priorità cluster→company: limite settimanale, cutoff, governance, cron notifiche slot vuoti per-cluster). Troppo divergente da `main` per cherry-pick: si rilascia col merge generale. Dettagli: memorie `project_cluster_settings_audit` + `feedback_cluster_overrides_company`.
-- `git status` di reglo mostra anche `app/api/autoscuole/appointments/[id]/route.ts` e `app.json`: WIP pre-esistente, non toccarli senza capire cosa sono.
-- Verifica divergenza prima di merge/deploy: `git rev-list --left-right --count origin/main...HEAD`.
-
----
-
-## 📦 Checklist RILASCIO (quando si rilascia tutto)
-
-1. **Web + backend `reglo`**: push su `main` → Vercel auto-deploya.
-2. **DB migrations** (se schema cambiato): `pnpm migrate:prod` in `reglo/`. Include `20260609035024_drop_reposition_task` (DROP della tabella `AutoscuolaAppointmentRepositionTask` — repositioning ritirato), `20260609120000_add_vehicle_fixed_instructor` (veicolo fisso per istruttore: 2 colonne su `AutoscuolaVehicle`, additiva, nessun backfill) e `20260609140000_add_license_category` (categorie patente: `licenseCategory`/`transmission` su `AutoscuolaVehicle` NOT NULL default B/manual + su `CompanyMember` nullable, **backfill allievi → B/manuale**) e `20260610120000_add_group_lessons` (Guide di gruppo: tabelle `AutoscuolaGroupLesson`/`...Invite`/`...InviteResponse`, `AutoscuolaAppointment.groupLessonId`, `CompanyMember.groupLessonsOptIn` — **additiva, nessun backfill**, feature gated su `limits.groupLessonsEnabled` default OFF). Vedi `reglo/docs/prod-release-migrations.md` #8, #9, #10 e #11. ⚠️ Le autoscuole moto dovranno ri-categorizzare veicoli e allievi dopo il rilascio (tutto parte come B manuale).
-3. **Trigger.dev**: `pnpm trigger:deploy:prod` in `reglo/` — **OBBLIGATORIO**: (a) il cron notifiche slot vuoti (`communications.ts` → `processEmptySlotNotifications`) è per-cluster **e ora anche license-aware** (`freeSlotLicenseKeysTomorrow` filtra i candidati per categoria/cambio del veicolo libero, gated su `vehiclesEnabled`); (b) il job `autoscuole-reminders` non chiama più `processAutoscuolaPendingRepositions` (rimosso col ritiro repositioning). Senza redeploy gira la vecchia logica (allievi moto riceverebbero push per slot auto). Cron notifiche slot: `trigger/autoscuole-empty-slot-notifications.ts` (`0,30 * * * *`). Nota: la logica waitlist/swap license-aware (`broadcastWaitlistOffer`, `respondWaitlistOffer`, swap) vive in server action → coperta dal deploy Vercel, non da trigger.
-4. **Mobile OTA**: `eas update --platform ios --branch production --message "..."` poi idem `--platform android` (MAI `--auto`, MAI `--platform all`).
-5. **Bonifica proposte su PROD** — OBBLIGATORIO (già fatto su DEV il 2026-06-09). Dopo il deploy del backend, in `reglo/` lanciare lo script che cancella le proposte ancora "live" (+ rimborsa i crediti delle proposte future). Lo script **non** tocca più la tabella reposition task (droppata dalla migration #8), quindi è indipendente dall'ordine vs migrate:prod:
-   ```
-   DOTENV_CONFIG_PATH=.env.prod NODE_OPTIONS=--require=dotenv/config node scripts/retire-repositioning.mjs            # dry run (mostra cosa farebbe)
-   DOTENV_CONFIG_PATH=.env.prod NODE_OPTIONS=--require=dotenv/config node scripts/retire-repositioning.mjs --apply    # esegue
-   ```
-   Senza questo, le proposte già esistenti restano appese in app come guide "Proposta" non più gestibili.
-6. Al merge: ordinato `main`/`master` ↔ `feature/student-phase` (i fix prod del "riposizionamento" guide stanno su `main`/`master`, il redesign su `feature`).
-
----
-
-## Stato corrente — caricamento dati home istruttore (perf)
-
-Il giro di ottimizzazione del **caricamento dati** della home istruttore è FATTO (vedi git). Metodo seguito: performance playbook canonico `reglo/docs/architecture/performance-playbook.md` (memoria `reference_performance_playbook`).
-
-Cosa è cambiato (per capire il comportamento attuale prima di toccare ancora `IstruttoreHomeScreen.tsx`):
-- **`loadData(opts?: {force?})`**: bootstrap + settings + instructorSettings ora passano da `queryClient.fetchQuery` con gli stessi `queryKeys` dei TanStack hook → niente più doppia-fetch al cold start. `force` default **true** (mutazioni, pull-to-refresh = rete vera, `staleTime:0`); il **mount iniziale** e il **focus listener** passano `force:false` (riusano la cache fresca). I params bootstrap DEVONO restare identici a `useAgendaBootstrap.bootstrapParams` o si rompe il dedup.
-- **Focus listener gated** (30s): tornare da uno sheet/tab non rilancia più 4 famiglie di fetch; il read del view-mode (locale) gira sempre.
-- **Mount**: `loadOutOfAvailability` parallelo (non più concatenato dietro loadData).
-- **BE** (`reglo/lib/actions/autoscuole.actions.ts`, `getAutoscuolaAgendaBootstrapAction`): i company-service limits ora via `getCachedCompanyServiceLimits` (Redis SETTINGS) e dentro il `Promise.all`. Nessuna migration. Si rilascia col merge generale di `feature/student-phase`; redeploy Vercel normale, **nessun** trigger:deploy richiesto da questa modifica.
-
-Non fatto di proposito (rischio>beneficio): NON ho ridotto la finestra del fetch "featured" (`getAppointments` +60g) — `featuredAppointments` alimenta anche liste swap/raggruppamenti su finestra larga e gira già in parallelo al bootstrap (poco impatto sul percepito).
-
-**Navigazione giorni istantanea (FATTO, vedi `plans/performance/003-...`)**: la home istruttore ora carica una **finestra** `-7/+21g` (stato `loadRange`, disaccoppiato da `selectedDate`, limit 400) e filtra il giorno **client-side** (`dayAppointments`). Selezionare un giorno dentro la finestra = zero rete, zero skeleton; la finestra si ricentra solo vicino al bordo (prefetch vicini). SWR: skeleton solo se non c'è nulla da dipingere (`dayGridLoading`/`appointmentsLoading`), + cross-fade (`timelineFadeSV`) sulla revalidation in background. `WeeklyAgendaView` filtra già per data esatta → riceve la finestra intera senza problemi. `calendarRange` resta = giorno/settimana per blocchi/malattia/prenotazione.
-
-### Stato corrente — restyling Airbnb sezione "Altro" (FATTO)
-Rifatte in stile **Airbnb / mono-navy / leggero** le schermate: `MoreScreen` (hero profilo grande + lista flat), `LocationsScreen` ("Luoghi guida": lista flat, tap riga → form, `•••` → ActionSheet, `+` nell'header), `more/profile-edit` (ora autonomo dalla session) e il formsheet `more/location-form`. **Tutti i formSheet** sono stati standardizzati: niente grabber, **X in alto a destra** (`sheetGrabberVisible: false` ovunque). Regole nuove scritte nel **design system** `docs/design-system.md` §14: (1) liste = righe FLAT sullo sfondo, MAI dentro una card (card solo per item singoli); (2) azioni di riga in menu nativo, tap = azione primaria; (3) "Aggiungi" = `+` nell'header; (4) formSheet = X, no grabber; (5) testo leggero (400 liste/body, 600 max titoli/nomi — vedi memoria `feedback_font_weight`).
-
-### Sezione "Veicoli" (FATTO)
-Restyling Veicoli completato in stile Airbnb/mono-navy. **Owner + Instructor unificati** in `src/screens/VehiclesScreen.tsx` (i due vecchi screen sono wrapper sottili). Lista flat (header large-title blur collassabile come `ClusterSettingsScreen`, righe icona+nome+targa, tap → form, `•••` → ActionSheet attiva/disattiva, inattivo = riga attenuata). Form = route formSheet `more/vehicle-form` (store `vehicleFormStore` seed-and-callback, X no-grabber, no ScrollView) + route `more/time-picker` (riuso `timePickerStore`); niente più `BottomSheet`/`TimePickerDrawer`. Rinominabili nome/targa, `ToggleSwitch` attivo/inattivo, editor disponibilità. **Tolto** il prefetch disponibilità per-riga (7×N richieste) dell'Owner: ora la disponibilità si carica solo nel form. Doc: `docs/features/vehicles.md`. Preview: `plans/frontend/004-veicoli-restyle-preview.html`.
-
-### Vista settimana istruttore → "controllo in parole" (FATTO)
-La vista settimana (`agendaViewMode === 'week'`) non è più una griglia oraria ma un'**agenda "controllo in parole"** (preview approvata `plans/frontend/008-...`): header su **pannello tonale** (range "8 – 13 Giugno" + Oggi + icona calendario, niente frecce), navigazione settimane via **swipe orizzontale nativo** (`FlatList` paginata su lista fissa di settimane → niente glitch di re-center). Ogni giorno = riga con **striscia-densità** (solo ritmo) + **riepilogo testuale** (n° guide/esami; "Riposo"/"Nessuna guida"); **tap → page sheet nativo** (`home/day-detail`) con l'itinerario completo (marker + card lezioni + band `Libero` con long-press quick-book preservato — il sheet è avvolto in `GestureHandlerRootView` + `ScrubBubble`). File chiave: `src/utils/weeklyAgenda.ts` (`computeDayPlan` puro), `src/components/WeeklyOverview.tsx`, `src/components/DayItinerary.tsx`, `src/stores/dayDetailStore.ts`, innesto in `IstruttoreHomeScreen.tsx` (rimpiazza `WeeklyAgendaView`, che resta solo per la home Titolare). Disponibilità: caricata 3 settimane keyed-per-data + **merge** (no flash); in day view cache per-giorno in `availabilityCacheRef` (stessa cura anti-glitch). Dettagli + cose da verificare su TestFlight: `plans/frontend/009-instructor-weekly-overview.md`.
-
-### Stato corrente — Home Owner/Titolare (FATTO, 2026-06-10)
-La home del **titolare** è ora **identica** a quella dell'istruttore, riusata via un flag `ownerMode` (stesso pattern del `VehiclesScreen` unificato): `TitolareHomeScreen.tsx` è un **wrapper sottile** che rende `<IstruttoreHomeScreen ownerMode />`. Routing invariato in `RoleHomeScreen.tsx` (`OWNER → TitolareHomeScreen`).
-- **Due differenze rispetto all'istruttore** (volute): (1) **niente FAB +** e nessuna azione mutante → home in **sola lettura**; (2) **scope fisso "tutti gli istruttori"** (`effectiveInstructorId=undefined`) → l'agenda mostra le guide di **tutta** la scuola.
-- **Read-only propagato** anche agli sheet di dettaglio: `manage-lesson`, `exam-manage`, `manage-group-lesson` ricevono `readOnly` via i rispettivi store (righe statiche, niente CTA di modifica/toolbar/azioni distruttive); rimozione blocchi/malattia disattivata; overlay "in malattia" e marker/band disponibilità soppressi (concetti personali, non hanno senso in scope-all).
-- **Mantenuto** il banner + sheet "guide fuori disponibilità" (già presente nella home istruttore). **Rimosso** rispetto alla vecchia home titolare: creazione festivi via long-press (i festivi restano visibili come dot). `WeeklyAgendaView` ora è **orfano** (lasciato in repo).
-- **Dettagli tecnici**: `docs/features/instructor-manage.md` §"Owner / Titolare home (`ownerMode`)".
-- **DA VERIFICARE su iPhone reale**: (a) che il backend autorizzi l'OWNER a `getAgendaBootstrap`/`getInstructorBlocks` **senza** `instructorId` e ritorni tutte le guide della scuola; (b) resa visiva itinerario senza scaffolding disponibilità; (c) sheet read-only (lezione/esame/gruppo) senza azioni; (d) banner fuori-disponibilità.
-
-### Prossimo step — rifinire la home istruttore SETTIMANALE (più Airbnb + design system)
-Polish leggero della vista settimana (`WeeklyOverview` + `DayItinerary` + `home/day-detail`): allinearla ancora di più allo stile **Airbnb / mono-navy** e al **design system** (`docs/design-system.md`, specie §14 e i token `src/theme/`). Da rivedere con occhio fine: spaziature/ritmo verticale delle righe-giorno, tipografia (pesi 400/500/600, mai 700+), la striscia-densità (colori/altezza/raggi coerenti coi token), header tonale, il page sheet del giorno (titolo, X, card itinerario), micro-interazioni/press feedback. Niente stravolgimenti funzionali: solo qualità visiva e coerenza. **Prima**: applica `/ui-ux-pro-max` e rileggi `docs/design-system.md`.
-
-### In sospeso (rimandato) — blocchi nell'agenda giornaliera istruttore
-Fix della **visualizzazione dei blocchi** (blocca-slot, malattia/`sick_leave`) nella **vista giorno** di `IstruttoreHomeScreen.tsx`: come `blocksByHour` (filtrato per `calendarRange` = giorno) e gli `instructorBlocks` (finestra `loadRange` + sick wide) vengono renderizzati — posizionamento/altezza/overlap con le guide, blocchi multi-ora o a cavallo di mezzanotte, coerenza con `HOUR_SLOTS`.
-
-Follow-up perf rimasti (minori): (1) stesso pattern a finestra per la **disponibilità** (`loadAvailability` rifà ancora per giorno, overlay non bloccante); (2) misurare su TestFlight che finestra 4-settimane + limit 400 copra gli istruttori più pieni.
+## Verifica (su staging)
+Demo "Autoscuola Reglo" su `staging.reglo.it` (vedi `reglo/docs/STAGING.md`). Login come allievo **moto** (es. Simone / A2 — controllare le credenziali allievo nella demo) e verificare home / card / dettaglio / tab; poi login come allievo **B** per confermare che nulla è cambiato. Build app contro staging: `npm run ios:staging` (richiede `reglo-mobile/.staging-bypass`). Le modifiche UI sono solo JS → hot-reload, niente rebuild nativo (salvo l'aggiunta del nuovo asset, che richiede reload del bundler).
