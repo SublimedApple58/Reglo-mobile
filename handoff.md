@@ -4,6 +4,12 @@ _Per il prossimo agente, anche senza memoria di sessione. NON è un changelog: c
 
 Branch: **`feature/vehicles-redesign`** (reglo-mobile + reglo). Da fare prima del rilascio della feature veicoli / guide di gruppo moto.
 
+## STATO (2026-06-26): IMPLEMENTAZIONE FATTA — resta scelta tinta + QA
+Tutto il lavoro sotto è implementato, type-check pulito, **committato e pushato** sul feature branch in entrambe le repo. Doc: `docs/features/student-moto-experience.md`.
+- **Aperto (1 decisione):** tinta icona moto. Default attuale = **rossa** (gemella di auto/F1 esistenti). Alternativa pronta = **navy** de-pinkata (più aderente al mono-navy). Swap = sostituire `assets/icons/fluent-motorcycle.png` (variante navy generata in sessione, rigenerabile dalla pipeline `reference_3d_icons_pipeline`). Preview inviate all'utente in chat.
+- **Resta:** QA su `staging.reglo.it` come allievo **moto** (es. A2) e come allievo **B** (deve essere identico a oggi). Vedi sezione "Verifica".
+- **Rilascio BE:** l'unica modifica backend è il campo `kind` in `getGroupLessonInvites` (server action) — va su staging/prod col normale deploy del branch, nessuna migrazione.
+
 ## Obiettivo
 Un allievo che fa un **percorso moto** (categoria patente `AM | A1 | A2 | A`) oggi vede un'app **tutta orientata all'auto**: hero con la macchina da corsa 🏎️, card guide con la 🚗, icona Home "auto" nella tab bar. Va resa **coerente col percorso moto** (iconografia / illustrazioni / wording moto) **mantenendo identica la struttura e il layout dell'app** — si sostituiscono solo asset/icone/etichette auto-specifici, mai la disposizione. Gli allievi auto (categoria `B`) devono restare **invariati**.
 
