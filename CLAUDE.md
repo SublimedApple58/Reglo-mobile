@@ -14,6 +14,16 @@ npx expo start -c      # Start with cache cleared
 
 No test runner or linter configured.
 
+## Git flow & Staging
+
+Ambienti: **dev** → **staging** (CONDIVISO) → **prod** (`master`). Lavori grossi: **feature branch dedicato su entrambi i repo** (`reglo` + `reglo-mobile`), mai diretto su `master` finché non finito/approvato.
+
+- **Testare contro staging**: `npm run ios:staging` / `android:staging` puntano l'app all'API `staging.reglo.it` (serve `reglo-mobile/.staging-bypass` col Protection Bypass secret). Modifiche solo-JS = hot-reload, niente rebuild nativo.
+- Il mobile **non** ha un branch `staging` proprio da deployare: si testa contro il **backend** di staging. Il flusso `ship:staging` (allinea `origin/staging` nel branch → ship) vive lato `reglo` — vedi `../reglo/docs/architecture/git-flow.md`.
+- **Rilascio prod** (solo con OK utente): merge → `master`, poi OTA `eas update --platform ios --branch production` **poi** `--platform android` (MAI `--auto`, MAI `--platform all`); native build solo se cambiano moduli nativi.
+
+Dettagli: [docs/git-flow.md](docs/git-flow.md) · staging operativo: `../reglo/docs/STAGING.md`.
+
 ## Conventions
 
 - TypeScript strict mode (Expo tsconfig base)

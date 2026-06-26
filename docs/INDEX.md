@@ -31,6 +31,7 @@
 
 | Topic | Doc |
 |-------|-----|
+| **Git flow & ambienti** (branch, staging, OTA prod) | [git-flow.md](git-flow.md) |
 | Routing & Tabs | [routing.md](architecture/routing.md) |
 | Shared Components | [components.md](architecture/components.md) |
 | API Layer & Types | [api-layer.md](architecture/api-layer.md) |

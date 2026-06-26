@@ -15,6 +15,11 @@ Tema collegato (stessa esperienza): nelle **guide di gruppo moto** l'allievo non
 3. **Niente deploy / OTA senza ok esplicito dell'utente.**
 4. Type-check mobile: `./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "TabNavigator" | grep "error TS"` (`noUnusedLocals` OFF; l'errore `TabNavigator` è pre-esistente).
 
+## Git flow (panoramica veloce)
+Ambienti: **dev** (locale) → **staging** (pre-rilascio CONDIVISO con altri dev → `staging.reglo.it`, DB Neon dedicato, `APP_ENV=staging` = invii esterni no-op) → **prod** (`main` web / `master` mobile). Si lavora su un **feature branch dedicato su entrambi i repo** (qui: `feature/vehicles-redesign`); mai diretto su `main`/`master` finché non finito/approvato.
+
+Pre-rilascio (regola d'oro: `staging` è condiviso → **non shippare a freddo**): `git fetch && git merge origin/staging` **nel branch** (allinea migrazioni/conflitti) → `pnpm ship:staging` (lato `reglo`) → `pnpm migrate:staging` se servono migrazioni → QA su `staging.reglo.it`. Rilascio prod solo con OK utente (merge → `main`/`master`, `migrate:prod`, OTA mobile). App contro staging: `npm run ios:staging` (richiede `.staging-bypass`). **Doc complete**: `docs/git-flow.md` (mobile) + `reglo/docs/architecture/git-flow.md` + `reglo/docs/STAGING.md`.
+
 ## Il segnale da usare (già disponibile)
 - L'allievo conosce la propria categoria: in `AllievoHomeScreen.tsx` ci sono già `studentLicenseCategory` + `studentTransmission` (intorno a riga ~160) e `studentLicenseLabel` (es. "A2 · Manuale", riga ~163, già corretto — tenerlo).
 - Per-guida è più preciso usare la **categoria del veicolo dell'appuntamento**: `appointment.vehicle?.licenseCategory` (gli appuntamenti includono già `vehicle`). Per una guida di gruppo moto, la moto dell'allievo è in `getGroupLesson().participants[self].vehicleName/licenseCategory`.
