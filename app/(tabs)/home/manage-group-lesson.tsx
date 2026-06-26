@@ -15,7 +15,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonBlock, SkeletonRing } from '../../../src/components/Skeleton';
 import { formatDay, formatTime } from '../../../src/utils/date';
-import { transmissionLabel } from '../../../src/utils/license';
+import { transmissionLabel, isMotoLicenseCategory } from '../../../src/utils/license';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 
@@ -136,6 +136,18 @@ export default function ManageGroupLessonScreen() {
   const vehicleName = lesson?.vehicleName ?? 'Nessun veicolo';
   const instructorName = lesson?.instructorName ?? 'Nessun istruttore';
 
+  // Moto group: the container has NO single vehicle (fleet + shared follow car).
+  // Show/edit the moto fleet and the follow car instead of a single "Veicolo".
+  const isMoto = lesson?.kind === 'moto';
+  const fleet = lesson?.fleet ?? [];
+  const fleetValue = fleet.length
+    ? fleet.map((f) => f.name).join(', ')
+    : 'Nessuna moto';
+  const followCarName = lesson?.followVehicleName ?? 'Nessuna';
+  // Picker pools, derived from the instructor-accessible vehicles in the seed.
+  const motoVehicles = vehicles.filter((v) => isMotoLicenseCategory(v.licenseCategory));
+  const followCars = vehicles.filter((v) => v.licenseCategory === 'B');
+
   const openInstructorPicker = () => {
     if (!lesson) return;
     instructorPickerStore.set({
@@ -173,6 +185,58 @@ export default function ManageGroupLessonScreen() {
         const next = values[0] ?? null;
         if (next === lesson.vehicleId) return;
         run(() => regloApi.updateGroupLesson({ groupLessonId, vehicleId: next }));
+      },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  // Moto group: edit the moto fleet. Capacity follows the fleet size (mirror of
+  // the create flow). The BE refuses dropping a moto already assigned to a
+  // participant, and a capacity below the enrolled count.
+  const openFleetPicker = () => {
+    if (!lesson) return;
+    optionsPickerStore.set({
+      title: 'Moto della guida',
+      multi: true,
+      selected: fleet.map((f) => f.id),
+      options: motoVehicles.map((v) => ({
+        value: v.id,
+        label: v.name,
+        subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null,
+      })),
+      onConfirm: (values) => {
+        if (!values.length) {
+          Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.');
+          return;
+        }
+        run(() =>
+          regloApi.updateGroupLesson({ groupLessonId, vehicleIds: values, capacity: values.length }),
+        );
+      },
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  // Moto group: edit the shared follow car (category B). "Nessuna" clears it.
+  const openFollowCarPicker = () => {
+    if (!lesson) return;
+    optionsPickerStore.set({
+      title: 'Auto al seguito',
+      multi: false,
+      selected: lesson.followVehicleId ? [lesson.followVehicleId] : ['__none__'],
+      options: [
+        { value: '__none__', label: 'Nessuna' },
+        ...followCars.map((v) => ({
+          value: v.id,
+          label: v.name,
+          subtitle: [v.plate, transmissionLabel(v.transmission) || null].filter(Boolean).join(' · ') || null,
+        })),
+      ],
+      onConfirm: (values) => {
+        const raw = values[0] ?? '__none__';
+        const next = raw === '__none__' ? null : raw;
+        if (next === (lesson.followVehicleId ?? null)) return;
+        run(() => regloApi.updateGroupLesson({ groupLessonId, followVehicleId: next }));
       },
     });
     router.push('/(tabs)/home/select-options');
@@ -294,11 +358,11 @@ export default function ManageGroupLessonScreen() {
         {/* Hero */}
         <View style={s.hero}>
           <Text style={s.heroOverline}>{readOnly ? 'Dettaglio guida di gruppo' : 'Gestisci guida di gruppo'}</Text>
-          <Text style={s.heroName}>Guida di gruppo</Text>
+          <Text style={s.heroName}>{isMoto ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
           {lesson ? (
             <Text style={s.heroMeta}>
               {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)} · {durationMin} min
-              {vehiclesEnabled ? ` · ${vehicleName}` : ''}
+              {vehiclesEnabled ? ` · ${isMoto ? `${fleet.length} ${fleet.length === 1 ? 'moto' : 'moto'}` : vehicleName}` : ''}
             </Text>
           ) : (
             <Text style={s.heroMeta}>Caricamento…</Text>
@@ -353,7 +417,49 @@ export default function ManageGroupLessonScreen() {
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
           )}
-          {vehiclesEnabled ? (
+          {vehiclesEnabled && isMoto ? (
+            /* MOTO group: moto fleet + shared follow car (no single vehicle). */
+            <>
+              <View style={s.rowDivider} />
+              {readOnly ? (
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Moto della guida</Text>
+                    <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
+                  </View>
+                </View>
+              ) : (
+                <Pressable onPress={openFleetPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Moto della guida</Text>
+                    <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                </Pressable>
+              )}
+              <View style={s.rowDivider} />
+              {readOnly ? (
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Auto al seguito</Text>
+                    <RowValue text={followCarName} loaded={!!lesson} width={120} />
+                  </View>
+                </View>
+              ) : (
+                <Pressable onPress={openFollowCarPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Auto al seguito</Text>
+                    <RowValue text={followCarName} loaded={!!lesson} width={120} />
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                </Pressable>
+              )}
+            </>
+          ) : vehiclesEnabled ? (
             <>
               <View style={s.rowDivider} />
               {readOnly ? (
@@ -376,7 +482,10 @@ export default function ManageGroupLessonScreen() {
               )}
             </>
           ) : null}
-          {/* Capienza — 3 o 4 posti. Read-only: statica. */}
+          {/* Capienza — 3 o 4 posti. Moto: implicita (= numero di moto), riga
+              nascosta. Read-only: statica. */}
+          {isMoto ? null : (
+          <>
           <View style={s.rowDivider} />
           {readOnly ? (
             <View style={s.detailRow}>
@@ -395,6 +504,8 @@ export default function ManageGroupLessonScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>
+          )}
+          </>
           )}
           {/* Le note ora sono per-allievo: si scrivono dal roster partecipanti
               (ogni iscritto ha la sua nota, visibile all'allievo nella sua app). */}

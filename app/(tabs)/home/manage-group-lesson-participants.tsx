@@ -11,6 +11,21 @@ import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { LICENSE_CATEGORY_LABELS } from '../../../src/utils/license';
+
+// Patente che l'allievo sta facendo (categoria del veicolo assegnato) + — per i
+// gruppi moto — la moto assegnata. Riga meta sotto il nome nel roster.
+const participantMeta = (
+  isMoto: boolean,
+  licenseCategory?: string | null,
+  vehicleName?: string | null,
+): string | null => {
+  const cat = licenseCategory
+    ? LICENSE_CATEGORY_LABELS[licenseCategory as keyof typeof LICENSE_CATEGORY_LABELS] ?? licenseCategory
+    : null;
+  const license = cat ? `Patente ${cat}` : null;
+  return [license, isMoto ? vehicleName ?? null : null].filter(Boolean).join(' · ') || null;
+};
 
 const initialsOf = (name: string | null) => {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -81,6 +96,7 @@ export default function ManageGroupLessonParticipantsScreen() {
   const filled = lesson.filledSeats;
   const capacity = lesson.capacity;
   const openSeats = lesson.openSeats;
+  const isMoto = lesson.kind === 'moto';
 
   const handleRemove = (studentId: string, name: string | null) => {
     Alert.alert(
@@ -216,6 +232,11 @@ export default function ManageGroupLessonParticipantsScreen() {
                   accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
                 >
                   <Text style={[s.name, { flex: 0 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
+                  {participantMeta(isMoto, p.licenseCategory, p.vehicleName) ? (
+                    <Text style={s.metaLine} numberOfLines={1}>
+                      {participantMeta(isMoto, p.licenseCategory, p.vehicleName)}
+                    </Text>
+                  ) : null}
                   {p.notes?.trim() ? (
                     <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
                   ) : null}
@@ -291,6 +312,7 @@ const s = StyleSheet.create({
   addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
   rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
+  metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
   notePreview: { fontSize: 13, fontWeight: '400', color: '#6B7280' },
   actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E9EBF2', marginLeft: 47 },
