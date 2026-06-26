@@ -100,6 +100,8 @@ type ExtraProps = {
   isOwner: boolean;
   isStudent: boolean;
   isStudentTeoria?: boolean;
+  /** Student on a motorcycle path (license AM | A1 | A2 | A) → moto Home icon. */
+  isStudentMoto?: boolean;
   showMoreTab: boolean;
   showRoleTab: boolean;
 };
@@ -111,6 +113,7 @@ export const GlassTabBar = ({
   hiddenTabs,
   isOwner,
   isStudentTeoria,
+  isStudentMoto,
   showRoleTab,
 }: BottomTabBarProps & ExtraProps) => {
   const insets = useSafeAreaInsets();
@@ -155,10 +158,14 @@ export const GlassTabBar = ({
             }
           };
 
-          // Context-aware icon overrides
+          // Context-aware icon overrides. Teoria wins (Home = quiz); otherwise a
+          // moto student gets a moto-flavoured Home icon. Ionicons has no
+          // "motorcycle", so we reuse the instructor-side moto proxy.
           let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined;
           if (isStudentTeoria && route.name === 'home') {
             tabIconOverride = 'book-outline';
+          } else if (isStudentMoto && route.name === 'home') {
+            tabIconOverride = 'bicycle-outline';
           }
 
           return (

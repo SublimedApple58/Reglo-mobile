@@ -61,6 +61,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
+import { lessonArtSource, heroArtSource } from '../utils/lessonArt';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -1491,7 +1492,7 @@ export const AllievoHomeScreen = () => {
         {upcoming.length === 0 && !nextExam && studentsLoaded && (appointmentsQuery.data != null) && (
           <View style={styles.emptyState}>
             <Image
-              source={require('../../assets/icons/fluent-car.png')}
+              source={lessonArtSource(studentLicenseCategory)}
               style={styles.emptyStateIcon}
             />
             <Text style={styles.emptyStateTitle}>Nessuna guida in programma</Text>
@@ -1552,7 +1553,7 @@ export const AllievoHomeScreen = () => {
             </Animated.View>
 
             <Animated.View entering={FadeInUp.delay(140).duration(320).springify()} style={styles.examPrompt}>
-              <Image source={require('../../assets/icons/fluent-car.png')} style={styles.examPromptIcon} />
+              <Image source={lessonArtSource(studentLicenseCategory)} style={styles.examPromptIcon} />
               <Text style={styles.examPromptTitle}>Non hai guide prenotate</Text>
               <Text style={styles.examPromptSub}>
                 {studentBookingDisabledByPolicy
@@ -1619,7 +1620,7 @@ export const AllievoHomeScreen = () => {
                   <Text style={styles.heroDate}>{formatDay(nextLesson.startsAt)}</Text>
                 </View>
                 <Image
-                  source={require('../../assets/icons/fluent-racing.png')}
+                  source={heroArtSource(nextLesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
                   style={styles.heroIcon}
                 />
               </View>
@@ -1700,7 +1701,7 @@ export const AllievoHomeScreen = () => {
                       </View>
                     )}
                     <Image
-                      source={require('../../assets/icons/fluent-car.png')}
+                      source={lessonArtSource(lesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
                       style={styles.miniCardIcon}
                     />
                     <Text style={styles.miniCardTime} numberOfLines={1}>

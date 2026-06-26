@@ -10,6 +10,7 @@ import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { GlassTabBar } from '../../src/components/GlassTabBar';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
+import { isMotoLicenseCategory } from '../../src/utils/license';
 
 
 /* ── Layout ── */
@@ -20,7 +21,7 @@ export default function TabsLayout() {
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
-  const { phase: studentPhase, hasQuizAccess } = useStudentPhase();
+  const { phase: studentPhase, hasQuizAccess, licenseCategory: studentLicenseCategory } = useStudentPhase();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const isStudent = isStudentRole(autoscuolaRole);
   const isInstructor = isInstructorRole(autoscuolaRole);
@@ -28,6 +29,7 @@ export default function TabsLayout() {
   const isStudentAwaiting = isStudent && studentPhase === 'AWAITING';
   const isStudentInTeoria = isStudent && studentPhase === 'TEORIA';
   const isStudentLicensed = isStudent && studentPhase === 'PATENTATO';
+  const isStudentMoto = isStudent && isMotoLicenseCategory(studentLicenseCategory);
   // Students in AWAITING: only the home neutral screen — no functional tabs.
   // Students in PATENTATO: only home tab is visible.
   // Students in TEORIA: quiz central, no swaps.
@@ -78,6 +80,7 @@ export default function TabsLayout() {
             isOwner={isOwner}
             isStudent={isStudent}
             isStudentTeoria={isStudentInTeoria}
+            isStudentMoto={isStudentMoto}
             showMoreTab={showMoreTab}
             showRoleTab={showRoleTab}
             hiddenTabs={hiddenTabs}

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { allLessonsStore } from '../../../src/stores/allLessonsStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
+import { lessonArtSource } from '../../../src/utils/lessonArt';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -51,7 +52,7 @@ export default function AllLessonsScreen() {
               style={({ pressed }) => [s.card, { backgroundColor: bg.bg }, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
             >
               <Image
-                source={require('../../../assets/icons/fluent-car.png')}
+                source={lessonArtSource(lesson.vehicle?.licenseCategory)}
                 style={s.cardIcon}
               />
               <View style={{ flex: 1, minWidth: 0 }}>

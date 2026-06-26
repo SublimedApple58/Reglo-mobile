@@ -269,6 +269,8 @@ export type GroupLessonInvite = {
   startsAt: IsoDate;
   endsAt: IsoDate | null;
   capacity: number;
+  /** "standard" | "moto". Moto: the specific moto is assigned only at acceptance. */
+  kind?: string;
   filledSeats: number;
   openSeats: number;
   instructorName: string | null;

@@ -142,7 +142,11 @@ export const GroupLessonInvitesScreen = () => {
 
               <View style={s.meta}>
                 {inv.instructorName ? <MetaRow icon="person-outline" label={inv.instructorName} /> : null}
-                {inv.vehicleName ? <MetaRow icon="car-outline" label={inv.vehicleName} /> : null}
+                {inv.kind === 'moto' ? (
+                  <MetaRow icon="bicycle-outline" label="Ti verrà assegnata una moto" />
+                ) : inv.vehicleName ? (
+                  <MetaRow icon="car-outline" label={inv.vehicleName} />
+                ) : null}
                 <View style={s.seats}>
                   <Seats filled={inv.filledSeats} capacity={inv.capacity} />
                   <Text style={s.seatsTxt}>{seatsLabel(inv.filledSeats, inv.capacity)}</Text>

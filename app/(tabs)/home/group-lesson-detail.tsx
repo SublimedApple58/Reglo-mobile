@@ -92,11 +92,24 @@ export default function GroupLessonDetailScreen() {
   const filled = lesson?.filledSeats ?? 0;
   const capacity = lesson?.capacity ?? 3;
   const durationMin = lesson ? durationOf(lesson.startsAt, lesson.endsAt) : 180;
-  const vehicleName = lesson?.vehicleName ?? null;
   const instructorName = lesson?.instructorName ?? 'Da assegnare';
-  // Show the vehicle row while loading (most lessons have one) and after load
-  // only if there's actually a vehicle.
-  const showVehicleRow = !ready || !!vehicleName;
+
+  // Moto group: the student never sees the shared lesson vehicle (there is none
+  // — it's a fleet). They see THEIR assigned moto + the shared follow car. The
+  // self participant is the only one with a non-empty studentId in the
+  // student-facing payload (others are anonymised). The specific moto is known
+  // only once assigned, so fall back to a friendly "Da assegnare".
+  const isMoto = lesson?.kind === 'moto';
+  const selfParticipant = lesson?.participants?.find((p) => !!p.studentId) ?? null;
+  const motoName = selfParticipant?.vehicleName ?? null;
+  const followVehicleName = lesson?.followVehicleName ?? null;
+
+  const vehicleLabel = isMoto ? 'La tua moto' : 'Veicolo';
+  const vehicleValue = isMoto ? motoName ?? 'Da assegnare' : lesson?.vehicleName ?? null;
+  // Show the vehicle row while loading (most lessons have one), always for moto
+  // groups, and otherwise only if there's actually a vehicle.
+  const showVehicleRow = !ready || isMoto || !!lesson?.vehicleName;
+  const showFollowRow = ready && isMoto && !!followVehicleName;
 
   // Late withdrawal warning (shown only in the confirm dialog): a group-lesson
   // seat is always "da pagare", so a late withdrawal can be charged.
@@ -166,7 +179,7 @@ export default function GroupLessonDetailScreen() {
       >
         {/* Hero — giorno + orario in risalto */}
         <View style={s.hero}>
-          <Text style={s.kicker}>Guida di gruppo</Text>
+          <Text style={s.kicker}>{isMoto ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
           <Slot ready={ready} height={36} skWidth={168} skHeight={30} skRadius={9}>
             <Text style={s.heroClock}>
               {lesson ? `${formatTime(lesson.startsAt)}${lesson.endsAt ? ` – ${formatTime(lesson.endsAt)}` : ''}` : ''}
@@ -216,12 +229,30 @@ export default function GroupLessonDetailScreen() {
             <>
               <View style={s.rowDivider} />
               <View style={s.detailRow}>
+                <View style={s.detailIcon}>
+                  <MaterialCommunityIcons
+                    name={isMoto ? 'motorbike' : 'car-outline'}
+                    size={24}
+                    color="#1A1A2E"
+                  />
+                </View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>{vehicleLabel}</Text>
+                  <Slot ready={ready} height={19} skWidth={120} skHeight={13}>
+                    <Text style={s.detailValue} numberOfLines={1}>{vehicleValue}</Text>
+                  </Slot>
+                </View>
+              </View>
+            </>
+          ) : null}
+          {showFollowRow ? (
+            <>
+              <View style={s.rowDivider} />
+              <View style={s.detailRow}>
                 <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
                 <View style={s.detailBody}>
-                  <Text style={s.detailLabel}>Veicolo</Text>
-                  <Slot ready={ready} height={19} skWidth={120} skHeight={13}>
-                    <Text style={s.detailValue} numberOfLines={1}>{vehicleName}</Text>
-                  </Slot>
+                  <Text style={s.detailLabel}>Auto al seguito</Text>
+                  <Text style={s.detailValue} numberOfLines={1}>{followVehicleName}</Text>
                 </View>
               </View>
             </>

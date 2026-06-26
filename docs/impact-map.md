@@ -142,3 +142,9 @@ When `../reglo/` backend changes:
 ### Group Lessons MOTO (kind="moto", 2026-06-25)
 - → **Backend**: a moto group has a moto **fleet** + one shared **follow car**; each participant gets an auto-assigned moto (mixed categories OK). Types `GroupLesson.kind/followVehicle*/fleet`, `GroupLessonParticipant.vehicleName/licenseCategory`, `CreateGroupLessonInput.kind/vehicleIds/followVehicleId` (`src/types/regloApi.ts`). Service `createGroupLesson`/`updateGroupLesson` forward the new fields.
 - → **CreateGroupLessonScreen**: Standard/Moto segmented toggle; moto = multi-picker fleet (`optionsPickerStore` multi) + follow-car picker; capacity = fleet size; follow car required when `settings.followCarRules` enables a fleet category. Management of participants stays on web.
+
+### Student moto experience (UI moto-aware, 2026-06-26)
+- → **Shared chooser** `src/utils/lessonArt.ts` (`lessonArtSource`/`heroArtSource`) + `src/utils/license.ts` (`isMotoLicenseCategory`). Used by: `AllievoHomeScreen` (hero/mini/empty/exam), `home/all-lessons`. Per-guide signal = `appointment.vehicle?.licenseCategory`; fallback = `useStudentPhase().licenseCategory`. Asset `assets/icons/fluent-motorcycle.png`.
+- → **Tab Layout**: `_layout.tsx` computes `isStudentMoto` → `GlassTabBar.isStudentMoto` → Home icon `bicycle-outline` (Teoria override wins).
+- → **Group Lessons (student view)**: `group-lesson-detail` shows self moto + follow car + "Guida di gruppo moto"; `GroupLessonInvitesScreen` shows "Ti verrà assegnata una moto" (needs backend `getGroupLessonInvites` → `kind`; type `GroupLessonInvite.kind`).
+- Category `B` (auto) students: **unchanged** (default car branch everywhere).
