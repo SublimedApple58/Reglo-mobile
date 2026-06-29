@@ -10,6 +10,22 @@ Tutto il lavoro sotto è implementato, type-check pulito, **committato e pushato
 - **Resta:** QA su `staging.reglo.it` come allievo **moto** (es. A2) e come allievo **B** (deve essere identico a oggi). Vedi sezione "Verifica".
 - **Rilascio BE:** l'unica modifica backend è il campo `kind` in `getGroupLessonInvites` (server action) — va su staging/prod col normale deploy del branch, nessuna migrazione.
 
+## IN SOSPESO (pausa 2026-06-26 — round successivo di fix, NON dimenticare)
+Tre punti emersi testando. **#2 e #3 FATTI** (committati+pushati su `feature/vehicles-redesign` mobile). **#1 BLOCCATO su decisione utente.**
+
+- **#1 — Auto al seguito sulle guide moto INDIVIDUALI (NON di gruppo). BLOCCATO, aspetta risposta utente.** Riscontrato che le guide moto individuali non riservano/mostrano l'auto al seguito, sia nel booking mobile che web. Indagine fatta (stato attuale asimmetrico):
+  - Allievo self-service (mobile, `createBookingRequest`): il BE **auto-assegna** la follow car via slot-matcher MA non la mostra mai prima della conferma.
+  - Istruttore booking **mobile** (`src/components/booking/BookingForm.tsx`): **nessun** follow car, solo picker "Veicolo" singolo. ← gap principale.
+  - Istruttore booking **web** (`reglo/components/pages/Autoscuole/AutoscuoleAgendaPage.tsx`): picker follow car **manuale**, compare solo se `followCarRules` attivo per quella categoria.
+  - Booking **batch** (`createAutoscuolaAppointmentBatch`): nessun supporto follow car.
+  - Modello: `reglo/lib/autoscuole/follow-car.ts` (`requiresFollowCar`, gate `CompanyService.limits.followCarRules`, opt-in per categoria); persistenza ruolo `follow` in `createAutoscuolaAppointment` (~`reglo/lib/actions/autoscuole.actions.ts:2640-2760`); slot-matcher ~`reglo/lib/autoscuole/slot-matcher.ts:388,598`.
+  - **DECISIONE DA PRENDERE:** follow car su booking manuale istruttore = **(A) auto-assegnata** dal sistema (consigliata, coerente con self-service+gruppo) o **(B) scelta a mano**? + confermare che **`followCarRules` è attivo** per le categorie moto (altrimenti per design nulla riserva la follow car).
+  - **PIANO (dopo OK):** 1) BE: centralizzare in `createAutoscuolaAppointment` (+ batch) l'auto-assegnazione/obbligo follow car quando `requiresFollowCar`; ritornarla in risposta. 2) Mobile `BookingForm`: riga "Auto al seguito" nel riepilogo. 3) Web agenda allineata. 4) opz.: visibilità pre-booking slot self-service.
+
+- **#2 — FATTO. Dettaglio "Gestisci guida di gruppo" istruttore moto-aware** (`app/(tabs)/home/manage-group-lesson.tsx`): titolo "Guida di gruppo moto"; al posto del singolo "Veicolo" (era "Nessun veicolo") mostra/modifica "Moto della guida" (flotta multi-picker, capienza=n.moto) + "Auto al seguito" (auto B); riga capienza 3/4 nascosta per moto.
+- **#3 — FATTO. Patente per partecipante** (`app/(tabs)/home/manage-group-lesson-participants.tsx`): sotto ogni allievo "Patente A2" (da `participants[].licenseCategory`) + moto assegnata per i gruppi moto.
+- **Possibile follow-up non richiesto:** equivalente web del #2/#3 (`GroupLessonManageDialog`) potrebbe avere lo stesso problema "Nessun veicolo" per i gruppi moto — non segnalato dall'utente, da verificare.
+
 ## Obiettivo
 Un allievo che fa un **percorso moto** (categoria patente `AM | A1 | A2 | A`) oggi vede un'app **tutta orientata all'auto**: hero con la macchina da corsa 🏎️, card guide con la 🚗, icona Home "auto" nella tab bar. Va resa **coerente col percorso moto** (iconografia / illustrazioni / wording moto) **mantenendo identica la struttura e il layout dell'app** — si sostituiscono solo asset/icone/etichette auto-specifici, mai la disposizione. Gli allievi auto (categoria `B`) devono restare **invariati**.
 
