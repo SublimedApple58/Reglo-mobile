@@ -24,6 +24,16 @@ Tre punti emersi testando. **#1, #2 e #3 FATTI** (committati+pushati su `feature
 - **#3 — FATTO. Patente per partecipante** (`app/(tabs)/home/manage-group-lesson-participants.tsx`): sotto ogni allievo "Patente A2" (da `participants[].licenseCategory`) + moto assegnata per i gruppi moto.
 - **Possibile follow-up non richiesto:** equivalente web del #2/#3 (`GroupLessonManageDialog`) potrebbe avere lo stesso problema "Nessun veicolo" per i gruppi moto — non segnalato dall'utente, da verificare.
 
+### Aggiunte 2026-06-30 (committate+pushate, typecheck pulito, 145 unit test verdi) — dettaglio in memoria [[project_vehicles_booking_followcar]]
+- **Booking mode-first WEB** (`AutoscuoleAgendaPage`): selettore Auto/Moto a monte. **MOBILE NO** mode-first (`BookingForm` resta vehicle-driven ma con transizione fluida reanimated `FadeInDown/FadeOut + LinearTransition` — l'utente ha bocciato il mode-first sul mobile).
+- **Idoneità patente GERARCHICA** (globale): `vehicleServesLicense`/`licenseCategoryEligible` (AM<A1<A2<A; allievo idoneo a moto ≤ sua categoria; B a sé; cambio esatto) — chokepoint unico, vale anche matcher/disponibilità/swap/group-moto. Badge categoria nel picker allievo (web+mobile, `listDirectoryStudents` la espone). Form filtrano/bloccano combo incompatibili (enforcement client-side; BE create staff non rifiuta ancora).
+- **"Gestisci guida" multi-veicolo**: mobile `manage-lesson` blocco "Veicoli" mono-navy (moto principale editabile + aggiuntive + auto al seguito); web `VehicleDetailLines` raggruppa Moto/Auto al seguito.
+
+### PENDING (da riprendere)
+- **Trasferimento *Autoscuola Reglo* staging→dev** (richiesto, non fatto): aspetta scelta **A** (setup veicoli senza i 207 appuntamenti — consigliata) o **B** (clone completo) + ok collisioni email. Staging = 1 company `655e408a-72f4-4595-839b-9b92b1170d9e`; DEV ne ha già 3 → NO dump completo; serve `scripts/clone-company.ts` (le query db:*:query sono read-only).
+- **Test in locale** non ancora fatto: `pnpm dev` (reglo) + `npm run ios:local` (reglo-mobile → localhost:3000).
+- **Rilascio**: nessuna migrazione DB (config JSON `limits`). Flusso `ship:staging` (allinea `origin/staging` prima — condiviso) → QA → prod, con OK utente.
+
 ## Obiettivo
 Un allievo che fa un **percorso moto** (categoria patente `AM | A1 | A2 | A`) oggi vede un'app **tutta orientata all'auto**: hero con la macchina da corsa 🏎️, card guide con la 🚗, icona Home "auto" nella tab bar. Va resa **coerente col percorso moto** (iconografia / illustrazioni / wording moto) **mantenendo identica la struttura e il layout dell'app** — si sostituiscono solo asset/icone/etichette auto-specifici, mai la disposizione. Gli allievi auto (categoria `B`) devono restare **invariati**.
 
