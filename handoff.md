@@ -11,16 +11,14 @@ Tutto il lavoro sotto è implementato, type-check pulito, **committato e pushato
 - **Rilascio BE:** l'unica modifica backend è il campo `kind` in `getGroupLessonInvites` (server action) — va su staging/prod col normale deploy del branch, nessuna migrazione.
 
 ## IN SOSPESO (agg. 2026-06-30 — NON dimenticare)
-Tre punti emersi testando. **#2 e #3 FATTI** (committati+pushati su `feature/vehicles-redesign` mobile). **#1 PARCHEGGIATO** (vedi sotto).
+Tre punti emersi testando. **#1, #2 e #3 FATTI** (committati+pushati su `feature/vehicles-redesign`, web+mobile).
 
-- **#1 — Auto al seguito sulle guide moto INDIVIDUALI. ⏸️ PARCHEGGIATO il 2026-06-30: NON riprendere la domanda A/B.** L'utente ha detto che sta per dare nuove "disposizioni" che rendono obsoleto questo discorso → aspettare le nuove indicazioni e riallineare in base a quelle, NON implementare il piano sotto finché non arrivano. (Indagine sotto resta valida come contesto.)
-  - Allievo self-service (mobile, `createBookingRequest`): il BE **auto-assegna** la follow car via slot-matcher MA non la mostra mai prima della conferma.
-  - Istruttore booking **mobile** (`src/components/booking/BookingForm.tsx`): **nessun** follow car, solo picker "Veicolo" singolo. ← gap principale.
-  - Istruttore booking **web** (`reglo/components/pages/Autoscuole/AutoscuoleAgendaPage.tsx`): picker follow car **manuale**, compare solo se `followCarRules` attivo per quella categoria.
-  - Booking **batch** (`createAutoscuolaAppointmentBatch`): nessun supporto follow car.
-  - Modello: `reglo/lib/autoscuole/follow-car.ts` (`requiresFollowCar`, gate `CompanyService.limits.followCarRules`, opt-in per categoria); persistenza ruolo `follow` in `createAutoscuolaAppointment` (~`reglo/lib/actions/autoscuole.actions.ts:2640-2760`); slot-matcher ~`reglo/lib/autoscuole/slot-matcher.ts:388,598`.
-  - **DECISIONE DA PRENDERE:** follow car su booking manuale istruttore = **(A) auto-assegnata** dal sistema (consigliata, coerente con self-service+gruppo) o **(B) scelta a mano**? + confermare che **`followCarRules` è attivo** per le categorie moto (altrimenti per design nulla riserva la follow car).
-  - **PIANO (dopo OK):** 1) BE: centralizzare in `createAutoscuolaAppointment` (+ batch) l'auto-assegnazione/obbligo follow car quando `requiresFollowCar`; ritornarla in risposta. 2) Mobile `BookingForm`: riga "Auto al seguito" nel riepilogo. 3) Web agenda allineata. 4) opz.: visibilità pre-booking slot self-service.
+- **#1 — Auto al seguito globale + più moto per guida. ✅ FATTO il 2026-06-30 (nuove disposizioni).**
+  - **Regola follow car → un solo toggle globale** per tutte le categorie moto (`CompanyService.limits.followCarMotoEnabled`); retro-compat dal vecchio `followCarRules` per-categoria. Helper in `reglo/lib/autoscuole/follow-car.ts` (`readFollowCarMotoEnabled`, `followCarRulesForEnabled`; `parseFollowCarRulesFromLimits` deriva la mappa dal flag). Settings web: toggle unico (`VehiclesTab` + `AutoscuoleResourcesPage`).
+  - **Una guida moto può occupare più di una moto** (`extraMotoVehicleIds`): righe `role="primary"` extra nella join, marcate occupate dallo slot-matcher (no auto-assegnazione, solo manuale). Persistenza in `createAutoscuolaAppointment` + `createAutoscuolaAppointmentBatch` + `updateAutoscuolaAppointmentDetails`; helper `buildAppointmentVehicleRows` / `reconcileAppointmentVehicles(...extraMotoIds)` in `appointment-vehicles.ts`.
+  - **Web**: `AutoscuoleAgendaPage` + `EditAppointmentDialog` → picker "Auto al seguito" (gated globale) + chip "Moto aggiuntive"; bootstrap espone `extraMotoVehicles`, dettaglio agenda mostra la riga.
+  - **Mobile**: `BookingForm` → picker "Auto al seguito" (obbligatorio se regola on) + multiselect "Moto aggiuntive"; inviati su confirm singolo + batch; display `Moto + Moto2 + Auto` in agenda/drawer/live/timeline. Route `instructor-bookings/confirm(-batch)` inoltrano i campi.
+  - Test: `follow-car.test.ts` riscritto (semantica globale), `appointment-vehicles.test.ts` copre le moto extra. Docs `vehicles.md` (web+mobile) aggiornati.
 
 - **#2 — FATTO. Dettaglio "Gestisci guida di gruppo" istruttore moto-aware** (`app/(tabs)/home/manage-group-lesson.tsx`): titolo "Guida di gruppo moto"; al posto del singolo "Veicolo" (era "Nessun veicolo") mostra/modifica "Moto della guida" (flotta multi-picker, capienza=n.moto) + "Auto al seguito" (auto B); riga capienza 3/4 nascosta per moto.
 - **#3 — FATTO. Patente per partecipante** (`app/(tabs)/home/manage-group-lesson-participants.tsx`): sotto ogni allievo "Patente A2" (da `participants[].licenseCategory`) + moto assegnata per i gruppi moto.
