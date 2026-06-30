@@ -10,10 +10,10 @@ Tutto il lavoro sotto è implementato, type-check pulito, **committato e pushato
 - **Resta:** QA su `staging.reglo.it` come allievo **moto** (es. A2) e come allievo **B** (deve essere identico a oggi). Vedi sezione "Verifica".
 - **Rilascio BE:** l'unica modifica backend è il campo `kind` in `getGroupLessonInvites` (server action) — va su staging/prod col normale deploy del branch, nessuna migrazione.
 
-## IN SOSPESO (pausa 2026-06-26 — round successivo di fix, NON dimenticare)
-Tre punti emersi testando. **#2 e #3 FATTI** (committati+pushati su `feature/vehicles-redesign` mobile). **#1 BLOCCATO su decisione utente.**
+## IN SOSPESO (agg. 2026-06-30 — NON dimenticare)
+Tre punti emersi testando. **#2 e #3 FATTI** (committati+pushati su `feature/vehicles-redesign` mobile). **#1 PARCHEGGIATO** (vedi sotto).
 
-- **#1 — Auto al seguito sulle guide moto INDIVIDUALI (NON di gruppo). BLOCCATO, aspetta risposta utente.** Riscontrato che le guide moto individuali non riservano/mostrano l'auto al seguito, sia nel booking mobile che web. Indagine fatta (stato attuale asimmetrico):
+- **#1 — Auto al seguito sulle guide moto INDIVIDUALI. ⏸️ PARCHEGGIATO il 2026-06-30: NON riprendere la domanda A/B.** L'utente ha detto che sta per dare nuove "disposizioni" che rendono obsoleto questo discorso → aspettare le nuove indicazioni e riallineare in base a quelle, NON implementare il piano sotto finché non arrivano. (Indagine sotto resta valida come contesto.)
   - Allievo self-service (mobile, `createBookingRequest`): il BE **auto-assegna** la follow car via slot-matcher MA non la mostra mai prima della conferma.
   - Istruttore booking **mobile** (`src/components/booking/BookingForm.tsx`): **nessun** follow car, solo picker "Veicolo" singolo. ← gap principale.
   - Istruttore booking **web** (`reglo/components/pages/Autoscuole/AutoscuoleAgendaPage.tsx`): picker follow car **manuale**, compare solo se `followCarRules` attivo per quella categoria.
