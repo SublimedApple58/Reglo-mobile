@@ -103,6 +103,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const data = useSyncExternalStore(bookingSheetStore.subscribe, bookingSheetStore.get);
 
   const [studentId, setStudentId] = useState('');
+  const [bookingMode, setBookingMode] = useState<'auto' | 'moto'>('auto');
   const [vehicleId, setVehicleId] = useState('');
   const [followVehicleId, setFollowVehicleId] = useState('');
   const [extraMotoVehicleIds, setExtraMotoVehicleIds] = useState<string[]>([]);
@@ -124,6 +125,14 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     if (!data) return;
     setStudentId('');
+    // Default to Auto, unless the seeded default vehicle is a moto.
+    setBookingMode(
+      isMotoLicenseCategory(
+        data.vehicles.find((v) => v.id === data.defaultVehicleId)?.licenseCategory,
+      )
+        ? 'moto'
+        : 'auto',
+    );
     setVehicleId(data.defaultVehicleId);
     setFollowVehicleId('');
     setExtraMotoVehicleIds([]);
@@ -182,14 +191,16 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   if (!data) return <View style={s.root} />;
   const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
 
-  // Moto-vehicle awareness: the follow car (auto al seguito) and extra-moto
-  // controls only apply when the primary vehicle is a moto.
-  const selectedVehicle = vehicles.find((v) => v.id === vehicleId) ?? null;
-  const primaryIsMoto =
-    vehiclesEnabled && !!selectedVehicle && isMotoLicenseCategory(selectedVehicle.licenseCategory);
+  // Mode-first: the instructor chooses Auto vs Moto up front (like group lessons),
+  // so the form layout is stable and does NOT mutate based on the picked vehicle.
+  const isMotoMode = vehiclesEnabled && bookingMode === 'moto';
+  // In moto mode the follow car (auto al seguito) is required when the global rule
+  // is on, and extra motos can be added. None of this in auto mode.
   const needFollowCar =
-    primaryIsMoto &&
-    (followCarRules?.[selectedVehicle?.licenseCategory ?? '']?.enabled === true);
+    isMotoMode && Object.values(followCarRules ?? {}).some((r) => r?.enabled === true);
+  const vehicleOptions = vehicles.filter((v) =>
+    isMotoMode ? isMotoLicenseCategory(v.licenseCategory) : !isMotoLicenseCategory(v.licenseCategory),
+  );
   const followCarOptions = vehicles.filter(
     (v) => v.licenseCategory === 'B' && v.id !== vehicleId,
   );
@@ -197,7 +208,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     (v) => isMotoLicenseCategory(v.licenseCategory) && v.id !== vehicleId,
   );
   const effectiveFollowVehicleId = needFollowCar ? followVehicleId : '';
-  const effectiveExtraMotoVehicleIds = primaryIsMoto
+  const effectiveExtraMotoVehicleIds = isMotoMode
     ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
     : [];
 
@@ -209,6 +220,15 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setMultiMode(val);
     if (val) setEntries([{ id: String(date.getTime()), date: new Date(date), startTime: new Date(startTime), duration }]);
     else setEntries([]);
+  };
+
+  // Switching Auto/Moto resets the vehicle selection so the layout stays stable.
+  const setMode = (m: 'auto' | 'moto') => {
+    if (m === bookingMode) return;
+    setBookingMode(m);
+    setVehicleId('');
+    setFollowVehicleId('');
+    setExtraMotoVehicleIds([]);
   };
 
   const openStudentPicker = () => {
@@ -252,8 +272,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   const openVehicle = () => {
     optionsPickerStore.set({
-      title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
-      options: vehicles.map((v) => ({ value: v.id, label: v.name })),
+      title: isMotoMode ? 'Moto' : 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
+      options: vehicleOptions.map((v) => ({ value: v.id, label: v.name })),
       onConfirm: (v) => setVehicleId(v[0] ?? ''),
     });
     router.push('/(tabs)/home/select-options');
@@ -521,26 +541,40 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
         {/* Secondari — stile lista piatta, priorità inferiore */}
         <Text style={s.listCaption}>Dettagli</Text>
+        {/* Modalità: Auto vs Moto — scelta a monte, il form resta stabile */}
+        {vehiclesEnabled ? (
+          <View style={s.seg}>
+            {(['auto', 'moto'] as const).map((m) => {
+              const active = bookingMode === m;
+              return (
+                <Pressable key={m} onPress={() => setMode(m)} disabled={pending} style={[s.segItem, active && s.segItemActive]} hitSlop={6}>
+                  <Ionicons name={m === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? NAVY : GREY} />
+                  <Text style={[s.segText, active && s.segTextActive]}>{m === 'moto' ? 'Moto' : 'Auto'}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         <View style={s.list}>
-          <Row icon="location-outline" label="Luogo" value={locationName ?? "Sede dell'autoscuola"} valueSub={locationAddress} onPress={openLocationPicker} disabled={pending} />
           {vehiclesEnabled ? (
             <>
+              <Row icon={isMotoMode ? 'bicycle-outline' : 'car-outline'} label={isMotoMode ? 'Moto' : 'Veicolo'} value={vehicleValue} placeholder={isMotoMode ? 'Seleziona moto' : 'Seleziona veicolo'} onPress={openVehicle} disabled={pending || !vehicleOptions.length} />
+              {needFollowCar ? (
+                <>
+                  <View style={s.divider} />
+                  <Row icon="car-sport-outline" label="Auto al seguito" value={followCarValue} placeholder="Seleziona auto al seguito" onPress={openFollowCar} disabled={pending || !followCarOptions.length} />
+                </>
+              ) : null}
+              {isMotoMode && extraMotoOptions.length ? (
+                <>
+                  <View style={s.divider} />
+                  <Row icon="bicycle-outline" label="Moto aggiuntive" value={extraMotosValue} placeholder="Nessuna" onPress={openExtraMotos} disabled={pending} />
+                </>
+              ) : null}
               <View style={s.divider} />
-              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !vehicles.length} />
             </>
           ) : null}
-          {needFollowCar ? (
-            <>
-              <View style={s.divider} />
-              <Row icon="car-sport-outline" label="Auto al seguito" value={followCarValue} placeholder="Seleziona auto al seguito" onPress={openFollowCar} disabled={pending || !followCarOptions.length} />
-            </>
-          ) : null}
-          {primaryIsMoto && extraMotoOptions.length ? (
-            <>
-              <View style={s.divider} />
-              <Row icon="bicycle-outline" label="Moto aggiuntive" value={extraMotosValue} placeholder="Nessuna" onPress={openExtraMotos} disabled={pending} />
-            </>
-          ) : null}
+          <Row icon="location-outline" label="Luogo" value={locationName ?? "Sede dell'autoscuola"} valueSub={locationAddress} onPress={openLocationPicker} disabled={pending} />
           <View style={s.divider} />
           <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
         </View>
@@ -586,6 +620,13 @@ const s = StyleSheet.create({
   /* secondary flat list */
   listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 2, marginLeft: 6 },
   list: { paddingHorizontal: 6, marginBottom: 4 },
+
+  /* Auto/Moto segmented control (grey track + white active pill) */
+  seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: 5, marginBottom: 12 },
+  segItem: { flex: 1, flexDirection: 'row', gap: 7, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+  segItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 2 },
+  segText: { fontSize: 15, fontWeight: '600', color: GREY, letterSpacing: -0.2 },
+  segTextActive: { color: NAVY },
 
   /* row */
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
