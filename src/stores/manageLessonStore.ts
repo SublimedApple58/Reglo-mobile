@@ -15,6 +15,9 @@ export type ManageLessonVehicle = {
   /** License taxonomy — drives moto/car split + student eligibility in pickers. */
   licenseCategory?: string | null;
   transmission?: string | null;
+  /** Pool/exclusivity — filters pickers to vehicles the instructor can use. */
+  assignedInstructorId?: string | null;
+  poolInstructorIds?: string[] | null;
 };
 
 export type ManageLessonStateMeta = {

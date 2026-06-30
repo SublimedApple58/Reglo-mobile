@@ -591,7 +591,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     AutoscuolaAppointmentWithRelations[]
   >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
   const [calendarRange, setCalendarRange] = useState<CalendarNavigatorRange | null>(null);
@@ -2286,6 +2286,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         subtitle: parts.join(' · ') || null,
         licenseCategory: v.licenseCategory ?? null,
         transmission: v.transmission ?? null,
+        assignedInstructorId: v.assignedInstructorId ?? null,
+        poolInstructorIds: v.poolInstructorIds ?? null,
       };
     });
   }, [vehicles, instructorNameById]);

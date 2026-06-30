@@ -24,6 +24,7 @@ import { ToggleSwitch } from '../components/ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { vehicleServesStudent as vehicleServesStudentShared } from '../utils/license';
+import { instructorCanUseVehicle } from '../utils/vehicles';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
 const NAVY = '#1A1A2E';
@@ -55,18 +56,6 @@ const initialsOf = (first: string, last: string) => {
   const f = (first ?? '').trim(); const l = (last ?? '').trim();
   if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
   return (f || l || '?').slice(0, 2).toUpperCase();
-};
-
-// A vehicle the instructor can actually use: exclusively assigned to them, or
-// open/shared-pool they belong to (mirrors the backend vehicle-resolution access
-// rules). Vehicles exclusive to another instructor are hidden.
-const instructorCanUseVehicle = (
-  v: { assignedInstructorId?: string | null; poolInstructorIds?: string[] | null },
-  instructorId: string,
-) => {
-  if (v.assignedInstructorId) return v.assignedInstructorId === instructorId;
-  const pool = v.poolInstructorIds ?? [];
-  return pool.length === 0 || pool.includes(instructorId);
 };
 
 // License eligibility with the moto hierarchy (shared helper), null vehicle = permissive.
