@@ -8,7 +8,14 @@ import type {
  * Vehicle option for the "Veicolo" picker: display name + an elegant subtitle
  * (license category and, where assigned, the instructor it belongs to).
  */
-export type ManageLessonVehicle = { id: string; name: string; subtitle?: string | null };
+export type ManageLessonVehicle = {
+  id: string;
+  name: string;
+  subtitle?: string | null;
+  /** License taxonomy — drives moto/car split + student eligibility in pickers. */
+  licenseCategory?: string | null;
+  transmission?: string | null;
+};
 
 export type ManageLessonStateMeta = {
   label: string;
@@ -48,6 +55,10 @@ export type ManageLessonData = {
   vehicleText: string;
   /** Company vehicles available to assign (for the "Veicolo" picker). */
   vehicles: ManageLessonVehicle[];
+  /** The pursued license of the lesson's student — filters eligible motos. */
+  studentLicense?: { licenseCategory?: string | null; transmission?: string | null } | null;
+  /** Global follow-car rule map (all-moto on/off) — gates the "obbligatoria" tag. */
+  followCarRules?: Record<string, { enabled?: boolean } | undefined>;
   defaultLocation: AutoscuolaLocation | null;
   isDetailsEditable: boolean;
   /** Owner/titolare view-only: static rows, no edit CTA, no bottom actions. */
@@ -69,8 +80,12 @@ export type ManageLessonData = {
   onStatus: (action: 'checked_in' | 'no_show') => void;
   onMenu: (key: string) => void;
   onChangeLocation: (location: AutoscuolaLocation) => void;
-  /** Reassign the lesson's vehicle (null = unassign) — auto-saves (optimistic). */
+  /** Reassign the lesson's primary vehicle (null = unassign) — auto-saves. */
   onChangeVehicle: (vehicleId: string | null) => void;
+  /** Replace the extra motos (role="primary" rows beyond the main one) — auto-saves. */
+  onChangeExtraMotos: (vehicleIds: string[]) => void;
+  /** Set/replace/remove the follow car (null = remove) — auto-saves. */
+  onChangeFollowVehicle: (vehicleId: string | null) => void;
   /** Called when the main route is dismissed (popped), so the parent can reset. */
   onClosed: () => void;
 };

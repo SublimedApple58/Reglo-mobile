@@ -2280,7 +2280,13 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       if (v.licenseCategory) parts.push(`Patente ${String(v.licenseCategory).toUpperCase()}`);
       const instName = v.assignedInstructorId ? instructorNameById.get(v.assignedInstructorId) : null;
       if (instName) parts.push(instName);
-      return { id: v.id, name: v.name, subtitle: parts.join(' · ') || null };
+      return {
+        id: v.id,
+        name: v.name,
+        subtitle: parts.join(' · ') || null,
+        licenseCategory: v.licenseCategory ?? null,
+        transmission: v.transmission ?? null,
+      };
     });
   }, [vehicles, instructorNameById]);
 
@@ -2339,6 +2345,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           .filter(Boolean)
           .join(' + ') || 'Da assegnare',
       vehicles: vehicleOptions,
+      studentLicense: (() => {
+        const st = students.find((s) => s.id === lesson.studentId);
+        return st ? { licenseCategory: st.licenseCategory ?? null, transmission: st.transmission ?? null } : null;
+      })(),
+      followCarRules: settings?.followCarRules,
       defaultLocation,
       isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
       readOnly: ownerMode,
@@ -2405,6 +2416,25 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando il veicolo.', tone: 'danger' });
         }
       },
+      onChangeExtraMotos: async (vehicleIds) => {
+        const lessonId = lesson.id;
+        try {
+          await regloApi.updateAppointmentDetails(lessonId, { extraMotoVehicleIds: vehicleIds });
+          await refreshAndSyncDrawer(lessonId);
+        } catch (err) {
+          setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando le moto.', tone: 'danger' });
+        }
+      },
+      onChangeFollowVehicle: async (vehicleId) => {
+        const lessonId = lesson.id;
+        if ((vehicleId ?? null) === (lesson.followVehicle?.id ?? null)) return; // already current
+        try {
+          await regloApi.updateAppointmentDetails(lessonId, { followVehicleId: vehicleId ?? null });
+          await refreshAndSyncDrawer(lessonId);
+        } catch (err) {
+          setToast({ text: err instanceof Error ? err.message : "Errore aggiornando l'auto al seguito.", tone: 'danger' });
+        }
+      },
       onClosed: () => { setSheetLesson(null); },
     };
   };
@@ -2415,7 +2445,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     manageLessonStore.set(buildManageSnapshot(sheetLesson, sheetStudentProgress));
     // buildManageSnapshot reads current closure (now/settings/pending/etc.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetLesson, sheetStudentProgress, pendingAction, now, settings, defaultLocation, instructorBookingMode, vehicleOptions]);
+  }, [sheetLesson, sheetStudentProgress, pendingAction, now, settings, defaultLocation, instructorBookingMode, vehicleOptions, students]);
 
   const handleInstructorSwap = useCallback(async (targetAppt: AutoscuolaAppointmentWithRelations) => {
     if (!swapSourceLesson || swapPending) return;

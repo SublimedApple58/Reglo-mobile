@@ -487,6 +487,13 @@ export type UpdateAppointmentDetailsInput = {
   /** Reassign the appointment to a different company vehicle (null = unassign). */
   vehicleId?: Uuid | null;
   /**
+   * Replace the extra motos a moto guida occupies beyond the primary one
+   * (stored as additional role="primary" join rows). Empty array clears them.
+   */
+  extraMotoVehicleIds?: Uuid[];
+  /** Set/replace the follow car (auto al seguito). null = remove it. */
+  followVehicleId?: Uuid | null;
+  /**
    * Reassign the appointment to a different instructor (single-lesson
    * override; does NOT change the student's assignedInstructorId). Server
    * verifies availability and returns `INSTRUCTOR_UNAVAILABLE` on conflict.

@@ -31,7 +31,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
-import { isMotoLicenseCategory } from '../../../src/utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 
@@ -271,6 +271,7 @@ export default function ManageLessonScreen() {
     studentProgress, stateMeta, stateLabel, durationText, vehiclesEnabled, vehicleText,
     vehicles, defaultLocation, showStatusActions, allowPresente, showRating, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
+    onChangeExtraMotos, onChangeFollowVehicle, studentLicense, followCarRules,
   } = data;
 
   const isPending = pendingAction !== null;
@@ -307,13 +308,58 @@ export default function ManageLessonScreen() {
     router.push('/(tabs)/home/manage-lesson-location');
   };
 
+  // Only vehicles the student's pursued license allows (moto hierarchy). Permissive
+  // when the student's license is unknown.
+  const isEligible = (v: { licenseCategory?: string | null; transmission?: string | null }) =>
+    vehicleServesStudent(v, studentLicense ?? {});
+  const motoCandidates = vehicles.filter((v) => isMotoLicenseCategory(v.licenseCategory) && isEligible(v));
+  const followCandidates = vehicles.filter((v) => v.licenseCategory === 'B');
+
   const openVehiclePicker = () => {
     optionsPickerStore.set({
       title: 'Veicolo',
       multi: false,
       selected: lesson.vehicleId ? [lesson.vehicleId] : [],
-      options: vehicles.map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      options: vehicles.filter(isEligible).map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
       onConfirm: (v) => onChangeVehicle(v[0] ?? null),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openPrimaryMotoPicker = () => {
+    const extraIds = (lesson.extraMotoVehicles ?? []).map((v) => v.id);
+    optionsPickerStore.set({
+      title: 'Moto principale',
+      multi: false,
+      selected: lesson.vehicleId ? [lesson.vehicleId] : [],
+      options: motoCandidates
+        .filter((v) => !extraIds.includes(v.id))
+        .map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      onConfirm: (v) => onChangeVehicle(v[0] ?? null),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openExtraMotosPicker = () => {
+    optionsPickerStore.set({
+      title: 'Moto aggiuntive',
+      multi: true,
+      selected: (lesson.extraMotoVehicles ?? []).map((v) => v.id),
+      options: motoCandidates
+        .filter((v) => v.id !== lesson.vehicleId)
+        .map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      onConfirm: (vs) => onChangeExtraMotos(vs),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openFollowCarPicker = () => {
+    optionsPickerStore.set({
+      title: 'Auto al seguito',
+      multi: false,
+      selected: lesson.followVehicle?.id ? [lesson.followVehicle.id] : [],
+      options: followCandidates.map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      onConfirm: (v) => onChangeFollowVehicle(v[0] ?? null),
     });
     router.push('/(tabs)/home/select-options');
   };
@@ -349,20 +395,20 @@ export default function ManageLessonScreen() {
   const locName = lesson.location?.name ?? defaultLocation?.name ?? "Sede dell'autoscuola";
   const locAddress = lesson.location?.address ?? defaultLocation?.address ?? null;
 
-  // Vehicles: a moto guide can involve more than one (primary moto + extra motos
-  // + a follow car). When so, show a structured "Veicoli" block instead of one
-  // cramped row. The primary moto stays editable; the rest are read-only.
+  // Vehicles: a moto guide shows a structured, editable "Veicoli" block (moto
+  // chips + a follow car) instead of one cramped row. An auto / unassigned guide
+  // keeps the single "Veicolo" row.
+  const primaryVehicle = lesson.vehicle ?? null;
   const followVehicle = lesson.followVehicle ?? null;
   const extraMotos = lesson.extraMotoVehicles ?? [];
-  const totalVehicleCount =
-    (lesson.vehicle ? 1 : 0) + extraMotos.length + (followVehicle ? 1 : 0);
-  const multiVehicle = vehiclesEnabled && totalVehicleCount > 1;
-  const motoEntries = [
-    ...(lesson.vehicle && isMotoLicenseCategory(lesson.vehicle.licenseCategory)
-      ? [{ v: lesson.vehicle, primary: true }]
-      : []),
-    ...extraMotos.map((v) => ({ v, primary: false })),
-  ];
+  const extraMotoIds = extraMotos.map((v) => v.id);
+  const primaryIsMoto = vehiclesEnabled && isMotoLicenseCategory(primaryVehicle?.licenseCategory);
+  const motoBlock = primaryIsMoto;
+  const followRequired =
+    primaryIsMoto && followCarRules?.[primaryVehicle?.licenseCategory ?? '']?.enabled === true;
+  const availableExtraCount = motoCandidates.filter(
+    (v) => v.id !== primaryVehicle?.id && !extraMotoIds.includes(v.id),
+  ).length;
   const instructorDisplay = lesson.instructor?.name ?? 'Nessun istruttore';
   const studentName = `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo';
 
@@ -405,7 +451,7 @@ export default function ManageLessonScreen() {
           <Text style={s.heroMeta}>
             {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
             {durationText ? ` · ${durationText}` : ''}
-            {vehiclesEnabled && !multiVehicle ? ` · ${vehicleText}` : ''}
+            {vehiclesEnabled && !motoBlock ? ` · ${vehicleText}` : ''}
           </Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
             <View style={[s.statePill, { backgroundColor: tone ? tone.bg : '#EEF0F4' }]}>
@@ -501,7 +547,7 @@ export default function ManageLessonScreen() {
             </Pressable>
           )}
 
-          {vehiclesEnabled && !multiVehicle ? (
+          {vehiclesEnabled && !motoBlock ? (
             <>
               <View style={s.rowDivider} />
               {readOnly ? (
@@ -529,10 +575,10 @@ export default function ManageLessonScreen() {
             </>
           ) : null}
 
-          {/* Multi-veicolo (guida moto): blocco strutturato mono-navy. La moto
-              principale resta modificabile; moto aggiuntive + auto al seguito in
-              sola lettura. */}
-          {multiVehicle ? (
+          {/* Guida moto: blocco "Veicoli" strutturato (stile Airbnb, mono-navy).
+              Gruppo MOTO (principale taggata + aggiuntive come chip, modificabili)
+              e gruppo AUTO AL SEGUITO (riga propria). Read-only per il titolare. */}
+          {motoBlock ? (
             <>
               <View style={s.rowDivider} />
               <View style={s.vehGroup}>
@@ -540,37 +586,74 @@ export default function ManageLessonScreen() {
                   <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#1A1A2E" /></View>
                   <Text style={s.detailLabel}>Veicoli</Text>
                 </View>
-                <View style={s.vehList}>
-                  {motoEntries.map(({ v, primary }) => {
-                    const editable = primary && !readOnly && vehicles.length > 0;
-                    const inner = (
-                      <>
-                        <View style={s.vIc}><MaterialCommunityIcons name="motorbike" size={18} color="#1A1A2E" /></View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.vName} numberOfLines={1}>{v.name}</Text>
-                          <Text style={s.vKind}>{primary ? 'Moto principale' : 'Moto aggiuntiva'}</Text>
-                        </View>
-                        {editable ? <Ionicons name="chevron-forward" size={17} color="#C7CBD1" /> : null}
-                      </>
-                    );
-                    return editable ? (
-                      <Pressable key={v.id} onPress={openVehiclePicker} style={({ pressed }) => [s.veh, pressed && { opacity: 0.5 }]}>
-                        {inner}
-                      </Pressable>
-                    ) : (
-                      <View key={v.id} style={s.veh}>{inner}</View>
-                    );
-                  })}
-                  {followVehicle ? (
-                    <View style={s.veh}>
-                      <View style={s.vIc}><Ionicons name="car-outline" size={18} color="#1A1A2E" /></View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.vName} numberOfLines={1}>{followVehicle.name}</Text>
-                        <Text style={s.vKind}>Auto al seguito</Text>
-                      </View>
+
+                {/* ── Gruppo MOTO ── */}
+                <Text style={s.vGroupLabel}>MOTO</Text>
+                <View style={s.chipWrap}>
+                  {primaryVehicle ? (
+                    <Pressable
+                      onPress={readOnly || !motoCandidates.length ? undefined : openPrimaryMotoPicker}
+                      disabled={readOnly || !motoCandidates.length}
+                      style={({ pressed }) => [s.mChip, pressed && !readOnly && { opacity: 0.55 }]}
+                    >
+                      <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={17} color="#1A1A2E" /></View>
+                      <Text style={s.mChipName} numberOfLines={1}>{primaryVehicle.name}</Text>
+                      <View style={s.princTag}><Text style={s.princTagTxt}>PRINC.</Text></View>
+                    </Pressable>
+                  ) : null}
+
+                  {extraMotos.map((v) => (
+                    <View key={v.id} style={s.mChip}>
+                      <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={17} color="#1A1A2E" /></View>
+                      <Text style={s.mChipName} numberOfLines={1}>{v.name}</Text>
+                      {!readOnly ? (
+                        <Pressable onPress={() => onChangeExtraMotos(extraMotoIds.filter((x) => x !== v.id))} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
+                          <Ionicons name="close" size={13} color="#8A93A2" />
+                        </Pressable>
+                      ) : null}
                     </View>
+                  ))}
+
+                  {!readOnly && availableExtraCount > 0 ? (
+                    <Pressable onPress={openExtraMotosPicker} style={({ pressed }) => [s.chipAdd, pressed && { opacity: 0.5 }]}>
+                      <Ionicons name="add" size={16} color="#4B5563" />
+                      <Text style={s.chipAddTxt}>Aggiungi</Text>
+                    </Pressable>
                   ) : null}
                 </View>
+
+                {/* ── Gruppo AUTO AL SEGUITO ── */}
+                <View style={s.vGroupLabelRow}>
+                  <Text style={s.vGroupLabel}>AUTO AL SEGUITO</Text>
+                  {followRequired ? <Text style={s.reqTag}>obbligatoria</Text> : null}
+                </View>
+                {followVehicle ? (
+                  <View style={s.followRow}>
+                    <View style={s.vIc}><Ionicons name="car-outline" size={18} color="#1A1A2E" /></View>
+                    <Pressable
+                      onPress={readOnly || !followCandidates.length ? undefined : openFollowCarPicker}
+                      disabled={readOnly || !followCandidates.length}
+                      style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && !readOnly && { opacity: 0.55 }]}
+                    >
+                      <Text style={s.vName} numberOfLines={1}>{followVehicle.name}</Text>
+                      <Text style={s.vKind}>{readOnly ? 'Auto al seguito' : 'Tocca per cambiare'}</Text>
+                    </Pressable>
+                    {!readOnly && !followRequired ? (
+                      <Pressable onPress={() => onChangeFollowVehicle(null)} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
+                        <Ionicons name="close" size={14} color="#8A93A2" />
+                      </Pressable>
+                    ) : !readOnly ? (
+                      <Ionicons name="chevron-forward" size={17} color="#C7CBD1" />
+                    ) : null}
+                  </View>
+                ) : !readOnly ? (
+                  <Pressable onPress={openFollowCarPicker} disabled={!followCandidates.length} style={({ pressed }) => [s.addFollow, pressed && { opacity: 0.5 }]}>
+                    <View style={s.addFollowIc}><Ionicons name="add" size={16} color="#6B7280" /></View>
+                    <Text style={s.addFollowTxt}>Aggiungi auto al seguito</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={s.followEmpty}>Nessuna</Text>
+                )}
               </View>
             </>
           ) : null}
@@ -658,14 +741,31 @@ const s = StyleSheet.create({
   detailValueSub: { fontSize: 13, color: '#9CA3AF' },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
 
-  // Multi-vehicle "Veicoli" block (mono-navy)
+  // "Veicoli" block — guida moto (Airbnb / mono-navy, gruppi Moto / Auto al seguito)
   vehGroup: { paddingVertical: 14 },
   vehHead: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  vehList: { marginLeft: 44, marginTop: 10, gap: 10 },
-  veh: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  vIc: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  vName: { fontSize: 14.5, fontWeight: '500', color: '#1E293B' },
+  vGroupLabel: { fontSize: 11.5, fontWeight: '600', letterSpacing: 0.6, color: '#94A3B8', marginLeft: 44, marginTop: 14, marginBottom: 8 },
+  vGroupLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 44 },
+  reqTag: { fontSize: 10.5, fontWeight: '600', color: '#64748B', backgroundColor: '#EEF0F4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden', marginTop: 12, marginBottom: 8 },
+  // moto chips
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginLeft: 44 },
+  mChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F4F5F7', borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECEEF2', borderRadius: 14, paddingVertical: 7, paddingHorizontal: 10, maxWidth: '100%' },
+  mChipIc: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  mChipName: { fontSize: 14, fontWeight: '600', color: '#1E293B', flexShrink: 1 },
+  princTag: { backgroundColor: '#1A1A2E', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 },
+  princTagTxt: { fontSize: 9.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
+  chipX: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E9EBEF', alignItems: 'center', justifyContent: 'center' },
+  chipAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#C7CBD6', borderStyle: 'dashed', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 13 },
+  chipAddTxt: { fontSize: 13.5, fontWeight: '600', color: '#4B5563' },
+  // follow car row
+  followRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 44, marginTop: 8, backgroundColor: '#F4F5F7', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12 },
+  vIc: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  vName: { fontSize: 14.5, fontWeight: '600', color: '#1E293B' },
   vKind: { fontSize: 12, color: '#94A3B8', marginTop: 1 },
+  addFollow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 44, marginTop: 8 },
+  addFollowIc: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: '#C3C7D4', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  addFollowTxt: { fontSize: 14.5, fontWeight: '600', color: '#3A3A63' },
+  followEmpty: { fontSize: 14, color: '#94A3B8', marginLeft: 44, marginTop: 6 },
 
   // Card 3D CTA dettagli
   cardCta: {
