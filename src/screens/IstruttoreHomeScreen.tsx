@@ -2331,6 +2331,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       vehicleText:
         [
           lesson.vehicle?.name ?? vehicles.find((v) => v.id === lesson.vehicleId)?.name,
+          ...(lesson.extraMotoVehicles ?? []).map((v) => v.name),
           lesson.followVehicle?.name,
         ]
           .filter(Boolean)
@@ -2563,7 +2564,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         vehicles.find((v) => v.assignedInstructorId === instructorId)?.id ??
         vehicles[0]?.id ??
         '',
-      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name })),
+      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name, licenseCategory: v.licenseCategory ?? null })),
+      followCarRules: settings?.followCarRules,
       studentOptions: bookingStudentOptions,
       defaultLocation: defaultLocation
         ? { id: defaultLocation.id, name: defaultLocation.name, address: defaultLocation.address ?? null }
@@ -2572,7 +2574,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       onApplied: async () => { await loadData(); },
       onDone: (message) => { setToast({ text: message, tone: 'success' }); },
     });
-  }, [canInstructorBook, settings?.vehiclesEnabled, settings?.availabilityWeeks, instructorId, bookingDurations, vehicles, bookingStudentOptions, defaultLocation, bookedDatesSet, loadData]);
+  }, [canInstructorBook, settings?.vehiclesEnabled, settings?.availabilityWeeks, settings?.followCarRules, instructorId, bookingDurations, vehicles, bookingStudentOptions, defaultLocation, bookedDatesSet, loadData]);
 
   const openNewBooking = useCallback(() => {
     if (!canInstructorBook) {
@@ -3189,7 +3191,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   const nm = `${calendarScope === 'all' && a.instructor?.name ? a.instructor.name + ' · ' : ''}${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim();
                   const vehicleLabel =
                     settings?.vehiclesEnabled !== false
-                      ? [a.vehicle?.name, a.followVehicle?.name].filter(Boolean).join(' + ') || null
+                      ? [a.vehicle?.name, ...(a.extraMotoVehicles ?? []).map((v) => v.name), a.followVehicle?.name].filter(Boolean).join(' + ') || null
                       : null;
                   const meta = config.isExam
                     ? `Esame · ${durationLabel(a)}`
@@ -3599,7 +3601,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               : `Alle ${formatTime(live.startsAt)}`;
             const timeText = `${formatTime(live.startsAt)}${live.endsAt ? ` – ${formatTime(live.endsAt)}` : ''}`;
             const vehicleText = !isExam && settings?.vehiclesEnabled !== false
-              ? ([live.vehicle?.name, live.followVehicle?.name].filter(Boolean).join(' + ') || null)
+              ? ([live.vehicle?.name, ...(live.extraMotoVehicles ?? []).map((v) => v.name), live.followVehicle?.name].filter(Boolean).join(' + ') || null)
               : null;
             const pa = pendingAction === 'checked_in' || pendingAction === 'no_show' ? pendingAction : null;
             return (

@@ -24,7 +24,12 @@ export type BookingSheetData = {
   defaultDuration: number;
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
-  vehicles: { id: string; name: string }[];
+  vehicles: { id: string; name: string; licenseCategory?: string | null }[];
+  /**
+   * Global follow-car rule per moto category (derived from the company's single
+   * global toggle; a moto category is present+enabled when the rule is on).
+   */
+  followCarRules?: Partial<Record<string, { enabled: boolean }>>;
   studentOptions: BookingStudentOption[];
   defaultLocation: { id: string; name: string; address: string | null } | null;
   /** Keys `${y}-${m}-${d}` of days with bookings, for the calendar dots. */

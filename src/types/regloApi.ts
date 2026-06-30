@@ -214,6 +214,8 @@ export type AutoscuolaAppointmentWithRelations = AutoscuolaAppointment & {
   vehicle: AutoscuolaVehicle | null;
   // Follow car (auto al seguito) for moto lessons, when the school requires it.
   followVehicle?: AutoscuolaVehicle | null;
+  // Extra motos a moto guida occupies beyond the primary one.
+  extraMotoVehicles?: AutoscuolaVehicle[] | null;
   location: AutoscuolaLocation | null;
 };
 
@@ -796,6 +798,9 @@ export type ConfirmInstructorBookingInput = {
   endsAt: IsoDate;
   instructorId: Uuid;
   vehicleId: Uuid | null;
+  // Follow car (auto al seguito) + extra motos for moto lessons.
+  followVehicleId?: Uuid | null;
+  extraMotoVehicleIds?: Uuid[];
   locationId?: Uuid | null;
   lessonType?: string;
   types?: string[];
@@ -806,6 +811,9 @@ export type ConfirmInstructorBookingBatchInput = {
   studentId: Uuid;
   instructorId: Uuid;
   vehicleId: Uuid | null;
+  // Follow car (auto al seguito) + extra motos applied to every entry.
+  followVehicleId?: Uuid | null;
+  extraMotoVehicleIds?: Uuid[];
   lessonType?: string;
   types?: string[];
   skipWeeklyLimitCheck?: boolean;

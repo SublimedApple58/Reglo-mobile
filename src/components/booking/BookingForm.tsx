@@ -24,6 +24,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
+import { isMotoLicenseCategory } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
@@ -103,6 +104,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   const [studentId, setStudentId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [followVehicleId, setFollowVehicleId] = useState('');
+  const [extraMotoVehicleIds, setExtraMotoVehicleIds] = useState<string[]>([]);
   const [lessonTypes, setLessonTypes] = useState<string[]>(['guida']);
   const [date, setDate] = useState<Date>(() => new Date());
   const [startTime, setStartTime] = useState<Date>(() => normalizeToQuarter(new Date()));
@@ -122,6 +125,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     if (!data) return;
     setStudentId('');
     setVehicleId(data.defaultVehicleId);
+    setFollowVehicleId('');
+    setExtraMotoVehicleIds([]);
     setLessonTypes(['guida']);
     setDate(new Date(data.initialDate));
     setStartTime(
@@ -175,7 +180,26 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   );
 
   if (!data) return <View style={s.root} />;
-  const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId } = data;
+  const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
+
+  // Moto-vehicle awareness: the follow car (auto al seguito) and extra-moto
+  // controls only apply when the primary vehicle is a moto.
+  const selectedVehicle = vehicles.find((v) => v.id === vehicleId) ?? null;
+  const primaryIsMoto =
+    vehiclesEnabled && !!selectedVehicle && isMotoLicenseCategory(selectedVehicle.licenseCategory);
+  const needFollowCar =
+    primaryIsMoto &&
+    (followCarRules?.[selectedVehicle?.licenseCategory ?? '']?.enabled === true);
+  const followCarOptions = vehicles.filter(
+    (v) => v.licenseCategory === 'B' && v.id !== vehicleId,
+  );
+  const extraMotoOptions = vehicles.filter(
+    (v) => isMotoLicenseCategory(v.licenseCategory) && v.id !== vehicleId,
+  );
+  const effectiveFollowVehicleId = needFollowCar ? followVehicleId : '';
+  const effectiveExtraMotoVehicleIds = primaryIsMoto
+    ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
+    : [];
 
   const typesPayload = lessonTypes.length && !(lessonTypes.length === 1 && lessonTypes[0] === 'guida')
     ? { lessonType: lessonTypes[0], types: lessonTypes }
@@ -231,6 +255,24 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
       options: vehicles.map((v) => ({ value: v.id, label: v.name })),
       onConfirm: (v) => setVehicleId(v[0] ?? ''),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openFollowCar = () => {
+    optionsPickerStore.set({
+      title: 'Auto al seguito', multi: false, selected: followVehicleId ? [followVehicleId] : [],
+      options: followCarOptions.map((v) => ({ value: v.id, label: v.name })),
+      onConfirm: (v) => setFollowVehicleId(v[0] ?? ''),
+    });
+    router.push('/(tabs)/home/select-options');
+  };
+
+  const openExtraMotos = () => {
+    optionsPickerStore.set({
+      title: 'Moto aggiuntive', multi: true, selected: extraMotoVehicleIds,
+      options: extraMotoOptions.map((v) => ({ value: v.id, label: v.name })),
+      onConfirm: (vs) => setExtraMotoVehicleIds(vs),
     });
     router.push('/(tabs)/home/select-options');
   };
@@ -303,11 +345,15 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const confirmSingle = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
     const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
       studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
-      vehicleId: vehiclesEnabled ? vehicleId : null, locationId, ...typesPayload,
+      vehicleId: vehiclesEnabled ? vehicleId : null,
+      followVehicleId: effectiveFollowVehicleId || null,
+      extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+      locationId, ...typesPayload,
       ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
     }), () => 'Guida prenotata.', skip);
     const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
@@ -318,6 +364,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const confirmMulti = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
     if (!entries.length) { Alert.alert('Nessuna guida', 'Aggiungi almeno una guida.'); return; }
     const payloadEntries = entries.map((entry) => {
       const start = new Date(entry.date);
@@ -326,7 +373,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       return { startsAt: start.toISOString(), endsAt: end.toISOString() };
     });
     const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBookingBatch({
-      studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null, ...typesPayload,
+      studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
+      followVehicleId: effectiveFollowVehicleId || null,
+      extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+      ...typesPayload,
       ...(s2 ? { skipWeeklyLimitCheck: true } : {}), entries: payloadEntries,
     }), (result) => `${(result as { created: number }).created} guide prenotate.`, skip);
     const nowWeek = isoWeekStartUTC(new Date());
@@ -335,7 +385,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     book();
   };
 
-  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && (multiMode ? entries.length > 0 : true);
+  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
 
   const summaryMain = multiMode
     ? `${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
@@ -350,6 +400,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .filter(Boolean)
     .join(', ') || 'Guida';
   const vehicleValue = vehicles.find((v) => v.id === vehicleId)?.name ?? null;
+  const followCarValue = vehicles.find((v) => v.id === effectiveFollowVehicleId)?.name ?? null;
+  const extraMotosValue = effectiveExtraMotoVehicleIds
+    .map((id) => vehicles.find((v) => v.id === id)?.name)
+    .filter(Boolean)
+    .join(', ') || null;
 
   // iOS embedded (quick-book formSheet, fitToContents) hugs its content → plain
   // View, no flex ScrollView (a flex ScrollView would collapse to 0 inside a
@@ -472,6 +527,18 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
             <>
               <View style={s.divider} />
               <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !vehicles.length} />
+            </>
+          ) : null}
+          {needFollowCar ? (
+            <>
+              <View style={s.divider} />
+              <Row icon="car-sport-outline" label="Auto al seguito" value={followCarValue} placeholder="Seleziona auto al seguito" onPress={openFollowCar} disabled={pending || !followCarOptions.length} />
+            </>
+          ) : null}
+          {primaryIsMoto && extraMotoOptions.length ? (
+            <>
+              <View style={s.divider} />
+              <Row icon="bicycle-outline" label="Moto aggiuntive" value={extraMotosValue} placeholder="Nessuna" onPress={openExtraMotos} disabled={pending} />
             </>
           ) : null}
           <View style={s.divider} />

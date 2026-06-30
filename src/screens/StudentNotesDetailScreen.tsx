@@ -366,7 +366,7 @@ export const StudentNotesDetailScreen = () => {
                           </View>
                         ) : null}
                         {!isExam ? (
-                          <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
+                          <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
                         ) : null}
                         <Text style={[s.tlNote, !appt.notes?.trim() && s.tlNoteEmpty]}>
                           {appt.notes?.trim() || 'Nessuna nota'}
