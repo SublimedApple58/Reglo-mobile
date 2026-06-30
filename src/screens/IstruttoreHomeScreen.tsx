@@ -590,7 +590,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
-  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
@@ -1031,6 +1031,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       value: student.id,
       label: `${student.firstName} ${student.lastName}`.trim(),
       subtitle: offCluster ? 'Non assegnato a te' : (null as string | null),
+      licenseCategory: student.licenseCategory ?? null,
+      transmission: student.transmission ?? null,
     });
     if (!clustersActive) {
       // No cluster lock \u2014 all students are equivalent
@@ -2564,7 +2566,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         vehicles.find((v) => v.assignedInstructorId === instructorId)?.id ??
         vehicles[0]?.id ??
         '',
-      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name, licenseCategory: v.licenseCategory ?? null })),
+      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name, licenseCategory: v.licenseCategory ?? null, transmission: v.transmission ?? null })),
       followCarRules: settings?.followCarRules,
       studentOptions: bookingStudentOptions,
       defaultLocation: defaultLocation

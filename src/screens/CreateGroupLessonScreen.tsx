@@ -23,6 +23,7 @@ import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { vehicleServesStudent as vehicleServesStudentShared } from '../utils/license';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
 const NAVY = '#1A1A2E';
@@ -68,15 +69,11 @@ const instructorCanUseVehicle = (
   return pool.length === 0 || pool.includes(instructorId);
 };
 
-// Exact license match, null-permissive on either side (mirrors backend vehicleServesLicense).
+// License eligibility with the moto hierarchy (shared helper), null vehicle = permissive.
 const vehicleServesStudent = (
   v: { licenseCategory?: string | null; transmission?: string | null } | null,
   st: { licenseCategory?: string | null; transmission?: string | null },
-) => {
-  if (!v || !v.licenseCategory || !v.transmission) return true;
-  if (!st.licenseCategory || !st.transmission) return true;
-  return v.licenseCategory === st.licenseCategory && v.transmission === st.transmission;
-};
+) => (v ? vehicleServesStudentShared(v, st) : true);
 
 const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
   icon: keyof typeof Ionicons.glyphMap; label: string;

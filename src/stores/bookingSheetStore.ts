@@ -5,7 +5,7 @@
  * form + the regloApi create calls. After a create succeeds it calls `onApplied`
  * (parent refreshes its agenda from the BE), then `onDone` (success toast).
  */
-export type BookingStudentOption = { value: string; label: string; subtitle: string | null };
+export type BookingStudentOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null; transmission?: string | null };
 
 export type BookingSheetData = {
   canBook: boolean;
@@ -24,7 +24,7 @@ export type BookingSheetData = {
   defaultDuration: number;
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
-  vehicles: { id: string; name: string; licenseCategory?: string | null }[];
+  vehicles: { id: string; name: string; licenseCategory?: string | null; transmission?: string | null }[];
   /**
    * Global follow-car rule per moto category (derived from the company's single
    * global toggle; a moto category is present+enabled when the rule is on).

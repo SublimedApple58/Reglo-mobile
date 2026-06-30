@@ -29,3 +29,40 @@ export const MOTO_LICENSE_CATEGORIES: LicenseCategory[] = ['AM', 'A1', 'A2', 'A'
 
 export const isMotoLicenseCategory = (c?: string | null): boolean =>
   !!c && (MOTO_LICENSE_CATEGORIES as string[]).includes(c);
+
+/**
+ * True when a vehicle of `vehicleCategory` is eligible for a student pursuing
+ * `studentCategory`, applying the MOTO HIERARCHY AM < A1 < A2 < A: a moto
+ * student may use any moto of category ≤ their own (A2 → A2/A1/AM, not A). "B"
+ * (car) is a separate class that only matches B; car↔moto never match.
+ */
+export const licenseCategoryEligible = (
+  vehicleCategory: string,
+  studentCategory: string,
+): boolean => {
+  if (vehicleCategory === studentCategory) return true;
+  const vMoto = isMotoLicenseCategory(vehicleCategory);
+  const sMoto = isMotoLicenseCategory(studentCategory);
+  if (vMoto && sMoto) {
+    return (
+      (MOTO_LICENSE_CATEGORIES as string[]).indexOf(vehicleCategory) <=
+      (MOTO_LICENSE_CATEGORIES as string[]).indexOf(studentCategory)
+    );
+  }
+  return false;
+};
+
+/**
+ * True when a vehicle's (category, transmission) serves a student's pursued
+ * license. Category uses the moto hierarchy; transmission must match exactly.
+ * Null/absent on either side is permissive (never blocks).
+ */
+export const vehicleServesStudent = (
+  vehicle: { licenseCategory?: string | null; transmission?: string | null },
+  student: { licenseCategory?: string | null; transmission?: string | null },
+): boolean => {
+  if (!student.licenseCategory || !student.transmission) return true;
+  if (!vehicle.licenseCategory || !vehicle.transmission) return true;
+  if (vehicle.transmission !== student.transmission) return false;
+  return licenseCategoryEligible(vehicle.licenseCategory, student.licenseCategory);
+};

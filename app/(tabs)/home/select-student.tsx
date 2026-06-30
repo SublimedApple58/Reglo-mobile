@@ -90,6 +90,9 @@ export default function SelectStudentScreen() {
                     <Text style={s.name} numberOfLines={1}>{o.label}</Text>
                     {o.subtitle ? <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text> : null}
                   </View>
+                  {o.licenseCategory ? (
+                    <View style={s.lic}><Text style={s.licTxt}>{o.licenseCategory}</Text></View>
+                  ) : null}
                   {selected ? <Ionicons name="checkmark-circle" size={22} color={NAVY} /> : null}
                 </Pressable>
               </View>
@@ -123,4 +126,6 @@ const s = StyleSheet.create({
   body: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontSize: 16, fontWeight: '600', color: INK },
   sub: { fontSize: 13.5, color: MUTED2 },
+  lic: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: N100, marginRight: 8 },
+  licTxt: { fontSize: 12, fontWeight: '600', color: NAVY },
 });

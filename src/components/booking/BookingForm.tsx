@@ -25,7 +25,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
-import { isMotoLicenseCategory } from '../../utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
@@ -202,6 +202,16 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
     : [];
 
+  // License eligibility: the chosen vehicle must serve the chosen student's
+  // pursued license (moto hierarchy). The vehicle picker only offers eligible
+  // vehicles; an effect clears a now-incompatible vehicle when the student changes.
+  const selectedStudent = studentOptions.find((o) => o.value === studentId) ?? null;
+  const eligibleVehicles = selectedStudent
+    ? vehicles.filter((v) => vehicleServesStudent(v, selectedStudent))
+    : vehicles;
+  const vehicleIneligible =
+    !!selectedStudent && !!selectedVehicle && !vehicleServesStudent(selectedVehicle, selectedStudent);
+
   const typesPayload = lessonTypes.length && !(lessonTypes.length === 1 && lessonTypes[0] === 'guida')
     ? { lessonType: lessonTypes[0], types: lessonTypes }
     : {};
@@ -213,7 +223,22 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   };
 
   const openStudentPicker = () => {
-    studentPickerStore.set({ selectedId: studentId || null, options: studentOptions, onSelect: (v) => setStudentId(v) });
+    studentPickerStore.set({
+      selectedId: studentId || null,
+      options: studentOptions,
+      onSelect: (v) => {
+        setStudentId(v);
+        // If the currently picked vehicle isn't eligible for the new student
+        // (moto hierarchy), clear it so the form can't hold an invalid combo.
+        const st = studentOptions.find((o) => o.value === v);
+        const veh = vehicles.find((vv) => vv.id === vehicleId);
+        if (st && veh && !vehicleServesStudent(veh, st)) {
+          setVehicleId('');
+          setFollowVehicleId('');
+          setExtraMotoVehicleIds([]);
+        }
+      },
+    });
     router.push('/(tabs)/home/select-student');
   };
 
@@ -254,7 +279,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const openVehicle = () => {
     optionsPickerStore.set({
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
-      options: vehicles.map((v) => ({ value: v.id, label: v.name })),
+      // Only vehicles eligible for the selected student (moto hierarchy).
+      options: eligibleVehicles.map((v) => ({ value: v.id, label: v.name })),
       onConfirm: (v) => setVehicleId(v[0] ?? ''),
     });
     router.push('/(tabs)/home/select-options');
@@ -346,6 +372,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const confirmSingle = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    if (vehicleIneligible) { Alert.alert('Veicolo non idoneo', "Il veicolo selezionato non è idoneo alla patente dell'allievo."); return; }
     if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
@@ -365,6 +392,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const confirmMulti = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
+    if (vehicleIneligible) { Alert.alert('Veicolo non idoneo', "Il veicolo selezionato non è idoneo alla patente dell'allievo."); return; }
     if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
     if (!entries.length) { Alert.alert('Nessuna guida', 'Aggiungi almeno una guida.'); return; }
     const payloadEntries = entries.map((entry) => {
@@ -386,7 +414,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     book();
   };
 
-  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
+  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
 
   const summaryMain = multiMode
     ? `${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
@@ -527,7 +555,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
           {vehiclesEnabled ? (
             <>
               <View style={s.divider} />
-              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !vehicles.length} />
+              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder={studentId ? 'Seleziona veicolo' : 'Scegli prima l’allievo'} onPress={openVehicle} disabled={pending || !studentId || !eligibleVehicles.length} />
             </>
           ) : null}
           {needFollowCar ? (

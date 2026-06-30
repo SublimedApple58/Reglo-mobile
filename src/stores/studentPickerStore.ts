@@ -5,7 +5,7 @@
  * the route. The picker reads this, renders a search + list, and calls onSelect
  * on tap. Mirrors `instructorPickerStore` / `timePickerStore`.
  */
-export type StudentPickerOption = { value: string; label: string; subtitle: string | null };
+export type StudentPickerOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null };
 
 export type StudentPickerData = {
   selectedId: string | null;
