@@ -230,7 +230,7 @@ const s = StyleSheet.create({
 
   doneBtn: {
     minHeight: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
-    alignItems: 'center', justifyContent: 'center', marginTop: 8,
+    alignItems: 'center', justifyContent: 'center', marginTop: 24,
     shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   doneText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
