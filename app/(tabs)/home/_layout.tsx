@@ -33,6 +33,7 @@ export default function HomeLayout() {
       <Stack.Screen name="swap-lesson" options={TALL_SHEET} />
       <Stack.Screen name="reschedule-lesson" options={TALL_SHEET} />
       <Stack.Screen name="manage-lesson-instructor" options={TALL_SHEET} />
+      <Stack.Screen name="manage-lesson-vehicles" options={TALL_SHEET} />
       <Stack.Screen name="manage-lesson-location" options={TALL_SHEET} />
       <Stack.Screen name="manage-lesson-location-form" options={TALL_SHEET} />
       <Stack.Screen name="lesson-detail" options={TALL_SHEET} />
