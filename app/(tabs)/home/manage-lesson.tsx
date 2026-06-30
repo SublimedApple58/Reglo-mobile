@@ -31,6 +31,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
+import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 
@@ -347,6 +348,21 @@ export default function ManageLessonScreen() {
 
   const locName = lesson.location?.name ?? defaultLocation?.name ?? "Sede dell'autoscuola";
   const locAddress = lesson.location?.address ?? defaultLocation?.address ?? null;
+
+  // Vehicles: a moto guide can involve more than one (primary moto + extra motos
+  // + a follow car). When so, show a structured "Veicoli" block instead of one
+  // cramped row. The primary moto stays editable; the rest are read-only.
+  const followVehicle = lesson.followVehicle ?? null;
+  const extraMotos = lesson.extraMotoVehicles ?? [];
+  const totalVehicleCount =
+    (lesson.vehicle ? 1 : 0) + extraMotos.length + (followVehicle ? 1 : 0);
+  const multiVehicle = vehiclesEnabled && totalVehicleCount > 1;
+  const motoEntries = [
+    ...(lesson.vehicle && isMotoLicenseCategory(lesson.vehicle.licenseCategory)
+      ? [{ v: lesson.vehicle, primary: true }]
+      : []),
+    ...extraMotos.map((v) => ({ v, primary: false })),
+  ];
   const instructorDisplay = lesson.instructor?.name ?? 'Nessun istruttore';
   const studentName = `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo';
 
@@ -389,7 +405,7 @@ export default function ManageLessonScreen() {
           <Text style={s.heroMeta}>
             {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
             {durationText ? ` · ${durationText}` : ''}
-            {vehiclesEnabled ? ` · ${vehicleText}` : ''}
+            {vehiclesEnabled && !multiVehicle ? ` · ${vehicleText}` : ''}
           </Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
             <View style={[s.statePill, { backgroundColor: tone ? tone.bg : '#EEF0F4' }]}>
@@ -485,7 +501,7 @@ export default function ManageLessonScreen() {
             </Pressable>
           )}
 
-          {vehiclesEnabled ? (
+          {vehiclesEnabled && !multiVehicle ? (
             <>
               <View style={s.rowDivider} />
               {readOnly ? (
@@ -510,6 +526,52 @@ export default function ManageLessonScreen() {
                   <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
                 </Pressable>
               )}
+            </>
+          ) : null}
+
+          {/* Multi-veicolo (guida moto): blocco strutturato mono-navy. La moto
+              principale resta modificabile; moto aggiuntive + auto al seguito in
+              sola lettura. */}
+          {multiVehicle ? (
+            <>
+              <View style={s.rowDivider} />
+              <View style={s.vehGroup}>
+                <View style={s.vehHead}>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#1A1A2E" /></View>
+                  <Text style={s.detailLabel}>Veicoli</Text>
+                </View>
+                <View style={s.vehList}>
+                  {motoEntries.map(({ v, primary }) => {
+                    const editable = primary && !readOnly && vehicles.length > 0;
+                    const inner = (
+                      <>
+                        <View style={s.vIc}><MaterialCommunityIcons name="motorbike" size={18} color="#1A1A2E" /></View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={s.vName} numberOfLines={1}>{v.name}</Text>
+                          <Text style={s.vKind}>{primary ? 'Moto principale' : 'Moto aggiuntiva'}</Text>
+                        </View>
+                        {editable ? <Ionicons name="chevron-forward" size={17} color="#C7CBD1" /> : null}
+                      </>
+                    );
+                    return editable ? (
+                      <Pressable key={v.id} onPress={openVehiclePicker} style={({ pressed }) => [s.veh, pressed && { opacity: 0.5 }]}>
+                        {inner}
+                      </Pressable>
+                    ) : (
+                      <View key={v.id} style={s.veh}>{inner}</View>
+                    );
+                  })}
+                  {followVehicle ? (
+                    <View style={s.veh}>
+                      <View style={s.vIc}><Ionicons name="car-outline" size={18} color="#1A1A2E" /></View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.vName} numberOfLines={1}>{followVehicle.name}</Text>
+                        <Text style={s.vKind}>Auto al seguito</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
             </>
           ) : null}
         </View>
@@ -595,6 +657,15 @@ const s = StyleSheet.create({
   detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
   detailValueSub: { fontSize: 13, color: '#9CA3AF' },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
+
+  // Multi-vehicle "Veicoli" block (mono-navy)
+  vehGroup: { paddingVertical: 14 },
+  vehHead: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  vehList: { marginLeft: 44, marginTop: 10, gap: 10 },
+  veh: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  vIc: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
+  vName: { fontSize: 14.5, fontWeight: '500', color: '#1E293B' },
+  vKind: { fontSize: 12, color: '#94A3B8', marginTop: 1 },
 
   // Card 3D CTA dettagli
   cardCta: {
