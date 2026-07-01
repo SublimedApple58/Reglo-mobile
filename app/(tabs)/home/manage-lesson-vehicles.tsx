@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel } from '../../../src/utils/license';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -49,8 +49,10 @@ export default function ManageLessonVehiclesScreen() {
   const primaryMotoCandidates = vehicles.filter(
     (v) => isMotoLicenseCategory(v.licenseCategory) && usableByInstructor(v) && isStudentEligible(v),
   );
+  // Extra motos must ALSO serve the student's license (moto hierarchy AM<A1<A2<A:
+  // equal-or-lower category only) — same rule as the primary, not "any moto".
   const extraMotoCandidates = vehicles.filter(
-    (v) => isMotoLicenseCategory(v.licenseCategory) && usableByInstructor(v),
+    (v) => isMotoLicenseCategory(v.licenseCategory) && usableByInstructor(v) && isStudentEligible(v),
   );
   const followCandidates = vehicles.filter((v) => v.licenseCategory === 'B' && usableByInstructor(v));
   const availableExtraCount = extraMotoCandidates.filter(
@@ -64,7 +66,7 @@ export default function ManageLessonVehiclesScreen() {
       selected: lesson.vehicleId ? [lesson.vehicleId] : [],
       options: primaryMotoCandidates
         .filter((v) => !extraMotoIds.includes(v.id))
-        .map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+        .map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || v.subtitle || null })),
       onConfirm: (v) => onChangeVehicle(v[0] ?? null),
     });
     router.push('/(tabs)/home/select-options');
@@ -77,7 +79,7 @@ export default function ManageLessonVehiclesScreen() {
       selected: extraMotoIds,
       options: extraMotoCandidates
         .filter((v) => v.id !== lesson.vehicleId)
-        .map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+        .map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || v.subtitle || null })),
       onConfirm: (vs) => onChangeExtraMotos(vs),
     });
     router.push('/(tabs)/home/select-options');

@@ -25,7 +25,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
-import { isMotoLicenseCategory, vehicleServesStudent } from '../../utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
@@ -186,6 +186,18 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   // Moto-vehicle awareness: the follow car (auto al seguito) and extra-moto
   // controls only apply when the primary vehicle is a moto.
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId) ?? null;
+
+  // License eligibility: the chosen vehicle must serve the chosen student's
+  // pursued license (moto hierarchy AM<A1<A2<A: motos of equal-or-lower category
+  // only). The vehicle picker only offers eligible vehicles; an effect clears a
+  // now-incompatible vehicle when the student changes.
+  const selectedStudent = studentOptions.find((o) => o.value === studentId) ?? null;
+  const eligibleVehicles = selectedStudent
+    ? vehicles.filter((v) => vehicleServesStudent(v, selectedStudent))
+    : vehicles;
+  const vehicleIneligible =
+    !!selectedStudent && !!selectedVehicle && !vehicleServesStudent(selectedVehicle, selectedStudent);
+
   const primaryIsMoto =
     vehiclesEnabled && !!selectedVehicle && isMotoLicenseCategory(selectedVehicle.licenseCategory);
   const needFollowCar =
@@ -194,23 +206,15 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const followCarOptions = vehicles.filter(
     (v) => v.licenseCategory === 'B' && v.id !== vehicleId,
   );
-  const extraMotoOptions = vehicles.filter(
+  // Extra motos must ALSO serve the student's license (same moto hierarchy as the
+  // primary — equal-or-lower category), not "any moto".
+  const extraMotoOptions = eligibleVehicles.filter(
     (v) => isMotoLicenseCategory(v.licenseCategory) && v.id !== vehicleId,
   );
   const effectiveFollowVehicleId = needFollowCar ? followVehicleId : '';
   const effectiveExtraMotoVehicleIds = primaryIsMoto
     ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
     : [];
-
-  // License eligibility: the chosen vehicle must serve the chosen student's
-  // pursued license (moto hierarchy). The vehicle picker only offers eligible
-  // vehicles; an effect clears a now-incompatible vehicle when the student changes.
-  const selectedStudent = studentOptions.find((o) => o.value === studentId) ?? null;
-  const eligibleVehicles = selectedStudent
-    ? vehicles.filter((v) => vehicleServesStudent(v, selectedStudent))
-    : vehicles;
-  const vehicleIneligible =
-    !!selectedStudent && !!selectedVehicle && !vehicleServesStudent(selectedVehicle, selectedStudent);
 
   const typesPayload = lessonTypes.length && !(lessonTypes.length === 1 && lessonTypes[0] === 'guida')
     ? { lessonType: lessonTypes[0], types: lessonTypes }
@@ -280,7 +284,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     optionsPickerStore.set({
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
       // Only vehicles eligible for the selected student (moto hierarchy).
-      options: eligibleVehicles.map((v) => ({ value: v.id, label: v.name })),
+      options: eligibleVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || null })),
       onConfirm: (v) => setVehicleId(v[0] ?? ''),
     });
     router.push('/(tabs)/home/select-options');
@@ -298,7 +302,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const openExtraMotos = () => {
     optionsPickerStore.set({
       title: 'Moto aggiuntive', multi: true, selected: extraMotoVehicleIds,
-      options: extraMotoOptions.map((v) => ({ value: v.id, label: v.name })),
+      options: extraMotoOptions.map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || null })),
       onConfirm: (vs) => setExtraMotoVehicleIds(vs),
     });
     router.push('/(tabs)/home/select-options');

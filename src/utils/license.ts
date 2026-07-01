@@ -21,6 +21,11 @@ export const TRANSMISSION_LABELS: Record<Transmission, string> = {
 export const transmissionLabel = (value: string | null | undefined): string =>
   value ? TRANSMISSION_LABELS[value as Transmission] ?? value : '';
 
+// Friendly label for a vehicle/student license category (e.g. "A1 (125)").
+// Falls back to the raw value; empty string when absent.
+export const licenseCategoryLabel = (value: string | null | undefined): string =>
+  value ? LICENSE_CATEGORY_LABELS[value as LicenseCategory] ?? value : '';
+
 // Motorcycle license categories — every category except the car license "B".
 // Mirror of the backend `reglo/lib/autoscuole/license.ts`. Drives the moto-aware
 // student experience (illustrations, tab icon, wording), keyed off the guide's
