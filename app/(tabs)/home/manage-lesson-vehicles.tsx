@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel } from '../../../src/utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../../src/utils/license';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -90,7 +90,7 @@ export default function ManageLessonVehiclesScreen() {
       title: 'Auto al seguito',
       multi: false,
       selected: followVehicle?.id ? [followVehicle.id] : [],
-      options: followCandidates.map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
+      options: followCandidates.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || v.subtitle || null })),
       onConfirm: (v) => onChangeFollowVehicle(v[0] ?? null),
     });
     router.push('/(tabs)/home/select-options');

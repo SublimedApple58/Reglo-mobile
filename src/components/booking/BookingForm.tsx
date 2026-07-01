@@ -25,7 +25,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
-import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel } from '../../utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
@@ -293,7 +293,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const openFollowCar = () => {
     optionsPickerStore.set({
       title: 'Auto al seguito', multi: false, selected: followVehicleId ? [followVehicleId] : [],
-      options: followCarOptions.map((v) => ({ value: v.id, label: v.name })),
+      options: followCarOptions.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || null })),
       onConfirm: (v) => setFollowVehicleId(v[0] ?? ''),
     });
     router.push('/(tabs)/home/select-options');
