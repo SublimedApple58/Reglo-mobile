@@ -29,6 +29,7 @@ export function SheetScaffold({
   contentContainerStyle,
   scrollEnabled = true,
   keyboardAware = false,
+  fill = false,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -36,9 +37,15 @@ export function SheetScaffold({
   contentContainerStyle?: StyleProp<ViewStyle>;
   scrollEnabled?: boolean;
   keyboardAware?: boolean;
+  /**
+   * Force the fill-scroll-pin layout on BOTH platforms. Use when the host is a
+   * full-height PAGE_SHEET (not a content-hugging form sheet): the body must
+   * scroll and the footer pin to the bottom on iOS too.
+   */
+  fill?: boolean;
 }) {
-  if (isAndroid) {
-    return <AndroidScaffold {...{ footer, style, contentContainerStyle, scrollEnabled, keyboardAware }}>{children}</AndroidScaffold>;
+  if (isAndroid || fill) {
+    return <FillScaffold {...{ footer, style, contentContainerStyle, scrollEnabled, keyboardAware }}>{children}</FillScaffold>;
   }
   return (
     <View style={style}>
@@ -48,7 +55,7 @@ export function SheetScaffold({
   );
 }
 
-function AndroidScaffold({
+function FillScaffold({
   children, footer, style, contentContainerStyle, scrollEnabled, keyboardAware,
 }: {
   children: React.ReactNode;

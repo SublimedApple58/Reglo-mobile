@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,7 +35,7 @@ export default function QuickBookScreen() {
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }] }));
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <View style={s.root}>
       <View style={s.topbar}>
         <View style={s.seg} onLayout={(e) => setTabsW(e.nativeEvent.layout.width)}>
           {pillW > 0 && <Animated.View style={[s.segPill, { width: pillW }, pillStyle]} />}
@@ -57,8 +57,9 @@ export default function QuickBookScreen() {
 }
 
 const s = StyleSheet.create({
-  // No flex:1 — the formSheet uses fitToContents, so the root must hug its content.
-  root: { backgroundColor: colors.background, paddingTop: 14 },
+  // Page sheet (PAGE_SHEET): fills the screen, the embedded forms scroll their
+  // own body and pin their footer.
+  root: { flex: 1, backgroundColor: colors.background, paddingTop: 14 },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.lg, paddingBottom: 12 },
 
   /* Airbnb segmented control (= availability-exception.tsx) */

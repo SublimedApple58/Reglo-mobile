@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -448,19 +447,20 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .filter(Boolean)
     .join(', ') || null;
 
-  // iOS embedded (quick-book formSheet, fitToContents) hugs its content → plain
-  // View, no flex ScrollView (a flex ScrollView would collapse to 0 inside a
-  // content-hugging sheet). The standalone route fills the screen → scrollable.
-  // Android can't re-measure a fitToContents sheet, so the route uses a fixed
-  // tall detent (TALL_SHEET) and the body must scroll with a pinned footer too.
-  const scrollBody = !embedded || Platform.OS === 'android';
-  const Wrapper: React.ComponentType<any> = scrollBody ? ScrollView : View;
-  const wrapperProps = scrollBody
-    ? { style: { flex: 1 }, contentContainerStyle: s.content, keyboardShouldPersistTaps: 'handled' as const, showsVerticalScrollIndicator: false }
-    : { style: s.content };
+  // Both hosts (standalone new-booking route AND embedded in quick-book) are
+  // full-height page sheets now: the body always scrolls, the footer is pinned.
+  // (In moto mode the form grows taller than the screen, so a content-hugging
+  // form sheet would clip it on iOS — hence PAGE_SHEET everywhere.)
+  const Wrapper: React.ComponentType<any> = ScrollView;
+  const wrapperProps = {
+    style: { flex: 1 },
+    contentContainerStyle: s.content,
+    keyboardShouldPersistTaps: 'handled' as const,
+    showsVerticalScrollIndicator: false,
+  };
 
   return (
-    <View style={embedded ? [s.rootHug, Platform.OS === 'android' && { flex: 1 }] : [s.root, { paddingTop: 14 }]}>
+    <View style={embedded ? s.root : [s.root, { paddingTop: 14 }]}>
       {!embedded && (
         <View style={s.topbar}>
           <View style={{ flex: 1 }} />
@@ -610,7 +610,6 @@ const ELEV = {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  rootHug: { backgroundColor: colors.background },
   topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 2 },
   x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xl },

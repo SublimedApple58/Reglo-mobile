@@ -9,7 +9,10 @@ export default function HomeLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="add-action" options={HUG_SHEET} />
       <Stack.Screen name="select-date" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="quick-book" options={TALL_SHEET} />
+      {/* Quick-book hosts the full BookingForm: in moto mode it grows taller
+          than the screen, so it needs the scrollable full-height page sheet
+          (a fitToContents form sheet clips the overflow on iOS). */}
+      <Stack.Screen name="quick-book" options={PAGE_SHEET} />
       <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="day-detail" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="exam-manage" options={{ presentation: 'modal', headerShown: false }} />

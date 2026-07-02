@@ -151,7 +151,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const canConfirm = !pending && !invalidRange;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
+    <View style={[s.root, (embedded || Platform.OS === 'android') && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
       {!embedded && (
         <View style={s.header}>
           <Text style={s.title}>Blocca slot</Text>
@@ -163,6 +163,9 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
 
       <SheetScaffold
         keyboardAware
+        // Embedded host (quick-book) is a full-height PAGE_SHEET → the body must
+        // scroll + footer pin on iOS too. Standalone (block-slot) stays TALL_SHEET.
+        fill={embedded}
         footer={
           <View style={s.footer}>
             <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
