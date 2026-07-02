@@ -209,16 +209,23 @@ opacity: 0.9,
 transform: [{ scale: 0.96 }],
 ```
 
-### 5.2 CTA Navy Primary (Bottone Hero — no shadow)
+### 5.2 CTA Navy Primary — GRADIENT (regola 2026-07-02)
 
-Il colore pieno fa tutto il lavoro. Nessuna ombra necessaria.
+Ogni CTA primary navy usa il **gradiente diagonale condiviso** (nato sul
+phone gate), NON il navy flat. Componenti in `src/components/GradientCTA.tsx`:
 
-```ts
-backgroundColor: colors.primary,
-borderRadius: 26,
-padding: 16,
-// NO shadowColor/shadowOffset/shadowOpacity
-```
+- **Bottone nuovo** → `<Button tone="primary" />` (già gradiente) oppure
+  `Pressable` (radius+shadow) + `<GradientCTA style={...}>` come fill.
+- **Bottone esistente / conversione** → `<GradientCTABackground radius={R} />`
+  come PRIMO figlio del Pressable + rimuovere `backgroundColor` dallo style
+  (layout/ombre invariati). `R` = il borderRadius dello style.
+- Gradiente: `['#26263F', colors.primary, '#131322']`, start `{0.2,0}` → end `{0.8,1}`.
+- Ombra colorata consigliata sul Pressable: `primaryCtaShadow` (shadowColor
+  navy, opacity 0.3, radius 12, offset 0/6, elevation 6) — ma rispettare il
+  design del contesto (alcune CTA sono volutamente senza ombra).
+- La forma NON cambia mai: pill restano pill, radius restano i loro.
+- **Eccezione**: `ForceUpdateScreen` resta navy flat (pure-JS safety net, non
+  deve importare moduli nativi).
 
 **Press state:**
 ```ts
