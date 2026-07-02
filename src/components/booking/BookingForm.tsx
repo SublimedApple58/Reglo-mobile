@@ -211,7 +211,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const extraMotoOptions = eligibleVehicles.filter(
     (v) => isMotoLicenseCategory(v.licenseCategory) && v.id !== vehicleId,
   );
-  const effectiveFollowVehicleId = needFollowCar ? followVehicleId : '';
+  // '__none__' = explicit "Nessuna auto al seguito": the global rule suggests
+  // the follow car but doesn't force it — it resolves to no vehicle.
+  const effectiveFollowVehicleId =
+    needFollowCar && followVehicleId !== '__none__' ? followVehicleId : '';
   const effectiveExtraMotoVehicleIds = primaryIsMoto
     ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
     : [];
@@ -293,7 +296,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const openFollowCar = () => {
     optionsPickerStore.set({
       title: 'Auto al seguito', multi: false, selected: followVehicleId ? [followVehicleId] : [],
-      options: followCarOptions.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || null })),
+      options: [
+        { value: '__none__', label: 'Nessuna auto al seguito', subtitle: null },
+        ...followCarOptions.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || null })),
+      ],
       onConfirm: (v) => setFollowVehicleId(v[0] ?? ''),
     });
     router.push('/(tabs)/home/select-options');
@@ -377,7 +383,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
     if (vehicleIneligible) { Alert.alert('Veicolo non idoneo', "Il veicolo selezionato non è idoneo alla patente dell'allievo."); return; }
-    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
+    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito', 'Scegli un’auto al seguito oppure "Nessuna".'); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
     const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
@@ -397,7 +403,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
     if (vehicleIneligible) { Alert.alert('Veicolo non idoneo', "Il veicolo selezionato non è idoneo alla patente dell'allievo."); return; }
-    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito mancante', "Questa guida moto richiede un'auto al seguito."); return; }
+    if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito', 'Scegli un’auto al seguito oppure "Nessuna".'); return; }
     if (!entries.length) { Alert.alert('Nessuna guida', 'Aggiungi almeno una guida.'); return; }
     const payloadEntries = entries.map((entry) => {
       const start = new Date(entry.date);
@@ -433,7 +439,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .filter(Boolean)
     .join(', ') || 'Guida';
   const vehicleValue = vehicles.find((v) => v.id === vehicleId)?.name ?? null;
-  const followCarValue = vehicles.find((v) => v.id === effectiveFollowVehicleId)?.name ?? null;
+  const followCarValue =
+    followVehicleId === '__none__'
+      ? 'Nessuna'
+      : vehicles.find((v) => v.id === effectiveFollowVehicleId)?.name ?? null;
   const extraMotosValue = effectiveExtraMotoVehicleIds
     .map((id) => vehicles.find((v) => v.id === id)?.name)
     .filter(Boolean)

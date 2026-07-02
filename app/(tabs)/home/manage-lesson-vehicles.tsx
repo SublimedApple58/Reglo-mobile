@@ -90,9 +90,13 @@ export default function ManageLessonVehiclesScreen() {
     optionsPickerStore.set({
       title: 'Auto al seguito',
       multi: false,
-      selected: followVehicle?.id ? [followVehicle.id] : [],
-      options: followCandidates.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || v.subtitle || null })),
-      onConfirm: (v) => onChangeFollowVehicle(v[0] ?? null),
+      selected: followVehicle?.id ? [followVehicle.id] : ['__none__'],
+      options: [
+        // The global rule suggests the follow car, it doesn't force it.
+        { value: '__none__', label: 'Nessuna auto al seguito', subtitle: null },
+        ...followCandidates.map((v) => ({ value: v.id, label: v.name, subtitle: transmissionLabel(v.transmission) || v.subtitle || null })),
+      ],
+      onConfirm: (v) => onChangeFollowVehicle(v[0] && v[0] !== '__none__' ? v[0] : null),
     });
     router.push('/(tabs)/home/select-options');
   };
@@ -160,7 +164,7 @@ export default function ManageLessonVehiclesScreen() {
         <View style={s.section}>
           <View style={s.sectionLabelRow}>
             <Text style={s.sectionLabel}>Auto al seguito</Text>
-            {followRequired ? <Text style={s.reqTag}>obbligatoria</Text> : null}
+            {followRequired ? <Text style={s.reqTag}>consigliata</Text> : null}
           </View>
           {followVehicle ? (
             <View style={s.followRow}>
@@ -173,12 +177,10 @@ export default function ManageLessonVehiclesScreen() {
                 <Text style={s.vName} numberOfLines={1}>{followVehicle.name}</Text>
                 <Text style={s.vKind}>{readOnly ? 'Auto al seguito' : 'Tocca per cambiare'}</Text>
               </Pressable>
-              {!readOnly && !followRequired ? (
+              {!readOnly ? (
                 <Pressable onPress={() => onChangeFollowVehicle(null)} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
                   <Ionicons name="close" size={16} color="#8A93A2" />
                 </Pressable>
-              ) : !readOnly ? (
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
               ) : null}
             </View>
           ) : !readOnly ? (

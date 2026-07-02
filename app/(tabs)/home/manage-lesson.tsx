@@ -381,7 +381,7 @@ export default function ManageLessonScreen() {
   const motoSummarySub = followVehicle
     ? `Auto al seguito: ${followVehicle.name}`
     : (primaryIsMoto && followCarRules?.[primaryVehicle?.licenseCategory ?? '']?.enabled === true
-        ? 'Auto al seguito da assegnare'
+        ? 'Nessuna auto al seguito'
         : null);
   const instructorDisplay = lesson.instructor?.name ?? 'Nessun istruttore';
   const studentName = `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo';
