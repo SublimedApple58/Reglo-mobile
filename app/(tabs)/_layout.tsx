@@ -9,6 +9,7 @@ import { QuizProvider } from '../../src/context/QuizContext';
 import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { GlassTabBar } from '../../src/components/GlassTabBar';
+import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
 
@@ -16,7 +17,7 @@ import { isMotoLicenseCategory } from '../../src/utils/license';
 /* ── Layout ── */
 
 export default function TabsLayout() {
-  const { autoscuolaRole } = useSession();
+  const { autoscuolaRole, user, status } = useSession();
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
@@ -69,6 +70,13 @@ export default function TabsLayout() {
     isStudentAwaiting,
     isStudentLicensed,
   ]);
+
+  // Blocking gate: a student without a phone number can't use the app until
+  // they add one (registration has required it for a while — this catches the
+  // older accounts). Replaces the whole tab tree; only exits are save/logout.
+  if (status === 'ready' && isStudent && !user?.phone?.trim()) {
+    return <PhoneGateScreen />;
+  }
 
   return (
     <QuizProvider>

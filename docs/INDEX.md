@@ -21,6 +21,7 @@
 | Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |
 | Student moto experience | [student-moto-experience.md](features/student-moto-experience.md) | `lessonArt.ts`, `license.ts`, `AllievoHomeScreen`, `all-lessons`, `GlassTabBar`, `_layout.tsx`, `group-lesson-detail`, `GroupLessonInvitesScreen` |
 | Password Reset | [password-reset.md](features/password-reset.md) | `PasswordResetScreen`, `(auth)/password-reset(-sheet)`, `LoginScreen.onForgot` |
+| Phone Gate | [phone-gate.md](features/phone-gate.md) | `PhoneGateScreen`, `(tabs)/_layout.tsx` |
 
 ## Design System
 

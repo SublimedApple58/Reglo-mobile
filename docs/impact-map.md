@@ -124,6 +124,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **LoginScreen**: `onForgot` apre la route per piattaforma (`password-reset-sheet` / `password-reset`); entrambe in `allowedAuthLeaves` (`app/_layout.tsx`).
 - → **Backend**: 3 route `POST /api/mobile/auth/password-reset/*`. OTA-safe (nessun modulo nativo nuovo).
 
+### Phone Gate
+- **`PhoneGateScreen`** — gate bloccante per allievi senza `user.phone`; early-return in `(tabs)/_layout.tsx` PRIMA del render di `<Tabs>` (sostituisce tutto, incluso `NotificationOverlay`).
+- → **Session & Auth**: legge `user`/`status` da `SessionContext`, salva con `regloApi.updateProfile` poi `refreshMe()`; "Esci" usa `signOut`.
+- → **Backend**: `PATCH /api/mobile/profile` (esistente; `name` obbligatorio min 3 — si rimanda quello corrente).
+- ⚠️ Chi tocca `(tabs)/_layout.tsx` deve preservare l'early-return del gate prima del `return <QuizProvider>`.
+
 ## Cross-Repo Impact
 
 When `../reglo/` backend changes:
