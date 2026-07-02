@@ -23,7 +23,7 @@ import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { vehicleServesStudent as vehicleServesStudentShared } from '../utils/license';
+import { vehicleServesStudent as vehicleServesStudentShared, MOTO_LICENSE_CATEGORIES } from '../utils/license';
 import { instructorCanUseVehicle } from '../utils/vehicles';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
@@ -136,7 +136,7 @@ export const CreateGroupLessonScreen = () => {
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === vehicleId) ?? null, [vehicles, vehicleId]);
 
   const isMoto = kind === 'moto';
-  const MOTO_CATS = useMemo(() => new Set(['AM', 'A1', 'A2', 'A']), []);
+  const MOTO_CATS = useMemo(() => new Set<string>(MOTO_LICENSE_CATEGORIES), []);
   // Only the instructor's accessible vehicles are pickable (fleet, follow car,
   // and the standard vehicle). Vehicles exclusive to others are not shown.
   const accessibleVehicles = useMemo(
