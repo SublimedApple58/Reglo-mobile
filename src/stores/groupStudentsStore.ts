@@ -4,6 +4,9 @@ export type GroupStudent = {
   firstName: string;
   lastName: string;
   assignedInstructorId: string | null;
+  /** Pursued license path — shown as a tag in the roster rows. */
+  licenseCategory?: string | null;
+  transmission?: string | null;
 };
 
 export type GroupStudentsStoreData = {

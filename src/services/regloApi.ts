@@ -219,7 +219,7 @@ export const createRegloApi = (baseUrl?: string) => {
         autonomousMode: boolean;
         settings: InstructorClusterSettings;
         companyDefaults: CompanyBookingDefaults;
-        students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null }>;
+        students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null; licenseCategory?: string | null; transmission?: string | null }>;
         assignedStudentIds: string[];
         /** Codice di invito personale: gli allievi che si registrano con questo codice entrano nel gruppo dell'istruttore. */
         inviteCode?: string | null;

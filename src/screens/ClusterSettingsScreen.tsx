@@ -84,7 +84,7 @@ export const ClusterSettingsScreen = () => {
   const [restrictedTimeEnabled, setRestrictedTimeEnabled] = useState<boolean | undefined>(undefined);
   const [restrictedTimeStart, setRestrictedTimeStart] = useState<string | undefined>(undefined);
   const [restrictedTimeEnd, setRestrictedTimeEnd] = useState<string | undefined>(undefined);
-  const [allStudents, setAllStudents] = useState<Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null }>>([]);
+  const [allStudents, setAllStudents] = useState<Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [autonomousMode, setAutonomousMode] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);

@@ -50,6 +50,9 @@ export default function GroupStudentsScreen() {
     const isSel = selected.includes(item.id);
     const assignedToOther = !isSel && item.assignedInstructorId;
     const { bg, fg } = avatarColors(item.id);
+    const licenseTag = item.licenseCategory
+      ? `${item.licenseCategory}${item.transmission === 'automatic' ? ' autom.' : ''}`
+      : null;
     return (
       <Pressable onPress={() => toggle(item.id)} style={({ pressed }) => [s.row, isSel && s.rowSel, pressed && { opacity: 0.7 }]}>
         <View style={[s.avatar, { backgroundColor: bg }]}>
@@ -64,6 +67,11 @@ export default function GroupStudentsScreen() {
             </View>
           ) : null}
         </View>
+        {licenseTag ? (
+          <View style={s.licTag}>
+            <Text style={s.licTagText}>{licenseTag}</Text>
+          </View>
+        ) : null}
         {isSel ? (
           <Animated.View entering={FadeIn.duration(180)} style={s.check}>
             <Ionicons name="checkmark" size={15} color="#FFFFFF" />
@@ -184,6 +192,13 @@ const s = StyleSheet.create({
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   subDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#F59E0B' },
   sub: { fontSize: 12, color: '#94A3B8', flexShrink: 1 },
+
+  /* Pursued-license tag (e.g. "A2", "B autom.") */
+  licTag: {
+    borderRadius: 999, borderWidth: 1, borderColor: '#E5E8EC', backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  licTagText: { fontSize: 11, fontWeight: '600', color: '#4B5563' },
 
   check: {
     width: 26, height: 26, borderRadius: 999,
