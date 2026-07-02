@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { RegloLogo } from '../components/RegloLogo';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
@@ -146,6 +147,7 @@ const CtaButton = ({
       pressed && styles.ctaPressed,
     ]}
   >
+    {tone === 'navy' && <GradientCTABackground radius={15} />}
     {loading ? (
       <ActivityIndicator color={tone === 'navy' ? '#FFFFFF' : NAVY} />
     ) : (
@@ -197,7 +199,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   ctaNavy: {
-    backgroundColor: NAVY,
     shadowColor: NAVY,
     shadowOpacity: 0.26,
     shadowRadius: 16,

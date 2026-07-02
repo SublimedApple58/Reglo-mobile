@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -61,6 +62,7 @@ export default function EditNotesScreen() {
             disabled={saving}
             style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.9 }, saving && { opacity: 0.7 }]}
           >
+            <GradientCTABackground radius={27} />
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveText}>Salva</Text>}
           </Pressable>
         )}
@@ -100,7 +102,7 @@ const s = StyleSheet.create({
   },
 
   saveBtn: {
-    minHeight: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
+    minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
     shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },

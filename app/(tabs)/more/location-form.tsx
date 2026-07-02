@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
@@ -166,6 +167,7 @@ export default function LocationFormScreen() {
             disabled={!canSubmit || saving}
             style={({ pressed }) => [s.cta, (!canSubmit || saving) && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
           >
+            <GradientCTABackground radius={28} />
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva luogo</Text>}
           </Pressable>
         }
@@ -272,7 +274,7 @@ const s = StyleSheet.create({
   coords: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {
-    backgroundColor: colors.primary, height: 56, borderRadius: 28, marginTop: 30,
+    height: 56, borderRadius: 28, marginTop: 30,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.24, shadowRadius: 14, elevation: 6,

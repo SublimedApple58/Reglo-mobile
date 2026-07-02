@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -101,6 +102,7 @@ export default function HomeTimePickerScreen() {
         onPress={confirm}
         style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
       >
+        <GradientCTABackground radius={27} />
         <Text style={s.ctaText}>Conferma {padTwo(hour)}:{padTwo(minute)}</Text>
       </Pressable>
     </View>
@@ -124,7 +126,7 @@ const s = StyleSheet.create({
   itemTextSelected: { fontWeight: '600', color: '#1A1A2E' },
 
   cta: {
-    height: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
+    height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22, shadowRadius: 14, elevation: 6,

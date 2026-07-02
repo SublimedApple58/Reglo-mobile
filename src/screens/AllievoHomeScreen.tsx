@@ -27,6 +27,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Screen } from '../components/Screen';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarDrawer } from '../components/CalendarDrawer';
@@ -1504,6 +1505,7 @@ export const AllievoHomeScreen = () => {
                 onPress={openBookingFlow}
                 style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
               >
+                <GradientCTABackground radius={26} />
                 <Ionicons name="add" size={18} color="#FFFFFF" />
                 <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
               </Pressable>
@@ -1567,6 +1569,7 @@ export const AllievoHomeScreen = () => {
                   onPress={openBookingFlow}
                   style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
                 >
+                  <GradientCTABackground radius={26} />
                   <Ionicons name="add" size={18} color="#FFFFFF" />
                   <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
                 </Pressable>
@@ -2109,7 +2112,7 @@ const styles = StyleSheet.create({
   },
   examPromptCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: colors.primary, borderRadius: 26, paddingHorizontal: 24, minHeight: 50,
+    borderRadius: 26, paddingHorizontal: 24, minHeight: 50,
     marginTop: 14, alignSelf: 'stretch',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.22, shadowRadius: 8, elevation: 4,

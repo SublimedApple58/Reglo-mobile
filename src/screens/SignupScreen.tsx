@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
 
@@ -115,6 +116,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
         pressed && styles.ctaPressed,
       ]}
     >
+      {!dark && <GradientCTABackground radius={15} />}
       {loading ? (
         <ActivityIndicator color={dark ? NAVY : '#FFFFFF'} />
       ) : (
@@ -231,7 +233,6 @@ const styles = StyleSheet.create({
   error: { fontSize: 14, fontWeight: '500', color: colors.destructive, marginTop: 12, textAlign: 'center' },
   cta: { height: 54, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
   ctaNavy: {
-    backgroundColor: NAVY,
     shadowColor: NAVY,
     shadowOpacity: 0.26,
     shadowRadius: 16,

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
@@ -59,6 +60,7 @@ export default function ManageLessonDetailsScreen() {
             disabled={!editable}
             style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
           >
+            <GradientCTABackground radius={27} />
             {pendingAction === 'save_details' ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
@@ -142,7 +144,7 @@ const s = StyleSheet.create({
   },
 
   saveBtn: {
-    minHeight: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
+    minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
     shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },

@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
@@ -127,6 +128,7 @@ export default function SwapDetailScreen() {
             style={({ pressed }) => [s.acceptBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
             onPress={() => { router.back(); setTimeout(() => onAccept?.(offer.id), 350); }}
           >
+            <GradientCTABackground radius={27} />
             <Ionicons name="checkmark-circle" size={18} color={colors.surface} />
             <Text style={s.acceptText}>Accetta sostituzione</Text>
           </Pressable>
@@ -162,7 +164,7 @@ const s = StyleSheet.create({
 
   acceptBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 54, borderRadius: 27, backgroundColor: colors.primary, marginTop: 32,
+    height: 54, borderRadius: 27, marginTop: 32,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
   },

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { examStudentsStore } from '../../../src/stores/examStudentsStore';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -129,6 +130,7 @@ export default function SelectExamStudentsScreen() {
 
       <View style={[s.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable onPress={apply} style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
+          <GradientCTABackground radius={27} />
           <Text style={s.ctaText}>{draft.length === 0 ? 'Conferma' : `Conferma selezione (${draft.length})`}</Text>
         </Pressable>
       </View>
@@ -176,7 +178,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.background,
   },
   cta: {
-    height: 54, borderRadius: 27, backgroundColor: NAVY,
+    height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: NAVY, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 6,
   },

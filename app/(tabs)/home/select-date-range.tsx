@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { dateRangeStore } from '../../../src/stores/dateRangeStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -101,6 +102,7 @@ export default function SelectDateRangeScreen() {
               disabled={!canApply}
               style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
             >
+              <GradientCTABackground radius={26} />
               <Text style={s.ctaText}>Applica</Text>
             </Pressable>
           </View>
@@ -177,6 +179,6 @@ const s = StyleSheet.create({
 
   footer: { marginTop: 18, gap: 12 },
   summary: { fontSize: 14, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
-  cta: { backgroundColor: NAVY, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  cta: { height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

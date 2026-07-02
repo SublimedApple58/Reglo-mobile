@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { settingsStore, SlotTarget } from '../../../src/stores/settingsStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { colors } from '../../../src/theme/colors';
@@ -50,6 +51,7 @@ export default function AvailabilityScreen() {
               disabled={availabilitySaving}
               style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, availabilitySaving && { opacity: 0.6 }]}
             >
+              <GradientCTABackground radius={26} />
               <Text style={s.ctaText}>{availabilitySaving ? 'Salvataggio...' : 'Salva'}</Text>
             </Pressable>
           ) : null
@@ -147,7 +149,7 @@ const s = StyleSheet.create({
   timeText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   sep: { fontSize: 14, color: '#9CA3AF' },
   cta: {
-    backgroundColor: colors.primary, minHeight: 50, borderRadius: 26,
+    minHeight: 50, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
   },

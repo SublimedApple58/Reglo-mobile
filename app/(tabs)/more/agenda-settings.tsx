@@ -2,6 +2,7 @@ import React, { useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore } from '../../../src/stores/instructorSettingsStore';
@@ -40,6 +41,7 @@ export default function AgendaSettingsScreen() {
             disabled={savingSettings}
             style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, savingSettings && { opacity: 0.6 }]}
           >
+            <GradientCTABackground radius={26} />
             {savingSettings ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
           </Pressable>
         }
@@ -104,7 +106,7 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cta: {
-    backgroundColor: colors.primary, minHeight: 52, borderRadius: 26,
+    minHeight: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,

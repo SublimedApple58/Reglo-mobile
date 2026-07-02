@@ -32,6 +32,7 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
 import { SelectableChip } from '../components/SelectableChip';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaVehicle, AutoscuolaSettings, DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
@@ -566,6 +567,7 @@ export const AvailabilityEditor = ({
                 saving && styles.saveCtaDisabled,
               ]}
             >
+              <GradientCTABackground radius={radii.sm} />
               <Text style={styles.saveCtaText}>
                 {saving ? 'Salvataggio...' : 'Salva disponibilit\u00E0'}
               </Text>
@@ -623,6 +625,7 @@ export const AvailabilityEditor = ({
                           overrideSaving && styles.saveCtaDisabled,
                         ]}
                       >
+                        <GradientCTABackground radius={radii.sm} />
                         <Text style={styles.saveCtaText}>
                           {overrideSaving ? 'Salvataggio...' : 'Salva orario personalizzato'}
                         </Text>
@@ -748,6 +751,7 @@ export const AvailabilityEditor = ({
                 recurringSaving && styles.saveCtaDisabled,
               ]}
             >
+              <GradientCTABackground radius={radii.sm} />
               <Text style={styles.saveCtaText}>
                 {recurringSaving
                   ? 'Salvataggio...'
@@ -1303,6 +1307,7 @@ export const InstructorManageScreen = () => {
                     settingsSaving && styles.saveCtaDisabled,
                   ]}
                 >
+                  <GradientCTABackground radius={radii.sm} />
                   {settingsSaving ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
@@ -1677,7 +1682,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 50,
     borderRadius: radii.sm,
-    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.xs,

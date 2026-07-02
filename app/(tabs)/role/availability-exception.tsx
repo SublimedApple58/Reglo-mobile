@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollableMonthsCalendar, CALENDAR_WEEKDAYS } from '../../../src/components/ScrollableMonthsCalendar';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import RangesEditor from '../../../src/components/RangesEditor';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { availabilityExceptionStore } from '../../../src/stores/availabilityExceptionStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { TimeRange } from '../../../src/types/regloApi';
@@ -416,6 +417,7 @@ export default function AvailabilityExceptionScreen() {
             (saving || !whenComplete) && { opacity: 0.4 },
           ]}
         >
+          <GradientCTABackground radius={27} />
           {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva eccezione</Text>}
         </Pressable>
         {editing && (
@@ -525,7 +527,7 @@ const s = StyleSheet.create({
 
   /* CTA */
   cta: {
-    backgroundColor: '#1A1A2E', minHeight: 54, borderRadius: 27,
+    minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22, shadowRadius: 12, elevation: 6,

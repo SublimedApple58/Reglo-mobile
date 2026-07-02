@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Screen } from '../components/Screen';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { useQuiz } from '../context/QuizContext';
 import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
@@ -246,11 +247,13 @@ export const QuizResultsScreen = () => {
         <Animated.View entering={FadeInUp.delay(500).duration(300)} style={st.actions}>
           {isScheda ? (
             <Pressable onPress={() => router.back()} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+              <GradientCTABackground radius={26} />
               <Ionicons name="grid" size={18} color="#FFFFFF" />
               <Text style={st.actPrimaryText}>Torna alle schede</Text>
             </Pressable>
           ) : isSchedaEsame ? (
             <Pressable onPress={() => router.back()} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+              <GradientCTABackground radius={26} />
               <Ionicons name="grid" size={18} color="#FFFFFF" />
               <Text style={st.actPrimaryText}>Torna alle schede d'esame</Text>
             </Pressable>
@@ -258,12 +261,14 @@ export const QuizResultsScreen = () => {
             <>
               {(result.mode === 'EXAM' || result.mode === 'PRACTICE') && (
                 <Pressable onPress={() => handleStart(result.mode as 'EXAM' | 'PRACTICE')} disabled={starting} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+                  <GradientCTABackground radius={26} />
                   <Ionicons name="play" size={18} color="#FFFFFF" />
                   <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : result.mode === 'PRACTICE' ? 'Nuova esercitazione' : 'Nuova simulazione'}</Text>
                 </Pressable>
               )}
               {result.mode === 'REVIEW' && result.wrongAnswers.length > 0 && (
                 <Pressable onPress={() => handleStart('REVIEW')} disabled={starting} style={({ pressed }) => [st.actPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
+                  <GradientCTABackground radius={26} />
                   <Ionicons name="flash" size={18} color="#FFFFFF" />
                   <Text style={st.actPrimaryText}>{starting ? 'Avvio...' : 'Ripassa ancora'}</Text>
                 </Pressable>
@@ -381,7 +386,7 @@ const st = StyleSheet.create({
   actions: { gap: 10, marginTop: 4 },
   actPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 26, backgroundColor: colors.primary,
+    paddingVertical: 16, borderRadius: 26,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },

@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../../src/utils/license';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { colors } from '../../../src/theme/colors';
@@ -108,6 +109,7 @@ export default function ManageLessonVehiclesScreen() {
         contentContainerStyle={s.scaffoldBody}
         footer={
           <Pressable onPress={() => router.back()} style={({ pressed }) => [s.doneBtn, pressed && { opacity: 0.9 }]}>
+            <GradientCTABackground radius={27} />
             <Text style={s.doneText}>Fatto</Text>
           </Pressable>
         }
@@ -231,7 +233,7 @@ const s = StyleSheet.create({
   followEmpty: { fontSize: 14.5, color: '#94A3B8' },
 
   doneBtn: {
-    minHeight: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
+    minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 24,
     shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },

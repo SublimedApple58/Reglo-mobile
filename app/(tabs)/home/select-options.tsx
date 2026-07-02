@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -67,6 +68,7 @@ export default function SelectOptionsScreen() {
 
       {data.multi ? (
         <Pressable onPress={confirmMulti} style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
+          <GradientCTABackground radius={27} />
           <Text style={s.ctaText}>Conferma</Text>
         </Pressable>
       ) : null}
@@ -91,7 +93,7 @@ const s = StyleSheet.create({
   dot: { width: 23, height: 23 },
 
   cta: {
-    marginTop: 12, height: 54, borderRadius: 27, backgroundColor: NAVY,
+    marginTop: 12, height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: NAVY, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 6,
   },

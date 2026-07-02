@@ -2,6 +2,7 @@ import React, { useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
@@ -63,6 +64,7 @@ export default function ExtrasScreen() {
             disabled={saving}
             style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, saving && { opacity: 0.6 }]}
           >
+            <GradientCTABackground radius={27} />
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
           </Pressable>
         }
@@ -101,7 +103,7 @@ const s = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
 
   cta: {
-    backgroundColor: '#1A1A2E', minHeight: 54, borderRadius: 27,
+    minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22, shadowRadius: 12, elevation: 6,

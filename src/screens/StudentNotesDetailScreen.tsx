@@ -18,6 +18,7 @@ import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
@@ -393,6 +394,7 @@ export const StudentNotesDetailScreen = () => {
             onPress={() => Linking.openURL(`https://wa.me/${cleanPhone}`)}
             style={({ pressed }) => [s.waBtn, pressed && { opacity: 0.9 }]}
           >
+            <GradientCTABackground radius={28} />
             <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
             <Text style={s.waBtnText}>Scrivi su WhatsApp</Text>
           </Pressable>
@@ -497,7 +499,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 12, elevation: 8,
   },
   waBtn: {
-    height: 56, borderRadius: 28, backgroundColor: '#1A1A2E', paddingHorizontal: 28,
+    height: 56, borderRadius: 28, paddingHorizontal: 28,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
   },

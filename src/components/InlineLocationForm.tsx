@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { ToggleSwitch } from './ToggleSwitch';
+import { GradientCTABackground } from './GradientCTA';
 import { colors, spacing, typography } from '../theme';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
@@ -265,6 +266,7 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
           disabled={!canSubmit || saving}
           style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.9 }, (!canSubmit || saving) && { opacity: 0.4 }]}
         >
+          <GradientCTABackground radius={27} />
           {saving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
@@ -348,7 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A2E',
     shadowColor: '#1A1A2E',
     shadowOpacity: 0.22,
     shadowRadius: 12,

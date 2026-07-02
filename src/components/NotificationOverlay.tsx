@@ -10,6 +10,7 @@ import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { BookingCelebration } from './BookingCelebration';
 import { ToastNotice, ToastTone } from './ToastNotice';
+import { GradientCTABackground } from './GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { regloApi } from '../services/regloApi';
@@ -1117,6 +1118,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
               (availableSlotsBooking || !availableSlotsSelected) && { opacity: 0.5 },
             ]}
           >
+            <GradientCTABackground radius={20} />
             <Text style={styles.chunkyPinkCtaText}>
               {availableSlotsBooking ? 'Attendi...' : 'Prenota'}
             </Text>
@@ -1441,7 +1443,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   chunkyPinkCta: {
-    backgroundColor: '#1A1A2E',
     height: 54,
     borderRadius: 20,
     alignItems: 'center',

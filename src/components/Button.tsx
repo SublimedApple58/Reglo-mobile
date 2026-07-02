@@ -1,6 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
+import { GradientCTA, primaryCtaShadow } from './GradientCTA';
 
 type ButtonTone = 'standard' | 'primary' | 'danger' | 'secondary';
 
@@ -53,6 +54,40 @@ export const Button = ({
 }: ButtonProps) => {
   const t = tones[tone];
   const isDisabled = disabled || loading;
+  const isPrimary = tone === 'primary';
+
+  const content = loading ? (
+    <ActivityIndicator size="small" color={t.text} />
+  ) : (
+    <Text
+      style={[
+        styles.label,
+        { color: t.text },
+        isDisabled && !isPrimary && styles.labelDisabled,
+      ]}
+    >
+      {label}
+    </Text>
+  );
+
+  // Primary: the app-wide gradient CTA (navy diagonal gradient + colored
+  // shadow). The Pressable owns radius/shadow, the gradient fills it.
+  if (isPrimary) {
+    return (
+      <Pressable
+        onPress={loading ? undefined : onPress}
+        disabled={isDisabled}
+        style={({ pressed }) => [
+          styles.primaryRoot,
+          fullWidth && styles.fullWidth,
+          pressed && styles.pressed,
+          isDisabled && styles.disabled,
+        ]}
+      >
+        <GradientCTA style={styles.primaryFill}>{content}</GradientCTA>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -66,13 +101,7 @@ export const Button = ({
         isDisabled && styles.disabled,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={t.text} />
-      ) : (
-        <Text style={[styles.label, { color: t.text }, isDisabled && styles.labelDisabled]}>
-          {label}
-        </Text>
-      )}
+      {content}
     </Pressable>
   );
 };
@@ -91,6 +120,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  primaryRoot: {
+    borderRadius: radii.sm,
+    ...primaryCtaShadow,
+  },
+  primaryFill: {
+    borderRadius: radii.sm,
+    minHeight: 48,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   fullWidth: {
     width: '100%',

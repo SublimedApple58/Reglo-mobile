@@ -21,6 +21,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { useSession } from '../context/SessionContext';
 import { useQuiz } from '../context/QuizContext';
@@ -238,6 +239,7 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
                 onPress={handleContinueTopic}
                 style={({ pressed }) => [s.continueCta, pressed && s.ctaPressed]}
               >
+                <GradientCTABackground radius={26} />
                 <View style={s.continueContent}>
                   <Text style={s.continueLabel}>Continua a studiare</Text>
                   <Text style={s.continueSub} numberOfLines={1}>
@@ -261,6 +263,7 @@ export const AllievoTheoryHomeScreen: React.FC = () => {
               onPress={handleGoToTopics}
               style={({ pressed }) => [s.continueCta, pressed && s.ctaPressed]}
             >
+              <GradientCTABackground radius={26} />
               <Image source={require('../../assets/icons/study-books.png')} style={s.continueIcon} />
               <View style={s.continueContent}>
                 <Text style={s.continueLabel}>Sfoglia gli argomenti</Text>
@@ -449,7 +452,7 @@ const s = StyleSheet.create({
   /* ── Continue CTA ── */
   continueCta: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.primary, borderRadius: 26, padding: 16, gap: 12,
+    borderRadius: 26, padding: 16, gap: 12,
   },
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
   continueContent: { flex: 1, gap: 2 },

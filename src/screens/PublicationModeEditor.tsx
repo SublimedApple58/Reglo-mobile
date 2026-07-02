@@ -24,6 +24,7 @@ import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { TimeRange } from '../types/regloApi';
@@ -320,6 +321,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
             publishing && { opacity: 0.6 },
           ]}
         >
+          {!published && <GradientCTABackground radius={999} />}
           {publishing ? (
             <ActivityIndicator color={published ? '#6B7280' : '#FFFFFF'} />
           ) : (
@@ -430,7 +432,7 @@ const styles = StyleSheet.create({
   statusIcon: { width: 20, height: 20, resizeMode: 'contain' },
   actionTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
   btnPublish: {
-    backgroundColor: '#1A1A2E', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
+    borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5,
   },

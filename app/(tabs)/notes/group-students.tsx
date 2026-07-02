@@ -4,6 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { groupStudentsStore, type GroupStudent } from '../../../src/stores/groupStudentsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -138,6 +139,7 @@ export default function GroupStudentsScreen() {
       {/* Footer CTA */}
       <View style={[s.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable onPress={confirm} style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
+          <GradientCTABackground radius={27} />
           <Text style={s.ctaText}>
             {selected.length === 0 ? 'Conferma' : `Conferma · ${selected.length}`}
           </Text>
@@ -197,7 +199,7 @@ const s = StyleSheet.create({
   /* Footer */
   footer: { paddingTop: 12 },
   cta: {
-    height: 54, borderRadius: 27, backgroundColor: '#1A1A2E',
+    height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22, shadowRadius: 12, elevation: 6,

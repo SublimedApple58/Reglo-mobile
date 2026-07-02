@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { Input } from '../../../src/components/Input';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { useSession } from '../../../src/context/SessionContext';
@@ -53,6 +54,7 @@ export default function MoreProfileEditScreen() {
             disabled={saving}
             style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
           >
+            <GradientCTABackground radius={26} />
             <Text style={s.ctaText}>{saving ? 'Salvataggio...' : 'Salva'}</Text>
           </Pressable>
         }
@@ -84,7 +86,7 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626' },
   cta: {
-    backgroundColor: colors.primary, minHeight: 50, borderRadius: 26,
+    minHeight: 50, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,

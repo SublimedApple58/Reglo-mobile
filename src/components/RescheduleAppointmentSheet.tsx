@@ -6,6 +6,7 @@ import { NativeFormSheet } from './NativeFormSheet';
 import { Button } from './Button';
 import { CalendarDrawer } from './CalendarDrawer';
 import { TimePickerDrawer } from './TimePickerDrawer';
+import { GradientCTABackground } from './GradientCTA';
 import { colors, radii, spacing, typography } from '../theme';
 import { regloApi } from '../services/regloApi';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
@@ -216,6 +217,7 @@ export const RescheduleAppointmentSheet = ({
               disabled={!canSubmit}
               style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
             >
+              <GradientCTABackground radius={radii.sm} />
               <Text style={styles.confirmBtnText}>{pending ? 'Spostando…' : 'Conferma spostamento'}</Text>
             </Pressable>
             <Button
@@ -445,7 +447,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   confirmBtn: {
-    backgroundColor: '#1A1A2E',
     minHeight: 52,
     borderRadius: radii.sm,
     alignItems: 'center',

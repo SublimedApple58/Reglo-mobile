@@ -7,6 +7,7 @@ import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTA } from '../../../src/components/GradientCTA';
 
 const statusLabel = (status: string | null | undefined) => {
   const s = (status ?? '').trim().toLowerCase();
@@ -70,11 +71,13 @@ export default function LessonDetailScreen() {
                 </Pressable>
               ) : canSwap ? (
                 <Pressable
-                  style={({ pressed }) => [s.swapBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                  style={({ pressed }) => [s.swapShadow, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
                   onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
                 >
-                  <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
-                  <Text style={s.swapText}>Cerca sostituto</Text>
+                  <GradientCTA style={s.swapBtn}>
+                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
+                    <Text style={s.swapText}>Cerca sostituto</Text>
+                  </GradientCTA>
                 </Pressable>
               ) : null}
               {canCancel && (
@@ -208,12 +211,14 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
   rowLink: { fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2 },
-  swapBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 54, borderRadius: 27,
-    backgroundColor: colors.primary,
+  swapShadow: {
+    borderRadius: 27,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
+  },
+  swapBtn: {
+    flexDirection: 'row', gap: 8,
+    height: 54, borderRadius: 27,
   },
   swapText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
   swapBanner: {

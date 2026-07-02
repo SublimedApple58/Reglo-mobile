@@ -2,6 +2,7 @@ import React, { useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore, type InstrAvailabilityMode } from '../../../src/stores/instructorSettingsStore';
 import { colors } from '../../../src/theme/colors';
@@ -34,6 +35,7 @@ export default function AvailabilityModeScreen() {
             onPress={() => { onPickAvailabilityMode(selected); router.back(); }}
             style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }]}
           >
+            <GradientCTABackground radius={26} />
             <Text style={s.ctaText}>Salva</Text>
           </Pressable>
         }
@@ -88,7 +90,7 @@ const s = StyleSheet.create({
   },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1' },
   cta: {
-    backgroundColor: colors.primary, minHeight: 52, borderRadius: 26,
+    minHeight: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,

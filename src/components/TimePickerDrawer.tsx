@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { GradientCTABackground } from './GradientCTA';
 
 type TimePickerDrawerProps = {
   visible: boolean;
@@ -155,6 +156,7 @@ export const TimePickerDrawer = ({
             onPress={handleClose}
             style={({ pressed }) => [styles.confirmCta, pressed && styles.confirmCtaPressed]}
           >
+            <GradientCTABackground radius={27} />
             <Text style={styles.confirmCtaText}>Conferma {padTwo(hour)}:{padTwo(minute)}</Text>
           </Pressable>
         </View>
@@ -243,7 +245,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   confirmCta: {
-    backgroundColor: '#1A1A2E',
     borderRadius: 27,
     height: 54,
     alignItems: 'center',

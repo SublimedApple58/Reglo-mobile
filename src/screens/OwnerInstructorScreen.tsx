@@ -23,6 +23,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
+import { GradientCTABackground } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
@@ -801,6 +802,7 @@ export const OwnerInstructorScreen = () => {
                 style={styles.btnPrimary}
                 onPress={() => router.navigate('/(tabs)/home')}
               >
+                <GradientCTABackground radius={radii.sm} />
                 <Text style={styles.btnPrimaryText}>Vedi agenda</Text>
               </Pressable>
             </View>
@@ -995,6 +997,7 @@ export const OwnerInstructorScreen = () => {
                           onPress={calSaving ? undefined : handleCalSaveOverride}
                           disabled={calSaving}
                         >
+                          <GradientCTABackground radius={radii.sm} />
                           {calSaving ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
@@ -1302,7 +1305,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: radii.sm,
-    backgroundColor: '#1A1A2E',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1438,9 +1440,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calBtnPrimary: {
-    backgroundColor: '#1A1A2E',
-  },
+  calBtnPrimary: {},
   calBtnPrimaryText: {
     fontSize: 14,
     fontWeight: '600',

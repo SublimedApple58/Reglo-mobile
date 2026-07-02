@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GradientCTA } from '../components/GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme';
@@ -134,12 +135,7 @@ export const PhoneGateScreen = () => {
               !isValid && !saving ? styles.ctaDisabled : null,
             ]}
           >
-            <LinearGradient
-              colors={['#26263F', NAVY, '#131322']}
-              start={{ x: 0.2, y: 0 }}
-              end={{ x: 0.8, y: 1 }}
-              style={styles.cta}
-            >
+            <GradientCTA style={styles.cta}>
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -148,7 +144,7 @@ export const PhoneGateScreen = () => {
                   <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
                 </>
               )}
-            </LinearGradient>
+            </GradientCTA>
           </Pressable>
           <Text style={styles.logout}>
             Account sbagliato?{' '}
@@ -279,8 +275,6 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 18,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 9,
   },
   ctaText: { fontSize: 16.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },

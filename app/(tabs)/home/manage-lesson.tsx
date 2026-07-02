@@ -28,6 +28,7 @@ import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
@@ -190,6 +191,7 @@ function MorphToolbar({
               disabled={disabled}
               style={({ pressed }) => [s.presBtn, pressed && { opacity: 0.9 }, disabled && { opacity: 0.5 }]}
             >
+              <GradientCTABackground radius={25} />
               <Text style={s.presText}>{status.pendingAction === 'checked_in' ? 'Attendi…' : 'Presente'}</Text>
             </Pressable>
           ) : null}
@@ -677,7 +679,7 @@ const s = StyleSheet.create({
   // Status layer (Presente / Assente) — collapses on expand, leaves room for •••
   statusLayer: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   presBtn: {
-    flex: 1, height: 50, borderRadius: 25, backgroundColor: '#1A1A2E',
+    flex: 1, height: 50, borderRadius: 25,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 8,
   },

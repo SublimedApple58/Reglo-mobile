@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingFlowStore, type BookingFlowState } from '../../../src/stores/bookingFlowStore';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -75,6 +76,7 @@ export default function BookingSlotsScreen() {
           disabled={confirming || !selectedSlot}
           style={[s.cta, (confirming || !selectedSlot) && { opacity: 0.4 }]}
         >
+          <GradientCTABackground radius={27} />
           {confirming
             ? <ActivityIndicator color="#FFF" />
             : <Text style={s.ctaText}>Prenota {'\u2192'}</Text>
@@ -91,7 +93,7 @@ const s = StyleSheet.create({
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, paddingHorizontal: spacing.md, marginBottom: 8 },
   emptyText: { fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 18 },
   footer: { paddingTop: spacing.md, paddingBottom: 34, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  cta: { backgroundColor: colors.primary, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cta: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFF', letterSpacing: -0.2 },
   // Timeline
   tlRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 62 },

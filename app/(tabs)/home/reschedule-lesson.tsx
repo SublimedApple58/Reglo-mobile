@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { rescheduleStore } from '../../../src/stores/rescheduleStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -116,6 +117,7 @@ export default function RescheduleLessonScreen() {
             disabled={!canSubmit}
             style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
           >
+            <GradientCTABackground radius={27} />
             {pending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
@@ -233,6 +235,6 @@ const s = StyleSheet.create({
   errorBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   errorText: { flex: 1, fontSize: 13, color: '#991B1B', fontWeight: '500' },
 
-  confirmBtn: { backgroundColor: '#1A1A2E', minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginTop: 4, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 6 },
+  confirmBtn: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginTop: 4, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 6 },
   confirmText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

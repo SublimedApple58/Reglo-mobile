@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { GradientCTABackground } from '../../../src/components/GradientCTA';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { vehicleFormStore } from '../../../src/stores/vehicleFormStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
@@ -576,6 +577,7 @@ export default function VehicleFormScreen() {
             pressed && { opacity: 0.9 },
           ]}
         >
+          <GradientCTABackground radius={27} />
           {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>{isEdit ? 'Salva' : 'Crea veicolo'}</Text>}
         </Pressable>
       </View>
@@ -638,7 +640,7 @@ const s = StyleSheet.create({
 
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {
-    backgroundColor: colors.primary, height: 54, borderRadius: 27,
+    height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.24, shadowRadius: 14, elevation: 6,
