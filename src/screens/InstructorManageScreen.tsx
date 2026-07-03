@@ -32,7 +32,7 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
 import { SelectableChip } from '../components/SelectableChip';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaVehicle, AutoscuolaSettings, DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { colors, radii, spacing, typography } from '../theme';
@@ -1685,11 +1685,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.xs,
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    ...primaryCtaShadow,
   },
   saveCtaPressed: {
     transform: [{ scale: 0.98 }],

@@ -7,7 +7,7 @@ import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTA } from '../../../src/components/GradientCTA';
+import { GradientCTA, primaryCtaShadow } from '../../../src/components/GradientCTA';
 
 const statusLabel = (status: string | null | undefined) => {
   const s = (status ?? '').trim().toLowerCase();
@@ -213,8 +213,7 @@ const s = StyleSheet.create({
   rowLink: { fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2 },
   swapShadow: {
     borderRadius: 27,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
+    ...primaryCtaShadow,
   },
   swapBtn: {
     flexDirection: 'row', gap: 8,

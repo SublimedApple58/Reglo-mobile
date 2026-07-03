@@ -66,7 +66,7 @@ import { SelectableChip } from '../components/SelectableChip';
 import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
@@ -559,7 +559,7 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
         }}
         style={({ pressed }) => [
           { borderRadius: radii.sm, minHeight: 52, alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#1A1A2E', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+            ...primaryCtaShadow },
           pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
           loading && { opacity: 0.6 },
         ]}
@@ -5166,7 +5166,7 @@ const styles = StyleSheet.create({
   dayEmptyCta: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20,
     paddingVertical: 13, paddingHorizontal: 22, borderRadius: 26,
-    shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    ...primaryCtaShadow,
   },
   dayEmptyCtaText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 

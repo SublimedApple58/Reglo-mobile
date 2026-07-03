@@ -28,7 +28,7 @@ import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
@@ -681,7 +681,7 @@ const s = StyleSheet.create({
   presBtn: {
     flex: 1, height: 50, borderRadius: 25,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 8,
+    ...primaryCtaShadow,
   },
   presText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   absBtn: {

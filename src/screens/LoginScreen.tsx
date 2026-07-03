@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { RegloLogo } from '../components/RegloLogo';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
@@ -199,11 +199,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   ctaNavy: {
-    shadowColor: NAVY,
-    shadowOpacity: 0.26,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
+    ...primaryCtaShadow,
   },
   ctaIvory: {
     backgroundColor: IVORY,

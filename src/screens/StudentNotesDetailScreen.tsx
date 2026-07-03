@@ -18,7 +18,7 @@ import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
@@ -501,7 +501,7 @@ const s = StyleSheet.create({
   waBtn: {
     height: 56, borderRadius: 28, paddingHorizontal: 28,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
+    ...primaryCtaShadow,
   },
   waBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

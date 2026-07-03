@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { settingsStore, SlotTarget } from '../../../src/stores/settingsStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { colors } from '../../../src/theme/colors';
@@ -151,7 +151,7 @@ const s = StyleSheet.create({
   cta: {
     minHeight: 50, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

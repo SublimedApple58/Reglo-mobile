@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import RangesEditor from '../../../src/components/RangesEditor';
 import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { publishDayStore } from '../../../src/stores/publishDayStore';
 import { TimeRange } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -119,8 +119,7 @@ const s = StyleSheet.create({
   cta: {
     minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22, shadowRadius: 12, elevation: 6,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

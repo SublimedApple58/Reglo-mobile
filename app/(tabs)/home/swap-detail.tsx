@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
@@ -165,8 +165,7 @@ const s = StyleSheet.create({
   acceptBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 54, borderRadius: 27, marginTop: 32,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.32, shadowRadius: 14, elevation: 6,
+    ...primaryCtaShadow,
   },
   acceptText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
 

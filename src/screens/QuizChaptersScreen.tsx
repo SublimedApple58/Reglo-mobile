@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { colors, yellow, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import { useQuiz } from '../context/QuizContext';
@@ -312,8 +312,7 @@ const st = StyleSheet.create({
   cardBarDone: { backgroundColor: '#16A34A' },
   cardCta: {
     alignItems: 'center', paddingVertical: 15, borderRadius: 26,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
+    ...primaryCtaShadow,
   },
   cardCtaText: {
     fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.8,

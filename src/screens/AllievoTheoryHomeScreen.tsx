@@ -21,7 +21,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { useSession } from '../context/SessionContext';
 import { useQuiz } from '../context/QuizContext';
@@ -453,6 +453,7 @@ const s = StyleSheet.create({
   continueCta: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 26, padding: 16, gap: 12,
+    ...primaryCtaShadow,
   },
   ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
   continueContent: { flex: 1, gap: 2 },

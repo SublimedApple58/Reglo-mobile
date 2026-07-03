@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { GradientCTABackground } from './GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
 type TimePickerDrawerProps = {
   visible: boolean;
@@ -249,11 +249,7 @@ const styles = StyleSheet.create({
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    ...primaryCtaShadow,
   },
   confirmCtaPressed: {
     opacity: 0.85,

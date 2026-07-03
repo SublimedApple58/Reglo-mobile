@@ -6,7 +6,7 @@ import { NativeFormSheet } from './NativeFormSheet';
 import { Button } from './Button';
 import { CalendarDrawer } from './CalendarDrawer';
 import { TimePickerDrawer } from './TimePickerDrawer';
-import { GradientCTABackground } from './GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { colors, radii, spacing, typography } from '../theme';
 import { regloApi } from '../services/regloApi';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
@@ -451,6 +451,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    ...primaryCtaShadow,
   },
   confirmBtnText: {
     fontSize: 16,

@@ -220,9 +220,13 @@ phone gate), NON il navy flat. Componenti in `src/components/GradientCTA.tsx`:
   come PRIMO figlio del Pressable + rimuovere `backgroundColor` dallo style
   (layout/ombre invariati). `R` = il borderRadius dello style.
 - Gradiente: `['#26263F', colors.primary, '#131322']`, start `{0.2,0}` → end `{0.8,1}`.
-- Ombra colorata consigliata sul Pressable: `primaryCtaShadow` (shadowColor
-  navy, opacity 0.3, radius 12, offset 0/6, elevation 6) — ma rispettare il
-  design del contesto (alcune CTA sono volutamente senza ombra).
+- Ombra colorata OBBLIGATORIA sul Pressable: `primaryCtaShadow` (shadowColor
+  navy `colors.primary`, opacity 0.4, radius 16, offset 0/10, elevation 8) —
+  effetto 3D pronunciato, riferimento phone gate (regola 2026-07-03). Mai ombre
+  ad-hoc sui CTA gradient: sempre `...primaryCtaShadow` spread nello style.
+  Se il gradiente è condizionale (varianti navy/disabled), l'ombra segue la
+  STESSA condizione. Il view che porta l'ombra non deve avere
+  `overflow: 'hidden'` (iOS la clipperebbe).
 - La forma NON cambia mai: pill restano pill, radius restano i loro.
 - **Eccezione**: `ForceUpdateScreen` resta navy flat (pure-JS safety net, non
   deve importare moduli nativi).

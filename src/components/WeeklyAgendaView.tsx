@@ -30,7 +30,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
-import { GradientCTABackground } from './GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -1527,11 +1527,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     paddingVertical: 13,
     paddingHorizontal: 16,
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    ...primaryCtaShadow,
   },
   ctaBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   lesson: {

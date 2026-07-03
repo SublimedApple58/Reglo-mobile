@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { examStudentsStore } from '../../../src/stores/examStudentsStore';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -180,7 +180,7 @@ const s = StyleSheet.create({
   cta: {
     height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: NAVY, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 6,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
 });

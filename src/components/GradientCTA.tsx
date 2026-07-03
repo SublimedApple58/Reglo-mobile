@@ -13,13 +13,17 @@ export const PRIMARY_GRADIENT = ['#26263F', colors.primary, '#131322'] as const;
 export const PRIMARY_GRADIENT_START = { x: 0.2, y: 0 };
 export const PRIMARY_GRADIENT_END = { x: 0.8, y: 1 };
 
-/** Colored drop shadow for the Pressable that hosts a GradientCTA. */
+/**
+ * Colored drop shadow for the Pressable that hosts a GradientCTA — navy-tinted
+ * and deliberately pronounced (phone-gate reference) for the 3D lift effect.
+ * The shadow-owning view must NOT have overflow: 'hidden' (iOS clips it).
+ */
 export const primaryCtaShadow: ViewStyle = {
   shadowColor: colors.primary,
-  shadowOpacity: 0.3,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 6,
+  shadowOpacity: 0.4,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 8,
 };
 
 export const GradientCTA = ({

@@ -23,7 +23,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { regloApi } from '../services/regloApi';
 import {
   AutoscuolaAppointmentWithRelations,
@@ -1307,6 +1307,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    ...primaryCtaShadow,
   },
   btnPrimaryText: {
     fontSize: 14,
@@ -1440,7 +1441,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calBtnPrimary: {},
+  calBtnPrimary: { ...primaryCtaShadow },
   calBtnPrimaryText: {
     fontSize: 14,
     fontWeight: '600',

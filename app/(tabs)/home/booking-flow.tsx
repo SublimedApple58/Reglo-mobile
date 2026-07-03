@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { bookingFlowStore } from '../../../src/stores/bookingFlowStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { formatDay } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -284,7 +284,7 @@ const s = StyleSheet.create({
   instructorChipText: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
   caption: { fontSize: 12, color: colors.textMuted, marginTop: 6, lineHeight: 16 },
   footer: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  cta: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cta: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', ...primaryCtaShadow },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFF', letterSpacing: -0.2 },
   unavailable: { fontSize: 13, fontWeight: '600', color: '#DC2626', textAlign: 'center', marginBottom: 8 },
   // Calendar

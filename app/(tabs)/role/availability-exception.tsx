@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollableMonthsCalendar, CALENDAR_WEEKDAYS } from '../../../src/components/ScrollableMonthsCalendar';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import RangesEditor from '../../../src/components/RangesEditor';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { availabilityExceptionStore } from '../../../src/stores/availabilityExceptionStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { TimeRange } from '../../../src/types/regloApi';
@@ -529,8 +529,7 @@ const s = StyleSheet.create({
   cta: {
     minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22, shadowRadius: 12, elevation: 6,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   deleteBtn: { alignItems: 'center', paddingVertical: 12 },

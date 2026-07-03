@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { ToastTone } from '../components/ToastNotice';
 import { DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
@@ -373,8 +373,7 @@ const styles = StyleSheet.create({
   cta: {
     minHeight: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 20,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
+    ...primaryCtaShadow,
   },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   ctaDisabled: { opacity: 0.6 },

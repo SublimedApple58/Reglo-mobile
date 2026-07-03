@@ -2,7 +2,7 @@ import React, { useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore } from '../../../src/stores/instructorSettingsStore';
@@ -108,8 +108,7 @@ const s = StyleSheet.create({
   cta: {
     minHeight: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

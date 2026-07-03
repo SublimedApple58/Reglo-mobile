@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { ToggleSwitch } from './ToggleSwitch';
-import { GradientCTABackground } from './GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { colors, spacing, typography } from '../theme';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
@@ -350,11 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    ...primaryCtaShadow,
   },
   saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { Screen } from '../components/Screen';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { useQuiz } from '../context/QuizContext';
 import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
@@ -387,8 +387,7 @@ const st = StyleSheet.create({
   actPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, borderRadius: 26,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
+    ...primaryCtaShadow,
   },
   actPrimaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   actSecondary: {

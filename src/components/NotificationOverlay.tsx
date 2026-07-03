@@ -10,7 +10,7 @@ import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { BookingCelebration } from './BookingCelebration';
 import { ToastNotice, ToastTone } from './ToastNotice';
-import { GradientCTABackground } from './GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { regloApi } from '../services/regloApi';
@@ -1447,11 +1447,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    ...primaryCtaShadow,
   },
   chunkyPinkCtaText: {
     fontSize: 16,

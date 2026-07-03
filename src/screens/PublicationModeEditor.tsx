@@ -24,7 +24,7 @@ import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { TimeRange } from '../types/regloApi';
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   btnPublish: {
     borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5,
+    ...primaryCtaShadow,
   },
   btnPublishText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   btnGhost: {

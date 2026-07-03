@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { Input } from '../../../src/components/Input';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { useSession } from '../../../src/context/SessionContext';
@@ -88,8 +88,7 @@ const s = StyleSheet.create({
   cta: {
     minHeight: 50, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
+    ...primaryCtaShadow,
   },
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
 });

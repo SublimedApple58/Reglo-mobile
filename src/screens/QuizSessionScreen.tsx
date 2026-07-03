@@ -29,7 +29,7 @@ import { colors, spacing } from '../theme';
 import { regloApi } from '../services/regloApi';
 import { useQuiz } from '../context/QuizContext';
 import { SwipeQuizCard, SwipeQuizCardRef } from '../components/SwipeQuizCard';
-import { GradientCTABackground } from '../components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 
 const EXAM_MAX_ERRORS = 3;
 const SCHEDA_MAX_ERRORS = 3;
@@ -1103,8 +1103,7 @@ const st = StyleSheet.create({
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, borderRadius: 26,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
+    ...primaryCtaShadow,
   },
   nextBtnDisabled: { opacity: 0.5 },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
@@ -1130,6 +1129,7 @@ const st = StyleSheet.create({
   schedaNavBtnText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   schedaCompleteBtn: {
     paddingVertical: 8, paddingHorizontal: 16, borderRadius: 16,
+    ...primaryCtaShadow,
   },
   schedaCompleteBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 

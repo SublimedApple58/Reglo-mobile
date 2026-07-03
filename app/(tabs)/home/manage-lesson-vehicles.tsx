@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground } from '../../../src/components/GradientCTA';
+import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../../src/utils/license';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { colors } from '../../../src/theme/colors';
@@ -237,7 +237,7 @@ const s = StyleSheet.create({
   doneBtn: {
     minHeight: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center', marginTop: 24,
-    shadowColor: '#1A1A2E', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    ...primaryCtaShadow,
   },
   doneText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
 });
