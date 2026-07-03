@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Pressable,
@@ -24,7 +24,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
-import { loadLastBookingSelection, saveLastBookingSelection } from '../../utils/lastBookingSelection';
+import { loadLastBookingSelection, saveLastBookingSelection, type LastBookingSelection } from '../../utils/lastBookingSelection';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
@@ -122,10 +122,18 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   // fall back to the background WEEKLY_LIMIT_CONFIRM handling in runOptimistic.
   const [weeklyLimit, setWeeklyLimit] = useState<MobileBookingOptions['weeklyBookingLimit'] | null>(null);
 
+  // Kind-split memory (last car / last moto+follow+extras) of the previous
+  // booking flows — loaded per sheet-open, applied on STUDENT selection (the
+  // vehicle section is hidden until then). Ref, not state: it's read inside
+  // picker callbacks stored in external stores.
+  const lastSelRef = useRef<LastBookingSelection | null>(null);
+
   useEffect(() => {
     if (!data) return;
     setStudentId('');
-    setVehicleId(data.defaultVehicleId);
+    // No vehicle preset at open: the Veicolo row appears (animated) once a
+    // student is picked, preset from the kind-matching remembered selection.
+    setVehicleId('');
     setFollowVehicleId('');
     setExtraMotoVehicleIds([]);
     setLessonTypes(['guida']);
@@ -152,27 +160,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setEntries([]);
     setPending(false);
 
-    // Preselect the vehicle picked in the instructor's LAST booking flow (not
-    // the last lesson's vehicle) when it's still among the available vehicles;
-    // for motos, also restore the last follow car ('__none__' included). Falls
-    // back to the seeded default (fixed vehicle / first of list) otherwise.
+    lastSelRef.current = null;
     if (!data.vehiclesEnabled || !data.instructorId) return;
     let cancelled = false;
     void loadLastBookingSelection(data.instructorId).then((stored) => {
-      if (cancelled || !stored) return;
-      const vehicle = data.vehicles.find((v) => v.id === stored.vehicleId);
-      if (!vehicle) return;
-      setVehicleId(vehicle.id);
-      const followEnabled =
-        isMotoLicenseCategory(vehicle.licenseCategory) &&
-        data.followCarRules?.[vehicle.licenseCategory ?? '']?.enabled === true;
-      if (!followEnabled || !stored.followVehicleId) return;
-      const followValid =
-        stored.followVehicleId === '__none__' ||
-        data.vehicles.some(
-          (v) => v.id === stored.followVehicleId && v.licenseCategory === 'B' && v.id !== vehicle.id,
-        );
-      if (followValid) setFollowVehicleId(stored.followVehicleId);
+      if (!cancelled) lastSelRef.current = stored;
     });
     return () => { cancelled = true; };
   }, [data]);
@@ -253,21 +245,60 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     else setEntries([]);
   };
 
+  /**
+   * Preset the vehicle section for a just-picked student. A still-eligible
+   * manual pick is kept; otherwise the kind-matching remembered selection
+   * (student's pursued license: moto path → last moto + follow car + extra
+   * motos, else last car) is applied when its vehicles are still available
+   * and eligible. Fallback: the seeded default vehicle, if eligible.
+   */
+  const presetVehiclesForStudent = (st: { licenseCategory?: string | null; transmission?: string | null }) => {
+    const current = vehicles.find((v) => v.id === vehicleId);
+    if (current && vehicleServesStudent(current, st)) return;
+
+    const motoPath = isMotoLicenseCategory(st.licenseCategory);
+    const mem = motoPath ? lastSelRef.current?.moto : lastSelRef.current?.car;
+    const candidate = mem ? vehicles.find((v) => v.id === mem.vehicleId) : undefined;
+    if (
+      candidate &&
+      isMotoLicenseCategory(candidate.licenseCategory) === motoPath &&
+      vehicleServesStudent(candidate, st)
+    ) {
+      setVehicleId(candidate.id);
+      if (motoPath) {
+        const moto = lastSelRef.current!.moto!;
+        const followEnabled = followCarRules?.[candidate.licenseCategory ?? '']?.enabled === true;
+        const followValid =
+          moto.followVehicleId === '__none__' ||
+          vehicles.some((v) => v.id === moto.followVehicleId && v.licenseCategory === 'B' && v.id !== candidate.id);
+        setFollowVehicleId(followEnabled && moto.followVehicleId && followValid ? moto.followVehicleId : '');
+        setExtraMotoVehicleIds(
+          (moto.extraMotoVehicleIds ?? []).filter((id) => {
+            const v = vehicles.find((x) => x.id === id);
+            return !!v && id !== candidate.id && isMotoLicenseCategory(v.licenseCategory) && vehicleServesStudent(v, st);
+          }),
+        );
+      } else {
+        setFollowVehicleId('');
+        setExtraMotoVehicleIds([]);
+      }
+      return;
+    }
+
+    const fallback = vehicles.find((v) => v.id === data.defaultVehicleId);
+    setVehicleId(fallback && vehicleServesStudent(fallback, st) ? fallback.id : '');
+    setFollowVehicleId('');
+    setExtraMotoVehicleIds([]);
+  };
+
   const openStudentPicker = () => {
     studentPickerStore.set({
       selectedId: studentId || null,
       options: studentOptions,
       onSelect: (v) => {
         setStudentId(v);
-        // If the currently picked vehicle isn't eligible for the new student
-        // (moto hierarchy), clear it so the form can't hold an invalid combo.
         const st = studentOptions.find((o) => o.value === v);
-        const veh = vehicles.find((vv) => vv.id === vehicleId);
-        if (st && veh && !vehicleServesStudent(veh, st)) {
-          setVehicleId('');
-          setFollowVehicleId('');
-          setExtraMotoVehicleIds([]);
-        }
+        if (st) presetVehiclesForStudent(st);
       },
     });
     router.push('/(tabs)/home/select-student');
@@ -359,14 +390,23 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     const settle = async (skip = false) => {
       try {
         const result = await doBook(skip);
-        // Remember this booking's vehicle choice (and follow car for motos) so
-        // the next sheet opens preset to it. Non-moto bookings keep the
-        // previously stored follow car (see lastBookingSelection).
+        // Remember this booking's vehicle choices in the kind-matching slot so
+        // the next same-kind booking opens preset to them. When the follow-car
+        // rule is off, the previously remembered follow car is preserved.
         if (vehiclesEnabled && vehicleId) {
-          saveLastBookingSelection(data.instructorId, {
-            vehicleId,
-            ...(needFollowCar && followVehicleId ? { followVehicleId } : {}),
-          });
+          saveLastBookingSelection(
+            data.instructorId,
+            primaryIsMoto
+              ? {
+                  moto: {
+                    vehicleId,
+                    followVehicleId:
+                      (needFollowCar && followVehicleId) || lastSelRef.current?.moto?.followVehicleId,
+                    extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+                  },
+                }
+              : { car: { vehicleId } },
+          );
         }
         await data.onApplied();
         data.onDone(successMessage(result));
@@ -599,11 +639,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         <Text style={s.listCaption}>Dettagli</Text>
         <View style={s.list}>
           <Row icon="location-outline" label="Luogo" value={locationName ?? "Sede dell'autoscuola"} valueSub={locationAddress} onPress={openLocationPicker} disabled={pending} />
-          {vehiclesEnabled ? (
-            <>
+          {vehiclesEnabled && studentId ? (
+            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
               <View style={s.divider} />
-              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder={studentId ? 'Seleziona veicolo' : 'Scegli prima l’allievo'} onPress={openVehicle} disabled={pending || !studentId || !eligibleVehicles.length} />
-            </>
+              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !eligibleVehicles.length} />
+            </Animated.View>
           ) : null}
           {needFollowCar ? (
             <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>

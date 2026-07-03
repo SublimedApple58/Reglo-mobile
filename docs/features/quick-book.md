@@ -98,15 +98,22 @@ pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → atti
   content-hugging su iOS clippa senza scrollare. `quick-book` ora usa `PAGE_SHEET`;
   `BookingForm` renderizza sempre il body in `ScrollView` flex:1 con footer pinnato,
   `BlockForm` embedded usa `SheetScaffold fill`.
-- **Veicolo pre-impostato = ultima selezione in prenotazione** (2026-07-03): quando la
-  sheet si apre, `BookingForm` rilegge da `lastBookingSelection` (AsyncStorage, chiave
-  per `instructorId`) il veicolo scelto nell'ULTIMA prenotazione andata a buon fine e
-  lo preseleziona **solo se è ancora tra i veicoli disponibili**; se è una moto con
-  regola auto-al-seguito attiva, ripristina anche l'ultima auto al seguito
-  (`'__none__'` incluso, se ancora valida). Fallback: `defaultVehicleId` seminato da
-  `IstruttoreHomeScreen` (veicolo fisso dell'istruttore, poi primo della lista). Le
-  prenotazioni auto NON sovrascrivono l'auto al seguito memorizzata dalle moto. La
-  selezione si salva a submit riuscito (niente salvataggi su flussi abbandonati).
+- **Sezione Veicolo nascosta finché non c'è l'allievo** (2026-07-03): la riga Veicolo
+  (e a cascata Auto al seguito / Moto aggiuntive) compare con `FadeInDown` +
+  `LinearTransition` solo dopo la selezione dell'allievo — niente più placeholder
+  "Scegli prima l'allievo".
+- **Preset = ultima selezione in prenotazione, per TIPO** (2026-07-03):
+  `lastBookingSelection` (AsyncStorage, chiave per `instructorId`) tiene DUE slot
+  indipendenti: `car` (ultima auto) e `moto` (ultima moto + auto al seguito,
+  `'__none__'` incluso, + moto aggiuntive). Alla selezione dell'allievo,
+  `presetVehiclesForStudent` sceglie lo slot dal suo percorso patente (moto → slot
+  moto, altrimenti slot auto) e lo applica **solo se i veicoli ricordati sono ancora
+  disponibili e idonei** a quell'allievo; una scelta manuale ancora idonea NON viene
+  sovrascritta al cambio allievo. Fallback: `defaultVehicleId` (veicolo fisso
+  dell'istruttore, poi primo della lista) se idoneo, altrimenti vuoto. Il salvataggio
+  avviene a submit riuscito nello slot del tipo prenotato (una prenotazione auto non
+  tocca la memoria moto e viceversa; regola auto-al-seguito spenta → conserva l'auto
+  al seguito ricordata).
 - Il vecchio **drawer in-screen** (`quickBookOpen`, `qbDrawer*`, `openQuickBook`,
   `handleQuickBook/BlockConfirm`, `quickBookStore`) è stato **rimosso**.
 
