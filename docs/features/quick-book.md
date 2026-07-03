@@ -19,7 +19,8 @@ i form quick sono identici a quelli pieni per costruzione.
 | `src/components/booking/BlockForm.tsx` | Form completo "Blocca slot" (giorno, ora inizio/fine, motivo, ripeti settimane). Prop `embedded` nasconde header. Legge `blockSheetStore`. |
 | `app/(tabs)/home/new-booking.tsx` | Route standalone (FAB) → `<BookingForm />`. `presentation: 'modal'`. |
 | `app/(tabs)/home/block-slot.tsx` | Route standalone (FAB) → `<BlockForm />`. `presentation: 'formSheet'` fitToContents. |
-| `app/(tabs)/home/quick-book.tsx` | Sheet quick-book: topbar (X + segmented Airbnb) + `<BookingForm embedded />` / `<BlockForm embedded />`. `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'` (si adatta al contenuto: Blocca slot corto → sheet piccola). Root SENZA `flex:1`. |
+| `app/(tabs)/home/quick-book.tsx` | Sheet quick-book: topbar (X + segmented Airbnb) + `<BookingForm embedded />` / `<BlockForm embedded />`. **`PAGE_SHEET`** (2026-07-02: era formSheet fitToContents, ma il form moto superava lo schermo e su iOS non scrollava) — full height, body in ScrollView, footer pinnato. |
+| `src/utils/lastBookingSelection.ts` | Memoria per-istruttore (AsyncStorage) dell'ultimo veicolo/auto al seguito **selezionati prenotando** (≠ ultimo veicolo usato). Salvata da `BookingForm` a prenotazione riuscita; riletta all'apertura per preimpostare i picker. |
 | `src/stores/bookingSheetStore.ts` | Dati booking + callback optimistic. Campo `presetStartMinutes?` (quick-book). |
 | `src/stores/blockSheetStore.ts` | Dati block + callback optimistic. Campo `presetStartMinutes?` (quick-book). |
 
@@ -92,12 +93,20 @@ pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → atti
 
 - **Malattia** resta fuori dalla gesture (solo nel menu FAB `+`): la gesture è pensata
   per un singolo slot, la malattia è da-ora-a-fine-giornata.
-- **formSheet `fitToContents`** (scelta dell'utente, 2026-06-09, ✅ verificato su iPhone
-  reale): la sheet si adatta al contenuto — Blocca slot corto → sheet piccola, Prenota
-  guida → sheet più alta, e **rimisura al cambio segmento**. `BookingForm`/`BlockForm`
-  quando `embedded` rendono il contenuto in una `View` semplice (NIENTE `ScrollView`
-  flex:1, che collasserebbe a 0 in una sheet content-hugging — vedi gotcha
-  `reference_formsheet_layout_rule`). Il form guida lungo NON clippa sul device testato.
+- **Page sheet, non più fitToContents** (2026-07-02): il form guida in modalità moto
+  (auto al seguito + moto aggiuntive) supera lo schermo e una formSheet
+  content-hugging su iOS clippa senza scrollare. `quick-book` ora usa `PAGE_SHEET`;
+  `BookingForm` renderizza sempre il body in `ScrollView` flex:1 con footer pinnato,
+  `BlockForm` embedded usa `SheetScaffold fill`.
+- **Veicolo pre-impostato = ultima selezione in prenotazione** (2026-07-03): quando la
+  sheet si apre, `BookingForm` rilegge da `lastBookingSelection` (AsyncStorage, chiave
+  per `instructorId`) il veicolo scelto nell'ULTIMA prenotazione andata a buon fine e
+  lo preseleziona **solo se è ancora tra i veicoli disponibili**; se è una moto con
+  regola auto-al-seguito attiva, ripristina anche l'ultima auto al seguito
+  (`'__none__'` incluso, se ancora valida). Fallback: `defaultVehicleId` seminato da
+  `IstruttoreHomeScreen` (veicolo fisso dell'istruttore, poi primo della lista). Le
+  prenotazioni auto NON sovrascrivono l'auto al seguito memorizzata dalle moto. La
+  selezione si salva a submit riuscito (niente salvataggi su flussi abbandonati).
 - Il vecchio **drawer in-screen** (`quickBookOpen`, `qbDrawer*`, `openQuickBook`,
   `handleQuickBook/BlockConfirm`, `quickBookStore`) è stato **rimosso**.
 

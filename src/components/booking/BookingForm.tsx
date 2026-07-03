@@ -24,6 +24,7 @@ import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
+import { loadLastBookingSelection, saveLastBookingSelection } from '../../utils/lastBookingSelection';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
@@ -150,6 +151,30 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setMultiMode(false);
     setEntries([]);
     setPending(false);
+
+    // Preselect the vehicle picked in the instructor's LAST booking flow (not
+    // the last lesson's vehicle) when it's still among the available vehicles;
+    // for motos, also restore the last follow car ('__none__' included). Falls
+    // back to the seeded default (fixed vehicle / first of list) otherwise.
+    if (!data.vehiclesEnabled || !data.instructorId) return;
+    let cancelled = false;
+    void loadLastBookingSelection(data.instructorId).then((stored) => {
+      if (cancelled || !stored) return;
+      const vehicle = data.vehicles.find((v) => v.id === stored.vehicleId);
+      if (!vehicle) return;
+      setVehicleId(vehicle.id);
+      const followEnabled =
+        isMotoLicenseCategory(vehicle.licenseCategory) &&
+        data.followCarRules?.[vehicle.licenseCategory ?? '']?.enabled === true;
+      if (!followEnabled || !stored.followVehicleId) return;
+      const followValid =
+        stored.followVehicleId === '__none__' ||
+        data.vehicles.some(
+          (v) => v.id === stored.followVehicleId && v.licenseCategory === 'B' && v.id !== vehicle.id,
+        );
+      if (followValid) setFollowVehicleId(stored.followVehicleId);
+    });
+    return () => { cancelled = true; };
   }, [data]);
 
   // Prefetch the student's weekly-limit status (current week) on selection.
@@ -334,6 +359,15 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     const settle = async (skip = false) => {
       try {
         const result = await doBook(skip);
+        // Remember this booking's vehicle choice (and follow car for motos) so
+        // the next sheet opens preset to it. Non-moto bookings keep the
+        // previously stored follow car (see lastBookingSelection).
+        if (vehiclesEnabled && vehicleId) {
+          saveLastBookingSelection(data.instructorId, {
+            vehicleId,
+            ...(needFollowCar && followVehicleId ? { followVehicleId } : {}),
+          });
+        }
         await data.onApplied();
         data.onDone(successMessage(result));
         router.back();
