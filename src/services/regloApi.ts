@@ -303,9 +303,9 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<GroupLessonInvitee[]>(
         `/api/autoscuole/group-lessons/${groupLessonId}/eligible-invitees`,
       ),
-    getGroupLessonInvites: async (studentId: string, limit?: number) =>
+    getGroupLessonInvites: async (studentId: string, limit?: number, countOnly?: boolean) =>
       client.request<GroupLessonInvite[]>('/api/autoscuole/group-lessons/invites', {
-        params: { studentId, limit },
+        params: { studentId, limit, ...(countOnly ? { countOnly: '1' } : {}) },
       }),
     respondGroupLessonInvite: async (
       inviteId: string,

@@ -82,7 +82,9 @@ export const GroupLessonInvitesScreen = () => {
 
   const load = useCallback(async (sid: string) => {
     try {
-      const res = await regloApi.getGroupLessonInvites(sid, 20);
+      // 100 (era 20): con 3-4 guide di gruppo al giorno il cap a 20 nascondeva
+      // tutto oltre ~2 settimane (segnalazione Robatto, 2026-07-06).
+      const res = await regloApi.getGroupLessonInvites(sid, 100);
       setInvites(res);
     } catch (e) {
       setToast({ text: e instanceof Error ? e.message : 'Errore nel caricamento', tone: 'danger' });

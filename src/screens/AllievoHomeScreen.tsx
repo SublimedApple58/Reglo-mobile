@@ -664,7 +664,8 @@ export const AllievoHomeScreen = () => {
       return;
     }
     try {
-      const list = await regloApi.getGroupLessonInvites(selectedStudentId, 20);
+      // countOnly: badge number only, no ensure-invite writes server-side.
+      const list = await regloApi.getGroupLessonInvites(selectedStudentId, 100, true);
       setGroupInvitesCount(Array.isArray(list) ? list.length : 0);
     } catch {
       setGroupInvitesCount(0);

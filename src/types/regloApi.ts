@@ -266,6 +266,7 @@ export type GroupLesson = {
 };
 
 export type GroupLessonInvite = {
+  /** Null only in countOnly (badge) responses — the list flow always gets one. */
   inviteId: Uuid;
   groupLessonId: Uuid;
   startsAt: IsoDate;
