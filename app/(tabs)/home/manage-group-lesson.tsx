@@ -21,6 +21,9 @@ import { colors } from '../../../src/theme/colors';
 
 const TEAL_BADGE_BG = '#D1FAE5';
 const TEAL_BADGE_FG = '#047857';
+// Moto group: orange tint (same style), coherent with the agenda cards.
+const MOTO_BADGE_BG = '#FFE7D1';
+const MOTO_BADGE_FG = '#C2410C';
 
 const DURATIONS: { value: string; label: string }[] = [
   { value: '60', label: '1 ora' },
@@ -372,9 +375,9 @@ export default function ManageGroupLessonScreen() {
             <Text style={s.heroMeta}>Caricamento…</Text>
           )}
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <View style={[s.statePill, { backgroundColor: TEAL_BADGE_BG }]}>
-              <Text style={[s.statePillText, { color: TEAL_BADGE_FG }]}>
-                GRUPPO · {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'}
+            <View style={[s.statePill, { backgroundColor: isMoto ? MOTO_BADGE_BG : TEAL_BADGE_BG }]}>
+              <Text style={[s.statePillText, { color: isMoto ? MOTO_BADGE_FG : TEAL_BADGE_FG }]}>
+                {isMoto ? 'GRUPPO MOTO' : 'GRUPPO'} · {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'}
               </Text>
             </View>
           </View>
@@ -387,7 +390,7 @@ export default function ManageGroupLessonScreen() {
               size={132}
               stroke={13}
               progress={filled / Math.max(1, capacity)}
-              gradient={['#14B8A6', '#0F766E']}
+              gradient={isMoto ? ['#FB923C', '#EA580C'] : ['#14B8A6', '#0F766E']}
               innerColor={colors.background}
             >
               <Text style={s.ringCount}>

@@ -234,7 +234,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                 >
                   <Text style={[s.name, { flex: 0 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
                   {participantMeta(isMoto, p.licenseCategory, p.vehicleName) ? (
-                    <Text style={s.metaLine} numberOfLines={1}>
+                    <Text style={[s.metaLine, isMoto && s.metaLineMoto]} numberOfLines={1}>
                       {participantMeta(isMoto, p.licenseCategory, p.vehicleName)}
                     </Text>
                   ) : null}
@@ -314,6 +314,7 @@ const s = StyleSheet.create({
   name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
   rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
   metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
+  metaLineMoto: { color: '#C2410C' },
   notePreview: { fontSize: 13, fontWeight: '400', color: '#6B7280' },
   actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E9EBF2', marginLeft: 47 },

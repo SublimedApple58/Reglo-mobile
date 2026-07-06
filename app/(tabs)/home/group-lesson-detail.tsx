@@ -201,9 +201,9 @@ export default function GroupLessonDetailScreen() {
                 <Animated.View
                   key={i}
                   entering={FadeIn.duration(FADE_MS)}
-                  style={[s.seatBig, i >= filled && s.seatBigEmpty]}
+                  style={[s.seatBig, isMoto && s.seatBigMoto, i >= filled && s.seatBigEmpty]}
                 >
-                  {i < filled ? <Ionicons name="person" size={20} color="#0F766E" /> : null}
+                  {i < filled ? <Ionicons name="person" size={20} color={isMoto ? '#C2410C' : '#0F766E'} /> : null}
                 </Animated.View>
               ) : (
                 <SkeletonBlock key={i} width={46} height={46} radius={16} />
@@ -278,12 +278,15 @@ const s = StyleSheet.create({
 
   // Posti — pallini grandi
   seatsBlock: { alignItems: 'center', gap: 12, paddingVertical: 4 },
-  seatsRow: { flexDirection: 'row', gap: 12 },
+  // Wraps: capacity is free up to 12 now (was 3-4).
+  seatsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
   seatBig: {
     width: 46, height: 46, borderRadius: 16, backgroundColor: '#E3F4EC',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#0F9E7A', shadowOpacity: 0.38, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 7,
   },
+  // Moto group: orange tint, same style.
+  seatBigMoto: { backgroundColor: '#FFE9D6', shadowColor: '#F97316' },
   seatBigEmpty: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#1A1A2E', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
