@@ -216,7 +216,8 @@ const s = StyleSheet.create({
   ml: { flex: 1, fontSize: 15, fontWeight: '400', color: NAVY },
 
   seats: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 13, paddingBottom: 2 },
-  dots: { flexDirection: 'row', gap: 6 },
+  // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
+  dots: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: 69 },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: NAVY_200 },
   dotOn: { backgroundColor: TEAL },
   seatsTxt: { fontSize: 13.5, fontWeight: '400', color: NAVY_400 },

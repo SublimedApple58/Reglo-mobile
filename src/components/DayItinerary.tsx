@@ -245,7 +245,8 @@ const styles = StyleSheet.create({
   groupLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
   groupLabelMoto: { color: '#C2410C' },
   groupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
-  seats: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 },
+  // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
+  seats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 3, marginLeft: 8, maxWidth: 57 },
   seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#10B981' },
   seatEmpty: { backgroundColor: '#BDEAD6' },
   seatMoto: { backgroundColor: '#F97316' },

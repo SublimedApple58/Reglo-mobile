@@ -2043,7 +2043,8 @@ const styles = StyleSheet.create({
   glLabelMoto: { color: '#C2410C' },
   glTime: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginTop: 3 },
   glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
-  glSeats: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6 },
+  // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
+  glSeats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginLeft: 6, maxWidth: 66 },
   glSeat: { width: 10, height: 10, borderRadius: 3, backgroundColor: '#10B981' },
   glSeatEmpty: { backgroundColor: '#BDEAD6' },
   glSeatMoto: { backgroundColor: '#F97316' },
