@@ -276,7 +276,9 @@ export const CreateGroupLessonScreen = () => {
       : `${selectedStudents.length}/${effectiveCapacity} allievi`;
 
   const fleetValue = fleet.length === 0 ? null : `${fleet.length} moto`;
-  const canCreate = isMoto ? fleetIds.length > 0 && (!followCarRequired || !!followVehicleId) : !!vehicleId;
+  // L'auto al seguito è sempre facoltativa alla creazione: se le regole la
+  // richiedono, il BE ne assegna una libera alla prima iscrizione.
+  const canCreate = isMoto ? fleetIds.length > 0 : !!vehicleId;
 
   const handleCreate = async () => {
     // Una guida di gruppo senza istruttore non deve esistere (regola BE).
@@ -286,7 +288,6 @@ export const CreateGroupLessonScreen = () => {
     }
     if (isMoto) {
       if (fleetIds.length === 0) { Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.'); return; }
-      if (followCarRequired && !followVehicleId) { Alert.alert('Auto al seguito', "Per queste moto è richiesta un'auto al seguito."); return; }
     } else if (!vehicleId) {
       Alert.alert('Veicolo', 'Seleziona il veicolo della guida di gruppo.'); return;
     }
@@ -374,7 +375,7 @@ export const CreateGroupLessonScreen = () => {
                 <View style={s.divider} />
                 <Row icon="bicycle-outline" label="Moto della guida" value={fleetValue} placeholder={motoVehicles.length ? 'Seleziona le moto' : 'Nessuna moto disponibile'} onPress={openFleetPicker} disabled={saving || motoVehicles.length === 0} />
                 <View style={s.divider} />
-                <Row icon="car-outline" label={`Auto al seguito${followCarRequired ? ' (richiesta)' : ''}`} value={followVehicle ? followVehicle.name : null} placeholder="Nessuna" onPress={openFollowCarPicker} disabled={saving} />
+                <Row icon="car-outline" label="Auto al seguito (facoltativa)" value={followVehicle ? followVehicle.name : null} placeholder={followCarRequired ? 'Automatica alla 1ª iscrizione' : 'Nessuna'} onPress={openFollowCarPicker} disabled={saving} />
               </>
             )}
           </View>
