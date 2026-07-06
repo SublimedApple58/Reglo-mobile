@@ -275,10 +275,15 @@ export const CreateGroupLessonScreen = () => {
       ? `${selectedStudents[0].firstName} ${selectedStudents[0].lastName}`.trim()
       : `${selectedStudents.length}/${effectiveCapacity} allievi`;
 
-  const fleetValue = fleet.length === 0 ? null : `${fleet.length} ${fleet.length === 1 ? 'moto' : 'moto'} · ${fleet.length} posti`;
+  const fleetValue = fleet.length === 0 ? null : `${fleet.length} moto`;
   const canCreate = isMoto ? fleetIds.length > 0 && (!followCarRequired || !!followVehicleId) : !!vehicleId;
 
   const handleCreate = async () => {
+    // Una guida di gruppo senza istruttore non deve esistere (regola BE).
+    if (!instructorId) {
+      Alert.alert('Istruttore', 'La guida di gruppo deve avere un istruttore assegnato.');
+      return;
+    }
     if (isMoto) {
       if (fleetIds.length === 0) { Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.'); return; }
       if (followCarRequired && !followVehicleId) { Alert.alert('Auto al seguito', "Per queste moto è richiesta un'auto al seguito."); return; }
