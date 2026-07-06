@@ -36,10 +36,12 @@ const N100 = '#E9EBF2';
 
 const SEG_PAD = 5;
 
-const CAPACITY_OPTIONS = [
-  { value: '3', label: '3 allievi' },
-  { value: '4', label: '4 allievi' },
-];
+// Capienza libera (1–12): la decidono titolare/istruttore. Per le guide moto i
+// partecipanti possono superare le moto in flotta (si va a rotazione).
+const CAPACITY_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: `${i + 1} ${i === 0 ? 'allievo' : 'allievi'}`,
+}));
 const DURATIONS = [
   { value: '60', label: '1 ora' },
   { value: '120', label: '2 ore' },
@@ -151,8 +153,9 @@ export const CreateGroupLessonScreen = () => {
     () => isMoto && fleet.some((v) => followCarRules[v.licenseCategory ?? '']?.enabled === true),
     [isMoto, fleet, followCarRules],
   );
-  // Moto: real cap = fleet size; standard: the chosen value.
-  const effectiveCapacity = isMoto ? fleetIds.length : capacity;
+  // Capienza scelta liberamente per entrambi i tipi (moto: può superare la
+  // flotta, i ragazzi si alternano sulle moto disponibili).
+  const effectiveCapacity = capacity;
 
   // Airbnb segmented — sliding white pill (same logic as quick-book.tsx).
   const [segW, setSegW] = useState(0);
@@ -354,10 +357,10 @@ export const CreateGroupLessonScreen = () => {
             <Row icon="time-outline" label="Ora inizio" value={fmtTime(startAt)} onPress={openTimePicker} disabled={saving} />
             <View style={s.divider} />
             <Row icon="hourglass-outline" label="Durata" value={durationLabel} onPress={openDurationPicker} disabled={saving} />
+            <View style={s.divider} />
+            <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
             {!isMoto ? (
               <>
-                <View style={s.divider} />
-                <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
                 <View style={s.divider} />
                 <Row icon="car-outline" label="Veicolo" value={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : null} placeholder="Seleziona veicolo" onPress={openVehiclePicker} disabled={saving} />
               </>
@@ -372,7 +375,7 @@ export const CreateGroupLessonScreen = () => {
           </View>
 
           {isMoto ? (
-            <Text style={s.hint}>Ogni allievo idoneo riceve automaticamente una moto della flotta. La capienza è pari al numero di moto scelte.</Text>
+            <Text style={s.hint}>Chi si iscrive riceve automaticamente una moto libera della flotta compatibile col suo percorso; se gli allievi superano le moto, si va a rotazione.</Text>
           ) : null}
 
           {/* Students pre-add */}

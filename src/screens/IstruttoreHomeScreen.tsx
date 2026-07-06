@@ -1207,7 +1207,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     type Item =
       | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
       | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
-      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; glKind: 'standard' | 'moto'; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
     const items: Item[] = [];
     for (const appt of others) {
       items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
@@ -1239,6 +1239,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         vehicleName: first.vehicle?.name ?? null,
         count: filled,
         capacity: first.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
+        glKind: first.groupLessonKind === 'moto' ? 'moto' : 'standard',
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });
@@ -3296,17 +3297,17 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       <Rail time={itFmt(row.startMin)} sub={gapLabel(row.endMin - row.startMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
                       <Pressable
                         onPress={() => g.groupLessonId && openGroupLessonManage(g.groupLessonId)}
-                        style={({ pressed }) => [styles.groupLessonCard, pressed && styles.itinCardPressed]}
+                        style={({ pressed }) => [styles.groupLessonCard, g.glKind === 'moto' && styles.groupLessonCardMoto, pressed && styles.itinCardPressed]}
                       >
                         <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupLessonIcon} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.groupLessonLabel}>Guida di gruppo</Text>
+                          <Text style={[styles.groupLessonLabel, g.glKind === 'moto' && styles.groupLessonLabelMoto]}>{g.glKind === 'moto' ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                           <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
                           <View style={styles.glSeats}>
                             {Array.from({ length: g.capacity }).map((_, i) => (
-                              <View key={i} style={[styles.glSeat, i >= g.count && styles.glSeatEmpty]} />
+                              <View key={i} style={[styles.glSeat, g.glKind === 'moto' && styles.glSeatMoto, i >= g.count && (g.glKind === 'moto' ? styles.glSeatEmptyMoto : styles.glSeatEmpty)]} />
                             ))}
-                            <Text style={styles.glSeatsText}>{g.count}/{g.capacity}</Text>
+                            <Text style={[styles.glSeatsText, g.glKind === 'moto' && styles.glSeatsTextMoto]}>{g.count}/{g.capacity}</Text>
                           </View>
                         </View>
                       </Pressable>
@@ -5233,13 +5234,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14,
     shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
+  groupLessonCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
   groupLessonIcon: { width: 48, height: 48 },
   groupLessonLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
+  groupLessonLabelMoto: { color: '#C2410C' },
   groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
   glSeatEmpty: { backgroundColor: '#A7D8CE' },
+  glSeatMoto: { backgroundColor: '#C2410C' },
+  glSeatEmptyMoto: { backgroundColor: '#FCD9B8' },
   glSeatsText: { fontSize: 12, fontWeight: '500', color: '#0F766E', marginLeft: 4 },
+  glSeatsTextMoto: { color: '#C2410C' },
   itinTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },

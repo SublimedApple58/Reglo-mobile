@@ -77,6 +77,7 @@ export type DayGroupLessonGroup = {
   durationMin: number;
   count: number;
   capacity: number;
+  kind: 'standard' | 'moto'; // moto groups get a dedicated orange tint
   appts: AutoscuolaAppointmentWithRelations[];
 };
 export const GROUP_LESSON_CAPACITY = 3;
@@ -181,6 +182,7 @@ export function computeDayPlan(
       // Synthetic empty-lesson rows (id `gl-empty:`) count as 0 participants.
       count: rowsG.filter((r) => !String(r.appt.id).startsWith('gl-empty:')).length,
       capacity: rowsG[0].appt.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
+      kind: (rowsG[0].appt.groupLessonKind === 'moto' ? 'moto' : 'standard') as 'standard' | 'moto',
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);

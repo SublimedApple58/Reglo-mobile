@@ -193,8 +193,10 @@ export type AutoscuolaAppointment = {
   locationId: Uuid | null;
   // Set when this appointment is a seat of a group lesson (type === "group_lesson").
   groupLessonId?: Uuid | null;
-  /** Capienza reale della guida di gruppo (3 o 4) — annotata dal BE sull'agenda. */
+  /** Capienza reale della guida di gruppo (libera, ≤12) — annotata dal BE sull'agenda. */
   groupLessonCapacity?: number | null;
+  /** Tipo guida di gruppo ("standard" | "moto") — annotato dal BE sull'agenda. */
+  groupLessonKind?: string | null;
   notes: string | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;

@@ -209,9 +209,8 @@ export default function ManageGroupLessonScreen() {
           Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.');
           return;
         }
-        run(() =>
-          regloApi.updateGroupLesson({ groupLessonId, vehicleIds: values, capacity: values.length }),
-        );
+        // La capienza è indipendente dalla flotta (i ragazzi possono alternarsi).
+        run(() => regloApi.updateGroupLesson({ groupLessonId, vehicleIds: values }));
       },
     });
     router.push('/(tabs)/home/select-options');
@@ -242,18 +241,23 @@ export default function ManageGroupLessonScreen() {
     router.push('/(tabs)/home/select-options');
   };
 
-  // Capienza (3 o 4) — auto-save come istruttore/veicolo; il BE rifiuta se
-  // inferiore agli iscritti attuali.
+  // Capienza libera (1–12) — auto-save come istruttore/veicolo; il BE rifiuta
+  // se inferiore agli iscritti attuali (le opzioni sotto gli iscritti sono
+  // marcate come non disponibili).
   const openCapacityPicker = () => {
     if (!lesson) return;
     optionsPickerStore.set({
       title: 'Capienza',
       multi: false,
       selected: [String(capacity)],
-      options: [
-        { value: '3', label: '3 allievi', subtitle: filled > 3 ? 'Non disponibile: 4 iscritti' : null },
-        { value: '4', label: '4 allievi', subtitle: null },
-      ],
+      options: Array.from({ length: 12 }, (_, i) => {
+        const n = i + 1;
+        return {
+          value: String(n),
+          label: `${n} ${n === 1 ? 'allievo' : 'allievi'}`,
+          subtitle: n < filled ? `Non disponibile: ${filled} iscritti` : null,
+        };
+      }),
       onConfirm: (values) => {
         const next = Number(values[0] ?? capacity);
         if (!next || next === capacity) return;

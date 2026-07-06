@@ -105,7 +105,8 @@ export default function GroupLessonDetailScreen() {
   const followVehicleName = lesson?.followVehicleName ?? null;
 
   const vehicleLabel = isMoto ? 'La tua moto' : 'Veicolo';
-  const vehicleValue = isMoto ? motoName ?? 'Da assegnare' : lesson?.vehicleName ?? null;
+  // Nessuna moto assegnata (più iscritti che moto) → si alterna con il gruppo.
+  const vehicleValue = isMoto ? motoName ?? 'A rotazione con il gruppo' : lesson?.vehicleName ?? null;
   // Show the vehicle row while loading (most lessons have one), always for moto
   // groups, and otherwise only if there's actually a vehicle.
   const showVehicleRow = !ready || isMoto || !!lesson?.vehicleName;

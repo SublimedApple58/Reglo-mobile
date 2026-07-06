@@ -114,19 +114,27 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
 
         if (item.kind === 'groupLesson') {
           const g = item.group;
+          const isMotoGroup = g.kind === 'moto';
           const sub = `${g.count}/${g.capacity} allievi · ${fmtDuration(g.durationMin)}`;
           return (
             <View key={`gl-${g.id}`} style={styles.row}>
               <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
-              <Pressable onPress={() => onOpenGroupLesson(g)} style={({ pressed }) => [styles.groupCard, pressed && styles.cardPressed]}>
+              <Pressable onPress={() => onOpenGroupLesson(g)} style={({ pressed }) => [styles.groupCard, isMotoGroup && styles.groupCardMoto, pressed && styles.cardPressed]}>
                 <Image source={FLUENT_PEOPLE} style={styles.groupIcon} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.groupLabel}>Guida di gruppo</Text>
+                  <Text style={[styles.groupLabel, isMotoGroup && styles.groupLabelMoto]}>{isMotoGroup ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                   <Text style={styles.groupTitle} numberOfLines={1}>{sub}</Text>
                 </View>
                 <View style={styles.seats}>
                   {Array.from({ length: g.capacity }).map((_, i) => (
-                    <View key={i} style={[styles.seat, i >= g.count && styles.seatEmpty]} />
+                    <View
+                      key={i}
+                      style={[
+                        styles.seat,
+                        isMotoGroup && styles.seatMoto,
+                        i >= g.count && (isMotoGroup ? styles.seatEmptyMoto : styles.seatEmpty),
+                      ]}
+                    />
                   ))}
                 </View>
               </Pressable>
@@ -230,13 +238,18 @@ const styles = StyleSheet.create({
   examTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
 
   // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
+  // Moto groups: identical style, ORANGE tint (bg/shadow/label/seats).
   groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ECFDF5', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  groupCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
   groupIcon: { width: 42, height: 42 },
   groupLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
+  groupLabelMoto: { color: '#C2410C' },
   groupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   seats: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 },
   seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#10B981' },
   seatEmpty: { backgroundColor: '#BDEAD6' },
+  seatMoto: { backgroundColor: '#F97316' },
+  seatEmptyMoto: { backgroundColor: '#FCD9B8' },
 
   freeBody: { flex: 1 },
 

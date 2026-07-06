@@ -263,7 +263,9 @@ const getLessonLook = (appt: AutoscuolaAppointmentWithRelations): LessonLook => 
 // palettes as the day/week views, so the event type reads at a glance.
 const EXAM_LOOK = { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' };
 const GROUP_LOOK = { bg: '#ECFDF5', border: '#10B981', text: '#0F766E' };
-const GROUP_CAPACITY = 3; // fallback — real capacity (3|4) comes from the BE row annotation
+// Moto group lessons: identical style, ORANGE tint.
+const GROUP_MOTO_LOOK = { bg: '#FFF4EA', border: '#F97316', text: '#C2410C' };
+const GROUP_CAPACITY = 3; // fallback — real capacity comes from the BE row annotation
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton pulse block                                               */
@@ -1084,19 +1086,20 @@ const WeekPage = React.memo(function WeekPage({
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
             const showMeta = height >= 40;
+            const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
             return (
               <Pressable
                 key={`group-${colIdx}-${groupLessonId ?? a0.id}`}
                 onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: GROUP_LOOK.bg, borderColor: GROUP_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, borderColor: look.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Ionicons name="people" size={11} color={GROUP_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
-                <Text style={[styles.eventName, { color: GROUP_LOOK.text }]} numberOfLines={1}>Gruppo</Text>
+                <Ionicons name="people" size={11} color={look.text} style={{ position: 'absolute', top: 6, right: 6 }} />
+                <Text style={[styles.eventName, { color: look.text }]} numberOfLines={1}>{a0.groupLessonKind === 'moto' ? 'Gruppo moto' : 'Gruppo'}</Text>
                 {showMeta && (
-                  <Text style={[styles.eventMeta, { color: GROUP_LOOK.text }]} numberOfLines={1}>
+                  <Text style={[styles.eventMeta, { color: look.text }]} numberOfLines={1}>
                     {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
                   </Text>
                 )}

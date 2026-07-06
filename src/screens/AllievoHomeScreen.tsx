@@ -842,8 +842,9 @@ export const AllievoHomeScreen = () => {
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   }, [appointments]);
 
-  // Seat counts for the upcoming group lessons (student-safe; names hidden).
-  const [groupSeats, setGroupSeats] = useState<Record<string, { filled: number; capacity: number }>>({});
+  // Seat counts (+ kind, for the orange moto tint) for the upcoming group
+  // lessons (student-safe; names hidden).
+  const [groupSeats, setGroupSeats] = useState<Record<string, { filled: number; capacity: number; kind?: string }>>({});
   useEffect(() => {
     const ids = Array.from(
       new Set(upcomingGroupLessons.map((a) => a.groupLessonId).filter(Boolean)),
@@ -858,7 +859,7 @@ export const AllievoHomeScreen = () => {
         ids.map(async (id) => {
           try {
             const gl = await regloApi.getGroupLesson(id);
-            if (gl) return [id, { filled: gl.filledSeats, capacity: gl.capacity }] as const;
+            if (gl) return [id, { filled: gl.filledSeats, capacity: gl.capacity, kind: gl.kind }] as const;
           } catch {
             // ignore — render the card without dots
           }
@@ -866,7 +867,7 @@ export const AllievoHomeScreen = () => {
         }),
       );
       if (cancelled) return;
-      const map: Record<string, { filled: number; capacity: number }> = {};
+      const map: Record<string, { filled: number; capacity: number; kind?: string }> = {};
       for (const e of entries) if (e) map[e[0]] = e[1];
       setGroupSeats(map);
     })();
@@ -1738,17 +1739,18 @@ export const AllievoHomeScreen = () => {
               const seats = appt.groupLessonId ? groupSeats[appt.groupLessonId] : undefined;
               const capacity = seats?.capacity ?? 3;
               const filled = seats?.filled ?? 0;
+              const isMotoGl = seats?.kind === 'moto';
               return (
                 <Pressable
                   key={appt.id}
                   onPress={() => openGroupLessonDetail(appt)}
-                  style={({ pressed }) => [styles.glCard, pressed && styles.ctaPressed]}
+                  style={({ pressed }) => [styles.glCard, isMotoGl && styles.glCardMoto, pressed && styles.ctaPressed]}
                 >
-                  <View style={styles.glIcon}>
-                    <Ionicons name="people" size={24} color="#0F766E" />
+                  <View style={[styles.glIcon, isMotoGl && styles.glIconMoto]}>
+                    <Ionicons name="people" size={24} color={isMotoGl ? '#C2410C' : '#0F766E'} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.glLabel}>Guida di gruppo</Text>
+                    <Text style={[styles.glLabel, isMotoGl && styles.glLabelMoto]}>{isMotoGl ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                     <Text style={styles.glTime} numberOfLines={1}>
                       {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
                     </Text>
@@ -1757,7 +1759,7 @@ export const AllievoHomeScreen = () => {
                   {seats ? (
                     <View style={styles.glSeats}>
                       {Array.from({ length: capacity }).map((_, i) => (
-                        <View key={i} style={[styles.glSeat, i >= filled && styles.glSeatEmpty]} />
+                        <View key={i} style={[styles.glSeat, isMotoGl && styles.glSeatMoto, i >= filled && (isMotoGl ? styles.glSeatEmptyMoto : styles.glSeatEmpty)]} />
                       ))}
                     </View>
                   ) : null}
@@ -2030,16 +2032,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5', borderRadius: 22, padding: 16, marginBottom: 12,
     shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
+  // Moto group: identical style, orange tint.
+  glCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
   glIcon: {
     width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(16,185,129,0.14)',
     alignItems: 'center', justifyContent: 'center',
   },
+  glIconMoto: { backgroundColor: 'rgba(249,115,22,0.14)' },
   glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E', letterSpacing: 0.2 },
+  glLabelMoto: { color: '#C2410C' },
   glTime: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginTop: 3 },
   glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6 },
   glSeat: { width: 10, height: 10, borderRadius: 3, backgroundColor: '#10B981' },
   glSeatEmpty: { backgroundColor: '#BDEAD6' },
+  glSeatMoto: { backgroundColor: '#F97316' },
+  glSeatEmptyMoto: { backgroundColor: '#FCD9B8' },
   seeAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 4,

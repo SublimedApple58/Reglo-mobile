@@ -24,7 +24,8 @@ const participantMeta = (
     ? LICENSE_CATEGORY_LABELS[licenseCategory as keyof typeof LICENSE_CATEGORY_LABELS] ?? licenseCategory
     : null;
   const license = cat ? `Patente ${cat}` : null;
-  return [license, isMoto ? vehicleName ?? null : null].filter(Boolean).join(' · ') || null;
+  // Gruppo moto senza moto libera al momento dell'iscrizione → "a rotazione".
+  return [license, isMoto ? vehicleName ?? 'Moto a rotazione' : null].filter(Boolean).join(' · ') || null;
 };
 
 const initialsOf = (name: string | null) => {
