@@ -4,7 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
-import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../../src/utils/license';
@@ -70,7 +70,7 @@ export default function ManageLessonVehiclesScreen() {
         .map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || v.subtitle || null })),
       onConfirm: (v) => onChangeVehicle(v[0] ?? null),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openExtraMotosPicker = () => {
@@ -83,7 +83,7 @@ export default function ManageLessonVehiclesScreen() {
         .map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || v.subtitle || null })),
       onConfirm: (vs) => onChangeExtraMotos(vs),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openFollowCarPicker = () => {
@@ -98,7 +98,7 @@ export default function ManageLessonVehiclesScreen() {
       ],
       onConfirm: (v) => onChangeFollowVehicle(v[0] && v[0] !== '__none__' ? v[0] : null),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   return (

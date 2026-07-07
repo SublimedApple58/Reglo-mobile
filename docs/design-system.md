@@ -861,7 +861,7 @@ Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo 
 | Ora (ruota) | `time-picker` | `timePickerStore` | `formSheet` + `fitToContents` |
 | Allievo (ricerca + lista, single) | `select-student` | `studentPickerStore` | `modal` |
 | Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
-| Durata / Veicolo / Tipo | `select-options` (single/multi) | `optionsPickerStore` | `formSheet` + `fitToContents` |
+| Durata / Veicolo / Tipo / Aggiungi allievo | `select-options` (≤7 voci) / `select-options-long` (>7, scrollabile) — route scelta da `optionsPickerPath()` DOPO `optionsPickerStore.set()` | `optionsPickerStore` | `formSheet fitToContents` / `modal` (2026-07-07: il form sheet clippava le liste lunghe senza scroll) |
 | Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
 
 Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).

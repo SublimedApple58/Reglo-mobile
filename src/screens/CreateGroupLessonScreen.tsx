@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
-import { optionsPickerStore } from '../stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../stores/optionsPickerStore';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
@@ -208,7 +208,7 @@ export const CreateGroupLessonScreen = () => {
       title: 'Durata', multi: false, selected: [String(durationMin)], options: DURATIONS,
       onConfirm: (vals) => { if (vals[0]) setDurationMin(Number(vals[0])); },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
   const openCapacityPicker = () => {
     optionsPickerStore.set({
@@ -221,7 +221,7 @@ export const CreateGroupLessonScreen = () => {
         setSelectedIds((prev) => prev.slice(0, cap));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
   const openVehiclePicker = () => {
     optionsPickerStore.set({
@@ -229,7 +229,7 @@ export const CreateGroupLessonScreen = () => {
       options: accessibleVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
       onConfirm: (vals) => { setVehicleId(vals[0] ?? null); setSelectedIds([]); },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
   const openFleetPicker = () => {
     optionsPickerStore.set({
@@ -241,7 +241,7 @@ export const CreateGroupLessonScreen = () => {
         setSelectedIds((prev) => prev.slice(0, vals.length));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
   const openFollowCarPicker = () => {
     optionsPickerStore.set({
@@ -252,7 +252,7 @@ export const CreateGroupLessonScreen = () => {
       ],
       onConfirm: (vals) => setFollowVehicleId(vals[0] && vals[0] !== '__none__' ? vals[0] : null),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
   const openStudentsPicker = () => {
     const options: ExamStudentOption[] = eligibleStudents.map((st) => ({

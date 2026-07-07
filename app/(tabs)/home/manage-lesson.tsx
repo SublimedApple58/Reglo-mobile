@@ -26,7 +26,7 @@ import { manageLessonStore, type ManageLessonMenuOption } from '../../../src/sto
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
-import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
@@ -330,7 +330,7 @@ export default function ManageLessonScreen() {
         .map((v) => ({ value: v.id, label: v.name, subtitle: v.subtitle ?? null })),
       onConfirm: (v) => onChangeVehicle(v[0] ?? null),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openVehiclesSheet = () => router.push('/(tabs)/home/manage-lesson-vehicles');

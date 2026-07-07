@@ -19,7 +19,7 @@ import { examSheetStore } from '../stores/examSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
-import { optionsPickerStore } from '../stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../stores/optionsPickerStore';
 import { regloApi } from '../services/regloApi';
 import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
@@ -193,7 +193,7 @@ export const CreateExamScreen = () => {
       options: EXAM_DURATIONS.map((m) => ({ value: String(m), label: durLabel(m) })),
       onConfirm: (v) => setDuration(Number(v[0]) || 60),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const studentsValue = selectedStudents.length === 0

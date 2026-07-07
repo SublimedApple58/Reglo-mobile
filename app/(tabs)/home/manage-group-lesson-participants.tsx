@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
-import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
@@ -138,7 +138,7 @@ export default function ManageGroupLessonParticipantsScreen() {
             .finally(() => setAdding(false));
         },
       });
-      router.push('/(tabs)/home/select-options');
+      router.push(optionsPickerPath());
     } catch (e) {
       Alert.alert('Errore', e instanceof Error ? e.message : 'Impossibile caricare gli allievi idonei.');
     }

@@ -18,7 +18,7 @@ import { dayPickerStore } from '../../stores/dayPickerStore';
 import { studentPickerStore } from '../../stores/studentPickerStore';
 import { locationPickerStore } from '../../stores/locationPickerStore';
 import { locationFormStore } from '../../stores/locationFormStore';
-import { optionsPickerStore } from '../../stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
 import { regloApi } from '../../services/regloApi';
 import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
@@ -335,7 +335,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       options: durations.map((d) => ({ value: String(d), label: `${d} min` })),
       onConfirm: (v) => { const n = Number(v[0]); if (!Number.isNaN(n)) setDuration(n); },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openVehicle = () => {
@@ -345,7 +345,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       options: eligibleVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || null })),
       onConfirm: (v) => setVehicleId(v[0] ?? ''),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openFollowCar = () => {
@@ -357,7 +357,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       ],
       onConfirm: (v) => setFollowVehicleId(v[0] ?? ''),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openExtraMotos = () => {
@@ -366,7 +366,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       options: extraMotoOptions.map((v) => ({ value: v.id, label: v.name, subtitle: licenseCategoryLabel(v.licenseCategory) || null })),
       onConfirm: (vs) => setExtraMotoVehicleIds(vs),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openType = () => {
@@ -375,7 +375,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       options: LESSON_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
       onConfirm: (vs) => setLessonTypes(vs.length ? vs : ['guida']),
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   // Non-optimistic: keep the sheet open with a button spinner, run the create,

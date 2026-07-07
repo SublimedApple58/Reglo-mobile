@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { groupLessonManageStore } from '../../../src/stores/groupLessonManageStore';
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
-import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
@@ -190,7 +190,7 @@ export default function ManageGroupLessonScreen() {
         run(() => regloApi.updateGroupLesson({ groupLessonId, vehicleId: next }));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   // Moto group: edit the moto fleet. Capacity follows the fleet size (mirror of
@@ -216,7 +216,7 @@ export default function ManageGroupLessonScreen() {
         run(() => regloApi.updateGroupLesson({ groupLessonId, vehicleIds: values }));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   // Moto group: edit the shared follow car (category B). "Nessuna" clears it.
@@ -241,7 +241,7 @@ export default function ManageGroupLessonScreen() {
         run(() => regloApi.updateGroupLesson({ groupLessonId, followVehicleId: next }));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   // Capienza libera (1–12) — auto-save come istruttore/veicolo; il BE rifiuta
@@ -267,7 +267,7 @@ export default function ManageGroupLessonScreen() {
         run(() => regloApi.updateGroupLesson({ groupLessonId, capacity: next }));
       },
     });
-    router.push('/(tabs)/home/select-options');
+    router.push(optionsPickerPath());
   };
 
   const openParticipants = () => {
@@ -319,7 +319,7 @@ export default function ManageGroupLessonScreen() {
                 );
               },
             });
-            router.push('/(tabs)/home/select-options');
+            router.push(optionsPickerPath());
           },
         });
         router.push('/(tabs)/home/time-picker');
