@@ -146,6 +146,8 @@ export const CreateGroupLessonScreen = () => {
     [vehicles, instructorId],
   );
   const motoVehicles = useMemo(() => accessibleVehicles.filter((v) => v.licenseCategory && MOTO_CATS.has(v.licenseCategory)), [accessibleVehicles, MOTO_CATS]);
+  // Standard group = one shared CAR: motos only belong to the moto flow.
+  const standardVehicles = useMemo(() => accessibleVehicles.filter((v) => !v.licenseCategory || !MOTO_CATS.has(v.licenseCategory)), [accessibleVehicles, MOTO_CATS]);
   const carVehicles = useMemo(() => accessibleVehicles.filter((v) => v.licenseCategory === 'B'), [accessibleVehicles]);
   const fleet = useMemo(() => vehicles.filter((v) => fleetIds.includes(v.id)), [vehicles, fleetIds]);
   const followVehicle = useMemo(() => vehicles.find((v) => v.id === followVehicleId) ?? null, [vehicles, followVehicleId]);
@@ -226,7 +228,7 @@ export const CreateGroupLessonScreen = () => {
   const openVehiclePicker = () => {
     optionsPickerStore.set({
       title: 'Veicolo', multi: false, selected: vehicleId ? [vehicleId] : [],
-      options: accessibleVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
+      options: standardVehicles.map((v) => ({ value: v.id, label: v.name, subtitle: [v.plate, v.licenseCategory].filter(Boolean).join(' · ') || null })),
       onConfirm: (vals) => { setVehicleId(vals[0] ?? null); setSelectedIds([]); },
     });
     router.push(optionsPickerPath());

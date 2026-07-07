@@ -150,6 +150,8 @@ export default function ManageGroupLessonScreen() {
   // Picker pools, derived from the instructor-accessible vehicles in the seed.
   const motoVehicles = vehicles.filter((v) => isMotoLicenseCategory(v.licenseCategory));
   const followCars = vehicles.filter((v) => v.licenseCategory === 'B');
+  // Standard group vehicle = a CAR (motos live in the moto flow only).
+  const standardVehicles = vehicles.filter((v) => !isMotoLicenseCategory(v.licenseCategory));
 
   const openInstructorPicker = () => {
     if (!lesson) return;
@@ -170,7 +172,7 @@ export default function ManageGroupLessonScreen() {
       title: 'Veicolo',
       multi: false,
       selected: lesson.vehicleId ? [lesson.vehicleId] : [],
-      options: vehicles.map((v) => {
+      options: standardVehicles.map((v) => {
         const tx = transmissionLabel(v.transmission);
         const instructorName = v.assignedInstructorId
           ? instructors.find((i) => i.id === v.assignedInstructorId)?.name ?? null
