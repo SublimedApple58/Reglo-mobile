@@ -22,7 +22,9 @@ export const AuthWelcomeScreen = () => {
 
       <View style={[styles.brand, { paddingTop: insets.top + 96 }]}>
         <View style={styles.iconTile}>
-          <RegloLogo size={78} tone="navy" />
+          <View style={styles.sunShadow}>
+            <RegloLogo size={78} tone="navy" />
+          </View>
         </View>
         <Text style={styles.title}>Benvenuto in Reglo</Text>
         <Text style={styles.sub}>La tua autoscuola, in tasca</Text>
@@ -66,6 +68,14 @@ const styles = StyleSheet.create({
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
     elevation: 10,
+  },
+  // Raised sun: soft drop shadow cast from the mark's shape (bottom lifts /
+  // lightens), matching the depth of the home-screen icon.
+  sunShadow: {
+    shadowColor: NAVY,
+    shadowOpacity: 0.3,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 5 },
   },
   title: {
     fontSize: 30,
