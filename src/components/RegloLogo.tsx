@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Image, StyleSheet } from 'react-native';
+import { Image } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,21 +9,25 @@ import Animated, {
 } from 'react-native-reanimated';
 
 /**
- * Reglo brand mark — the new hand-drawn sun symbol, in ivory so it sits on the
- * navy auth/loading surfaces. Rendered from a bundled PNG (transparent bg), so
- * no vector/tint tricks are needed.
+ * Reglo brand mark — the new hand-drawn sun symbol, rendered from a bundled PNG
+ * (transparent bg). `tone` picks the colour: `navy` for light surfaces (login),
+ * `ivory` for the navy loader/splash.
  *
  * When `animated` is on (loader) the mark breathes: a gentle scale + opacity
  * pulse, ~2s loop. No rotation — the mark is asymmetric and reads best steady.
  */
-const MARK = require('../../assets/reglo-mark-ivory.png');
+const MARKS = {
+  ivory: require('../../assets/reglo-mark-ivory.png'),
+  navy: require('../../assets/reglo-mark-navy.png'),
+} as const;
 
 type RegloLogoProps = {
   size?: number;
   animated?: boolean;
+  tone?: keyof typeof MARKS;
 };
 
-export const RegloLogo = ({ size = 96, animated = false }: RegloLogoProps) => {
+export const RegloLogo = ({ size = 96, animated = false, tone = 'ivory' }: RegloLogoProps) => {
   const t = useSharedValue(0);
 
   useEffect(() => {
@@ -42,8 +46,8 @@ export const RegloLogo = ({ size = 96, animated = false }: RegloLogoProps) => {
   }));
 
   return (
-    <Animated.View style={[{ width: size, height: size }, animated && style]}>
-      <Image source={MARK} style={StyleSheet.absoluteFill} resizeMode="contain" />
+    <Animated.View style={animated ? style : undefined}>
+      <Image source={MARKS[tone]} style={{ width: size, height: size }} resizeMode="contain" />
     </Animated.View>
   );
 };

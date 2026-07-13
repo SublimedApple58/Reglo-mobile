@@ -45,7 +45,7 @@
           "image": "./assets/reglo-splash.png",
           "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#1A1A2E"
+          "backgroundColor": "#FFFFFF"
         }
       ],
       "expo-web-browser",
