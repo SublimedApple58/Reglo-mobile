@@ -21,10 +21,8 @@ export const AuthWelcomeScreen = () => {
       <StatusBar style="dark" />
 
       <View style={[styles.brand, { paddingTop: insets.top + 96 }]}>
-        <View style={styles.iconTile}>
-          <View style={styles.sunShadow}>
-            <RegloLogo size={78} tone="navy" />
-          </View>
+        <View style={styles.sunShadow}>
+          <RegloLogo size={116} tone="navy" />
         </View>
         <Text style={styles.title}>Benvenuto in Reglo</Text>
         <Text style={styles.sub}>La tua autoscuola, in tasca</Text>
@@ -52,21 +50,6 @@ export const AuthWelcomeScreen = () => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
   brand: { flex: 1, alignItems: 'center' },
-  // App-icon tile: white rounded square + navy sun + soft lift, matching the
-  // new home-screen icon.
-  iconTile: {
-    width: 126,
-    height: 126,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: NAVY,
-    shadowOpacity: 0.16,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 10,
-  },
   // Raised sun: soft drop shadow cast from the mark's shape (bottom lifts /
   // lightens), matching the depth of the home-screen icon.
   sunShadow: {
