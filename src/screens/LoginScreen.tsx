@@ -53,7 +53,7 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
   const onForgot = () =>
     router.push(mode === 'sheet' ? '/(auth)/password-reset-sheet' : '/(auth)/password-reset');
 
-  const dark = mode === 'inline';
+  const dark = false;
 
   const fields = (
     <>
@@ -103,11 +103,11 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
   // ── Android B1 — full navy inline ──
   return (
     <View style={[styles.inlineRoot, { paddingTop: insets.top + 56, paddingBottom: insets.bottom + 20 }]}>
-      <StatusBar style="light" />
-      <View style={styles.glow} />
+      <StatusBar style="dark" />
+      <View style={styles.halo} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.brand}>
-          <RegloLogo size={56} />
+          <RegloLogo size={56} tone="navy" />
           <View>
             <Text style={styles.brandTitle}>Bentornato</Text>
             <Text style={styles.brandSub}>Accedi alla tua autoscuola</Text>
@@ -115,7 +115,7 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
         </View>
 
         <View style={{ marginTop: 16 }}>{fields}</View>
-        <CtaButton label="Accedi" tone="ivory" loading={loading} onPress={handleLogin} />
+        <CtaButton label="Accedi" tone="navy" loading={loading} onPress={handleLogin} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Sei un allievo?</Text>
@@ -172,20 +172,20 @@ const styles = StyleSheet.create({
   sheetSub: { fontSize: 13.5, fontWeight: '400', color: NAVY_400, marginTop: 2 },
 
   // inline (Android)
-  inlineRoot: { flex: 1, backgroundColor: NAVY, paddingHorizontal: 28 },
-  glow: {
+  inlineRoot: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
+  halo: {
     position: 'absolute',
     top: 20,
     alignSelf: 'center',
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: IVORY,
-    opacity: 0.05,
+    backgroundColor: NAVY,
+    opacity: 0.04,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  brandTitle: { fontSize: 27, fontWeight: '600', letterSpacing: -0.4, color: IVORY },
-  brandSub: { fontSize: 14.5, fontWeight: '400', color: NAVY_300, marginTop: 4 },
+  brandTitle: { fontSize: 27, fontWeight: '600', letterSpacing: -0.4, color: '#1B1B27' },
+  brandSub: { fontSize: 14.5, fontWeight: '400', color: '#8A8A96', marginTop: 4 },
 
   // shared
   forgotWrap: { alignSelf: 'flex-end', marginTop: 11 },
@@ -213,5 +213,5 @@ const styles = StyleSheet.create({
   ctaText: { fontSize: 16, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 'auto' },
   footerText: { fontSize: 14, color: NAVY_400 },
-  footerLink: { fontSize: 14, fontWeight: '600', color: IVORY },
+  footerLink: { fontSize: 14, fontWeight: '600', color: NAVY },
 });

@@ -61,7 +61,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
     }
   };
 
-  const dark = mode === 'inline';
+  const dark = false;
 
   const form = (
     <>
@@ -159,10 +159,10 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
     );
   }
 
-  // ── Android — full navy inline ──
+  // ── Android — full-screen inline ──
   return (
     <View style={styles.inlineRoot}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={[
@@ -203,10 +203,10 @@ const styles = StyleSheet.create({
   sheetSub: { fontSize: 14, fontWeight: '400', color: NAVY_400, marginTop: 6 },
 
   // inline (Android)
-  inlineRoot: { flex: 1, backgroundColor: NAVY },
+  inlineRoot: { flex: 1, backgroundColor: '#FFFFFF' },
   inlineBody: { paddingHorizontal: 28 },
-  inlineTitle: { fontSize: 27, fontWeight: '600', color: IVORY, letterSpacing: -0.4 },
-  inlineSub: { fontSize: 14.5, fontWeight: '400', color: NAVY_300, marginTop: 6 },
+  inlineTitle: { fontSize: 27, fontWeight: '600', color: '#1B1B27', letterSpacing: -0.4 },
+  inlineSub: { fontSize: 14.5, fontWeight: '400', color: '#8A8A96', marginTop: 6 },
 
   // code field
   codeWrap: { marginTop: 16 },
