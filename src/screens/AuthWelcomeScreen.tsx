@@ -49,7 +49,7 @@ export const AuthWelcomeScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
-  brand: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 72 },
+  brand: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   // Raised sun: soft drop shadow cast from the mark's shape (bottom lifts /
   // lightens), matching the depth of the home-screen icon.
   sunShadow: {
