@@ -1,10 +1,10 @@
 {
-  "//": "runtimeVersion is PINNED to the fixed string '2.0.0' (NOT policy:appVersion). Reason: the 2.0.0 build is already live on the App Store with the current native layer, so all binaries that share that native layer must stay in the OTA cohort '2.0.0'. The marketing 'version' below climbs freely for Apple (2.0.1, 2.0.2, ...) WITHOUT moving the OTA cohort. RULE: bump runtimeVersion ONLY when the NATIVE layer changes (new native module / Expo SDK upgrade / native config) — and when you do, rebuild iOS AND Android together. Set 2026-06-19. Consider migrating to policy:'fingerprint' at the next native build that you want as a fresh cohort.",
+  "//": "runtimeVersion is the fixed OTA-cohort string. Bumped 2.0.0 -> '2.1.0' on 2026-07-13 for the new-logo + design-system build: a DELIBERATE fresh cohort so (a) EAS updates published from now on target ONLY 2.1.0 binaries, isolated from the live 2.0.0, and (b) once the new build is live on BOTH stores we raise the backend min-version to '2.1.0' to force-update every 2.0.0 user (gate in src/config/forceUpdate.ts compares Updates.runtimeVersion against /api/mobile/app-config). Marketing 'version' climbs with it. RULE: bump runtimeVersion for a fresh cohort (native change OR a forced-update cutover) and rebuild iOS AND Android together.",
   "expo": {
     "name": "Reglo",
     "slug": "reglo-mobile",
     "scheme": "com.tiziano.developer.reglo-mobile",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -31,7 +31,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "runtimeVersion": "2.0.0",
+    "runtimeVersion": "2.1.0",
     "updates": {
       "url": "https://u.expo.dev/7eefa215-807f-41a7-983c-de8a494de75c"
     },
