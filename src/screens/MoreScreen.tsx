@@ -97,7 +97,7 @@ export const MoreScreen = () => {
           style={({ pressed }) => [styles.hero, pressed && { opacity: 0.95 }]}
         >
           <View style={styles.editBadge}>
-            <Ionicons name="create-outline" size={17} color="#9CA3AF" />
+            <Ionicons name="create-outline" size={17} color="#929292" />
           </View>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initialsFrom(user?.name ?? null, user?.email ?? '')}</Text>
@@ -107,7 +107,7 @@ export const MoreScreen = () => {
           {roleText ? <Text style={styles.heroSub} numberOfLines={1}>{roleText}</Text> : null}
           {companyName ? (
             <View style={styles.companyPill}>
-              <Ionicons name="business-outline" size={12} color="#9CA3AF" />
+              <Ionicons name="business-outline" size={12} color="#929292" />
               <Text style={styles.companyText} numberOfLines={1}>{companyName}</Text>
             </View>
           ) : null}
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 30, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.4 },
   heroName: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 16 },
-  heroEmail: { fontSize: 14, fontWeight: '400', color: '#9CA3AF', marginTop: 4 },
+  heroEmail: { fontSize: 14, fontWeight: '400', color: '#929292', marginTop: 4 },
   heroSub: { fontSize: 13, fontWeight: '400', color: '#AEB4CC', marginTop: 2 },
   companyPill: {
     flexDirection: 'row',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 12,
   },
-  companyText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  companyText: { fontSize: 12, fontWeight: '600', color: '#6A6A6A' },
 
   // Menu = FLAT list on the page background (NOT wrapped in a card). Cards are
   // only for standalone items like the profile hero above.

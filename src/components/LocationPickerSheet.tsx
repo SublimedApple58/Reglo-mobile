@@ -101,7 +101,7 @@ export const LocationPickerSheet = ({
                   <Ionicons
                     name={item.isPrecise ? 'location' : 'pricetag-outline'}
                     size={18}
-                    color={item.isPrecise ? '#16A34A' : '#6B7280'}
+                    color={item.isPrecise ? '#16A34A' : '#6A6A6A'}
                   />
                 </View>
                 <View style={styles.textWrap}>

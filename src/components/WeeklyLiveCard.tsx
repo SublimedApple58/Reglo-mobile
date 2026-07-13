@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   examIcon: { width: 48, height: 48 },
   examKicker: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
   name: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  meta: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 3 },
+  meta: { fontSize: 13, fontWeight: '400', color: '#929292', marginTop: 3 },
   donePill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FDF4', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 },
   donePillTx: { fontSize: 12, fontWeight: '600', color: '#16A34A' },
 

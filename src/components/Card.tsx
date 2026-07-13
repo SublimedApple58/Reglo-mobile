@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#222222',
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   title: {

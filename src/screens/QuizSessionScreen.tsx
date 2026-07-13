@@ -88,7 +88,7 @@ export const QuizSessionScreen = () => {
       { scale: cardScale.value },
     ],
     borderColor: cardBorderColor.value > 0.5 ? '#16A34A'
-      : cardBorderColor.value < -0.5 ? '#EF4444'
+      : cardBorderColor.value < -0.5 ? '#C13515'
       : '#F0F0F5',
     borderWidth: Math.abs(cardBorderColor.value) > 0.1 ? 2 : 1,
   }));
@@ -934,7 +934,7 @@ const st = StyleSheet.create({
     width: SCHEDA_DOT_SIZE, height: SCHEDA_DOT_SIZE, borderRadius: SCHEDA_DOT_SIZE / 2,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
-  schedaDotPending: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  schedaDotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
   schedaDotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
   schedaDotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   schedaDotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
@@ -995,7 +995,7 @@ const st = StyleSheet.create({
   feedbackHintPreview: {
     flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch',
     backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#DDDDDD',
   },
   feedbackHintPreviewTitle: {
     flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary,
@@ -1091,7 +1091,7 @@ const st = StyleSheet.create({
   explanationCard: {
     padding: 16, borderRadius: 24,
     backgroundColor: colors.background, gap: 8, marginBottom: 12,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#DDDDDD',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
@@ -1152,7 +1152,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5,
   },
-  dotPending: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  dotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
   dotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
   dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },

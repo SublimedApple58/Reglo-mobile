@@ -1250,7 +1250,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C13515',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
   chunkyRedLinkText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#C13515',
     textAlign: 'center',
   },
 

@@ -241,7 +241,7 @@ const s = StyleSheet.create({
   close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
 
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
-  warn: { fontSize: 12.5, color: '#EF4444', fontWeight: '500', marginTop: -8, marginBottom: 12, marginLeft: 6 },
+  warn: { fontSize: 12.5, color: '#C13515', fontWeight: '500', marginTop: -8, marginBottom: 12, marginLeft: 6 },
 
   /* motivo text area — looks like an editable field, not a tappable card */
   fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },

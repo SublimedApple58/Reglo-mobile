@@ -323,7 +323,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
         >
           {!published && <GradientCTABackground radius={999} />}
           {publishing ? (
-            <ActivityIndicator color={published ? '#6B7280' : '#FFFFFF'} />
+            <ActivityIndicator color={published ? '#6A6A6A' : '#FFFFFF'} />
           ) : (
             <Text style={published ? styles.btnGhostText : styles.btnPublishText}>
               {published ? 'Ritira' : 'Pubblica'}
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   weekPillOff: { backgroundColor: '#F1F2F4' },
   weekPillPub: { backgroundColor: PUB_BG },
   weekPillSel: { backgroundColor: '#1A1A2E' },
-  weekPillText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF', letterSpacing: -0.2 },
+  weekPillText: { fontSize: 14, fontWeight: '600', color: '#929292', letterSpacing: -0.2 },
   weekPillTextPub: { color: '#334155', fontWeight: '700' },
   weekPillTextSel: { color: '#FFFFFF', fontWeight: '700' },
 
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   swipePillEnable: { backgroundColor: '#34C759' },
   swipeActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
   dayName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  todayLabel: { fontSize: 13, fontWeight: '500', color: '#9CA3AF', marginLeft: 1 },
+  todayLabel: { fontSize: 13, fontWeight: '500', color: '#929292', marginLeft: 1 },
 
   chipsArea: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
   timeChip: {
@@ -441,5 +441,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 22, minWidth: 100,
     borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center',
   },
-  btnGhostText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  btnGhostText: { fontSize: 15, fontWeight: '600', color: '#6A6A6A' },
 });

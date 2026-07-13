@@ -1682,7 +1682,7 @@ export const AllievoHomeScreen = () => {
                   style={({ pressed }) => [styles.bookCard, pressed && styles.ctaPressed]}
                 >
                   <View style={styles.bookCardIcon}>
-                    <Ionicons name="add" size={20} color="#6B7280" />
+                    <Ionicons name="add" size={20} color="#6A6A6A" />
                   </View>
                   <Text style={styles.bookCardTitle}>Prenota</Text>
                   <Text style={styles.bookCardSub}>una guida</Text>
@@ -1957,7 +1957,7 @@ const styles = StyleSheet.create({
   },
   bookCardIcon: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#9CA3AF', borderStyle: 'dashed',
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#929292', borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
   bookCardTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
@@ -2137,7 +2137,7 @@ const styles = StyleSheet.create({
     fontSize: 18, fontWeight: '700', color: '#1a120a', letterSpacing: -0.3, textAlign: 'center',
   },
   emptyStateSub: {
-    fontSize: 14, fontWeight: '400', color: '#9CA3AF', textAlign: 'center', lineHeight: 20,
+    fontSize: 14, fontWeight: '400', color: '#929292', textAlign: 'center', lineHeight: 20,
   },
   /* ── Booking Flow Calendar ── */
   bkBackBtn: {
@@ -2186,7 +2186,7 @@ const styles = StyleSheet.create({
   bkWeekdayText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#929292',
     letterSpacing: 0.5,
   },
   bkGrid: {
@@ -2245,7 +2245,7 @@ const styles = StyleSheet.create({
   bkInfoText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#929292',
   },
 
   /* ── Legacy styles removed — old pills, fixed CTA, exam card ── */
@@ -2490,7 +2490,7 @@ const styles = StyleSheet.create({
   agendaRow: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -2504,7 +2504,7 @@ const styles = StyleSheet.create({
   agendaExamRow: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -2776,7 +2776,7 @@ const styles = StyleSheet.create({
   sheetTextActionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#C13515',
     textAlign: 'center',
   },
   bookingDateCard: {
@@ -2919,7 +2919,7 @@ const styles = StyleSheet.create({
   chunkyRedLinkText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#C13515',
     textAlign: 'center',
   },
   chunkyFormLabel: {
@@ -3055,7 +3055,7 @@ const styles = StyleSheet.create({
   bookingDateHint: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#9CA3AF',
+    color: '#929292',
     marginTop: 2,
   },
   bookingDurationSingle: {
@@ -3094,7 +3094,7 @@ const styles = StyleSheet.create({
   },
   bookingInstructorCaption: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#929292',
     marginTop: 6,
     lineHeight: 16,
   },
@@ -3108,7 +3108,7 @@ const styles = StyleSheet.create({
   timelineSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: '#929292',
     marginBottom: 16,
   },
   timelineContainer: {
@@ -3127,7 +3127,7 @@ const styles = StyleSheet.create({
   timelineHour: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#929292',
   },
   timelineLine: {
     width: 1.5,

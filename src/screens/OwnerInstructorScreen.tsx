@@ -37,7 +37,7 @@ import { colors, radii, spacing } from '../theme';
 // ─── Helpers ──────────────────────────────────────────────────
 
 const STATUS_GREEN = '#22C55E';
-const STATUS_RED = '#EF4444';
+const STATUS_RED = '#C13515';
 const STATUS_GRAY = '#CBD5E1';
 
 const getInitials = (name: string): string => {
@@ -1291,7 +1291,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radii.sm,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1449,7 +1449,7 @@ const styles = StyleSheet.create({
   },
   calBtnOutline: {
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
   },
   calBtnOutlineText: {
     fontSize: 13,

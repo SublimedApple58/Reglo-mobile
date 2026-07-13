@@ -235,7 +235,7 @@ export const InstructorHoursScreen = () => {
             {/* Working hours */}
             {data.workingHoursStart && data.workingHoursEnd ? (
               <View style={s.infoRow}>
-                <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                <Ionicons name="time-outline" size={14} color="#929292" />
                 <Text style={s.infoText}>Orario di lavoro {data.workingHoursStart}–{data.workingHoursEnd}</Text>
               </View>
             ) : null}
@@ -306,13 +306,13 @@ const s = StyleSheet.create({
   bar: { width: '64%', borderTopLeftRadius: 7, borderTopRightRadius: 7, minHeight: 5, overflow: 'hidden', flexDirection: 'column' },
   barInside: { width: '100%', backgroundColor: '#1A1A2E' },
   barOutside: { width: '100%', backgroundColor: '#1A1A2E' },
-  colEmpty: { width: '64%', height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' },
+  colEmpty: { width: '64%', height: 5, borderRadius: 3, backgroundColor: '#DDDDDD' },
   colValue: { fontSize: 10, fontWeight: '700', color: '#64748B', fontVariant: ['tabular-nums'] },
   colLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
   colLabelToday: { color: '#1A1A2E', fontWeight: '700' },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingHorizontal: 4 },
-  infoText: { fontSize: 12, color: '#9CA3AF' },
+  infoText: { fontSize: 12, color: '#929292' },
 
   skelHero: { borderRadius: 22, padding: 22, height: 108 },
   skelChart: { borderRadius: 20, padding: 16 },

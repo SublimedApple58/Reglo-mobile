@@ -27,18 +27,18 @@ export const colors = {
   // Brand
   primary: '#1A1A2E',
   accent: '#FACC15',
-  destructive: '#EF4444',
+  destructive: '#C13515', // rosso mattone Airbnb, allineato al web (era #EF4444)
   positive: '#22C55E',
 
-  // Text
-  textPrimary: '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  // Text — grigi neutri caldi allineati al web (erano slate #1F2937/#6B7280/#9CA3AF)
+  textPrimary: '#222222',
+  textSecondary: '#6A6A6A',
+  textMuted: '#929292',
 
   // Surface
   surface: '#FFFFFF',
   background: '#FDFDFD',
-  border: '#E5E7EB',
+  border: '#DDDDDD', // neutro come il web (era slate #E5E7EB)
 
   // Shadow
   shadow: 'rgba(0, 0, 0, 0.08)',

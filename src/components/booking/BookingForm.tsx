@@ -607,7 +607,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
                   <View style={{ flex: 1 }} />
                   {entries.length > 1 ? (
                     <Pressable hitSlop={8} onPress={() => setEntries((p) => p.filter((e) => e.id !== entry.id))} disabled={pending}>
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      <Ionicons name="trash-outline" size={18} color="#C13515" />
                     </Pressable>
                   ) : null}
                 </View>
@@ -710,7 +710,7 @@ const s = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0, gap: 1 },
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
-  rowValueSub: { fontSize: 13, color: '#9CA3AF' },
+  rowValueSub: { fontSize: 13, color: '#929292' },
   rowPlaceholder: { fontSize: 14, color: MUTED },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
 

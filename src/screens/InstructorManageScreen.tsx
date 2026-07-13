@@ -1410,7 +1410,7 @@ export const InstructorManageScreen = () => {
             >
               <Text style={[
                 styles.vehicleToggleText,
-                { color: editingVehicle.status === 'inactive' ? '#16A34A' : '#EF4444' },
+                { color: editingVehicle.status === 'inactive' ? '#16A34A' : '#C13515' },
               ]}>
                 {vehicleStatusSaving
                   ? 'Aggiornamento...'
@@ -1782,7 +1782,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
   },

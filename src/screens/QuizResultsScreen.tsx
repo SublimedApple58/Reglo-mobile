@@ -300,7 +300,7 @@ const st = StyleSheet.create({
   // Hero
   heroCard: {
     borderRadius: 28, padding: 28, alignItems: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DDDDDD',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 14, elevation: 5,
   },
@@ -374,7 +374,7 @@ const st = StyleSheet.create({
   wrongHint: {
     padding: 14, borderRadius: 24,
     backgroundColor: colors.background, gap: 6,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: '#DDDDDD',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
@@ -393,7 +393,7 @@ const st = StyleSheet.create({
   actSecondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 13, borderRadius: 24,
-    borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
+    borderWidth: 1.5, borderColor: '#DDDDDD', backgroundColor: '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },

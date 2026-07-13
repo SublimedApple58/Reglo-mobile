@@ -60,7 +60,7 @@ const s = StyleSheet.create({
   body: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#6B7280',
+    color: '#6A6A6A',
     textAlign: 'center',
     lineHeight: 22,
   },

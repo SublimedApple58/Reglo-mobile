@@ -450,7 +450,7 @@ const s = StyleSheet.create({
   obbligoCount: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
   obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#94A3B8' },
   segments: { flexDirection: 'row', gap: 6, marginTop: 12 },
-  segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#E5E7EB' },
+  segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#DDDDDD' },
   segmentFilled: { backgroundColor: '#1A1A2E' },
   obbligoStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
   obbligoStatus: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
   tlChipText: { fontSize: 11, fontWeight: '700' },
   tlMeta: { fontSize: 13, color: '#94A3B8' },
   tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
-  tlNoteEmpty: { color: '#9CA3AF', fontStyle: 'italic' },
+  tlNoteEmpty: { color: '#929292', fontStyle: 'italic' },
 
   // Floating contact buttons (no bar — each floats with its own shadow)
   footer: {

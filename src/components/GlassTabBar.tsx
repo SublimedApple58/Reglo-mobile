@@ -222,7 +222,7 @@ const st = StyleSheet.create({
     height: 17,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C13515',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,

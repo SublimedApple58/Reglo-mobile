@@ -45,7 +45,7 @@ const TYPE_THEME: Record<string, { bg: string; fg: string; label: string }> = {
 const typeTheme = (t: string) =>
   TYPE_THEME[t.trim().toLowerCase()] ?? {
     bg: '#F3F4F6',
-    fg: '#6B7280',
+    fg: '#6A6A6A',
     label: t.charAt(0).toUpperCase() + t.slice(1),
   };
 

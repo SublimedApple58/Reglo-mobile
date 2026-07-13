@@ -572,7 +572,7 @@ const s = StyleSheet.create({
   },
   weakRateRed: { backgroundColor: '#FEE2E2' },
   weakRateText: { fontSize: 12, fontWeight: '800', color: '#CA8A04' },
-  weakRateTextRed: { color: '#EF4444' },
+  weakRateTextRed: { color: '#C13515' },
 });
 
 export default AllievoTheoryHomeScreen;

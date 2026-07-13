@@ -92,7 +92,7 @@ export const SwipeQuizCard = forwardRef<SwipeQuizCardRef, Props>(
       const c = interpolateColor(
         translateX.value,
         [-SWIPE_THRESHOLD, -10, 0, 10, SWIPE_THRESHOLD],
-        ['#FCA5A5', '#E5E7EB', '#E5E7EB', '#E5E7EB', '#86EFAC'],
+        ['#FCA5A5', '#DDDDDD', '#DDDDDD', '#DDDDDD', '#86EFAC'],
       );
       const w = interpolate(Math.abs(translateX.value), [0, SWIPE_THRESHOLD], [1, 3], Extrapolation.CLAMP);
       return { borderColor: c, borderWidth: w };
@@ -127,7 +127,7 @@ export const SwipeQuizCard = forwardRef<SwipeQuizCardRef, Props>(
               <Text style={[st.stampText, { color: '#16A34A' }]}>VERO</Text>
             </Animated.View>
             <Animated.View style={[st.stamp, st.stampRight, falsoOpacity]} pointerEvents="none">
-              <Text style={[st.stampText, { color: '#EF4444' }]}>FALSO</Text>
+              <Text style={[st.stampText, { color: '#C13515' }]}>FALSO</Text>
             </Animated.View>
 
             <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={st.cardContent}>
@@ -158,7 +158,7 @@ const st = StyleSheet.create({
   card: {
     width: CARD_W, maxHeight: CARD_H,
     backgroundColor: '#FFFFFF', borderRadius: 24,
-    borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
+    borderWidth: 1, borderColor: '#DDDDDD', overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1, shadowRadius: 20, elevation: 8,
   },
@@ -171,7 +171,7 @@ const st = StyleSheet.create({
     borderWidth: 3, borderRadius: 8,
   },
   stampLeft: { left: 16, borderColor: '#16A34A', transform: [{ rotate: '-12deg' }] },
-  stampRight: { right: 16, borderColor: '#EF4444', transform: [{ rotate: '12deg' }] },
+  stampRight: { right: 16, borderColor: '#C13515', transform: [{ rotate: '12deg' }] },
   stampText: { fontSize: 20, fontWeight: '900', letterSpacing: 2 },
   cardContent: { padding: 20, paddingTop: 48, gap: 0 },
   imageWrap: {

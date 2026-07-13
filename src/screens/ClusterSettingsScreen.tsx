@@ -356,7 +356,7 @@ export const ClusterSettingsScreen = () => {
           >
             <View style={styles.codeCardHeader}>
               <Text style={styles.codeCardLabel}>Codice di invito</Text>
-              <Ionicons name="copy-outline" size={17} color="#9CA3AF" />
+              <Ionicons name="copy-outline" size={17} color="#929292" />
             </View>
             <Text style={styles.codeCardValue}>{inviteCode}</Text>
             <Text style={styles.codeCardHint}>

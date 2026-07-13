@@ -44,10 +44,10 @@ const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
 
 const STATUS_THEME = {
-  not_started: { bg: '#F3F4F6', accent: '#9CA3AF', border: '#E5E7EB', lines: '#D1D5DB' },
+  not_started: { bg: '#F3F4F6', accent: '#929292', border: '#DDDDDD', lines: '#D1D5DB' },
   in_progress: { bg: '#FEF9C3', accent: '#CA8A04', border: '#FDE68A', lines: '#FCD34D' },
   passed: { bg: '#DCFCE7', accent: '#16A34A', border: '#BBF7D0', lines: '#86EFAC' },
-  failed: { bg: '#FEE2E2', accent: '#EF4444', border: '#FECACA', lines: '#FCA5A5' },
+  failed: { bg: '#FEE2E2', accent: '#C13515', border: '#FECACA', lines: '#FCA5A5' },
 } as const;
 
 export const ExamSchedeListScreen: React.FC = () => {
@@ -221,7 +221,7 @@ export const ExamSchedeListScreen: React.FC = () => {
                         </View>
                       )}
                       {scheda.status === 'failed' && (
-                        <View style={[st.tileBadge, { backgroundColor: '#EF4444' }]}>
+                        <View style={[st.tileBadge, { backgroundColor: '#C13515' }]}>
                           <Text style={st.tileBadgeText}>{scheda.errorCount}</Text>
                         </View>
                       )}

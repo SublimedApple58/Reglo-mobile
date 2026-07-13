@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   diffPillText: {
-    color: '#6B7280',
+    color: '#6A6A6A',
     fontSize: 12,
     fontWeight: '600',
   },

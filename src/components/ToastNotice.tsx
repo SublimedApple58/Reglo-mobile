@@ -29,7 +29,7 @@ type ToneConfig = { icon: keyof typeof Ionicons.glyphMap; accent: string };
 const toneConfig: Record<ToastTone, ToneConfig> = {
   success: { icon: 'checkmark', accent: colors.positive }, // #22C55E
   info: { icon: 'information-circle-outline', accent: colors.primary }, // navy
-  danger: { icon: 'alert-circle-outline', accent: colors.destructive }, // #EF4444
+  danger: { icon: 'alert-circle-outline', accent: colors.destructive }, // #C13515
 };
 
 const HIDDEN_Y = -160; // off-screen (upward) resting position

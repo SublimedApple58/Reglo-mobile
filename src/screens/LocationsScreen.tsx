@@ -243,10 +243,10 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
 
   sectionLabel: {
-    fontSize: 12, fontWeight: '600', color: '#9CA3AF',
+    fontSize: 12, fontWeight: '600', color: '#929292',
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 12,
   },
-  note: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', lineHeight: 18, marginTop: 12 },
+  note: { fontSize: 13, fontWeight: '400', color: '#929292', lineHeight: 18, marginTop: 12 },
 
   card: {
     backgroundColor: colors.surface, borderRadius: 20, padding: 16, marginBottom: 12,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
 
   cardName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
   cardAddress: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-  cardAddressMuted: { fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: '#9CA3AF', marginTop: 2 },
+  cardAddressMuted: { fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: '#929292', marginTop: 2 },
 
   mapsBtn: { padding: 4 },
 

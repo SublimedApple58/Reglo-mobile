@@ -33,7 +33,7 @@ export const ToggleSwitch = ({ value, onValueChange, activeColor = '#1A1A2E', di
   }, [value, p]);
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(p.value, [0, 1], ['#E5E7EB', activeColor]),
+    backgroundColor: interpolateColor(p.value, [0, 1], ['#DDDDDD', activeColor]),
   }));
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: p.value * TRAVEL }],

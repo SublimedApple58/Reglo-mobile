@@ -4529,7 +4529,7 @@ const styles = StyleSheet.create({
   agendaRow: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 22,
     paddingVertical: 16,
@@ -4685,7 +4685,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
@@ -4894,17 +4894,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
-    color: '#9CA3AF',
+    color: '#929292',
   },
   sheetProgressCount: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#222222',
   },
   sheetProgressBarBg: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#DDDDDD',
   },
   sheetProgressBarFill: {
     height: 6,
@@ -4914,7 +4914,7 @@ const styles = StyleSheet.create({
   sheetProgressHint: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#6A6A6A',
   },
   lessonTypeBlock: {
     marginTop: spacing.sm,
@@ -4963,7 +4963,7 @@ const styles = StyleSheet.create({
   datePickerPressable: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
@@ -5289,8 +5289,8 @@ const styles = StyleSheet.create({
   itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#475569', letterSpacing: 0.1 },
   dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', textAlign: 'center', marginTop: 4, marginBottom: 16, paddingHorizontal: 24, lineHeight: 18 },
   itinNowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 22, marginBottom: 14 },
-  itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#EF4444', opacity: 0.45 },
-  itinNowLabel: { fontSize: 11, fontWeight: '700', color: '#EF4444' },
+  itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#C13515', opacity: 0.45 },
+  itinNowLabel: { fontSize: 11, fontWeight: '700', color: '#C13515' },
   hourLabel: {
     width: 46,
     fontSize: 12,
@@ -5306,7 +5306,7 @@ const styles = StyleSheet.create({
   },
   timelineSlotUnavailable: {
     borderLeftWidth: 1,
-    borderLeftColor: '#E5E7EB',
+    borderLeftColor: '#DDDDDD',
     borderStyle: 'dashed' as const,
   },
   unavailableLabelWrap: {
@@ -5470,9 +5470,9 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C13515',
     marginLeft: -6,
-    shadowColor: '#EF4444',
+    shadowColor: '#C13515',
     shadowOpacity: 0.4,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -5481,13 +5481,13 @@ const styles = StyleSheet.create({
   nowLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C13515',
     opacity: 0.7,
   },
   nowLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#C13515',
     marginLeft: 6,
   },
 
@@ -5553,7 +5553,7 @@ const oobStyles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     borderRadius: radii.sm,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -5615,7 +5615,7 @@ const oobStyles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#DDDDDD',
     alignItems: 'center',
   },
   actionBtnText: {
