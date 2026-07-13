@@ -4,11 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegloLogo } from '../components/RegloLogo';
+import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 
 const NAVY = '#1A1A2E';
-const INK = '#222222';
-const MUTED = '#929292';
-const BORDER = '#DDDDDD';
+const INK = '#1B1B27';
+const MUTED = '#8A8A96';
 
 /** iOS entry screen: light brand backdrop with two entry points. The actual
  *  forms are presented as native sheets (login = form sheet, signup = page sheet). */
@@ -19,8 +19,12 @@ export const AuthWelcomeScreen = () => {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <View style={[styles.brand, { paddingTop: insets.top + 100 }]}>
-        <RegloLogo size={104} tone="navy" animated />
+
+      <View style={[styles.brand, { paddingTop: insets.top + 96 }]}>
+        <View style={styles.logoWrap}>
+          <View style={styles.halo} />
+          <RegloLogo size={116} tone="navy" />
+        </View>
         <Text style={styles.title}>Benvenuto in Reglo</Text>
         <Text style={styles.sub}>La tua autoscuola, in tasca</Text>
       </View>
@@ -30,6 +34,7 @@ export const AuthWelcomeScreen = () => {
           onPress={() => router.push('/(auth)/login-sheet')}
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
         >
+          <GradientCTABackground radius={16} />
           <Text style={styles.btnPrimaryText}>Accedi</Text>
         </Pressable>
         <Pressable
@@ -46,33 +51,52 @@ export const AuthWelcomeScreen = () => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
   brand: { flex: 1, alignItems: 'center' },
+  logoWrap: { alignItems: 'center', justifyContent: 'center' },
+  halo: {
+    position: 'absolute',
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: NAVY,
+    opacity: 0.05,
+  },
   title: {
-    fontSize: 29,
+    fontSize: 30,
     fontWeight: '600',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     color: INK,
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 30,
   },
-  sub: { fontSize: 14.5, fontWeight: '400', color: MUTED, textAlign: 'center', marginTop: 8 },
-  actions: { gap: 12 },
+  sub: { fontSize: 15, fontWeight: '400', color: MUTED, textAlign: 'center', marginTop: 9 },
+
+  actions: { gap: 13 },
+  // Primary — 3D navy gradient CTA (app-wide lift: gradient bg + colored shadow).
   btnPrimary: {
-    height: 54,
-    borderRadius: 15,
-    backgroundColor: NAVY,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    ...primaryCtaShadow,
   },
-  btnPrimaryText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  btnPrimaryText: { fontSize: 16.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.1 },
+  // Secondary — white pill with a soft lift + hairline border.
   btnGhost: {
-    height: 54,
-    borderRadius: 15,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: BORDER,
+    borderColor: '#ECECEF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1A1A2E',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   btnGhostText: { fontSize: 16, fontWeight: '600', color: INK },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
-  pressedGhost: { backgroundColor: '#FAFAFA' },
+  pressed: { transform: [{ scale: 0.985 }], opacity: 0.94 },
+  pressedGhost: { backgroundColor: '#FAFAFA', transform: [{ scale: 0.985 }] },
 });
