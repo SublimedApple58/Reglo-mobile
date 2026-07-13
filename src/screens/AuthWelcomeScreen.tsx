@@ -21,9 +21,8 @@ export const AuthWelcomeScreen = () => {
       <StatusBar style="dark" />
 
       <View style={[styles.brand, { paddingTop: insets.top + 96 }]}>
-        <View style={styles.logoWrap}>
-          <View style={styles.halo} />
-          <RegloLogo size={116} tone="navy" />
+        <View style={styles.iconTile}>
+          <RegloLogo size={78} tone="navy" />
         </View>
         <Text style={styles.title}>Benvenuto in Reglo</Text>
         <Text style={styles.sub}>La tua autoscuola, in tasca</Text>
@@ -51,14 +50,22 @@ export const AuthWelcomeScreen = () => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
   brand: { flex: 1, alignItems: 'center' },
-  logoWrap: { alignItems: 'center', justifyContent: 'center' },
-  halo: {
-    position: 'absolute',
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: NAVY,
-    opacity: 0.05,
+  // App-icon tile: white rounded square + navy sun + soft lift, matching the
+  // new home-screen icon.
+  iconTile: {
+    width: 126,
+    height: 126,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F0F0F3',
+    shadowColor: NAVY,
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 10,
   },
   title: {
     fontSize: 30,
