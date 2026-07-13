@@ -14,8 +14,8 @@ type SelectableChipProps = {
 // border + dark text on active. No yellow anywhere.
 const ACTIVE_BG = '#FFFFFF';
 const ACTIVE_BORDER = '#1A1A2E';
-const INACTIVE_BG = '#F8FAFC';
-const INACTIVE_BORDER = '#E2E8F0';
+const INACTIVE_BG = '#F7F7F7';
+const INACTIVE_BORDER = '#DDDDDD';
 
 export const SelectableChip = ({
   label,
@@ -50,7 +50,7 @@ export const SelectableChip = ({
 
   const animatedTextColor = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#64748B', '#1A1A2E'],
+    outputRange: ['#6A6A6A', '#1A1A2E'],
   });
 
   return (

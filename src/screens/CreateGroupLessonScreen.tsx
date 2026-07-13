@@ -29,7 +29,7 @@ import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
-const MUTED = '#94A3B8';
+const MUTED = '#929292';
 const TEAL = '#0F766E';
 const N50 = '#F4F5F9';
 const N100 = '#E9EBF2';

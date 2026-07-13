@@ -38,7 +38,7 @@ import { colors, radii, spacing } from '../theme';
 
 const STATUS_GREEN = '#22C55E';
 const STATUS_RED = '#C13515';
-const STATUS_GRAY = '#CBD5E1';
+const STATUS_GRAY = '#C4C4C4';
 
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/);
@@ -608,23 +608,23 @@ export const OwnerInstructorScreen = () => {
             style={styles.searchBtn}
             hitSlop={8}
           >
-            <Ionicons name={searchOpen ? 'close' : 'search'} size={20} color="#64748B" />
+            <Ionicons name={searchOpen ? 'close' : 'search'} size={20} color="#6A6A6A" />
           </Pressable>
         </View>
         {searchOpen && (
           <Animated.View entering={FadeIn.duration(200)} style={styles.searchBar}>
-            <Ionicons name="search" size={16} color="#94A3B8" />
+            <Ionicons name="search" size={16} color="#929292" />
             <TextInput
               style={styles.searchInput}
               placeholder="Cerca istruttore..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#929292"
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoFocus
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+                <Ionicons name="close-circle" size={18} color="#C4C4C4" />
               </Pressable>
             )}
           </Animated.View>
@@ -779,8 +779,8 @@ export const OwnerInstructorScreen = () => {
                     {todayStats.completed} completate
                   </Text>
                 </View>
-                <View style={[styles.statBadge, { backgroundColor: '#F1F5F9' }]}>
-                  <Text style={[styles.statBadgeText, { color: '#64748B' }]}>
+                <View style={[styles.statBadge, { backgroundColor: '#F2F2F2' }]}>
+                  <Text style={[styles.statBadgeText, { color: '#6A6A6A' }]}>
                     {todayStats.upcoming} prossime
                   </Text>
                 </View>
@@ -810,7 +810,7 @@ export const OwnerInstructorScreen = () => {
         ) : (
           <View style={styles.detailCard}>
             <View style={styles.placeholderContainer}>
-              <Ionicons name="arrow-up" size={28} color="#94A3B8" />
+              <Ionicons name="arrow-up" size={28} color="#929292" />
               <Text style={styles.placeholderText}>Seleziona un istruttore</Text>
             </View>
           </View>
@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -1085,10 +1085,10 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
@@ -1096,19 +1096,19 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1E293B',
+    color: '#222222',
     padding: 0,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
     letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
 
   // Instructor card row
@@ -1124,7 +1124,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#F2F2F2',
     paddingVertical: 16,
     paddingHorizontal: 12,
     alignItems: 'center',
@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
   instructorCardName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
     textAlign: 'center',
   },
   instructorCardStatus: {
@@ -1179,7 +1179,7 @@ const styles = StyleSheet.create({
   },
   instructorCardLessons: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#929292',
   },
 
   // Detail card
@@ -1187,7 +1187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#F2F2F2',
     padding: 24,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -1221,12 +1221,12 @@ const styles = StyleSheet.create({
   detailName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   detailMeta: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
   statusPill: {
     flexDirection: 'row',
@@ -1249,7 +1249,7 @@ const styles = StyleSheet.create({
   // Divider
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
     marginVertical: 16,
   },
 
@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 12,
@@ -1298,7 +1298,7 @@ const styles = StyleSheet.create({
   btnOutlineText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
     textAlign: 'center',
   },
   btnPrimary: {
@@ -1325,7 +1325,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
 
   // BottomSheet content
@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
 
   // Tab chips
@@ -1361,7 +1361,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radii.sm,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
   },
   tabChipActive: {
     backgroundColor: '#FACC15',
@@ -1369,7 +1369,7 @@ const styles = StyleSheet.create({
   tabChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   tabChipTextActive: {
     color: '#FFFFFF',
@@ -1391,7 +1391,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FACC15',
   },
   dayCircleInactive: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
   },
   dayCircleText: {
     fontSize: 13,
@@ -1401,7 +1401,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dayCircleTextInactive: {
-    color: '#64748B',
+    color: '#6A6A6A',
   },
 
   // Calendar day detail accordion
@@ -1409,13 +1409,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#F2F2F2',
     paddingTop: spacing.sm,
   },
   calDayLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   calOverrideBadge: {
     alignSelf: 'flex-start',
@@ -1454,14 +1454,14 @@ const styles = StyleSheet.create({
   calBtnOutlineText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
 
   // Invite description
   inviteDescription: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
     lineHeight: 20,
   },
 

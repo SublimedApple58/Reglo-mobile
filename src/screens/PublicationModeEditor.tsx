@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   weekPillPub: { backgroundColor: PUB_BG },
   weekPillSel: { backgroundColor: '#1A1A2E' },
   weekPillText: { fontSize: 14, fontWeight: '600', color: '#929292', letterSpacing: -0.2 },
-  weekPillTextPub: { color: '#334155', fontWeight: '700' },
+  weekPillTextPub: { color: '#444444', fontWeight: '700' },
   weekPillTextSel: { color: '#FFFFFF', fontWeight: '700' },
 
   /* ── Swipe hint ──────────────────────────────────────── */
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999,
   },
-  swipePillDisable: { backgroundColor: '#64748B' },
+  swipePillDisable: { backgroundColor: '#6A6A6A' },
   swipePillEnable: { backgroundColor: '#34C759' },
   swipeActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
   dayName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   btnPublishText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   btnGhost: {
     backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 22, minWidth: 100,
-    borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#DDDDDD', alignItems: 'center', justifyContent: 'center',
   },
   btnGhostText: { fontSize: 15, fontWeight: '600', color: '#6A6A6A' },
 });

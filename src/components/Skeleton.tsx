@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: radii.lg,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     padding: 16,
     gap: 10,
   },

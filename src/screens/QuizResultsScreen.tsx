@@ -293,7 +293,7 @@ export const QuizResultsScreen = () => {
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F2F2F2' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
   scroll: { padding: spacing.md, gap: 20, paddingBottom: 120 },
 
@@ -324,7 +324,7 @@ const st = StyleSheet.create({
   metaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F2F2',
   },
   metaPillText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
@@ -336,7 +336,7 @@ const st = StyleSheet.create({
   bRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   bBadge: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   bBadgeText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
   bBarWrap: { flex: 1 },

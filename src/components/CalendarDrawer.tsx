@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#C4C4C4',
     borderRadius: 2,
   },
   header: {
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   monthNav: {
     flexDirection: 'row',
@@ -433,16 +433,16 @@ const styles = StyleSheet.create({
   },
   monthArrowText: {
     fontSize: 22,
-    color: '#1E293B',
+    color: '#222222',
     lineHeight: 26,
   },
   monthArrowTextDisabled: {
-    color: '#94A3B8',
+    color: '#929292',
   },
   monthLabel: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   weekdayRow: {
     flexDirection: 'row',
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   weekdayText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
   },
   grid: {
     flexDirection: 'row',
@@ -494,12 +494,12 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   dayTextToday: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   dayTextSelected: {
     fontSize: 15,
@@ -509,12 +509,12 @@ const styles = StyleSheet.create({
   dayTextUnavailable: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#CBD5E1',
+    color: '#C4C4C4',
   },
   dayTextOtherMonth: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#E2E8F0',
+    color: '#DDDDDD',
   },
   dayDot: {
     position: 'absolute',
@@ -554,12 +554,12 @@ const styles = StyleSheet.create({
   mascotText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
     textAlign: 'center',
   },
   mascotHint: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#929292',
     textAlign: 'center',
     shadowColor: '#1A1A2E',
     shadowOpacity: 0.3,

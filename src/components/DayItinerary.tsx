@@ -149,11 +149,11 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
               <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} />
               <Pressable onPress={() => onOpenBlock(block)} style={({ pressed }) => [styles.card, styles.cardMuted, pressed && styles.cardPressed]}>
                 <View style={styles.cardTop}>
-                  <View style={[styles.avatar, { backgroundColor: '#F1F5F9' }]}>
-                    <Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#94A3B8'} />
+                  <View style={[styles.avatar, { backgroundColor: '#F2F2F2' }]}>
+                    <Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#929292'} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.name, { color: '#64748B' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
+                    <Text style={[styles.name, { color: '#6A6A6A' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
                     <Text style={styles.meta} numberOfLines={1}>{isSick ? 'Guide cancellate e allievi avvisati' : 'Non prenotabile'}</Text>
                   </View>
                 </View>
@@ -215,10 +215,10 @@ const styles = StyleSheet.create({
   railPill: { minHeight: 26, minWidth: 52, paddingHorizontal: 9, justifyContent: 'center', alignItems: 'center', borderRadius: 13, backgroundColor: '#EEF0F4' },
   railPillMuted: { backgroundColor: '#F1F3F7' },
   railPillText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
-  railPillTextMuted: { color: '#94A3B8' },
+  railPillTextMuted: { color: '#929292' },
 
   markerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
-  markerText: { fontSize: 13, fontWeight: '700', color: '#475569', letterSpacing: 0.1 },
+  markerText: { fontSize: 13, fontWeight: '700', color: '#595959', letterSpacing: 0.1 },
 
   card: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   cardMuted: { backgroundColor: '#F7F8FA', shadowOpacity: 0, elevation: 0 },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   name: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
-  meta: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+  meta: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   badgeText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
 

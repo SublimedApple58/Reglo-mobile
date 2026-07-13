@@ -76,7 +76,7 @@ export const SearchableSelect = ({
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={styles.fieldWrap}>
         <View style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}>
-          <Ionicons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color="#929292" style={styles.searchIcon} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -176,8 +176,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#DDDDDD',
+    backgroundColor: '#F7F7F7',
   },
   inputWrapperFocused: {
     borderColor: colors.primary,

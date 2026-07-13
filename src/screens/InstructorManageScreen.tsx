@@ -1252,7 +1252,7 @@ export const InstructorManageScreen = () => {
                       </View>
                       <Text style={styles.vehiclePlate}>Targa: {vehicle.plate ?? '\u2014'}</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                    <Ionicons name="chevron-forward" size={20} color="#929292" />
                   </Pressable>
                 ))}
                 {!vehicles.length ? <Text style={styles.emptyText}>Nessun veicolo.</Text> : null}
@@ -1262,7 +1262,7 @@ export const InstructorManageScreen = () => {
             {mainTab === 'booking' && autonomousMode && (
               <Animated.View entering={FadeIn.duration(200)} style={styles.bookingSettingsCard}>
                 <Text style={styles.sectionLabel}>Impostazioni prenotazione</Text>
-                <Text style={{ fontSize: 13, color: '#64748B', marginTop: -8 }}>
+                <Text style={{ fontSize: 13, color: '#6A6A6A', marginTop: -8 }}>
                   Configura come i tuoi allievi possono prenotare le guide.
                 </Text>
 
@@ -1292,7 +1292,7 @@ export const InstructorManageScreen = () => {
                   <Switch
                     value={roundedHoursOnly}
                     onValueChange={setRoundedHoursOnly}
-                    trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                    trackColor={{ false: '#DDDDDD', true: '#FACC15' }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
@@ -1519,7 +1519,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
 
   /* ─── Main Tab Bar ───────────────────────────────── */
@@ -1528,7 +1528,7 @@ const styles = StyleSheet.create({
     gap: 24,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F2F2F2',
   },
   mainTab: {
     paddingBottom: 8,
@@ -1546,7 +1546,7 @@ const styles = StyleSheet.create({
     color: '#1A1A2E',
   },
   mainTabTextInactive: {
-    color: '#94A3B8',
+    color: '#929292',
   },
 
   /* ─── Availability Section ─────────────────────────── */
@@ -1556,14 +1556,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   weeksSubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
   editorContent: {
     gap: spacing.sm,
@@ -1577,8 +1577,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#DDDDDD',
+    backgroundColor: '#F7F7F7',
     padding: 3,
     marginBottom: 8,
     alignSelf: 'center',
@@ -1601,15 +1601,15 @@ const styles = StyleSheet.create({
   segmentedPillText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
   },
   segmentedPillTextActive: {
-    color: '#1E293B',
+    color: '#222222',
   },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -1632,7 +1632,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FACC15',
   },
   dayCircleInactive: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
   },
   dayCircleText: {
     fontSize: 14,
@@ -1642,7 +1642,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dayCircleTextInactive: {
-    color: '#64748B',
+    color: '#6A6A6A',
   },
 
   /* ─── Time Picker Cards ───────────────────────────── */
@@ -1653,17 +1653,17 @@ const styles = StyleSheet.create({
   },
   timeCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     padding: 14,
     gap: 4,
   },
   timeCardLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     textTransform: 'uppercase',
   },
   timeCardRow: {
@@ -1674,7 +1674,7 @@ const styles = StyleSheet.create({
   timeCardValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
 
   /* ─── Save CTA ────────────────────────────────────── */
@@ -1698,9 +1698,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: radii.sm,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     gap: spacing.sm,
   },
   dayDetailHeader: {
@@ -1711,7 +1711,7 @@ const styles = StyleSheet.create({
   dayDetailLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   overrideBadge: {
     backgroundColor: '#DCFCE7',
@@ -1760,7 +1760,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: '#C4C4C4',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1771,7 +1771,7 @@ const styles = StyleSheet.create({
   absentToggleText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   weeksRow: {
     flexDirection: 'row',
@@ -1793,7 +1793,7 @@ const styles = StyleSheet.create({
   weekPillText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   weekPillTextActive: {
     color: '#FFFFFF',
@@ -1811,7 +1811,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#F2F2F2',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -1835,12 +1835,12 @@ const styles = StyleSheet.create({
   bookingSettingsToggleLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   bookingSettingsToggleDesc: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
     marginTop: 2,
   },
 
@@ -1876,7 +1876,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#F2F2F2',
     padding: 16,
     gap: 14,
     shadowColor: '#000',
@@ -1900,11 +1900,11 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   vehiclePlate: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#929292',
   },
 
   /* ─── Loading ─────────────────────────────────────── */
@@ -1921,12 +1921,12 @@ const styles = StyleSheet.create({
   /* ─── Skeletons ───────────────────────────────────── */
   availabilitySkeletonCard: {
     borderRadius: radii.lg,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     padding: 22,
   },
   vehicleSkeletonCard: {
     borderRadius: radii.lg,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
   },
   skeletonButton: {
     marginTop: spacing.xs,
@@ -1966,8 +1966,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#DDDDDD',
+    backgroundColor: '#F7F7F7',
   },
   vehicleInfoRow: {
     flexDirection: 'row',
@@ -1985,12 +1985,12 @@ const styles = StyleSheet.create({
   vehicleInfoTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   vehicleInfoMeta: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
     marginTop: 2,
   },
   vehicleStatusBadge: {
@@ -2022,7 +2022,7 @@ const styles = StyleSheet.create({
   vehicleToggleBtn: {
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     padding: 16,
     alignItems: 'center',

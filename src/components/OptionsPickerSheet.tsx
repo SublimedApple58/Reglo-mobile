@@ -10,8 +10,8 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
 const NAVY = '#1A1A2E';
-const INK = '#1E293B';
-const MUTED = '#94A3B8';
+const INK = '#222222';
+const MUTED = '#929292';
 
 /**
  * Shared body of the options picker. Two presentations:

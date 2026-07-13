@@ -39,8 +39,8 @@ const COMPACT_H = 54; // top button row
 const LARGE_TITLE_H = 56;
 const PILLS_H = 60;
 
-const AVATAR_BG = ['#E9EBF2', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2', '#F1F5F9'];
-const AVATAR_FG = ['#0D0D16', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C', '#475569'];
+const AVATAR_BG = ['#E9EBF2', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2', '#F2F2F2'];
+const AVATAR_FG = ['#0D0D16', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C', '#595959'];
 const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
 const avatarColors = (id: string) => { const i = hashStr(id) % AVATAR_BG.length; return { bg: AVATAR_BG[i], fg: AVATAR_FG[i] }; };
 
@@ -305,14 +305,14 @@ export const InstructorNotesScreen = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Cerca allievo..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#929292"
                 style={styles.searchInput}
                 autoCorrect={false}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 ? (
                 <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+                  <Ionicons name="close-circle" size={18} color="#C4C4C4" />
                 </Pressable>
               ) : null}
             </View>
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   compactTitle: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3, marginLeft: 2 },
   headerBtns: { flexDirection: 'row', gap: 10 },
   circleBtn: {
-    width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9',
+    width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2F2F2',
     alignItems: 'center', justifyContent: 'center',
   },
   pillsWrap: { height: PILLS_H, justifyContent: 'center', paddingHorizontal: H_PAD },
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 8 },
   pill: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999, backgroundColor: '#EEF0F3' },
   pillActive: { backgroundColor: '#1A1A2E' },
-  pillText: { fontSize: 14, fontWeight: '500', color: '#475569' },
+  pillText: { fontSize: 14, fontWeight: '500', color: '#595959' },
   pillTextActive: { color: '#FFFFFF', fontWeight: '600' },
 
   /* Flat row */
@@ -424,12 +424,12 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 17, fontWeight: '700' },
   rowBody: { flex: 1, minWidth: 0, gap: 3 },
   rowName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  rowSub: { fontSize: 14, color: '#94A3B8' },
+  rowSub: { fontSize: 14, color: '#929292' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 14, fontWeight: '500', color: '#475569', flexShrink: 1 },
+  statusText: { fontSize: 14, fontWeight: '500', color: '#595959', flexShrink: 1 },
 
-  emptyText: { textAlign: 'center', color: '#94A3B8', marginTop: 24, fontSize: 15 },
+  emptyText: { textAlign: 'center', color: '#929292', marginTop: 24, fontSize: 15 },
 
   /* Inline search input */
   searchInput: { flex: 1, fontSize: 16, color: '#1A1A2E', padding: 0 },

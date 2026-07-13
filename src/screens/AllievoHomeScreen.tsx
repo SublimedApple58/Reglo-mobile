@@ -1910,7 +1910,7 @@ const styles = StyleSheet.create({
   largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   largeTitleSchoolIcon: { width: 16, height: 16 },
   licensePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#EEF0F4' },
-  licensePillText: { fontSize: 11, fontWeight: '600', color: '#475569', letterSpacing: -0.1 },
+  licensePillText: { fontSize: 11, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
 
   /* ── Scambi (swap offers) slot ── */
   swapCard: {
@@ -1992,7 +1992,7 @@ const styles = StyleSheet.create({
   },
   heroChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F3F4F6', borderRadius: 10,
+    backgroundColor: '#F2F2F2', borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 5,
   },
   heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
@@ -2283,7 +2283,7 @@ const styles = StyleSheet.create({
 
   /* ── Old nextLesson/calendar/CTA styles removed ── */
   swapDetailsCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     padding: 14,
     gap: 10,
@@ -2321,7 +2321,7 @@ const styles = StyleSheet.create({
   agendaSectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   agendaList: {
     gap: spacing.sm,
@@ -2423,12 +2423,12 @@ const styles = StyleSheet.create({
   lessonListTime: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   lessonListInstructor: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
 
   cardCtaRow: {
@@ -2533,7 +2533,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
+    color: '#595959',
   },
   agendaExamBadge: {
     fontSize: 10,
@@ -2544,11 +2544,11 @@ const styles = StyleSheet.create({
   agendaExamTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   agendaExamMeta: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#6A6A6A',
     fontWeight: '500',
   },
   agendaTop: {
@@ -2561,20 +2561,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 21,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
     flex: 1,
   },
   agendaInstructor: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#1E293B',
+    color: '#222222',
     fontWeight: '500',
   },
   agendaMeta: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   agendaCtaWrap: {
     alignSelf: 'flex-start',
@@ -2767,7 +2767,7 @@ const styles = StyleSheet.create({
   sheetFormLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   sheetTextAction: {
     alignSelf: 'center',
@@ -2780,10 +2780,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bookingDateCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2802,31 +2802,31 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   detailInfoCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     padding: 14,
     gap: 2,
   },
   detailDateTime: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   detailStatus: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#6A6A6A',
     marginTop: 2,
   },
   detailDuration: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#94A3B8',
+    color: '#929292',
     marginTop: 2,
   },
   detailSection: {
@@ -2835,19 +2835,19 @@ const styles = StyleSheet.create({
   detailSectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.5,
   },
   detailSectionValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   detailPaymentInfo: {
     fontSize: 13,
     fontWeight: '400',
     fontStyle: 'italic',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
 
   /* ── Chunky Google-style BottomSheet styles ── */
@@ -2874,12 +2874,12 @@ const styles = StyleSheet.create({
   chunkyYellowTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyYellowSub: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   chunkyPinkCta: {
     backgroundColor: colors.primary,
@@ -2901,7 +2901,7 @@ const styles = StyleSheet.create({
   chunkyOutlineBtn: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     height: 54,
     borderRadius: 20,
     alignItems: 'center',
@@ -2910,7 +2910,7 @@ const styles = StyleSheet.create({
   chunkyOutlineBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyRedLink: {
     alignSelf: 'center',
@@ -2925,12 +2925,12 @@ const styles = StyleSheet.create({
   chunkyFormLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   chunkyDateCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 20,
     padding: 18,
     height: 58,
@@ -2942,7 +2942,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyChipWrap: {
     flexDirection: 'row',
@@ -2955,7 +2955,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2972,7 +2972,7 @@ const styles = StyleSheet.create({
   chunkyChipText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyChipTextActive: {
     fontSize: 15,
@@ -2980,7 +2980,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   chunkyCreditsRow: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2990,12 +2990,12 @@ const styles = StyleSheet.create({
   chunkyCreditsLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   chunkyCreditsValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
 
   /* ── Booking drawer (chunky redesign) ── */
@@ -3195,7 +3195,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     padding: 12,
     marginTop: 16,
     marginBottom: 8,
@@ -3216,14 +3216,14 @@ const styles = StyleSheet.create({
   assignedInstructorLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   assignedInstructorName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   assignedInstructorActions: {
     flexDirection: 'row',

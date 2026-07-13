@@ -44,7 +44,7 @@ const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
 
 const STATUS_THEME = {
-  not_started: { bg: '#F3F4F6', accent: '#929292', border: '#DDDDDD', lines: '#D1D5DB' },
+  not_started: { bg: '#F2F2F2', accent: '#929292', border: '#DDDDDD', lines: '#D1D5DB' },
   in_progress: { bg: '#FEF9C3', accent: '#CA8A04', border: '#FDE68A', lines: '#FCD34D' },
   passed: { bg: '#DCFCE7', accent: '#16A34A', border: '#BBF7D0', lines: '#86EFAC' },
   failed: { bg: '#FEE2E2', accent: '#C13515', border: '#FECACA', lines: '#FCA5A5' },
@@ -248,7 +248,7 @@ const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F2F2F2' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   /* Header */

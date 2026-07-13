@@ -32,8 +32,8 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#DDDDDD',
+    backgroundColor: '#F7F7F7',
   },
   wrapperFocused: {
     borderColor: colors.primary,

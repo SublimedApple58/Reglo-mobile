@@ -19,7 +19,7 @@ const NAVY_50 = '#F4F5F9';
 const NAVY_100 = '#E9EBF2';
 const NAVY_200 = '#D6D9E6';
 const TEAL = '#0F766E';
-const MUTED = '#94A3B8';
+const MUTED = '#929292';
 
 const normalize = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
 const findLinkedStudent = (students: AutoscuolaStudent[], user: { name: string | null; email: string } | null) => {

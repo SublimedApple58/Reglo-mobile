@@ -37,7 +37,7 @@ const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
   notturna: { bg: '#E0E7FF', fg: '#4338CA' },
   autostrada: { bg: '#EDE9FE', fg: '#6D28D9' },
 };
-const tintFor = (t: string) => TYPE_TINT[t.toLowerCase()] ?? { bg: '#F1F5F9', fg: '#475569' };
+const tintFor = (t: string) => TYPE_TINT[t.toLowerCase()] ?? { bg: '#F2F2F2', fg: '#595959' };
 
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const formatExamDate = (iso: string) => {
@@ -183,7 +183,7 @@ export const StudentNotesDetailScreen = () => {
               <Text style={s.profileName} numberOfLines={1}>{firstName}</Text>
               {licenseLabel ? (
                 <View style={s.licenseChip}>
-                  <Ionicons name="card-outline" size={11} color="#475569" />
+                  <Ionicons name="card-outline" size={11} color="#595959" />
                   <Text style={s.licenseChipText}>{licenseLabel}</Text>
                 </View>
               ) : null}
@@ -209,29 +209,29 @@ export const StudentNotesDetailScreen = () => {
                 <View style={s.statBlock}><Text style={s.statNum}>{totalHours}h</Text><Text style={s.statLbl}>ore guidate</Text></View>
               </Animated.View>
             )}
-            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#CBD5E1" /></View>
+            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
           </Animated.View>
 
           {/* BACK */}
           <Animated.View style={[s.face, s.faceBack, backStyle]}>
             <Text style={s.backTitle}>Dati personali</Text>
             <View style={s.backRow}>
-              <Ionicons name="person-outline" size={16} color="#94A3B8" />
+              <Ionicons name="person-outline" size={16} color="#929292" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Nome</Text><Text style={s.backValue} numberOfLines={1}>{fullName}</Text></View>
             </View>
             <View style={s.backRow}>
-              <Ionicons name="mail-outline" size={16} color="#94A3B8" />
+              <Ionicons name="mail-outline" size={16} color="#929292" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Email</Text><Text style={s.backValue} numberOfLines={1}>{email ?? '—'}</Text></View>
             </View>
             <View style={s.backRow}>
-              <Ionicons name="call-outline" size={16} color="#94A3B8" />
+              <Ionicons name="call-outline" size={16} color="#929292" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Telefono</Text><Text style={s.backValue} numberOfLines={1}>{phone ?? '—'}</Text></View>
             </View>
             <View style={s.backRow}>
-              <Ionicons name="card-outline" size={16} color="#94A3B8" />
+              <Ionicons name="card-outline" size={16} color="#929292" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Percorso patente</Text><Text style={s.backValue} numberOfLines={1}>{licenseLabel ?? '—'}</Text></View>
             </View>
-            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#CBD5E1" /></View>
+            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
           </Animated.View>
         </Pressable>
 
@@ -407,7 +407,7 @@ export const StudentNotesDetailScreen = () => {
 const s = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingLeft: 30, paddingRight: 16, paddingTop: 20, paddingBottom: 4 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#DDDDDD', alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 30, paddingTop: 4 },
   below: { paddingHorizontal: 8 }, // guide + note narrower than the profile card
 
@@ -427,8 +427,8 @@ const s = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   avatarText: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
-  licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F1F5F9' },
-  licenseChipText: { fontSize: 12, fontWeight: '600', color: '#475569', letterSpacing: -0.1 },
+  licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
+  licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
   statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
@@ -437,18 +437,18 @@ const s = StyleSheet.create({
   flipHint: { position: 'absolute', top: 12, right: 12 },
 
   // Back face
-  backTitle: { fontSize: 11, fontWeight: '600', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
+  backTitle: { fontSize: 11, fontWeight: '600', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backLabel: { fontSize: 11, fontWeight: '500', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
+  backLabel: { fontSize: 11, fontWeight: '500', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
   backValue: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', marginTop: 1 },
 
   // Flat blocks
   flatBlock: { marginBottom: 22 },
-  flatLabel: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' },
+  flatLabel: { fontSize: 11, fontWeight: '700', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase' },
   obbligoTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   obbligoCountRow: { flexDirection: 'row', alignItems: 'baseline' },
   obbligoCount: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
-  obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#94A3B8' },
+  obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#929292' },
   segments: { flexDirection: 'row', gap: 6, marginTop: 12 },
   segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#DDDDDD' },
   segmentFilled: { backgroundColor: '#1A1A2E' },
@@ -460,30 +460,30 @@ const s = StyleSheet.create({
   groupOptBlock: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
   groupOptIcon: { width: 40, height: 40 },
   groupOptTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  groupOptSub: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginTop: 1 },
+  groupOptSub: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 1 },
   examTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   examDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   examBadge: { backgroundColor: '#EDE9FE', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   examBadgeText: { fontSize: 11, fontWeight: '700', color: '#6D28D9' },
 
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginBottom: 18 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
 
   tlRow: { flexDirection: 'row', gap: 14 },
   tlLeft: { width: 12, alignItems: 'center', paddingTop: 18 },
-  tlDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#CBD5E1' },
+  tlDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#C4C4C4' },
   tlDotExam: { backgroundColor: '#8B5CF6' },
   tlLine: { width: 1.5, flex: 1, backgroundColor: colors.border, marginTop: 6, minHeight: 16 },
   tlBody: { flex: 1, paddingVertical: 14, gap: 6 },
   tlBodyBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   tlTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  tlDate: { fontSize: 11, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
+  tlDate: { fontSize: 11, fontWeight: '700', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
   tlTime: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tlChip: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
   tlChipText: { fontSize: 11, fontWeight: '700' },
-  tlMeta: { fontSize: 13, color: '#94A3B8' },
+  tlMeta: { fontSize: 13, color: '#929292' },
   tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
   tlNoteEmpty: { color: '#929292', fontStyle: 'italic' },
 

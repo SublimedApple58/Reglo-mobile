@@ -506,8 +506,8 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
       <View style={{ flexDirection: 'row', gap: spacing.md, justifyContent: 'center' }}>
         {/* Hours column */}
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Ore</Text>
-          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F8FAFC', overflow: 'hidden' }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#929292', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Ore</Text>
+          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F7F7F7', overflow: 'hidden' }}>
             <ScrollView ref={hourRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, alignItems: 'center' }}>
               {TP_HOURS.map((h) => {
                 const sel = h === hour;
@@ -516,7 +516,7 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
                     { height: TP_ITEM_H, width: '80%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
                     sel && { backgroundColor: '#FACC15' },
                   ]}>
-                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#64748B' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(h)}</Text>
+                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#6A6A6A' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(h)}</Text>
                   </Pressable>
                 );
               })}
@@ -525,8 +525,8 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
         </View>
         {/* Minutes column */}
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Minuti</Text>
-          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F8FAFC', overflow: 'hidden' }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#929292', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>Minuti</Text>
+          <View style={{ height: TP_COL_H, width: '100%', borderRadius: 16, backgroundColor: '#F7F7F7', overflow: 'hidden' }}>
             <ScrollView ref={minRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, alignItems: 'center' }}>
               {TP_MINUTES.map((m) => {
                 const sel = m === minute;
@@ -535,7 +535,7 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
                     { height: TP_ITEM_H, width: '80%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
                     sel && { backgroundColor: '#FACC15' },
                   ]}>
-                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#64748B' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(m)}</Text>
+                    <Text style={[{ fontSize: 18, fontWeight: '500', color: '#6A6A6A' }, sel && { fontWeight: '700', color: '#92400E' }]}>{tpPad(m)}</Text>
                   </Pressable>
                 );
               })}
@@ -547,7 +547,7 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
         <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="time-outline" size={44} color="#1A1A2E" />
         </View>
-        <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 8 }}>Scegli l'ora della guida</Text>
+        <Text style={{ fontSize: 14, color: '#929292', marginTop: 8 }}>Scegli l'ora della guida</Text>
       </View>
       {/* Confirm CTA */}
       <Pressable
@@ -1448,7 +1448,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     if (s === 'completed')
       return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata', isExam: false as const };
     if (s === 'no_show' || s === 'cancelled')
-      return { border: '#94A3B8', badgeBg: '#F1F5F9', badgeText: '#64748B', label: s === 'no_show' ? 'Assente' : 'Annullata', isExam: false as const };
+      return { border: '#929292', badgeBg: '#F2F2F2', badgeText: '#6A6A6A', label: s === 'no_show' ? 'Assente' : 'Annullata', isExam: false as const };
     // Scheduled/confirmed: mandatory if student has < 8h completed AND lesson is ≥ 60 min
     const completedMins = opts?.studentId ? (studentCompletedMinutes[opts.studentId] ?? 0) : 0;
     const isMandatory = completedMins < MANDATORY_MINUTES_THRESHOLD && (opts?.durationMin ?? 0) >= 60;
@@ -1737,7 +1737,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       '#1A1A2E': 'live',        // checked_in / in corso
       '#22C55E': 'confirmed',   // completed
       '#F97316': 'pending_review', // pending_review
-      '#94A3B8': 'pending_review', // cancelled / no_show
+      '#929292': 'pending_review', // cancelled / no_show
       '#A78BFA': 'pending_review', // proposal
     };
     const tone = toneMap[config.border] ?? 'scheduled';
@@ -2315,7 +2315,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       '#1A1A2E': 'live',
       '#22C55E': 'confirmed',
       '#F97316': 'pending_review',
-      '#94A3B8': 'pending_review',
+      '#929292': 'pending_review',
       '#A78BFA': 'pending_review',
     };
     const stateMeta = { label: config.label, tone: toneMap[config.border] ?? 'scheduled' };
@@ -3348,9 +3348,9 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       style={({ pressed }) => [styles.itinCard, styles.itinCardMuted, pressed && styles.itinCardPressed]}
                     >
                       <View style={styles.itinTop}>
-                        <View style={[styles.itinAvatar, { backgroundColor: '#F1F5F9' }]}><Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#94A3B8'} /></View>
+                        <View style={[styles.itinAvatar, { backgroundColor: '#F2F2F2' }]}><Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#929292'} /></View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.itinName, { color: '#64748B' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
+                          <Text style={[styles.itinName, { color: '#6A6A6A' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
                           <Text style={styles.itinMeta} numberOfLines={1}>{isSick ? 'Guide cancellate e allievi avvisati' : 'Non prenotabile'}</Text>
                         </View>
                       </View>
@@ -3873,18 +3873,18 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               <Ionicons name="layers" size={20} color={'#1A1A2E'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#222222' }}>
                 {clusterDrawerAppts?.length ?? 0} guide contemporanee
               </Text>
               {clusterDrawerAppts?.[0] ? (
-                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                <Text style={{ fontSize: 13, color: '#6A6A6A', marginTop: 2 }}>
                   {formatDay(clusterDrawerAppts[0].startsAt)}
                 </Text>
               ) : null}
             </View>
           </View>
 
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: '#DDDDDD', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
             {clusterDrawerAppts?.map((a, idx) => {
               const isLast = idx === (clusterDrawerAppts?.length ?? 0) - 1;
               const studentName = a.student ? `${a.student.firstName ?? ''} ${a.student.lastName ?? ''}`.trim() : 'Allievo';
@@ -3900,14 +3900,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                     gap: 10,
                     padding: 12,
                     borderBottomWidth: isLast ? 0 : 1,
-                    borderBottomColor: '#F1F5F9',
-                    backgroundColor: pressed ? '#F8FAFC' : '#FFFFFF',
+                    borderBottomColor: '#F2F2F2',
+                    backgroundColor: pressed ? '#F7F7F7' : '#FFFFFF',
                   })}
                 >
                   <View style={{ width: 4, height: 36, borderRadius: 2, backgroundColor: cfg.border }} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#222222' }}>
                         {formatTime(a.startsAt)} {'\u2013'} {formatTime(a.endsAt ?? a.startsAt)}
                       </Text>
                       <View style={[styles.timelineStatusBadge, { backgroundColor: cfg.badgeBg }]}>
@@ -3916,16 +3916,16 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         </Text>
                       </View>
                     </View>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }} numberOfLines={1}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#222222' }} numberOfLines={1}>
                       {studentName}
                     </Text>
                     {instrName ? (
-                      <Text style={{ fontSize: 12, color: '#64748B' }} numberOfLines={1}>
+                      <Text style={{ fontSize: 12, color: '#6A6A6A' }} numberOfLines={1}>
                         {instrName}
                       </Text>
                     ) : null}
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                  <Ionicons name="chevron-forward" size={16} color="#C4C4C4" />
                 </Pressable>
               );
             })}
@@ -4049,7 +4049,7 @@ const styles = StyleSheet.create({
   greetName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.1,
   },
 
@@ -4062,11 +4062,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.title,
-    color: '#1E293B',
+    color: '#222222',
   },
   subtitle: {
     ...typography.body,
-    color: '#64748B',
+    color: '#6A6A6A',
     marginTop: 2,
   },
 
@@ -4111,7 +4111,7 @@ const styles = StyleSheet.create({
   largeSub: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
     marginTop: 3,
   },
 
@@ -4350,7 +4350,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   calendarMonthYear: {
-    color: '#94A3B8',
+    color: '#929292',
     fontWeight: '600',
   },
   calendarTodayChip: {
@@ -4431,7 +4431,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dayPillWeekdayUnselected: {
-    color: '#94A3B8',
+    color: '#929292',
   },
   dayPillWeekdayToday: {
     color: '#1A1A2E',
@@ -4505,7 +4505,7 @@ const styles = StyleSheet.create({
   },
   holidayBannerSubtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#929292',
     marginTop: 2,
   },
 
@@ -4516,7 +4516,7 @@ const styles = StyleSheet.create({
   agendaSectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   agendaList: {
     gap: spacing.sm,
@@ -4553,20 +4553,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 21,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
     flex: 1,
   },
   agendaStudent: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#1E293B',
+    color: '#222222',
     fontWeight: '500',
   },
   agendaMeta: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   empty: {
     ...typography.body,
@@ -4658,12 +4658,12 @@ const styles = StyleSheet.create({
   modalInfoBold: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   modalInfoName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1E293B',
+    color: '#222222',
   },
   modalInfoPhone: {
     fontSize: 14,
@@ -4715,7 +4715,7 @@ const styles = StyleSheet.create({
   },
   modalInfoSub: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#929292',
   },
   modalSection: {
     gap: 4,
@@ -4723,7 +4723,7 @@ const styles = StyleSheet.create({
   modalSectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -4765,7 +4765,7 @@ const styles = StyleSheet.create({
   detailRowLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
   detailRowValue: {
     fontSize: 15,
@@ -4774,7 +4774,7 @@ const styles = StyleSheet.create({
   },
   detailRowSub: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#929292',
   },
   detailDivider: {
     height: StyleSheet.hairlineWidth,
@@ -4785,7 +4785,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -4810,8 +4810,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
   },
-  availBadgeNeutral: { backgroundColor: '#F1F5F9' },
-  availBadgeNeutralText: { color: '#64748B', fontSize: 13 },
+  availBadgeNeutral: { backgroundColor: '#F2F2F2' },
+  availBadgeNeutralText: { color: '#6A6A6A', fontSize: 13 },
   availBadgeOk: { backgroundColor: '#ECFDF5' },
   availBadgeOkText: { color: '#047857', fontSize: 13, fontWeight: '500' },
   availBadgeBad: { backgroundColor: '#FEF2F2' },
@@ -4972,13 +4972,13 @@ const styles = StyleSheet.create({
   datePickerLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.3,
   },
   datePickerValue: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1E293B',
+    color: '#222222',
   },
   pickerRow: {
     flexDirection: 'row',
@@ -5024,7 +5024,7 @@ const styles = StyleSheet.create({
   },
 
   bookingStudentRow: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 16,
     padding: 14,
     flexDirection: 'row',
@@ -5034,7 +5034,7 @@ const styles = StyleSheet.create({
   bookingStudentName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   bookingStudentChange: {
     fontSize: 13,
@@ -5105,7 +5105,7 @@ const styles = StyleSheet.create({
   nextBannerInfo: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6A6A6A',
     flex: 1,
     textAlign: 'right',
     marginLeft: 12,
@@ -5131,7 +5131,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#F2F2F2',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -5150,11 +5150,11 @@ const styles = StyleSheet.create({
   emptyDayTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   emptyDaySubtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#929292',
     marginTop: 2,
     lineHeight: 18,
   },
@@ -5163,7 +5163,7 @@ const styles = StyleSheet.create({
   dayEmpty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 },
   dayEmptyImg: { width: 76, height: 76, resizeMode: 'contain', marginBottom: 16 },
   dayEmptyTitle: { fontSize: 19, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
-  dayEmptySub: { fontSize: 14, fontWeight: '500', color: '#94A3B8', marginTop: 6, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  dayEmptySub: { fontSize: 14, fontWeight: '500', color: '#929292', marginTop: 6, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
   dayEmptyCta: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20,
     paddingVertical: 13, paddingHorizontal: 22, borderRadius: 26,
@@ -5187,7 +5187,7 @@ const styles = StyleSheet.create({
   railPillEndpoint: { backgroundColor: '#F1F3F7' },
   railPillNow: { backgroundColor: '#DCFCE7' },
   railPillText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
-  railPillTextMuted: { color: '#94A3B8' },
+  railPillTextMuted: { color: '#929292' },
   railPillTextNow: { color: '#16A34A' },
   // Past portion of the rail is illuminated (green); future stays grey.
   lineLive: { backgroundColor: '#22C55E' },
@@ -5250,7 +5250,7 @@ const styles = StyleSheet.create({
   itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   itinName: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
-  itinMeta: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+  itinMeta: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 2 },
   itinStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   itinStatusPillText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
   itinActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
@@ -5258,7 +5258,7 @@ const styles = StyleSheet.create({
   itinActCheck: { backgroundColor: '#1A1A2E' },
   itinActCheckText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   itinActNo: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E9EBF2' },
-  itinActNoText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  itinActNoText: { fontSize: 14, fontWeight: '600', color: '#6A6A6A' },
   itinGapBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5286,7 +5286,7 @@ const styles = StyleSheet.create({
   itinFreeTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.1 },
   itinFreeSub: { fontSize: 12, fontWeight: '500', color: '#9AA1AC', marginTop: 1 },
   itinMarkerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
-  itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#475569', letterSpacing: 0.1 },
+  itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#595959', letterSpacing: 0.1 },
   dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', textAlign: 'center', marginTop: 4, marginBottom: 16, paddingHorizontal: 24, lineHeight: 18 },
   itinNowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 22, marginBottom: 14 },
   itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#C13515', opacity: 0.45 },
@@ -5295,7 +5295,7 @@ const styles = StyleSheet.create({
     width: 46,
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
     marginTop: -7,
   },
   timelineSlotArea: {
@@ -5322,13 +5322,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic' as const,
     fontWeight: '500' as const,
-    color: '#CBD5E1',
+    color: '#C4C4C4',
     letterSpacing: 0.3,
   },
   emptyHourLine: {
     height: 1,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F2F2F2',
     borderStyle: 'dashed',
     marginTop: 12,
     flex: 1,
@@ -5340,8 +5340,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderLeftWidth: 4,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#64748B',
+    borderColor: '#F2F2F2',
+    shadowColor: '#6A6A6A',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -5368,7 +5368,7 @@ const styles = StyleSheet.create({
   timelineBlockTime: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#222222',
     letterSpacing: -0.2,
   },
   timelineStatusBadge: {
@@ -5385,12 +5385,12 @@ const styles = StyleSheet.create({
   timelineBlockStudent: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#334155',
+    color: '#444444',
   },
   timelineBlockMeta: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
   },
   timelineActions: {
     flexDirection: 'row',
@@ -5418,12 +5418,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   timelineNoShow: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
   },
   timelineNoShowText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   timelineNoteRow: {
     flexDirection: 'row',
@@ -5434,7 +5434,7 @@ const styles = StyleSheet.create({
   timelineNoteText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#929292',
     fontStyle: 'italic',
     flex: 1,
   },
@@ -5445,13 +5445,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 10,
   },
   timelineWaitingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
   },
   timelineSkeletonCard: {
     gap: spacing.xs,
@@ -5567,7 +5567,7 @@ const oobStyles = StyleSheet.create({
   studentName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#222222',
   },
   badge: {
     paddingHorizontal: 8,
@@ -5598,12 +5598,12 @@ const oobStyles = StyleSheet.create({
   },
   cardTime: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#6A6A6A',
     marginBottom: 2,
   },
   cardMeta: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#929292',
   },
   actions: {
     flexDirection: 'row',
@@ -5639,7 +5639,7 @@ const oobStyles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: '#929292',
     fontSize: 14,
     paddingVertical: 32,
   },

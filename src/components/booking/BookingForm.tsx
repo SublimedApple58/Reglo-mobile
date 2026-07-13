@@ -32,9 +32,9 @@ import { spacing } from '../../theme/spacing';
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
 
 const NAVY = '#1A1A2E';
-const INK = '#1E293B';
+const INK = '#222222';
 const GREY = '#717171';
-const MUTED = '#94A3B8';
+const MUTED = '#929292';
 const N50 = '#F4F5F9';
 const N100 = '#E9EBF2';
 
@@ -725,7 +725,7 @@ const s = StyleSheet.create({
   durRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   durPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F1F2F4' },
   durPillOn: { backgroundColor: NAVY },
-  durPillTxt: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  durPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
   durPillTxtOn: { color: '#FFFFFF' },
   addGuide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 16, marginBottom: 14, ...ELEV },
   addGuideTxt: { color: NAVY, fontSize: 15, fontWeight: '600' },

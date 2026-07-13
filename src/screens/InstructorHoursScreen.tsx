@@ -150,7 +150,7 @@ export const InstructorHoursScreen = () => {
       <Pressable onPress={openPicker} style={({ pressed }) => [s.periodPill, pressed && { opacity: 0.9 }]}>
         <Ionicons name="calendar-outline" size={16} color="#1A1A2E" />
         <Text style={s.periodLabel}>{periodLabel}</Text>
-        <Ionicons name="chevron-down" size={16} color="#64748B" />
+        <Ionicons name="chevron-down" size={16} color="#6A6A6A" />
       </Pressable>
 
       <ScrollView
@@ -280,7 +280,7 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#94A3B8',
+    fontSize: 11, fontWeight: '700', color: '#929292',
     letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 24, marginBottom: 10,
   },
 
@@ -295,7 +295,7 @@ const s = StyleSheet.create({
   heroStatDivider: { width: StyleSheet.hairlineWidth, backgroundColor: colors.border, alignSelf: 'stretch', marginHorizontal: 14 },
   statTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   statDot: { width: 8, height: 8, borderRadius: 4 },
-  statLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  statLabel: { fontSize: 12, fontWeight: '600', color: '#6A6A6A' },
   statValue: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 6 },
 
   card: { borderRadius: 20, padding: 16, ...INSET_CARD },
@@ -307,8 +307,8 @@ const s = StyleSheet.create({
   barInside: { width: '100%', backgroundColor: '#1A1A2E' },
   barOutside: { width: '100%', backgroundColor: '#1A1A2E' },
   colEmpty: { width: '64%', height: 5, borderRadius: 3, backgroundColor: '#DDDDDD' },
-  colValue: { fontSize: 10, fontWeight: '700', color: '#64748B', fontVariant: ['tabular-nums'] },
-  colLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
+  colValue: { fontSize: 10, fontWeight: '700', color: '#6A6A6A', fontVariant: ['tabular-nums'] },
+  colLabel: { fontSize: 11, fontWeight: '600', color: '#929292' },
   colLabelToday: { color: '#1A1A2E', fontWeight: '700' },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingHorizontal: 4 },

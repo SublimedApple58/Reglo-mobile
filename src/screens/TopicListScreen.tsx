@@ -295,7 +295,7 @@ const st = StyleSheet.create({
   icon3d: { width: 52, height: 52 },
   badge: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   badgeText: { fontSize: 18, fontWeight: '800', color: colors.textSecondary },
   doneBadge: {

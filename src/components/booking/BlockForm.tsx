@@ -24,7 +24,7 @@ import { spacing } from '../../theme/spacing';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
-const MUTED = '#94A3B8';
+const MUTED = '#929292';
 const N50 = '#F4F5F9';
 
 const WEEK_OPTIONS = [2, 4, 8, 12];
@@ -258,7 +258,7 @@ const s = StyleSheet.create({
   weeksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   weekPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F1F2F4' },
   weekPillOn: { backgroundColor: NAVY },
-  weekPillTxt: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  weekPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
   weekPillTxtOn: { color: '#FFFFFF' },
 
   /* row */

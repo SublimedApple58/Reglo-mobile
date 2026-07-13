@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#C4C4C4',
   },
   body: {
     gap: spacing.sm,

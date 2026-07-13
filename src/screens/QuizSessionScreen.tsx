@@ -884,7 +884,7 @@ const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
   emptyCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 15, fontWeight: '500', color: colors.textSecondary },
-  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  emptyBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#F2F2F2' },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   // Header
@@ -894,7 +894,7 @@ const st = StyleSheet.create({
   },
   headerBtn: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   timerPill: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
@@ -904,7 +904,7 @@ const st = StyleSheet.create({
   timerInner: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F2F2',
   },
   timerPillUrgent: { backgroundColor: colors.destructive },
   timerText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
@@ -915,7 +915,7 @@ const st = StyleSheet.create({
   },
   headerBadgeExam: { backgroundColor: '#FEF2F2' },
   headerBadgePractice: { backgroundColor: '#F0FDF4' },
-  headerBadgeScheda: { backgroundColor: '#F3F4F6' },
+  headerBadgeScheda: { backgroundColor: '#F2F2F2' },
   headerBadgeText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
   headerBadgeTextExam: { color: colors.destructive },
   headerBadgeTextPractice: { color: '#16A34A' },
@@ -935,7 +935,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
   schedaDotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
-  schedaDotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
+  schedaDotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#1A1A2E' },
   schedaDotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   schedaDotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
   schedaDotText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
@@ -1024,7 +1024,7 @@ const st = StyleSheet.create({
   streakText: { fontSize: 13, fontWeight: '800', color: '#CA8A04' },
   scoreChip: {
     paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F2F2',
   },
   scoreChipText: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
 
@@ -1056,7 +1056,7 @@ const st = StyleSheet.create({
   },
   errorFreqRed: { backgroundColor: '#FEF2F2' },
   errorFreqOrange: { backgroundColor: '#FFFBEB' },
-  errorFreqGray: { backgroundColor: '#F3F4F6' },
+  errorFreqGray: { backgroundColor: '#F2F2F2' },
   errorFreqText: { fontSize: 12, fontWeight: '700' },
 
   // Answer buttons
@@ -1153,10 +1153,10 @@ const st = StyleSheet.create({
     borderWidth: 1.5,
   },
   dotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
-  dotCurrent: { backgroundColor: '#F3F4F6', borderColor: '#1A1A2E' },
+  dotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#1A1A2E' },
   dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
-  dotExamAnswered: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
+  dotExamAnswered: { backgroundColor: '#F2F2F2', borderColor: '#D1D5DB' },
   dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
   dotTextCurrent: { color: '#1A1A2E' },
   dotTextDone: { color: '#1A1A2E' },

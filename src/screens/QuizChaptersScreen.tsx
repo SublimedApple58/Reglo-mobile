@@ -223,7 +223,7 @@ const st = StyleSheet.create({
   // Header
   backBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
     marginBottom: 16,
   },
   pageTitle: {
@@ -288,7 +288,7 @@ const st = StyleSheet.create({
   cardTop: { flexDirection: 'row', gap: 14 },
   cardIcon: {
     width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   cardIconDone: { backgroundColor: '#16A34A' },
   cardInfo: { flex: 1, gap: 6 },

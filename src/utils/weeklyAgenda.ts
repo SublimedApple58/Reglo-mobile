@@ -48,7 +48,7 @@ export const lessonBadge = (
   if (s === 'pending_review') return { label: 'Da confermare', bg: '#FFF7ED', text: '#EA580C', isExam: false };
   if (s === 'checked_in') return { label: 'In corso', bg: '#EEF0F4', text: '#1A1A2E', isExam: false };
   if (s === 'completed') return { label: 'Completata', bg: '#F0FDF4', text: '#16A34A', isExam: false };
-  if (s === 'no_show' || s === 'cancelled') return { label: s === 'no_show' ? 'Assente' : 'Annullata', bg: '#F1F5F9', text: '#64748B', isExam: false };
+  if (s === 'no_show' || s === 'cancelled') return { label: s === 'no_show' ? 'Assente' : 'Annullata', bg: '#F2F2F2', text: '#6A6A6A', isExam: false };
   const completed = completedMinutes[a.studentId] ?? 0;
   if (completed < MANDATORY_MINUTES_THRESHOLD && durationMinutesOf(a) >= 60) {
     return { label: 'Obbligatoria', bg: '#F0F9FF', text: '#0369A1', isExam: false };

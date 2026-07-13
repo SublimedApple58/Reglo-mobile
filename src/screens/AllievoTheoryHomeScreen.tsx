@@ -562,7 +562,7 @@ const s = StyleSheet.create({
   },
   weakBadge: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   weakBadgeText: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
   weakName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },

@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   columnLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#929292',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     height: COLUMN_HEIGHT,
     width: '100%',
     borderRadius: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     overflow: 'hidden',
   },
   scrollContent: {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   itemTextSelected: {
     fontWeight: '700',
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   mascotText: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#929292',
   },
   footer: {
     paddingHorizontal: spacing.lg,

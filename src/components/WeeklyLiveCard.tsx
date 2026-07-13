@@ -105,9 +105,9 @@ export const WeeklyLiveCard = ({
             style={({ pressed }) => [styles.btn, styles.absent, pressed && { opacity: 0.85 }, isPending && { opacity: 0.5 }]}
           >
             {pendingAction === 'no_show' ? (
-              <ActivityIndicator size="small" color="#64748B" />
+              <ActivityIndicator size="small" color="#6A6A6A" />
             ) : (
-              <><Ionicons name="close" size={16} color="#64748B" /><Text style={styles.absentTx}>Assente</Text></>
+              <><Ionicons name="close" size={16} color="#6A6A6A" /><Text style={styles.absentTx}>Assente</Text></>
             )}
           </Pressable>
         </View>
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   present: { backgroundColor: '#1A1A2E' },
   presentTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   absent: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E9EBF2' },
-  absentTx: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  absentTx: { fontSize: 14, fontWeight: '600', color: '#6A6A6A' },
 
   ghost: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, marginTop: 8 },
   ghostTx: { fontSize: 13, fontWeight: '500', color: '#6E7596' },

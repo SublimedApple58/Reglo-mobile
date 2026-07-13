@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.lg,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F2F2',
     marginBottom: spacing.sm,
   },
   searchInput: {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapPrecise: { backgroundColor: '#DCFCE7' },
-  iconWrapGeneric: { backgroundColor: '#F3F4F6' },
+  iconWrapGeneric: { backgroundColor: '#F2F2F2' },
   textWrap: { flex: 1 },
   name: {
     ...typography.body,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  separator: { height: 1, backgroundColor: '#F3F4F6' },
+  separator: { height: 1, backgroundColor: '#F2F2F2' },
   empty: {
     textAlign: 'center',
     color: colors.textSecondary,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     marginTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#F2F2F2',
   },
   addText: {
     ...typography.body,

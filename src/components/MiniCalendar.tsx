@@ -415,12 +415,12 @@ const styles = StyleSheet.create({
   dayTextMuted: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#CBD5E1',
+    color: '#C4C4C4',
   },
   dayTextOtherMonth: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#E2E8F0',
+    color: '#DDDDDD',
   },
   // ── Marked dot ────────────────────────────────────────────
   markedDot: {

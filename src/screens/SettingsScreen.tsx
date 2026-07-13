@@ -969,7 +969,7 @@ const studentStyles = StyleSheet.create({
   profileCompanyPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6', borderRadius: 8,
+    backgroundColor: '#F2F2F2', borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3, marginTop: 8,
   },
   profileCompanyText: {

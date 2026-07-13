@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F2F2F2',
     marginBottom: spacing.md,
   },
   searchInput: {
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   textWrap: { flex: 1, gap: 2 },
   name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
-  address: { fontSize: 13, color: '#94A3B8' },
+  address: { fontSize: 13, color: '#929292' },
   addressMuted: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
   addRow: {
     flexDirection: 'row',

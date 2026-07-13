@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   modeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999,
-    backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDDDDD',
   },
   modeIcon: { width: 16, height: 16, resizeMode: 'contain' },
   modeBadgeText: { fontSize: 12.5, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1 },

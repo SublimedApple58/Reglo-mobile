@@ -219,7 +219,7 @@ const st = StyleSheet.create({
   heroDualIconWrap: { marginBottom: 4 },
   heroDualIconCircle: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
   heroDualTitleWhite: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
@@ -240,7 +240,7 @@ const st = StyleSheet.create({
   },
   statIconCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   statLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   statValue: { fontSize: 22, fontWeight: '800', color: '#1A1A2E' },
@@ -256,7 +256,7 @@ const st = StyleSheet.create({
   readinessLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   readinessIconCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   readinessLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   readinessValue: { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
@@ -287,7 +287,7 @@ const st = StyleSheet.create({
   libraryCtaLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   libraryCtaIcon: {
     width: 42, height: 42, borderRadius: 14,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   libraryCtaTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
   libraryCtaSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },

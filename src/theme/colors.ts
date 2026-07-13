@@ -46,7 +46,7 @@ export const colors = {
   // Status
   statusScheduledText: '#CA8A04',
   statusScheduledBg: '#FEF9C3',
-  statusCompletedText: '#64748B',
+  statusCompletedText: '#6A6A6A',
 
   // Brand & accent scales (for direct access)
   navy,

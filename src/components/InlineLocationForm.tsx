@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     minHeight: 48,
   },
-  inputDisabled: { backgroundColor: '#F9FAFB', color: colors.textSecondary },
+  inputDisabled: { backgroundColor: '#FAFAFA', color: colors.textSecondary },
   spinner: { position: 'absolute', right: spacing.md, top: 14 },
   toggleRow: {
     flexDirection: 'row',
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 56,
   },
-  suggestionBorder: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  suggestionBorder: { borderTopWidth: 1, borderTopColor: '#F2F2F2' },
   suggestionPrimary: {
     ...typography.body,
     fontWeight: '600',

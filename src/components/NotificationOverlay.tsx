@@ -1150,7 +1150,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
 
         {availableSlotsLoading ? (
           <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#94A3B8' }}>Caricamento...</Text>
+            <Text style={{ fontSize: 14, color: '#929292' }}>Caricamento...</Text>
           </View>
         ) : (
           <ScrollView
@@ -1262,7 +1262,7 @@ const styles = StyleSheet.create({
   },
   bubble: {
     marginRight: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#222222',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1298,7 +1298,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   detailsCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     padding: 14,
     gap: 10,
@@ -1360,12 +1360,12 @@ const styles = StyleSheet.create({
   waitlistHeroTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#222222',
     letterSpacing: -0.4,
   },
   waitlistHeroSub: {
     fontSize: 15,
-    color: '#64748B',
+    color: '#6A6A6A',
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -1390,7 +1390,7 @@ const styles = StyleSheet.create({
   waitlistCardText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1E293B',
+    color: '#222222',
     flex: 1,
   },
   waitlistCta: {
@@ -1435,12 +1435,12 @@ const styles = StyleSheet.create({
   chunkyYellowTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyYellowSub: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   chunkyPinkCta: {
     height: 54,
@@ -1457,7 +1457,7 @@ const styles = StyleSheet.create({
   chunkyOutlineBtn: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     height: 54,
     borderRadius: 20,
     alignItems: 'center',
@@ -1466,7 +1466,7 @@ const styles = StyleSheet.create({
   chunkyOutlineBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
   chunkyRedLink: {
     alignSelf: 'center',
@@ -1484,18 +1484,18 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   busyButton: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2F2F2',
     height: 54,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
   },
   busyButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
     textAlign: 'center',
   },
 
@@ -1511,7 +1511,7 @@ const styles = StyleSheet.create({
   },
   staleSub: {
     fontSize: 15,
-    color: '#64748B',
+    color: '#6A6A6A',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -1587,14 +1587,14 @@ const styles = StyleSheet.create({
   staleExpiredCtaText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#222222',
   },
 
   // ── Available Slots ──
   availableSlotsSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#6A6A6A',
     marginBottom: 12,
   },
   availableSlotsDurationRow: {
@@ -1608,8 +1608,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#DDDDDD',
+    backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1620,7 +1620,7 @@ const styles = StyleSheet.create({
   availableSlotsDurationText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6A6A6A',
   },
   availableSlotsDurationTextActive: {
     fontSize: 14,
@@ -1644,13 +1644,13 @@ const styles = StyleSheet.create({
   availableSlotsTimelineHour: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#929292',
     marginBottom: 6,
   },
   availableSlotsTimelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#DDDDDD',
     borderRadius: 1,
     minHeight: 20,
   },
@@ -1658,10 +1658,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#DDDDDD',
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 8,
@@ -1678,7 +1678,7 @@ const styles = StyleSheet.create({
   availableSlotsTimelineCardText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#475569',
+    color: '#595959',
     flex: 1,
   },
   availableSlotsTimelineCardTextActive: {
