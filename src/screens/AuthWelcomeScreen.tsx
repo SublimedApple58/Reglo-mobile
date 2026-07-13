@@ -20,7 +20,7 @@ export const AuthWelcomeScreen = () => {
     <View style={styles.root}>
       <StatusBar style="dark" />
 
-      <View style={[styles.brand, { paddingTop: insets.top + 96 }]}>
+      <View style={[styles.brand, { paddingTop: insets.top }]}>
         <View style={styles.sunShadow}>
           <RegloLogo size={116} tone="navy" />
         </View>
@@ -49,7 +49,7 @@ export const AuthWelcomeScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 28 },
-  brand: { flex: 1, alignItems: 'center' },
+  brand: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 72 },
   // Raised sun: soft drop shadow cast from the mark's shape (bottom lifts /
   // lightens), matching the depth of the home-screen icon.
   sunShadow: {
