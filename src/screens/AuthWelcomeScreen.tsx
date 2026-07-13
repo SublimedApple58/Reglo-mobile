@@ -72,12 +72,13 @@ const styles = StyleSheet.create({
 
   actions: { gap: 13 },
   // Primary — 3D navy gradient CTA (app-wide lift: gradient bg + colored shadow).
+  // NB: no `overflow: 'hidden'` — it would clip the colored shadow (the gradient
+  // clips its own rounded corners), see GradientCTA.
   btnPrimary: {
     height: 56,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     ...primaryCtaShadow,
   },
   btnPrimaryText: { fontSize: 16.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.1 },
