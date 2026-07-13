@@ -20,7 +20,7 @@ export const AuthWelcomeScreen = () => {
     <View style={styles.root}>
       <StatusBar style="dark" />
 
-      <View style={[styles.brand, { paddingTop: insets.top }]}>
+      <View style={[styles.brand, { paddingTop: insets.top + 150 }]}>
         <View style={styles.sunShadow}>
           <RegloLogo size={116} tone="navy" />
         </View>
