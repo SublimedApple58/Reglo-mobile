@@ -2062,11 +2062,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     async (
       lesson: AutoscuolaAppointmentWithRelations,
       action: InstructorActionStatus,
-      options?: { lessonTypes?: string[]; closeDrawerOnSuccess?: boolean },
+      options?: { lessonTypes?: string[]; closeDrawerOnSuccess?: boolean; correction?: boolean },
     ) => {
       setToast(null);
       const availability = getActionAvailability(lesson, new Date(), settings?.autoCheckinEnabled);
-      if (!availability.enabled) {
+      // In correzione (guida passata) la finestra "live" è chiusa: si salta il
+      // gate temporale e si lascia correggere l'esito. Il backend applica
+      // comunque la sua guardia (istruttore, "troppo presto").
+      if (!availability.enabled && !options?.correction) {
         if (availability.reason) {
           setToast({ text: availability.reason, tone: 'info' });
         }
@@ -2096,7 +2099,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         });
         // Refresh from the BE before closing so the list/card show the true state.
         await loadData();
-        setToast({ text: 'Stato aggiornato', tone: 'success' });
+        setToast({
+          text: options?.correction
+            ? `Esito corretto: ${action === 'checked_in' ? 'Presente' : 'Assente'}`
+            : 'Stato aggiornato',
+          tone: 'success',
+        });
         if (options?.closeDrawerOnSuccess) {
           setSheetLesson(null);
         }
@@ -2322,6 +2330,17 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
     const actionAvail = getActionAvailability(lesson, now, settings?.autoCheckinEnabled);
     const startsFuture = new Date(lesson.startsAt).getTime() > Date.now();
+
+    // Correzione esito su guida passata: la finestra "live" è chiusa ma la guida
+    // è ancora correggibile (non annullata/proposta e non "troppo presto"), così
+    // l'istruttore può sistemare l'esito senza limite di tempo (es. annullare
+    // un'assenza messa per sbaglio).
+    const isTooEarly =
+      new Date(lesson.startsAt).getTime() - 10 * 60 * 1000 > now.getTime();
+    const correctable =
+      status !== 'cancelled' && status !== 'proposal' && !isTooEarly;
+    const liveEnabled = Boolean(actionAvail.enabled);
+    const correctionMode = !ownerMode && correctable && !liveEnabled;
     const menuOptions: ManageLessonData['menuOptions'] = [];
     if (['scheduled', 'confirmed', 'proposal'].includes(status) && startsFuture) {
       menuOptions.push({ key: 'sposta', label: 'Sposta' });
@@ -2358,8 +2377,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       defaultLocation,
       isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
       readOnly: ownerMode,
-      showStatusActions: !ownerMode && Boolean(actionAvail.enabled) && status !== 'proposal',
-      allowPresente: status !== 'checked_in',
+      showStatusActions: !ownerMode && correctable,
+      correctionMode,
+      // In correzione mostriamo entrambi i bottoni (per scegliere l'esito giusto);
+      // nel flusso live si nasconde "Presente" quando la guida è già checked_in.
+      allowPresente: correctionMode ? true : status !== 'checked_in',
       showRating: ['checked_in', 'completed', 'no_show'].includes(status),
       pendingAction,
       menuOptions: ownerMode ? [] : menuOptions,
@@ -2371,6 +2393,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         void executeStatusAction(lesson, action, {
           lessonTypes: resolveInitialLessonTypes(lesson),
           closeDrawerOnSuccess: true,
+          correction: correctionMode,
         });
       },
       onMenu: (key) => {

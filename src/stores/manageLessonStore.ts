@@ -68,6 +68,12 @@ export type ManageLessonData = {
   readOnly?: boolean;
   /** Show the Presente/Assente status row. */
   showStatusActions: boolean;
+  /**
+   * Correction mode: the live action window has closed (guida passata) but the
+   * outcome is still correctable. Drives the "Correggi guida" framing — overline,
+   * correction band, "attuale" marker on the current outcome.
+   */
+  correctionMode: boolean;
   /** Whether the "Presente" (check-in) button should appear. */
   allowPresente: boolean;
   /** Show the star-rating section (in the details sub-sheet). */

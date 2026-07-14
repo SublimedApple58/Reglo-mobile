@@ -23,6 +23,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { manageLessonStore, type ManageLessonMenuOption } from '../../../src/stores/manageLessonStore';
+import { correctOutcomeStore } from '../../../src/stores/correctOutcomeStore';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
@@ -272,10 +273,19 @@ export default function ManageLessonScreen() {
 
   const {
     studentProgress, stateMeta, stateLabel, durationText, vehiclesEnabled, vehicleText,
-    vehicles, defaultLocation, showStatusActions, allowPresente, showRating, readOnly,
+    vehicles, defaultLocation, showStatusActions, correctionMode, allowPresente, showRating, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
     studentLicense, followCarRules,
   } = data;
+
+  // Esito attuale (per marcare "attuale" sul bottone giusto in correzione).
+  const currentOutcome: 'checked_in' | 'no_show' | null =
+    (lesson.status ?? '').trim().toLowerCase() === 'checked_in'
+      ? 'checked_in'
+      : (lesson.status ?? '').trim().toLowerCase() === 'no_show'
+        ? 'no_show'
+        : null;
+  const overline = readOnly ? 'Dettaglio guida' : 'Gestisci guida';
 
   const isPending = pendingAction !== null;
   const tone = stateMeta ? TONE[stateMeta.tone] ?? TONE.scheduled : null;
@@ -363,6 +373,13 @@ export default function ManageLessonScreen() {
     setTimeout(() => onStatus(action), 300);
   };
 
+  // Correzione guida passata: apre il form sheet nativo "Correggi esito".
+  const openCorrect = () => {
+    if (isPending) return;
+    correctOutcomeStore.set({ currentOutcome, onPick: (action) => onStatus(action) });
+    router.push('/(tabs)/home/manage-lesson-correct');
+  };
+
   const locName = lesson.location?.name ?? defaultLocation?.name ?? "Sede dell'autoscuola";
   const locAddress = lesson.location?.address ?? defaultLocation?.address ?? null;
 
@@ -416,7 +433,7 @@ export default function ManageLessonScreen() {
       >
         {/* Hero */}
         <View style={s.hero}>
-          <Text style={s.heroOverline}>{readOnly ? 'Dettaglio guida' : 'Gestisci guida'}</Text>
+          <Text style={s.heroOverline}>{overline}</Text>
           {/* Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami) */}
           <Pressable onPress={openStudentDetail} hitSlop={6} style={({ pressed }) => [s.heroNameRow, pressed && { opacity: 0.55 }]}>
             <Text style={s.heroName}>{studentName}</Text>
@@ -600,24 +617,54 @@ export default function ManageLessonScreen() {
         </Animated.View>
       ) : null}
 
-      {/* Floating bottom cluster — single row: Presente · Assente · ••• */}
+      {/* Floating bottom cluster.
+          - Guida passata (correzione): un solo "Correggi esito" (+ cestino) →
+            apre l'action sheet con Segna Presente / Segna Assente.
+          - Guida live: la MorphToolbar con Presente · Assente · ••• */}
       {showBottom ? (
         <View style={[s.floatWrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
-          <MorphToolbar
-            menuOptions={menuOptions}
-            onAction={runMenu}
-            disabled={isPending}
-            expanded={expanded}
-            setExpanded={setExpanded}
-            status={showStatusActions ? {
-              allowPresente,
-              pendingAction,
-              onPresente: () => handleStatus('checked_in'),
-              onAssente: () => handleStatus('no_show'),
-            } : undefined}
-          />
+          {correctionMode ? (
+            <View style={s.corrRow}>
+              {showStatusActions ? (
+                <Pressable
+                  onPress={openCorrect}
+                  disabled={isPending}
+                  style={({ pressed }) => [s.correggiBtn, pressed && { opacity: 0.9 }, isPending && { opacity: 0.5 }]}
+                >
+                  <GradientCTABackground radius={26} />
+                  <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                  <Text style={s.correggiText}>{pendingAction ? 'Attendi…' : 'Correggi esito'}</Text>
+                </Pressable>
+              ) : null}
+              {menuOptions.some((o) => o.danger) ? (
+                <Pressable
+                  onPress={() => runMenu('cancella')}
+                  disabled={isPending}
+                  style={({ pressed }) => [s.corrTrash, pressed && { opacity: 0.85 }]}
+                  accessibilityLabel="Elimina guida"
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={21} color="#E5484D" />
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <MorphToolbar
+              menuOptions={menuOptions}
+              onAction={runMenu}
+              disabled={isPending}
+              expanded={expanded}
+              setExpanded={setExpanded}
+              status={showStatusActions ? {
+                allowPresente,
+                pendingAction,
+                onPresente: () => handleStatus('checked_in'),
+                onAssente: () => handleStatus('no_show'),
+              } : undefined}
+            />
+          )}
         </View>
       ) : null}
+
     </View>
   );
 }
@@ -631,6 +678,17 @@ const s = StyleSheet.create({
   // Hero
   hero: { gap: 4 },
   heroOverline: { fontSize: 13, fontWeight: '500', color: '#94A3B8', letterSpacing: 0.2 },
+  // Correzione: bottom bar (Correggi esito + cestino)
+  corrRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  correggiBtn: {
+    flex: 1, height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    ...primaryCtaShadow,
+  },
+  correggiText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  corrTrash: {
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
+  },
   heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   heroName: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
   heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },

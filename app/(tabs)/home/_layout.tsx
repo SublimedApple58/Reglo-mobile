@@ -33,6 +33,7 @@ export default function HomeLayout() {
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="manage-lesson-details" options={TALL_SHEET} />
+      <Stack.Screen name="manage-lesson-correct" options={HUG_SHEET} />
       <Stack.Screen name="edit-notes" options={TALL_SHEET} />
       <Stack.Screen name="swap-lesson" options={TALL_SHEET} />
       <Stack.Screen name="reschedule-lesson" options={TALL_SHEET} />
