@@ -226,6 +226,9 @@ export type GroupLessonParticipant = {
   appointmentId: Uuid;
   studentId: Uuid;
   studentName: string | null;
+  /** Presence outcome of this seat: "present"/"absent" once reviewed, else
+   *  "pending" (upcoming, or past-but-unconfirmed). Correctable any time. */
+  attendance: 'present' | 'absent' | 'pending';
   /** Per-student note on this seat (instructor → student), null if none. */
   notes: string | null;
   /** Moto group: the moto assigned to this participant (null otherwise). */

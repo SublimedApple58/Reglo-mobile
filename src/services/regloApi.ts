@@ -294,6 +294,21 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'DELETE',
         params: { studentId },
       }),
+    // Presence outcome for a single seat (present/absent) — correctable any time.
+    setGroupLessonSeatOutcome: async (
+      groupLessonId: string,
+      appointmentId: string,
+      outcome: 'present' | 'absent',
+    ) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/attendance`, {
+        method: 'POST',
+        body: { appointmentId, outcome },
+      }),
+    markGroupLessonAllPresent: async (groupLessonId: string) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/attendance`, {
+        method: 'POST',
+        body: { all: true },
+      }),
     inviteToGroupLesson: async (groupLessonId: string, expiresInHours?: number) =>
       client.request<{ inviteId: string }>(`/api/autoscuole/group-lessons/${groupLessonId}/invite`, {
         method: 'POST',
