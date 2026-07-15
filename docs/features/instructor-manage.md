@@ -17,7 +17,8 @@ Full appointment management for instructors: create, cancel, reschedule, check-i
 - Check-in/no-show status management
 - In-progress window detection (15 min before/after)
 - Appointment detail editing: lesson types, notes, star ratings
-- Change instructor, location, and **vehicle** of a lesson from "Gestisci guida" (auto-save on pick). Vehicle row opens the generic `select-options` picker; each vehicle shows an elegant subtitle (license category + assigned instructor). Backend: `updateAppointmentDetails` accepts `vehicleId` (PATCH `/api/autoscuole/appointments/{id}`)
+- Change instructor, location, **vehicle**, and **durata** of a lesson from "Gestisci guida" (auto-save on pick). Vehicle row opens the generic `select-options` picker; each vehicle shows an elegant subtitle (license category + assigned instructor). Backend: `updateAppointmentDetails` accepts `vehicleId` (PATCH `/api/autoscuole/appointments/{id}`)
+- **Modifica durata** (2026-07-15): riga "Durata" (icona `time-outline`) sotto Luogo, sia futuro che passato. Apre `optionsPicker` (opzioni `[30,45,60,90,120]` min + durata attuale) → `onChangeDuration` → `updateAppointmentDetails(id, { durationMin })` → `refreshAndSyncDrawer`. Start invariato, `endsAt = start + durationMin`; il BE (azione dettagli condivisa) è permissivo sul passato e ricontrolla i conflitti solo se la durata cresce su una guida futura. `durationMin` è nel `manageLessonStore` snapshot; readOnly (titolare) = riga statica.
 - Il **nome allievo** nell'hero di "Gestisci guida" è tappabile (chevron) → apre il modal dettaglio allievo (`/(tabs)/home/student-detail`, stesso route dell'exam sheet, stack nativo sopra la sheet)
 - Reposition to find new available slots
 - Sick leave creation (blocks availability, cancels appointments)

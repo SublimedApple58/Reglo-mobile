@@ -272,10 +272,10 @@ export default function ManageLessonScreen() {
   }
 
   const {
-    studentProgress, stateMeta, stateLabel, durationText, vehiclesEnabled, vehicleText,
+    studentProgress, stateMeta, stateLabel, durationText, durationMin, vehiclesEnabled, vehicleText,
     vehicles, defaultLocation, showStatusActions, correctionMode, allowPresente, showRating, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
-    studentLicense, followCarRules,
+    onChangeDuration, studentLicense, followCarRules,
   } = data;
 
   // Esito attuale (per marcare "attuale" sul bottone giusto in correzione).
@@ -344,6 +344,22 @@ export default function ManageLessonScreen() {
   };
 
   const openVehiclesSheet = () => router.push('/(tabs)/home/manage-lesson-vehicles');
+
+  // Durata modificabile: start invariato, cambia solo l'endsAt. Le opzioni
+  // fisse + la durata attuale (così esami/guide più lunghe restano selezionabili).
+  const openDurationPicker = () => {
+    const fmt = (m: number) =>
+      m < 60 ? `${m} min` : m % 60 === 0 ? (m === 60 ? '1 ora' : `${m / 60} ore`) : `${Math.floor(m / 60)}h ${m % 60}′`;
+    const choices = Array.from(new Set([30, 45, 60, 90, 120, durationMin])).sort((a, b) => a - b);
+    optionsPickerStore.set({
+      title: 'Durata',
+      multi: false,
+      selected: [String(durationMin)],
+      options: choices.map((m) => ({ value: String(m), label: fmt(m), subtitle: null })),
+      onConfirm: (v) => { if (v[0]) onChangeDuration(Number(v[0])); },
+    });
+    router.push(optionsPickerPath());
+  };
 
   const openDetails = () => router.push('/(tabs)/home/manage-lesson-details');
 
@@ -533,6 +549,26 @@ export default function ManageLessonScreen() {
                 <Text style={s.detailLabel}>Luogo</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
                 {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            </Pressable>
+          )}
+
+          <View style={s.rowDivider} />
+          {readOnly ? (
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Durata</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
+              </View>
+            </View>
+          ) : (
+            <Pressable onPress={openDurationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailBody}>
+                <Text style={s.detailLabel}>Durata</Text>
+                <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>

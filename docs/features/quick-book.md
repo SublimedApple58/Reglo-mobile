@@ -91,6 +91,14 @@ pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → atti
 
 ## Note
 
+- **Prenotazione nel passato consentita con conferma** (2026-07-15): `openDatePicker` usa
+  `allowPast: true` (+ `monthsBack: 3`) → i giorni passati sono selezionabili. In
+  `confirmSingle`/`confirmMulti` un `Alert.alert` nativo ("Annulla" / "Prenota comunque")
+  scatta se lo start è nel passato (`confirmPastIfNeeded`); alla conferma la chiamata parte
+  con `allowPast: true` (tipi `ConfirmInstructorBooking(Batch)Input.allowPast`). Il BE
+  (`createAutoscuolaAppointment`/`...Batch`) salta il blocco solo con quel flag. Batch:
+  conferma sulla guida più vecchia nel passato. Il clamp `nowMin` della timeline giorno
+  (`IstruttoreHomeScreen`) resta com'è: è solo un'affordance di scrub, non un blocco.
 - **Malattia** resta fuori dalla gesture (solo nel menu FAB `+`): la gesture è pensata
   per un singolo slot, la malattia è da-ora-a-fine-giornata.
 - **Page sheet, non più fitToContents** (2026-07-02): il form guida in modalità moto

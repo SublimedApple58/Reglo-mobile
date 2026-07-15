@@ -189,8 +189,8 @@ export const CreateGroupLessonScreen = () => {
 
   const openDatePicker = () => {
     dayPickerStore.set({
-      selectedDate: toYMD(startAt), markedDates: new Set(), monthsBack: 0, monthsCount: 4,
-      allowPast: false, title: 'Giorno della guida',
+      selectedDate: toYMD(startAt), markedDates: new Set(), monthsBack: 3, monthsCount: 4,
+      allowPast: true, title: 'Giorno della guida',
       onSelect: (ymd) => {
         const picked = fromYMD(ymd);
         setStartAt((prev) => { const n = new Date(prev); n.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate()); return n; });
@@ -282,7 +282,7 @@ export const CreateGroupLessonScreen = () => {
   // richiedono, il BE ne assegna una libera alla prima iscrizione.
   const canCreate = isMoto ? fleetIds.length > 0 : !!vehicleId;
 
-  const handleCreate = async () => {
+  const handleCreate = async (opts?: { confirmedPast?: boolean }) => {
     // Una guida di gruppo senza istruttore non deve esistere (regola BE).
     if (!instructorId) {
       Alert.alert('Istruttore', 'La guida di gruppo deve avere un istruttore assegnato.');
@@ -292,6 +292,18 @@ export const CreateGroupLessonScreen = () => {
       if (fleetIds.length === 0) { Alert.alert('Moto', 'Seleziona almeno una moto per la guida di gruppo.'); return; }
     } else if (!vehicleId) {
       Alert.alert('Veicolo', 'Seleziona il veicolo della guida di gruppo.'); return;
+    }
+    // Guida nel passato: consentita con conferma esplicita (il BE non blocca).
+    if (!opts?.confirmedPast && startAt.getTime() < Date.now()) {
+      Alert.alert(
+        'Guida nel passato',
+        `La guida del ${startAt.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })} alle ${fmtTime(startAt)} è già passata. Vuoi crearla comunque?`,
+        [
+          { text: 'Annulla', style: 'cancel' },
+          { text: 'Crea comunque', onPress: () => { void handleCreate({ confirmedPast: true }); } },
+        ],
+      );
+      return;
     }
     setSaving(true);
     try {
@@ -426,7 +438,7 @@ export const CreateGroupLessonScreen = () => {
             <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
           </View>
           <View style={{ flexShrink: 0 }}>
-            <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={handleCreate} />
+            <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={() => handleCreate()} />
           </View>
         </View>
       ) : null}

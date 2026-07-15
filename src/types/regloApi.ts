@@ -507,6 +507,12 @@ export type UpdateAppointmentDetailsInput = {
    * verifies availability and returns `INSTRUCTOR_UNAVAILABLE` on conflict.
    */
   instructorId?: Uuid;
+  /**
+   * Nuova durata della guida in minuti (endsAt = startsAt + durationMin, lo
+   * start non cambia). Consentita anche sulle guide passate; se la durata cresce
+   * su una guida futura il BE ricontrolla i conflitti veicolo/istruttore.
+   */
+  durationMin?: number;
 };
 
 export type InstructorAvailabilityResult =
@@ -820,6 +826,8 @@ export type ConfirmInstructorBookingInput = {
   lessonType?: string;
   types?: string[];
   skipWeeklyLimitCheck?: boolean;
+  // Registra la guida anche se lo start è nel passato (dopo conferma utente).
+  allowPast?: boolean;
 };
 
 export type ConfirmInstructorBookingBatchInput = {
@@ -832,6 +840,8 @@ export type ConfirmInstructorBookingBatchInput = {
   lessonType?: string;
   types?: string[];
   skipWeeklyLimitCheck?: boolean;
+  // Vedi ConfirmInstructorBookingInput.allowPast.
+  allowPast?: boolean;
   entries: Array<{ startsAt: IsoDate; endsAt: IsoDate }>;
 };
 

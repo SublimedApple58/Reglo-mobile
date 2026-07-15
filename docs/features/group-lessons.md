@@ -42,6 +42,9 @@ La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "d
 - Le guide di gruppo **vuote** (0 partecipanti) ora compaiono anche in agenda: il bootstrap backend (`getAutoscuolaAgendaBootstrapAction`) sintetizza una riga `gl-empty:<glId>` (fonte unica web+mobile); `weeklyAgenda.ts` e `IstruttoreHomeScreen.timelineItems` escludono le righe `gl-empty:` dal conteggio (mostrano `0/3`). Così sono gestibili/annullabili anche senza iscritti.
 - **Capienza configurabile 3 o 4** (2026-06-12): riga "Capienza" nel form di creazione e nella sheet di gestione (auto-save, il BE rifiuta sotto gli iscritti attuali). Le card agenda (giorno/settimana/griglia) leggono la capienza reale dall'annotazione BE `groupLessonCapacity` sulle righe (fallback 3); le UI allievo (inviti, card home, detail sheet) erano già dinamiche su `capacity` dal payload.
 
+## Note / limiti noti (segue)
+- **Creazione nel passato con conferma** (2026-07-15): `CreateGroupLessonScreen.openDatePicker` usa `allowPast: true` (+ `monthsBack: 3`) → giorni passati selezionabili; `handleCreate` mostra un `Alert.alert` nativo ("Annulla"/"Crea comunque", helper inline `confirmedPast`) se lo start è nel passato. Il BE non blocca le guide di gruppo passate, quindi nessun flag viene inviato. Gemello del flusso guide autonome (`BookingForm`, vedi `quick-book.md`).
+
 ## Connected features
 - Backend `reglo/docs/features/group-lessons.md`, `vehicles` (patenti → filtro invitabili), `notifications` (kind nuovo), pagamenti.
 

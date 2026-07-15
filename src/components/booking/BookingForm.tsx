@@ -311,8 +311,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   const openDatePicker = (current: Date, onSelect: (date: Date) => void) => {
     dayPickerStore.set({
-      selectedDate: toYMD(current), markedDates, monthsBack: 0, monthsCount,
-      allowPast: false, title: 'Seleziona data', onSelect: (ymd) => onSelect(fromYMD(ymd)),
+      selectedDate: toYMD(current), markedDates, monthsBack: 3, monthsCount,
+      allowPast: true, title: 'Seleziona data', onSelect: (ymd) => onSelect(fromYMD(ymd)),
     });
     router.push('/(tabs)/home/select-date');
   };
@@ -452,6 +452,25 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     return true;
   };
 
+  /**
+   * Prenotazione nel passato: non è più bloccata a priori. Se lo start è già
+   * trascorso chiediamo conferma nativa; su "Prenota comunque" si procede con
+   * allowPast → il BE la crea. Ritorna true se ha mostrato l'alert (il caller
+   * deve fermarsi e attendere la scelta).
+   */
+  const confirmPastIfNeeded = (start: Date, proceed: () => void): boolean => {
+    if (start.getTime() >= Date.now()) return false;
+    Alert.alert(
+      'Prenotazione nel passato',
+      `La guida del ${fmtDay(start)} alle ${fmtTime(start)} è già passata. Vuoi prenotarla comunque?`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Prenota comunque', onPress: proceed },
+      ],
+    );
+    return true;
+  };
+
   const confirmSingle = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
@@ -459,17 +478,22 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito', 'Scegli un’auto al seguito oppure "Nessuna".'); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
-    const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
-      studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
-      vehicleId: vehiclesEnabled ? vehicleId : null,
-      followVehicleId: effectiveFollowVehicleId || null,
-      extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
-      locationId, ...typesPayload,
-      ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
-    }), () => 'Guida prenotata.', skip);
     const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
-    if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
-    book();
+    const submit = (allowPast: boolean) => {
+      const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
+        studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
+        vehicleId: vehiclesEnabled ? vehicleId : null,
+        followVehicleId: effectiveFollowVehicleId || null,
+        extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+        locationId, ...typesPayload,
+        ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
+        ...(allowPast ? { allowPast: true } : {}),
+      }), () => 'Guida prenotata.', skip);
+      if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
+      book();
+    };
+    if (confirmPastIfNeeded(start, () => submit(true))) return;
+    submit(false);
   };
 
   const confirmMulti = () => {
@@ -484,17 +508,27 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       const end = new Date(start.getTime() + entry.duration * 60 * 1000);
       return { startsAt: start.toISOString(), endsAt: end.toISOString() };
     });
-    const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBookingBatch({
-      studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
-      followVehicleId: effectiveFollowVehicleId || null,
-      extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
-      ...typesPayload,
-      ...(s2 ? { skipWeeklyLimitCheck: true } : {}), entries: payloadEntries,
-    }), (result) => `${(result as { created: number }).created} guide prenotate.`, skip);
     const nowWeek = isoWeekStartUTC(new Date());
     const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
-    if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;
-    book();
+    const submit = (allowPast: boolean) => {
+      const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBookingBatch({
+        studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
+        followVehicleId: effectiveFollowVehicleId || null,
+        extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+        ...typesPayload,
+        ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
+        ...(allowPast ? { allowPast: true } : {}), entries: payloadEntries,
+      }), (result) => `${(result as { created: number }).created} guide prenotate.`, skip);
+      if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;
+      book();
+    };
+    // Se una o più guide del batch sono nel passato, conferma sulla più vecchia.
+    const earliestPast = payloadEntries
+      .map((e) => new Date(e.startsAt))
+      .filter((d) => d.getTime() < Date.now())
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    if (earliestPast && confirmPastIfNeeded(earliestPast, () => submit(true))) return;
+    submit(false);
   };
 
   const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);

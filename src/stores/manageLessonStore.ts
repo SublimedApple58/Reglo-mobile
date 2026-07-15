@@ -54,6 +54,8 @@ export type ManageLessonData = {
   stateMeta: ManageLessonStateMeta | null;
   stateLabel: string;
   durationText: string;
+  /** Durata attuale in minuti (per preselezionare il picker "Durata"). */
+  durationMin: number;
   vehiclesEnabled: boolean;
   vehicleText: string;
   /** Company vehicles available to assign (for the "Veicolo" picker). */
@@ -91,6 +93,8 @@ export type ManageLessonData = {
   onChangeLocation: (location: AutoscuolaLocation) => void;
   /** Reassign the lesson's primary vehicle (null = unassign) — auto-saves. */
   onChangeVehicle: (vehicleId: string | null) => void;
+  /** Change the lesson duration in minutes (endsAt = start + min) — auto-saves. */
+  onChangeDuration: (min: number) => void;
   /** Replace the extra motos (role="primary" rows beyond the main one) — auto-saves. */
   onChangeExtraMotos: (vehicleIds: string[]) => void;
   /** Set/replace/remove the follow car (null = remove) — auto-saves. */

@@ -2357,6 +2357,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       stateMeta,
       stateLabel: getLessonStateLabel(lesson, now),
       durationText: durationLabel(lesson),
+      durationMin: (() => {
+        const st = new Date(lesson.startsAt).getTime();
+        const en = lesson.endsAt ? new Date(lesson.endsAt).getTime() : st + 30 * 60000;
+        return Math.max(1, Math.round((en - st) / 60000));
+      })(),
       vehiclesEnabled: settings?.vehiclesEnabled !== false,
       // Resolve from the relation, falling back to the vehicles list by id.
       // Append the auto al seguito (follow car) when present.
@@ -2461,6 +2466,19 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           await refreshAndSyncDrawer(lessonId);
         } catch (err) {
           setToast({ text: err instanceof Error ? err.message : "Errore aggiornando l'auto al seguito.", tone: 'danger' });
+        }
+      },
+      onChangeDuration: async (min) => {
+        const lessonId = lesson.id;
+        const st = new Date(lesson.startsAt).getTime();
+        const en = lesson.endsAt ? new Date(lesson.endsAt).getTime() : st + 30 * 60000;
+        const cur = Math.max(1, Math.round((en - st) / 60000));
+        if (min === cur) return; // già la durata attuale — niente da salvare
+        try {
+          await regloApi.updateAppointmentDetails(lessonId, { durationMin: min });
+          await refreshAndSyncDrawer(lessonId);
+        } catch (err) {
+          setToast({ text: err instanceof Error ? err.message : 'Errore aggiornando la durata.', tone: 'danger' });
         }
       },
       onClosed: () => { setSheetLesson(null); },
