@@ -197,6 +197,8 @@ export type AutoscuolaAppointment = {
   groupLessonCapacity?: number | null;
   /** Tipo guida di gruppo ("standard" | "moto") — annotato dal BE sull'agenda. */
   groupLessonKind?: string | null;
+  /** Posti occupati della guida di gruppo (per lo storico allievo: N/M). */
+  groupLessonFilled?: number | null;
   notes: string | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;

@@ -335,7 +335,9 @@ export const StudentNotesDetailScreen = () => {
               {appointments.map((appt, idx) => {
                   const isLast = idx === appointments.length - 1;
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
-                  const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida');
+                  const isGroup = (appt.type ?? '').trim().toLowerCase() === 'group_lesson' || !!appt.groupLessonId;
+                  const isMotoGroup = appt.groupLessonKind === 'moto';
+                  const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida' && t !== 'group_lesson');
                   return (
                     <View key={appt.id} style={s.tlRow}>
                       <View style={s.tlLeft}>
@@ -353,6 +355,14 @@ export const StudentNotesDetailScreen = () => {
                         {isExam ? (
                           <View style={[s.tlChip, { backgroundColor: '#EDE9FE', alignSelf: 'flex-start' }]}>
                             <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
+                          </View>
+                        ) : isGroup ? (
+                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: isMotoGroup ? '#FFF4EA' : '#ECFDF5' }]}>
+                            <Ionicons name="people" size={12} color={isMotoGroup ? '#C2410C' : '#0F766E'} />
+                            <Text style={[s.tlChipText, { color: isMotoGroup ? '#C2410C' : '#0F766E' }]}>
+                              {isMotoGroup ? 'Gruppo moto' : 'Guida di gruppo'}
+                              {appt.groupLessonCapacity ? ` · ${appt.groupLessonFilled ?? 0}/${appt.groupLessonCapacity}` : ''}
+                            </Text>
                           </View>
                         ) : allTypes.length ? (
                           <View style={s.tlChips}>
@@ -482,6 +492,7 @@ const s = StyleSheet.create({
   tlTime: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tlChip: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
+  tlChipGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   tlChipText: { fontSize: 11, fontWeight: '700' },
   tlMeta: { fontSize: 13, color: '#929292' },
   tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
