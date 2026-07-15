@@ -34,6 +34,21 @@ const initialsOf = (name: string | null) => {
   return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
 };
 
+// Keep the roster in the order it was first shown, so marking a presence never
+// reshuffles the list (defensive even if the backend returns a different order).
+// New participants (not seen before) go to the end, stably.
+function keepOrder(
+  prev: GroupLesson['participants'] | undefined,
+  next: GroupLesson['participants'],
+): GroupLesson['participants'] {
+  if (!prev || prev.length === 0) return next;
+  const order = new Map(prev.map((p, i) => [p.appointmentId, i]));
+  const rank = (id: string) => (order.has(id) ? (order.get(id) as number) : Number.MAX_SAFE_INTEGER);
+  return [...next].sort(
+    (a, b) => rank(a.appointmentId) - rank(b.appointmentId) || a.appointmentId.localeCompare(b.appointmentId),
+  );
+}
+
 export default function ManageGroupLessonParticipantsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,14 +67,15 @@ export default function ManageGroupLessonParticipantsScreen() {
   const busy = !!removingId || adding || inviting || !!outcomeBusy || allPresentBusy;
 
   useEffect(() => {
-    if (seed?.lesson) setLesson(seed.lesson);
+    const next = seed?.lesson;
+    if (next) setLesson((prev) => ({ ...next, participants: keepOrder(prev?.participants, next.participants) }));
   }, [seed?.lesson]);
 
   const refreshLocal = useCallback(async () => {
     if (!groupLessonId) return;
     try {
       const res = await regloApi.getGroupLesson(groupLessonId);
-      if (res) setLesson(res);
+      if (res) setLesson((prev) => ({ ...res, participants: keepOrder(prev?.participants, res.participants) }));
     } catch {
       // keep current
     }
