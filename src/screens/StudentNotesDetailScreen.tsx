@@ -107,10 +107,14 @@ export const StudentNotesDetailScreen = () => {
       const status = (appt.status ?? '').trim().toLowerCase();
       const showRating = ['checked_in', 'completed', 'no_show'].includes(status);
       const startMs = new Date(appt.startsAt).getTime();
+      const typeLc = (appt.type ?? '').toLowerCase();
+      const isGroup = typeLc === 'group_lesson' || !!appt.groupLessonId;
       // Esito impostabile su guide non annullate/proposte già iniziate → così si
-      // può segnare effettuata e sbloccare la valutazione.
+      // può segnare effettuata e sbloccare la valutazione. NON sulle guide di
+      // gruppo: la presenza è di gruppo (tutti insieme), non per-partecipante, e
+      // il type "group_lesson" non è un tipo valido per il check-in.
       const canSetOutcome =
-        status !== 'cancelled' && status !== 'proposal' && startMs - 10 * 60 * 1000 <= Date.now();
+        status !== 'cancelled' && status !== 'proposal' && !isGroup && startMs - 10 * 60 * 1000 <= Date.now();
       const currentOutcome = outcomeFromStatus(status);
       manageLessonStore.set({
         lesson: appt,
