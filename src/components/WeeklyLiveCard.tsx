@@ -69,7 +69,7 @@ export const WeeklyLiveCard = ({
         <View style={{ flex: 1 }}>
           {isExam ? <Text style={styles.examKicker}>Esame di guida</Text> : null}
           <Text style={styles.name} numberOfLines={1}>
-            {isGroup ? 'Guida di gruppo' : isExam ? `${examCount} ${examCount === 1 ? 'allievo' : 'allievi'}` : name}
+            {isGroup ? 'Guida di gruppo' : isExam ? (examCount === 0 ? 'Nessun allievo' : `${examCount} ${examCount === 1 ? 'allievo' : 'allievi'}`) : name}
           </Text>
           {!isExam && !isGroup && inProgress && isCheckedIn ? (
             <View style={styles.donePill}>

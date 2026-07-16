@@ -17,6 +17,10 @@ const MO = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott'
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtDay = (iso: string) => { const d = new Date(iso); return `${WD[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}`; };
 const fmtTime = (iso: string) => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+// Studentless placeholder row for an exam created before its participants are
+// known (backend keeps it so the empty slot survives). Never shown as a student.
+const isExamPlaceholder = (a: AutoscuolaAppointmentWithRelations) =>
+  (a.type ?? '').toLowerCase() === 'esame' && !a.studentId;
 const studentName = (a: AutoscuolaAppointmentWithRelations) =>
   `${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim() || 'Allievo';
 const initials = (a: AutoscuolaAppointmentWithRelations) =>
@@ -38,6 +42,8 @@ export default function ExamManageScreen() {
   const onChanged = seed.onChanged;
   const readOnly = seed.readOnly === true;
   const close = () => router.back();
+  // Real participants (exclude the studentless empty-exam placeholder).
+  const realAppts = appts.filter((a) => !isExamPlaceholder(a));
 
   // ── Modifica / Imposta orario → native time picker route ──
   const openTimePicker = () => {
@@ -87,7 +93,7 @@ export default function ExamManageScreen() {
   };
 
   const onStudentMenu = (a: AutoscuolaAppointmentWithRelations) => {
-    if (appts.length <= 1) {
+    if (realAppts.length <= 1) {
       Alert.alert('Ultimo allievo', 'È l’unico allievo dell’esame. Per rimuoverlo, usa "Annulla esame".');
       return;
     }
@@ -185,7 +191,9 @@ export default function ExamManageScreen() {
           student: { firstName: firstName ?? '', lastName: rest.join(' ') },
         } as unknown as AutoscuolaAppointmentWithRelations;
       });
-      setAppts((p) => [...p, ...added]);
+      // Drop the empty-exam placeholder locally: the backend just converted it
+      // into the first added student, so the open sheet must not keep showing it.
+      setAppts((p) => [...p.filter((a) => !isExamPlaceholder(a)), ...added]);
     } catch (err) {
       Alert.alert('Errore', err instanceof Error ? err.message : 'Impossibile aggiungere gli allievi.');
     }
@@ -242,30 +250,36 @@ export default function ExamManageScreen() {
 
         {/* Allievi — flat rows (no card), ••• menu, + to add */}
         <View style={s.secRow}>
-          <Text style={s.sec}>ALLIEVI · {appts.length}</Text>
+          <Text style={s.sec}>ALLIEVI · {realAppts.length}</Text>
           {!readOnly && (
             <Pressable onPress={openAddStudents} hitSlop={8} style={({ pressed }) => [s.add, pressed && { opacity: 0.7 }]}>
               <Ionicons name="add" size={20} color="#1A1A2E" />
             </Pressable>
           )}
         </View>
-        {appts.map((a, idx) => (
-          <Pressable
-            key={a.id}
-            onPress={() => openStudent(a)}
-            style={({ pressed }) => [s.studentRow, idx === appts.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}
-          >
-            <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
-            <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
-            {readOnly ? (
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-            ) : (
-              <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
-                <Ionicons name="ellipsis-horizontal" size={20} color="#AEB4CC" />
-              </Pressable>
-            )}
-          </Pressable>
-        ))}
+        {realAppts.length === 0 ? (
+          <Text style={s.emptyStudents}>
+            {readOnly ? 'Nessun allievo iscritto.' : 'Nessun allievo. Tocca + per aggiungerli.'}
+          </Text>
+        ) : (
+          realAppts.map((a, idx) => (
+            <Pressable
+              key={a.id}
+              onPress={() => openStudent(a)}
+              style={({ pressed }) => [s.studentRow, idx === realAppts.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}
+            >
+              <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
+              <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
+              {readOnly ? (
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              ) : (
+                <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#AEB4CC" />
+                </Pressable>
+              )}
+            </Pressable>
+          ))
+        )}
 
         {/* Note — soft inset card */}
         {seed.notes ? (
@@ -317,6 +331,7 @@ const s = StyleSheet.create({
   studentAv: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   studentAvTx: { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
   studentNm: { flex: 1, fontSize: 16, fontWeight: '500', color: '#1A1A2E' },
+  emptyStudents: { fontSize: 14, fontWeight: '400', color: '#9CA3AF', paddingVertical: 12, paddingHorizontal: 2 },
   dots: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
 
   note: { padding: 14, borderRadius: 16, backgroundColor: '#F4F5F9', marginTop: 6 },

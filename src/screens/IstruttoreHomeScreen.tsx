@@ -67,7 +67,7 @@ import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
-import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END } from '../utils/weeklyAgenda';
+import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
 import { groupLessonManageStore } from '../stores/groupLessonManageStore';
@@ -3149,7 +3149,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <View style={{ flex: 1 }}>
                           <Text style={styles.examGroupLabel}>Esame di guida · {dayLabel}</Text>
                           <Text style={styles.examGroupTitle} numberOfLines={1}>
-                            {item.appointments.length} {item.appointments.length === 1 ? 'allievo' : 'allievi'} · Orario da definire
+                            {(() => { const n = item.appointments.filter((a) => !isExamPlaceholder(a)).length; return n === 0 ? 'Nessun allievo' : `${n} ${n === 1 ? 'allievo' : 'allievi'}`; })()} · Orario da definire
                           </Text>
                         </View>
                       </Pressable>
@@ -3316,7 +3316,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 }
                 if (row.type === 'examGroup') {
                   const g = row.group;
-                  const count = g.appointments.length;
+                  const count = g.appointments.filter((a) => !isExamPlaceholder(a)).length;
                   // Rich exam card (student-app language): lavender surface + Fluent
                   // 3D icon, count subtitle, NO right tag. Tap → exam detail sheet.
                   return (
@@ -3326,7 +3326,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examGroupIcon} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.examGroupLabel}>Esame di guida</Text>
-                          <Text style={styles.examGroupTitle} numberOfLines={1}>{count} {count === 1 ? 'allievo' : 'allievi'} · {gapLabel(row.endMin - row.startMin)}</Text>
+                          <Text style={styles.examGroupTitle} numberOfLines={1}>{count === 0 ? 'Nessun allievo' : `${count} ${count === 1 ? 'allievo' : 'allievi'}`} · {gapLabel(row.endMin - row.startMin)}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -3643,7 +3643,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       <View style={{ flex: 1 }}>
                         <Text style={styles.examGroupLabel}>Esame di guida · {dayLabel}</Text>
                         <Text style={styles.examGroupTitle} numberOfLines={1}>
-                          {appts.length} {appts.length === 1 ? 'allievo' : 'allievi'} · Orario da definire
+                          {(() => { const n = appts.filter((a) => !isExamPlaceholder(a)).length; return n === 0 ? 'Nessun allievo' : `${n} ${n === 1 ? 'allievo' : 'allievi'}`; })()} · Orario da definire
                         </Text>
                       </View>
                     </Pressable>
@@ -3690,7 +3690,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               <WeeklyLiveCard
                 lesson={live}
                 isExam={isExam}
-                examCount={sameSlot.length}
+                examCount={sameSlot.filter((a) => !isExamPlaceholder(a)).length}
                 isGroup={isGroup}
                 groupCount={groupCount}
                 inProgress={inProgress}

@@ -29,6 +29,7 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
+import { isExamPlaceholder } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
@@ -886,7 +887,7 @@ const WeekPage = React.memo(function WeekPage({
             if (!timeless.length) return null;
             const day = weekDays[colIdx];
             const dayLabel = day.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-            const n = timeless.length;
+            const n = timeless.filter((a) => !isExamPlaceholder(a)).length;
             return (
               <Pressable
                 key={`tl-${colIdx}`}
@@ -897,7 +898,7 @@ const WeekPage = React.memo(function WeekPage({
                 <View style={{ flex: 1 }}>
                   <Text style={styles.examBannerLabel}>Esame di guida · {dayLabel}</Text>
                   <Text style={styles.examBannerTitle} numberOfLines={1}>
-                    {n} {n === 1 ? 'allievo' : 'allievi'} · Orario da definire
+                    {n === 0 ? 'Nessun allievo' : `${n} ${n === 1 ? 'allievo' : 'allievi'}`} · Orario da definire
                   </Text>
                 </View>
               </Pressable>

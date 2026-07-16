@@ -56,6 +56,11 @@ export const lessonBadge = (
   return { label: 'Programmata', bg: '#FEF9C3', text: '#CA8A04', isExam: false };
 };
 
+// Studentless placeholder row for an exam created before its participants are
+// known (backend keeps it so the empty slot survives). Counts as 0 students.
+export const isExamPlaceholder = (a: AutoscuolaAppointmentWithRelations) =>
+  a.type === 'esame' && !a.studentId;
+
 export type DayLessonRow = {
   appt: AutoscuolaAppointmentWithRelations;
   startMin: number;
@@ -203,7 +208,8 @@ export function computeDayPlan(
       startMin: rowsG[0].startMin,
       endMin: rowsG[0].endMin,
       durationMin: rowsG[0].durationMin,
-      count: rowsG.length,
+      // Empty-exam placeholder rows count as 0 participants (mirrors gl-empty).
+      count: rowsG.filter((r) => !isExamPlaceholder(r.appt)).length,
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);

@@ -209,10 +209,8 @@ export const CreateExamScreen = () => {
     : `${selectedStudents.length} ${selectedStudents.length === 1 ? 'allievo' : 'allievi'}`;
 
   const handleCreate = async () => {
-    if (selectedIds.length === 0) {
-      Alert.alert('Seleziona allievi', "Aggiungi almeno un allievo all'esame.");
-      return;
-    }
+    // Zero students is allowed: the exam is created as an empty slot the
+    // instructor fills in later (spesso non si sa subito chi farà l'esame).
     setSaving(true);
     try {
       if (timeSet) {
@@ -258,7 +256,7 @@ export const CreateExamScreen = () => {
               <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)} · ${durLabel(duration)}` : ' · orario da definire'}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>
-              <Button label="Crea esame" tone="primary" loading={saving} disabled={selectedIds.length === 0} onPress={handleCreate} />
+              <Button label="Crea esame" tone="primary" loading={saving} onPress={handleCreate} />
             </View>
           </View>
         )}
