@@ -36,6 +36,12 @@ export type ManageLessonDetailsPayload = {
   lessonTypes: string[];
   rating: number | null;
   notes: string;
+  /**
+   * Esito scelto nel sub-sheet quando `showEsito` è attivo (usato solo dallo
+   * storico allievo: segnare effettuata per poter valutare). Il flusso home lo
+   * ignora — l'esito lì vive nel foglio padre. `undefined` = non gestito qui.
+   */
+  esito?: "checked_in" | "no_show" | null;
 };
 
 /**
@@ -80,6 +86,12 @@ export type ManageLessonData = {
   allowPresente: boolean;
   /** Show the star-rating section (in the details sub-sheet). */
   showRating: boolean;
+  /**
+   * Mostra il selettore Esito (Presente/Assente) nel sub-sheet dettagli. Usato
+   * solo dallo storico allievo per segnare la guida effettuata e sbloccare la
+   * valutazione; il flusso home NON lo imposta (l'esito lì è nel foglio padre).
+   */
+  showEsito?: boolean;
   pendingAction: string | null;
   /** Quick actions surfaced as pills under the ring (sposta / scambia / cancella). */
   menuOptions: ManageLessonMenuOption[];

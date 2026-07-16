@@ -14,6 +14,13 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
+function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | null {
+  const s = (status ?? '').toLowerCase();
+  if (s === 'checked_in' || s === 'completed') return 'checked_in';
+  if (s === 'no_show') return 'no_show';
+  return null;
+}
+
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
@@ -23,6 +30,10 @@ export default function ManageLessonDetailsScreen() {
   const [types, setTypes] = useState<string[]>([]);
   const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  // Esito (Presente/Assente) — mostrato solo quando data.showEsito (storico
+  // allievo): segnare effettuata sblocca la valutazione. Nel flusso home resta
+  // nascosto (l'esito è nel foglio padre).
+  const [esito, setEsito] = useState<'checked_in' | 'no_show' | null>(null);
   // While the notes field is focused we collapse the sections above it so the
   // sheet shrinks enough to float fully above the keyboard on iOS (a tall
   // fitToContents form sheet can't lift far enough otherwise → notes stay
@@ -57,6 +68,7 @@ export default function ManageLessonDetailsScreen() {
     setTypes(resolveInitialLessonTypes(lesson));
     setRating(lesson.rating ?? null);
     setNotes(lesson.notes ?? '');
+    setEsito(outcomeFromStatus(lesson.status));
   }, [lesson]);
 
   if (!data || !lesson) {
@@ -66,10 +78,17 @@ export default function ManageLessonDetailsScreen() {
   const { showRating, isDetailsEditable, pendingAction, onSaveDetails } = data;
   const isPending = pendingAction !== null;
   const editable = isDetailsEditable && !isPending;
+  const showEsito = data.showEsito === true;
+  const showRatingNow = showRating || esito !== null;
+  // Il tipo cambierebbe il `type` dell'appuntamento: nascosto su esami/gruppi
+  // (ne romperebbe la categoria). Nel flusso home questo foglio si apre solo per
+  // guide individuali, quindi il gate è un no-op lì.
+  const lessonTypeLc = (lesson.type ?? '').toLowerCase();
+  const showTypes = lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId;
 
   const handleSave = async () => {
     if (!editable) return;
-    const ok = await onSaveDetails({ lessonTypes: types, rating, notes });
+    const ok = await onSaveDetails({ lessonTypes: types, rating, notes, esito });
     if (ok) router.back();
   };
 
@@ -115,31 +134,54 @@ export default function ManageLessonDetailsScreen() {
         }}
       >
           {/* Tipo guida */}
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>Tipo guida</Text>
-            <View style={s.chipList}>
-              {LESSON_TYPE_OPTIONS.map((option) => (
-                <SelectableChip
-                  key={option.value}
-                  label={option.label}
-                  active={types.includes(option.value)}
-                  onPress={() => {
-                    if (!editable) return;
-                    setTypes((prev) => {
-                      if (prev.includes(option.value)) {
-                        const next = prev.filter((t) => t !== option.value);
-                        return next.length ? next : [option.value];
-                      }
-                      return [...prev, option.value];
-                    });
-                  }}
-                />
-              ))}
+          {showTypes ? (
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>Tipo guida</Text>
+              <View style={s.chipList}>
+                {LESSON_TYPE_OPTIONS.map((option) => (
+                  <SelectableChip
+                    key={option.value}
+                    label={option.label}
+                    active={types.includes(option.value)}
+                    onPress={() => {
+                      if (!editable) return;
+                      setTypes((prev) => {
+                        if (prev.includes(option.value)) {
+                          const next = prev.filter((t) => t !== option.value);
+                          return next.length ? next : [option.value];
+                        }
+                        return [...prev, option.value];
+                      });
+                    }}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
+          ) : null}
+
+          {/* Esito (solo storico) */}
+          {showEsito ? (
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>Esito</Text>
+              <View style={s.esitoRow}>
+                <Pressable
+                  onPress={() => editable && setEsito((e) => (e === 'checked_in' ? null : 'checked_in'))}
+                  style={[s.esitoBtn, esito === 'checked_in' && s.esitoBtnActive]}
+                >
+                  <Text style={[s.esitoText, esito === 'checked_in' && s.esitoTextPresente]}>Presente</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => editable && setEsito((e) => (e === 'no_show' ? null : 'no_show'))}
+                  style={[s.esitoBtn, esito === 'no_show' && s.esitoBtnActive]}
+                >
+                  <Text style={[s.esitoText, esito === 'no_show' && s.esitoTextAssente]}>Assente</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           {/* Valutazione */}
-          {showRating ? (
+          {showRatingNow ? (
             <View style={s.section}>
               <Text style={s.sectionLabel}>Valutazione</Text>
               <StarRating value={rating} onChange={editable ? setRating : () => {}} />
@@ -182,6 +224,12 @@ const s = StyleSheet.create({
 
   collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
   section: { gap: 12 },
+  esitoRow: { flexDirection: 'row', gap: 6, backgroundColor: '#F2F2F4', borderRadius: 12, padding: 4 },
+  esitoBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 9 },
+  esitoBtnActive: { backgroundColor: '#FFFFFF' },
+  esitoText: { fontSize: 14, fontWeight: '600', color: '#8A8A8F' },
+  esitoTextPresente: { color: '#047857' },
+  esitoTextAssente: { color: '#B91C1C' },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {

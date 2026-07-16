@@ -41,6 +41,13 @@ const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
 };
 const tintFor = (t: string) => TYPE_TINT[t.toLowerCase()] ?? { bg: '#F2F2F2', fg: '#595959' };
 
+function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | null {
+  const s = (status ?? '').toLowerCase();
+  if (s === 'checked_in' || s === 'completed') return 'checked_in';
+  if (s === 'no_show') return 'no_show';
+  return null;
+}
+
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const formatExamDate = (iso: string) => {
   const d = new Date(iso);
@@ -99,26 +106,39 @@ export const StudentNotesDetailScreen = () => {
     (appt: AutoscuolaAppointmentWithRelations) => {
       const status = (appt.status ?? '').trim().toLowerCase();
       const showRating = ['checked_in', 'completed', 'no_show'].includes(status);
+      const startMs = new Date(appt.startsAt).getTime();
+      // Esito impostabile su guide non annullate/proposte già iniziate → così si
+      // può segnare effettuata e sbloccare la valutazione.
+      const canSetOutcome =
+        status !== 'cancelled' && status !== 'proposal' && startMs - 10 * 60 * 1000 <= Date.now();
+      const currentOutcome = outcomeFromStatus(status);
       manageLessonStore.set({
         lesson: appt,
         showRating,
+        showEsito: canSetOutcome,
         isDetailsEditable: true,
         pendingAction: null,
-        onSaveDetails: async ({ lessonTypes, rating, notes }) => {
-          const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string } = {};
-          const initialTypes = resolveInitialLessonTypes(appt);
-          const typesChanged =
-            JSON.stringify([...lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
-          if (lessonTypes.length && typesChanged) {
-            payload.lessonTypes = lessonTypes;
-            payload.lessonType = lessonTypes[0];
-          }
-          if (rating !== (appt.rating ?? null)) payload.rating = rating;
-          const trimmed = notes.trim();
-          if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
-          if (Object.keys(payload).length === 0) return true; // niente da salvare
+        onSaveDetails: async ({ lessonTypes, rating, notes, esito }) => {
           try {
-            await regloApi.updateAppointmentDetails(appt.id, payload);
+            // 1. Esito PRIMA (il BE accetta il rating solo su guide effettuate).
+            if (esito !== undefined && esito !== currentOutcome && esito) {
+              await regloApi.updateAppointmentStatus(appt.id, { status: esito });
+            }
+            // 2. Dettagli (solo i campi cambiati).
+            const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string } = {};
+            const initialTypes = resolveInitialLessonTypes(appt);
+            const typesChanged =
+              JSON.stringify([...lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
+            if (lessonTypes.length && typesChanged) {
+              payload.lessonTypes = lessonTypes;
+              payload.lessonType = lessonTypes[0];
+            }
+            if (rating !== (appt.rating ?? null)) payload.rating = rating;
+            const trimmed = notes.trim();
+            if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
+            if (Object.keys(payload).length) {
+              await regloApi.updateAppointmentDetails(appt.id, payload);
+            }
             await loadData();
             return true;
           } catch (e) {
