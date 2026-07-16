@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
-import { notesEditorStore } from '../stores/notesEditorStore';
+import { manageLessonStore, ManageLessonData } from '../stores/manageLessonStore';
+import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -89,19 +90,35 @@ export const StudentNotesDetailScreen = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Apre l'editor note generico (edit-notes) per una guida dello storico e, al
-  // salvataggio, aggiorna la nota via BE e ricarica la lista. Registrato in
-  // entrambi gli stack (home + notes): navighiamo alla route del nostro stack.
-  const openNote = useCallback(
+  // Apre il foglio "Dettagli guida" (Tipo/Valutazione/Note) per una guida dello
+  // storico, seedando manageLessonStore con lo stretto necessario che quel foglio
+  // legge (lesson + flag + onSaveDetails). Al salvataggio aggiorna via BE (solo i
+  // campi cambiati, come il flusso home) e ricarica. Il foglio è registrato in
+  // entrambi gli stack (home + notes): navighiamo alla route dello stack corrente.
+  const openDetails = useCallback(
     (appt: AutoscuolaAppointmentWithRelations) => {
-      notesEditorStore.set({
-        title: 'Note guida',
-        subtitle: formatDay(appt.startsAt),
-        placeholder: 'Aggiungi note operative o osservazioni.',
-        initial: appt.notes ?? '',
-        onSave: async (text) => {
+      const status = (appt.status ?? '').trim().toLowerCase();
+      const showRating = ['checked_in', 'completed', 'no_show'].includes(status);
+      manageLessonStore.set({
+        lesson: appt,
+        showRating,
+        isDetailsEditable: true,
+        pendingAction: null,
+        onSaveDetails: async ({ lessonTypes, rating, notes }) => {
+          const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string } = {};
+          const initialTypes = resolveInitialLessonTypes(appt);
+          const typesChanged =
+            JSON.stringify([...lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
+          if (lessonTypes.length && typesChanged) {
+            payload.lessonTypes = lessonTypes;
+            payload.lessonType = lessonTypes[0];
+          }
+          if (rating !== (appt.rating ?? null)) payload.rating = rating;
+          const trimmed = notes.trim();
+          if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
+          if (Object.keys(payload).length === 0) return true; // niente da salvare
           try {
-            await regloApi.updateAppointmentDetails(appt.id, { notes: text.trim() });
+            await regloApi.updateAppointmentDetails(appt.id, payload);
             await loadData();
             return true;
           } catch (e) {
@@ -109,9 +126,9 @@ export const StudentNotesDetailScreen = () => {
             return false;
           }
         },
-      });
+      } as ManageLessonData);
       const stack = segments[1] === 'notes' ? 'notes' : 'home';
-      router.push(`/(tabs)/${stack}/edit-notes`);
+      router.push(`/(tabs)/${stack}/manage-lesson-details`);
     },
     [loadData, router, segments],
   );
@@ -409,12 +426,12 @@ export const StudentNotesDetailScreen = () => {
                           <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
                         ) : null}
                         <Pressable
-                          onPress={() => openNote(appt)}
+                          onPress={() => openDetails(appt)}
                           hitSlop={6}
                           style={({ pressed }) => [s.tlNoteRow, pressed && { opacity: 0.6 }]}
                         >
                           <Text style={[s.tlNote, !appt.notes?.trim() && s.tlNoteEmpty, { flex: 1 }]}>
-                            {appt.notes?.trim() || 'Aggiungi nota'}
+                            {appt.notes?.trim() || 'Aggiungi dettagli'}
                           </Text>
                           <Ionicons name="create-outline" size={15} color={colors.textMuted} style={{ marginTop: 1 }} />
                         </Pressable>
