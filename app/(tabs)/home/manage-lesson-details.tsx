@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -21,6 +22,11 @@ export default function ManageLessonDetailsScreen() {
   const [types, setTypes] = useState<string[]>([]);
   const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  // While the notes field is focused we collapse the sections above it so the
+  // sheet shrinks enough to float fully above the keyboard on iOS (a tall
+  // fitToContents form sheet can't lift far enough otherwise → notes stay
+  // covered). They fade back on blur (incl. via the "Fatto" toolbar button).
+  const [notesFocused, setNotesFocused] = useState(false);
 
   useEffect(() => {
     if (!lesson) return;
@@ -74,55 +80,76 @@ export default function ManageLessonDetailsScreen() {
         <Text style={s.subtitle}>Tipo, valutazione e note di questa guida.</Text>
       </View>
 
-      {/* Tipo guida */}
-      <View style={s.section}>
-        <Text style={s.sectionLabel}>Tipo guida</Text>
-        <View style={s.chipList}>
-          {LESSON_TYPE_OPTIONS.map((option) => (
-            <SelectableChip
-              key={option.value}
-              label={option.label}
-              active={types.includes(option.value)}
-              onPress={() => {
-                if (!editable) return;
-                setTypes((prev) => {
-                  if (prev.includes(option.value)) {
-                    const next = prev.filter((t) => t !== option.value);
-                    return next.length ? next : [option.value];
-                  }
-                  return [...prev, option.value];
-                });
-              }}
-            />
-          ))}
-        </View>
-      </View>
+      {/* Tipo guida + Valutazione — collapse while typing notes so the sheet
+          shrinks and the textarea floats above the keyboard. */}
+      {!notesFocused ? (
+        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={s.collapsible}>
+          {/* Tipo guida */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>Tipo guida</Text>
+            <View style={s.chipList}>
+              {LESSON_TYPE_OPTIONS.map((option) => (
+                <SelectableChip
+                  key={option.value}
+                  label={option.label}
+                  active={types.includes(option.value)}
+                  onPress={() => {
+                    if (!editable) return;
+                    setTypes((prev) => {
+                      if (prev.includes(option.value)) {
+                        const next = prev.filter((t) => t !== option.value);
+                        return next.length ? next : [option.value];
+                      }
+                      return [...prev, option.value];
+                    });
+                  }}
+                />
+              ))}
+            </View>
+          </View>
 
-      {/* Valutazione */}
-      {showRating ? (
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Valutazione</Text>
-          <StarRating value={rating} onChange={editable ? setRating : () => {}} />
-        </View>
+          {/* Valutazione */}
+          {showRating ? (
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>Valutazione</Text>
+              <StarRating value={rating} onChange={editable ? setRating : () => {}} />
+            </View>
+          ) : null}
+        </Animated.View>
       ) : null}
 
       {/* Note */}
-      <View style={s.section}>
+      <Animated.View style={s.section} layout={LinearTransition.duration(180)}>
         <Text style={s.sectionLabel}>Note</Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
+          onFocus={() => setNotesFocused(true)}
+          onBlur={() => setNotesFocused(false)}
           placeholder="Aggiungi note operative o osservazioni."
           placeholderTextColor={colors.textMuted}
           multiline
           style={s.notes}
           editable={editable}
+          inputAccessoryViewID={Platform.OS === 'ios' ? NOTES_ACCESSORY_ID : undefined}
         />
-      </View>
+      </Animated.View>
       </SheetScaffold>
+
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID={NOTES_ACCESSORY_ID}>
+          <View style={s.accessoryBar}>
+            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} style={s.accessoryBtn}>
+              <Text style={s.accessoryText}>Fatto</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
     </View>
   );
 }
+
+const NOTES_ACCESSORY_ID = 'lesson-notes-accessory';
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
@@ -134,8 +161,17 @@ const s = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
+  collapsible: { gap: 20 },
   section: { gap: 12 },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+
+  accessoryBar: {
+    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center',
+    backgroundColor: '#F7F7F8', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#D8D8DE',
+    paddingHorizontal: spacing.lg, paddingVertical: 8,
+  },
+  accessoryBtn: { paddingHorizontal: 12, paddingVertical: 6 },
+  accessoryText: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {
     minHeight: 110, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
