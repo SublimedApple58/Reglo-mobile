@@ -360,6 +360,7 @@ export default function VehicleFormScreen() {
         placeholder="Es. Fiat Panda"
         placeholderTextColor="#9CA3AF"
         maxLength={60}
+        returnKeyType="next"
       />
 
       <Text style={s.label}>Targa</Text>
@@ -371,6 +372,7 @@ export default function VehicleFormScreen() {
         placeholderTextColor="#9CA3AF"
         autoCapitalize="characters"
         maxLength={16}
+        returnKeyType="done"
       />
 
       <View style={s.licenseRow}>

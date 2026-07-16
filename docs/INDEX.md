@@ -28,6 +28,7 @@
 | Doc | Scope |
 |-----|-------|
 | [design-system.md](design-system.md) | Completo (1215 righe): palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme |
+| [patterns/keyboard-accessory.md](patterns/keyboard-accessory.md) | Chiusura tastiera iOS: quando toolbar "Fatto" (`useDoneAccessory`) vs `returnKeyType="search"`/`"done"`; auto-wiring in `Input` |
 
 ## Architecture
 

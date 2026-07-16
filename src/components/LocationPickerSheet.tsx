@@ -69,6 +69,7 @@ export const LocationPickerSheet = ({
           value={search}
           onChangeText={setSearch}
           placeholder="Cerca per nome o indirizzo"
+          returnKeyType="search"
           placeholderTextColor={colors.textSecondary}
         />
       </View>

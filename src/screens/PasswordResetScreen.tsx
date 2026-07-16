@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { useSession } from '../context/SessionContext';
@@ -60,6 +61,7 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const { accessoryID, accessory } = useDoneAccessory();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +213,9 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
             placeholder="••••••"
             placeholderTextColor={dark ? '#7E84A0' : '#9AA1BB'}
             autoFocus
+            inputAccessoryViewID={accessoryID}
           />
+          {accessory}
           <Pressable onPress={onResend} disabled={cooldown > 0} hitSlop={8} style={styles.resendWrap}>
             <Text style={[styles.resend, { color: cooldown > 0 ? NAVY_400 : dark ? IVORY : NAVY }]}>
               {cooldown > 0 ? `Invia di nuovo tra ${cooldown}s` : 'Invia di nuovo il codice'}

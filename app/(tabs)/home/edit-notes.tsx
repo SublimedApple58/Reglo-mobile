@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { colors } from '../../../src/theme/colors';
@@ -18,6 +19,7 @@ export default function EditNotesScreen() {
 
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const { accessoryID, accessory } = useDoneAccessory();
 
   useEffect(() => {
     if (data) setText(data.initial);
@@ -81,7 +83,9 @@ export default function EditNotesScreen() {
           style={s.notes}
           editable={!saving}
           autoFocus
+          inputAccessoryViewID={accessoryID}
         />
+        {accessory}
       </SheetScaffold>
     </View>
   );

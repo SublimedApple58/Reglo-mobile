@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
@@ -36,6 +37,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const { accessoryID, accessory } = useDoneAccessory();
   const [password, setPassword] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
         dark={dark}
         placeholder="+39 ..."
         keyboardType="phone-pad"
+        inputAccessoryViewID={accessoryID}
         value={phone}
         onChangeText={setPhone}
       />
@@ -102,6 +105,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
           Ricevuto dalla tua autoscuola o dall'istruttore
         </Text>
       </View>
+      {accessory}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </>

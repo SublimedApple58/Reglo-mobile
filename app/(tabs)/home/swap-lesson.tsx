@@ -86,6 +86,7 @@ export default function SwapLessonScreen() {
         <Ionicons name="search" size={18} color={colors.textSecondary} />
         <TextInput
           placeholder="Cerca allievo…"
+          returnKeyType="search"
           placeholderTextColor={colors.textSecondary}
           value={search}
           onChangeText={setSearch}

@@ -82,6 +82,7 @@ export const SearchableSelect = ({
             onChangeText={setQuery}
             placeholder={placeholder}
             placeholderTextColor={colors.textMuted}
+            returnKeyType="search"
             editable={!disabled}
             onFocus={() => {
               setFocused(true);

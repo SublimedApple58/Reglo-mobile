@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SheetScaffold } from '../SheetScaffold';
+import { useDoneAccessory } from '../KeyboardDoneAccessory';
 import { blockSheetStore } from '../../stores/blockSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
@@ -84,6 +85,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const [recurringWeeks, setRecurringWeeks] = useState(4);
   const [pending, setPending] = useState(false);
   const reasonRef = useRef<TextInput>(null);
+  const { accessoryID, accessory } = useDoneAccessory();
 
   useEffect(() => {
     if (!data) return;
@@ -201,7 +203,9 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
         editable={!pending}
         multiline
         textAlignVertical="top"
+        inputAccessoryViewID={accessoryID}
       />
+      {accessory}
 
       {/* Ripeti ogni settimana — optional banner */}
       <View style={s.optBanner}>

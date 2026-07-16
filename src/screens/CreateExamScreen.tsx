@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SheetScaffold } from '../components/SheetScaffold';
+import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 
 import { examSheetStore } from '../stores/examSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
@@ -90,6 +91,7 @@ export const CreateExamScreen = () => {
   const [timeSet, setTimeSet] = useState(true);
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
+  const { accessoryID, accessory } = useDoneAccessory();
   const [saving, setSaving] = useState(false);
 
   const loadStudents = useCallback(async () => {
@@ -330,7 +332,9 @@ export const CreateExamScreen = () => {
             editable={!saving}
             multiline
             textAlignVertical="top"
+            inputAccessoryViewID={accessoryID}
           />
+          {accessory}
         </>
       )}
       </SheetScaffold>

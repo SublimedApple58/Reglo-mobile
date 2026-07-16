@@ -104,6 +104,7 @@ export default function GroupStudentsScreen() {
         <TextInput
           style={s.searchInput}
           placeholder="Cerca allievo..."
+          returnKeyType="search"
           placeholderTextColor="#94A3B8"
           value={search}
           onChangeText={setSearch}

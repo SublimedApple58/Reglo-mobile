@@ -181,6 +181,7 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
         placeholder="Es. Piazzale del Comune"
         placeholderTextColor={colors.textSecondary}
         maxLength={80}
+        returnKeyType="done"
       />
 
       <View style={styles.toggleRow}>
@@ -214,6 +215,7 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
               placeholder="Es. Via Roma 14, Milano"
               placeholderTextColor={colors.textSecondary}
               editable={Boolean(PLACES_API_KEY)}
+              returnKeyType="search"
             />
             {searching ? (
               <ActivityIndicator

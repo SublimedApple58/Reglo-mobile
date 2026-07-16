@@ -620,6 +620,7 @@ export const OwnerInstructorScreen = () => {
               placeholderTextColor="#929292"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              returnKeyType="search"
               autoFocus
             />
             {searchQuery.length > 0 && (

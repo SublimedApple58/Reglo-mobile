@@ -79,6 +79,7 @@ export default function SelectExamStudentsScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Cerca allievo..."
+          returnKeyType="search"
           placeholderTextColor={MUTED}
           style={s.searchInput}
           autoCorrect={false}

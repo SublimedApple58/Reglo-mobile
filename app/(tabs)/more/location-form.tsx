@@ -182,6 +182,7 @@ export default function LocationFormScreen() {
           placeholder="Es. Piazzale del Comune"
           placeholderTextColor="#9CA3AF"
           maxLength={80}
+          returnKeyType="done"
         />
 
         <View style={s.toggleRow}>
@@ -206,6 +207,7 @@ export default function LocationFormScreen() {
                 placeholder="Es. Via Roma 14, Milano"
                 placeholderTextColor="#9CA3AF"
                 editable={Boolean(PLACES_API_KEY)}
+                returnKeyType="search"
               />
               {searching ? <ActivityIndicator style={s.spinner} color="#9CA3AF" size="small" /> : null}
             </View>

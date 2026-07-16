@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GradientCTA } from '../components/GradientCTA';
+import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme';
@@ -33,6 +34,7 @@ export const PhoneGateScreen = () => {
   const { user, refreshMe, signOut } = useSession();
   const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState('');
+  const { accessoryID, accessory } = useDoneAccessory();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,8 +115,10 @@ export const PhoneGateScreen = () => {
                 placeholderTextColor="#AEB4CC"
                 autoFocus
                 editable={!saving}
+                inputAccessoryViewID={accessoryID}
               />
             </View>
+            {accessory}
             <View style={styles.privacyRow}>
               <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
               <Text style={styles.privacyText}>Lo vede solo la tua autoscuola</Text>

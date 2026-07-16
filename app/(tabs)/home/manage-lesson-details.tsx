@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -27,6 +28,7 @@ export default function ManageLessonDetailsScreen() {
   // fitToContents form sheet can't lift far enough otherwise → notes stay
   // covered). They fade back on blur (incl. via the "Fatto" toolbar button).
   const [notesFocused, setNotesFocused] = useState(false);
+  const { accessoryID, accessory } = useDoneAccessory();
 
   // Smooth height/opacity collapse of the sections above the notes. Kept mounted
   // and animated to height 0 (measured once while expanded) so the fitToContents
@@ -158,25 +160,15 @@ export default function ManageLessonDetailsScreen() {
           multiline
           style={s.notes}
           editable={editable}
-          inputAccessoryViewID={Platform.OS === 'ios' ? NOTES_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={accessoryID}
         />
       </View>
       </SheetScaffold>
 
-      {Platform.OS === 'ios' ? (
-        <InputAccessoryView nativeID={NOTES_ACCESSORY_ID}>
-          <View style={s.accessoryBar}>
-            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} style={s.accessoryBtn}>
-              <Text style={s.accessoryText}>Fatto</Text>
-            </Pressable>
-          </View>
-        </InputAccessoryView>
-      ) : null}
+      {accessory}
     </View>
   );
 }
-
-const NOTES_ACCESSORY_ID = 'lesson-notes-accessory';
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
@@ -191,14 +183,6 @@ const s = StyleSheet.create({
   collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
   section: { gap: 12 },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
-
-  accessoryBar: {
-    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center',
-    backgroundColor: '#F7F7F8', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#D8D8DE',
-    paddingHorizontal: spacing.lg, paddingVertical: 8,
-  },
-  accessoryBtn: { paddingHorizontal: 12, paddingVertical: 6 },
-  accessoryText: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {
     minHeight: 110, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,

@@ -16,6 +16,7 @@ import { Screen } from '../components/Screen';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Input } from '../components/Input';
+import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { MobileInviteContext } from '../types/regloApi';
@@ -41,6 +42,7 @@ export const InviteAcceptScreen = () => {
   const [showPrefixMenu, setShowPrefixMenu] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const { accessoryID, accessory } = useDoneAccessory();
 
   const normalizedPhone = useMemo(() => {
     const cleanPrefix = phonePrefix.replace(/[^\d+]/g, '');
@@ -215,7 +217,9 @@ export const InviteAcceptScreen = () => {
                         placeholderTextColor={colors.textMuted}
                         style={styles.phoneInput}
                         onFocus={() => setShowPrefixMenu(false)}
+                        inputAccessoryViewID={accessoryID}
                       />
+                      {accessory}
                     </View>
                   </View>
 
