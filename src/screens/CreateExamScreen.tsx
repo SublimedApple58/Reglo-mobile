@@ -58,6 +58,7 @@ type StudentItem = {
   lastName: string;
   clusterLabel: string | null; // "Mio gruppo" | "<istruttore>" | null
   isMyCluster: boolean;
+  license: string | null; // categoria patente in preparazione (B, A2, …)
 };
 
 /* ── Flat row inside the elevated card (icon · label · value · chevron) ── */
@@ -106,7 +107,7 @@ export const CreateExamScreen = () => {
             let clusterLabel: string | null = null;
             if (isMyCluster) clusterLabel = 'Mio gruppo';
             else if (st.assignedInstructorId) clusterLabel = instructorNameById.get(st.assignedInstructorId) ?? 'Altro gruppo';
-            return { id: st.id, firstName: st.firstName ?? '', lastName: st.lastName ?? '', clusterLabel, isMyCluster };
+            return { id: st.id, firstName: st.firstName ?? '', lastName: st.lastName ?? '', clusterLabel, isMyCluster, license: st.licenseCategory ?? null };
           }),
         );
       } else {
@@ -118,6 +119,7 @@ export const CreateExamScreen = () => {
             lastName: (st.lastName ?? '') as string,
             clusterLabel: null,
             isMyCluster: false,
+            license: (st.licenseCategory as string | null | undefined) ?? null,
           })),
         );
       }
@@ -154,6 +156,7 @@ export const CreateExamScreen = () => {
       label: `${st.firstName} ${st.lastName}`.trim(),
       subtitle: st.clusterLabel,
       isMyCluster: st.isMyCluster,
+      license: st.license,
     }));
     examStudentsStore.set({ selectedIds, options, onConfirm: setSelectedIds });
     router.push('/(tabs)/home/select-exam-students');

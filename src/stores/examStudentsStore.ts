@@ -10,6 +10,8 @@ export type ExamStudentOption = {
   label: string;
   subtitle: string | null;
   isMyCluster: boolean;
+  /** Categoria patente in preparazione (B, A2, …). Mostrata nella lista. */
+  license?: string | null;
 };
 
 export type ExamStudentsData = {

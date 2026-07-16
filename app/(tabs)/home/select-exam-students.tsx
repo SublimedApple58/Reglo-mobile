@@ -113,9 +113,18 @@ export default function SelectExamStudentsScreen() {
                   </View>
                   <View style={s.body}>
                     <Text style={s.name} numberOfLines={1}>{o.label}</Text>
-                    {o.subtitle ? (
-                      <View style={[s.badge, o.isMyCluster && s.badgeMine]}>
-                        <Text style={[s.badgeTxt, o.isMyCluster && s.badgeTxtMine]} numberOfLines={1}>{o.subtitle}</Text>
+                    {o.license || o.subtitle ? (
+                      <View style={s.metaRow}>
+                        {o.license ? (
+                          <View style={s.licenseBadge}>
+                            <Text style={s.licenseTxt} numberOfLines={1}>Patente {o.license}</Text>
+                          </View>
+                        ) : null}
+                        {o.subtitle ? (
+                          <View style={[s.badge, o.isMyCluster && s.badgeMine]}>
+                            <Text style={[s.badgeTxt, o.isMyCluster && s.badgeTxtMine]} numberOfLines={1}>{o.subtitle}</Text>
+                          </View>
+                        ) : null}
                       </View>
                     ) : null}
                   </View>
@@ -163,6 +172,9 @@ const s = StyleSheet.create({
   avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },
   body: { flex: 1, minWidth: 0, gap: 3 },
   name: { fontSize: 16, fontWeight: '600', color: INK },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  licenseBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#EEF2FF' },
+  licenseTxt: { fontSize: 11, fontWeight: '600', color: '#4338CA' },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F1F5F9' },
   badgeMine: { backgroundColor: N100 },
   badgeTxt: { fontSize: 11, fontWeight: '500', color: MUTED2 },

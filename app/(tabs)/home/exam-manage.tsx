@@ -151,12 +151,12 @@ export default function ExamManageScreen() {
           .map((st) => {
             const isMyCluster = Boolean(myId) && st.assignedInstructorId === myId;
             const subtitle = isMyCluster ? 'Mio gruppo' : st.assignedInstructorId ? (nameById.get(st.assignedInstructorId) ?? 'Altro gruppo') : null;
-            return { value: st.id, label: `${st.firstName ?? ''} ${st.lastName ?? ''}`.trim(), subtitle, isMyCluster };
+            return { value: st.id, label: `${st.firstName ?? ''} ${st.lastName ?? ''}`.trim(), subtitle, isMyCluster, license: st.licenseCategory ?? null };
           });
       } else {
         const res = await regloApi.getStudents();
         options = res
-          .map((st: Record<string, unknown>) => ({ value: st.id as string, label: `${(st.firstName ?? st.name ?? '') as string} ${(st.lastName ?? '') as string}`.trim(), subtitle: null, isMyCluster: false }))
+          .map((st: Record<string, unknown>) => ({ value: st.id as string, label: `${(st.firstName ?? st.name ?? '') as string} ${(st.lastName ?? '') as string}`.trim(), subtitle: null, isMyCluster: false, license: (st.licenseCategory as string | null | undefined) ?? null }))
           .filter((o) => !currentIds.has(o.value));
       }
       examStudentsStore.set({ selectedIds: [], options, onConfirm: (ids) => addStudents(ids, options) });
