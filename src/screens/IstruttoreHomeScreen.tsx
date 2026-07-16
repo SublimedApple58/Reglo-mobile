@@ -2162,7 +2162,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
     try {
       await regloApi.updateAppointmentDetails(lessonId, payload);
-      await loadData();
+      // refreshAndSyncDrawer (not just loadData) so the open sheet's store
+      // snapshot picks up the saved tipo/voto/note — otherwise reopening the
+      // details sub-sheet right after saving shows stale values.
+      await refreshAndSyncDrawer(lessonId);
       setToast({ text: 'Dettagli guida salvati.', tone: 'success' });
       return true;
     } catch (err) {

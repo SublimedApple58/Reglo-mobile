@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -27,6 +27,28 @@ export default function ManageLessonDetailsScreen() {
   // fitToContents form sheet can't lift far enough otherwise → notes stay
   // covered). They fade back on blur (incl. via the "Fatto" toolbar button).
   const [notesFocused, setNotesFocused] = useState(false);
+
+  // Smooth height/opacity collapse of the sections above the notes. Kept mounted
+  // and animated to height 0 (measured once while expanded) so the fitToContents
+  // sheet compacts fluidly instead of snapping.
+  const collapse = useSharedValue(0); // 0 = expanded, 1 = collapsed
+  const collapsibleH = useSharedValue(0);
+  useEffect(() => {
+    collapse.value = withTiming(notesFocused ? 1 : 0, {
+      duration: 300,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesFocused]);
+  const collapsibleStyle = useAnimatedStyle(() => {
+    const h = collapsibleH.value;
+    const p = collapse.value;
+    return {
+      opacity: 1 - p,
+      height: h > 0 ? h * (1 - p) : undefined,
+      transform: [{ translateY: -8 * p }],
+    };
+  });
 
   useEffect(() => {
     if (!lesson) return;
@@ -82,8 +104,14 @@ export default function ManageLessonDetailsScreen() {
 
       {/* Tipo guida + Valutazione — collapse while typing notes so the sheet
           shrinks and the textarea floats above the keyboard. */}
-      {!notesFocused ? (
-        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={s.collapsible}>
+      <Animated.View
+        style={[s.collapsible, collapsibleStyle]}
+        pointerEvents={notesFocused ? 'none' : 'auto'}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && collapse.value === 0) collapsibleH.value = h;
+        }}
+      >
           {/* Tipo guida */}
           <View style={s.section}>
             <Text style={s.sectionLabel}>Tipo guida</Text>
@@ -115,11 +143,10 @@ export default function ManageLessonDetailsScreen() {
               <StarRating value={rating} onChange={editable ? setRating : () => {}} />
             </View>
           ) : null}
-        </Animated.View>
-      ) : null}
+      </Animated.View>
 
       {/* Note */}
-      <Animated.View style={s.section} layout={LinearTransition.duration(180)}>
+      <View style={s.section}>
         <Text style={s.sectionLabel}>Note</Text>
         <TextInput
           value={notes}
@@ -133,7 +160,7 @@ export default function ManageLessonDetailsScreen() {
           editable={editable}
           inputAccessoryViewID={Platform.OS === 'ios' ? NOTES_ACCESSORY_ID : undefined}
         />
-      </Animated.View>
+      </View>
       </SheetScaffold>
 
       {Platform.OS === 'ios' ? (
@@ -153,15 +180,15 @@ const NOTES_ACCESSORY_ID = 'lesson-notes-accessory';
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
-  scaffoldBody: { gap: 20 },
+  scaffoldBody: { gap: 0 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4, marginBottom: 4 },
+  headerBlock: { gap: 4, marginBottom: 20 },
   title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
-  collapsible: { gap: 20 },
+  collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
   section: { gap: 12 },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
 
