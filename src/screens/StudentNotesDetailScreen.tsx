@@ -13,7 +13,8 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Ea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
+import { notesEditorStore } from '../stores/notesEditorStore';
 import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -47,6 +48,7 @@ const formatExamDate = (iso: string) => {
 
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
+  const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
@@ -86,6 +88,33 @@ export const StudentNotesDetailScreen = () => {
   }, [studentId, name]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Apre l'editor note generico (edit-notes) per una guida dello storico e, al
+  // salvataggio, aggiorna la nota via BE e ricarica la lista. Registrato in
+  // entrambi gli stack (home + notes): navighiamo alla route del nostro stack.
+  const openNote = useCallback(
+    (appt: AutoscuolaAppointmentWithRelations) => {
+      notesEditorStore.set({
+        title: 'Note guida',
+        subtitle: formatDay(appt.startsAt),
+        placeholder: 'Aggiungi note operative o osservazioni.',
+        initial: appt.notes ?? '',
+        onSave: async (text) => {
+          try {
+            await regloApi.updateAppointmentDetails(appt.id, { notes: text.trim() });
+            await loadData();
+            return true;
+          } catch (e) {
+            setToast({ text: e instanceof Error ? e.message : 'Errore nel salvataggio', tone: 'danger' });
+            return false;
+          }
+        },
+      });
+      const stack = segments[1] === 'notes' ? 'notes' : 'home';
+      router.push(`/(tabs)/${stack}/edit-notes`);
+    },
+    [loadData, router, segments],
+  );
 
   const phone = useMemo(() => {
     for (const appt of appointments) if (appt.student?.phone) return appt.student.phone;
@@ -379,9 +408,16 @@ export const StudentNotesDetailScreen = () => {
                         {!isExam ? (
                           <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
                         ) : null}
-                        <Text style={[s.tlNote, !appt.notes?.trim() && s.tlNoteEmpty]}>
-                          {appt.notes?.trim() || 'Nessuna nota'}
-                        </Text>
+                        <Pressable
+                          onPress={() => openNote(appt)}
+                          hitSlop={6}
+                          style={({ pressed }) => [s.tlNoteRow, pressed && { opacity: 0.6 }]}
+                        >
+                          <Text style={[s.tlNote, !appt.notes?.trim() && s.tlNoteEmpty, { flex: 1 }]}>
+                            {appt.notes?.trim() || 'Aggiungi nota'}
+                          </Text>
+                          <Ionicons name="create-outline" size={15} color={colors.textMuted} style={{ marginTop: 1 }} />
+                        </Pressable>
                       </View>
                     </View>
                   );
@@ -495,6 +531,7 @@ const s = StyleSheet.create({
   tlChipGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   tlChipText: { fontSize: 11, fontWeight: '700' },
   tlMeta: { fontSize: 13, color: '#929292' },
+  tlNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
   tlNoteEmpty: { color: '#929292', fontStyle: 'italic' },
 

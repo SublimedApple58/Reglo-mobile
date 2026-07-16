@@ -11,6 +11,7 @@ Instructor writes notes/ratings on completed lessons. Students view their notes.
 
 ## Features
 - **Instructor:** student list by cluster, morphing search bar, per-appointment notes, call/WhatsApp links
+- **Note dallo storico guide** (2026-07-16): in `StudentNotesDetailScreen` ogni riga guida dello storico è **tappabile** (icona matita) → apre l'editor generico `edit-notes` (`notesEditorStore` seed+callback) precompilato con la nota; al salvataggio `updateAppointmentDetails(appt.id, { notes })` + `loadData()`. Lo schermo è raggiungibile da **due stack** (home `student-detail` e notes `[studentId]`): `edit-notes` è ora registrato in ENTRAMBI i `_layout` (`app/(tabs)/notes/edit-notes.tsx` re-esporta quello home) e `openNote` naviga alla route dello stack corrente via `useSegments()`. L'istruttore può editare solo le proprie guide (guardia BE, messaggio chiaro); l'owner tutte.
 - **Student:** reverse chronological notes-only view, star ratings display
 - Feature-gated: `useStudentNotesEnabled()` hook (settings query uses `refetchOnMount: 'always'` so the tab reflects an owner toggle on app reopen)
 
