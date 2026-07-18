@@ -244,8 +244,9 @@ const DensityStrip = ({ plan, spanMin, spanMax }: { plan: DayPlan; spanMin: numb
 
 // ─── Day words (the meaning) ───────────────────────────────────
 const DayWords = ({ plan }: { plan: DayPlan }) => {
-  if (plan.isHoliday) return <Text style={styles.wRest}>Festivo</Text>;
+  if (plan.isHoliday) return <Text style={styles.wHoliday}>Festivo</Text>;
   if (plan.hasFullDaySick) return <Text style={styles.wSick}>In malattia</Text>;
+  if (plan.hasFullDayFerie) return <Text style={styles.wFerie}>In ferie</Text>;
 
   const freeTxt = fmtFreeWindows(plan.freeWindows);
   const freeHours = Math.round(plan.freeMinutes / 60);
@@ -320,7 +321,9 @@ const styles = StyleSheet.create({
   wCount: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
   wExam: { fontSize: 13, fontWeight: '600', color: '#6D28D9' },
   wRest: { fontSize: 14, fontWeight: '400', color: '#AEB4CC' },
-  wSick: { fontSize: 13, fontWeight: '600', color: '#EA580C' },
+  wHoliday: { fontSize: 13, fontWeight: '600', color: '#D97706' },
+  wSick: { fontSize: 13, fontWeight: '600', color: '#C2410C' },
+  wFerie: { fontSize: 13, fontWeight: '600', color: '#0F766E' },
   wFree: { fontSize: 13, fontWeight: '400', color: '#6E7596' },
   wFreeStrong: { color: '#1A1A2E', fontWeight: '500' },
 

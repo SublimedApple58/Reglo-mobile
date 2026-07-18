@@ -29,7 +29,7 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
-import { isExamPlaceholder } from '../utils/weeklyAgenda';
+import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
@@ -855,7 +855,7 @@ const WeekPage = React.memo(function WeekPage({
                   styles.dayLetter,
                   isPast && !isHoliday && { color: '#C2C7DA' },
                   isToday && { color: '#1A1A2E' },
-                  isHoliday && { color: '#DC2626' },
+                  isHoliday && { color: '#D97706' },
                 ]}
               >
                 {DAY_LABELS[idx]}
@@ -869,7 +869,7 @@ const WeekPage = React.memo(function WeekPage({
                   style={[
                     styles.dayNumber,
                     isPast && !isHoliday && { color: '#C2C7DA' },
-                    isHoliday && { color: '#DC2626' },
+                    isHoliday && { color: '#D97706' },
                   ]}
                 >
                   {day.getDate()}
@@ -939,7 +939,7 @@ const WeekPage = React.memo(function WeekPage({
                 width: colW,
                 height: gridHeight,
                 borderRadius: 14,
-                backgroundColor: isHoliday ? '#FBEAEA' : '#F4F5F9',
+                backgroundColor: isHoliday ? '#FFF8EC' : '#F4F5F9',
                 borderWidth: isTodayCol ? 1.5 : 0,
                 borderColor: '#D6D9E6',
               }}
@@ -1121,11 +1121,9 @@ const WeekPage = React.memo(function WeekPage({
             if (clampedEm <= clampedSm) return null;
             const top = ((clampedSm - FIRST_HOUR * 60) / 60) * ROW_H;
             const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 24);
-            const isSick = block.reason === 'sick_leave';
-            const tint = isSick
-              ? { bg: '#FFF4E8', border: '#F59E42', text: '#B5681C', icon: 'medkit' as const }
-              : { bg: '#ECEEF5', border: '#AEB4CC', text: '#6E7596', icon: 'lock-closed' as const };
-            const label = isSick ? 'Malattia' : (block.reason || 'Bloccato');
+            const p = BLOCK_PRESENTATION[blockKindOf(block.reason)];
+            const tint = { bg: p.bg, border: p.border, text: p.color, icon: p.icon as any };
+            const label = p.short;
             return (
               <Pressable
                 key={`block-${block.id}`}

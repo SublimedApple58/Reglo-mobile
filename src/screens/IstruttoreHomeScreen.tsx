@@ -67,7 +67,7 @@ import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
-import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder } from '../utils/weeklyAgenda';
+import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
 import { groupLessonManageStore } from '../stores/groupLessonManageStore';
@@ -1296,6 +1296,15 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       if (block.reason !== 'sick_leave') continue;
       const d = new Date(block.startsAt);
       dates.add(dateToKey(d));
+    }
+    return dates;
+  }, [instructorBlocks]);
+
+  const ferieDateKeys = useMemo(() => {
+    const dates = new Set<string>();
+    for (const block of instructorBlocks) {
+      if (block.reason !== 'ferie') continue;
+      dates.add(dateToKey(new Date(block.startsAt)));
     }
     return dates;
   }, [instructorBlocks]);
@@ -2859,6 +2868,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               const hasExam = examDatesSet.has(dayKey);
               const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
               const isDaySick = sickLeaveDateKeys.has(dateToKey(dayNorm));
+              const isDayFerie = ferieDateKeys.has(dateToKey(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
@@ -2905,6 +2915,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   </Text>
                   {isDaySick ? (
                     <View style={[styles.dayPillDot, styles.dayPillSickDot]} />
+                  ) : isDayFerie ? (
+                    <View style={[styles.dayPillDot, styles.dayPillFerieDot]} />
                   ) : hasExam ? (
                     <View style={[styles.dayPillDot, styles.dayPillExamDot]} />
                   ) : isDayHoliday ? (
@@ -3379,23 +3391,31 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   );
                 }
                 const block = row.block;
-                const isSick = block.reason === 'sick_leave';
+                const bk = blockKindOf(block.reason);
+                const bp = BLOCK_PRESENTATION[bk];
+                const removeTitle = bk === 'sick' ? 'Rimuovi malattia' : bk === 'ferie' ? 'Rimuovi ferie' : 'Rimuovi blocco';
+                const removeMsg =
+                  bk === 'sick'
+                    ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+                    : bk === 'ferie'
+                      ? 'Vuoi rimuovere le ferie? Le guide già cancellate non verranno ripristinate.'
+                      : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`;
                 return (
                   <View key={`block-${block.id}`} style={styles.itinRow}>
                     <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} lineState={lineState} />
                     <Pressable
                       onPress={ownerMode ? undefined : () => Alert.alert(
-                        isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
-                        isSick ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.' : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
+                        removeTitle,
+                        removeMsg,
                         [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) }],
                       )}
                       style={({ pressed }) => [styles.itinCard, styles.itinCardMuted, pressed && styles.itinCardPressed]}
                     >
                       <View style={styles.itinTop}>
-                        <View style={[styles.itinAvatar, { backgroundColor: '#F2F2F2' }]}><Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#929292'} /></View>
+                        <View style={[styles.itinAvatar, { backgroundColor: bp.bg }]}><Ionicons name={bp.icon as any} size={17} color={bp.color} /></View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.itinName, { color: '#6A6A6A' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
-                          <Text style={styles.itinMeta} numberOfLines={1}>{isSick ? 'Guide cancellate e allievi avvisati' : 'Non prenotabile'}</Text>
+                          <Text style={[styles.itinName, { color: bp.color }]} numberOfLines={1}>{bp.label}</Text>
+                          <Text style={styles.itinMeta} numberOfLines={1}>{bk === 'generic' ? 'Non prenotabile' : 'Guide cancellate e allievi avvisati'}</Text>
                         </View>
                       </View>
                     </Pressable>
@@ -4511,16 +4531,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366F1',
   },
   dayPillSickDot: {
-    backgroundColor: '#EA580C',
+    backgroundColor: '#C2410C',
+  },
+  dayPillFerieDot: {
+    backgroundColor: '#0F766E',
   },
   dayPillHoliday: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#FFF3DD',
   },
   dayPillWeekdayHoliday: {
-    color: '#DC2626',
+    color: '#D97706',
   },
   dayPillNumberHoliday: {
-    color: '#DC2626',
+    color: '#D97706',
   },
   dayPillHolidayDot: {
     position: 'absolute',
@@ -4528,7 +4551,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#DC2626',
+    backgroundColor: '#D97706',
   },
   holidayBanner: {
     flexDirection: 'row',

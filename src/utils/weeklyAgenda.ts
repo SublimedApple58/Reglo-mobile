@@ -68,7 +68,23 @@ export type DayLessonRow = {
   durationMin: number;
   badge: LessonBadge;
 };
-export type DayBlockRow = { block: InstructorBlock; startMin: number; endMin: number; isSick: boolean };
+// Tipo di blocco assenza istruttore. reason grezzo dal BE → kind semantico.
+export type BlockKind = 'sick' | 'ferie' | 'generic';
+export const blockKindOf = (reason: string | null | undefined): BlockKind =>
+  reason === 'sick_leave' ? 'sick' : reason === 'ferie' ? 'ferie' : 'generic';
+
+// Palette blocchi assenza — COORDINATA con la web app (agenda titolare):
+// malattia = arancio, ferie = teal, generico = grigio. `icon` = Ionicons.
+export const BLOCK_PRESENTATION: Record<
+  BlockKind,
+  { label: string; short: string; color: string; bg: string; border: string; icon: string }
+> = {
+  sick: { label: 'In malattia', short: 'Malattia', color: '#C2410C', bg: '#FFF1E9', border: '#F5A97A', icon: 'medkit' },
+  ferie: { label: 'In ferie', short: 'Ferie', color: '#0F766E', bg: '#DDF3F0', border: '#5FBFB4', icon: 'sunny' },
+  generic: { label: 'Slot bloccato', short: 'Bloccato', color: '#6E7596', bg: '#ECEEF5', border: '#AEB4CC', icon: 'lock-closed' },
+};
+
+export type DayBlockRow = { block: InstructorBlock; startMin: number; endMin: number; isSick: boolean; kind: BlockKind };
 export type DaySegment = { startMin: number; endMin: number; kind: 'booked' | 'exam' | 'block' | 'group' };
 
 // Group lessons (Guide di gruppo): participant appointments (type="group_lesson")
@@ -101,6 +117,7 @@ export type DayPlan = {
   date: Date;
   isHoliday: boolean;
   hasFullDaySick: boolean;
+  hasFullDayFerie: boolean;
   availWindows: Interval[];
   availStart: number | null;
   availEnd: number | null;
@@ -216,16 +233,20 @@ export function computeDayPlan(
 
   const dayBlocks: DayBlockRow[] = blocks
     .filter((b) => sameDay(date, b.startsAt))
-    .map((b) => ({ block: b, startMin: startMinutesOf(b.startsAt), endMin: startMinutesOf(b.endsAt), isSick: b.reason === 'sick_leave' }))
+    .map((b) => ({ block: b, startMin: startMinutesOf(b.startsAt), endMin: startMinutesOf(b.endsAt), isSick: b.reason === 'sick_leave', kind: blockKindOf(b.reason) }))
     .sort((a, b) => a.startMin - b.startMin);
 
   const availWindows = mergeWindows(availabilitySlots.map((s) => [s.startMinutes, s.endMinutes] as Interval));
   const availStart = availWindows.length ? availWindows[0][0] : null;
   const availEnd = availWindows.length ? availWindows[availWindows.length - 1][1] : null;
 
-  // Full-day sick = a sick block covering the whole availability span.
+  // Full-day sick/ferie = a block of that kind covering the whole availability span.
+  const coversFullDay = (b: DayBlockRow) =>
+    availStart != null && availEnd != null && b.startMin <= availStart && b.endMin >= availEnd;
   const hasFullDaySick = availStart != null && availEnd != null &&
-    dayBlocks.some((b) => b.isSick && b.startMin <= availStart && b.endMin >= availEnd);
+    dayBlocks.some((b) => b.kind === 'sick' && coversFullDay(b));
+  const hasFullDayFerie = availStart != null && availEnd != null &&
+    dayBlocks.some((b) => b.kind === 'ferie' && coversFullDay(b));
 
   const occupied: Interval[] = [
     ...lessons.map((r) => [r.startMin, r.endMin] as Interval),
@@ -241,7 +262,7 @@ export function computeDayPlan(
   // Free (bookable) windows = the whole working day minus occupied — NOT clipped
   // to availability. The instructor can quick-book any open time of the day.
   const freeWindows: Interval[] = [];
-  const canShowFree = canBook && !isHoliday && !hasFullDaySick;
+  const canShowFree = canBook && !isHoliday && !hasFullDaySick && !hasFullDayFerie;
   if (canShowFree) {
     let cursor = BOOK_DAY_START;
     for (const [os, oe] of occupied) {
@@ -274,6 +295,7 @@ export function computeDayPlan(
     date,
     isHoliday,
     hasFullDaySick,
+    hasFullDayFerie,
     availWindows,
     availStart,
     availEnd,
@@ -327,6 +349,7 @@ export const daySummary = (plan: DayPlan): string => {
   if (plan.isHoliday) return 'Festivo';
   if (plan.isEmptyAvail) return 'Riposo';
   if (plan.hasFullDaySick) return 'In malattia';
+  if (plan.hasFullDayFerie) return 'In ferie';
   if (plan.lessonCount === 0 && plan.examCount === 0 && plan.groupLessonCount === 0) return 'Nessuna guida';
   const parts: string[] = [];
   if (plan.examCount > 0) parts.push(`${plan.examCount} ${plan.examCount === 1 ? 'esame' : 'esami'}`);

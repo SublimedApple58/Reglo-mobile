@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BookableBand } from './BookableBand';
-import { fmtClockFull, fmtDuration, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
+import { fmtClockFull, fmtDuration, BLOCK_PRESENTATION, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
 import { colors } from '../theme';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 
@@ -143,18 +143,19 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
         }
 
         if (item.kind === 'block') {
-          const { block, isSick } = item.row;
+          const { block, kind } = item.row;
+          const p = BLOCK_PRESENTATION[kind];
           return (
             <View key={`bl-${idx}`} style={styles.row}>
               <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} />
               <Pressable onPress={() => onOpenBlock(block)} style={({ pressed }) => [styles.card, styles.cardMuted, pressed && styles.cardPressed]}>
                 <View style={styles.cardTop}>
-                  <View style={[styles.avatar, { backgroundColor: '#F2F2F2' }]}>
-                    <Ionicons name={isSick ? 'medkit' : 'lock-closed'} size={17} color={isSick ? '#EA580C' : '#929292'} />
+                  <View style={[styles.avatar, { backgroundColor: p.bg }]}>
+                    <Ionicons name={p.icon as any} size={17} color={p.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.name, { color: '#6A6A6A' }]} numberOfLines={1}>{isSick ? 'In malattia' : (block.reason || 'Slot bloccato')}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{isSick ? 'Guide cancellate e allievi avvisati' : 'Non prenotabile'}</Text>
+                    <Text style={[styles.name, { color: p.color }]} numberOfLines={1}>{p.label}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>{kind === 'generic' ? 'Non prenotabile' : 'Guide cancellate e allievi avvisati'}</Text>
                   </View>
                 </View>
               </Pressable>
