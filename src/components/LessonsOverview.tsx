@@ -131,7 +131,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         ))}
       </View>
 
-      <SheetScaffold>
+      <SheetScaffold fill>
         {tab === 'upcoming' ? (
           standalone && upcomingQuery.isLoading ? (
             <View style={s.centerState}>

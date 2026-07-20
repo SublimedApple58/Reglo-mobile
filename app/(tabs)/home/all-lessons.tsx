@@ -1,5 +1,5 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LessonsOverview } from '../../../src/components/LessonsOverview';
@@ -20,7 +20,7 @@ export default function AllLessonsScreen() {
   const { lessons, studentId, onOpenDetail } = data;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <View style={s.root}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -39,7 +39,7 @@ export default function AllLessonsScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20 },
+  root: { flex: 1, backgroundColor: colors.background, paddingTop: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
 });
