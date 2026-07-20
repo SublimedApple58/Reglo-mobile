@@ -37,9 +37,9 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `createBookingRequest()`, `getAvailableSlots()`, `getBookingOptions()`
 
 ### Guide annullate (vista allievo)
-- **Componente condiviso** `LessonsOverview` (segmenti Programmate | Annullate) usato da 2 punti d'accesso: `home/all-lessons` (sheet seedato, card tappabili via `allLessonsStore`) e `more/le-tue-guide` (Profilo, autonomo, non tappabili). Cambiare `LessonsOverview` impatta ENTRAMBE le route.
+- **Componente condiviso** `LessonsOverview` (segmenti Programmate | Annullate) usato da 2 punti d'accesso: `home/all-lessons` (sheet seedato, card tappabili via `allLessonsStore`) e `settings/le-tue-guide` (Profilo allievo, autonomo, non tappabili). Cambiare `LessonsOverview` impatta ENTRAMBE le route.
 - → **Booking Flow**: le "Programmate" sono le guide future dell'allievo; il tap sulla card home riapre il dettaglio guida.
-- → **MoreScreen**: la voce "Le tue guide" è STUDENT-only; toccare la lista voci del Profilo può nasconderla/spostarla.
+- → **SettingsScreen** (Profilo allievo): la voce "Le tue guide" è nel `renderStudentContent`; toccare le righe del Profilo può nasconderla/spostarla.
 - → **Backend (`reglo`)**: nessun endpoint nuovo — `getAppointments`/`useAppointments` con `status:'cancelled'` + `light`. Il segmento Annullate filtra `cancellationKind === 'manual_cancel'` (esclude `record_cleanup`/organizzative). Se cambiano i campi annullamento (`cancelledAt/penaltyCutoffAt/penaltyAmount/lateCancellationAction`) o i valori di `cancellationKind`, aggiornare badge + filtro.
 
 ### Availability Editor

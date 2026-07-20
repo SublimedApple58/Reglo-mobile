@@ -5,7 +5,7 @@
 | Feature | Doc | Primary screens |
 |---------|-----|----------------|
 | Booking Flow | [booking-flow.md](features/booking-flow.md) | `AllievoHomeScreen` |
-| Guide annullate (vista allievo) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `more/le-tue-guide`, `MoreScreen`, `allLessonsStore` |
+| Guide annullate (vista allievo) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `settings/le-tue-guide`, `SettingsScreen`, `allLessonsStore` |
 | Availability Editor | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception` |
 | Swaps | [swaps.md](features/swaps.md) | `SwapOffersScreen` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
