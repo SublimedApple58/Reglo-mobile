@@ -733,6 +733,13 @@ export const SettingsScreen = () => {
 
       {/* Menu group: preferences */}
       <Animated.View entering={FadeInUp.delay(140).duration(420).springify()} style={studentStyles.menuGroup}>
+        <Pressable onPress={() => router.push('/(tabs)/settings/le-tue-guide')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
+          <Ionicons name="car-sport-outline" size={23} color="#1A1A2E" />
+          <Text style={studentStyles.rowLabelFlex}>Le tue guide</Text>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
+
+        <View style={studentStyles.rowDivider} />
         <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
           <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
           <View style={{ flex: 1, minWidth: 0 }}>

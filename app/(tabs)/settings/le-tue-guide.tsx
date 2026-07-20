@@ -28,10 +28,10 @@ const findLinkedStudent = (
 };
 
 /**
- * Accesso durevole a "Le tue guide" dal Profilo (Altro) dell'allievo, così le
- * guide annullate sono sempre raggiungibili anche senza guide future in home.
- * Modalità autonoma: risolve l'allievo collegato e passa lo studentId alla vista
- * condivisa, che carica programmate + annullate da sé.
+ * Accesso durevole a "Le tue guide" dal Profilo (tab Impostazioni) dell'allievo,
+ * così le guide annullate sono sempre raggiungibili anche senza guide future in
+ * home. Modalità autonoma: risolve l'allievo collegato e passa lo studentId alla
+ * vista condivisa, che carica programmate + annullate da sé.
  */
 export default function LeTueGuideScreen() {
   const router = useRouter();

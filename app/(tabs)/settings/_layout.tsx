@@ -9,6 +9,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="profile-edit" options={TALL_SHEET} />
       <Stack.Screen name="availability" options={TALL_SHEET} />
+      <Stack.Screen name="le-tue-guide" options={TALL_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
     </Stack>
   );

@@ -29,7 +29,6 @@ export default function MoreLayout() {
       />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="hours-period" options={TALL_SHEET} />
-      <Stack.Screen name="le-tue-guide" options={TALL_SHEET} />
     </Stack>
   );
 }

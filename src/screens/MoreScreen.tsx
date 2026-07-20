@@ -27,12 +27,6 @@ const SETTINGS_ITEM: MenuItem = {
   icon: 'settings-outline',
 };
 
-const MY_LESSONS_ITEM: MenuItem = {
-  route: 'le-tue-guide',
-  label: 'Le tue guide',
-  icon: 'car-sport-outline',
-};
-
 const INSTRUCTOR_HOURS_ITEM: MenuItem = {
   route: 'instructor-hours',
   label: 'Ore di guida',
@@ -85,7 +79,6 @@ export const MoreScreen = () => {
 
     const out: Section[] = [];
     if (management.length) out.push({ key: 'gestione', title: 'Gestione', items: management });
-    if (autoscuolaRole === 'STUDENT') out.push({ key: 'guide', title: 'Guide', items: [MY_LESSONS_ITEM] });
     out.push({ key: 'account', title: 'Account', items: [SETTINGS_ITEM] });
     return out;
   }, [autoscuolaRole, vehiclesEnabled]);
