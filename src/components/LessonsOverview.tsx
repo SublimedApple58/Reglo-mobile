@@ -121,10 +121,10 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         </Text>
       </View>
 
-      <View style={s.seg}>
+      <View style={s.filterRow}>
         {(['upcoming', 'cancelled'] as Tab[]).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={[s.segBtn, tab === t && s.segBtnActive]}>
-            <Text style={[s.segText, tab === t && s.segTextActive]}>
+          <Pressable key={t} onPress={() => setTab(t)} style={[s.pill, tab === t && s.pillActive]}>
+            <Text style={[s.pillText, tab === t && s.pillTextActive]}>
               {t === 'upcoming' ? 'Programmate' : 'Annullate'}
             </Text>
           </Pressable>
@@ -262,14 +262,11 @@ const s = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
 
-  seg: { marginHorizontal: spacing.md, marginBottom: 16, backgroundColor: '#ECECF1', borderRadius: 13, padding: 3, flexDirection: 'row' },
-  segBtn: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' },
-  segBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1,
-  },
-  segText: { fontSize: 13, fontWeight: '600', color: '#8A8A94' },
-  segTextActive: { color: '#1A1A2E' },
+  filterRow: { flexDirection: 'row', gap: 8, marginHorizontal: spacing.md, marginBottom: 16 },
+  pill: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999, backgroundColor: '#EEF0F3' },
+  pillActive: { backgroundColor: '#1A1A2E' },
+  pillText: { fontSize: 14, fontWeight: '500', color: '#595959' },
+  pillTextActive: { color: '#FFFFFF', fontWeight: '600' },
 
   list: { paddingHorizontal: spacing.md, paddingBottom: 40, gap: 11 },
   month: { fontSize: 12, fontWeight: '600', color: '#A2A2AC', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 6, marginLeft: 4 },
