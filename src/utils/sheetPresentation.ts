@@ -43,3 +43,19 @@ export const PAGE_SHEET = {
   presentation: 'modal',
   headerShown: false,
 } as const;
+
+/**
+ * Form sheet (card look, NOT a full-height modal) che scrolla SEMPRE il proprio
+ * corpo. A differenza di `TALL_SHEET`, usa un detent FISSO anche su iOS (niente
+ * `fitToContents`, che è ciò che impedisce lo scroll: la sheet abbraccia il
+ * contenuto e ne taglia l'eccesso). Con un detent fisso la sheet ha un'altezza
+ * definita → un `ScrollView` interno (`SheetScaffold fill`) scrolla su ENTRAMBE
+ * le piattaforme. Usare per liste a lunghezza variabile che vogliono restare
+ * "card" (es. "Le tue guide") invece di un page sheet a tutto schermo.
+ */
+export const SCROLL_SHEET = {
+  presentation: 'formSheet',
+  sheetGrabberVisible: false,
+  headerShown: false,
+  sheetAllowedDetents: [0.92] as number[],
+} as const;

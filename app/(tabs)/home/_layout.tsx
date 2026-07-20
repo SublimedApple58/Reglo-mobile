@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET, PAGE_SHEET } from '../../../src/utils/sheetPresentation';
+import { TALL_SHEET, HUG_SHEET, PAGE_SHEET, SCROLL_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function HomeLayout() {
   return (
@@ -46,7 +46,7 @@ export default function HomeLayout() {
       <Stack.Screen name="booking-flow" options={TALL_SHEET} />
       <Stack.Screen name="booking-slots" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="exam-detail" options={TALL_SHEET} />
-      <Stack.Screen name="all-lessons" options={PAGE_SHEET} />
+      <Stack.Screen name="all-lessons" options={SCROLL_SHEET} />
       <Stack.Screen name="quiz-hint" options={{ presentation: 'modal', headerShown: false, gestureEnabled: true }} />
       <Stack.Screen name="swaps" options={{ headerShown: false }} />
       <Stack.Screen name="group-lesson-invites" options={{ headerShown: false }} />
