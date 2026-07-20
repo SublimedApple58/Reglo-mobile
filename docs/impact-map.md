@@ -77,6 +77,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Notes**: appointment editing includes notes/ratings
 - → **Backend**: 15+ API functions (appointments, availability, settings)
 
+### Lezione teorica (agenda)
+- **È un** `InstructorBlock` con `reason:"theory_lesson"` (endpoint `createInstructorBlock` riusato; nessun tipo/route nuovi)
+- → **Quick-book**: condivide `BlockForm`/`blockSheetStore` (`kind`); NON nel segmentato quick-book (solo menu ＋)
+- → **Instructor Manage / agenda**: rendering in `IstruttoreHomeScreen` (giornaliera + dot), `DayItinerary`, `WeeklyAgendaView` (`weeklyAgenda.BLOCK_PRESENTATION.theory`) — card piena in tinta, non muted
+- → **Backend**: nessuna modifica; passa dai check di disponibilità esistenti
+
 ### Notes
 - → **Instructor Manage**: notes are part of appointment detail editing
 - → **Backend**: `getLatestStudentAppointmentNote()`, `updateAppointmentDetails()`

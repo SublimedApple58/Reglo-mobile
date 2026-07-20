@@ -22,6 +22,7 @@ export default function HomeLayout() {
       <Stack.Screen name="student-detail" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="new-booking" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="block-slot" options={TALL_SHEET} />
+      <Stack.Screen name="theory-lesson" options={TALL_SHEET} />
       <Stack.Screen name="sick-leave" options={TALL_SHEET} />
       <Stack.Screen name="select-date-range" options={TALL_SHEET} />
       <Stack.Screen name="create-exam" options={TALL_SHEET} />

@@ -1121,9 +1121,13 @@ const WeekPage = React.memo(function WeekPage({
             if (clampedEm <= clampedSm) return null;
             const top = ((clampedSm - FIRST_HOUR * 60) / 60) * ROW_H;
             const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 24);
-            const p = BLOCK_PRESENTATION[blockKindOf(block.reason)];
+            const bKind = blockKindOf(block.reason);
+            const p = BLOCK_PRESENTATION[bKind];
             const tint = { bg: p.bg, border: p.border, text: p.color, icon: p.icon as any };
             const label = p.short;
+            // La lezione teorica è un evento (non un'assenza): rettangolo PIENO
+            // indaco, niente bordo tratteggiato — come le guide/esami in griglia.
+            const isTheory = bKind === 'theory';
             return (
               <Pressable
                 key={`block-${block.id}`}
@@ -1131,10 +1135,14 @@ const WeekPage = React.memo(function WeekPage({
                 disabled={!onPressBlock}
                 style={[
                   styles.block,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: tint.bg, borderColor: tint.border },
+                  isTheory && styles.blockSolid,
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: tint.bg, borderColor: isTheory ? tint.bg : tint.border },
                 ]}
               >
-                <Ionicons name={tint.icon} size={11} color={tint.text} style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85 }} />
+                {/* Teorica: niente icona (in colonna stretta si sovrappone al titolo) */}
+                {!isTheory && (
+                  <Ionicons name={tint.icon} size={11} color={tint.text} style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85 }} />
+                )}
                 <Text style={[styles.blockName, { color: tint.text }]} numberOfLines={1}>{label}</Text>
                 {height >= 36 && (
                   <Text style={[styles.blockTime, { color: tint.text }]} numberOfLines={1}>
@@ -1592,6 +1600,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
   },
+  // Lezione teorica in griglia: pieno, bordo solido (override del dashed).
+  blockSolid: { borderStyle: 'solid', borderWidth: 0, shadowColor: '#6366F1', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   blockName: { fontSize: 10, fontWeight: '700', lineHeight: 13 },
   blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });

@@ -111,6 +111,9 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
 
   if (!data) return <View style={s.root} />;
 
+  // 'theory' = Lezione teorica: reason forzato, niente campo motivo, avviso bloccante.
+  const isTheory = data.kind === 'theory';
+
   const openDatePicker = () => {
     dayPickerStore.set({
       selectedDate: toYMD(date), markedDates: new Set(), monthsBack: 0, monthsCount: 4,
@@ -131,7 +134,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     const startsAt = new Date(date); startsAt.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
     const endsAt = new Date(date); endsAt.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
     if (endsAt <= startsAt) { Alert.alert('Orario non valido', "L'ora di fine deve essere dopo l'inizio."); return; }
-    const reasonVal = reason.trim() || null;
+    const reasonVal = isTheory ? 'theory_lesson' : (reason.trim() || null);
     setPending(true);
     void (async () => {
       try {
@@ -141,11 +144,11 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
           ...(recurring ? { recurring: true, recurringWeeks } : {}),
         });
         await data.onApplied();
-        data.onDone('Slot bloccato.');
+        data.onDone(isTheory ? 'Lezione teorica creata.' : 'Slot bloccato.');
         router.back();
       } catch (err) {
         setPending(false);
-        Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nel blocco slot');
+        Alert.alert('Errore', err instanceof Error ? err.message : (isTheory ? 'Errore nella creazione della lezione' : 'Errore nel blocco slot'));
       }
     })();
   };
@@ -156,7 +159,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     <View style={[s.root, (embedded || Platform.OS === 'android') && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
       {!embedded && (
         <View style={s.header}>
-          <Text style={s.title}>Blocca slot</Text>
+          <Text style={s.title}>{isTheory ? 'Lezione teorica' : 'Blocca slot'}</Text>
           <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
             <Ionicons name="close" size={20} color={NAVY} />
           </Pressable>
@@ -176,7 +179,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
               <Text style={s.sumSub} numberOfLines={1}>{fmtTime(startTime)}–{fmtTime(endTime)}{recurring ? ` · ${recurringWeeks} sett.` : ''}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>
-              <Button label="Blocca slot" tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
+              <Button label={isTheory ? 'Crea lezione' : 'Blocca slot'} tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
             </View>
           </View>
         }
@@ -191,21 +194,33 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
       </View>
       {invalidRange ? <Text style={s.warn}>L'ora di fine deve essere dopo l'inizio.</Text> : null}
 
-      {/* Motivo — opzionale */}
-      <Text style={s.fieldLabel}>Motivo <Text style={s.fieldOptional}>· facoltativo</Text></Text>
-      <TextInput
-        ref={reasonRef}
-        style={s.textArea}
-        value={reason}
-        onChangeText={setReason}
-        placeholder="Es. Visita medica, pausa…"
-        placeholderTextColor={MUTED}
-        editable={!pending}
-        multiline
-        textAlignVertical="top"
-        inputAccessoryViewID={accessoryID}
-      />
-      {accessory}
+      {isTheory ? (
+        /* Avviso bloccante — la teorica occupa la fascia in modo duro */
+        <View style={s.theoryNotice}>
+          <View style={s.theoryNoticeIcon}><Ionicons name="lock-closed" size={16} color="#4F46E5" /></View>
+          <Text style={s.theoryNoticeTxt}>
+            In questa fascia risulti occupato: gli allievi non vedranno slot prenotabili e non sarà possibile inserire guide, esami o guide di gruppo sovrapposte.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* Motivo — opzionale */}
+          <Text style={s.fieldLabel}>Motivo <Text style={s.fieldOptional}>· facoltativo</Text></Text>
+          <TextInput
+            ref={reasonRef}
+            style={s.textArea}
+            value={reason}
+            onChangeText={setReason}
+            placeholder="Es. Visita medica, pausa…"
+            placeholderTextColor={MUTED}
+            editable={!pending}
+            multiline
+            textAlignVertical="top"
+            inputAccessoryViewID={accessoryID}
+          />
+          {accessory}
+        </>
+      )}
 
       {/* Ripeti ogni settimana — optional banner */}
       <View style={s.optBanner}>
@@ -246,6 +261,11 @@ const s = StyleSheet.create({
 
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
   warn: { fontSize: 12.5, color: '#C13515', fontWeight: '500', marginTop: -8, marginBottom: 12, marginLeft: 6 },
+
+  /* avviso bloccante lezione teorica (indaco) */
+  theoryNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#E6E9FF', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
+  theoryNoticeIcon: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  theoryNoticeTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18, color: '#3730A3' },
 
   /* motivo text area — looks like an editable field, not a tappable card */
   fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },

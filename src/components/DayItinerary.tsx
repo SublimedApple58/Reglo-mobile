@@ -8,6 +8,7 @@ import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../typ
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
+const STUDY_BOOKS = require('../../assets/icons/study-books.png');
 
 type Seq =
   | { kind: 'marker'; min: number; order: number; text: string }
@@ -142,6 +143,24 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
           );
         }
 
+        // Lezione teorica: NON un'assenza → card piena in tinta come esame/gruppo
+        // (non lo stile muted di malattia/ferie/blocco generico).
+        if (item.kind === 'block' && item.row.kind === 'theory') {
+          const { block, startMin, endMin } = item.row;
+          return (
+            <View key={`th-${idx}`} style={styles.row}>
+              <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
+              <Pressable onPress={() => onOpenBlock(block)} style={({ pressed }) => [styles.theoryCard, pressed && styles.cardPressed]}>
+                <Image source={STUDY_BOOKS} style={styles.theoryIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.theoryLabel}>Lezione teorica</Text>
+                  <Text style={styles.theoryTitle} numberOfLines={1}>{`Non prenotabile · ${fmtDuration(endMin - startMin)}`}</Text>
+                </View>
+              </Pressable>
+            </View>
+          );
+        }
+
         if (item.kind === 'block') {
           const { block, kind } = item.row;
           const p = BLOCK_PRESENTATION[kind];
@@ -155,7 +174,7 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.name, { color: p.color }]} numberOfLines={1}>{p.label}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{kind === 'generic' ? 'Non prenotabile' : 'Guide cancellate e allievi avvisati'}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>{kind === 'generic' || kind === 'theory' ? 'Non prenotabile' : 'Guide cancellate e allievi avvisati'}</Text>
                   </View>
                 </View>
               </Pressable>
@@ -237,6 +256,13 @@ const styles = StyleSheet.create({
   examIcon: { width: 42, height: 42 },
   examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
   examTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+
+  // Lezione teorica — sorella indaco della card esame (icona libri 3D). Evento
+  // bloccante ma con lo stesso peso visivo di esame/gruppo (card piena in tinta).
+  theoryCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#E6E9FF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#6366F1', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  theoryIcon: { width: 42, height: 42 },
+  theoryLabel: { fontSize: 12, fontWeight: '600', color: '#4F46E5' },
+  theoryTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
 
   // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
   // Moto groups: identical style, ORANGE tint (bg/shadow/label/seats).

@@ -180,56 +180,59 @@ export const InstructorHoursScreen = () => {
           </View>
         ) : (
           <>
-            {/* Hero — total + in/out breakdown */}
-            <View style={s.hero}>
-              <View style={s.heroTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.heroValue}>{formatMinutes(data.total.totalMinutes)}</Text>
-                  <Text style={s.heroSub}>
-                    {data.total.appointmentCount} {data.total.appointmentCount === 1 ? 'guida' : 'guide'} · {periodLabel.toLowerCase()}
-                  </Text>
-                </View>
-                <Image source={FLUENT_CLOCK} style={s.heroIcon} />
+            {/* Hero — numero grande + sub + pill teoria (borderless, stile Airbnb/web) */}
+            <View style={s.heroTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.heroValue}>{formatMinutes(data.total.totalMinutes)}</Text>
+                <Text style={s.heroSub}>
+                  {data.total.appointmentCount} {data.total.appointmentCount === 1 ? 'guida' : 'guide'} · {periodLabel.toLowerCase()}
+                </Text>
+                {data.total.theoryMinutes > 0 && (
+                  <View style={s.theoryPill}>
+                    <Ionicons name="book" size={12} color="#4F46E5" />
+                    <Text style={s.theoryPillText}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
+                  </View>
+                )}
               </View>
+              <Image source={FLUENT_CLOCK} style={s.heroIcon} />
+            </View>
 
-              <View style={s.heroDivider} />
+            <View style={s.divider} />
 
-              <View style={s.heroStats}>
-                <View style={s.heroStat}>
-                  <View style={s.statTop}>
-                    <View style={[s.statDot, { backgroundColor: '#1A1A2E' }]} />
-                    <Text style={s.statLabel}>In orario</Text>
-                  </View>
-                  <Text style={s.statValue}>
-                    {formatMinutes(Math.max(data.total.totalMinutes - data.total.outsideWorkingHoursMinutes, 0))}
-                  </Text>
+            {/* Statistiche — pallini coordinati con le barre del grafico */}
+            <View style={s.stats}>
+              <View style={s.stat}>
+                <View style={s.statLabelRow}>
+                  <View style={[s.statDot, { backgroundColor: '#1A1A2E' }]} />
+                  <Text style={s.statLabel}>In orario</Text>
                 </View>
-                <View style={s.heroStatDivider} />
-                <View style={s.heroStat}>
-                  <View style={s.statTop}>
-                    <View style={[s.statDot, { backgroundColor: '#1A1A2E' }]} />
-                    <Text style={s.statLabel}>Fuori orario</Text>
-                  </View>
-                  <Text style={s.statValue}>{formatMinutes(data.total.outsideWorkingHoursMinutes)}</Text>
+                <Text style={s.statValue}>
+                  {formatMinutes(Math.max(data.total.totalMinutes - data.total.outsideWorkingHoursMinutes, 0))}
+                </Text>
+              </View>
+              <View style={s.statDiv} />
+              <View style={s.stat}>
+                <View style={s.statLabelRow}>
+                  <View style={[s.statDot, { backgroundColor: '#C9CCD6' }]} />
+                  <Text style={s.statLabel}>Fuori orario</Text>
                 </View>
+                <Text style={s.statValue}>{formatMinutes(data.total.outsideWorkingHoursMinutes)}</Text>
               </View>
             </View>
 
             {/* Breakdown */}
             <Text style={s.sectionLabel}>
-              {data.granularity === 'day' ? 'DETTAGLIO GIORNALIERO' : 'DETTAGLIO SETTIMANALE'}
+              {data.granularity === 'day' ? 'Dettaglio giornaliero' : 'Dettaglio settimanale'}
             </Text>
-            <View style={s.card}>
-              <View style={s.chartRow}>
-                {data.buckets.map((b) => {
-                  const isToday = data.granularity === 'day'
-                    ? b.startDate === todayISO
-                    : b.startDate === currentWeekMonday;
-                  return (
-                    <BucketColumn key={b.key} bucket={b} maxMinutes={maxBucketMinutes} isToday={isToday} showValue={showBarValues} />
-                  );
-                })}
-              </View>
+            <View style={s.chartRow}>
+              {data.buckets.map((b) => {
+                const isToday = data.granularity === 'day'
+                  ? b.startDate === todayISO
+                  : b.startDate === currentWeekMonday;
+                return (
+                  <BucketColumn key={b.key} bucket={b} maxMinutes={maxBucketMinutes} isToday={isToday} showValue={showBarValues} />
+                );
+              })}
             </View>
 
             {/* Working hours */}
@@ -251,15 +254,6 @@ const CARD_SHADOW = {
   shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
 } as const;
 
-// Informative data cards: INSET shadow (recessed) on a light surface.
-const INSET_CARD = {
-  backgroundColor: '#FFFFFF',
-  boxShadow: [
-    { offsetX: 0, offsetY: 2, blurRadius: 6, spreadDistance: 0, color: 'rgba(0,0,0,0.10)', inset: true },
-    { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: 'rgba(0,0,0,0.05)', inset: true },
-  ],
-} as const;
-
 const s = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -270,46 +264,49 @@ const s = StyleSheet.create({
 
   periodPill: {
     flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center',
-    marginBottom: 10, backgroundColor: '#FFFFFF', borderRadius: 999,
+    marginBottom: 12, backgroundColor: '#FFFFFF', borderRadius: 999,
     paddingVertical: 9, paddingHorizontal: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
+    borderWidth: 1, borderColor: '#DDDDDD',
   },
-  periodLabel: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  periodLabel: { fontSize: 15, fontWeight: '600', color: '#222222', letterSpacing: -0.2 },
 
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
 
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#929292',
-    letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 24, marginBottom: 10,
+  // Airbnb puro: sezioni borderless su pagina bianca, separate da linee sottili.
+  sectionLabel: { fontSize: 13, fontWeight: '600', color: '#929292', marginTop: 26, marginBottom: 16 },
+
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 },
+  heroValue: { fontSize: 44, fontWeight: '800', color: '#222222', letterSpacing: -2, lineHeight: 46 },
+  heroSub: { fontSize: 14, fontWeight: '500', color: '#929292', marginTop: 8 },
+  heroIcon: { width: 54, height: 54, marginLeft: 12, marginTop: 2 },
+
+  divider: { height: 1, backgroundColor: '#EBEBEB', marginVertical: 22 },
+
+  stats: { flexDirection: 'row', alignItems: 'flex-start' },
+  stat: { flex: 1 },
+  statDiv: { width: 1, backgroundColor: '#EBEBEB', alignSelf: 'stretch', marginHorizontal: 20 },
+  statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  statDot: { width: 8, height: 8, borderRadius: 3 },
+  statLabel: { fontSize: 13, fontWeight: '500', color: '#929292' },
+  statValue: { fontSize: 22, fontWeight: '800', color: '#222222', letterSpacing: -0.6, marginTop: 6 },
+
+  // Lezione teorica — pill indaco (uguale alla web app).
+  theoryPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    marginTop: 10, backgroundColor: '#E6E9FF', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
   },
-
-  hero: { borderRadius: 22, padding: 22, ...INSET_CARD },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  heroValue: { fontSize: 40, fontWeight: '700', color: '#1A1A2E', letterSpacing: -1.2, lineHeight: 44 },
-  heroSub: { fontSize: 14, fontWeight: '600', color: colors.textMuted, marginTop: 4 },
-  heroIcon: { width: 64, height: 64, marginLeft: 12 },
-  heroDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 18 },
-  heroStats: { flexDirection: 'row', alignItems: 'center' },
-  heroStat: { flex: 1 },
-  heroStatDivider: { width: StyleSheet.hairlineWidth, backgroundColor: colors.border, alignSelf: 'stretch', marginHorizontal: 14 },
-  statTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statDot: { width: 8, height: 8, borderRadius: 4 },
-  statLabel: { fontSize: 12, fontWeight: '600', color: '#6A6A6A' },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 6 },
-
-  card: { borderRadius: 20, padding: 16, ...INSET_CARD },
+  theoryPillText: { fontSize: 12.5, fontWeight: '600', color: '#3730A3', letterSpacing: -0.1 },
 
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, height: COLUMN_HEIGHT + 36 },
-  column: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  column: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   colTrack: { width: '100%', height: COLUMN_HEIGHT, justifyContent: 'flex-end', alignItems: 'center' },
-  bar: { width: '64%', borderTopLeftRadius: 7, borderTopRightRadius: 7, minHeight: 5, overflow: 'hidden', flexDirection: 'column' },
+  bar: { width: '58%', borderTopLeftRadius: 4, borderTopRightRadius: 4, minHeight: 4, overflow: 'hidden', flexDirection: 'column' },
   barInside: { width: '100%', backgroundColor: '#1A1A2E' },
-  barOutside: { width: '100%', backgroundColor: '#1A1A2E' },
-  colEmpty: { width: '64%', height: 5, borderRadius: 3, backgroundColor: '#DDDDDD' },
-  colValue: { fontSize: 10, fontWeight: '700', color: '#6A6A6A', fontVariant: ['tabular-nums'] },
-  colLabel: { fontSize: 11, fontWeight: '600', color: '#929292' },
-  colLabelToday: { color: '#1A1A2E', fontWeight: '700' },
+  barOutside: { width: '100%', backgroundColor: '#C9CCD6' },
+  colEmpty: { width: '58%', height: 4, borderRadius: 2, backgroundColor: '#F2F2F4' },
+  colValue: { fontSize: 10, fontWeight: '700', color: '#929292', fontVariant: ['tabular-nums'] },
+  colLabel: { fontSize: 11, fontWeight: '500', color: '#C1C1C1' },
+  colLabelToday: { color: '#222222', fontWeight: '700' },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingHorizontal: 4 },
   infoText: { fontSize: 12, color: '#929292' },

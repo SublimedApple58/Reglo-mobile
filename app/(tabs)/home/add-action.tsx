@@ -39,6 +39,7 @@ export default function AddActionScreen() {
   const rows: Row[] = [
     { key: 'book', label: 'Prenota guida', img: require('../../../assets/icons/fluent-calendar.png'), run: data.onBook, show: data.canBook },
     { key: 'block', label: 'Blocca slot', img: require('../../../assets/icons/fluent-lock.png'), run: data.onBlock, show: true },
+    { key: 'theory', label: 'Lezione teorica', img: require('../../../assets/icons/study-books.png'), run: data.onTheory, show: true },
     { key: 'exam', label: 'Crea esame', img: require('../../../assets/icons/fluent-graduate.png'), run: data.onExam, show: true },
     { key: 'group', label: 'Guida di gruppo', img: require('../../../assets/icons/fluent-people.png'), run: data.onGroupLesson, show: data.canGroupLesson },
     { key: 'sick', label: 'Malattia', img: require('../../../assets/icons/fluent-thermometer.png'), run: data.onSick, show: true },

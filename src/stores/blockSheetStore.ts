@@ -6,6 +6,12 @@
  * Mirrors `sickLeaveSheetStore`.
  */
 export type BlockSheetData = {
+  /**
+   * Quale evento crea il form: 'generic' = Blocca slot (motivo libero) oppure
+   * 'theory' = Lezione teorica (reason forzato "theory_lesson", niente motivo,
+   * avviso "bloccante"). Default 'generic'. Stesso store/endpoint per entrambi.
+   */
+  kind?: 'generic' | 'theory';
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
   /**

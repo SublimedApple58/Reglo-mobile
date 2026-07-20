@@ -11,6 +11,7 @@ export type HomeAddSheetData = {
   canGroupLesson: boolean;
   onBook: () => void;
   onBlock: () => void;
+  onTheory: () => void;
   onExam: () => void;
   onGroupLesson: () => void;
   onSick: () => void;

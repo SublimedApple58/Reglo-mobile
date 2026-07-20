@@ -940,6 +940,7 @@ export type InstructorHoursDayBreakdown = {
   totalMinutes: number;
   outsideWorkingHoursMinutes: number;
   appointmentCount: number;
+  theoryMinutes: number; // ore di lezione teorica, categoria separata (non guida)
 };
 
 export type InstructorHoursEntry = {
@@ -950,12 +951,14 @@ export type InstructorHoursEntry = {
   weekly: {
     totalMinutes: number;
     outsideWorkingHoursMinutes: number;
+    theoryMinutes: number;
     byDay: InstructorHoursDayBreakdown[];
   };
   monthly: {
     monthLabel: string;
     totalMinutes: number;
     outsideWorkingHoursMinutes: number;
+    theoryMinutes: number;
   };
 };
 
@@ -969,6 +972,7 @@ export type InstructorHoursBucket = {
   totalMinutes: number;
   outsideWorkingHoursMinutes: number;
   appointmentCount: number;
+  theoryMinutes: number; // ore di lezione teorica, categoria separata
 };
 
 export type InstructorHoursRange = {
@@ -979,7 +983,7 @@ export type InstructorHoursRange = {
   rangeStart: string; // ISO YYYY-MM-DD inclusive
   rangeEnd: string; // ISO YYYY-MM-DD inclusive
   granularity: 'day' | 'week';
-  total: { totalMinutes: number; outsideWorkingHoursMinutes: number; appointmentCount: number };
+  total: { totalMinutes: number; outsideWorkingHoursMinutes: number; appointmentCount: number; theoryMinutes: number };
   buckets: InstructorHoursBucket[];
 };
 

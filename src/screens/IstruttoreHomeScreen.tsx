@@ -1309,6 +1309,15 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     return dates;
   }, [instructorBlocks]);
 
+  const theoryDateKeys = useMemo(() => {
+    const dates = new Set<string>();
+    for (const block of instructorBlocks) {
+      if (block.reason !== 'theory_lesson') continue;
+      dates.add(dateToKey(new Date(block.startsAt)));
+    }
+    return dates;
+  }, [instructorBlocks]);
+
   // Detect if selected day has a sick leave block + find full contiguous range
   const sickLeaveInfo = useMemo(() => {
     // Owner vede TUTTI gli istruttori: la malattia di uno non blocca la giornata
@@ -2595,8 +2604,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // (loadData) refreshes the agenda from the BE before the sheet closes.
   // Seeds blockSheetStore for the dedicated block-slot route AND the quick-book
   // sheet. `presetStartMinutes` (from a released scrub) seeds the start time.
-  const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number, presetDurationMinutes?: number) => {
+  const seedBlockStore = useCallback((initialDate: Date, presetStartMinutes?: number, presetDurationMinutes?: number, kind?: 'generic' | 'theory') => {
     blockSheetStore.set({
+      ...(kind ? { kind } : {}),
       initialDate: initialDate.toISOString(),
       ...(presetStartMinutes != null ? { presetStartMinutes } : {}),
       ...(presetDurationMinutes != null ? { presetDurationMinutes } : {}),
@@ -2609,6 +2619,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const openBlockDrawer = useCallback(() => {
     seedBlockStore(selectedDate);
     router.push('/(tabs)/home/block-slot');
+  }, [seedBlockStore, selectedDate, router]);
+
+  const openTheoryDrawer = useCallback(() => {
+    seedBlockStore(selectedDate, undefined, undefined, 'theory');
+    router.push('/(tabs)/home/theory-lesson');
   }, [seedBlockStore, selectedDate, router]);
 
   const openSickLeaveDrawer = useCallback(() => {
@@ -2869,6 +2884,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               const isDayHoliday = holidays.has(toDateOnlyString(dayNorm));
               const isDaySick = sickLeaveDateKeys.has(dateToKey(dayNorm));
               const isDayFerie = ferieDateKeys.has(dateToKey(dayNorm));
+              const isDayTheory = theoryDateKeys.has(dateToKey(dayNorm));
               return (
                 <Pressable
                   key={`day-${index}`}
@@ -2919,6 +2935,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                     <View style={[styles.dayPillDot, styles.dayPillFerieDot]} />
                   ) : hasExam ? (
                     <View style={[styles.dayPillDot, styles.dayPillExamDot]} />
+                  ) : isDayTheory ? (
+                    <View style={[styles.dayPillDot, styles.dayPillTheoryDot]} />
                   ) : isDayHoliday ? (
                     <View style={styles.dayPillHolidayDot} />
                   ) : hasBooking ? (
@@ -3385,6 +3403,33 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                             <Text style={styles.itinMeta} numberOfLines={1}>{names.join(', ')}</Text>
                           </View>
                           <Ionicons name="chevron-forward" size={16} color="#9AA1AC" />
+                        </View>
+                      </Pressable>
+                    </View>
+                  );
+                }
+                // Lezione teorica: NON un'assenza → card piena in tinta come
+                // esame/gruppo (indaco), non lo stile muted di malattia/ferie.
+                if (blockKindOf(row.block.reason) === 'theory') {
+                  const tb = row.block;
+                  const durMin = Math.max(0, row.endMin - row.startMin);
+                  const dh = Math.floor(durMin / 60), dm = durMin % 60;
+                  const durLabel = dh ? (dm ? `${dh}h ${dm}min` : `${dh}h`) : `${dm}min`;
+                  return (
+                    <View key={`theory-${tb.id}`} style={styles.itinRow}>
+                      <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
+                      <Pressable
+                        onPress={ownerMode ? undefined : () => Alert.alert(
+                          'Rimuovi lezione teorica',
+                          `Vuoi rimuovere la lezione teorica dalle ${formatTime(tb.startsAt)} alle ${formatTime(tb.endsAt)}?`,
+                          [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(tb.id) }],
+                        )}
+                        style={({ pressed }) => [styles.theoryItinCard, pressed && styles.itinCardPressed]}
+                      >
+                        <Image source={require('../../assets/icons/study-books.png')} style={styles.theoryItinIcon} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.theoryItinLabel}>Lezione teorica</Text>
+                          <Text style={styles.theoryItinTitle} numberOfLines={1}>{`Non prenotabile · ${durLabel}`}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -3909,6 +3954,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
           disabled={isPending}
           onBookLesson={openNewBooking}
           onBlockSlot={openBlockDrawer}
+          onTheoryLesson={openTheoryDrawer}
           onCreateExam={openCreateExam}
           onCreateGroupLesson={openCreateGroupLesson}
           onSickLeave={openSickLeaveDrawer}
@@ -4040,6 +4086,7 @@ const FabMenu = ({
   disabled,
   onBookLesson,
   onBlockSlot,
+  onTheoryLesson,
   onCreateExam,
   onCreateGroupLesson,
   onSickLeave,
@@ -4049,6 +4096,7 @@ const FabMenu = ({
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
+  onTheoryLesson: () => void;
   onCreateExam: () => void;
   onCreateGroupLesson: () => void;
   onSickLeave: () => void;
@@ -4064,12 +4112,13 @@ const FabMenu = ({
       canGroupLesson,
       onBook: onBookLesson,
       onBlock: onBlockSlot,
+      onTheory: onTheoryLesson,
       onExam: onCreateExam,
       onGroupLesson: onCreateGroupLesson,
       onSick: onSickLeave,
     });
     router.push('/(tabs)/home/add-action');
-  }, [canBook, canGroupLesson, onBookLesson, onBlockSlot, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
+  }, [canBook, canGroupLesson, onBookLesson, onBlockSlot, onTheoryLesson, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
 
   return (
     <AnimatedPressable
@@ -4535,6 +4584,9 @@ const styles = StyleSheet.create({
   },
   dayPillFerieDot: {
     backgroundColor: '#0F766E',
+  },
+  dayPillTheoryDot: {
+    backgroundColor: '#4F46E5',
   },
   dayPillHoliday: {
     backgroundColor: '#FFF3DD',
@@ -5295,6 +5347,15 @@ const styles = StyleSheet.create({
   examGroupIcon: { width: 42, height: 42 },
   examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
   examGroupTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  // Lezione teorica — sorella indaco della card esame (icona libri 3D).
+  theoryItinCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#E6E9FF', borderRadius: 22, padding: 14, marginBottom: 14,
+    shadowColor: '#6366F1', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  theoryItinIcon: { width: 42, height: 42 },
+  theoryItinLabel: { fontSize: 12, fontWeight: '600', color: '#4F46E5' },
+  theoryItinTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   // Group-lesson card — bigger than a normal lesson, teal accent, NO student name.
   groupLessonCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,

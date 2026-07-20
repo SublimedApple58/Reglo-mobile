@@ -69,18 +69,23 @@ export type DayLessonRow = {
   badge: LessonBadge;
 };
 // Tipo di blocco assenza istruttore. reason grezzo dal BE → kind semantico.
-export type BlockKind = 'sick' | 'ferie' | 'generic';
+export type BlockKind = 'sick' | 'ferie' | 'theory' | 'generic';
 export const blockKindOf = (reason: string | null | undefined): BlockKind =>
-  reason === 'sick_leave' ? 'sick' : reason === 'ferie' ? 'ferie' : 'generic';
+  reason === 'sick_leave' ? 'sick'
+  : reason === 'ferie' ? 'ferie'
+  : reason === 'theory_lesson' ? 'theory'
+  : 'generic';
 
 // Palette blocchi assenza — COORDINATA con la web app (agenda titolare):
-// malattia = arancio, ferie = teal, generico = grigio. `icon` = Ionicons.
+// malattia = arancio, ferie = teal, lezione teorica = indaco (evento bloccante),
+// generico = grigio. `icon` = Ionicons.
 export const BLOCK_PRESENTATION: Record<
   BlockKind,
   { label: string; short: string; color: string; bg: string; border: string; icon: string }
 > = {
   sick: { label: 'In malattia', short: 'Malattia', color: '#C2410C', bg: '#FFF1E9', border: '#F5A97A', icon: 'medkit' },
   ferie: { label: 'In ferie', short: 'Ferie', color: '#0F766E', bg: '#DDF3F0', border: '#5FBFB4', icon: 'sunny' },
+  theory: { label: 'Lezione teorica', short: 'Teorica', color: '#3730a3', bg: '#E6E9FF', border: '#A5ABF0', icon: 'book' },
   generic: { label: 'Slot bloccato', short: 'Bloccato', color: '#6E7596', bg: '#ECEEF5', border: '#AEB4CC', icon: 'lock-closed' },
 };
 
