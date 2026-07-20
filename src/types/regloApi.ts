@@ -200,8 +200,15 @@ export type AutoscuolaAppointment = {
   /** Posti occupati della guida di gruppo (per lo storico allievo: N/M). */
   groupLessonFilled?: number | null;
   notes: string | null;
+  cancelledAt?: IsoDate | null;
   cancellationKind?: string | null;
   cancellationReason?: string | null;
+  /** Penale addebitata per annullamento tardivo (in centesimi/euro come da BE). */
+  penaltyAmount?: number | null;
+  /** Soglia oltre la quale l'annullamento è considerato tardivo. */
+  penaltyCutoffAt?: IsoDate | null;
+  /** Decisione autoscuola sulla cancellazione tardiva: "charged" | "dismissed" | null. */
+  lateCancellationAction?: string | null;
   replacedByAppointmentId?: Uuid | null;
   /** Annotazioni BE per i colori della vista griglia (solo guide, non esami). */
   mandatoryLesson?: boolean;

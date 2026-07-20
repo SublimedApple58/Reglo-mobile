@@ -2,6 +2,8 @@ import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 
 type AllLessonsData = {
   lessons: AutoscuolaAppointmentWithRelations[];
+  /** L'allievo aperto: serve al segmento "Annullate" per il fetch storico. */
+  studentId: string | null;
   onOpenDetail: (lesson: AutoscuolaAppointmentWithRelations) => void;
 };
 

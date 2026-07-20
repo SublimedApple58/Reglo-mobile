@@ -1661,7 +1661,7 @@ export const AllievoHomeScreen = () => {
             {upcoming.length > 1 && (
               <Pressable
                 onPress={() => {
-                  allLessonsStore.set({ lessons: upcoming, onOpenDetail: openLessonDetail });
+                  allLessonsStore.set({ lessons: upcoming, studentId: selectedStudentId, onOpenDetail: openLessonDetail });
                   router.push('/(tabs)/home/all-lessons');
                 }}
                 style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.6 }]}
