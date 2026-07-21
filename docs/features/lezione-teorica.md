@@ -9,10 +9,28 @@ la creazione per un altro istruttore resta sul web. Backend = un
 `../../reglo/docs/features/lezione-teorica.md`).
 
 ## Data model / API
-Tipo `InstructorBlock` (`src/types/regloApi.ts`), `reason: "theory_lesson"`.
-Creazione via `regloApi.createInstructorBlock` → `POST /api/autoscuole/instructor-blocks`
-(endpoint **già esistente**, riusato; l'istruttore è derivato dalla sessione).
-Nessun nuovo endpoint, nessun cambio di tipo.
+Tipo `InstructorBlock` (`src/types/regloApi.ts`), `reason: "theory_lesson"`, con
+il nuovo campo `description: string | null` (descrizione libera opzionale, comune
+a teorica e blocco generico).
+- **Creazione**: `regloApi.createInstructorBlock` → `POST /api/autoscuole/instructor-blocks`.
+- **Modifica**: `regloApi.updateInstructorBlock(blockId, input)` →
+  `PATCH /api/autoscuole/instructor-blocks/:id` (orario e/o descrizione; blocco
+  singolo, niente ricorrenza). `UpdateInstructorBlockInput` in `regloApi.ts`.
+- **Eliminazione**: `regloApi.deleteInstructorBlock`.
+
+## Modifica + descrizione (mobile)
+- `blockSheetStore` porta `blockId?` (→ modalità edit), `reason?`, `description?`
+  per fare il seed del form.
+- `BlockForm.tsx`: campo **Descrizione (facoltativa)** (`TextInput` multiline,
+  stile `s.textArea`) mostrato anche per la teorica; in edit chiama
+  `updateInstructorBlock` (CTA "Salva") e mostra un bottone **Elimina**; la
+  ricorrenza è nascosta.
+- **Entry point modifica**: tap su un blocco in agenda ora apre il form in edit
+  (`openBlockEdit`/`handlePressBlock` in `IstruttoreHomeScreen`) invece
+  dell'alert di eliminazione — per teorica e generico; malattia/ferie restano
+  con l'alert di rimozione (flussi propri). Vale per le 3 superfici
+  (`theoryItinCard`, `WeeklyAgendaView` grid `onPressBlock`, `DayItinerary`
+  `onOpenBlock`).
 
 ## Key files
 - `src/utils/weeklyAgenda.ts` — `BlockKind` esteso con `'theory'`; `blockKindOf`

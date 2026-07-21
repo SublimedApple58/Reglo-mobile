@@ -155,6 +155,7 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                 <View style={{ flex: 1 }}>
                   <Text style={styles.theoryLabel}>Lezione teorica</Text>
                   <Text style={styles.theoryTitle} numberOfLines={1}>{`Non prenotabile · ${fmtDuration(endMin - startMin)}`}</Text>
+                  {block.description ? <Text style={styles.meta} numberOfLines={1}>{block.description}</Text> : null}
                 </View>
               </Pressable>
             </View>

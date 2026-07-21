@@ -864,6 +864,7 @@ export type InstructorBlock = {
   startsAt: IsoDate;
   endsAt: IsoDate;
   reason: string | null;
+  description: string | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -872,8 +873,16 @@ export type CreateInstructorBlockInput = {
   startsAt: IsoDate;
   endsAt: IsoDate;
   reason?: string;
+  description?: string;
   recurring?: boolean;
   recurringWeeks?: number;
+};
+
+export type UpdateInstructorBlockInput = {
+  startsAt?: IsoDate;
+  endsAt?: IsoDate;
+  reason?: string;
+  description?: string | null;
 };
 
 export type RegisterPushTokenInput = {

@@ -12,6 +12,14 @@ export type BlockSheetData = {
    * avviso "bloccante"). Default 'generic'. Stesso store/endpoint per entrambi.
    */
   kind?: 'generic' | 'theory';
+  /**
+   * Se valorizzato, il form è in modalità MODIFICA di quel blocco (PATCH invece
+   * di POST, niente ricorrenza). Usato dai tap sui blocchi in agenda.
+   */
+  blockId?: string;
+  /** Seed del motivo (solo generic) e della descrizione in modalità modifica. */
+  reason?: string;
+  description?: string;
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
   /**

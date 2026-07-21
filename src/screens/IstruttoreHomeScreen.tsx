@@ -2626,6 +2626,43 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     router.push('/(tabs)/home/theory-lesson');
   }, [seedBlockStore, selectedDate, router]);
 
+  // Apre il form blocco in modalità MODIFICA, pre-riempiendo da un blocco esistente.
+  const openBlockEdit = useCallback((block: InstructorBlock) => {
+    const start = new Date(block.startsAt);
+    const end = new Date(block.endsAt);
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const durationMinutes = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
+    const kind: 'generic' | 'theory' = blockKindOf(block.reason) === 'theory' ? 'theory' : 'generic';
+    blockSheetStore.set({
+      kind,
+      blockId: block.id,
+      initialDate: start.toISOString(),
+      presetStartMinutes: startMinutes,
+      presetDurationMinutes: durationMinutes,
+      reason: block.reason ?? undefined,
+      description: block.description ?? undefined,
+      instructorId: block.instructorId,
+      onApplied: async () => { await loadData(); },
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+    router.push(kind === 'theory' ? '/(tabs)/home/theory-lesson' : '/(tabs)/home/block-slot');
+  }, [loadData, router]);
+
+  // Tap su un blocco in agenda: teorica/generico → modifica; malattia/ferie →
+  // rimozione (hanno flussi propri, niente edit).
+  const handlePressBlock = useCallback((block: InstructorBlock) => {
+    const bk = blockKindOf(block.reason);
+    if (bk === 'theory' || bk === 'generic') { openBlockEdit(block); return; }
+    const isSick = bk === 'sick';
+    Alert.alert(
+      isSick ? 'Rimuovi malattia' : 'Rimuovi ferie',
+      isSick
+        ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
+        : 'Vuoi rimuovere le ferie? Le guide già cancellate non verranno ripristinate.',
+      [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) }],
+    );
+  }, [openBlockEdit, handleDeleteBlock]);
+
   const openSickLeaveDrawer = useCallback(() => {
     sickLeaveSheetStore.set({
       initialDate: selectedDate.toISOString(),
@@ -3419,17 +3456,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                     <View key={`theory-${tb.id}`} style={styles.itinRow}>
                       <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
                       <Pressable
-                        onPress={ownerMode ? undefined : () => Alert.alert(
-                          'Rimuovi lezione teorica',
-                          `Vuoi rimuovere la lezione teorica dalle ${formatTime(tb.startsAt)} alle ${formatTime(tb.endsAt)}?`,
-                          [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(tb.id) }],
-                        )}
+                        onPress={ownerMode ? undefined : () => openBlockEdit(tb)}
                         style={({ pressed }) => [styles.theoryItinCard, pressed && styles.itinCardPressed]}
                       >
                         <Image source={require('../../assets/icons/study-books.png')} style={styles.theoryItinIcon} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.theoryItinLabel}>Lezione teorica</Text>
                           <Text style={styles.theoryItinTitle} numberOfLines={1}>{`Non prenotabile · ${durLabel}`}</Text>
+                          {tb.description ? <Text style={styles.itinMeta} numberOfLines={1}>{tb.description}</Text> : null}
                         </View>
                       </Pressable>
                     </View>
@@ -3438,22 +3472,11 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 const block = row.block;
                 const bk = blockKindOf(block.reason);
                 const bp = BLOCK_PRESENTATION[bk];
-                const removeTitle = bk === 'sick' ? 'Rimuovi malattia' : bk === 'ferie' ? 'Rimuovi ferie' : 'Rimuovi blocco';
-                const removeMsg =
-                  bk === 'sick'
-                    ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
-                    : bk === 'ferie'
-                      ? 'Vuoi rimuovere le ferie? Le guide già cancellate non verranno ripristinate.'
-                      : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`;
                 return (
                   <View key={`block-${block.id}`} style={styles.itinRow}>
                     <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} muted hidePill={hidePill} lineState={lineState} />
                     <Pressable
-                      onPress={ownerMode ? undefined : () => Alert.alert(
-                        removeTitle,
-                        removeMsg,
-                        [{ text: 'Annulla', style: 'cancel' }, { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) }],
-                      )}
+                      onPress={ownerMode ? undefined : () => handlePressBlock(block)}
                       style={({ pressed }) => [styles.itinCard, styles.itinCardMuted, pressed && styles.itinCardPressed]}
                     >
                       <View style={styles.itinTop}>
@@ -3831,20 +3854,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 onOpenGroupLesson: (group) => {
                   openGroupLessonManage(group.id);
                 },
-                // Owner (sola lettura): tap su un blocco non offre la rimozione.
-                onOpenBlock: ownerMode ? () => {} : (block) => {
-                  const isSick = block.reason === 'sick_leave';
-                  Alert.alert(
-                    isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
-                    isSick
-                      ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
-                      : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
-                    [
-                      { text: 'Annulla', style: 'cancel' },
-                      { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
-                    ],
-                  );
-                },
+                // Owner (sola lettura): tap su un blocco non offre azioni.
+                onOpenBlock: ownerMode ? () => {} : (block) => handlePressBlock(block),
               });
               router.push('/(tabs)/home/day-detail');
             }}
@@ -3923,19 +3934,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               });
             }}
             onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
-            onPressBlock={ownerMode ? undefined : (block) => {
-              const isSick = block.reason === 'sick_leave';
-              Alert.alert(
-                isSick ? 'Rimuovi malattia' : 'Rimuovi blocco',
-                isSick
-                  ? 'Vuoi rimuovere la segnalazione di malattia? Le guide già cancellate non verranno ripristinate.'
-                  : `Vuoi rimuovere il blocco${block.reason ? ` "${block.reason}"` : ''} dalle ${formatTime(block.startsAt)} alle ${formatTime(block.endsAt)}?`,
-                [
-                  { text: 'Annulla', style: 'cancel' },
-                  { text: 'Rimuovi', style: 'destructive', onPress: () => handleDeleteBlock(block.id) },
-                ],
-              );
-            }}
+            onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
             onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
               openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
             }}

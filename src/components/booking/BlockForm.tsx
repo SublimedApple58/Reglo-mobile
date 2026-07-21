@@ -81,10 +81,12 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const [startTime, setStartTime] = useState<Date>(() => normalizeToQuarter(new Date()));
   const [endTime, setEndTime] = useState<Date>(() => { const e = normalizeToQuarter(new Date()); e.setMinutes(e.getMinutes() + 60); return e; });
   const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
   const [recurring, setRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(4);
   const [pending, setPending] = useState(false);
   const reasonRef = useRef<TextInput>(null);
+  const descriptionRef = useRef<TextInput>(null);
   const { accessoryID, accessory } = useDoneAccessory();
 
   useEffect(() => {
@@ -97,7 +99,8 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     setDate(new Date(data.initialDate));
     setStartTime(start);
     setEndTime(end);
-    setReason('');
+    setReason(data.reason ?? '');
+    setDescription(data.description ?? '');
     setRecurring(false);
     setRecurringWeeks(4);
     setPending(false);
@@ -113,6 +116,8 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
 
   // 'theory' = Lezione teorica: reason forzato, niente campo motivo, avviso bloccante.
   const isTheory = data.kind === 'theory';
+  // blockId valorizzato → modalità MODIFICA (PATCH, niente ricorrenza).
+  const isEditing = !!data.blockId;
 
   const openDatePicker = () => {
     dayPickerStore.set({
@@ -131,16 +136,33 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   // (one, or N for recurring — the BE creates N offset by 1 week), refresh the
   // parent's agenda from the BE, then close.
   const confirm = () => {
+    if (!data) return;
     const startsAt = new Date(date); startsAt.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
     const endsAt = new Date(date); endsAt.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
     if (endsAt <= startsAt) { Alert.alert('Orario non valido', "L'ora di fine deve essere dopo l'inizio."); return; }
     const reasonVal = isTheory ? 'theory_lesson' : (reason.trim() || null);
+    const descVal = description.trim();
     setPending(true);
     void (async () => {
       try {
+        if (data.blockId) {
+          // ── MODIFICA (blocco singolo) ──
+          await regloApi.updateInstructorBlock(data.blockId, {
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            ...(isTheory ? {} : { reason: reason.trim() }),
+            description: descVal || null,
+          });
+          await data.onApplied();
+          data.onDone(isTheory ? 'Lezione teorica aggiornata.' : 'Evento aggiornato.');
+          router.back();
+          return;
+        }
+        // ── CREAZIONE ──
         await regloApi.createInstructorBlock({
           startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
           ...(reasonVal ? { reason: reasonVal } : {}),
+          ...(descVal ? { description: descVal } : {}),
           ...(recurring ? { recurring: true, recurringWeeks } : {}),
         });
         await data.onApplied();
@@ -148,9 +170,39 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
         router.back();
       } catch (err) {
         setPending(false);
-        Alert.alert('Errore', err instanceof Error ? err.message : (isTheory ? 'Errore nella creazione della lezione' : 'Errore nel blocco slot'));
+        Alert.alert('Errore', err instanceof Error ? err.message : (isTheory ? 'Errore nella lezione teorica' : 'Errore nel blocco slot'));
       }
     })();
+  };
+
+  const handleDelete = () => {
+    if (!data?.blockId) return;
+    Alert.alert(
+      isTheory ? 'Eliminare la lezione teorica?' : "Eliminare l'evento?",
+      "L'operazione non è reversibile.",
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Elimina',
+          style: 'destructive',
+          onPress: () => {
+            const blockId = data.blockId!;
+            setPending(true);
+            void (async () => {
+              try {
+                await regloApi.deleteInstructorBlock(blockId);
+                await data.onApplied();
+                data.onDone(isTheory ? 'Lezione teorica eliminata.' : 'Evento eliminato.');
+                router.back();
+              } catch (err) {
+                setPending(false);
+                Alert.alert('Errore', err instanceof Error ? err.message : 'Errore eliminazione');
+              }
+            })();
+          },
+        },
+      ],
+    );
   };
 
   const canConfirm = !pending && !invalidRange;
@@ -159,7 +211,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     <View style={[s.root, (embedded || Platform.OS === 'android') && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
       {!embedded && (
         <View style={s.header}>
-          <Text style={s.title}>{isTheory ? 'Lezione teorica' : 'Blocca slot'}</Text>
+          <Text style={s.title}>{isEditing ? (isTheory ? 'Modifica lezione' : 'Modifica evento') : (isTheory ? 'Lezione teorica' : 'Blocca slot')}</Text>
           <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
             <Ionicons name="close" size={20} color={NAVY} />
           </Pressable>
@@ -179,7 +231,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
               <Text style={s.sumSub} numberOfLines={1}>{fmtTime(startTime)}–{fmtTime(endTime)}{recurring ? ` · ${recurringWeeks} sett.` : ''}</Text>
             </View>
             <View style={{ flexShrink: 0 }}>
-              <Button label={isTheory ? 'Crea lezione' : 'Blocca slot'} tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
+              <Button label={isEditing ? 'Salva' : (isTheory ? 'Crea lezione' : 'Blocca slot')} tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
             </View>
           </View>
         }
@@ -218,32 +270,57 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
             textAlignVertical="top"
             inputAccessoryViewID={accessoryID}
           />
-          {accessory}
         </>
       )}
 
-      {/* Ripeti ogni settimana — optional banner */}
-      <View style={s.optBanner}>
-        <View style={s.optIcon}><Ionicons name="repeat-outline" size={18} color={NAVY} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.optTitle}>Ripeti ogni settimana</Text>
-          <Text style={s.optSub}>Stesso giorno e orario</Text>
-        </View>
-        <ToggleSwitch value={recurring} onValueChange={setRecurring} disabled={pending} />
-      </View>
+      {/* Descrizione — opzionale (anche per la lezione teorica) */}
+      <Text style={s.fieldLabel}>Descrizione <Text style={s.fieldOptional}>· facoltativa</Text></Text>
+      <TextInput
+        ref={descriptionRef}
+        style={s.textArea}
+        value={description}
+        onChangeText={setDescription}
+        placeholder={isTheory ? 'Es. argomento della lezione, aula, materiale…' : 'Note aggiuntive…'}
+        placeholderTextColor={MUTED}
+        editable={!pending}
+        multiline
+        textAlignVertical="top"
+        maxLength={500}
+        inputAccessoryViewID={accessoryID}
+      />
+      {accessory}
 
-      {recurring ? (
+      {/* Ricorrenza solo in creazione: in modifica si edita il singolo blocco. */}
+      {!isEditing ? (
         <>
-          <Text style={s.listCaption}>Per quante settimane</Text>
-          <View style={s.weeksRow}>
-            {WEEK_OPTIONS.map((w) => { const active = recurringWeeks === w; return (
-              <Pressable key={w} onPress={() => setRecurringWeeks(w)} style={[s.weekPill, active && s.weekPillOn]} disabled={pending}>
-                <Text style={[s.weekPillTxt, active && s.weekPillTxtOn]}>{w} sett.</Text>
-              </Pressable>
-            ); })}
+          <View style={s.optBanner}>
+            <View style={s.optIcon}><Ionicons name="repeat-outline" size={18} color={NAVY} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.optTitle}>Ripeti ogni settimana</Text>
+              <Text style={s.optSub}>Stesso giorno e orario</Text>
+            </View>
+            <ToggleSwitch value={recurring} onValueChange={setRecurring} disabled={pending} />
           </View>
+
+          {recurring ? (
+            <>
+              <Text style={s.listCaption}>Per quante settimane</Text>
+              <View style={s.weeksRow}>
+                {WEEK_OPTIONS.map((w) => { const active = recurringWeeks === w; return (
+                  <Pressable key={w} onPress={() => setRecurringWeeks(w)} style={[s.weekPill, active && s.weekPillOn]} disabled={pending}>
+                    <Text style={[s.weekPillTxt, active && s.weekPillTxtOn]}>{w} sett.</Text>
+                  </Pressable>
+                ); })}
+              </View>
+            </>
+          ) : null}
         </>
-      ) : null}
+      ) : (
+        <Pressable onPress={handleDelete} disabled={pending} style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.6 }]}>
+          <Ionicons name="trash-outline" size={18} color="#C13515" />
+          <Text style={s.deleteTxt}>{isTheory ? 'Elimina lezione teorica' : 'Elimina evento'}</Text>
+        </Pressable>
+      )}
       </SheetScaffold>
     </View>
   );
@@ -292,6 +369,10 @@ const s = StyleSheet.create({
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+
+  /* elimina (solo in modifica) */
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: '#FDECEC', marginTop: 2, marginBottom: 4 },
+  deleteTxt: { fontSize: 14.5, fontWeight: '600', color: '#C13515' },
 
   /* footer */
   footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },

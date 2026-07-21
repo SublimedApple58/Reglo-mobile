@@ -72,6 +72,7 @@ import {
   UserPublic,
   AutoscuolaSettings,
   CreateInstructorBlockInput,
+  UpdateInstructorBlockInput,
   InstructorBlock,
   AutoscuolaHoliday,
   DailyAvailabilityOverride,
@@ -635,6 +636,11 @@ export const createRegloApi = (baseUrl?: string) => {
     createInstructorBlock: async (input: CreateInstructorBlockInput) =>
       client.request<InstructorBlock>('/api/autoscuole/instructor-blocks', {
         method: 'POST',
+        body: input,
+      }),
+    updateInstructorBlock: async (blockId: string, input: UpdateInstructorBlockInput) =>
+      client.request<InstructorBlock>(`/api/autoscuole/instructor-blocks/${blockId}`, {
+        method: 'PATCH',
         body: input,
       }),
     deleteInstructorBlock: async (blockId: string) =>
