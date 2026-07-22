@@ -108,6 +108,11 @@ export type AutoscuolaStudent = {
   transmission?: string | null;
   // Whether the student may participate in group driving lessons (Guide di gruppo).
   groupLessonsOptIn?: boolean;
+  // Fase del percorso (AWAITING/TEORIA/PRATICA/PATENTATO).
+  studentPhase?: AutoscuolaStudentPhase;
+  // Segnale interno "pronto per l'esame" (solo PRATICA). Non vincola nulla.
+  examReady?: boolean;
+  examReadyAt?: IsoDate | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };

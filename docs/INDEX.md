@@ -8,6 +8,7 @@
 | Guide annullate (vista allievo) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `settings/le-tue-guide`, `SettingsScreen`, `allLessonsStore` |
 | Availability Editor | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception` |
 | Swaps | [swaps.md](features/swaps.md) | `SwapOffersScreen` |
+| Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |

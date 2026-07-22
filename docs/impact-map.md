@@ -69,6 +69,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Booking Flow**: exam is a special appointment type
 - → **Settings**: reads cluster config for student grouping
 - → **Backend**: `createExam()`, `getStudents()`, `getInstructorSettings()`
+- → **Pronto per l'esame**: il picker (`select-exam-students`) differenzia i pronti (badge + anello + ordine); flag non vincolante
+
+### Pronto per l'esame (exam-ready)
+- → **Notes (istruttore)**: toggle in `StudentNotesDetailScreen` (solo PRATICA), `setStudentExamReady`
+- → **Exam Creation**: badge "Pronto" nel picker + ordine pronti-in-cima
+- → **Backend**: `PATCH /api/autoscuole/students/:id/exam-ready`; `AutoscuolaStudent.examReady`, `getInstructorSettings().students[].examReady`
 
 ### Group Lessons (manage)
 - → **IstruttoreHome**: `openGroupLessonManage(groupLessonId)` opens `home/manage-group-lesson` (page sheet) from both the day-detail card and the hour-grid card (`openLessonDrawer` short-circuit on `type==='group_lesson'`). Refreshes via `loadData()` on `onChanged`.

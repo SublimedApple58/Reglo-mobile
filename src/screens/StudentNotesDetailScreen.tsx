@@ -65,6 +65,10 @@ export const StudentNotesDetailScreen = () => {
   const [groupEnabled, setGroupEnabled] = useState(false);
   const [groupOptIn, setGroupOptIn] = useState(false);
   const [groupSaving, setGroupSaving] = useState(false);
+  // "Pronto per l'esame" — segnale interno, solo per allievi in fase PRATICA.
+  const [studentPhase, setStudentPhase] = useState<string | null>(null);
+  const [examReady, setExamReady] = useState(false);
+  const [examReadySaving, setExamReadySaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -87,6 +91,8 @@ export const StudentNotesDetailScreen = () => {
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
         setGroupOptIn(me.groupLessonsOptIn ?? false);
+        setStudentPhase(me.studentPhase ?? null);
+        setExamReady(me.examReady ?? false);
       }
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
@@ -363,6 +369,36 @@ export const StudentNotesDetailScreen = () => {
                     setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
                   } finally {
                     setGroupSaving(false);
+                  }
+                }}
+              />
+            </Animated.View>
+          ) : null}
+
+          {/* Pronto per l'esame — toggle interno, solo in fase PRATICA */}
+          {!loading && studentPhase === 'PRATICA' ? (
+            <Animated.View entering={FadeIn.duration(350)} style={s.groupOptBlock}>
+              <Image source={FLUENT_GRADUATE} style={s.groupOptIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.groupOptTitle}>Pronto per l&apos;esame</Text>
+                <Text style={s.groupOptSub}>
+                  {examReady ? 'Segnato come pronto' : 'Non segnato'}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={examReady}
+                disabled={examReadySaving}
+                onValueChange={async (next) => {
+                  setExamReady(next);
+                  setExamReadySaving(true);
+                  try {
+                    await regloApi.setStudentExamReady(String(studentId), next);
+                    setToast({ text: next ? 'Allievo segnato pronto per l\'esame.' : 'Rimosso dai pronti.', tone: 'success' });
+                  } catch (e) {
+                    setExamReady(!next);
+                    setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+                  } finally {
+                    setExamReadySaving(false);
                   }
                 }}
               />

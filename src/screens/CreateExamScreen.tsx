@@ -59,6 +59,7 @@ type StudentItem = {
   clusterLabel: string | null; // "Mio gruppo" | "<istruttore>" | null
   isMyCluster: boolean;
   license: string | null; // categoria patente in preparazione (B, A2, …)
+  examReady: boolean; // segnato "pronto per l'esame" (segnale interno)
 };
 
 /* ── Flat row inside the elevated card (icon · label · value · chevron) ── */
@@ -107,7 +108,7 @@ export const CreateExamScreen = () => {
             let clusterLabel: string | null = null;
             if (isMyCluster) clusterLabel = 'Mio gruppo';
             else if (st.assignedInstructorId) clusterLabel = instructorNameById.get(st.assignedInstructorId) ?? 'Altro gruppo';
-            return { id: st.id, firstName: st.firstName ?? '', lastName: st.lastName ?? '', clusterLabel, isMyCluster, license: st.licenseCategory ?? null };
+            return { id: st.id, firstName: st.firstName ?? '', lastName: st.lastName ?? '', clusterLabel, isMyCluster, license: st.licenseCategory ?? null, examReady: st.examReady ?? false };
           }),
         );
       } else {
@@ -120,6 +121,7 @@ export const CreateExamScreen = () => {
             clusterLabel: null,
             isMyCluster: false,
             license: (st.licenseCategory as string | null | undefined) ?? null,
+            examReady: (st.examReady as boolean | undefined) ?? false,
           })),
         );
       }
@@ -151,13 +153,18 @@ export const CreateExamScreen = () => {
   if (!data) return <View style={s.root} />;
 
   const openStudentsPicker = () => {
-    const options: ExamStudentOption[] = students.map((st) => ({
-      value: st.id,
-      label: `${st.firstName} ${st.lastName}`.trim(),
-      subtitle: st.clusterLabel,
-      isMyCluster: st.isMyCluster,
-      license: st.license,
-    }));
+    const options: ExamStudentOption[] = students
+      // Chicca: gli allievi "pronti" salgono in cima al picker.
+      .slice()
+      .sort((a, b) => Number(b.examReady) - Number(a.examReady))
+      .map((st) => ({
+        value: st.id,
+        label: `${st.firstName} ${st.lastName}`.trim(),
+        subtitle: st.clusterLabel,
+        isMyCluster: st.isMyCluster,
+        license: st.license,
+        examReady: st.examReady,
+      }));
     examStudentsStore.set({ selectedIds, options, onConfirm: setSelectedIds });
     router.push('/(tabs)/home/select-exam-students');
   };

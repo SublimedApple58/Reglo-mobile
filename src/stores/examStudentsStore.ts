@@ -12,6 +12,8 @@ export type ExamStudentOption = {
   isMyCluster: boolean;
   /** Categoria patente in preparazione (B, A2, …). Mostrata nella lista. */
   license?: string | null;
+  /** Segnato "pronto per l'esame" (segnale interno). Badge + ordine in cima. */
+  examReady?: boolean;
 };
 
 export type ExamStudentsData = {

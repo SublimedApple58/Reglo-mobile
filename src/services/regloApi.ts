@@ -220,7 +220,7 @@ export const createRegloApi = (baseUrl?: string) => {
         autonomousMode: boolean;
         settings: InstructorClusterSettings;
         companyDefaults: CompanyBookingDefaults;
-        students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null; licenseCategory?: string | null; transmission?: string | null }>;
+        students: Array<{ id: string; firstName: string; lastName: string; assignedInstructorId: string | null; licenseCategory?: string | null; transmission?: string | null; studentPhase?: string; examReady?: boolean; examReadyAt?: string | null }>;
         assignedStudentIds: string[];
         /** Codice di invito personale: gli allievi che si registrano con questo codice entrano nel gruppo dell'istruttore. */
         inviteCode?: string | null;
@@ -335,6 +335,13 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<{ groupLessonsOptIn: boolean }>(
         `/api/autoscuole/students/${studentId}/group-lesson-opt-in`,
         { method: 'PATCH', body: { optIn } },
+      ),
+
+    // "Pronto per l'esame" — segnale interno impostabile da istruttore/titolare.
+    setStudentExamReady: async (studentId: string, ready: boolean) =>
+      client.request<{ examReady: boolean; examReadyAt: string | null }>(
+        `/api/autoscuole/students/${studentId}/exam-ready`,
+        { method: 'PATCH', body: { ready } },
       ),
 
     declareWeeklyAbsence: async (input: { weekStart: string }) =>

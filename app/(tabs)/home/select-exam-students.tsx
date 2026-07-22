@@ -108,13 +108,18 @@ export default function SelectExamStudentsScreen() {
               <View key={o.value}>
                 {idx > 0 ? <View style={s.divider} /> : null}
                 <Pressable onPress={() => toggle(o.value)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-                  <View style={[s.avatar, selected && { backgroundColor: NAVY }]}>
+                  <View style={[s.avatar, o.examReady && !selected && s.avatarReady, selected && { backgroundColor: NAVY }]}>
                     <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
                   </View>
                   <View style={s.body}>
                     <Text style={s.name} numberOfLines={1}>{o.label}</Text>
-                    {o.license || o.subtitle ? (
+                    {o.license || o.subtitle || o.examReady ? (
                       <View style={s.metaRow}>
+                        {o.examReady ? (
+                          <View style={s.readyBadge}>
+                            <Text style={s.readyTxt} numberOfLines={1}>Pronto</Text>
+                          </View>
+                        ) : null}
                         {o.license ? (
                           <View style={s.licenseBadge}>
                             <Text style={s.licenseTxt} numberOfLines={1}>Patente {o.license}</Text>
@@ -169,10 +174,13 @@ const s = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 60 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 64 },
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
+  avatarReady: { borderWidth: 2, borderColor: '#1A7F50' },
   avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },
   body: { flex: 1, minWidth: 0, gap: 3 },
   name: { fontSize: 16, fontWeight: '600', color: INK },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  readyBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F0FAF4', borderWidth: 1, borderColor: '#C5E8D4' },
+  readyTxt: { fontSize: 11, fontWeight: '700', color: '#1A7F50' },
   licenseBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#EEF2FF' },
   licenseTxt: { fontSize: 11, fontWeight: '600', color: '#4338CA' },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F1F5F9' },
