@@ -151,14 +151,16 @@ export default function ExamManageScreen() {
           .map((st) => {
             const isMyCluster = Boolean(myId) && st.assignedInstructorId === myId;
             const subtitle = isMyCluster ? 'Mio gruppo' : st.assignedInstructorId ? (nameById.get(st.assignedInstructorId) ?? 'Altro gruppo') : null;
-            return { value: st.id, label: `${st.firstName ?? ''} ${st.lastName ?? ''}`.trim(), subtitle, isMyCluster, license: st.licenseCategory ?? null };
+            return { value: st.id, label: `${st.firstName ?? ''} ${st.lastName ?? ''}`.trim(), subtitle, isMyCluster, license: st.licenseCategory ?? null, examReady: st.examReady ?? false };
           });
       } else {
         const res = await regloApi.getStudents();
         options = res
-          .map((st: Record<string, unknown>) => ({ value: st.id as string, label: `${(st.firstName ?? st.name ?? '') as string} ${(st.lastName ?? '') as string}`.trim(), subtitle: null, isMyCluster: false, license: (st.licenseCategory as string | null | undefined) ?? null }))
+          .map((st: Record<string, unknown>) => ({ value: st.id as string, label: `${(st.firstName ?? st.name ?? '') as string} ${(st.lastName ?? '') as string}`.trim(), subtitle: null, isMyCluster: false, license: (st.licenseCategory as string | null | undefined) ?? null, examReady: (st.examReady as boolean | undefined) ?? false }))
           .filter((o) => !currentIds.has(o.value));
       }
+      // Come nel picker di creazione: i "pronti" salgono in cima al picker.
+      options.sort((a, b) => Number(Boolean(b.examReady)) - Number(Boolean(a.examReady)));
       examStudentsStore.set({ selectedIds: [], options, onConfirm: (ids) => addStudents(ids, options) });
       router.push('/(tabs)/home/select-exam-students');
     } catch {
