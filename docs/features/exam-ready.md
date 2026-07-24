@@ -13,6 +13,7 @@ Segnale **interno** che marca gli allievi **PRATICA** come "pronti per l'esame".
 | `src/screens/CreateExamScreen.tsx` | `StudentItem.examReady`; carry dai due rami di `loadStudents`; picker ordinato pronti-in-cima. |
 | `app/(tabs)/home/select-exam-students.tsx` | Picker condiviso: badge verde "Pronto" nel `metaRow` + anello verde sull'avatar (si accende quando l'opzione ha `examReady`). |
 | `app/(tabs)/home/exam-manage.tsx` | **Modifica esame** → "Aggiungi allievi": `openAddStudents` popola `examReady` in entrambi i rami (settings + fallback) e ordina i pronti in cima, così il picker condiviso mostra badge/anello anche in modifica (fase 2, 2026-07-24). Le righe dei partecipanti **già iscritti** non mostrano il badge (vengono da `realAppts`, senza `examReady`; scelta deliberata per non forzare un fetch extra). |
+| `src/types/notifications.ts` · `src/components/NotificationOverlay.tsx` · `src/screens/NotificationInboxScreen.tsx` · `app/(tabs)/_layout.tsx` | **Nudge titolare (E)** `exam_ready_nudge`. Handler **owner-gated** nell'overlay; l'overlay ora renderizza anche per il titolare PURO (guard `!isStudent && !isInstructor && !isOwner`, prop `isOwner` passata da `_layout`). Inbox: icona `ribbon-outline`, titolo "N allievi pronti per l'esame". Backend + recovery: `../reglo`. |
 
 ## Note
 

@@ -31,6 +31,7 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 | `appointment_rescheduled` | Toast | Acknowledge |
 | `appointment_cancelled` | Toast | Acknowledge |
 | `availability_published` | Toast + route | Route to home/booking |
+| `exam_ready_nudge` | Inbox (Toast) | **Owner-only**. Handler owner-gated in `NotificationOverlay` (`isOwner`). "N allievi pronti per l'esame". Id stabile `exam_ready_nudge_{companyId}` → dedup push/recovery. Overlay ora renderizza anche per titolare PURO (guard rilassato + prop `isOwner` da `_layout.tsx`). |
 
 ## Inbox features
 - Design-system layout: sticky blur header (back + "Notifiche" + "Segna tutte"), off-white, `Animated.FlatList`, per-kind tinted icon chips (`THEME` map), Fluent `fluent-bell.png` empty state. No beige.

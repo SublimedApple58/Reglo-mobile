@@ -68,10 +68,11 @@ const findLinkedStudent = (
 type Props = {
   isStudent: boolean;
   isInstructor?: boolean;
+  isOwner?: boolean;
   swapEnabled: boolean;
 };
 
-export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabled }: Props) => {
+export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner = false, swapEnabled }: Props) => {
   const { user, activeCompanyId } = useSession();
   const { phase: studentPhase } = useStudentPhase();
   const router = useRouter();
@@ -813,6 +814,32 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     return unsub;
   }, [isInstructor]);
 
+  // ── Owner push intents (exam_ready_nudge) ──
+  // Il titolare PURO (OWNER, non INSTRUCTOR_OWNER) non passa da isInstructor:
+  // gestiamo qui il nudge "allievi pronti per l'esame". Id stabile (companyId)
+  // così push e recovery non creano doppioni in inbox.
+  useEffect(() => {
+    if (!isOwner) return;
+    const unsub = subscribePushIntent((intent, data) => {
+      if (intent === 'exam_ready_nudge') {
+        const persisted: PersistedNotification = {
+          kind: 'exam_ready_nudge',
+          id: `exam_ready_nudge_${data?.companyId ?? 'current'}`,
+          data: { count: Number(data?.count ?? 0) },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+      }
+    });
+    return unsub;
+  }, [isOwner]);
+
   // ── Check slot overlap ──
   const checkBusy = useCallback((startsAt: string, endsAt: string | null): string | null => {
     const offerStart = new Date(startsAt).getTime();
@@ -1030,7 +1057,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, swapEnabl
     router.push('/(tabs)/inbox');
   };
 
-  if (!isStudent && !isInstructor) return null;
+  if (!isStudent && !isInstructor && !isOwner) return null;
 
   return (
     <>

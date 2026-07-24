@@ -104,7 +104,12 @@ export default function TabsLayout() {
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />
       </Tabs>
-      <NotificationOverlay isStudent={isStudent} isInstructor={isInstructor} swapEnabled={swapEnabled} />
+      <NotificationOverlay
+        isStudent={isStudent}
+        isInstructor={isInstructor}
+        isOwner={autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR_OWNER'}
+        swapEnabled={swapEnabled}
+      />
     </>
     </QuizProvider>
   );

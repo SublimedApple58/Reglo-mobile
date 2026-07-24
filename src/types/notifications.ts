@@ -77,6 +77,11 @@ export type StudentPhaseChangeData = {
   toPhase: 'AWAITING' | 'TEORIA' | 'PRATICA' | 'PATENTATO';
 };
 
+// Nudge titolare: N allievi pronti da >2 settimane senza esame in agenda.
+export type ExamReadyNudgeData = {
+  count: number;
+};
+
 export type NotificationItem =
   | { kind: 'waitlist'; id: string; data: AutoscuolaWaitlistOfferWithSlot }
   | { kind: 'group_lesson_invite'; id: string; data: GroupLessonInvite }
@@ -92,7 +97,8 @@ export type NotificationItem =
   | { kind: 'appointment_location_changed'; id: string; data: AppointmentLocationChangedData }
   | { kind: 'theory_exam_countdown'; id: string; data: TheoryExamCountdownData }
   | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData }
-  | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData };
+  | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData }
+  | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

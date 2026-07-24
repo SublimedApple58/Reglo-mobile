@@ -55,6 +55,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   theory_exam_countdown: 'time-outline',
   theory_quiz_inactivity: 'school-outline',
   student_phase_change: 'sparkles-outline',
+  exam_ready_nudge: 'ribbon-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -100,6 +101,10 @@ const getTitle = (item: PersistedNotification): string => {
         default:
           return 'Fase aggiornata';
       }
+    case 'exam_ready_nudge':
+      return item.data.count === 1
+        ? "1 allievo pronto per l'esame"
+        : `${item.data.count} allievi pronti per l'esame`;
   }
 };
 
@@ -146,6 +151,8 @@ const getSubtitle = (item: PersistedNotification): string => {
         default:
           return '';
       }
+    case 'exam_ready_nudge':
+      return 'Pronti da oltre 2 settimane, esame non ancora in agenda';
   }
 };
 
