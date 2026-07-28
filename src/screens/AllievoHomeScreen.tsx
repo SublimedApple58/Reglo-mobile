@@ -362,6 +362,12 @@ export const AllievoHomeScreen = () => {
       setToast({ text: 'Le prenotazioni da app sono gestite dagli istruttori per questa autoscuola.', tone: 'info' });
       return;
     }
+    // Blocco prenotazioni (manuale o automatico per debito): fermalo qui con un
+    // messaggio chiaro invece di lasciarlo cercare slot destinati al rifiuto.
+    if (studentBookingBlocked) {
+      setToast({ text: 'Le tue prenotazioni sono temporaneamente sospese. Contatta la segreteria.', tone: 'danger' });
+      return;
+    }
     setBookingStep(1);
     setBookingSlots([]);
     setBookingSelectedSlot(null);
@@ -377,6 +383,7 @@ export const AllievoHomeScreen = () => {
       slots: [],
       slotsLoading: false,
       loading: false,
+      searchError: null,
       preferredDateAvailable,
       availableDurations,
       availableLessonTypes,
@@ -394,7 +401,7 @@ export const AllievoHomeScreen = () => {
       onSearchSlots: () => {
         const s = bookingFlowStore.get();
         if (!s || !selectedStudentId) return;
-        bookingFlowStore.set({ loading: true });
+        bookingFlowStore.set({ loading: true, searchError: null });
         regloApi.getAvailableSlots({
           studentId: selectedStudentId,
           date: toDateString(s.preferredDate),
@@ -404,8 +411,15 @@ export const AllievoHomeScreen = () => {
         }).then((slots) => {
           bookingFlowStore.set({ slots, slotsLoading: false, loading: false, selectedSlot: null });
           router.push('/(tabs)/home/booking-slots');
-        }).catch(() => {
-          bookingFlowStore.set({ slots: [], slotsLoading: false, loading: false });
+        }).catch((err) => {
+          // Rifiuto gestito dal server (blocco prenotazioni, cutoff, …) o errore
+          // di rete: mai silenzioso — il messaggio compare nel foglio sopra la CTA.
+          bookingFlowStore.set({
+            slots: [], slotsLoading: false, loading: false,
+            searchError: err instanceof Error && err.message && err.message !== 'Request failed'
+              ? err.message
+              : 'Ricerca non riuscita. Controlla la connessione e riprova.',
+          });
         });
       },
       onConfirmBooking: () => {
@@ -551,6 +565,8 @@ export const AllievoHomeScreen = () => {
   const canCancelAppointments = bookingOptions?.studentCancellationEnabled === true;
   const effectiveAppBookingActors = bookingOptions?.appBookingActors ?? settings?.appBookingActors;
   const studentBookingDisabledByPolicy = effectiveAppBookingActors === 'instructors';
+  // Blocco prenotazioni lato allievo (manuale del titolare o auto per debito).
+  const studentBookingBlocked = bookingOptions?.bookingBlocked === true;
   const canBook = !!bookingOptions && !studentBookingDisabledByPolicy;
   const weeklyLimitReached = Boolean(
     bookingOptions?.weeklyBookingLimit?.enabled &&

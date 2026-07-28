@@ -805,6 +805,8 @@ export type MobileBookingOptions = {
   studentCancellationEnabled?: boolean;
   examPriority?: { active: boolean; examDate: string | null };
   blockedByExamPriority?: boolean;
+  /** Blocco prenotazioni (manuale del titolare o automatico per debito). */
+  bookingBlocked?: boolean;
 };
 
 export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };

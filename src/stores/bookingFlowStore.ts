@@ -21,6 +21,9 @@ export type BookingFlowState = {
   slots: AvailableSlot[];
   slotsLoading: boolean;
   loading: boolean;
+  // Server-side rejection of the last search (cutoff, blocco prenotazioni, …):
+  // shown inline in the sheet so the search never fails silently.
+  searchError: string | null;
   preferredDateAvailable: boolean;
   availableDurations: number[];
   availableLessonTypes: string[];

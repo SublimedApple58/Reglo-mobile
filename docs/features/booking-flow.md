@@ -33,6 +33,17 @@ Note: `handleBookingConfirm` and `handleConfirmFreeChoiceSlot` are currently **d
 (defined, never wired) and still use the old `setQueriesData` cache pattern — `onConfirmBooking`
 is the only live path.
 
+## Error surfacing (2026-07-28, caso Robatto)
+- `onSearchSlots` non fallisce mai in silenzio: un 400 gestito dal backend
+  (blocco prenotazioni, cutoff, …) o un errore di rete finisce in
+  `bookingFlowStore.searchError` e viene mostrato in rosso sopra la CTA del
+  foglio `booking-flow.tsx` (si pulisce al cambio giorno / nuova ricerca).
+- `getBookingOptions` espone `bookingBlocked` (blocco manuale del titolare o
+  auto-block per debito, vedi `../reglo/docs/features/auto-booking-block-debt.md`):
+  se `true`, `openBookingFlow` mostra il toast "Le tue prenotazioni sono
+  temporaneamente sospese. Contatta la segreteria." e non apre il foglio.
+  Backward-compatible: campo assente (backend vecchio) = non bloccato.
+
 ## API functions used
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 

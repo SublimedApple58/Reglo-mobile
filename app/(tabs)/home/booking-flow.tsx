@@ -64,7 +64,7 @@ export default function BookingFlowScreen() {
 
   const {
     step, preferredDate, durationMinutes, selectedLessonTypes, selectedInstructorId,
-    slots, slotsLoading, selectedSlot, loading, preferredDateAvailable,
+    slots, slotsLoading, selectedSlot, loading, searchError, preferredDateAvailable,
     availableDurations, availableLessonTypes, canSelectLessonType, canSelectInstructor,
     isLockedToInstructor, assignedInstructorName,
     calendarOpen, calendarMonths, bookingMaxDate, bookedDatesSet, unavailableDatesSet,
@@ -92,6 +92,7 @@ export default function BookingFlowScreen() {
           /* Footer */
           <View style={s.footer}>
             {!isDateAvailable && <Text style={s.unavailable}>Nessuna disponibilità per il giorno selezionato</Text>}
+            {isDateAvailable && !!searchError && !loading && <Text style={s.unavailable}>{searchError}</Text>}
             <Pressable
               onPress={loading || !isDateAvailable ? undefined : onSearchSlots}
               disabled={loading || !isDateAvailable}
@@ -242,7 +243,7 @@ export default function BookingFlowScreen() {
                       const hasBooking = inMonth && bookedDatesSet.has(dk);
                       if (!inMonth) return <View key={`e-${mo.month}-${idx}`} style={s.dayWrap} />;
                       return (
-                        <Pressable key={`c-${mo.month}-${idx}`} onPress={tappable ? () => { bookingFlowStore.set({ preferredDate: date, calendarOpen: false }); } : undefined} disabled={!tappable} style={s.dayWrap}>
+                        <Pressable key={`c-${mo.month}-${idx}`} onPress={tappable ? () => { bookingFlowStore.set({ preferredDate: date, calendarOpen: false, searchError: null }); } : undefined} disabled={!tappable} style={s.dayWrap}>
                           <View style={[s.dayCell, isSel && s.dayCellSel]}>
                             <Text style={[s.dayText, isToday && s.dayTextToday, isSel && s.dayTextSel, (inMonth && (!inRange || isUnavail)) && { color: '#CBD5E1' }]}>{date.getDate()}</Text>
                           </View>
