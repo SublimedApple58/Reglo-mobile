@@ -70,6 +70,8 @@ import {
   UpdateCaseStatusInput,
   UpdateVehicleInput,
   UserPublic,
+  UploadMediaPayload,
+  UploadSignatureInput,
   AutoscuolaSettings,
   CreateInstructorBlockInput,
   UpdateInstructorBlockInput,
@@ -203,6 +205,20 @@ export const createRegloApi = (baseUrl?: string) => {
     updateProfile: async (input: UpdateProfileInput) =>
       client.request<UserPublic>('/api/mobile/profile', {
         method: 'PATCH',
+        body: input,
+      }),
+    uploadProfilePhoto: async (file: { uri: string; name: string; type: string }) => {
+      const form = new FormData();
+      // React Native accetta { uri, name, type } come parte multipart.
+      form.append('file', file as unknown as Blob);
+      return client.request<UploadMediaPayload>('/api/mobile/profile/photo', {
+        method: 'POST',
+        body: form,
+      });
+    },
+    uploadSignature: async (input: UploadSignatureInput) =>
+      client.request<UploadMediaPayload>('/api/mobile/profile/signature', {
+        method: 'POST',
         body: input,
       }),
     getAutoscuolaSettings: async () =>

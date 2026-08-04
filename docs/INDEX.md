@@ -11,6 +11,7 @@
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
+| Foto profilo + Firma allievo | [student-photo-signature.md](features/student-photo-signature.md) | `settings/profile-edit`, `settings/signature`, `SettingsScreen` (avatar), `apiClient` (FormData) |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen` (+ `TitolareHomeScreen` = wrapper `ownerMode`, sola lettura), `InstructorManageScreen` |
 | Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `home/quick-book`, `BookingForm`, `BlockForm` |

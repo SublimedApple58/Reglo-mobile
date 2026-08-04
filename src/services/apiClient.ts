@@ -156,7 +156,10 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
       ...options.headers,
     };
 
-    if (options.body !== undefined) {
+    // FormData (upload multipart): niente Content-Type esplicito, lo imposta
+    // fetch con il boundary corretto. JSON per tutto il resto.
+    const isFormData = options.body instanceof FormData;
+    if (options.body !== undefined && !isFormData) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -176,7 +179,12 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
       response = await fetch(url, {
         method: options.method ?? (options.body ? 'POST' : 'GET'),
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined,
+        body:
+          options.body === undefined
+            ? undefined
+            : isFormData
+              ? (options.body as FormData)
+              : JSON.stringify(options.body),
         signal: controller.signal,
       });
     } finally {

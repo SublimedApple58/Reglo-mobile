@@ -40,6 +40,13 @@
       "expo-secure-store",
       "expo-notifications",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Reglo usa la libreria per caricare la tua foto profilo.",
+          "cameraPermission": "Reglo usa la fotocamera per scattare la tua foto profilo."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/reglo-splash.png",
