@@ -16,8 +16,8 @@
 | `src/components/ProfilePhotoEditor.tsx` | Avatar grande + pill "Modifica" con picker/upload/refresh (condiviso allievo + istruttore/titolare) |
 | `app/(tabs)/settings/profile-edit.tsx` | Profile-edit allievo: `ProfilePhotoEditor` + riga "Firma" (link al pad) |
 | `app/(tabs)/more/profile-edit.tsx` | Profile-edit istruttore/titolare: `ProfilePhotoEditor` (niente firma) |
-| `app/(tabs)/settings/signature.tsx` | Pad firma fullscreen (PanResponder + Svg Path) |
-| `app/(tabs)/settings/_layout.tsx` | Registra `signature` con `PAGE_SHEET` |
+| `app/(tabs)/settings/signature.tsx` | Pad firma FULLSCREEN LANDSCAPE: app portrait-locked, UI ruotata 90° via transform (l'utente gira il telefono); tutta la superficie è il pad; "Annulla"+"Fatto" in alto a dx, "Cancella" a sx. Le coordinate PanResponder restano nello spazio locale → invio tratti invariato |
+| `app/(tabs)/settings/_layout.tsx` | Registra `signature` con `presentation: 'fullScreenModal'` (niente sheet/card) |
 | `src/screens/SettingsScreen.tsx` | Avatar profile card: foto se `user.photoUrl`, altrimenti iniziali |
 | `src/services/apiClient.ts` | Supporto `FormData` (multipart: niente Content-Type manuale, no JSON.stringify) |
 | `src/services/regloApi.ts` | `uploadProfilePhoto`, `uploadSignature` |

@@ -1,27 +1,28 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import { Alert } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../../src/context/SessionContext';
 import { regloApi } from '../../../src/services/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
 
 type Point = { x: number; y: number };
 type Stroke = Point[];
 
 const STROKE_WIDTH = 3;
 const STROKE_COLOR = '#1A1A2E';
+const NAVY = '#1A1A2E';
 
 const strokeToPath = (stroke: Stroke) => {
   if (stroke.length === 0) return '';
@@ -31,9 +32,18 @@ const strokeToPath = (stroke: Stroke) => {
   return `M ${first.x} ${first.y} ` + rest.map((p) => `L ${p.x} ${p.y}`).join(' ');
 };
 
+/**
+ * Firma a TUTTO SCHERMO in orizzontale: l'app è portrait-locked, quindi la UI
+ * viene ruotata di 90° via transform — l'utente gira il telefono e firma su
+ * tutta la superficie. Niente sheet/modal: route fullScreenModal.
+ * Le coordinate del PanResponder restano nello spazio locale (non ruotato)
+ * del canvas, quindi il disegno e l'invio dei tratti non cambiano.
+ */
 export default function SignatureScreen() {
   const router = useRouter();
   const { refreshMe } = useSession();
+  const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
   const [saving, setSaving] = useState(false);
@@ -108,149 +118,133 @@ export default function SignatureScreen() {
   const hasInk = strokes.length > 0 || (currentStroke?.length ?? 0) > 0;
   const allStrokes = currentStroke ? [...strokes, currentStroke] : strokes;
 
+  // Contenitore ruotato di 90°: occupa winH x winW centrato sullo schermo.
+  // Il bordo locale SINISTRO coincide col bordo superiore fisico (notch) e
+  // quello DESTRO con quello inferiore (home indicator) → padding dagli insets.
+  const rotated = {
+    position: 'absolute' as const,
+    width: winH,
+    height: winW,
+    top: (winH - winW) / 2,
+    left: (winW - winH) / 2,
+    transform: [{ rotate: '90deg' }],
+    paddingLeft: Math.max(insets.top, 16),
+    paddingRight: Math.max(insets.bottom, 16),
+  };
+
   return (
     <View style={s.root}>
-      <View style={s.topBar}>
-        <Text style={s.title}>La tua firma</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
-      </View>
-
-      <Text style={s.hint}>Firma con il dito nel riquadro, come su carta.</Text>
-
-      <View style={s.canvasWrap}>
-      <View
-        style={s.canvas}
-        onLayout={(e) => {
-          canvasSize.current = {
-            width: e.nativeEvent.layout.width,
-            height: e.nativeEvent.layout.height,
-          };
-        }}
-        {...panResponder.panHandlers}
-      >
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          {allStrokes.map((stroke, index) => (
-            <Path
-              key={index}
-              d={strokeToPath(stroke)}
-              stroke={STROKE_COLOR}
-              strokeWidth={STROKE_WIDTH}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          ))}
-        </Svg>
-        {!hasInk && (
-          <View pointerEvents="none" style={s.placeholder}>
-            <Ionicons name="create-outline" size={26} color="#C7C7CC" />
-            <Text style={s.placeholderText}>Firma qui</Text>
-          </View>
-        )}
-        <View pointerEvents="none" style={s.baseline} />
-      </View>
-      </View>
-
-      <View style={s.footer}>
-        <Pressable
-          onPress={handleClear}
-          disabled={!hasInk || saving}
-          style={({ pressed }) => [
-            s.secondaryBtn,
-            pressed && { opacity: 0.85 },
-            (!hasInk || saving) && { opacity: 0.4 },
-          ]}
+      <StatusBar hidden />
+      <View style={rotated}>
+        <View
+          style={s.canvas}
+          onLayout={(e) => {
+            canvasSize.current = {
+              width: e.nativeEvent.layout.width,
+              height: e.nativeEvent.layout.height,
+            };
+          }}
+          {...panResponder.panHandlers}
         >
-          <Text style={s.secondaryBtnText}>Cancella</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => void handleConfirm()}
-          disabled={!hasInk || saving}
-          style={({ pressed }) => [
-            s.cta,
-            pressed && { opacity: 0.85 },
-            !hasInk && { opacity: 0.5 },
-          ]}
-        >
-          <GradientCTABackground radius={26} />
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={s.ctaText}>Conferma firma</Text>
+          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+            {allStrokes.map((stroke, index) => (
+              <Path
+                key={index}
+                d={strokeToPath(stroke)}
+                stroke={STROKE_COLOR}
+                strokeWidth={STROKE_WIDTH}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            ))}
+          </Svg>
+          {!hasInk && (
+            <View pointerEvents="none" style={s.placeholder}>
+              <Ionicons name="create-outline" size={30} color="#D5D5DA" />
+              <Text style={s.placeholderText}>Firma qui, in orizzontale, su tutto lo schermo</Text>
+            </View>
           )}
-        </Pressable>
+          <View pointerEvents="none" style={s.baseline} />
+        </View>
+
+        {/* Comandi sospesi: Cancella a sinistra, Annulla + Fatto in alto a destra */}
+        <View style={s.topBar} pointerEvents="box-none">
+          {hasInk && !saving ? (
+            <Pressable onPress={handleClear} style={({ pressed }) => [s.ghostBtn, pressed && { opacity: 0.7 }]}>
+              <Text style={s.ghostText}>Cancella</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          <View style={s.topRight}>
+            <Pressable
+              onPress={() => router.back()}
+              disabled={saving}
+              style={({ pressed }) => [s.ghostBtn, pressed && { opacity: 0.7 }, saving && { opacity: 0.4 }]}
+            >
+              <Text style={s.ghostText}>Annulla</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void handleConfirm()}
+              disabled={!hasInk || saving}
+              style={({ pressed }) => [s.doneBtn, pressed && { opacity: 0.85 }, !hasInk && { opacity: 0.4 }]}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={s.doneText}>Fatto</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: 20,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 32,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
-  closeBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center',
-  },
-  hint: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginBottom: 16 },
-  canvasWrap: { flex: 1, justifyContent: 'center' },
-  // Striscia larga: la firma reale è orizzontale (il portale la vuole 30x6mm).
-  canvas: {
-    width: '100%',
-    aspectRatio: 2.1,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
+  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  canvas: { flex: 1, backgroundColor: '#FFFFFF' },
   placeholder: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
   },
-  placeholderText: { fontSize: 14, fontWeight: '500', color: '#C7C7CC' },
+  placeholderText: { fontSize: 15, fontWeight: '500', color: '#C7C7CC' },
   baseline: {
     position: 'absolute',
-    left: 28,
-    right: 28,
-    bottom: 36,
+    left: 60,
+    right: 60,
+    bottom: 64,
     height: 1,
     backgroundColor: '#E9EBF2',
   },
-  footer: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  secondaryBtn: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
+  topBar: {
+    position: 'absolute',
+    top: 14,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  secondaryBtnText: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
-  cta: {
-    flex: 2,
-    minHeight: 50,
-    borderRadius: 26,
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ghostBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: '#F1F2F4',
+  },
+  ghostText: { fontSize: 15, fontWeight: '600', color: NAVY },
+  doneBtn: {
+    minWidth: 88,
     alignItems: 'center',
-    justifyContent: 'center',
-    ...primaryCtaShadow,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: NAVY,
   },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  doneText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
 });
