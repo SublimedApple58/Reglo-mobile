@@ -21,6 +21,7 @@ import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
 import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { vehicleServesStudent as vehicleServesStudentShared, MOTO_LICENSE_CATEGORIES } from '../utils/license';
@@ -408,9 +409,11 @@ export const CreateGroupLessonScreen = () => {
             {selectedStudents.length > 0 ? (
               <View style={s.avatarStack}>
                 {selectedStudents.slice(0, 3).map((st, idx) => (
-                  <View key={st.id} style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
-                    <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
-                  </View>
+                  <UserPhotoCircle key={st.id} userId={st.id} size={30} style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx, borderWidth: 2, borderColor: '#FFFFFF' }}>
+                    <View style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
+                      <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
+                    </View>
+                  </UserPhotoCircle>
                 ))}
               </View>
             ) : null}

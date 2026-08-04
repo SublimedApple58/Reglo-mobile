@@ -26,6 +26,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
@@ -228,9 +229,11 @@ export const InstructorNotesScreen = () => {
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
           onPress={() => navigateToStudent(student)}
         >
-          <View style={[styles.avatar, { backgroundColor: bg }]}>
-            <Text style={[styles.avatarText, { color: fg }]}>{initials}</Text>
-          </View>
+          <UserPhotoCircle userId={student.id} size={54}>
+            <View style={[styles.avatar, { backgroundColor: bg }]}>
+              <Text style={[styles.avatarText, { color: fg }]}>{initials}</Text>
+            </View>
+          </UserPhotoCircle>
           <View style={styles.rowBody}>
             <Text style={styles.rowName} numberOfLines={1}>{student.firstName} {student.lastName}</Text>
             <Text style={styles.rowSub} numberOfLines={1}>

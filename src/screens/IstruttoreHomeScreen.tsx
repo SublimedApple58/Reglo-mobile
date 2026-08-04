@@ -40,6 +40,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -3354,9 +3355,17 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       )}
                       <Pressable onPress={() => openLessonDrawer(a)} style={({ pressed }) => [styles.itinCard, isActive && styles.itinCardActive, pressed && styles.itinCardPressed]}>
                         <View style={styles.itinTop}>
-                          <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
-                            {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
-                          </View>
+                          {config.isExam ? (
+                            <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
+                              {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
+                            </View>
+                          ) : (
+                            <UserPhotoCircle userId={a.student?.id} size={42}>
+                              <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
+                                {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
+                              </View>
+                            </UserPhotoCircle>
+                          )}
                           <View style={{ flex: 1 }}>
                             <Text style={styles.itinName} numberOfLines={1}>{nm}</Text>
                             <Text style={styles.itinMeta} numberOfLines={1}>{meta}</Text>

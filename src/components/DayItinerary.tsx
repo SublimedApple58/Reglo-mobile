@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BookableBand } from './BookableBand';
+import { UserPhotoCircle } from './UserPhotoCircle';
 import { fmtClockFull, fmtDuration, BLOCK_PRESENTATION, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
 import { colors } from '../theme';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
@@ -193,7 +194,9 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
             <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
             <Pressable onPress={() => onOpenLesson(a)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
               <View style={styles.cardTop}>
-                <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+                <UserPhotoCircle userId={a.student?.id} size={42}>
+                  <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+                </UserPhotoCircle>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name} numberOfLines={1}>{name}</Text>
                   <Text style={styles.meta} numberOfLines={1}>{fmtDuration(row.durationMin)}</Text>

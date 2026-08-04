@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -99,8 +99,12 @@ export const MoreScreen = () => {
           <View style={styles.editBadge}>
             <Ionicons name="create-outline" size={17} color="#929292" />
           </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initialsFrom(user?.name ?? null, user?.email ?? '')}</Text>
+          <View style={[styles.avatar, { overflow: 'hidden' }]}>
+            {user?.photoUrl ? (
+              <Image source={{ uri: user.photoUrl }} style={{ width: 84, height: 84, borderRadius: 42 }} />
+            ) : (
+              <Text style={styles.avatarText}>{initialsFrom(user?.name ?? null, user?.email ?? '')}</Text>
+            )}
           </View>
           <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
           {user?.email ? <Text style={styles.heroEmail} numberOfLines={1}>{user.email}</Text> : null}

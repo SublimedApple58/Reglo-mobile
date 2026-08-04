@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
+import { UserPhotoCircle } from './UserPhotoCircle';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 
@@ -64,7 +65,9 @@ export const WeeklyLiveCard = ({
         ) : isGroup ? (
           <View style={styles.avatar}><Ionicons name="people" size={22} color="#1A1A2E" /></View>
         ) : (
-          <View style={styles.avatar}><Text style={styles.avatarTx}>{initials}</Text></View>
+          <UserPhotoCircle userId={lesson.student?.id} size={48}>
+            <View style={styles.avatar}><Text style={styles.avatarTx}>{initials}</Text></View>
+          </UserPhotoCircle>
         )}
         <View style={{ flex: 1 }}>
           {isExam ? <Text style={styles.examKicker}>Esame di guida</Text> : null}

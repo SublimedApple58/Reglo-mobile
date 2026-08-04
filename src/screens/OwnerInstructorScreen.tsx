@@ -20,6 +20,7 @@ import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { SkeletonBlock } from '../components/Skeleton';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { ToastNotice } from '../components/ToastNotice';
 import { MiniCalendar } from '../components/MiniCalendar';
 import RangesEditor from '../components/RangesEditor';
@@ -663,21 +664,23 @@ export const OwnerInstructorScreen = () => {
                   >
                     {/* Avatar with status dot */}
                     <View>
-                      <View
-                        style={[
-                          styles.instructorCardAvatar,
-                          { backgroundColor: color + '20' },
-                        ]}
-                      >
-                        <Text
+                      <UserPhotoCircle userId={instructor.userId} size={56}>
+                        <View
                           style={[
-                            styles.instructorCardInitials,
-                            { color },
+                            styles.instructorCardAvatar,
+                            { backgroundColor: color + '20' },
                           ]}
                         >
-                          {getInitials(instructor.name)}
-                        </Text>
-                      </View>
+                          <Text
+                            style={[
+                              styles.instructorCardInitials,
+                              { color },
+                            ]}
+                          >
+                            {getInitials(instructor.name)}
+                          </Text>
+                        </View>
+                      </UserPhotoCircle>
                       <View
                         style={[
                           styles.instructorCardStatusDot,
@@ -729,11 +732,13 @@ export const OwnerInstructorScreen = () => {
           <View style={styles.detailCard}>
             {/* Top row */}
             <View style={styles.detailTop}>
-              <View style={styles.detailAvatarSmall}>
-                <Text style={styles.detailAvatarInitials}>
-                  {getInitials(selectedInstructor.name)}
-                </Text>
-              </View>
+              <UserPhotoCircle userId={selectedInstructor.userId} size={52}>
+                <View style={styles.detailAvatarSmall}>
+                  <Text style={styles.detailAvatarInitials}>
+                    {getInitials(selectedInstructor.name)}
+                  </Text>
+                </View>
+              </UserPhotoCircle>
               <View style={styles.detailInfo}>
                 <Text style={styles.detailName}>{selectedInstructor.name}</Text>
                 <Text style={styles.detailMeta}>

@@ -7,6 +7,7 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { examStudentsStore, type ExamStudentOption } from '../../../src/stores/examStudentsStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { spacing } from '../../../src/theme/spacing';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 
@@ -270,7 +271,9 @@ export default function ExamManageScreen() {
               onPress={() => openStudent(a)}
               style={({ pressed }) => [s.studentRow, idx === realAppts.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}
             >
-              <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
+              <UserPhotoCircle userId={a.student?.id} size={42}>
+                <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
+              </UserPhotoCircle>
               <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
               {readOnly ? (
                 <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />

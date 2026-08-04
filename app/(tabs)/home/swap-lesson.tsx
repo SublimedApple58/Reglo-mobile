@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { swapStore } from '../../../src/stores/swapStore';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -117,9 +118,11 @@ export default function SwapLessonScreen() {
                   <View key={appt.id}>
                     {idx > 0 ? <View style={s.divider} /> : null}
                     <Pressable onPress={() => confirmSwap(appt)} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-                      <View style={s.avatar}>
-                        <Text style={s.avatarText}>{(appt.student?.firstName ?? '?').slice(0, 1).toUpperCase()}</Text>
-                      </View>
+                      <UserPhotoCircle userId={appt.student?.id} size={36}>
+                        <View style={s.avatar}>
+                          <Text style={s.avatarText}>{(appt.student?.firstName ?? '?').slice(0, 1).toUpperCase()}</Text>
+                        </View>
+                      </UserPhotoCircle>
                       <View style={s.rowBody}>
                         <Text style={s.rowName} numberOfLines={1}>
                           {appt.student?.firstName ?? ''} {appt.student?.lastName ?? ''}

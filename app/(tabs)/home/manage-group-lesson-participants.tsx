@@ -11,6 +11,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { LICENSE_CATEGORY_LABELS } from '../../../src/utils/license';
 
 // Patente che l'allievo sta facendo (categoria del veicolo assegnato) + — per i
@@ -289,7 +290,9 @@ export default function ManageGroupLessonParticipantsScreen() {
             <View key={p.appointmentId} style={removingId === p.studentId ? { opacity: 0.4 } : undefined}>
               {idx > 0 ? <View style={s.divider} /> : null}
               <View style={s.row}>
-                <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
+                <UserPhotoCircle userId={p.studentId} size={34}>
+                  <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
+                </UserPhotoCircle>
                 <Pressable
                   onPress={() => openNote(p)}
                   disabled={busy}

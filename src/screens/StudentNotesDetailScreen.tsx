@@ -21,6 +21,7 @@ import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
@@ -258,7 +259,9 @@ export const StudentNotesDetailScreen = () => {
           {/* FRONT */}
           <Animated.View style={[s.face, s.faceFront, frontStyle]}>
             <View style={s.profileLeft}>
-              <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
+              <UserPhotoCircle userId={studentId} size={72} style={{ marginBottom: 8 }}>
+                <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
+              </UserPhotoCircle>
               <Text style={s.profileName} numberOfLines={1}>{firstName}</Text>
               {licenseLabel ? (
                 <View style={s.licenseChip}>
