@@ -59,6 +59,8 @@ type RequestOptions = {
   headers?: Record<string, string>;
   token?: string | null;
   companyId?: string | null;
+  /** Override del timeout (default 15s); alzarlo per gli upload. */
+  timeoutMs?: number;
 };
 
 export class RegloApiError extends Error {
@@ -172,7 +174,7 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? 15_000);
 
     let response: Response;
     try {

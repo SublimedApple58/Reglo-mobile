@@ -214,6 +214,7 @@ export const createRegloApi = (baseUrl?: string) => {
       return client.request<UploadMediaPayload>('/api/mobile/profile/photo', {
         method: 'POST',
         body: form,
+        timeoutMs: 60_000,
       });
     },
     uploadSignature: async (input: UploadSignatureInput) =>
