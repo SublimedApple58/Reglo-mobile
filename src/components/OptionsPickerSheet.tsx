@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { optionsPickerStore } from '../stores/optionsPickerStore';
+import { UserPhotoCircle } from './UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -51,7 +52,9 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
         >
           {o.leadingInitials ? (
-            <View style={s.avatar}><Text style={s.avatarText}>{o.leadingInitials}</Text></View>
+            <UserPhotoCircle userId={o.leadingUserId} size={36} style={{ marginRight: 13 }}>
+              <View style={s.avatar}><Text style={s.avatarText}>{o.leadingInitials}</Text></View>
+            </UserPhotoCircle>
           ) : null}
           <View style={s.body}>
             <Text style={[s.label, on && { fontWeight: '600' }]} numberOfLines={1}>{o.label}</Text>

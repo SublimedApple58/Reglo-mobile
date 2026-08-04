@@ -177,7 +177,7 @@ export default function ManageGroupLessonParticipantsScreen() {
         title: 'Aggiungi allievo',
         multi: false,
         selected: [],
-        options: list.map((e) => ({ value: e.id, label: e.name ?? 'Allievo', leadingInitials: initialsOf(e.name ?? null) })),
+        options: list.map((e) => ({ value: e.id, label: e.name ?? 'Allievo', leadingInitials: initialsOf(e.name ?? null), leadingUserId: e.id })),
         onConfirm: (values) => {
           const studentId = values[0];
           if (!studentId) return;

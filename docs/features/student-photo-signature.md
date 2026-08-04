@@ -27,7 +27,7 @@
 - `src/services/userPhotos.ts` — cache + batching (60ms) su `GET /api/autoscuole/user-photos`; hook `useUserPhotoUrl`/`useInstructorPhotoUrl` + `invalidateUserPhoto`.
 - `src/components/UserPhotoCircle.tsx` — wrapper: foto se presente, children (iniziali) altrimenti.
 - Siti patchati: DayItinerary, WeeklyLiveCard, IstruttoreHomeScreen, exam-manage, CreateExamScreen, CreateGroupLessonScreen, manage-group-lesson-participants, InstructorNotesScreen, notes/group-students, StudentNotesDetailScreen, swap-lesson/swap-detail/SwapOffersScreen, OwnerInstructorScreen (via `instructor.userId`), MoreScreen (self, da `user.photoUrl`).
-- **Esclusi (label-only, eventuale follow-up)**: picker `select-student`, `select-exam-students`, `OptionsPickerSheet` (`leadingInitials`), avatar in `BookingForm`.
+- Picker inclusi: `select-student` e `select-exam-students` (il `value` delle opzioni È lo userId), `OptionsPickerSheet` (nuovo campo opzionale `leadingUserId` su `OptionItem`, seedato da "Aggiungi allievo"), avatar allievo selezionato in `BookingForm`.
 
 ## Connessioni
 

@@ -23,6 +23,7 @@ import { regloApi } from '../../services/regloApi';
 import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
+import { UserPhotoCircle } from '../UserPhotoCircle';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
 import { loadLastBookingSelection, saveLastBookingSelection, type LastBookingSelection } from '../../utils/lastBookingSelection';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
@@ -597,7 +598,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
             disabled={pending || !studentOptions.length}
             leading={
               selectedStudentLabel
-                ? <View style={s.avatar}><Text style={s.avatarTxt}>{initialsOf(selectedStudentLabel)}</Text></View>
+                ? (
+                  <UserPhotoCircle userId={studentId || null} size={44}>
+                    <View style={s.avatar}><Text style={s.avatarTxt}>{initialsOf(selectedStudentLabel)}</Text></View>
+                  </UserPhotoCircle>
+                )
                 : <View style={s.rowIcon}><Ionicons name="person-outline" size={22} color={NAVY} /></View>
             }
           />

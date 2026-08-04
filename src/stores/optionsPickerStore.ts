@@ -12,6 +12,8 @@ export type OptionItem = {
   /** When set, the row shows a neutral leading avatar with these initials
    *  (used by the "Aggiungi allievo" picker to read as a student list). */
   leadingInitials?: string | null;
+  /** userId per mostrare la foto profilo al posto delle iniziali, se presente. */
+  leadingUserId?: string | null;
 };
 
 export type OptionsPickerData = {

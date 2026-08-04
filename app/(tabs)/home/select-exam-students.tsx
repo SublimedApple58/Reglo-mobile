@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { examStudentsStore } from '../../../src/stores/examStudentsStore';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -108,9 +109,11 @@ export default function SelectExamStudentsScreen() {
               <View key={o.value}>
                 {idx > 0 ? <View style={s.divider} /> : null}
                 <Pressable onPress={() => toggle(o.value)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-                  <View style={[s.avatar, o.examReady && !selected && s.avatarReady, selected && { backgroundColor: NAVY }]}>
-                    <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
-                  </View>
+                  <UserPhotoCircle userId={o.value} size={46} style={o.examReady && !selected ? s.avatarReady : undefined}>
+                    <View style={[s.avatar, o.examReady && !selected && s.avatarReady, selected && { backgroundColor: NAVY }]}>
+                      <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
+                    </View>
+                  </UserPhotoCircle>
                   <View style={s.body}>
                     <Text style={s.name} numberOfLines={1}>{o.label}</Text>
                     {o.license || o.subtitle || o.examReady ? (
