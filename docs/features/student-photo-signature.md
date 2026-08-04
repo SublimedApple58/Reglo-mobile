@@ -13,7 +13,9 @@
 
 | File | Ruolo |
 |------|-------|
-| `app/(tabs)/settings/profile-edit.tsx` | Righe "Foto profilo" (picker + upload) e "Firma" (link al pad); usa `useSession` direttamente |
+| `src/components/ProfilePhotoEditor.tsx` | Avatar grande + pill "Modifica" con picker/upload/refresh (condiviso allievo + istruttore/titolare) |
+| `app/(tabs)/settings/profile-edit.tsx` | Profile-edit allievo: `ProfilePhotoEditor` + riga "Firma" (link al pad) |
+| `app/(tabs)/more/profile-edit.tsx` | Profile-edit istruttore/titolare: `ProfilePhotoEditor` (niente firma) |
 | `app/(tabs)/settings/signature.tsx` | Pad firma fullscreen (PanResponder + Svg Path) |
 | `app/(tabs)/settings/_layout.tsx` | Registra `signature` con `PAGE_SHEET` |
 | `src/screens/SettingsScreen.tsx` | Avatar profile card: foto se `user.photoUrl`, altrimenti iniziali |
