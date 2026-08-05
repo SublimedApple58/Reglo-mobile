@@ -23,6 +23,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { manageLessonStore, type ManageLessonMenuOption } from '../../../src/stores/manageLessonStore';
+import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
 import { correctOutcomeStore } from '../../../src/stores/correctOutcomeStore';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
@@ -361,7 +362,15 @@ export default function ManageLessonScreen() {
     router.push(optionsPickerPath());
   };
 
-  const openDetails = () => router.push('/(tabs)/home/manage-lesson-details');
+  const openDetails = () => {
+    lessonDetailsStore.set({
+      lesson,
+      showRating,
+      isDetailsEditable: data.isDetailsEditable,
+      onSaveDetails: data.onSaveDetails,
+    });
+    router.push('/(tabs)/home/manage-lesson-details');
+  };
 
   // Student detail modal — same route the exam sheet uses, stacks natively
   // over this sheet with its own X close.
