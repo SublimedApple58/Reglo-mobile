@@ -838,6 +838,8 @@ export type ConfirmInstructorBookingInput = {
   // Follow car (auto al seguito) + extra motos for moto lessons.
   followVehicleId?: Uuid | null;
   extraMotoVehicleIds?: Uuid[];
+  // Tipo guida moto (birilli/strada) scelto in creazione. Solo guide moto.
+  motoLessonType?: 'birilli' | 'strada' | null;
   locationId?: Uuid | null;
   lessonType?: string;
   types?: string[];
@@ -853,6 +855,8 @@ export type ConfirmInstructorBookingBatchInput = {
   // Follow car (auto al seguito) + extra motos applied to every entry.
   followVehicleId?: Uuid | null;
   extraMotoVehicleIds?: Uuid[];
+  // Tipo guida moto (birilli/strada) applicato a ogni slot del batch.
+  motoLessonType?: 'birilli' | 'strada' | null;
   lessonType?: string;
   types?: string[];
   skipWeeklyLimitCheck?: boolean;

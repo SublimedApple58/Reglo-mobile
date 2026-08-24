@@ -4,7 +4,9 @@
 // modulo web lib/autoscuole/moto-lesson-type.ts.
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export type MotoLessonType = 'birilli' | 'strada';
+export const MOTO_LESSON_TYPES = ['birilli', 'strada'] as const;
+
+export type MotoLessonType = (typeof MOTO_LESSON_TYPES)[number];
 
 export const MOTO_LESSON_TYPE_LABELS: Record<MotoLessonType, string> = {
   birilli: 'Birilli',
