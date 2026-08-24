@@ -719,10 +719,14 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
               <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={pending} />
             </Animated.View>
           ) : null}
-          <Animated.View layout={LinearTransition.duration(220)}>
-            <View style={s.divider} />
-            <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
-          </Animated.View>
+          {/* Il "Tipo di guida" generico (attività) è ridondante per le moto,
+              che usano "Tipo guida moto" (birilli/strada) → nascosto se moto. */}
+          {!primaryIsMoto ? (
+            <Animated.View layout={LinearTransition.duration(220)}>
+              <View style={s.divider} />
+              <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
+            </Animated.View>
+          ) : null}
         </View>
       </Wrapper>
 
