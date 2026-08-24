@@ -24,7 +24,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Type | Used by (screen count) |
 |------|----------------------|
-| `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens, LessonsOverview (15) — since 2026-06-24 carries `followVehicle` (auto al seguito); a moto lesson reserves **2 vehicles** (moto + follow car). Since 2026-07-20 carries `cancelledAt/penaltyAmount/penaltyCutoffAt/lateCancellationAction` (dal ramo backend `light`), consumati da `LessonsOverview` segmento "Annullate". Display it wherever `vehicle.name` is shown. |
+| `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens, LessonsOverview (15) — since 2026-06-24 carries `followVehicle` (auto al seguito); a moto lesson reserves **2 vehicles** (moto + follow car). Since 2026-07-20 carries `cancelledAt/penaltyAmount/penaltyCutoffAt/lateCancellationAction` (dal ramo backend `light`), consumati da `LessonsOverview` segmento "Annullate". Since REG-399 carries `motoLessonType` (`'birilli'\|'strada'\|null`) — mostrato in sola lettura in `manage-lesson` (riga) e `StudentNotesDetailScreen` (chip); vedi [features/moto-lesson-type.md](features/moto-lesson-type.md). Display it wherever `vehicle.name` is shown. |
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
