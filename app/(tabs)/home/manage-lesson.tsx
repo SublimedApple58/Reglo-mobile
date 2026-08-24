@@ -34,6 +34,7 @@ import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
 import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
@@ -630,6 +631,28 @@ export default function ManageLessonScreen() {
               )}
             </>
           ) : null}
+
+          {/* Tipo guida moto (birilli/strada) — sola lettura. Mostrata solo per
+              le guide moto con il tipo impostato dal web. */}
+          {(() => {
+            const motoType = asMotoLessonType(lesson.motoLessonType);
+            if (!motoType) return null;
+            return (
+              <>
+                <View style={s.rowDivider} />
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}>
+                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={23} color="#1A1A2E" />
+                  </View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Tipo guida moto</Text>
+                    <Text style={s.detailValue} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
+                    <Text style={s.detailValueSub} numberOfLines={1}>{MOTO_LESSON_TYPE_HINTS[motoType]}</Text>
+                  </View>
+                </View>
+              </>
+            );
+          })()}
         </View>
 
         {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet.

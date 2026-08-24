@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { manageLessonStore, ManageLessonData } from '../stores/manageLessonStore';
@@ -26,6 +26,7 @@ import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/reg
 import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -446,6 +447,7 @@ export const StudentNotesDetailScreen = () => {
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
                   const isGroup = (appt.type ?? '').trim().toLowerCase() === 'group_lesson' || !!appt.groupLessonId;
                   const isMotoGroup = appt.groupLessonKind === 'moto';
+                  const motoType = asMotoLessonType(appt.motoLessonType);
                   const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida' && t !== 'group_lesson');
                   return (
                     <View key={appt.id} style={s.tlRow}>
@@ -483,6 +485,12 @@ export const StudentNotesDetailScreen = () => {
                                 </View>
                               );
                             })}
+                          </View>
+                        ) : null}
+                        {!isExam && !isGroup && motoType ? (
+                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: '#EEF0F6', alignSelf: 'flex-start', marginTop: allTypes.length ? 6 : 0 }]}>
+                            <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={12} color="#1A1A2E" />
+                            <Text style={[s.tlChipText, { color: '#1A1A2E' }]}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
                           </View>
                         ) : null}
                         {!isExam ? (

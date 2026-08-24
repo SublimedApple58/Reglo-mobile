@@ -204,6 +204,8 @@ export type AutoscuolaAppointment = {
   groupLessonKind?: string | null;
   /** Posti occupati della guida di gruppo (per lo storico allievo: N/M). */
   groupLessonFilled?: number | null;
+  /** Guida moto: "birilli" (area chiusa, coni) | "strada" | null (non-moto / non impostato). Sola lettura su mobile. */
+  motoLessonType?: 'birilli' | 'strada' | null;
   notes: string | null;
   cancelledAt?: IsoDate | null;
   cancellationKind?: string | null;
