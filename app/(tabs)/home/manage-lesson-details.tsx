@@ -10,6 +10,7 @@ import { GradientCTABackground, primaryCtaShadow } from '../../../src/components
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
+import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
@@ -93,7 +94,13 @@ export default function ManageLessonDetailsScreen() {
   // (ne romperebbe la categoria). Nel flusso home questo foglio si apre solo per
   // guide individuali, quindi il gate è un no-op lì.
   const lessonTypeLc = (lesson.type ?? '').toLowerCase();
-  const showTypes = lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId;
+  // Le guide moto usano "Tipo guida moto" (birilli/strada) → il "Tipo guida"
+  // generico (attività) è ridondante e va nascosto.
+  const isMotoLesson =
+    isMotoLicenseCategory(lesson.vehicle?.licenseCategory) ||
+    isMotoLicenseCategory(lesson.student?.licenseCategory);
+  const showTypes =
+    lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId && !isMotoLesson;
 
   const handleSave = async () => {
     if (!editable) return;

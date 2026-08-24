@@ -27,6 +27,7 @@ import { UserPhotoCircle } from '../UserPhotoCircle';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
 import { loadLastBookingSelection, saveLastBookingSelection, type LastBookingSelection } from '../../utils/lastBookingSelection';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
+import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON, type MotoLessonType } from '../../utils/motoLessonType';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
@@ -108,6 +109,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const [vehicleId, setVehicleId] = useState('');
   const [followVehicleId, setFollowVehicleId] = useState('');
   const [extraMotoVehicleIds, setExtraMotoVehicleIds] = useState<string[]>([]);
+  const [motoLessonType, setMotoLessonType] = useState<MotoLessonType | null>(null);
   const [lessonTypes, setLessonTypes] = useState<string[]>(['guida']);
   const [date, setDate] = useState<Date>(() => new Date());
   const [startTime, setStartTime] = useState<Date>(() => normalizeToQuarter(new Date()));
@@ -235,6 +237,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const effectiveExtraMotoVehicleIds = primaryIsMoto
     ? extraMotoVehicleIds.filter((id) => id !== vehicleId)
     : [];
+  // Tipo guida moto: solo per le guide moto (fuori → null).
+  const effectiveMotoLessonType = primaryIsMoto ? motoLessonType : null;
 
   const typesPayload = lessonTypes.length && !(lessonTypes.length === 1 && lessonTypes[0] === 'guida')
     ? { lessonType: lessonTypes[0], types: lessonTypes }
@@ -370,6 +374,21 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     router.push(optionsPickerPath());
   };
 
+  const openMotoLessonType = () => {
+    optionsPickerStore.set({
+      title: 'Tipo guida moto', multi: false, selected: motoLessonType ? [motoLessonType] : [],
+      options: [
+        { value: '__none__', label: 'Non specificato', subtitle: null },
+        ...MOTO_LESSON_TYPES.map((t) => ({ value: t, label: MOTO_LESSON_TYPE_LABELS[t], subtitle: MOTO_LESSON_TYPE_HINTS[t] })),
+      ],
+      onConfirm: (v) => {
+        const picked = v[0];
+        setMotoLessonType(picked === 'birilli' || picked === 'strada' ? picked : null);
+      },
+    });
+    router.push(optionsPickerPath());
+  };
+
   const openType = () => {
     optionsPickerStore.set({
       title: 'Tipo di guida', multi: true, selected: lessonTypes,
@@ -486,6 +505,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         vehicleId: vehiclesEnabled ? vehicleId : null,
         followVehicleId: effectiveFollowVehicleId || null,
         extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+        motoLessonType: effectiveMotoLessonType,
         locationId, ...typesPayload,
         ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
         ...(allowPast ? { allowPast: true } : {}),
@@ -516,6 +536,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
         followVehicleId: effectiveFollowVehicleId || null,
         extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+        motoLessonType: effectiveMotoLessonType,
         ...typesPayload,
         ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
         ...(allowPast ? { allowPast: true } : {}), entries: payloadEntries,
@@ -555,6 +576,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .map((id) => vehicles.find((v) => v.id === id)?.name)
     .filter(Boolean)
     .join(', ') || null;
+  const motoLessonTypeValue = motoLessonType ? MOTO_LESSON_TYPE_LABELS[motoLessonType] : null;
 
   // Both hosts (standalone new-booking route AND embedded in quick-book) are
   // full-height page sheets now: the body always scrolls, the footer is pinned.
@@ -696,10 +718,20 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
               <Row icon="bicycle-outline" label="Moto aggiuntive" value={extraMotosValue} placeholder="Nessuna" onPress={openExtraMotos} disabled={pending} />
             </Animated.View>
           ) : null}
-          <Animated.View layout={LinearTransition.duration(220)}>
-            <View style={s.divider} />
-            <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
-          </Animated.View>
+          {primaryIsMoto ? (
+            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
+              <View style={s.divider} />
+              <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={pending} />
+            </Animated.View>
+          ) : null}
+          {/* Il "Tipo di guida" generico (attività) è ridondante per le moto,
+              che usano "Tipo guida moto" (birilli/strada) → nascosto se moto. */}
+          {!primaryIsMoto ? (
+            <Animated.View layout={LinearTransition.duration(220)}>
+              <View style={s.divider} />
+              <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
+            </Animated.View>
+          ) : null}
         </View>
       </Wrapper>
 
