@@ -31,6 +31,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
 import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { resolveAgendaColorConfig, resolveGuideBlockStyle, type AgendaColorConfig } from '../utils/agendaColors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
 /* ------------------------------------------------------------------ */
@@ -245,18 +247,31 @@ type LessonLook = { bg: string; text: string; sub: string; pressed: string };
 // to a muted grey so the eye reads the live week at a glance.
 const NAVY: LessonLook = { bg: '#1A1A2E', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#2A2A45' };
 const MUTED: LessonLook = { bg: '#EBEDF3', text: '#8A90A6', sub: 'rgba(110,117,150,0.7)', pressed: '#E1E4EC' };
-// Guide oltre le prime 6 obbligatorie → ambra soffusa (mai squillante).
-const AMBER: LessonLook = { bg: '#F7E8C3', text: '#6B5413', sub: 'rgba(107,84,19,0.62)', pressed: '#EFDDAE' };
 // Allievo con esame il giorno dopo → rosso attenuato ma inconfondibile.
 const RED: LessonLook = { bg: '#F6D2CD', text: '#8E2A20', sub: 'rgba(142,42,32,0.62)', pressed: '#EFC2BC' };
 
-const getLessonLook = (appt: AutoscuolaAppointmentWithRelations): LessonLook => {
+const getLessonLook = (
+  appt: AutoscuolaAppointmentWithRelations,
+  colorConfig: AgendaColorConfig,
+): LessonLook => {
   const status = (appt.status ?? '').trim().toLowerCase();
   if (status === 'cancelled' || status === 'no_show') return MUTED;
-  // Priorità: esame domani (rosso) > prime 6 obbligatorie (navy) > altre (ambra).
-  // I flag arrivano dal BE; se assenti (BE non ancora deployato) → navy come prima.
+  // Esame il giorno dopo → rosso: segnale di priorità mantenuto SOPRA il criterio
+  // colore (REG-403). I flag arrivano dal BE; se assente → passa al criterio.
   if (appt.examNextDay) return RED;
-  if (appt.mandatoryLesson === false) return AMBER;
+  // Colore del blocco per criterio Aspetto (durata|patente) + eccezioni, come
+  // sul web. Tinta soft (pastello) + testo scuro leggibile (stessa lingua di
+  // esami/gruppi in questa griglia).
+  const durationMin = appt.endsAt
+    ? (new Date(appt.endsAt).getTime() - new Date(appt.startsAt).getTime()) / 60000
+    : 60;
+  const style = resolveGuideBlockStyle(
+    { durationMin, student: appt.student, vehicle: appt.vehicle },
+    colorConfig,
+  );
+  if (style) {
+    return { bg: style.backgroundColor, text: '#1A1A2E', sub: 'rgba(26,26,46,0.62)', pressed: style.backgroundColor };
+  }
   return NAVY;
 };
 
@@ -621,6 +636,11 @@ const WeekPage = React.memo(function WeekPage({
 }: WeekPageProps) {
   const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
   const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
+
+  // Config colore blocchi (pannello web "Aspetto"): criterio + override +
+  // eccezioni dai settings company. Cache-first, default sicuri se assenti.
+  const agendaSettings = useAutoscuolaSettings();
+  const colorConfig = useMemo(() => resolveAgendaColorConfig(agendaSettings.data), [agendaSettings.data]);
 
   const weekDays = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), [monday]);
 
@@ -1021,7 +1041,7 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
-            const look = getLessonLook(appt);
+            const look = getLessonLook(appt, colorConfig);
             const label = [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || 'Guida';
             const showTime = height >= 40;
             return (
