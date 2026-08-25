@@ -778,7 +778,30 @@ export type AutoscuolaSettings = {
   followCarRules?: Partial<Record<'AM' | 'A1' | 'A2' | 'A', { enabled: boolean }>>;
   groupLessonsEnabled?: boolean;
   quizEnabled?: boolean;
+  // ── Aspetto: colore dei blocchi guida in agenda (setting company). ──
+  // Replica lato mobile del pannello web "Aspetto". Vedi
+  // `src/utils/agendaColors.ts` + docs/features/agenda-block-colors.md.
+  // Criterio con cui colorare le guide individuali normali in agenda.
+  agendaColorCriterion?: AgendaColorCriterion;
+  // Colori personalizzati per voce (per criterio + eccezioni), hex `#RRGGBB`.
+  agendaColorOverrides?: AgendaColorOverrides;
+  // On/off delle eccezioni pre-costruite (automatic/exam_ready/moto).
+  agendaColorExceptions?: AgendaColorExceptions;
 };
+
+// ── Aspetto / colori agenda ──────────────────────────────────────────────────
+// Criterio colore dei blocchi guida: "durata" (default storico) | "patente".
+export type AgendaColorCriterion = 'durata' | 'patente';
+
+// Colori personalizzati del titolare: un namespace per criterio + le eccezioni.
+export type AgendaColorOverrides = {
+  durata?: Record<string, string>;
+  patente?: Record<string, string>;
+  eccezioni?: Record<string, string>;
+};
+
+// Stato on/off delle eccezioni pre-costruite (chiave → attiva).
+export type AgendaColorExceptions = Record<string, boolean>;
 
 export type MobileBookingOptions = {
   bookingSlotDurations: number[];

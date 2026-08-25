@@ -26,6 +26,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 |------|----------------------|
 | `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens, LessonsOverview (15) — since 2026-06-24 carries `followVehicle` (auto al seguito); a moto lesson reserves **2 vehicles** (moto + follow car). Since 2026-07-20 carries `cancelledAt/penaltyAmount/penaltyCutoffAt/lateCancellationAction` (dal ramo backend `light`), consumati da `LessonsOverview` segmento "Annullate". Since REG-399 carries `motoLessonType` (`'birilli'\|'strada'\|null`) — mostrato in sola lettura in `manage-lesson` (riga) e `StudentNotesDetailScreen` (chip); vedi [features/moto-lesson-type.md](features/moto-lesson-type.md). Display it wherever `vehicle.name` is shown. |
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
+| `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | DayItinerary, IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
@@ -88,6 +89,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Notifications**: appointment changes trigger push
 - → **Notes**: appointment editing includes notes/ratings
 - → **Backend**: 15+ API functions (appointments, availability, settings)
+
+### Colori blocchi agenda (criterio Aspetto)
+- → **Instructor Manage / agenda**: la tinta si applica alle card guida in `DayItinerary` (day-detail + espansione `WeeklyOverview`) e alla timeline giornaliera `itinCard` di `IstruttoreHomeScreen`. Esami/gruppi/blocchi e stati annullata/assente esclusi.
+- → **Settings**: legge `agendaColorCriterion`/`agendaColorOverrides`/`agendaColorExceptions` da `AutoscuolaSettings` (già nel payload `GET /api/autoscuole/settings`). Sola lettura su mobile; si imposta da web (pannello Aspetto).
+- → **Student moto experience / Vehicles**: le eccezioni usano `student.licenseCategory`/`transmission`/`examReady` + `isMotoLicenseCategory`. Se cambiano quei campi o gli hex/soglie web (`reglo/lib/autoscuole/agenda-color-criterion.ts`), aggiornare `src/utils/agendaColors.ts` in parallelo (palette duplicata client-side).
+- → **Backend**: nessuna modifica (dati già esposti).
 
 ### Lezione teorica (agenda)
 - **È un** `InstructorBlock` con `reason:"theory_lesson"` (endpoint `createInstructorBlock` riusato; nessun tipo/route nuovi)

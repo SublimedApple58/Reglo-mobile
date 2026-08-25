@@ -68,6 +68,7 @@ import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
+import { resolveAgendaColorConfig, resolveGuideBlockStyle } from '../utils/agendaColors';
 import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
 import { groupLessonManageStore } from '../stores/groupLessonManageStore';
@@ -1012,6 +1013,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const now = useMemo(() => new Date(clockTick), [clockTick]);
   const bookingActors = settings?.appBookingActors ?? 'students';
   const instructorBookingMode = settings?.instructorBookingMode ?? 'manual_engine';
+  // Colore blocchi agenda (pannello web "Aspetto"): criterio + override + eccezioni.
+  const agendaColorConfig = useMemo(() => resolveAgendaColorConfig(settings), [settings]);
   const canInstructorBook =
     !ownerMode && (bookingActors === 'instructors' || bookingActors === 'both');
   const bookingDurations = useMemo(
@@ -3336,6 +3339,15 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   const actionAvail = getActionAvailability(a, now, settings?.autoCheckinEnabled);
                   const isCheckedIn = st === 'checked_in';
                   const showActions = isActive && (!isCheckedIn || settings?.autoCheckinEnabled) && actionAvail.enabled && st !== 'proposal';
+                  // Tinta del blocco per criterio/eccezioni (solo guide individuali
+                  // normali; esami e annullate/assenti restano col loro colore).
+                  const blockStyle =
+                    config.isExam || st === 'no_show' || st === 'cancelled'
+                      ? null
+                      : resolveGuideBlockStyle(
+                          { durationMin: row.endMin - row.startMin, student: a.student, vehicle: a.vehicle },
+                          agendaColorConfig,
+                        );
                   const initials = `${a.student?.firstName?.[0] ?? ''}${a.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
                   const nm = `${calendarScope === 'all' && a.instructor?.name ? a.instructor.name + ' · ' : ''}${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim();
                   const vehicleLabel =
@@ -3352,7 +3364,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       ) : (
                         <Rail time={itFmt(row.startMin)} sub={durationLabel(a)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
                       )}
-                      <Pressable onPress={() => openLessonDrawer(a)} style={({ pressed }) => [styles.itinCard, isActive && styles.itinCardActive, pressed && styles.itinCardPressed]}>
+                      <Pressable onPress={() => openLessonDrawer(a)} style={({ pressed }) => [styles.itinCard, blockStyle, isActive && styles.itinCardActive, pressed && styles.itinCardPressed]}>
                         <View style={styles.itinTop}>
                           <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
                             {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}

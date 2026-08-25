@@ -5,6 +5,8 @@ import { BookableBand } from './BookableBand';
 import { fmtClockFull, fmtDuration, BLOCK_PRESENTATION, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
 import { colors } from '../theme';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { resolveAgendaColorConfig, resolveGuideBlockStyle } from '../utils/agendaColors';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -36,6 +38,11 @@ type Props = {
  * the caller. Used inside the day-detail page sheet.
  */
 export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOpenGroupLesson, onOpenBlock }: Props) => {
+  // Colore blocchi guida (pannello web "Aspetto"): criterio + override +
+  // eccezioni dai settings company. Cache-first, default sicuri se assenti.
+  const settings = useAutoscuolaSettings();
+  const colorConfig = React.useMemo(() => resolveAgendaColorConfig(settings.data), [settings.data]);
+
   const seq: Seq[] = [];
   // One start/end marker per availability window (mirrors the daily timeline).
   plan.availWindows.forEach(([ws, we], wi) => {
@@ -188,10 +195,19 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
         const a = row.appt;
         const initials = `${a.student?.firstName?.[0] ?? ''}${a.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
         const name = `${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim() || 'Allievo';
+        // Tinta del blocco per criterio/eccezioni (come sul web). Le guide
+        // annullate/assenti restano nel loro look grigio (nessuna tinta).
+        const isVoided = a.status === 'no_show' || a.status === 'cancelled';
+        const blockStyle = isVoided
+          ? null
+          : resolveGuideBlockStyle(
+              { durationMin: row.durationMin, student: a.student, vehicle: a.vehicle },
+              colorConfig,
+            );
         return (
           <View key={`ap-${idx}`} style={styles.row}>
             <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
-            <Pressable onPress={() => onOpenLesson(a)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+            <Pressable onPress={() => onOpenLesson(a)} style={({ pressed }) => [styles.card, blockStyle, pressed && styles.cardPressed]}>
               <View style={styles.cardTop}>
                 <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
                 <View style={{ flex: 1 }}>
