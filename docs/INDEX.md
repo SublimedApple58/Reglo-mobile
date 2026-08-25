@@ -13,7 +13,7 @@
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen` (+ `TitolareHomeScreen` = wrapper `ownerMode`, sola lettura), `InstructorManageScreen` |
-| Colori blocchi agenda (criterio Aspetto) | [agenda-block-colors.md](features/agenda-block-colors.md) | `src/utils/agendaColors.ts`, `DayItinerary`, `IstruttoreHomeScreen` (timeline `itinCard`), `regloApi.ts` (`AutoscuolaSettings.agendaColor*`) |
+| Colori blocchi agenda (criterio Aspetto) | [agenda-block-colors.md](features/agenda-block-colors.md) | `src/utils/agendaColors.ts`, `WeeklyAgendaView`/`DayItinerary`/`IstruttoreHomeScreen` (blocchi), `AppearanceSettingsScreen` + `more/appearance` (pannello owner), `more/color-picker`, `regloApi.ts` (`AutoscuolaSettings.agendaColor*`) |
 | Tipo guida moto (birilli/strada, sola lettura) | [moto-lesson-type.md](features/moto-lesson-type.md) | `src/utils/motoLessonType.ts`, `app/(tabs)/home/manage-lesson.tsx` (riga), `StudentNotesDetailScreen` (chip), `regloApi.ts` (`AutoscuolaAppointment.motoLessonType`) |
 | Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `home/quick-book`, `BookingForm`, `BlockForm` |
 | Lezione teorica (agenda) | [lezione-teorica.md](features/lezione-teorica.md) | `IstruttoreHomeScreen`, `DayItinerary`, `WeeklyAgendaView`, `weeklyAgenda` (`BLOCK_PRESENTATION.theory`), `BlockForm`/`blockSheetStore` (`kind`), `home/theory-lesson` |

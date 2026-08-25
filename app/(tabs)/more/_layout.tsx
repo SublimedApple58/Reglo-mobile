@@ -8,6 +8,7 @@ export default function MoreLayout() {
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="appearance" />
       <Stack.Screen name="instructor-hours" />
       <Stack.Screen name="instructors-overview" />
       <Stack.Screen name="locations" />
@@ -28,6 +29,7 @@ export default function MoreLayout() {
         }}
       />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
+      <Stack.Screen name="color-picker" options={TALL_SHEET} />
       <Stack.Screen name="hours-period" options={TALL_SHEET} />
     </Stack>
   );

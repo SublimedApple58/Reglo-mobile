@@ -1,10 +1,11 @@
 # Colori blocchi agenda (criterio Aspetto)
 
 Le card delle **guide individuali normali** nell'agenda istruttore/titolare
-prendono il colore dal criterio company scelto sul web (pannello Impostazioni →
-**Aspetto**): `durata` (default storico) oppure `patente`, con colori
-personalizzati per voce (override) ed eccezioni pre-costruite. È la replica
-mobile di `reglo/docs/features/appearance-settings.md`. Esami, guide di gruppo,
+prendono il colore dal criterio company (`durata` default | `patente`), con
+colori personalizzati per voce (override) ed eccezioni pre-costruite. Il criterio
+si imposta dal pannello **Aspetto** — sul web **e ora anche da mobile** (owner:
+`Altro → Aspetto agenda`), condividendo la stessa action. È la replica mobile di
+`reglo/docs/features/appearance-settings.md`. Esami, guide di gruppo,
 blocchi istruttore e stati **annullata/assente** restano col loro colore.
 
 ## Origine dati (nessuna modifica backend)
@@ -26,6 +27,10 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 | `src/components/DayItinerary.tsx` | Day-detail + espansione inline in `WeeklyOverview`: legge la config via `useAutoscuolaSettings`, tinge la card guida (`styles.card`) |
 | `src/screens/IstruttoreHomeScreen.tsx` | Timeline giornaliera (`itinCard`): stessa tinta sulle guide normali via `agendaColorConfig` (memo su `settings`) |
 | `src/components/WeeklyAgendaView.tsx` | Griglia oraria (vista `grid`, la più simile al web): `getLessonLook(appt, config)` colora i blocchi guida col criterio (pastello soft + testo scuro). Priorità mantenute: annullata/assente → grigio, esame-il-giorno-dopo (`examNextDay`) → rosso, poi criterio. Config via `useAutoscuolaSettings` in `WeekPage` |
+| `src/screens/AppearanceSettingsScreen.tsx` + `app/(tabs)/more/appearance.tsx` | **Pannello owner "Aspetto agenda"** (scrittura): scelta criterio (radio + chip anteprima), personalizzazione colori per voce, toggle/colore eccezioni. Auto-save via `regloApi.updateAutoscuolaSettings` + `setQueryData` sulla cache `useAutoscuolaSettings` + `ToastNotice` su errore |
+| `src/stores/colorPickerStore.ts` + `app/(tabs)/more/color-picker.tsx` | Swatch picker formSheet (palette curata `AGENDA_SWATCHES` = 16 swatch del web) + "Colore standard" (reset override), seed-and-callback |
+| `src/screens/MoreScreen.tsx` | Voce **"Aspetto agenda"** in `Altro` → gate `isOwner` |
+| `src/services/regloApi.ts` | `updateAutoscuolaSettings(input: Partial<AutoscuolaSettings>)` (invia solo i 3 campi `agendaColor*`) |
 
 **Tre superfici agenda coperte** (tutte anche in `ownerMode`, `TitolareHome` = wrapper): timeline giornaliera (`itinCard`), day-detail/settimana (`DayItinerary`), griglia oraria (`WeeklyAgendaView`).
 
@@ -65,8 +70,11 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 
 - **Vista allievo** (`AllievoHomeScreen`): mostra le guide dell'allievo stesso,
   non è l'agenda scuola → nessuna tinta criterio.
-- **Editing del criterio/colori su mobile**: si imposta solo da web (pannello
-  Aspetto). Il mobile è **sola lettura** del setting.
+- **Editing su mobile**: ora possibile dal pannello **owner** "Aspetto agenda"
+  (`Altro → Aspetto agenda`, solo titolare). Riusa la stessa action condivisa
+  `updateAutoscuolaSettings` del web (`PATCH /api/autoscuole/settings`,
+  owner-gated `canManageSettings`) → coerente col pannello web. Istruttori/allievi
+  restano in sola lettura (voce nascosta + backend 403).
 
 ## Sync col web
 

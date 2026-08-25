@@ -209,7 +209,7 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaSettings>('/api/autoscuole/settings'),
     getMyPhase: async () =>
       client.request<StudentPhasePayload>('/api/autoscuole/me'),
-    updateAutoscuolaSettings: async (input: AutoscuolaSettings) =>
+    updateAutoscuolaSettings: async (input: Partial<AutoscuolaSettings>) =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',
         body: input,

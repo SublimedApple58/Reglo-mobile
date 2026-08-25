@@ -7,7 +7,7 @@ import { Screen } from '../components/Screen';
 import { spacing } from '../theme';
 import { useSession } from '../context/SessionContext';
 import { useVehiclesEnabled } from '../hooks/useVehiclesEnabled';
-import { isInstructor } from '../utils/roles';
+import { isInstructor, isOwner } from '../utils/roles';
 
 type MenuItem = {
   route: string;
@@ -45,6 +45,12 @@ const LOCATIONS_ITEM: MenuItem = {
   icon: 'location-outline',
 };
 
+const APPEARANCE_ITEM: MenuItem = {
+  route: 'appearance',
+  label: 'Aspetto agenda',
+  icon: 'color-palette-outline',
+};
+
 const initialsFrom = (name: string | null, email: string): string => {
   const src = (name ?? '').trim();
   if (src) {
@@ -76,6 +82,8 @@ export const MoreScreen = () => {
     if (isInstructor(autoscuolaRole)) management.push(INSTRUCTOR_HOURS_ITEM);
     if (vehiclesEnabled) management.push(VEHICLES_ITEM);
     if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') management.push(LOCATIONS_ITEM);
+    // Solo il titolare può impostare il criterio colori dell'agenda (Aspetto).
+    if (isOwner(autoscuolaRole)) management.push(APPEARANCE_ITEM);
 
     const out: Section[] = [];
     if (management.length) out.push({ key: 'gestione', title: 'Gestione', items: management });

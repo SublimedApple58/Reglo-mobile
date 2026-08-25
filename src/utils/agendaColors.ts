@@ -295,3 +295,49 @@ export function resolveGuideBlockStyle(
   const entry = durationColorEntry(ctx.durationMin);
   return agendaBlockStyle(entry, config.overrides.durata?.[entry.key]);
 }
+
+// ─── Editing (pannello "Aspetto agenda" owner) ────────────────────────────────
+// Palette curata del picker — stessi 16 swatch del web (`INSTRUCTOR_COLOR_CHOICES`)
+// così la scelta resta coerente cross-platform. Nei blocchi vengono poi
+// ammorbiditi da `softenTint`.
+export type AgendaSwatch = { hex: string; name: string };
+export const AGENDA_SWATCHES: AgendaSwatch[] = [
+  { hex: '#EC4899', name: 'Rosa' },
+  { hex: '#0EA5E9', name: 'Azzurro' },
+  { hex: '#10B981', name: 'Smeraldo' },
+  { hex: '#F59E0B', name: 'Ambra' },
+  { hex: '#8B5CF6', name: 'Viola' },
+  { hex: '#F43F5E', name: 'Corallo' },
+  { hex: '#14B8A6', name: 'Teal' },
+  { hex: '#F97316', name: 'Arancio' },
+  { hex: '#3B82F6', name: 'Blu' },
+  { hex: '#6366F1', name: 'Indaco' },
+  { hex: '#84CC16', name: 'Lime' },
+  { hex: '#06B6D4', name: 'Ciano' },
+  { hex: '#D946EF', name: 'Fucsia' },
+  { hex: '#EF4444', name: 'Rosso' },
+  { hex: '#EAB308', name: 'Giallo' },
+  { hex: '#64748B', name: 'Grigio' },
+];
+
+/** Le voci colore del criterio attivo (bucket durata o palette patenti). */
+export function entriesForCriterion(criterion: AgendaColorCriterion): AgendaColorEntry[] {
+  return criterion === 'patente' ? LICENSE_COLOR_ENTRIES : DURATION_COLOR_ENTRIES;
+}
+
+/** Il namespace override del criterio attivo. */
+export function overrideNamespaceForCriterion(
+  criterion: AgendaColorCriterion,
+): 'durata' | 'patente' {
+  return criterion === 'patente' ? 'patente' : 'durata';
+}
+
+/** Le eccezioni pertinenti al criterio attivo (mostrate + applicabili solo lì). */
+export function exceptionsForCriterion(criterion: AgendaColorCriterion): AgendaColorException[] {
+  return AGENDA_COLOR_EXCEPTIONS.filter((e) => e.criteria.includes(criterion));
+}
+
+/** Colore di anteprima (soft, come sui blocchi) per una voce + eventuale override. */
+export function previewColor(entry: AgendaColorEntry, overrideHex?: string | null): string {
+  return agendaBlockStyle(entry, overrideHex).backgroundColor;
+}

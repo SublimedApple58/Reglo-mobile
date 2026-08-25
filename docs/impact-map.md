@@ -92,7 +92,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Colori blocchi agenda (criterio Aspetto)
 - → **Instructor Manage / agenda**: la tinta si applica alle card guida in `DayItinerary` (day-detail + espansione `WeeklyOverview`) e alla timeline giornaliera `itinCard` di `IstruttoreHomeScreen`. Esami/gruppi/blocchi e stati annullata/assente esclusi.
-- → **Settings**: legge `agendaColorCriterion`/`agendaColorOverrides`/`agendaColorExceptions` da `AutoscuolaSettings` (già nel payload `GET /api/autoscuole/settings`). Sola lettura su mobile; si imposta da web (pannello Aspetto).
+- → **Settings**: legge/scrive `agendaColorCriterion`/`agendaColorOverrides`/`agendaColorExceptions` da `AutoscuolaSettings` (`GET`/`PATCH /api/autoscuole/settings`). Lettura ovunque; **scrittura solo owner** dal pannello `AppearanceSettingsScreen` (`Altro → Aspetto agenda`) via `updateAutoscuolaSettings` + `setQueryData` sulla cache `useAutoscuolaSettings` (le agende rileggono). Il picker colori è `more/color-picker` (`colorPickerStore`).
 - → **Student moto experience / Vehicles**: le eccezioni usano `student.licenseCategory`/`transmission`/`examReady` + `isMotoLicenseCategory`. Se cambiano quei campi o gli hex/soglie web (`reglo/lib/autoscuole/agenda-color-criterion.ts`), aggiornare `src/utils/agendaColors.ts` in parallelo (palette duplicata client-side).
 - → **Backend**: nessuna modifica (dati già esposti).
 
