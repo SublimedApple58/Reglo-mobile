@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Screen } from '../components/Screen';
+import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { useSession } from '../context/SessionContext';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
@@ -23,14 +24,14 @@ import {
   entriesForCriterion,
   exceptionsForCriterion,
   overrideNamespaceForCriterion,
-  previewColor,
   resolveAgendaColorConfig,
+  vividHex,
 } from '../utils/agendaColors';
 import { colorPickerStore } from '../stores/colorPickerStore';
 
-const CRITERIA_META: Record<AgendaColorCriterion, { label: string; desc: string }> = {
-  durata: { label: 'Durata', desc: 'Colore per durata della guida' },
-  patente: { label: 'Patente', desc: "Colore per patente dell'allievo" },
+const CRITERIA_LABEL: Record<AgendaColorCriterion, string> = {
+  durata: 'Durata',
+  patente: 'Patente',
 };
 
 export const AppearanceSettingsScreen = () => {
@@ -66,11 +67,9 @@ export const AppearanceSettingsScreen = () => {
           agendaColorOverrides: next.overrides,
           agendaColorExceptions: next.exceptions,
         });
-        // Allinea la cache così le agende (griglia/timeline/day-detail) rileggono.
         queryClient.setQueryData(queryKeys.autoscuolaSettings(activeCompanyId), updated);
       } catch {
         setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
-        // Rollback allo stato server corrente.
         const cfg = resolveAgendaColorConfig(settingsQ.data);
         setCriterion(cfg.criterion);
         setOverrides(cfg.overrides);
@@ -95,11 +94,11 @@ export const AppearanceSettingsScreen = () => {
 
   const setEntryOverride = useCallback(
     (key: string, hex: string | null) => {
-      const ns = overrideNamespaceForCriterion(criterion);
-      const nsMap = { ...(overrides[ns] ?? {}) };
+      const nsp = overrideNamespaceForCriterion(criterion);
+      const nsMap = { ...(overrides[nsp] ?? {}) };
       if (hex) nsMap[key] = hex.toUpperCase();
       else delete nsMap[key];
-      apply({ overrides: { ...overrides, [ns]: nsMap } });
+      apply({ overrides: { ...overrides, [nsp]: nsMap } });
     },
     [criterion, overrides, apply],
   );
@@ -115,11 +114,10 @@ export const AppearanceSettingsScreen = () => {
   );
 
   const openEntryPicker = (label: string, key: string) => {
-    const ns = overrideNamespaceForCriterion(criterion);
+    const nsp = overrideNamespaceForCriterion(criterion);
     colorPickerStore.set({
       title: label,
-      subtitle: 'Colore del blocco per questa voce.',
-      currentHex: overrides[ns]?.[key] ?? null,
+      currentHex: overrides[nsp]?.[key] ?? null,
       swatches: AGENDA_SWATCHES,
       onSelect: (hex) => setEntryOverride(key, hex),
     });
@@ -129,7 +127,6 @@ export const AppearanceSettingsScreen = () => {
   const openExceptionPicker = (label: string, key: string) => {
     colorPickerStore.set({
       title: label,
-      subtitle: 'Colore quando l’eccezione è attiva.',
       currentHex: overrides.eccezioni?.[key] ?? null,
       swatches: AGENDA_SWATCHES,
       onSelect: (hex) => setExceptionOverride(key, hex),
@@ -145,14 +142,13 @@ export const AppearanceSettingsScreen = () => {
   );
   const ns = overrideNamespaceForCriterion(criterion);
 
-  // Gestibile dallo staff dell'autoscuola (titolare O istruttore), non allievi.
   const canEdit = isOwner(autoscuolaRole) || isInstructor(autoscuolaRole);
   if (!canEdit) {
     return (
       <Screen>
         <Header onBack={() => router.back()} saving={false} />
         <View style={s.center}>
-          <Text style={s.muted}>Questa sezione è riservata allo staff dell&apos;autoscuola.</Text>
+          <Text style={s.muted}>Riservato allo staff dell&apos;autoscuola.</Text>
         </View>
       </Screen>
     );
@@ -167,98 +163,63 @@ export const AppearanceSettingsScreen = () => {
         <View style={s.center}><ActivityIndicator color="#1A1A2E" /></View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={s.intro}>Personalizza i colori dei blocchi guida in agenda. Le modifiche valgono per tutta l&apos;autoscuola.</Text>
-
-          {/* ── Criterio ─────────────────────────── */}
-          <Text style={s.sectionLabel}>CRITERIO COLORE</Text>
-          <View style={s.criteriaRow}>
+          {/* ── Criterio: segmented ─────────────── */}
+          <Text style={s.sectionLabel}>CRITERIO</Text>
+          <View style={s.segment}>
             {AGENDA_COLOR_CRITERIA.map((c) => {
-              const meta = CRITERIA_META[c];
-              const selected = criterion === c;
-              const chips = entriesForCriterion(c);
+              const active = criterion === c;
               return (
                 <Pressable
                   key={c}
-                  onPress={() => { if (!selected) apply({ criterion: c }); }}
-                  style={[s.critCard, selected && s.critCardSelected]}
+                  onPress={() => { if (!active) apply({ criterion: c }); }}
+                  style={[s.segmentItem, active && s.segmentItemActive]}
                 >
-                  <View style={s.critHeader}>
-                    <Text style={s.critTitle}>{meta.label}</Text>
-                    <Ionicons
-                      name={selected ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={selected ? '#1A1A2E' : '#C7CBD1'}
-                    />
-                  </View>
-                  <Text style={s.critDesc}>{meta.desc}</Text>
-                  <View style={s.previewChips}>
-                    {chips.slice(0, 6).map((e) => (
-                      <View
-                        key={e.key}
-                        style={[s.previewChip, { backgroundColor: previewColor(e, (c === 'patente' ? overrides.patente : overrides.durata)?.[e.key]) }]}
-                      />
-                    ))}
-                  </View>
+                  <Text style={[s.segmentText, active && s.segmentTextActive]}>{CRITERIA_LABEL[c]}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {/* ── Personalizza i colori ────────────── */}
-          <Text style={s.sectionLabel}>PERSONALIZZA I COLORI</Text>
-          <View style={s.card}>
-            {entries.map((e, i) => {
-              const overrideHex = overrides[ns]?.[e.key] ?? null;
-              return (
-                <View key={e.key}>
-                  {i > 0 ? <View style={s.rowDivider} /> : null}
-                  <Pressable onPress={() => openEntryPicker(e.label, e.key)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-                    <View style={[s.dot, { backgroundColor: previewColor(e, overrideHex) }]} />
-                    <Text style={s.rowLabel} numberOfLines={1}>{e.label}</Text>
-                    {overrideHex ? <Text style={s.rowHint}>Personalizzato</Text> : <Text style={s.rowHintMuted}>Standard</Text>}
-                    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-                  </Pressable>
-                </View>
-              );
-            })}
+          {/* ── Colori (lista piatta) ───────────── */}
+          <Text style={s.sectionLabel}>COLORI</Text>
+          <View style={s.list}>
+            {entries.map((e, i) => (
+              <View key={e.key}>
+                {i > 0 ? <View style={s.divider} /> : null}
+                <Pressable onPress={() => openEntryPicker(e.label, e.key)} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
+                  <View style={[s.dot, { backgroundColor: vividHex(e, overrides[ns]?.[e.key]) }]} />
+                  <Text style={s.rowLabel} numberOfLines={1}>{e.label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                </Pressable>
+              </View>
+            ))}
           </View>
 
-          {/* ── Eccezioni ────────────────────────── */}
+          {/* ── Eccezioni (lista piatta) ────────── */}
           {activeExceptions.length > 0 ? (
             <>
               <View style={s.sectionHeaderRow}>
-                <Text style={[s.sectionLabel, s.sectionLabelInRow]}>ECCEZIONI</Text>
+                <Text style={s.sectionLabel}>ECCEZIONI</Text>
                 {activeExcCount > 0 ? (
                   <View style={s.countBadge}><Text style={s.countBadgeText}>{activeExcCount}</Text></View>
                 ) : null}
               </View>
-              <Text style={s.sectionCaption}>Regole che vincono sul criterio quando attive. Tocca il colore per personalizzarlo.</Text>
-              <View style={s.card}>
+              <View style={s.list}>
                 {activeExceptions.map((exc, i) => {
                   const on = exceptions[exc.key] ?? exc.defaultEnabled;
-                  const overrideHex = overrides.eccezioni?.[exc.key] ?? null;
                   return (
                     <View key={exc.key}>
-                      {i > 0 ? <View style={s.rowDivider} /> : null}
-                      <View style={s.excRow}>
+                      {i > 0 ? <View style={s.divider} /> : null}
+                      <View style={s.row}>
                         {on ? (
-                          <Pressable onPress={() => openExceptionPicker(exc.label, exc.key)} hitSlop={6}>
-                            <View style={[s.dot, { backgroundColor: previewColor(exc.entry, overrideHex) }]} />
+                          <Pressable onPress={() => openExceptionPicker(exc.label, exc.key)} hitSlop={8}>
+                            <View style={[s.dot, { backgroundColor: vividHex(exc.entry, overrides.eccezioni?.[exc.key]) }]} />
                           </Pressable>
                         ) : (
                           <View style={[s.dot, s.dotOff]} />
                         )}
-                        <View style={s.excBody}>
-                          <Text style={s.rowLabel}>{exc.label}</Text>
-                          <Text style={s.excDesc}>{exc.description}</Text>
-                        </View>
-                        <Switch
-                          value={on}
-                          onValueChange={(v) => apply({ exceptions: { ...exceptions, [exc.key]: v } })}
-                          trackColor={{ true: '#1A1A2E', false: '#E5E7EB' }}
-                          thumbColor="#FFFFFF"
-                          ios_backgroundColor="#E5E7EB"
-                        />
+                        <Text style={s.rowLabel} numberOfLines={1}>{exc.label}</Text>
+                        <ToggleSwitch value={on} onValueChange={(v) => apply({ exceptions: { ...exceptions, [exc.key]: v } })} />
                       </View>
                     </View>
                   );
@@ -266,8 +227,6 @@ export const AppearanceSettingsScreen = () => {
               </View>
             </>
           ) : null}
-
-          <Text style={s.footnote}>Il criterio e i colori sono condivisi col pannello “Aspetto” del web.</Text>
         </ScrollView>
       )}
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
@@ -286,39 +245,32 @@ const Header = ({ onBack, saving }: { onBack: () => void; saving: boolean }) => 
 );
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 12, gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, gap: 8 },
   backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
   headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4 },
   headerRight: { width: 34, alignItems: 'flex-end' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 48, gap: 8 },
-  intro: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 8 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 8 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6, marginTop: 18, marginBottom: 8 },
-  sectionLabelInRow: { marginTop: 0, marginBottom: 0 },
-  countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 48 },
+
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6, marginTop: 26, marginBottom: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginTop: 16 },
   countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
-  sectionCaption: { fontSize: 13, color: colors.textMuted, marginTop: -4, marginBottom: 8 },
-  criteriaRow: { flexDirection: 'row', gap: 12 },
-  critCard: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB', padding: 14, gap: 6 },
-  critCardSelected: { borderColor: '#1A1A2E' },
-  critHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  critTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
-  critDesc: { fontSize: 12.5, color: colors.textMuted, lineHeight: 17 },
-  // flex:1 chips → si dividono la larghezza della card (nessun overflow, es. Patente 6 chip).
-  previewChips: { flexDirection: 'row', gap: 4, marginTop: 6, alignSelf: 'stretch' },
-  previewChip: { flex: 1, minWidth: 0, height: 14, borderRadius: 5 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#EEF0F3', paddingHorizontal: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 56 },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EEF0F3' },
-  dot: { width: 26, height: 26, borderRadius: 8, borderWidth: 1, borderColor: '#00000010' },
-  dotOff: { backgroundColor: '#F1F3F7' },
-  rowLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  rowHint: { fontSize: 12.5, fontWeight: '600', color: '#1A1A2E' },
-  rowHintMuted: { fontSize: 12.5, color: '#AEB4CC' },
-  excRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60 },
-  excBody: { flex: 1, gap: 2 },
-  excDesc: { fontSize: 12.5, color: colors.textMuted, lineHeight: 17 },
-  footnote: { fontSize: 12.5, color: '#AEB4CC', marginTop: 18, textAlign: 'center' },
+
+  // Segmented control (Airbnb-clean): track grigio, pillola bianca selezionata.
+  segment: { flexDirection: 'row', backgroundColor: '#F1F3F7', borderRadius: 12, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
+  segmentItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  segmentText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  segmentTextActive: { color: '#1A1A2E', fontWeight: '700' },
+
+  // Liste piatte su sfondo pagina (no card-in-card), divisori inset.
+  list: {},
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 56 },
+  rowPressed: { opacity: 0.55 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 38 },
+  dot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#00000012' },
+  dotOff: { backgroundColor: '#E5E7EB' },
+  rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#1A1A2E' },
 });

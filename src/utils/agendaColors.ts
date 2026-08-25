@@ -341,3 +341,20 @@ export function exceptionsForCriterion(criterion: AgendaColorCriterion): AgendaC
 export function previewColor(entry: AgendaColorEntry, overrideHex?: string | null): string {
   return agendaBlockStyle(entry, overrideHex).backgroundColor;
 }
+
+const rgbaToHex = (rgba: string): string | null => {
+  const m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(rgba);
+  if (!m) return null;
+  return '#' + [1, 2, 3].map((i) => Number(m[i]).toString(16).padStart(2, '0')).join('').toUpperCase();
+};
+
+/**
+ * Colore IDENTITÀ pieno/vivo di una voce (per swatch e pallini del pannello
+ * "Aspetto agenda"): la hue satura da cui deriva la tinta soft del blocco. Con
+ * override si usa direttamente l'hex scelto (già vivo). NB: i blocchi in agenda
+ * restano in tinta soft (`agendaBlockStyle`) — qui serve la versione riconoscibile.
+ */
+export function vividHex(entry: AgendaColorEntry, overrideHex?: string | null): string {
+  if (overrideHex) return overrideHex.toUpperCase();
+  return rgbaToHex(entry.shadowRgba) ?? entry.bgHex;
+}

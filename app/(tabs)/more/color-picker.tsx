@@ -13,7 +13,7 @@ export default function ColorPickerScreen() {
   const data = useSyncExternalStore(colorPickerStore.subscribe, colorPickerStore.get);
   if (!data) return <View style={s.root} />;
 
-  const { title, subtitle, currentHex, swatches, onSelect } = data;
+  const { title, currentHex, swatches, onSelect } = data;
   const norm = (h: string | null) => (h ?? '').toUpperCase();
   const pick = (hex: string | null) => {
     onSelect(hex);
@@ -29,7 +29,6 @@ export default function ColorPickerScreen() {
       </View>
       <View style={s.headerBlock}>
         <Text style={s.title}>{title}</Text>
-        <Text style={s.subtitle}>{subtitle ?? 'Scegli un colore o torna a quello standard.'}</Text>
       </View>
 
       <SheetScaffold>
