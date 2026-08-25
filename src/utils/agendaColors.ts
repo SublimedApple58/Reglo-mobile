@@ -194,29 +194,42 @@ const hexToRgb = (hex: string): [number, number, number] | null => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
-const colorAlpha = (hex: string, alpha: number): string => {
+const toHex = (r: number, g: number, b: number): string =>
+  '#' + [r, g, b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+
+/**
+ * Resa "Airbnb soft" richiesta dal design mobile: tinte sussurrate, pulite, mai
+ * sgargianti. Desatura leggermente verso il grigio di pari luminanza, poi
+ * schiarisce verso il bianco. Applicata a TUTTE le voci (default + override del
+ * titolare) così la palette resta coerente e ariosa. NB: divergenza voluta
+ * dall'intensità del web (che è più satura) — vedi docs/features/agenda-block-colors.md.
+ */
+const DESAT = 0.18;
+const LIGHTEN = 0.42;
+export function softenTint(hex: string): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-};
+  let [r, g, b] = rgb;
+  const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+  r += (gray - r) * DESAT; g += (gray - g) * DESAT; b += (gray - b) * DESAT;
+  r += (255 - r) * LIGHTEN; g += (255 - g) * LIGHTEN; b += (255 - b) * LIGHTEN;
+  return toHex(r, g, b);
+}
 
-/** Stile React Native del blocco: background in tinta + colore ombra in tinta. */
+/** Stile React Native del blocco: background in tinta soft + ombra in tinta. */
 export type AgendaBlockStyle = { backgroundColor: string; shadowColor: string };
 
 /**
- * Senza override usa i pastelli di default; con override l'hex (palette satura
- * del picker) viene declinato in tinta soft (alpha 0.20) così testo/badge
- * restano leggibili — stessa resa del web `agendaBlockStyle`.
+ * Colore del blocco per una voce (default o override del titolare), reso in
+ * tinta "Airbnb soft" (vedi `softenTint`). L'override (hex saturo dal picker
+ * web) viene ammorbidito come i default, così la resa resta pulita e leggibile.
  */
 export function agendaBlockStyle(
   entry: AgendaColorEntry,
   overrideHex?: string | null,
 ): AgendaBlockStyle {
-  if (!overrideHex) {
-    // shadowColor RN vuole un colore solido: uso la stessa hue dell'ombra web.
-    return { backgroundColor: entry.bgHex, shadowColor: entry.shadowRgba };
-  }
-  return { backgroundColor: colorAlpha(overrideHex, 0.2), shadowColor: colorAlpha(overrideHex, 0.22) };
+  const bg = softenTint(overrideHex || entry.bgHex);
+  return { backgroundColor: bg, shadowColor: bg };
 }
 
 // ─── Config risolta + risoluzione per-guida ───────────────────────────────────

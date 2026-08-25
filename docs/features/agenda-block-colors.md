@@ -41,7 +41,12 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
   - `moto` (OFF, entrambi): `isMotoLicenseCategory(student.licenseCategory)` →
     arancio.
 - **Override**: hex scelto dal titolare (namespace `durata`/`patente`/`eccezioni`)
-  → tinta soft alpha 0.20 + ombra in tinta (come il web `agendaBlockStyle`).
+  → ammorbidito come i default (vedi resa "Airbnb soft" sotto).
+- **Resa "Airbnb soft"** (`softenTint`): tutte le tinte (default + override) sono
+  desaturate leggermente (0.18) e schiarite verso il bianco (0.42) → palette
+  sussurrata, pulita, mai sgargiante. **Divergenza voluta dall'intensità del web**
+  (più satura): scelta di design mobile richiesta dal titolare. Le voci/criterio
+  restano identici — cambia solo il rendering del colore.
 - Le guide **annullate/assenti** (`cancelled`/`no_show`) NON vengono tinte
   (restano nel look grigio dello stato). Gli **esami** nella timeline giornaliera
   (`config.isExam`) sono esclusi dalla tinta criterio.
@@ -59,4 +64,7 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 
 Se cambiano hex/soglie/eccezioni o si aggiunge un criterio in
 `reglo/lib/autoscuole/agenda-color-criterion.ts`, aggiornare in parallelo
-`src/utils/agendaColors.ts` (palette duplicata client-side per scelta).
+`src/utils/agendaColors.ts` (palette duplicata client-side per scelta). **Non**
+rimuovere `softenTint`: la resa mobile è volutamente più soft del web (richiesta
+di design del titolare) — gli hex-sorgente restano allineati, diverge solo il
+rendering.
