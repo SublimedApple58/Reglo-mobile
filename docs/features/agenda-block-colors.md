@@ -25,6 +25,9 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 | `src/utils/agendaColors.ts` | Porta 1:1 di `reglo/lib/autoscuole/agenda-color-criterion.ts`: entries durata/patente (stessi hex/soglie), eccezioni (`automatic`/`exam_ready`/`moto`), normalizzatori, `resolveAgendaColorConfig(settings)`, `resolveGuideBlockStyle(ctx, config)` (output stile RN: `{ backgroundColor, shadowColor }`) |
 | `src/components/DayItinerary.tsx` | Day-detail + espansione inline in `WeeklyOverview`: legge la config via `useAutoscuolaSettings`, tinge la card guida (`styles.card`) |
 | `src/screens/IstruttoreHomeScreen.tsx` | Timeline giornaliera (`itinCard`): stessa tinta sulle guide normali via `agendaColorConfig` (memo su `settings`) |
+| `src/components/WeeklyAgendaView.tsx` | Griglia oraria (vista `grid`, la più simile al web): `getLessonLook(appt, config)` colora i blocchi guida col criterio (pastello soft + testo scuro). Priorità mantenute: annullata/assente → grigio, esame-il-giorno-dopo (`examNextDay`) → rosso, poi criterio. Config via `useAutoscuolaSettings` in `WeekPage` |
+
+**Tre superfici agenda coperte** (tutte anche in `ownerMode`, `TitolareHome` = wrapper): timeline giornaliera (`itinCard`), day-detail/settimana (`DayItinerary`), griglia oraria (`WeeklyAgendaView`).
 
 ## Comportamento
 
@@ -50,6 +53,11 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 - Le guide **annullate/assenti** (`cancelled`/`no_show`) NON vengono tinte
   (restano nel look grigio dello stato). Gli **esami** nella timeline giornaliera
   (`config.isExam`) sono esclusi dalla tinta criterio.
+- **Griglia oraria (deviazione voluta):** i blocchi usavano un proprio palette
+  di stato (navy/ambra/rosso). Ora: annullata/assente → grigio, `examNextDay` →
+  rosso (segnale di priorità mantenuto SOPRA il criterio), altrimenti criterio.
+  Rimosso l'ambra "oltre le 6 obbligatorie" (`mandatoryLesson === false`) — non
+  esiste nel criterio web.
 - Se i settings non sono ancora arrivati → default `durata` + eccezioni di
   default (nessuna regressione, look storico dei bucket).
 
