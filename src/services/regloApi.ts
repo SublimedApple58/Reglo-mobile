@@ -214,6 +214,17 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+    // Colori agenda (pannello "Aspetto") — endpoint SCOPED gestibile anche dagli
+    // istruttori (non solo titolari): scrive solo i 3 campi agendaColor*.
+    updateAgendaColorSettings: async (
+      input: Partial<
+        Pick<AutoscuolaSettings, 'agendaColorCriterion' | 'agendaColorOverrides' | 'agendaColorExceptions'>
+      >,
+    ) =>
+      client.request<AutoscuolaSettings>('/api/autoscuole/agenda-colors', {
+        method: 'PATCH',
+        body: input,
+      }),
 
     getInstructorSettings: async () =>
       client.request<{

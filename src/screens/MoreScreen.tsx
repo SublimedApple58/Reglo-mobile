@@ -82,8 +82,8 @@ export const MoreScreen = () => {
     if (isInstructor(autoscuolaRole)) management.push(INSTRUCTOR_HOURS_ITEM);
     if (vehiclesEnabled) management.push(VEHICLES_ITEM);
     if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') management.push(LOCATIONS_ITEM);
-    // Solo il titolare può impostare il criterio colori dell'agenda (Aspetto).
-    if (isOwner(autoscuolaRole)) management.push(APPEARANCE_ITEM);
+    // Colori agenda (Aspetto): gestibili dallo staff — titolari E istruttori.
+    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) management.push(APPEARANCE_ITEM);
 
     const out: Section[] = [];
     if (management.length) out.push({ key: 'gestione', title: 'Gestione', items: management });

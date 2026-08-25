@@ -10,7 +10,7 @@ import { useSession } from '../context/SessionContext';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { queryKeys } from '../hooks/queries/queryKeys';
 import { regloApi } from '../services/regloApi';
-import { isOwner } from '../utils/roles';
+import { isInstructor, isOwner } from '../utils/roles';
 import { colors, spacing } from '../theme';
 import type {
   AgendaColorCriterion,
@@ -61,7 +61,7 @@ export const AppearanceSettingsScreen = () => {
     async (next: { criterion: AgendaColorCriterion; overrides: AgendaColorOverrides; exceptions: AgendaColorExceptions }) => {
       setSaving(true);
       try {
-        const updated = await regloApi.updateAutoscuolaSettings({
+        const updated = await regloApi.updateAgendaColorSettings({
           agendaColorCriterion: next.criterion,
           agendaColorOverrides: next.overrides,
           agendaColorExceptions: next.exceptions,
@@ -139,14 +139,20 @@ export const AppearanceSettingsScreen = () => {
 
   const entries = useMemo(() => entriesForCriterion(criterion), [criterion]);
   const activeExceptions = useMemo(() => exceptionsForCriterion(criterion), [criterion]);
+  const activeExcCount = useMemo(
+    () => activeExceptions.filter((e) => exceptions[e.key] ?? e.defaultEnabled).length,
+    [activeExceptions, exceptions],
+  );
   const ns = overrideNamespaceForCriterion(criterion);
 
-  if (!isOwner(autoscuolaRole)) {
+  // Gestibile dallo staff dell'autoscuola (titolare O istruttore), non allievi.
+  const canEdit = isOwner(autoscuolaRole) || isInstructor(autoscuolaRole);
+  if (!canEdit) {
     return (
       <Screen>
         <Header onBack={() => router.back()} saving={false} />
         <View style={s.center}>
-          <Text style={s.muted}>Solo il titolare può modificare l&apos;aspetto dell&apos;agenda.</Text>
+          <Text style={s.muted}>Questa sezione è riservata allo staff dell&apos;autoscuola.</Text>
         </View>
       </Screen>
     );
@@ -220,8 +226,13 @@ export const AppearanceSettingsScreen = () => {
           {/* ── Eccezioni ────────────────────────── */}
           {activeExceptions.length > 0 ? (
             <>
-              <Text style={s.sectionLabel}>ECCEZIONI</Text>
-              <Text style={s.sectionCaption}>Regole che vincono sul criterio quando attive.</Text>
+              <View style={s.sectionHeaderRow}>
+                <Text style={[s.sectionLabel, s.sectionLabelInRow]}>ECCEZIONI</Text>
+                {activeExcCount > 0 ? (
+                  <View style={s.countBadge}><Text style={s.countBadgeText}>{activeExcCount}</Text></View>
+                ) : null}
+              </View>
+              <Text style={s.sectionCaption}>Regole che vincono sul criterio quando attive. Tocca il colore per personalizzarlo.</Text>
               <View style={s.card}>
                 {activeExceptions.map((exc, i) => {
                   const on = exceptions[exc.key] ?? exc.defaultEnabled;
@@ -283,16 +294,21 @@ const s = StyleSheet.create({
   muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 48, gap: 8 },
   intro: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 8 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 8 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6, marginTop: 18, marginBottom: 8 },
+  sectionLabelInRow: { marginTop: 0, marginBottom: 0 },
+  countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
   sectionCaption: { fontSize: 13, color: colors.textMuted, marginTop: -4, marginBottom: 8 },
   criteriaRow: { flexDirection: 'row', gap: 12 },
-  critCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB', padding: 14, gap: 6 },
+  critCard: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB', padding: 14, gap: 6 },
   critCardSelected: { borderColor: '#1A1A2E' },
   critHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   critTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
   critDesc: { fontSize: 12.5, color: colors.textMuted, lineHeight: 17 },
-  previewChips: { flexDirection: 'row', gap: 5, marginTop: 6 },
-  previewChip: { width: 22, height: 14, borderRadius: 5 },
+  // flex:1 chips → si dividono la larghezza della card (nessun overflow, es. Patente 6 chip).
+  previewChips: { flexDirection: 'row', gap: 4, marginTop: 6, alignSelf: 'stretch' },
+  previewChip: { flex: 1, minWidth: 0, height: 14, borderRadius: 5 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#EEF0F3', paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 56 },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EEF0F3' },
