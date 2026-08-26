@@ -258,9 +258,10 @@ const s = StyleSheet.create({
   countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginTop: 16 },
   countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
 
-  // Segmented control (Airbnb-clean): track grigio, pillola bianca selezionata.
-  segment: { flexDirection: 'row', backgroundColor: '#F1F3F7', borderRadius: 12, padding: 4, gap: 4 },
-  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
+  // Segmented control: capsula (pillola) — stesso riferimento delle tab
+  // "Una volta/Ricorrente" (availability-exception): track grigio, pillola bianca.
+  segment: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
   segmentItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   segmentText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
   segmentTextActive: { color: '#1A1A2E', fontWeight: '700' },
