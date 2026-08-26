@@ -39,7 +39,7 @@ const WEEK_DAYS: { label: string; value: number }[] = [
 ];
 const FLUENT_CAL = require('../../../assets/icons/fluent-spiral-cal.png');
 
-const SEG_PAD = 5;
+const SEG_PAD = 4;
 const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
 
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1); // iOS-like ease-in-out
@@ -439,14 +439,15 @@ const s = StyleSheet.create({
   headerIcon: { width: 48, height: 48, resizeMode: 'contain', marginBottom: -6 },
   title: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
 
-  /* Mode tabs (Airbnb segmented control) */
-  seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: SEG_PAD, position: 'relative' },
+  /* Mode tabs — segmented control standard (stesso stile del pannello "Aspetto
+     agenda"): track grigio chiaro, pillola bianca. Mantiene lo slide animato. */
+  seg: { flexDirection: 'row', backgroundColor: '#F1F3F7', borderRadius: 12, padding: SEG_PAD, position: 'relative' },
   segPill: {
-    position: 'absolute', top: SEG_PAD, bottom: SEG_PAD, left: SEG_PAD, borderRadius: 999, backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
+    position: 'absolute', top: SEG_PAD, bottom: SEG_PAD, left: SEG_PAD, borderRadius: 9, backgroundColor: '#FFFFFF',
+    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
   },
-  segItem: { flex: 1, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
+  segItem: { flex: 1, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  segText: { fontSize: 15, fontWeight: '600', color: '#6B7280', letterSpacing: -0.2 },
   segTextActive: { color: '#1A1A2E', fontWeight: '700' },
 
   /* Accordion card */
