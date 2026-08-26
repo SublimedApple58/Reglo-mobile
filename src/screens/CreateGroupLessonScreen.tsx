@@ -26,6 +26,7 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { vehicleServesStudent as vehicleServesStudentShared, MOTO_LICENSE_CATEGORIES } from '../utils/license';
 import { instructorCanUseVehicle } from '../utils/vehicles';
+import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, type MotoLessonType } from '../utils/motoLessonType';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 
 const NAVY = '#1A1A2E';
@@ -94,6 +95,8 @@ export const CreateGroupLessonScreen = () => {
   const [durationMin, setDurationMin] = useState<number>(180);
   const [capacity, setCapacity] = useState<number>(3);
   const [kind, setKind] = useState<'standard' | 'moto'>('standard');
+  // Tipo guida moto (birilli/strada), condiviso da tutta la guida — facoltativo.
+  const [motoLessonType, setMotoLessonType] = useState<MotoLessonType | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   // Moto group: the chosen fleet of motos + one shared follow car.
   const [fleetIds, setFleetIds] = useState<string[]>([]);
@@ -257,6 +260,20 @@ export const CreateGroupLessonScreen = () => {
     });
     router.push(optionsPickerPath());
   };
+  const openMotoLessonType = () => {
+    optionsPickerStore.set({
+      title: 'Tipo guida moto', multi: false, selected: motoLessonType ? [motoLessonType] : [],
+      options: [
+        { value: '__none__', label: 'Non specificato', subtitle: null },
+        ...MOTO_LESSON_TYPES.map((t) => ({ value: t, label: MOTO_LESSON_TYPE_LABELS[t], subtitle: MOTO_LESSON_TYPE_HINTS[t] })),
+      ],
+      onConfirm: (v) => {
+        const picked = v[0];
+        setMotoLessonType(picked === 'birilli' || picked === 'strada' ? picked : null);
+      },
+    });
+    router.push(optionsPickerPath());
+  };
   const openStudentsPicker = () => {
     const options: ExamStudentOption[] = eligibleStudents.map((st) => ({
       value: st.id, label: `${st.firstName} ${st.lastName}`.trim(),
@@ -279,6 +296,7 @@ export const CreateGroupLessonScreen = () => {
       : `${selectedStudents.length}/${effectiveCapacity} allievi`;
 
   const fleetValue = fleet.length === 0 ? null : `${fleet.length} moto`;
+  const motoLessonTypeValue = motoLessonType ? MOTO_LESSON_TYPE_LABELS[motoLessonType] : null;
   // L'auto al seguito è sempre facoltativa alla creazione: se le regole la
   // richiedono, il BE ne assegna una libera alla prima iscrizione.
   const canCreate = isMoto ? fleetIds.length > 0 : !!vehicleId;
@@ -314,7 +332,7 @@ export const CreateGroupLessonScreen = () => {
         endsAt: endsAt.toISOString(),
         instructorId: instructorId ?? undefined,
         ...(isMoto
-          ? { kind: 'moto' as const, vehicleIds: fleetIds, followVehicleId: followVehicleId ?? undefined, capacity: effectiveCapacity }
+          ? { kind: 'moto' as const, vehicleIds: fleetIds, followVehicleId: followVehicleId ?? undefined, motoLessonType, capacity: effectiveCapacity }
           : { vehicleId, capacity }),
         studentIds: selectedIds,
       });
@@ -360,7 +378,7 @@ export const CreateGroupLessonScreen = () => {
               return (
                 <Pressable
                   key={k}
-                  onPress={() => { setKind(k); setSelectedIds([]); }}
+                  onPress={() => { setKind(k); setSelectedIds([]); if (k !== 'moto') setMotoLessonType(null); }}
                   disabled={saving}
                   style={s.segItem}
                   hitSlop={6}
@@ -391,6 +409,8 @@ export const CreateGroupLessonScreen = () => {
                 <Row icon="bicycle-outline" label="Moto della guida" value={fleetValue} placeholder={motoVehicles.length ? 'Seleziona le moto' : 'Nessuna moto disponibile'} onPress={openFleetPicker} disabled={saving || motoVehicles.length === 0} />
                 <View style={s.divider} />
                 <Row icon="car-outline" label="Auto al seguito (facoltativa)" value={followVehicle ? followVehicle.name : null} placeholder={followCarRequired ? 'Automatica alla 1ª iscrizione' : 'Nessuna'} onPress={openFollowCarPicker} disabled={saving} />
+                <View style={s.divider} />
+                <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={saving} />
               </>
             )}
           </View>

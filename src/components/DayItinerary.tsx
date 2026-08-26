@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import { BookableBand } from './BookableBand';
 import { UserPhotoCircle } from './UserPhotoCircle';
 import { fmtClockFull, fmtDuration, BLOCK_PRESENTATION, type DayExamGroup, type DayGroupLessonGroup, type DayPlan } from '../utils/weeklyAgenda';
@@ -133,6 +134,12 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, isMotoGroup && styles.groupLabelMoto]}>{isMotoGroup ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                   <Text style={styles.groupTitle} numberOfLines={1}>{sub}</Text>
+                  {isMotoGroup && g.motoLessonType ? (
+                    <View style={styles.motoTypeChip}>
+                      <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.motoLessonType]} size={11} color="#C2410C" />
+                      <Text style={styles.motoTypeChipText}>{MOTO_LESSON_TYPE_LABELS[g.motoLessonType]}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <View style={styles.seats}>
                   {Array.from({ length: g.capacity }).map((_, i) => (
@@ -292,6 +299,10 @@ const styles = StyleSheet.create({
   groupLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
   groupLabelMoto: { color: '#C2410C' },
   groupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  // Chip tipo guida moto (birilli/strada) sulla card gruppo moto — pill bianca
+  // con testo/icona nell'accento arancio della card (REG-406).
+  motoTypeChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
+  motoTypeChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
   // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
   seats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 3, marginLeft: 8, maxWidth: 57 },
   seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#10B981' },

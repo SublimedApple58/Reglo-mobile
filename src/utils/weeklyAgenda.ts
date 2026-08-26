@@ -1,4 +1,5 @@
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
+import { asMotoLessonType, type MotoLessonType } from './motoLessonType';
 
 // ─────────────────────────────────────────────────────────────
 // Pure data layer for the weekly "control in words" overview.
@@ -104,6 +105,7 @@ export type DayGroupLessonGroup = {
   count: number;
   capacity: number;
   kind: 'standard' | 'moto'; // moto groups get a dedicated orange tint
+  motoLessonType: MotoLessonType | null; // "birilli" | "strada" per i gruppi moto (REG-406)
   appts: AutoscuolaAppointmentWithRelations[];
 };
 export const GROUP_LESSON_CAPACITY = 3;
@@ -210,6 +212,7 @@ export function computeDayPlan(
       count: rowsG.filter((r) => !String(r.appt.id).startsWith('gl-empty:')).length,
       capacity: rowsG[0].appt.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
       kind: (rowsG[0].appt.groupLessonKind === 'moto' ? 'moto' : 'standard') as 'standard' | 'moto',
+      motoLessonType: asMotoLessonType(rowsG[0].appt.groupLessonMotoType),
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);

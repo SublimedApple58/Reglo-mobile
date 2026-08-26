@@ -221,6 +221,8 @@ export type AutoscuolaAppointment = {
   groupLessonCapacity?: number | null;
   /** Tipo guida di gruppo ("standard" | "moto") — annotato dal BE sull'agenda. */
   groupLessonKind?: string | null;
+  /** Tipo guida moto di una guida di GRUPPO moto ("birilli" | "strada" | null) — annotato dal BE sull'agenda (container-level, REG-406). */
+  groupLessonMotoType?: 'birilli' | 'strada' | null;
   /** Posti occupati della guida di gruppo (per lo storico allievo: N/M). */
   groupLessonFilled?: number | null;
   /** Guida moto: "birilli" (area chiusa, coni) | "strada" | null (non-moto / non impostato). Sola lettura su mobile. */
@@ -287,6 +289,8 @@ export type GroupLesson = {
   status: string;
   /** "standard" (one shared vehicle) | "moto" (moto fleet + shared follow car). */
   kind?: string;
+  /** Moto group: tipo guida moto condiviso ("birilli" | "strada" | null), REG-406. */
+  motoLessonType?: 'birilli' | 'strada' | null;
   priceAmount: number;
   notes: string | null;
   instructorId: Uuid | null;
@@ -334,6 +338,8 @@ export type CreateGroupLessonInput = {
   vehicleIds?: Uuid[];
   /** Moto group: shared follow car (category B). */
   followVehicleId?: Uuid | null;
+  /** Moto group: tipo guida moto condiviso ("birilli" | "strada" | null), REG-406. */
+  motoLessonType?: 'birilli' | 'strada' | null;
   instructorId?: Uuid | null;
   /** Capienza massima (3 o 4 allievi). Default BE: 3. */
   capacity?: number;

@@ -16,6 +16,7 @@ import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonBlock, SkeletonRing } from '../../../src/components/Skeleton';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { transmissionLabel, isMotoLicenseCategory } from '../../../src/utils/license';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 
@@ -467,6 +468,24 @@ export default function ManageGroupLessonScreen() {
                   <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
                 </Pressable>
               )}
+              {/* Tipo guida moto (birilli/strada) — sola lettura: si sceglie in
+                  creazione (mirror della guida moto singola), si modifica dal web. */}
+              {(() => {
+                const motoType = asMotoLessonType(lesson?.motoLessonType);
+                if (!motoType) return null;
+                return (
+                  <>
+                    <View style={s.rowDivider} />
+                    <View style={s.detailRow}>
+                      <View style={s.detailIcon}><MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={24} color="#1A1A2E" /></View>
+                      <View style={s.detailBody}>
+                        <Text style={s.detailLabel}>Tipo guida moto</Text>
+                        <Text style={s.detailValue} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
             </>
           ) : vehiclesEnabled ? (
             <>
