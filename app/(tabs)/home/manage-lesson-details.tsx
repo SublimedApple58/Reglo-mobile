@@ -5,7 +5,7 @@ import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { manageLessonStore } from '../../../src/stores/manageLessonStore';
+import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
@@ -24,9 +24,12 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
-  const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
+  const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
 
   const lesson = data?.lesson ?? null;
+  // Spinner/lock del salvataggio gestito in locale: questo foglio ha uno store
+  // dedicato, non vede più il pendingAction live del flusso home.
+  const [saving, setSaving] = useState(false);
 
   const [types, setTypes] = useState<string[]>([]);
   const [rating, setRating] = useState<number | null>(null);
@@ -64,6 +67,13 @@ export default function ManageLessonDetailsScreen() {
     };
   });
 
+  // Clear on dismiss: il prossimo opener ri-seeda comunque prima del push.
+  useEffect(() => {
+    return () => {
+      lessonDetailsStore.clear();
+    };
+  }, []);
+
   useEffect(() => {
     if (!lesson) return;
     setTypes(resolveInitialLessonTypes(lesson));
@@ -76,9 +86,8 @@ export default function ManageLessonDetailsScreen() {
     return <View style={s.root} />;
   }
 
-  const { showRating, isDetailsEditable, pendingAction, onSaveDetails } = data;
-  const isPending = pendingAction !== null;
-  const editable = isDetailsEditable && !isPending;
+  const { showRating, isDetailsEditable, onSaveDetails } = data;
+  const editable = isDetailsEditable && !saving;
   const showEsito = data.showEsito === true;
   const showRatingNow = showRating || esito !== null;
   // Il tipo cambierebbe il `type` dell'appuntamento: nascosto su esami/gruppi
@@ -95,8 +104,13 @@ export default function ManageLessonDetailsScreen() {
 
   const handleSave = async () => {
     if (!editable) return;
-    const ok = await onSaveDetails({ lessonTypes: types, rating, notes, esito });
-    if (ok) router.back();
+    setSaving(true);
+    try {
+      const ok = await onSaveDetails({ lessonTypes: types, rating, notes, esito });
+      if (ok) router.back();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -117,7 +131,7 @@ export default function ManageLessonDetailsScreen() {
             style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
           >
             <GradientCTABackground radius={27} />
-            {pendingAction === 'save_details' ? (
+            {saving ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={s.saveText}>Salva</Text>

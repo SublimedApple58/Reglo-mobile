@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { groupStudentsStore, type GroupStudent } from '../../../src/stores/groupStudentsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -55,9 +56,11 @@ export default function GroupStudentsScreen() {
       : null;
     return (
       <Pressable onPress={() => toggle(item.id)} style={({ pressed }) => [s.row, isSel && s.rowSel, pressed && { opacity: 0.7 }]}>
-        <View style={[s.avatar, { backgroundColor: bg }]}>
-          <Text style={[s.avatarText, { color: fg }]}>{initials(item.firstName, item.lastName)}</Text>
-        </View>
+        <UserPhotoCircle userId={item.id} size={46}>
+          <View style={[s.avatar, { backgroundColor: bg }]}>
+            <Text style={[s.avatarText, { color: fg }]}>{initials(item.firstName, item.lastName)}</Text>
+          </View>
+        </UserPhotoCircle>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.name} numberOfLines={1}>{item.firstName} {item.lastName}</Text>
           {assignedToOther ? (

@@ -1,17 +1,20 @@
 import React, { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { Input } from '../../../src/components/Input';
+import { ProfilePhotoEditor } from '../../../src/components/ProfilePhotoEditor';
 import { settingsStore } from '../../../src/stores/settingsStore';
+import { useSession } from '../../../src/context/SessionContext';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(settingsStore.subscribe, settingsStore.get);
+  const { user } = useSession();
 
   if (!data) return <View style={s.root} />;
 
@@ -42,6 +45,31 @@ export default function ProfileEditScreen() {
       >
         <Text style={s.title}>Modifica profilo</Text>
 
+        <ProfilePhotoEditor />
+
+        {/* Firma: riga piatta con hairline, senza card bordata */}
+        <Pressable
+          onPress={() => router.push('/(tabs)/settings/signature')}
+          style={({ pressed }) => [s.signatureRow, pressed && { opacity: 0.7 }]}
+        >
+          {user?.signatureUrl ? (
+            <Image
+              source={{ uri: user.signatureUrl }}
+              style={s.signaturePreview}
+              resizeMode="contain"
+            />
+          ) : (
+            <Ionicons name="create-outline" size={24} color="#1A1A2E" />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={s.signatureTitle}>Firma</Text>
+            <Text style={s.signatureSubtitle}>
+              {user?.signatureUrl ? 'Tocca per rifarla' : 'Apponi la tua firma con il dito'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
+
         <View style={s.field}>
           <Text style={s.label}>Nome completo</Text>
           <Input placeholder="Nome" value={name} onChangeText={setName} />
@@ -60,6 +88,15 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  signatureRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#EBEBEB',
+  },
+  signaturePreview: { width: 64, height: 32 },
+  signatureTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  signatureSubtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
   field: { gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   cta: {

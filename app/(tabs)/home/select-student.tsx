@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { studentPickerStore } from '../../../src/stores/studentPickerStore';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 
@@ -84,9 +85,11 @@ export default function SelectStudentScreen() {
               <View key={o.value}>
                 {idx > 0 ? <View style={s.divider} /> : null}
                 <Pressable onPress={() => pick(o.value)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-                  <View style={[s.avatar, selected && { backgroundColor: NAVY }]}>
-                    <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
-                  </View>
+                  <UserPhotoCircle userId={o.value} size={46}>
+                    <View style={[s.avatar, selected && { backgroundColor: NAVY }]}>
+                      <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
+                    </View>
+                  </UserPhotoCircle>
                   <View style={s.body}>
                     <Text style={s.name} numberOfLines={1}>{o.label}</Text>
                     {o.subtitle ? <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text> : null}

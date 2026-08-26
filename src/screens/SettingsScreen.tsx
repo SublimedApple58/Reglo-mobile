@@ -717,7 +717,14 @@ export const SettingsScreen = () => {
           style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
         >
           <View style={studentStyles.profileAvatar}>
-            <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
+            {user?.photoUrl ? (
+              <Image
+                source={{ uri: user.photoUrl }}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
+            )}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
@@ -960,7 +967,7 @@ const studentStyles = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 10, elevation: 4,
   },
   profileAvatar: {
-    width: 60, height: 60, borderRadius: 30,
+    width: 60, height: 60, borderRadius: 30, overflow: 'hidden',
     backgroundColor: '#E9EBF2',
     alignItems: 'center', justifyContent: 'center',
   },

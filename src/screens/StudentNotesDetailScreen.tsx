@@ -14,13 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
-import { manageLessonStore, ManageLessonData } from '../stores/manageLessonStore';
+import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
@@ -105,8 +106,9 @@ export const StudentNotesDetailScreen = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   // Apre il foglio "Dettagli guida" (Tipo/Valutazione/Note) per una guida dello
-  // storico, seedando manageLessonStore con lo stretto necessario che quel foglio
-  // legge (lesson + flag + onSaveDetails). Al salvataggio aggiorna via BE (solo i
+  // storico, seedando lessonDetailsStore (store DEDICATO del foglio: seedare
+  // manageLessonStore da qui clobberava lo snapshot della ManageLessonScreen
+  // eventualmente montata sotto → crash). Al salvataggio aggiorna via BE (solo i
   // campi cambiati, come il flusso home) e ricarica. Il foglio è registrato in
   // entrambi gli stack (home + notes): navighiamo alla route dello stack corrente.
   const openDetails = useCallback(
@@ -126,12 +128,11 @@ export const StudentNotesDetailScreen = () => {
         !isExam &&
         startMs - 10 * 60 * 1000 <= Date.now();
       const currentOutcome = outcomeFromStatus(status);
-      manageLessonStore.set({
+      lessonDetailsStore.set({
         lesson: appt,
         showRating,
         showEsito: canSetOutcome,
         isDetailsEditable: true,
-        pendingAction: null,
         onSaveDetails: async ({ lessonTypes, rating, notes, esito }) => {
           try {
             // 1. Esito PRIMA (il BE accetta il rating solo su guide effettuate).
@@ -160,7 +161,7 @@ export const StudentNotesDetailScreen = () => {
             return false;
           }
         },
-      } as ManageLessonData);
+      });
       const stack = segments[1] === 'notes' ? 'notes' : 'home';
       router.push(`/(tabs)/${stack}/manage-lesson-details`);
     },
@@ -259,7 +260,9 @@ export const StudentNotesDetailScreen = () => {
           {/* FRONT */}
           <Animated.View style={[s.face, s.faceFront, frontStyle]}>
             <View style={s.profileLeft}>
-              <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
+              <UserPhotoCircle userId={studentId} size={72} style={{ marginBottom: 8 }}>
+                <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
+              </UserPhotoCircle>
               <Text style={s.profileName} numberOfLines={1}>{firstName}</Text>
               {licenseLabel ? (
                 <View style={s.licenseChip}>

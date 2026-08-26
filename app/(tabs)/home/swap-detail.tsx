@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
@@ -50,9 +51,11 @@ export default function SwapDetailScreen() {
               <Ionicons name="swap-horizontal" size={24} color="#14141F" />
             </View>
           ) : (
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{initialsOf(offer.requestingStudentName)}</Text>
-            </View>
+            <UserPhotoCircle userId={offer.requestingStudentId} size={54}>
+              <View style={s.avatar}>
+                <Text style={s.avatarText}>{initialsOf(offer.requestingStudentName)}</Text>
+              </View>
+            </UserPhotoCircle>
           )}
           <View style={{ flex: 1 }}>
             <Text style={s.name}>{mine ? 'La tua richiesta' : offer.requestingStudentName}</Text>

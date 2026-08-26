@@ -24,6 +24,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
@@ -210,9 +211,11 @@ export const SwapOffersScreen = () => {
               <Ionicons name="swap-horizontal" size={22} color="#14141F" />
             </View>
           ) : (
-            <View style={st.avatar}>
-              <Text style={st.avatarText}>{initialsOf(offer.requestingStudentName)}</Text>
-            </View>
+            <UserPhotoCircle userId={offer.requestingStudentId} size={44}>
+              <View style={st.avatar}>
+                <Text style={st.avatarText}>{initialsOf(offer.requestingStudentName)}</Text>
+              </View>
+            </UserPhotoCircle>
           )}
           <View style={{ flex: 1 }}>
             <Text style={st.cardName} numberOfLines={1}>

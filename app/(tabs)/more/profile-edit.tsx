@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { Input } from '../../../src/components/Input';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { ProfilePhotoEditor } from '../../../src/components/ProfilePhotoEditor';
 import { useSession } from '../../../src/context/SessionContext';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
@@ -60,6 +61,8 @@ export default function MoreProfileEditScreen() {
         }
       >
         <Text style={s.title}>Modifica profilo</Text>
+
+        <ProfilePhotoEditor />
 
         <View style={s.field}>
           <Text style={s.label}>Nome completo</Text>

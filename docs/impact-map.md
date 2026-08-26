@@ -66,6 +66,13 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Instructor Manage**: cluster settings (durations, booking actors, limits)
 - → **Backend**: `getAutoscuolaSettings()`, `updateInstructorSettings()`
 
+### Foto profilo + Firma allievo
+- → **Settings**: righe media dentro `profile-edit` (feature Settings); avatar della profile card in `SettingsScreen` mostra la foto
+- → **Session**: `refreshMe()` dopo ogni upload; `user.photoUrl/signatureUrl` arrivano SOLO da `/api/mobile/me`
+- → **API Layer**: `apiClient` ora supporta `FormData` (ogni futura modifica al client deve preservare il branch multipart)
+- → **Backend web**: download originale/portale nel dettaglio allievo (vedi `reglo/docs/features/student-photo-signature.md`)
+- ⚠️ **Build nativa richiesta**: `expo-image-picker` non è nel binario 2.1.0 → NO OTA finché non si builda con bump runtime
+
 ### Exam Creation
 - → **Booking Flow**: exam is a special appointment type
 - → **Settings**: reads cluster config for student grouping

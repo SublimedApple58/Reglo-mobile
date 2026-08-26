@@ -68,6 +68,25 @@ export type UserPublic = {
   email: string;
   phone: string | null;
   role: string;
+  /** Presenti solo nella risposta di /me */
+  photoUrl?: string | null;
+  signatureUrl?: string | null;
+};
+
+export type UploadMediaPayload = { key: string; url: string };
+
+export type UserPhotosPayload = {
+  users: Record<string, string | null>;
+  instructors: Record<string, string | null>;
+};
+
+export type SignaturePoint = { x: number; y: number };
+export type SignatureStrokeInput = { points: SignaturePoint[] };
+export type UploadSignatureInput = {
+  strokes: SignatureStrokeInput[];
+  width: number;
+  height: number;
+  strokeWidth: number;
 };
 
 export type AuthPayload = {

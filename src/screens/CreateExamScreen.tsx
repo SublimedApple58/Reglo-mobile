@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SheetScaffold } from '../components/SheetScaffold';
+import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 
 import { examSheetStore } from '../stores/examSheetStore';
@@ -293,9 +294,11 @@ export const CreateExamScreen = () => {
               {selectedStudents.length > 0 ? (
                 <View style={s.avatarStack}>
                   {selectedStudents.slice(0, 3).map((st, idx) => (
-                    <View key={st.id} style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
-                      <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
-                    </View>
+                    <UserPhotoCircle key={st.id} userId={st.id} size={30} style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx, borderWidth: 2, borderColor: '#FFFFFF' }}>
+                      <View style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
+                        <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
+                      </View>
+                    </UserPhotoCircle>
                   ))}
                   {selectedStudents.length > 3 ? (
                     <View style={[s.stackAvatar, s.stackMore, { marginLeft: -10 }]}>

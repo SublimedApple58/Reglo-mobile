@@ -8,6 +8,8 @@ export default function SettingsLayout() {
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="profile-edit" options={TALL_SHEET} />
+      {/* Firma: fullscreen vero (UI ruotata in landscape), niente sheet/card */}
+      <Stack.Screen name="signature" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="availability" options={TALL_SHEET} />
       <Stack.Screen name="le-tue-guide" options={SCROLL_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
