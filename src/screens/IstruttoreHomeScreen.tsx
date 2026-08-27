@@ -37,7 +37,8 @@ import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON, type MotoLessonType } from '../utils/motoLessonType';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../components/Screen';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
@@ -1211,7 +1212,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     type Item =
       | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
       | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
-      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; glKind: 'standard' | 'moto'; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; glKind: 'standard' | 'moto'; glMotoType: MotoLessonType | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
     const items: Item[] = [];
     for (const appt of others) {
       items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
@@ -1244,6 +1245,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         count: filled,
         capacity: first.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
         glKind: first.groupLessonKind === 'moto' ? 'moto' : 'standard',
+        glMotoType: first.groupLessonKind === 'moto' ? asMotoLessonType(first.groupLessonMotoType) : null,
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });
@@ -3435,6 +3437,12 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.groupLessonLabel, g.glKind === 'moto' && styles.groupLessonLabelMoto]}>{g.glKind === 'moto' ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                           <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
+                          {g.glMotoType ? (
+                            <View style={styles.glItinMotoChip}>
+                              <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.glMotoType]} size={11} color="#C2410C" />
+                              <Text style={styles.glItinMotoChipText}>{MOTO_LESSON_TYPE_LABELS[g.glMotoType]}</Text>
+                            </View>
+                          ) : null}
                           <View style={styles.glSeats}>
                             {Array.from({ length: g.capacity }).map((_, i) => (
                               <View key={i} style={[styles.glSeat, g.glKind === 'moto' && styles.glSeatMoto, i >= g.count && (g.glKind === 'moto' ? styles.glSeatEmptyMoto : styles.glSeatEmpty)]} />
@@ -5387,6 +5395,10 @@ const styles = StyleSheet.create({
   groupLessonLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
   groupLessonLabelMoto: { color: '#C2410C' },
   groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto della lista
+  // itinerario — pill bianca, testo/icona arancio (REG-406).
+  glItinMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
+  glItinMotoChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
   glSeatEmpty: { backgroundColor: '#A7D8CE' },

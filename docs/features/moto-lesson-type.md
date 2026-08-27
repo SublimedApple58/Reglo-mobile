@@ -63,11 +63,9 @@ dal mobile e modificabile dal web. Guide **individuali**
 - **Gruppo moto — gestione** (`manage-group-lesson`): riga read-only come
   `manage-lesson` (icona cono/strada + label), solo se il tipo è impostato.
 - **Gruppo moto — agenda**: chip pill bianca (icona cono/strada + Birilli/Strada,
-  testo `#C2410C`) sulla card gruppo-moto arancio, sia in `WeeklyAgendaView`
-  (griglia settimanale, superficie principale) sia in `DayItinerary` (day-detail).
-  - ⚠️ **Follow-up minore**: il chip NON è ancora sulla lista itinerario di
-    `IstruttoreHomeScreen` (`itinRow`, riga ~3432) — superficie secondaria; stesso
-    one-liner, da aggiungere dopo l'OK design.
+  testo `#C2410C`) sulla card gruppo-moto arancio su **tutte** le superfici agenda:
+  `WeeklyAgendaView` (griglia settimanale), `DayItinerary` (day-detail) e la lista
+  itinerario di `IstruttoreHomeScreen` (`itinRow`).
 
 ## Connected features
 - [instructor-manage.md](instructor-manage.md) — la riga vive nello sheet
