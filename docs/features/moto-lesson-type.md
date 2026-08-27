@@ -44,6 +44,7 @@ dal mobile e modificabile dal web. Guide **individuali**
 | `app/(tabs)/home/manage-group-lesson.tsx` | Riga read-only "Tipo guida moto" nel branch moto (dopo "Auto al seguito"), resa solo se `lesson.motoLessonType` valorizzato. |
 | `src/utils/weeklyAgenda.ts` | `DayGroupLessonGroup.motoLessonType` (da `appt.groupLessonMotoType` via `asMotoLessonType`). |
 | `src/components/DayItinerary.tsx` | Chip badge (icona + label) sulla card gruppo-moto (pill bianca, testo/icona `#C2410C`) quando `g.motoLessonType`. |
+| `src/components/WeeklyAgendaView.tsx` | Stesso chip sulla card gruppo-moto della **griglia settimanale** (`GROUP_MOTO_LOOK`), da `a0.groupLessonMotoType`, mostrato se la card è abbastanza alta. |
 | `src/types/regloApi.ts` | `GroupLesson.motoLessonType`, `CreateGroupLessonInput.motoLessonType`, `AutoscuolaAppointment.groupLessonMotoType` (annotazione bootstrap agenda). |
 
 ## UI
@@ -61,11 +62,12 @@ dal mobile e modificabile dal web. Guide **individuali**
   `BookingForm`.
 - **Gruppo moto — gestione** (`manage-group-lesson`): riga read-only come
   `manage-lesson` (icona cono/strada + label), solo se il tipo è impostato.
-- **Gruppo moto — agenda** (`DayItinerary`): chip pill bianca (icona + Birilli/
-  Strada, testo `#C2410C`) sulla card gruppo-moto arancio.
-  - ⚠️ **Pending (dopo OK design)**: replicare lo stesso chip su
-    `IstruttoreHomeScreen` (hour-grid) e `WeeklyAgendaView` (settimanale) per
-    piena copertura agenda.
+- **Gruppo moto — agenda**: chip pill bianca (icona cono/strada + Birilli/Strada,
+  testo `#C2410C`) sulla card gruppo-moto arancio, sia in `WeeklyAgendaView`
+  (griglia settimanale, superficie principale) sia in `DayItinerary` (day-detail).
+  - ⚠️ **Follow-up minore**: il chip NON è ancora sulla lista itinerario di
+    `IstruttoreHomeScreen` (`itinRow`, riga ~3432) — superficie secondaria; stesso
+    one-liner, da aggiungere dopo l'OK design.
 
 ## Connected features
 - [instructor-manage.md](instructor-manage.md) — la riga vive nello sheet

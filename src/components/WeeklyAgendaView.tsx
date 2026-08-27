@@ -27,7 +27,8 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import * as Haptics from '../utils/haptics';
 import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
@@ -1108,6 +1109,7 @@ const WeekPage = React.memo(function WeekPage({
             const height = Math.max((dur / 60) * ROW_H, 26);
             const showMeta = height >= 40;
             const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
+            const glMotoType = a0.groupLessonKind === 'moto' ? asMotoLessonType(a0.groupLessonMotoType) : null;
             return (
               <Pressable
                 key={`group-${colIdx}-${groupLessonId ?? a0.id}`}
@@ -1123,6 +1125,12 @@ const WeekPage = React.memo(function WeekPage({
                   <Text style={[styles.eventMeta, { color: look.text }]} numberOfLines={1}>
                     {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
                   </Text>
+                )}
+                {glMotoType && height >= 58 && (
+                  <View style={styles.glMotoChip}>
+                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[glMotoType]} size={9} color={look.text} />
+                    <Text style={[styles.glMotoChipText, { color: look.text }]} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[glMotoType]}</Text>
+                  </View>
                 )}
               </Pressable>
             );
@@ -1592,6 +1600,10 @@ const styles = StyleSheet.create({
   },
   eventName: { fontSize: 11, fontWeight: '700', lineHeight: 14 },
   eventMeta: { fontSize: 9, fontWeight: '500', marginTop: 2, opacity: 0.85 },
+  // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto in griglia — pill
+  // bianca compatta con testo/icona nell'accento arancio (REG-406).
+  glMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', marginTop: 3, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 999, backgroundColor: '#FFFFFF' },
+  glMotoChipText: { fontSize: 8.5, fontWeight: '700', letterSpacing: 0.2 },
   // Timeless exams — canonical lavender exam card (matches day-detail style).
   timelessWrap: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
   examBanner: {
