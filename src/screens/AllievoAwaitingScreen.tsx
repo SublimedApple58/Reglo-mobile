@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
 import { PhaseTimeline } from '../components/PhaseTimeline';
@@ -19,8 +19,15 @@ import { spacing } from '../theme/spacing';
 const HERO = require('../../assets/icons-3d/rocket.png');
 
 export const AllievoAwaitingScreen: React.FC = () => {
-  const { user } = useSession();
+  const { user, signOut } = useSession();
   const firstName = user?.name?.split(' ')[0] ?? '';
+
+  const handleLogout = () => {
+    Alert.alert("Esci dall'account", 'Vuoi davvero uscire?', [
+      { text: 'Annulla', style: 'cancel' },
+      { text: 'Esci', style: 'destructive', onPress: () => signOut() },
+    ]);
+  };
 
   return (
     <Screen>
@@ -58,6 +65,15 @@ export const AllievoAwaitingScreen: React.FC = () => {
         >
           <Text style={styles.caption}>IL TUO PERCORSO</Text>
           <PhaseTimeline phase="AWAITING" />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+          <Text style={styles.logout}>
+            Account sbagliato?{' '}
+            <Text style={styles.logoutLink} onPress={handleLogout}>
+              Esci
+            </Text>
+          </Text>
         </Animated.View>
       </ScrollView>
     </Screen>
@@ -146,6 +162,17 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.md,
     marginLeft: 2,
+  },
+  logout: {
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    fontSize: 13.5,
+    color: colors.textMuted,
+  },
+  logoutLink: {
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
 

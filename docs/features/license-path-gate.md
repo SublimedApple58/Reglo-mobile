@@ -29,4 +29,9 @@ Il flag arriva dal backend: `GET /api/autoscuole/me` → `needsLicensePath` (`se
 - **Student Phase**: `needsLicensePath` viaggia su `StudentPhasePayload` (`useMyPhase`/`useStudentPhase`). Il gate è **ortogonale** alla fase: precede qualunque home per-fase (AWAITING/TEORIA/PRATICA). Vedi [student-phase.md](student-phase.md).
 - **Phone Gate**: stesso pattern e ordine di montaggio (prima phone, poi license). Vedi [phone-gate.md](phone-gate.md).
 - **Backend**: `reglo/app/api/autoscuole/me/route.ts` (`needsLicensePath`), `reglo/app/api/autoscuole/me/license-path/route.ts` (PATCH self-scoped), `reglo/app/api/mobile/auth/student-register/route.ts` (marca `selfRegistered`, niente seed licenza).
+- **Backstop server-side (fix 2026-08-28)**: `ensureStudentCanBookFromApp` (`reglo/lib/actions/autoscuole-availability.actions.ts`) blocca la prenotazione se `selfRegistered && !licenseCategory` in ogni fase → un'app su bundle vecchio (rollout OTA) o l'avanzamento fase da web non permettono di prenotare senza percorso patente. Il gate non è più l'unica difesa.
+
+## AWAITING — tasto logout (fix 2026-08-28)
+
+`AllievoAwaitingScreen` (home fase AWAITING, "Ci siamo quasi") ora ha un escape di logout in fondo — "Account sbagliato? **Esci**" con Alert di conferma (`signOut`), stesso pattern del [Phone Gate](phone-gate.md) e del License Path Gate. Prima l'allievo in attesa non poteva uscire dall'account.
 - **Design**: preview approvata in iterazione (HTML + screenshot reali da simulatore, Airbnb-style 3D mono-navy).
