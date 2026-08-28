@@ -10,6 +10,7 @@ import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { GlassTabBar } from '../../src/components/GlassTabBar';
 import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
+import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
 
@@ -22,7 +23,7 @@ export default function TabsLayout() {
   const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
-  const { phase: studentPhase, hasQuizAccess, licenseCategory: studentLicenseCategory } = useStudentPhase();
+  const { phase: studentPhase, hasQuizAccess, licenseCategory: studentLicenseCategory, needsLicensePath } = useStudentPhase();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const isStudent = isStudentRole(autoscuolaRole);
   const isInstructor = isInstructorRole(autoscuolaRole);
@@ -76,6 +77,13 @@ export default function TabsLayout() {
   // older accounts). Replaces the whole tab tree; only exits are save/logout.
   if (status === 'ready' && isStudent && !user?.phone?.trim()) {
     return <PhoneGateScreen />;
+  }
+
+  // Blocking gate: a student who registered in autonomy (self sign-up) must
+  // pick their own percorso patente at first access (REG-410). Shown after the
+  // phone gate; same rules — replaces the tab tree, only exits are confirm/logout.
+  if (status === 'ready' && isStudent && needsLicensePath) {
+    return <LicensePathGateScreen />;
   }
 
   return (

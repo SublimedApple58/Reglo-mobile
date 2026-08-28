@@ -5,6 +5,11 @@ import type { LicenseCategory, Transmission } from '../types/regloApi';
 export const LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'BE', 'C', 'CE', 'D', 'DE', 'AM', 'A1', 'A2', 'A'];
 export const TRANSMISSIONS: Transmission[] = ['manual', 'automatic'];
 
+// License paths a self-registered student can pick for themselves at first
+// access (REG-410) — mirror of reglo/lib/autoscuole/license.ts. Everyday car +
+// the moto "A" family; pro/trailer categories stay staff-only. Order = display.
+export const STUDENT_LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'AM', 'A1', 'A2', 'A'];
+
 export const LICENSE_CATEGORY_LABELS: Record<LicenseCategory, string> = {
   B: 'B (auto)',
   BE: 'BE (auto + rimorchio)',

@@ -234,6 +234,14 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<AutoscuolaSettings>('/api/autoscuole/settings'),
     getMyPhase: async () =>
       client.request<StudentPhasePayload>('/api/autoscuole/me'),
+    // REG-410 — a self-registered student sets their OWN license path at first
+    // access (self-scoped, mirrors the owner-side setter on the web).
+    setLicensePath: async (input: { licenseCategory: string; transmission: string }) =>
+      client.request<{
+        licenseCategory: string;
+        transmission: string;
+        needsLicensePath: boolean;
+      }>('/api/autoscuole/me/license-path', { method: 'PATCH', body: input }),
     updateAutoscuolaSettings: async (input: Partial<AutoscuolaSettings>) =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',

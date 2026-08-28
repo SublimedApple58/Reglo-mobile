@@ -26,6 +26,12 @@ type UseStudentPhaseResult = {
   /** Pursued license path (category + transmission). Null until data loads / non-students. */
   licenseCategory: string | null;
   transmission: string | null;
+  /**
+   * REG-410 — true when a self-registered student still has to pick their own
+   * license path at first access. Drives the blocking license-path gate. False
+   * until data loads or for non-students.
+   */
+  needsLicensePath: boolean;
   loading: boolean;
 };
 
@@ -44,6 +50,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
       autoAssignQuizOnSignup: false,
       licenseCategory: null,
       transmission: null,
+      needsLicensePath: false,
       loading: false,
     };
   }
@@ -57,6 +64,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
     autoAssignQuizOnSignup: Boolean(data?.autoAssignQuizOnSignup),
     licenseCategory: data?.licenseCategory ?? null,
     transmission: data?.transmission ?? null,
+    needsLicensePath: Boolean(data?.needsLicensePath),
     loading: isLoading,
   };
 };

@@ -162,6 +162,14 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `PATCH /api/mobile/profile` (esistente; `name` obbligatorio min 3 — si rimanda quello corrente).
 - ⚠️ Chi tocca `(tabs)/_layout.tsx` deve preservare l'early-return del gate prima del `return <QuizProvider>`.
 
+### License Path Gate (REG-410)
+- **`LicensePathGateScreen`** — gate bloccante per allievi self-registered senza percorso patente; early-return in `(tabs)/_layout.tsx` **dopo** il phone gate, quando `status==='ready' && isStudent && needsLicensePath`.
+- → **Student Phase**: `needsLicensePath` viaggia su `StudentPhasePayload` (`useStudentPhase`). Ortogonale alla fase: precede la home per-fase. Chi cambia `StudentPhasePayload`/`useStudentPhase`/`_layout.tsx` deve preservarlo.
+- → **Session & Auth**: legge `activeCompanyId`, salva con `regloApi.setLicensePath` poi `invalidateQueries(studentPhase)` + `refreshMe()`; "Esci" usa `signOut`.
+- → **Phone Gate**: stesso pattern/ordine (prima phone, poi license). Vedi [features/license-path-gate.md](features/license-path-gate.md).
+- → **Backend**: `GET /api/autoscuole/me` (`needsLicensePath`), `PATCH /api/autoscuole/me/license-path`, `student-register` (`selfRegistered`, niente seed licenza).
+- ⚠️ Cambio prodotto (REG-410): il "Tipo di cambio" è **obbligatorio** (nessun default, CTA bloccata finché categoria+cambio non scelti).
+
 ## Cross-Repo Impact
 
 When `../reglo/` backend changes:

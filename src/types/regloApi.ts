@@ -37,6 +37,12 @@ export type StudentPhasePayload = {
    */
   licenseCategory?: string | null;
   transmission?: string | null;
+  /**
+   * REG-410 — true when a self-registered student must pick their own license
+   * path at first access. Drives the blocking license-path gate. Absent on
+   * legacy backends → assume false (never gate).
+   */
+  needsLicensePath?: boolean;
 };
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
