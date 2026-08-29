@@ -137,41 +137,60 @@ export const GroupLessonInvitesScreen = () => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
-          {invites.map((inv) => (
-            <View key={inv.inviteId} style={s.card}>
-              <Text style={s.when}>{fmtDate(inv.startsAt)}</Text>
-              <Text style={s.whenSub}>{fmtTimeRange(inv.startsAt, inv.endsAt)}</Text>
+          {invites.map((inv) => {
+            // REG-421 — a blocked student sees the group but can't join it: the
+            // card is shown DISABLED (muted surface + "sospese" pill, no CTA)
+            // rather than firing a generic error on tap. Moto-exact-ineligible
+            // groups never arrive here (filtered server-side).
+            const blocked = inv.bookable === false;
+            return (
+              <View key={inv.inviteId} style={[s.card, blocked && s.cardBlocked]}>
+                <Text style={s.when}>{fmtDate(inv.startsAt)}</Text>
+                <Text style={s.whenSub}>{fmtTimeRange(inv.startsAt, inv.endsAt)}</Text>
 
-              <View style={s.meta}>
-                {inv.instructorName ? <MetaRow icon="person-outline" label={inv.instructorName} /> : null}
-                {inv.kind === 'moto' ? (
-                  <MetaRow icon="bicycle-outline" label="Ti verrà assegnata una moto" />
-                ) : inv.vehicleName ? (
-                  <MetaRow icon="car-outline" label={inv.vehicleName} />
-                ) : null}
-                <View style={s.seats}>
-                  <Seats filled={inv.filledSeats} capacity={inv.capacity} />
-                  <Text style={s.seatsTxt}>{seatsLabel(inv.filledSeats, inv.capacity)}</Text>
+                <View style={s.meta}>
+                  {inv.instructorName ? <MetaRow icon="person-outline" label={inv.instructorName} /> : null}
+                  {inv.kind === 'moto' ? (
+                    <MetaRow icon="bicycle-outline" label="Ti verrà assegnata una moto" />
+                  ) : inv.vehicleName ? (
+                    <MetaRow icon="car-outline" label={inv.vehicleName} />
+                  ) : null}
+                  <View style={s.seats}>
+                    <Seats filled={inv.filledSeats} capacity={inv.capacity} />
+                    <Text style={s.seatsTxt}>{seatsLabel(inv.filledSeats, inv.capacity)}</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={{ marginTop: 18 }}>
-                <Button
-                  label="Iscrivimi"
-                  tone="primary"
-                  loading={pendingId === inv.inviteId}
-                  onPress={() => respond(inv, 'accept')}
-                />
-                <Pressable
-                  onPress={() => respond(inv, 'decline')}
-                  disabled={pendingId === inv.inviteId}
-                  style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}
-                >
-                  <Text style={s.ghostText}>Non mi interessa</Text>
-                </Pressable>
+                {blocked ? (
+                  <View style={s.blockedBox}>
+                    <View style={s.blockedPill}>
+                      <Ionicons name="lock-closed" size={13} color={colors.destructive} />
+                      <Text style={s.blockedPillTxt}>Prenotazioni sospese</Text>
+                    </View>
+                    <Text style={s.blockedNote}>
+                      Le tue prenotazioni sono temporaneamente sospese. Contatta la segreteria per riattivarle.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ marginTop: 18 }}>
+                    <Button
+                      label="Iscrivimi"
+                      tone="primary"
+                      loading={pendingId === inv.inviteId}
+                      onPress={() => respond(inv, 'accept')}
+                    />
+                    <Pressable
+                      onPress={() => respond(inv, 'decline')}
+                      disabled={pendingId === inv.inviteId}
+                      style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}
+                    >
+                      <Text style={s.ghostText}>Non mi interessa</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
@@ -206,6 +225,12 @@ const s = StyleSheet.create({
   emptySub: { fontSize: 14, fontWeight: '400', color: MUTED, textAlign: 'center', lineHeight: 20 },
 
   card: { backgroundColor: '#FFFFFF', borderRadius: 26, padding: 20, marginBottom: 18, shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+  // REG-421 — disabled (blocked) card: muted surface, no lift.
+  cardBlocked: { backgroundColor: NAVY_50, borderWidth: 1, borderColor: NAVY_100, shadowOpacity: 0.02, elevation: 0 },
+  blockedBox: { marginTop: 18, alignItems: 'flex-start', gap: 10 },
+  blockedPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#FCEBE6', borderWidth: 1, borderColor: '#F3C7B9' },
+  blockedPillTxt: { fontSize: 13, fontWeight: '600', color: colors.destructive, letterSpacing: -0.1 },
+  blockedNote: { fontSize: 13.5, fontWeight: '400', color: MUTED, lineHeight: 19 },
 
   when: { fontSize: 23, fontWeight: '600', color: NAVY, letterSpacing: -0.5, lineHeight: 27 },
   whenSub: { fontSize: 14.5, fontWeight: '400', color: NAVY_400, marginTop: 3 },

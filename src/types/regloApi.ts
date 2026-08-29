@@ -330,6 +330,13 @@ export type GroupLessonInvite = {
   vehicleName: string | null;
   notes: string | null;
   expiresAt: IsoDate;
+  /**
+   * REG-421 — false when the student's bookings are blocked by the school: the
+   * card is shown but DISABLED (not hidden, no join CTA). Absent on legacy
+   * backends → treat as bookable (true). Moto-exact-ineligible groups are
+   * filtered out server-side, so they never arrive here at all.
+   */
+  bookable?: boolean;
 };
 
 export type GroupLessonInvitee = { id: Uuid; name: string | null };

@@ -63,3 +63,10 @@ A second flavour: a **fleet of motos** + **one shared follow car**; each partici
 
 ## Tipo guida moto birilli/strada (REG-406, 2026-08-27)
 Le guide di gruppo **moto** (`kind="moto"`) hanno ora il **tipo guida moto** (birilli/strada), condiviso da tutta la guida (container `AutoscuolaGroupLesson.motoLessonType`, backend già in prod). Stessa UX delle guide moto individuali (REG-399): **selettore in creazione** (`CreateGroupLessonScreen`, Row → picker in modalità Moto → `createGroupLesson({motoLessonType})`), **riga read-only in gestione** (`manage-group-lesson.tsx`, branch moto), **badge chip in agenda** sulla card gruppo-moto (`DayItinerary`, da `weeklyAgenda.DayGroupLessonGroup.motoLessonType` ← `appt.groupLessonMotoType`). Il tipo si sceglie solo in creazione su mobile; l'edit vive sul web. Tipi: `GroupLesson.motoLessonType`, `CreateGroupLessonInput.motoLessonType`, `AutoscuolaAppointment.groupLessonMotoType`. Doc completa: [moto-lesson-type.md](moto-lesson-type.md). ⚠️ Badge su `IstruttoreHomeScreen` (hour-grid) e `WeeklyAgendaView` = follow-up dopo OK design.
+
+## Card disabilitata per allievo bloccato (REG-421, 2026-08-29)
+La lista studente `GroupLessonInvitesScreen` distingue **due** casi (backend REG-419/420):
+- **Allievo bloccato** (`bookingBlocked`): la guida **compare ma disabilitata**. Il backend `getGroupLessonInvites` ritorna l'item con **`bookable: false`** (`GroupLessonInvite.bookable?`, additivo — assente ⇒ `true`, retro-compat); la card usa superficie muted (`cardBlocked`) + pill rossa "🔒 Prenotazioni sospese" + nota "Contatta la segreteria", **senza CTA** (niente `respondGroupLessonInvite` → nessun toast d'errore generico al tap).
+- **Allievo non-eleggibile moto esatta** (REG-419, setting ON): la guida **non compare** — filtrata lato backend, nessuna modifica mobile.
+
+Backend: `reglo/lib/actions/autoscuole-availability.actions.ts` (`getGroupLessonInvites`, flag `bookable`; `countOnly`/badge resta 0 per i bloccati). Vedi `reglo/docs/features/group-lessons.md`.
