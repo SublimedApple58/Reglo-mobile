@@ -236,6 +236,16 @@ export default function ManageGroupLessonParticipantsScreen() {
     router.push('/(tabs)/home/edit-notes');
   };
 
+  // REG-423 — open the student's detail card, same navigation the instructor
+  // already uses from a single lesson (manage-lesson.tsx → student-detail).
+  const openStudentDetail = (p: GroupLesson['participants'][number]) => {
+    if (busy) return;
+    router.push({
+      pathname: '/(tabs)/home/student-detail',
+      params: { studentId: p.studentId, name: p.studentName ?? 'Allievo' },
+    } as never);
+  };
+
   return (
     <View style={[s.root, Platform.OS === 'android' ? { flex: 1 } : { paddingBottom: insets.bottom + 16 }]}>
       {/* Top bar — title + X */}
@@ -293,22 +303,37 @@ export default function ManageGroupLessonParticipantsScreen() {
                 <UserPhotoCircle userId={p.studentId} size={34}>
                   <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
                 </UserPhotoCircle>
-                <Pressable
-                  onPress={() => openNote(p)}
-                  disabled={busy}
-                  style={({ pressed }) => [{ flex: 1, gap: 2 }, pressed && { opacity: 0.5 }]}
-                  accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
-                >
-                  <Text style={[s.name, { flex: 0 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
-                  {participantMeta(isMoto, p.licenseCategory, p.vehicleName) ? (
-                    <Text style={[s.metaLine, isMoto && s.metaLineMoto]} numberOfLines={1}>
-                      {participantMeta(isMoto, p.licenseCategory, p.vehicleName)}
-                    </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  {/* REG-423 — the NAME opens the student's card (chevron affordance,
+                      same as a single lesson). The meta/note area still opens the note editor. */}
+                  <Pressable
+                    onPress={() => openStudentDetail(p)}
+                    disabled={busy}
+                    style={({ pressed }) => [s.nameRow, pressed && { opacity: 0.5 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri la scheda di ${p.studentName ?? 'allievo'}`}
+                  >
+                    <Text style={[s.name, { flex: 0, flexShrink: 1 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
+                    <Ionicons name="chevron-forward" size={15} color="#C7CBD1" />
+                  </Pressable>
+                  {participantMeta(isMoto, p.licenseCategory, p.vehicleName) || p.notes?.trim() ? (
+                    <Pressable
+                      onPress={() => openNote(p)}
+                      disabled={busy}
+                      style={({ pressed }) => [{ gap: 2 }, pressed && { opacity: 0.5 }]}
+                      accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
+                    >
+                      {participantMeta(isMoto, p.licenseCategory, p.vehicleName) ? (
+                        <Text style={[s.metaLine, isMoto && s.metaLineMoto]} numberOfLines={1}>
+                          {participantMeta(isMoto, p.licenseCategory, p.vehicleName)}
+                        </Text>
+                      ) : null}
+                      {p.notes?.trim() ? (
+                        <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
+                      ) : null}
+                    </Pressable>
                   ) : null}
-                  {p.notes?.trim() ? (
-                    <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
-                  ) : null}
-                </Pressable>
+                </View>
                 <Pressable
                   onPress={() => openNote(p)}
                   disabled={busy}
@@ -415,6 +440,7 @@ const s = StyleSheet.create({
   avatarText: { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
   addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', maxWidth: '100%' },
   rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
   metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
   metaLineMoto: { color: '#C2410C' },
