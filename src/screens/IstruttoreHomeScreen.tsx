@@ -595,7 +595,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
-  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
@@ -1040,6 +1040,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       subtitle: offCluster ? 'Non assegnato a te' : (null as string | null),
       licenseCategory: student.licenseCategory ?? null,
       transmission: student.transmission ?? null,
+      // Luogo di default (REG-392): precompila il Luogo alla selezione dell'allievo.
+      defaultLocationId: student.defaultLocationId ?? null,
+      defaultLocationName: student.defaultLocationName ?? null,
     });
     if (!clustersActive) {
       // No cluster lock \u2014 all students are equivalent

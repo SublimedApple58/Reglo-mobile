@@ -20,6 +20,7 @@ import { locationPickerStore } from '../../stores/locationPickerStore';
 import { locationFormStore } from '../../stores/locationFormStore';
 import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
 import { regloApi } from '../../services/regloApi';
+import { useLocations } from '../../hooks/queries/useLocations';
 import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
@@ -199,6 +200,18 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     [data?.studentOptions, studentId],
   );
 
+  // Luogo (REG-392): risolvi il NOME dal locationId contro la lista luoghi
+  // fresca (cache-first), invece di dipendere dal nome propagato nel bootstrap
+  // — così la label è corretta anche con un bootstrap in cache leggermente vecchio.
+  const { data: locList } = useLocations();
+  const locById = useMemo(
+    () => new Map((locList ?? []).map((l) => [l.id, l])),
+    [locList],
+  );
+  const resolvedLocation = locationId ? locById.get(locationId) : null;
+  const locationLabel = resolvedLocation?.name ?? locationName ?? "Sede dell'autoscuola";
+  const locationSubLabel = resolvedLocation?.address ?? locationAddress ?? null;
+
   if (!data) return <View style={s.root} />;
   const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
 
@@ -304,6 +317,19 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         setStudentId(v);
         const st = studentOptions.find((o) => o.value === v);
         if (st) presetVehiclesForStudent(st);
+        // Luogo di default dell'allievo (REG-392): alla selezione precompila il
+        // Luogo col suo default, SOVRASCRIVENDO il valore corrente. Se l'allievo
+        // non ha un default, torna alla sede. Una modifica manuale successiva
+        // resta (questo scatta solo al cambio allievo).
+        if (st?.defaultLocationId) {
+          setLocationId(st.defaultLocationId);
+          setLocationName(st.defaultLocationName ?? null);
+          setLocationAddress(null);
+        } else {
+          setLocationId(defaultLocation?.id ?? null);
+          setLocationName(defaultLocation?.name ?? null);
+          setLocationAddress(defaultLocation?.address ?? null);
+        }
       },
     });
     router.push('/(tabs)/home/select-student');
@@ -699,7 +725,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         {/* Secondari — stile lista piatta, priorità inferiore */}
         <Text style={s.listCaption}>Dettagli</Text>
         <View style={s.list}>
-          <Row icon="location-outline" label="Luogo" value={locationName ?? "Sede dell'autoscuola"} valueSub={locationAddress} onPress={openLocationPicker} disabled={pending} />
+          <Row icon="location-outline" label="Luogo" value={locationLabel} valueSub={locationSubLabel} onPress={openLocationPicker} disabled={pending} />
           {vehiclesEnabled && studentId ? (
             <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
               <View style={s.divider} />

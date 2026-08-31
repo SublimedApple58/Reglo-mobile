@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
+import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
 import { ToggleSwitch } from '../components/ToggleSwitch';
@@ -31,6 +32,9 @@ import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
+const FLUENT_BUILDING = require('../../assets/icons/fluent-building.png');
+// Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
+const SEDE_OPTION = '__sede__';
 const REQUIRED_LESSONS = 6;
 
 const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
@@ -71,17 +75,23 @@ export const StudentNotesDetailScreen = () => {
   const [studentPhase, setStudentPhase] = useState<string | null>(null);
   const [examReady, setExamReady] = useState(false);
   const [examReadySaving, setExamReadySaving] = useState(false);
+  // Luogo di default (REG-392)
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; isDefault: boolean; isPrecise: boolean }>>([]);
+  const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
+  const [defaultLocationName, setDefaultLocationName] = useState<string | null>(null);
+  const [locSaving, setLocSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!studentId) return;
     try {
-      const [appts, allCases, students, settings] = await Promise.all([
+      const [appts, allCases, students, settings, locs] = await Promise.all([
         regloApi.getAppointments({ studentId, limit: 500 }),
         regloApi.getCases().catch(() => [] as AutoscuolaCase[]),
         regloApi.getStudents(typeof name === 'string' ? name : undefined).catch(() => []),
         regloApi.getAutoscuolaSettings().catch(() => null),
+        regloApi.getLocations().catch(() => []),
       ]);
       const filtered = appts
         .filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled')
@@ -89,12 +99,22 @@ export const StudentNotesDetailScreen = () => {
       setAppointments(filtered);
       setCases(allCases.filter((c) => c.studentId === studentId));
       setGroupEnabled(settings?.groupLessonsEnabled === true);
+      setLocations(
+        (locs ?? []).map((l) => ({
+          id: l.id,
+          name: l.name,
+          isDefault: Boolean(l.isDefault),
+          isPrecise: Boolean(l.isPrecise),
+        })),
+      );
       const me = students.find((stu) => stu.id === studentId);
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
         setGroupOptIn(me.groupLessonsOptIn ?? false);
         setStudentPhase(me.studentPhase ?? null);
         setExamReady(me.examReady ?? false);
+        setDefaultLocationId(me.defaultLocationId ?? null);
+        setDefaultLocationName(me.defaultLocationName ?? null);
       }
     } catch {
       setToast({ text: 'Errore nel caricamento', tone: 'danger' });
@@ -167,6 +187,49 @@ export const StudentNotesDetailScreen = () => {
     },
     [loadData, router, segments],
   );
+
+  // Luogo di default (REG-392): aggiorna solo sulla risposta BE (niente
+  // optimistic update, come da convenzione reglo-mobile).
+  const applyDefaultLocation = useCallback(
+    async (locId: string | null) => {
+      if (locSaving) return;
+      setLocSaving(true);
+      try {
+        const res = await regloApi.setStudentDefaultLocation(String(studentId), locId);
+        setDefaultLocationId(res.defaultLocation?.id ?? null);
+        setDefaultLocationName(res.defaultLocation?.name ?? null);
+        setToast({ text: 'Luogo di default aggiornato.', tone: 'success' });
+      } catch (e) {
+        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+      } finally {
+        setLocSaving(false);
+      }
+    },
+    [studentId, locSaving],
+  );
+
+  // Apre il form sheet NATIVO riusabile (OptionsPickerSheet) invece di un modal
+  // custom: stesso pattern di Durata/Veicolo/Tipo. Applica al tap e si chiude.
+  // La route è registrata in entrambi gli stack (home + notes).
+  const openLocationPicker = useCallback(() => {
+    const custom = locations.filter((l) => !l.isDefault);
+    optionsPickerStore.set({
+      title: 'Luogo di default',
+      multi: false,
+      selected: [defaultLocationId ?? SEDE_OPTION],
+      options: [
+        { value: SEDE_OPTION, label: 'Sede dell’autoscuola' },
+        ...custom.map((l) => ({ value: l.id, label: l.name })),
+      ],
+      onConfirm: (vals) => {
+        const v = vals[0];
+        applyDefaultLocation(!v || v === SEDE_OPTION ? null : v);
+      },
+    });
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    const long = custom.length + 1 > LONG_PICKER_THRESHOLD;
+    router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
+  }, [locations, defaultLocationId, applyDefaultLocation, router, segments]);
 
   const phone = useMemo(() => {
     for (const appt of appointments) if (appt.student?.phone) return appt.student.phone;
@@ -406,6 +469,27 @@ export const StudentNotesDetailScreen = () => {
                   }
                 }}
               />
+            </Animated.View>
+          ) : null}
+
+          {/* Luogo di default (REG-392): stessa riga delle adiacenti (icona
+              Fluent 40x40 senza contenitore), apre il form sheet nativo. */}
+          {!loading && locations.length > 0 ? (
+            <Animated.View entering={FadeIn.duration(350)}>
+              <Pressable
+                style={s.groupOptBlock}
+                onPress={openLocationPicker}
+                disabled={locSaving}
+              >
+                <Image source={FLUENT_BUILDING} style={s.groupOptIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.groupOptTitle}>Luogo di default</Text>
+                  <Text style={s.groupOptSub} numberOfLines={1}>
+                    {defaultLocationName ?? 'Sede dell’autoscuola'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C4C4C4" />
+              </Pressable>
             </Animated.View>
           ) : null}
 

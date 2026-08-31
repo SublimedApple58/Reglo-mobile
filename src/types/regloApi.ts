@@ -138,6 +138,10 @@ export type AutoscuolaStudent = {
   // Segnale interno "pronto per l'esame" (solo PRATICA). Non vincola nulla.
   examReady?: boolean;
   examReadyAt?: IsoDate | null;
+  // Luogo di default (REG-392): mostrato nel dettaglio allievo; precompila il
+  // campo Luogo nel form di prenotazione alla selezione dell'allievo.
+  defaultLocationId?: Uuid | null;
+  defaultLocationName?: string | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };

@@ -388,6 +388,14 @@ export const createRegloApi = (baseUrl?: string) => {
         { method: 'PATCH', body: { ready } },
       ),
 
+    // Luogo di default dell'allievo (REG-392) — impostabile da istruttore/titolare.
+    // null = nessun default (il form riparte dalla sede).
+    setStudentDefaultLocation: async (studentId: string, locationId: string | null) =>
+      client.request<{ defaultLocation: { id: string; name: string } | null }>(
+        `/api/autoscuole/students/${studentId}/default-location`,
+        { method: 'PATCH', body: { locationId } },
+      ),
+
     declareWeeklyAbsence: async (input: { weekStart: string }) =>
       client.request<unknown>('/api/autoscuole/weekly-absence', {
         method: 'POST',
