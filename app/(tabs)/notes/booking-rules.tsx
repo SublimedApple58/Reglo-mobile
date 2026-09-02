@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
@@ -85,7 +86,7 @@ export default function BookingRulesScreen() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <View style={[s.root, { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -97,8 +98,9 @@ export default function BookingRulesScreen() {
       </View>
 
       <SheetScaffold
+        fill
         style={{ gap: 20 }}
-        contentContainerStyle={{ gap: 20 }}
+        contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
         footer={
           <Pressable
             onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
@@ -110,7 +112,7 @@ export default function BookingRulesScreen() {
           </Pressable>
         }
       >
-      <View style={s.section}>
+      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
         <Text style={s.label}>Chi prenota</Text>
         <View style={s.chips}>
           {ACTOR_OPTIONS.map((opt) => (
@@ -131,7 +133,13 @@ export default function BookingRulesScreen() {
         </View>
 
         {perPathOpen && (
-          <View style={s.pathCard}>
+          // entering/exiting = fade; il layout della sezione (+ delle sezioni
+          // sotto) anima l'altezza → reveal/collapse fluido (height + opacity).
+          <Animated.View
+            style={s.pathCard}
+            entering={FadeIn.duration(220)}
+            exiting={FadeOut.duration(150)}
+          >
             {PATH_BUCKETS.map((bucket, i) => (
               <View key={bucket.key} style={[s.pathRow, i > 0 && s.pathRowBorder]}>
                 <Text style={s.pathTitle}>{bucket.label}</Text>
@@ -151,11 +159,11 @@ export default function BookingRulesScreen() {
             <Text style={s.pathHint}>
               «Default autoscuola» eredita, per quel percorso, il valore impostato dall&apos;autoscuola.
             </Text>
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
 
-      <View style={s.section}>
+      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
         <Text style={s.label}>Modalità istruttore</Text>
         <View style={s.chips}>
           {MODE_OPTIONS.map((opt) => (
@@ -167,9 +175,9 @@ export default function BookingRulesScreen() {
             />
           ))}
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={s.section}>
+      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
         <Text style={s.label}>Durata guide</Text>
         <View style={s.chips}>
           {DURATION_OPTIONS.map((dur) => (
@@ -181,9 +189,9 @@ export default function BookingRulesScreen() {
             />
           ))}
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={s.card}>
+      <Animated.View style={s.card} layout={LinearTransition.duration(240)}>
         <View style={s.toggleRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.toggleLabel}>Solo orari tondi</Text>
@@ -191,7 +199,7 @@ export default function BookingRulesScreen() {
           </View>
           <ToggleSwitch value={roundedHoursOnly} onValueChange={setRoundedHoursOnly} />
         </View>
-      </View>
+      </Animated.View>
       </SheetScaffold>
     </View>
   );
