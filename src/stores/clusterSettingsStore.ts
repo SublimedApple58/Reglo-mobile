@@ -26,6 +26,10 @@ export type ClusterSettingsStoreData = {
   // ── Prenotazione guide ──
   appBookingActors: string | undefined;
   setAppBookingActors: (v: string | undefined) => void;
+  // REG-426: override "chi prenota" per bucket percorso patente (moto/auto/pro).
+  // undefined/vuoto = nessun override (vale il default).
+  appBookingActorsByPath: { moto?: string; auto?: string; pro?: string } | undefined;
+  setAppBookingActorsByPath: (v: { moto?: string; auto?: string; pro?: string } | undefined) => void;
   instructorBookingMode: string | undefined;
   setInstructorBookingMode: (v: string | undefined) => void;
   bookingSlotDurations: number[];

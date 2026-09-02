@@ -1009,6 +1009,13 @@ export type InstructorClusterSettings = {
   bookingSlotDurations?: number[];
   roundedHoursOnly?: boolean;
   appBookingActors?: 'students' | 'instructors' | 'both';
+  // REG-426: override "chi prenota" per bucket di percorso patente (moto/auto/pro).
+  // Assente/vuoto = nessun override (vale il default cluster o autoscuola).
+  appBookingActorsByPath?: {
+    moto?: 'students' | 'instructors' | 'both';
+    auto?: 'students' | 'instructors' | 'both';
+    pro?: 'students' | 'instructors' | 'both';
+  };
   instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
   studentCancellationEnabled?: boolean;

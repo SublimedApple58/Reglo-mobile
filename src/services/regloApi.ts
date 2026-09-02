@@ -273,7 +273,19 @@ export const createRegloApi = (baseUrl?: string) => {
         publishedWeeks?: Array<{ id: string; weekStart: string; publishedAt: string }>;
       }>('/api/autoscuole/instructor-settings'),
 
-    updateInstructorSettings: async (input: Partial<InstructorClusterSettings> & { assignStudentIds?: string[] }) =>
+    updateInstructorSettings: async (
+      // REG-426: appBookingActors / appBookingActorsByPath accettano anche `null`
+      // per AZZERARE il campo (torna al default). Gli altri campi restano com'erano.
+      input: Omit<Partial<InstructorClusterSettings>, 'appBookingActors' | 'appBookingActorsByPath'> & {
+        assignStudentIds?: string[];
+        appBookingActors?: 'students' | 'instructors' | 'both' | null;
+        appBookingActorsByPath?: {
+          moto?: 'students' | 'instructors' | 'both';
+          auto?: 'students' | 'instructors' | 'both';
+          pro?: 'students' | 'instructors' | 'both';
+        } | null;
+      },
+    ) =>
       client.request<InstructorClusterSettings>('/api/autoscuole/instructor-settings', {
         method: 'PATCH',
         body: input,

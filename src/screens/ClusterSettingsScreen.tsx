@@ -73,6 +73,7 @@ export const ClusterSettingsScreen = () => {
   const [bookingSlotDurations, setBookingSlotDurations] = useState<number[]>([30, 60]);
   const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
   const [appBookingActors, setAppBookingActors] = useState<string | undefined>(undefined);
+  const [appBookingActorsByPath, setAppBookingActorsByPath] = useState<{ moto?: string; auto?: string; pro?: string } | undefined>(undefined);
   const [instructorBookingMode, setInstructorBookingMode] = useState<string | undefined>(undefined);
   const [swapEnabled, setSwapEnabled] = useState<boolean | undefined>(undefined);
   const [studentCancellationEnabled, setStudentCancellationEnabled] = useState<boolean | undefined>(undefined);
@@ -96,6 +97,7 @@ export const ClusterSettingsScreen = () => {
       setBookingSlotDurations(res.settings.bookingSlotDurations ?? res.companyDefaults.bookingSlotDurations);
       setRoundedHoursOnly(res.settings.roundedHoursOnly ?? res.companyDefaults.roundedHoursOnly);
       setAppBookingActors(res.settings.appBookingActors);
+      setAppBookingActorsByPath(res.settings.appBookingActorsByPath);
       setInstructorBookingMode(res.settings.instructorBookingMode);
       setSwapEnabled(res.settings.swapEnabled);
       setStudentCancellationEnabled(res.settings.studentCancellationEnabled);
@@ -174,10 +176,22 @@ export const ClusterSettingsScreen = () => {
     }
     setSaving(true);
     try {
+      // REG-426: se ci sono override per-percorso, azzera il default cluster
+      // (null) così le righe "Default" ereditano dall'autoscuola; altrimenti
+      // salva il valore semplice e azzera gli override.
+      const perPathActive = Boolean(
+        appBookingActorsByPath &&
+          (appBookingActorsByPath.moto || appBookingActorsByPath.auto || appBookingActorsByPath.pro),
+      );
       await regloApi.updateInstructorSettings({
         bookingSlotDurations,
         roundedHoursOnly,
-        appBookingActors: appBookingActors as 'students' | 'instructors' | 'both' | undefined,
+        appBookingActors: perPathActive
+          ? null
+          : ((appBookingActors as 'students' | 'instructors' | 'both' | undefined) ?? null),
+        appBookingActorsByPath: perPathActive
+          ? (appBookingActorsByPath as { moto?: 'students' | 'instructors' | 'both'; auto?: 'students' | 'instructors' | 'both'; pro?: 'students' | 'instructors' | 'both' })
+          : null,
         instructorBookingMode: instructorBookingMode as 'manual_full' | 'manual_engine' | undefined,
         swapEnabled,
         studentCancellationEnabled,
@@ -198,7 +212,7 @@ export const ClusterSettingsScreen = () => {
       setSaving(false);
     }
   }, [
-    bookingSlotDurations, roundedHoursOnly, appBookingActors, instructorBookingMode,
+    bookingSlotDurations, roundedHoursOnly, appBookingActors, appBookingActorsByPath, instructorBookingMode,
     swapEnabled, studentCancellationEnabled, bookingCutoffEnabled, bookingCutoffTime,
     weeklyLimitEnabled, weeklyLimit, weeklyAbsenceEnabled, restrictedTimeEnabled,
     restrictedTimeStart, restrictedTimeEnd, assignedStudentIds,
@@ -209,6 +223,7 @@ export const ClusterSettingsScreen = () => {
     clusterSettingsStore.set({
       companyDefaults,
       appBookingActors, setAppBookingActors,
+      appBookingActorsByPath, setAppBookingActorsByPath,
       instructorBookingMode, setInstructorBookingMode,
       bookingSlotDurations, toggleDuration,
       roundedHoursOnly, setRoundedHoursOnly,
@@ -230,10 +245,15 @@ export const ClusterSettingsScreen = () => {
 
   /* ── Summaries (row hints) ── */
   const bookingSummary = useMemo(() => {
+    const perPathActive = Boolean(
+      appBookingActorsByPath &&
+        (appBookingActorsByPath.moto || appBookingActorsByPath.auto || appBookingActorsByPath.pro),
+    );
+    if (perPathActive) return `Per percorso · ${bookingSlotDurations.join('/')} min`;
     const actor = appBookingActors ?? companyDefaults.appBookingActors;
     const actorLabel = actor === 'instructors' ? 'Solo istruttori' : actor === 'both' ? 'Entrambi' : 'Solo allievi';
     return `${actorLabel} · ${bookingSlotDurations.join('/')} min`;
-  }, [appBookingActors, companyDefaults.appBookingActors, bookingSlotDurations]);
+  }, [appBookingActors, appBookingActorsByPath, companyDefaults.appBookingActors, bookingSlotDurations]);
 
   const limitsSummary = useMemo(() => {
     const parts: string[] = [];
