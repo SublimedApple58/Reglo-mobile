@@ -1,8 +1,9 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -181,6 +182,23 @@ export default function LessonDetailScreen() {
                   <Ionicons name="flag" size={18} color="#2563EB" />
                 </View>
                 <Text style={s.rowValue}>{lesson.types.map(formatLessonType).join(', ')}</Text>
+              </View>
+            </>
+          )}
+
+          {/* Tipo guida moto (birilli/strada, REG-399): l'allievo lo vede sul
+              dettaglio della sua guida moto individuale. */}
+          {lesson.motoLessonType && (
+            <>
+              <View style={s.divider} />
+              <View style={s.row}>
+                <View style={[s.iconChip, { backgroundColor: '#FFE3CC' }]}>
+                  <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[lesson.motoLessonType]} size={18} color="#C2410C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowValue}>{MOTO_LESSON_TYPE_LABELS[lesson.motoLessonType]}</Text>
+                  <Text style={s.rowSub}>{MOTO_LESSON_TYPE_HINTS[lesson.motoLessonType]}</Text>
+                </View>
               </View>
             </>
           )}

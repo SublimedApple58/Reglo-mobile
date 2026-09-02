@@ -328,6 +328,9 @@ export type GroupLessonInvite = {
   capacity: number;
   /** "standard" | "moto". Moto: the specific moto is assigned only at acceptance. */
   kind?: string;
+  /** Moto group: tipo guida moto condiviso ("birilli" | "strada" | null), REG-406.
+   *  Mostrato sulla card invito per scegliere a quale iscriversi. */
+  motoLessonType?: 'birilli' | 'strada' | null;
   filledSeats: number;
   openSeats: number;
   instructorName: string | null;

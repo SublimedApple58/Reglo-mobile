@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -154,6 +155,22 @@ export const GroupLessonInvitesScreen = () => {
                     <MetaRow icon="bicycle-outline" label="Ti verrà assegnata una moto" />
                   ) : inv.vehicleName ? (
                     <MetaRow icon="car-outline" label={inv.vehicleName} />
+                  ) : null}
+                  {/* Tipo guida moto (birilli/strada): l'allievo lo vede prima
+                      di iscriversi. Stessa icona/etichetta del resto dell'app. */}
+                  {inv.kind === 'moto' && inv.motoLessonType ? (
+                    <View style={s.mrow}>
+                      <View style={s.mi}>
+                        <MaterialCommunityIcons
+                          name={MOTO_LESSON_TYPE_ICON[inv.motoLessonType]}
+                          size={15}
+                          color={NAVY_400}
+                        />
+                      </View>
+                      <Text style={s.ml} numberOfLines={1}>
+                        {MOTO_LESSON_TYPE_LABELS[inv.motoLessonType]} · {MOTO_LESSON_TYPE_HINTS[inv.motoLessonType]}
+                      </Text>
+                    </View>
                   ) : null}
                   <View style={s.seats}>
                     <Seats filled={inv.filledSeats} capacity={inv.capacity} />

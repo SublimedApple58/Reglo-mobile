@@ -10,6 +10,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import type { GroupLesson } from '../../../src/types/regloApi';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
@@ -226,6 +227,24 @@ export default function GroupLessonDetailScreen() {
               </Slot>
             </View>
           </View>
+          {/* Tipo guida moto (birilli/strada): l'allievo lo vede sul dettaglio
+              della sua guida di gruppo moto. Sola lettura. */}
+          {isMoto && lesson?.motoLessonType ? (
+            <>
+              <View style={s.rowDivider} />
+              <View style={s.detailRow}>
+                <View style={s.detailIcon}>
+                  <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[lesson.motoLessonType]} size={23} color="#1A1A2E" />
+                </View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>Tipo guida</Text>
+                  <Text style={s.detailValue} numberOfLines={1}>
+                    {MOTO_LESSON_TYPE_LABELS[lesson.motoLessonType]} · {MOTO_LESSON_TYPE_HINTS[lesson.motoLessonType]}
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : null}
           {showVehicleRow ? (
             <>
               <View style={s.rowDivider} />

@@ -63,7 +63,8 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { lessonArtSource, heroArtSource } from '../utils/lessonArt';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
@@ -1664,6 +1665,14 @@ export const AllievoHomeScreen = () => {
                         <Text style={styles.heroChipText}>{formatLessonType(nextLesson.types[0])}</Text>
                       </View>
                     )}
+                    {/* Guida moto individuale: tipo birilli/strada (REG-399),
+                        stesso chip del resto — l'allievo lo vede in home. */}
+                    {nextLesson.motoLessonType && (
+                      <View style={styles.heroChip}>
+                        <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[nextLesson.motoLessonType]} size={13} color={colors.textSecondary} />
+                        <Text style={styles.heroChipText}>{MOTO_LESSON_TYPE_LABELS[nextLesson.motoLessonType]}</Text>
+                      </View>
+                    )}
                   </>
                 )}
               </View>
@@ -1767,6 +1776,14 @@ export const AllievoHomeScreen = () => {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[styles.glLabel, isMotoGl && styles.glLabelMoto]}>{isMotoGl ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
+                    {/* Tipo guida moto (birilli/strada): chip compatto, stesso
+                        pattern del badge agenda. Mostra info già esistente. */}
+                    {isMotoGl && appt.groupLessonMotoType ? (
+                      <View style={styles.glMotoTypeChip}>
+                        <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[appt.groupLessonMotoType]} size={11} color="#C2410C" />
+                        <Text style={styles.glMotoTypeChipText}>{MOTO_LESSON_TYPE_LABELS[appt.groupLessonMotoType]}</Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.glTime} numberOfLines={1}>
                       {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
                     </Text>
@@ -2057,6 +2074,8 @@ const styles = StyleSheet.create({
   glIconMoto: { backgroundColor: 'rgba(249,115,22,0.14)' },
   glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E', letterSpacing: 0.2 },
   glLabelMoto: { color: '#C2410C' },
+  glMotoTypeChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
+  glMotoTypeChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
   glTime: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginTop: 3 },
   glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
   // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
