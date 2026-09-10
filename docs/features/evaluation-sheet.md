@@ -28,3 +28,19 @@ correggere e usa il "Salva" sticky già presente.
 - Le stelline sono **navy** come quelle della valutazione complessiva: il design system
   mobile è mono-navy, vedi `docs/design-system.md`.
 - Scale possibili: 3 o 5 stelline (30px e 26px rispettivamente).
+
+## Consultazione dallo storico guide
+
+Nello storico guide di un allievo (`StudentNotesDetailScreen`) la riga mostra una chip
+`★ Pagellino 4,2/5`; toccando la guida si apre il foglio "Dettagli guida" con tutte le voci —
+in **sola lettura** quando la guida non è più modificabile (`hasSavedScores` tiene visibile la
+sezione anche fuori dalla finestra di valutazione).
+
+La media si calcola solo se le voci condividono la scala; con scale miste la chip mostra il
+conteggio (`evaluationSummary` in `src/utils/evaluationSheet.ts`, gemello di quello web).
+
+I punteggi arrivano già nel payload di `getAppointments` (ramo non-`light`), quindi la chip non
+costa una chiamata per riga.
+
+Le stelline sono **navy** ovunque, web incluso: il mono-navy mobile è la regola e il web è stato
+allineato a quella.

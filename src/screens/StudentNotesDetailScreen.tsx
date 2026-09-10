@@ -18,6 +18,7 @@ import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
+import { evaluationSummary, formatEvaluationAverage } from '../utils/evaluationSheet';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -557,6 +558,21 @@ export const StudentNotesDetailScreen = () => {
                           </Text>
                           {appt.rating != null ? <StarRating value={appt.rating} readOnly size={13} /> : null}
                         </View>
+                        {(() => {
+                          // Pagellino: la riga lo riassume, il dettaglio completo
+                          // si apre toccando la guida (foglio "Dettagli guida").
+                          const summary = evaluationSummary(appt.evaluations);
+                          if (!summary) return null;
+                          const average = formatEvaluationAverage(summary);
+                          return (
+                            <View style={s.tlPagellino}>
+                              <Ionicons name="star" size={11} color="#1A1A2E" />
+                              <Text style={s.tlPagellinoText}>
+                                {`Pagellino ${average ?? `· ${summary.count} voci`}`}
+                              </Text>
+                            </View>
+                          );
+                        })()}
                         {isExam ? (
                           <View style={[s.tlChip, { backgroundColor: '#EDE9FE', alignSelf: 'flex-start' }]}>
                             <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
@@ -706,6 +722,12 @@ const s = StyleSheet.create({
   tlBody: { flex: 1, paddingVertical: 14, gap: 6 },
   tlBodyBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   tlTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  tlPagellino: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    marginTop: 6, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, backgroundColor: '#F2F2F4',
+  },
+  tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
   tlDate: { fontSize: 11, fontWeight: '700', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
   tlTime: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

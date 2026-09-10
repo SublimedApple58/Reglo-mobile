@@ -219,6 +219,8 @@ export type AutoscuolaAppointment = {
   type: string;
   types?: string[];
   rating?: number | null;
+  /** Pagellino della guida (REG-443): vuoto sulle guide precedenti alla feature. */
+  evaluations?: AppointmentEvaluationRow[];
   startsAt: IsoDate;
   endsAt: IsoDate | null;
   status: string;
@@ -554,6 +556,14 @@ export type EvaluationItem = {
   position: number;
   /** true = voce non più in uso, mostrata solo perché questa guida ha un voto. */
   archived: boolean;
+};
+
+/** Punteggio di una voce sulla guida, come arriva nello storico. */
+export type AppointmentEvaluationRow = {
+  itemId: Uuid;
+  label: string;
+  scaleMax: number;
+  score: number;
 };
 
 /** Pagellino di UNA guida: interruttore, voci e punteggi già dati. */

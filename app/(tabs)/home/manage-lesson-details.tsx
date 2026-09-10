@@ -42,6 +42,9 @@ export default function ManageLessonDetailsScreen() {
   // nascosta) per le autoscuole che non lo usano.
   const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
+  /** true = questa guida ha già punteggi salvati: il pagellino resta visibile
+   *  (in sola lettura se non è più modificabile) per la consultazione. */
+  const [hasSavedScores, setHasSavedScores] = useState(false);
   // Esito (Presente/Assente) — mostrato solo quando data.showEsito (storico
   // allievo): segnare effettuata sblocca la valutazione. Nel flusso home resta
   // nascosto (l'esito è nel foglio padre).
@@ -93,6 +96,7 @@ export default function ManageLessonDetailsScreen() {
         const items = res.data.items ?? [];
         const saved = new Map((res.data.scores ?? []).map((sc) => [sc.itemId, sc.score]));
         setEvalItems(items);
+        setHasSavedScores((res.data.scores ?? []).length > 0);
         setScores(
           Object.fromEntries(
             items.map((it) => [it.id, saved.get(it.id) ?? defaultEvaluationScore(it.scaleMax)]),
@@ -253,7 +257,7 @@ export default function ManageLessonDetailsScreen() {
       </Animated.View>
 
       {/* Pagellino dell'autoscuola: una riga per voce, stelline quante la scala */}
-      {evalItems.length > 0 && showRatingNow ? (
+      {evalItems.length > 0 && (showRatingNow || hasSavedScores) ? (
         <View style={[s.section, { marginBottom: 20 }]}>
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>
