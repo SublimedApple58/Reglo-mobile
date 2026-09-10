@@ -73,6 +73,12 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend web**: download originale/portale nel dettaglio allievo (vedi `reglo/docs/features/student-photo-signature.md`)
 - ⚠️ **Build nativa richiesta**: `expo-image-picker` non è nel binario 2.1.0 → NO OTA finché non si builda con bump runtime
 
+### Pagellino di valutazione (REG-443)
+- → **Dettagli guida**: la sezione vive dentro `home/manage-lesson-details`, sotto la valutazione complessiva; se il backend risponde `enabled:false` la schermata resta esattamente quella di prima
+- → **StarRating**: ora accetta `total` (3 o 5). La valutazione complessiva continua a passare il default 5 — nessun call-site esistente cambia
+- → **Salvataggio**: `ManageLessonDetailsPayload.evaluations` attraversa i DUE opener del foglio (`IstruttoreHomeScreen`, `StudentNotesDetailScreen`): se ne aggiungi un terzo, ricordati di inoltrarlo o i voti si perdono in silenzio
+- → **Backend**: contratto `GET /api/autoscuole/appointments/:id/evaluation` + campo `evaluations` nella PATCH dei dettagli (reglo `docs/features/evaluation-sheet.md`)
+
 ### Exam Creation
 - → **Booking Flow**: exam is a special appointment type
 - → **Settings**: reads cluster config for student grouping

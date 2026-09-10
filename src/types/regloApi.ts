@@ -545,10 +545,30 @@ export type UpdateAppointmentStatusInput = {
   lessonTypes?: string[];
 };
 
+/** Voce del pagellino di valutazione dell'autoscuola (REG-443). */
+export type EvaluationItem = {
+  id: Uuid;
+  label: string;
+  /** Numero di stelline della voce: 3 o 5. */
+  scaleMax: number;
+  position: number;
+  /** true = voce non più in uso, mostrata solo perché questa guida ha un voto. */
+  archived: boolean;
+};
+
+/** Pagellino di UNA guida: interruttore, voci e punteggi già dati. */
+export type AppointmentEvaluation = {
+  enabled: boolean;
+  items: EvaluationItem[];
+  scores: Array<{ itemId: Uuid; score: number }>;
+};
+
 export type UpdateAppointmentDetailsInput = {
   lessonType?: string;
   lessonTypes?: string[];
   rating?: number | null;
+  /** Pagellino: un punteggio per voce, salvato insieme agli altri dettagli. */
+  evaluations?: Array<{ itemId: Uuid; score: number }>;
   notes?: string | null;
   locationId?: Uuid | null;
   /** Reassign the appointment to a different company vehicle (null = unassign). */

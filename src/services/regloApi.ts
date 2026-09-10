@@ -65,6 +65,7 @@ import {
   UnregisterPushTokenInput,
   RescheduleAppointmentInput,
   RescheduleAppointmentResult,
+  AppointmentEvaluation,
   UpdateAppointmentDetailsInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
@@ -500,6 +501,11 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'PATCH',
           body: input,
         }
+      ),
+    /** Pagellino di una guida: voci dell'autoscuola + punteggi già dati. */
+    getAppointmentEvaluation: async (appointmentId: string) =>
+      client.request<{ success: boolean; data?: AppointmentEvaluation; message?: string }>(
+        `/api/autoscuole/appointments/${appointmentId}/evaluation`,
       ),
     updateAppointmentDetails: async (appointmentId: string, input: UpdateAppointmentDetailsInput) =>
       client.request<AutoscuolaAppointment>(`/api/autoscuole/appointments/${appointmentId}`, {

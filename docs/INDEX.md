@@ -18,6 +18,7 @@
 | Tipo guida moto (birilli/strada, sola lettura) | [moto-lesson-type.md](features/moto-lesson-type.md) | `src/utils/motoLessonType.ts`, `app/(tabs)/home/manage-lesson.tsx` (riga), `StudentNotesDetailScreen` (chip), `regloApi.ts` (`AutoscuolaAppointment.motoLessonType`) |
 | Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `home/quick-book`, `BookingForm`, `BlockForm` |
 | Lezione teorica (agenda) | [lezione-teorica.md](features/lezione-teorica.md) | `IstruttoreHomeScreen`, `DayItinerary`, `WeeklyAgendaView`, `weeklyAgenda` (`BLOCK_PRESENTATION.theory`), `BlockForm`/`blockSheetStore` (`kind`), `home/theory-lesson` |
+| Pagellino di valutazione (REG-443) | [evaluation-sheet.md](features/evaluation-sheet.md) | `home/manage-lesson-details`, `StarRating`, `IstruttoreHomeScreen`, `StudentNotesDetailScreen` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Locations | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form` |
 | Vehicles | [vehicles.md](features/vehicles.md) | `VehiclesScreen`, `OwnerVehiclesScreen`, `InstructorVehiclesScreen`, `more/vehicle-form` |

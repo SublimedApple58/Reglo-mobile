@@ -37,6 +37,12 @@ export type ManageLessonDetailsPayload = {
   rating: number | null;
   notes: string;
   /**
+   * Pagellino di valutazione (REG-443): un punteggio per voce. `undefined`
+   * quando l'autoscuola non ha il pagellino attivo — così le guide di chi non
+   * lo usa continuano a salvare esattamente come prima.
+   */
+  evaluations?: Array<{ itemId: string; score: number }>;
+  /**
    * Esito scelto nel sub-sheet quando `showEsito` è attivo (usato solo dallo
    * storico allievo: segnare effettuata per poter valutare). Il flusso home lo
    * ignora — l'esito lì vive nel foglio padre. `undefined` = non gestito qui.

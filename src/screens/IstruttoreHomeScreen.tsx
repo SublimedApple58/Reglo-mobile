@@ -2157,7 +2157,13 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       return false;
     }
 
-    const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string | null } = {};
+    const payload: {
+      lessonType?: string;
+      lessonTypes?: string[];
+      rating?: number | null;
+      notes?: string | null;
+      evaluations?: Array<{ itemId: string; score: number }>;
+    } = {};
     const initialTypes = resolveInitialLessonTypes(lesson);
     const typesChanged = JSON.stringify([...input.lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
     if (input.lessonTypes.length && typesChanged) {
@@ -2174,6 +2180,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     const initialNotes = normalizeNotes(lesson.notes);
     if (currentNotes !== initialNotes) {
       payload.notes = currentNotes || null;
+    }
+
+    // Pagellino: il foglio manda sempre tutte le voci, così basta un solo
+    // "Salva" anche quando l'istruttore ha toccato solo le stelline.
+    if (input.evaluations?.length) {
+      payload.evaluations = input.evaluations;
     }
 
     if (!Object.keys(payload).length) {

@@ -7,14 +7,25 @@ type StarRatingProps = {
   onChange?: (rating: number) => void;
   size?: number;
   readOnly?: boolean;
+  /**
+   * Quante stelline mostrare. Default 5 (valutazione complessiva della guida).
+   * Le voci del pagellino usano la scala scelta dall'autoscuola (3 o 5).
+   */
+  total?: number;
 };
 
 // Brand palette is monochrome navy — no yellow/gold anywhere.
 const STAR_COLOR = '#1A1A2E';
 const STAR_EMPTY_COLOR = '#D7DBE2';
 
-export const StarRating = ({ value, onChange, size = 24, readOnly = false }: StarRatingProps) => {
-  const stars = [1, 2, 3, 4, 5];
+export const StarRating = ({
+  value,
+  onChange,
+  size = 24,
+  readOnly = false,
+  total = 5,
+}: StarRatingProps) => {
+  const stars = Array.from({ length: Math.max(1, total) }, (_, i) => i + 1);
   const currentValue = value ?? 0;
 
   return (

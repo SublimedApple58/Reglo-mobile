@@ -153,14 +153,20 @@ export const StudentNotesDetailScreen = () => {
         showRating,
         showEsito: canSetOutcome,
         isDetailsEditable: true,
-        onSaveDetails: async ({ lessonTypes, rating, notes, esito }) => {
+        onSaveDetails: async ({ lessonTypes, rating, notes, esito, evaluations }) => {
           try {
             // 1. Esito PRIMA (il BE accetta il rating solo su guide effettuate).
             if (esito !== undefined && esito !== currentOutcome && esito) {
               await regloApi.updateAppointmentStatus(appt.id, { status: esito });
             }
             // 2. Dettagli (solo i campi cambiati).
-            const payload: { lessonType?: string; lessonTypes?: string[]; rating?: number | null; notes?: string } = {};
+            const payload: {
+              lessonType?: string;
+              lessonTypes?: string[];
+              rating?: number | null;
+              notes?: string;
+              evaluations?: Array<{ itemId: string; score: number }>;
+            } = {};
             const initialTypes = resolveInitialLessonTypes(appt);
             const typesChanged =
               JSON.stringify([...lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
@@ -171,6 +177,7 @@ export const StudentNotesDetailScreen = () => {
             if (rating !== (appt.rating ?? null)) payload.rating = rating;
             const trimmed = notes.trim();
             if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
+            if (evaluations?.length) payload.evaluations = evaluations;
             if (Object.keys(payload).length) {
               await regloApi.updateAppointmentDetails(appt.id, payload);
             }

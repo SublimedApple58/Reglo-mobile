@@ -10,6 +10,9 @@ import { GradientCTABackground, primaryCtaShadow } from '../../../src/components
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
+import { defaultEvaluationScore, starSizeForScale } from '../../../src/utils/evaluationSheet';
+import { regloApi } from '../../../src/services/regloApi';
+import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -34,6 +37,11 @@ export default function ManageLessonDetailsScreen() {
   const [types, setTypes] = useState<string[]>([]);
   const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  // Pagellino (REG-443): voci dell'autoscuola + punteggio per voce. Caricato
+  // all'apertura del foglio in una sola chiamata; resta vuoto (sezione
+  // nascosta) per le autoscuole che non lo usano.
+  const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
+  const [scores, setScores] = useState<Record<string, number>>({});
   // Esito (Presente/Assente) — mostrato solo quando data.showEsito (storico
   // allievo): segnare effettuata sblocca la valutazione. Nel flusso home resta
   // nascosto (l'esito è nel foglio padre).
@@ -75,6 +83,32 @@ export default function ManageLessonDetailsScreen() {
   }, []);
 
   useEffect(() => {
+    const id = lesson?.id;
+    if (!id) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await regloApi.getAppointmentEvaluation(id);
+        if (!alive || !res?.success || !res.data?.enabled) return;
+        const items = res.data.items ?? [];
+        const saved = new Map((res.data.scores ?? []).map((sc) => [sc.itemId, sc.score]));
+        setEvalItems(items);
+        setScores(
+          Object.fromEntries(
+            items.map((it) => [it.id, saved.get(it.id) ?? defaultEvaluationScore(it.scaleMax)]),
+          ),
+        );
+      } catch {
+        // Il pagellino non deve impedire di salvare tipo/voto/note: se la
+        // chiamata fallisce la sezione semplicemente non compare.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [lesson?.id]);
+
+  useEffect(() => {
     if (!lesson) return;
     setTypes(resolveInitialLessonTypes(lesson));
     setRating(lesson.rating ?? null);
@@ -106,7 +140,15 @@ export default function ManageLessonDetailsScreen() {
     if (!editable) return;
     setSaving(true);
     try {
-      const ok = await onSaveDetails({ lessonTypes: types, rating, notes, esito });
+      const ok = await onSaveDetails({
+        lessonTypes: types,
+        rating,
+        notes,
+        esito,
+        evaluations: evalItems.length
+          ? evalItems.map((item) => ({ itemId: item.id, score: scores[item.id] ?? defaultEvaluationScore(item.scaleMax) }))
+          : undefined,
+      });
       if (ok) router.back();
     } finally {
       setSaving(false);
@@ -210,6 +252,46 @@ export default function ManageLessonDetailsScreen() {
           ) : null}
       </Animated.View>
 
+      {/* Pagellino dell'autoscuola: una riga per voce, stelline quante la scala */}
+      {evalItems.length > 0 && showRatingNow ? (
+        <View style={[s.section, { marginBottom: 20 }]}>
+          <View style={s.pagellinoHead}>
+            <Text style={s.sectionLabel}>Pagellino</Text>
+            <Text style={s.pagellinoHint}>tocca solo ciò che correggi</Text>
+          </View>
+          <View style={s.pagellinoCard}>
+            {evalItems.map((item, index) => {
+              const value = scores[item.id] ?? defaultEvaluationScore(item.scaleMax);
+              return (
+                <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
+                  <View style={s.pagellinoItemTop}>
+                    <Text style={s.pagellinoLabel} numberOfLines={2}>
+                      {item.label}
+                      {item.archived ? ' (non più in uso)' : ''}
+                    </Text>
+                    <Text style={s.pagellinoValue}>{`${value}/${item.scaleMax}`}</Text>
+                  </View>
+                  <StarRating
+                    value={value}
+                    total={item.scaleMax}
+                    size={starSizeForScale(item.scaleMax)}
+                    onChange={
+                      editable
+                        ? (next) =>
+                            // Ritoccare la stessa stellina non azzera la voce:
+                            // il pagellino non ha lo stato "non valutato".
+                            setScores((prev) => ({ ...prev, [item.id]: next || value }))
+                        : undefined
+                    }
+                    readOnly={!editable}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
       {/* Note */}
       <View style={s.section}>
         <Text style={s.sectionLabel}>Note</Text>
@@ -252,6 +334,17 @@ const s = StyleSheet.create({
   esitoTextPresente: { color: '#047857' },
   esitoTextAssente: { color: '#B91C1C' },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  pagellinoHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  pagellinoCard: {
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
+    backgroundColor: '#FFFFFF', paddingHorizontal: 14,
+  },
+  pagellinoItem: { paddingVertical: 12, gap: 6 },
+  pagellinoItemBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
+  pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {
     minHeight: 110, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
