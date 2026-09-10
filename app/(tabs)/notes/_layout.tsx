@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET, PAGE_SHEET } from '../../../src/utils/sheetPresentation';
+import { TALL_SHEET, HUG_SHEET, PAGE_SHEET, SCROLL_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function NotesLayout() {
   return (
@@ -13,7 +13,10 @@ export default function NotesLayout() {
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       <Stack.Screen name="group-students" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="manage-lesson-details" options={TALL_SHEET} />
+      {/* Pagellino (REG-443): con più voci il contenuto supera l'altezza che
+          un fitToContents può abbracciare e il "Salva" restava tagliato.
+          SCROLL_SHEET = detent fisso → è la sheet stessa a scrollare. */}
+      <Stack.Screen name="manage-lesson-details" options={SCROLL_SHEET} />
       {/* REG-426: il pannello "per percorso" espande il form oltre l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) ha un pan nativo
           che confligge con lo scroll interno (il contenuto "risale su da solo").

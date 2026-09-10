@@ -70,3 +70,16 @@ Dove la stellina resta:
 
 Il sottotitolo della card "Dettagli guida" ora riassume il pagellino (`pagellino 4,2`) invece della
 stellina (`4★`); il placeholder è "Tipo, pagellino e note".
+
+## Il foglio scrolla (regola per i FormSheet)
+
+Con più voci il contenuto supera l'altezza che un `fitToContents` può abbracciare e il "Salva"
+restava tagliato. La regola, valida per ogni form sheet dell'app: **è la sheet stessa a dover
+scrollare**, non si avvolge il contenuto in una View/ScrollView interna aggiunta a mano.
+
+- La route usa `SCROLL_SHEET` (detent fisso 0.92 su entrambe le piattaforme) invece di
+  `TALL_SHEET` (`fitToContents` su iOS, che è ciò che impedisce lo scroll).
+- Il corpo usa `SheetScaffold` con `fill`: scroll interno del componente condiviso + footer
+  agganciato in fondo.
+- Coda del contenuto (`paddingBottom: 28`) e footer con `paddingBottom: max(insets.bottom, 12)`:
+  senza, l'ultima voce del pagellino finisce sotto il "Salva" o a filo del bordo.

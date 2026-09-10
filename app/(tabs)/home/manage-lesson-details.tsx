@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
@@ -27,6 +28,7 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
 
   const lesson = data?.lesson ?? null;
@@ -90,12 +92,12 @@ export default function ManageLessonDetailsScreen() {
     let alive = true;
     (async () => {
       try {
-        const res = await regloApi.getAppointmentEvaluation(id);
-        if (!alive || !res?.success || !res.data?.enabled) return;
-        const items = res.data.items ?? [];
-        const saved = new Map((res.data.scores ?? []).map((sc) => [sc.itemId, sc.score]));
+        const data = await regloApi.getAppointmentEvaluation(id);
+        if (!alive || !data?.enabled) return;
+        const items = data.items ?? [];
+        const saved = new Map((data.scores ?? []).map((sc) => [sc.itemId, sc.score]));
         setEvalItems(items);
-        setHasSavedScores((res.data.scores ?? []).length > 0);
+        setHasSavedScores((data.scores ?? []).length > 0);
         setScores(
           Object.fromEntries(
             items.map((it) => [it.id, saved.get(it.id) ?? defaultEvaluationScore(it.scaleMax)]),
@@ -156,7 +158,9 @@ export default function ManageLessonDetailsScreen() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    // La sheet ha ora un'altezza fissa su entrambe le piattaforme: il root deve
+    // riempirla, altrimenti il corpo non ha spazio da scrollare.
+    <View style={[s.root, { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
           <Ionicons name="close" size={20} color="#1A1A2E" />
@@ -164,29 +168,36 @@ export default function ManageLessonDetailsScreen() {
       </View>
 
       <SheetScaffold
+        // fill: la sheet ha un detent fisso (SCROLL_SHEET), quindi il corpo
+        // scorre e il "Salva" resta agganciato in fondo anche su iOS.
+        fill
         keyboardAware
-        contentContainerStyle={s.scaffoldBody}
+        // Coda del contenuto: senza, l'ultima voce del pagellino finisce
+        // incollata al bordo del "Salva" e sembra tagliata.
+        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28 }]}
         footer={
-          <Pressable
-            onPress={handleSave}
-            disabled={!editable}
-            style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
-          >
-            <GradientCTABackground radius={27} />
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={s.saveText}>Salva</Text>
-            )}
-          </Pressable>
+          <View style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+            <Pressable
+              onPress={handleSave}
+              disabled={!editable}
+              style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
+            >
+              <GradientCTABackground radius={27} />
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={s.saveText}>Salva</Text>
+              )}
+            </Pressable>
+          </View>
         }
       >
       <View style={s.headerBlock}>
         <Text style={s.title}>Dettagli guida</Text>
-        <Text style={s.subtitle}>Tipo, valutazione e note di questa guida.</Text>
+        <Text style={s.subtitle}>Tipo, pagellino e note di questa guida.</Text>
       </View>
 
-      {/* Tipo guida + Valutazione — collapse while typing notes so the sheet
+      {/* Tipo guida — collapse while typing notes so the sheet
           shrinks and the textarea floats above the keyboard. */}
       <Animated.View
         style={[s.collapsible, collapsibleStyle]}
@@ -317,7 +328,7 @@ export default function ManageLessonDetailsScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
+  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 0, gap: 20 },
   scaffoldBody: { gap: 0 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },

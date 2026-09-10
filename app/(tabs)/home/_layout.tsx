@@ -33,7 +33,10 @@ export default function HomeLayout() {
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
-      <Stack.Screen name="manage-lesson-details" options={TALL_SHEET} />
+      {/* Pagellino (REG-443): con più voci il contenuto supera l'altezza che
+          un fitToContents può abbracciare e il "Salva" restava tagliato.
+          SCROLL_SHEET = detent fisso → è la sheet stessa a scrollare. */}
+      <Stack.Screen name="manage-lesson-details" options={SCROLL_SHEET} />
       <Stack.Screen name="manage-lesson-correct" options={HUG_SHEET} />
       <Stack.Screen name="edit-notes" options={TALL_SHEET} />
       <Stack.Screen name="swap-lesson" options={TALL_SHEET} />

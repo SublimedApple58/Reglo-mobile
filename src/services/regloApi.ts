@@ -502,9 +502,12 @@ export const createRegloApi = (baseUrl?: string) => {
           body: input,
         }
       ),
-    /** Pagellino di una guida: voci dell'autoscuola + punteggi già dati. */
+    /**
+     * Pagellino di una guida: voci dell'autoscuola + punteggi già dati.
+     * `client.request` scarta l'involucro {success,data}: qui arriva già `data`.
+     */
     getAppointmentEvaluation: async (appointmentId: string) =>
-      client.request<{ success: boolean; data?: AppointmentEvaluation; message?: string }>(
+      client.request<AppointmentEvaluation>(
         `/api/autoscuole/appointments/${appointmentId}/evaluation`,
       ),
     updateAppointmentDetails: async (appointmentId: string, input: UpdateAppointmentDetailsInput) =>
