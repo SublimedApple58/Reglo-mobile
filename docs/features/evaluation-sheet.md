@@ -45,7 +45,9 @@ costa una chiamata per riga.
 ## Stelline gialle: eccezione voluta al mono-navy
 
 Le stelline del pagellino sono **gialle (#FACC15)** anche su mobile, per essere identiche al web.
-È una deroga esplicita al design system mono-navy, decisa da Tiziano per questa feature: la
-valutazione complessiva della stessa schermata resta navy. `StarRating` ha per questo una prop
-`tone` (`'navy'` di default, `'gold'` solo per il pagellino) — non usarla altrove senza una
-decisione di prodotto.
+È una deroga esplicita al design system mono-navy, decisa da Tiziano per questa feature. Per
+coerenza dentro le stesse schermate sono gialle anche le stelline della **valutazione
+complessiva** nel foglio "Dettagli guida" e nella riga dello storico guide. `StarRating` ha per
+questo una prop `tone` (`'navy'` di default, `'gold'` dove serve il giallo) — non usarla altrove
+senza una decisione di prodotto. Restano navy tutti gli altri usi, compreso lo storico dell'app
+ALLIEVO (`StudentMyNotesScreen`), che il pagellino non lo vede.

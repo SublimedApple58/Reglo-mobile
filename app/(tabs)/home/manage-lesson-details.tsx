@@ -251,7 +251,9 @@ export default function ManageLessonDetailsScreen() {
           {showRatingNow ? (
             <View style={s.section}>
               <Text style={s.sectionLabel}>Valutazione</Text>
-              <StarRating value={rating} onChange={editable ? setRating : () => {}} />
+              {/* Gialla come il pagellino sotto: nel foglio le due valutazioni
+                  devono leggersi come la stessa cosa (deroga al mono-navy). */}
+              <StarRating value={rating} tone="gold" onChange={editable ? setRating : () => {}} />
             </View>
           ) : null}
       </Animated.View>

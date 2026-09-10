@@ -556,7 +556,12 @@ export const StudentNotesDetailScreen = () => {
                           <Text style={s.tlTime}>
                             {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
                           </Text>
-                          {appt.rating != null ? <StarRating value={appt.rating} readOnly size={13} /> : null}
+                          {appt.rating != null ? (
+                            // Gialla come la chip del pagellino qui sotto e come
+                            // il foglio dettagli: nello storico le valutazioni
+                            // sono tutte dello stesso colore.
+                            <StarRating value={appt.rating} readOnly size={13} tone="gold" />
+                          ) : null}
                         </View>
                         {(() => {
                           // Pagellino: la riga lo riassume, il dettaglio completo
