@@ -259,7 +259,11 @@ export default function ManageLessonDetailsScreen() {
       </Animated.View>
 
       {/* Pagellino dell'autoscuola: una riga per voce, stelline quante la scala */}
-      {evalItems.length > 0 && (showRatingNow || hasSavedScores) ? (
+      {/* Il pagellino NON segue il gate della valutazione complessiva: si compila
+          anche a metà guida o prima del check-in (i punteggi non hanno vincoli di
+          stato lato server). Resta fuori solo dalle guide annullate senza voti,
+          dove un pagellino vuoto e non toccabile sarebbe solo rumore. */}
+      {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
         <View style={[s.section, { marginBottom: 20 }]}>
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>

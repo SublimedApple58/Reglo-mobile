@@ -21,6 +21,10 @@ correggere e usa il "Salva" sticky già presente.
   (`GET /api/autoscuole/appointments/:id/evaluation`).
 - Se l'autoscuola non ha il pagellino attivo (o la chiamata fallisce) la sezione **non
   compare** e il foglio resta identico a prima: tipo, stelle complessive, note.
+- Il pagellino si compila **in qualsiasi momento**: a guida programmata, a metà guida (dopo
+  "Presente") o a guida conclusa. Non segue il gate della valutazione complessiva, che il server
+  accetta solo su guide già effettuate; resta nascosto solo sulle guide annullate che non hanno
+  punteggi.
 - Le stelline partono da **metà scala** (3 su 5, 2 su 3) e valgono come punteggio anche
   se l'istruttore non le tocca: una guida valutata ha sempre il pagellino completo.
 - Ritoccare la stellina già selezionata **non azzera** la voce (il pagellino non ha lo
