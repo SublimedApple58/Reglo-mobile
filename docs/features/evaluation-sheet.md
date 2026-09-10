@@ -77,8 +77,11 @@ Con più voci il contenuto supera l'altezza che un `fitToContents` può abbracci
 restava tagliato. La regola, valida per ogni form sheet dell'app: **è la sheet stessa a dover
 scrollare**, non si avvolge il contenuto in una View/ScrollView interna aggiunta a mano.
 
-- La route usa `SCROLL_SHEET` (detent fisso 0.92 su entrambe le piattaforme) invece di
-  `TALL_SHEET` (`fitToContents` su iOS, che è ciò che impedisce lo scroll).
+- La route usa **`PAGE_SHEET`** (`presentation: 'modal'`). `TALL_SHEET` (`fitToContents`) taglia il
+  contenuto, e nemmeno `SCROLL_SHEET` basta: **un formSheet a detent ha un pan nativo che ruba il
+  gesto allo scroll interno**, quindi non si arriva mai in fondo — stesso muro già documentato in
+  `notes/_layout.tsx` per REG-426 (booking-rules). PAGE_SHEET è il pattern delle form lunghe
+  dell'app (quick-book, booking-rules).
 - Il corpo usa `SheetScaffold` con `fill`: scroll interno del componente condiviso + footer
   agganciato in fondo.
 - Coda del contenuto (`paddingBottom: 28`) e footer con `paddingBottom: max(insets.bottom, 12)`:

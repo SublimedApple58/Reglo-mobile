@@ -158,8 +158,8 @@ export default function ManageLessonDetailsScreen() {
   };
 
   return (
-    // La sheet ha ora un'altezza fissa su entrambe le piattaforme: il root deve
-    // riempirla, altrimenti il corpo non ha spazio da scrollare.
+    // PAGE_SHEET: la schermata ha l'altezza dello schermo, il root la riempie
+    // e il corpo dentro SheetScaffold `fill` ha spazio definito da scrollare.
     <View style={[s.root, { flex: 1 }]}>
       <View style={s.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
@@ -168,13 +168,13 @@ export default function ManageLessonDetailsScreen() {
       </View>
 
       <SheetScaffold
-        // fill: la sheet ha un detent fisso (SCROLL_SHEET), quindi il corpo
-        // scorre e il "Salva" resta agganciato in fondo anche su iOS.
+        // fill: corpo scrollabile + "Salva" agganciato in fondo su ENTRAMBE le
+        // piattaforme (stesso pattern di quick-book e booking-rules).
         fill
         keyboardAware
         // Coda del contenuto: senza, l'ultima voce del pagellino finisce
         // incollata al bordo del "Salva" e sembra tagliata.
-        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28 }]}
+        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28, flexGrow: 1 }]}
         footer={
           <View style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
             <Pressable
@@ -329,7 +329,7 @@ export default function ManageLessonDetailsScreen() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 0, gap: 20 },
-  scaffoldBody: { gap: 0 },
+  scaffoldBody: { gap: 20 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
