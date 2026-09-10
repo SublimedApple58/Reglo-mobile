@@ -566,7 +566,7 @@ export const StudentNotesDetailScreen = () => {
                           const average = formatEvaluationAverage(summary);
                           return (
                             <View style={s.tlPagellino}>
-                              <Ionicons name="star" size={11} color="#1A1A2E" />
+                              <Ionicons name="star" size={11} color="#FACC15" />
                               <Text style={s.tlPagellinoText}>
                                 {`Pagellino ${average ?? `· ${summary.count} voci`}`}
                               </Text>

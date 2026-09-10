@@ -278,6 +278,7 @@ export default function ManageLessonDetailsScreen() {
                   <StarRating
                     value={value}
                     total={item.scaleMax}
+                    tone="gold"
                     size={starSizeForScale(item.scaleMax)}
                     onChange={
                       editable

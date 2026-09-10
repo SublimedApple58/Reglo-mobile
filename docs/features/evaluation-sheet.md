@@ -42,5 +42,10 @@ conteggio (`evaluationSummary` in `src/utils/evaluationSheet.ts`, gemello di que
 I punteggi arrivano già nel payload di `getAppointments` (ramo non-`light`), quindi la chip non
 costa una chiamata per riga.
 
-Le stelline sono **navy** ovunque, web incluso: il mono-navy mobile è la regola e il web è stato
-allineato a quella.
+## Stelline gialle: eccezione voluta al mono-navy
+
+Le stelline del pagellino sono **gialle (#FACC15)** anche su mobile, per essere identiche al web.
+È una deroga esplicita al design system mono-navy, decisa da Tiziano per questa feature: la
+valutazione complessiva della stessa schermata resta navy. `StarRating` ha per questo una prop
+`tone` (`'navy'` di default, `'gold'` solo per il pagellino) — non usarla altrove senza una
+decisione di prodotto.
