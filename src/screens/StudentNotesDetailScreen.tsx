@@ -135,7 +135,6 @@ export const StudentNotesDetailScreen = () => {
   const openDetails = useCallback(
     (appt: AutoscuolaAppointmentWithRelations) => {
       const status = (appt.status ?? '').trim().toLowerCase();
-      const showRating = ['checked_in', 'completed', 'no_show'].includes(status);
       const startMs = new Date(appt.startsAt).getTime();
       const typeLc = (appt.type ?? '').toLowerCase();
       const isGroup = typeLc === 'group_lesson' || !!appt.groupLessonId;
@@ -151,10 +150,9 @@ export const StudentNotesDetailScreen = () => {
       const currentOutcome = outcomeFromStatus(status);
       lessonDetailsStore.set({
         lesson: appt,
-        showRating,
         showEsito: canSetOutcome,
         isDetailsEditable: true,
-        onSaveDetails: async ({ lessonTypes, rating, notes, esito, evaluations }) => {
+        onSaveDetails: async ({ lessonTypes, notes, esito, evaluations }) => {
           try {
             // 1. Esito PRIMA (il BE accetta il rating solo su guide effettuate).
             if (esito !== undefined && esito !== currentOutcome && esito) {
@@ -164,7 +162,6 @@ export const StudentNotesDetailScreen = () => {
             const payload: {
               lessonType?: string;
               lessonTypes?: string[];
-              rating?: number | null;
               notes?: string;
               evaluations?: Array<{ itemId: string; score: number }>;
             } = {};
@@ -175,7 +172,6 @@ export const StudentNotesDetailScreen = () => {
               payload.lessonTypes = lessonTypes;
               payload.lessonType = lessonTypes[0];
             }
-            if (rating !== (appt.rating ?? null)) payload.rating = rating;
             const trimmed = notes.trim();
             if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
             if (evaluations?.length) payload.evaluations = evaluations;
@@ -556,10 +552,10 @@ export const StudentNotesDetailScreen = () => {
                           <Text style={s.tlTime}>
                             {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
                           </Text>
-                          {appt.rating != null ? (
-                            // Gialla come la chip del pagellino qui sotto e come
-                            // il foglio dettagli: nello storico le valutazioni
-                            // sono tutte dello stesso colore.
+                          {appt.rating != null && !appt.evaluations?.length ? (
+                            // Stellina storica: solo sulle guide che NON hanno il
+                            // pagellino (quelle create prima della feature), dove
+                            // è l'unica valutazione esistente.
                             <StarRating value={appt.rating} readOnly size={13} tone="gold" />
                           ) : null}
                         </View>

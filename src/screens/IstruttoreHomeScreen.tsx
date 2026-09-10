@@ -2160,7 +2160,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     const payload: {
       lessonType?: string;
       lessonTypes?: string[];
-      rating?: number | null;
       notes?: string | null;
       evaluations?: Array<{ itemId: string; score: number }>;
     } = {};
@@ -2169,11 +2168,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     if (input.lessonTypes.length && typesChanged) {
       payload.lessonTypes = input.lessonTypes;
       payload.lessonType = input.lessonTypes[0];
-    }
-
-    const initialRating = lesson.rating ?? null;
-    if (input.rating !== initialRating) {
-      payload.rating = input.rating;
     }
 
     const currentNotes = normalizeNotes(input.notes);
@@ -2429,7 +2423,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       // In correzione mostriamo entrambi i bottoni (per scegliere l'esito giusto);
       // nel flusso live si nasconde "Presente" quando la guida è già checked_in.
       allowPresente: correctionMode ? true : status !== 'checked_in',
-      showRating: ['checked_in', 'completed', 'no_show'].includes(status),
       pendingAction,
       menuOptions: ownerMode ? [] : menuOptions,
       onSaveDetails: (input) => saveLessonDetails(lesson, input),

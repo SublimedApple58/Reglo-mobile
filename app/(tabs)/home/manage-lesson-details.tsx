@@ -35,7 +35,6 @@ export default function ManageLessonDetailsScreen() {
   const [saving, setSaving] = useState(false);
 
   const [types, setTypes] = useState<string[]>([]);
-  const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   // Pagellino (REG-443): voci dell'autoscuola + punteggio per voce. Caricato
   // all'apertura del foglio in una sola chiamata; resta vuoto (sezione
@@ -115,7 +114,6 @@ export default function ManageLessonDetailsScreen() {
   useEffect(() => {
     if (!lesson) return;
     setTypes(resolveInitialLessonTypes(lesson));
-    setRating(lesson.rating ?? null);
     setNotes(lesson.notes ?? '');
     setEsito(outcomeFromStatus(lesson.status));
   }, [lesson]);
@@ -124,10 +122,9 @@ export default function ManageLessonDetailsScreen() {
     return <View style={s.root} />;
   }
 
-  const { showRating, isDetailsEditable, onSaveDetails } = data;
+  const { isDetailsEditable, onSaveDetails } = data;
   const editable = isDetailsEditable && !saving;
   const showEsito = data.showEsito === true;
-  const showRatingNow = showRating || esito !== null;
   // Il tipo cambierebbe il `type` dell'appuntamento: nascosto su esami/gruppi
   // (ne romperebbe la categoria). Nel flusso home questo foglio si apre solo per
   // guide individuali, quindi il gate è un no-op lì.
@@ -146,7 +143,6 @@ export default function ManageLessonDetailsScreen() {
     try {
       const ok = await onSaveDetails({
         lessonTypes: types,
-        rating,
         notes,
         esito,
         evaluations: evalItems.length
@@ -247,15 +243,9 @@ export default function ManageLessonDetailsScreen() {
             </View>
           ) : null}
 
-          {/* Valutazione */}
-          {showRatingNow ? (
-            <View style={s.section}>
-              <Text style={s.sectionLabel}>Valutazione</Text>
-              {/* Gialla come il pagellino sotto: nel foglio le due valutazioni
-                  devono leggersi come la stessa cosa (deroga al mono-navy). */}
-              <StarRating value={rating} tone="gold" onChange={editable ? setRating : () => {}} />
-            </View>
-          ) : null}
+          {/* La valutazione a stellina singola non si compila più: al suo posto
+              c'è il pagellino qui sotto. I voti già dati restano leggibili nello
+              storico guide, sulle guide che non hanno il pagellino. */}
       </Animated.View>
 
       {/* Pagellino dell'autoscuola: una riga per voce, stelline quante la scala */}

@@ -34,7 +34,12 @@ export type ManageLessonMenuOption = {
 /** Payload saved from the details sub-sheet (tipo guida / valutazione / note). */
 export type ManageLessonDetailsPayload = {
   lessonTypes: string[];
-  rating: number | null;
+  /**
+   * Valutazione complessiva a stellina singola. Non è più compilabile dal
+   * foglio dettagli (l'ha sostituita il pagellino): resta nel tipo perché il
+   * backend la accetta ancora e i voti storici vanno letti.
+   */
+  rating?: number | null;
   notes: string;
   /**
    * Pagellino di valutazione (REG-443): un punteggio per voce. `undefined`
@@ -91,7 +96,6 @@ export type ManageLessonData = {
   /** Whether the "Presente" (check-in) button should appear. */
   allowPresente: boolean;
   /** Show the star-rating section (in the details sub-sheet). */
-  showRating: boolean;
   /**
    * Mostra il selettore Esito (Presente/Assente) nel sub-sheet dettagli. Usato
    * solo dallo storico allievo per segnare la guida effettuata e sbloccare la

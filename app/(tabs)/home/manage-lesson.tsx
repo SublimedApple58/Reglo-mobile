@@ -33,6 +33,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
+import { evaluationSummary, formatEvaluationAverage } from '../../../src/utils/evaluationSheet';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
 import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
@@ -275,7 +276,7 @@ export default function ManageLessonScreen() {
 
   const {
     studentProgress, stateMeta, stateLabel, durationText, durationMin, vehiclesEnabled, vehicleText,
-    vehicles, defaultLocation, showStatusActions, correctionMode, allowPresente, showRating, readOnly,
+    vehicles, defaultLocation, showStatusActions, correctionMode, allowPresente, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
     onChangeDuration, studentLicense, followCarRules,
   } = data;
@@ -366,7 +367,6 @@ export default function ManageLessonScreen() {
   const openDetails = () => {
     lessonDetailsStore.set({
       lesson,
-      showRating,
       isDetailsEditable: data.isDetailsEditable,
       onSaveDetails: data.onSaveDetails,
     });
@@ -436,9 +436,17 @@ export default function ManageLessonScreen() {
     .filter(Boolean) as string[];
   const summaryParts: string[] = [];
   if (typeLabels.length) summaryParts.push(typeLabels.join(', '));
-  if (showRating && lesson.rating) summaryParts.push(`${lesson.rating}★`);
+  // Il riepilogo mostra il PAGELLINO, non più la stellina singola (che non si
+  // compila più). Con scale miste non si fa la media: si conta le voci.
+  const evalRecap = evaluationSummary(lesson.evaluations);
+  if (evalRecap) {
+    const avg = formatEvaluationAverage(evalRecap);
+    summaryParts.push(
+      avg ? `pagellino ${avg.split('/')[0]}` : `pagellino · ${evalRecap.count} voci`,
+    );
+  }
   if (lesson.notes && lesson.notes.trim()) summaryParts.push('note');
-  const detailsSummary = summaryParts.join(' · ') || 'Tipo, valutazione e note';
+  const detailsSummary = summaryParts.join(' · ') || 'Tipo, pagellino e note';
 
   const showBottom = showStatusActions || hasMenu;
   const bottomPad = insets.bottom + (showBottom ? 86 : 12);

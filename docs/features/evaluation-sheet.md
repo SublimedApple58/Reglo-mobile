@@ -55,3 +55,18 @@ complessiva** nel foglio "Dettagli guida" e nella riga dello storico guide. `Sta
 questo una prop `tone` (`'navy'` di default, `'gold'` dove serve il giallo) — non usarla altrove
 senza una decisione di prodotto. Restano navy tutti gli altri usi, compreso lo storico dell'app
 ALLIEVO (`StudentMyNotesScreen`), che il pagellino non lo vede.
+
+## La stellina singola non si compila più (2026-09-10)
+
+La sezione "Valutazione" è stata tolta dal foglio "Dettagli guida": al suo posto c'è il pagellino.
+Il payload `ManageLessonDetailsPayload.rating` è diventato opzionale e non viene più inviato.
+
+Dove la stellina resta:
+- **storico guide lato scuola**: solo sulle guide **senza** punteggi pagellino (le vecchie), dove
+  è l'unica valutazione esistente; su quelle col pagellino c'è la sola chip;
+- **app allievo** (`StudentMyNotesScreen`): invariata, mostra la stellina se c'è. Sulle guide nuove
+  non ci sarà: l'allievo il pagellino non lo vede (v1 interna) — conseguenza accettata;
+- **"voto medio"** nella scheda allievo: invariato per ora, resta la media delle stelline storiche.
+
+Il sottotitolo della card "Dettagli guida" ora riassume il pagellino (`pagellino 4,2`) invece della
+stellina (`4★`); il placeholder è "Tipo, pagellino e note".

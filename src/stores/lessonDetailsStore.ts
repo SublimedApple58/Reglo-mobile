@@ -11,12 +11,10 @@ import type { ManageLessonDetailsPayload } from './manageLessonStore';
  */
 export type LessonDetailsData = {
   lesson: AutoscuolaAppointmentWithRelations;
-  /** Show the star-rating section. */
-  showRating: boolean;
   /** Mostra il selettore Esito (solo storico allievo). */
   showEsito?: boolean;
   isDetailsEditable: boolean;
-  /** Save tipo/voto/note (+esito). Returns true on success. */
+  /** Save tipo/pagellino/note (+esito). Returns true on success. */
   onSaveDetails: (payload: ManageLessonDetailsPayload) => Promise<boolean>;
 };
 
