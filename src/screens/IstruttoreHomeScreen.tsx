@@ -75,7 +75,6 @@ import { dayDetailStore } from '../stores/dayDetailStore';
 import { examManageStore } from '../stores/examManageStore';
 import { groupLessonManageStore } from '../stores/groupLessonManageStore';
 import { sessionStorage } from '../services/sessionStorage';
-import { StarRating } from '../components/StarRating';
 import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';

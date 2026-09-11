@@ -390,10 +390,14 @@ export default function ManageLessonDetailsScreen() {
                       {isNa ? null : (
                         <View style={[s.scorePill, !scores[item.id] && s.scorePillEmpty]}>
                           {scores[item.id] ? (
-                            <>
-                              <Text style={s.scoreNum}>{scores[item.id]}</Text>
+                            // UN SOLO Text con figlio annidato: due Text affiancati
+                            // in un row si allineano per box, non per baseline, e
+                            // "2" e "/5" finivano sfalsati. Annidati condividono
+                            // la stessa riga di testo per costruzione.
+                            <Text style={s.scoreNum}>
+                              {scores[item.id]}
                               <Text style={s.scoreMax}>/{item.scaleMax}</Text>
-                            </>
+                            </Text>
                           ) : (
                             <Text style={s.scoreEmptyText}>da valutare</Text>
                           )}
@@ -537,13 +541,15 @@ const s = StyleSheet.create({
     shadowRadius: 5, elevation: 1,
   },
   scorePill: {
-    flexDirection: 'row', alignItems: 'baseline', height: 26, paddingHorizontal: 10,
+    justifyContent: 'center', minHeight: 26, paddingHorizontal: 10, paddingVertical: 3,
     borderRadius: 13, backgroundColor: '#FEF9C3',
   },
-  scorePillEmpty: { backgroundColor: '#F2F2F4', alignItems: 'center' },
-  scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207' },
-  scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04' },
-  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3AD' },
+  scorePillEmpty: { backgroundColor: '#F2F2F4' },
+  // lineHeight esplicito: senza, il box del testo cambia con la dimensione del
+  // font e la pillola "balla" fra una voce e l'altra.
+  scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207', lineHeight: 20 },
+  scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04', lineHeight: 20 },
+  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3AD', lineHeight: 20 },
   pagellinoRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   pagellinoAdd: {
