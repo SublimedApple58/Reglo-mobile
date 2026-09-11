@@ -66,6 +66,44 @@ const formatExamDate = (iso: string) => {
   return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+/**
+ * Icona 3D dell'impostazione nel riepilogo: accesa a piena opacità con il
+ * badge, spenta smorzata. Lo stato si legge dall'icona, non da un'etichetta.
+ */
+const SettingGlyph = ({
+  source,
+  on,
+  neutral,
+}: {
+  source: number;
+  on: boolean;
+  /** Il luogo non è un interruttore: nessun badge, nessuno smorzamento. */
+  neutral?: boolean;
+}) => {
+  const dim = !neutral && !on;
+  return (
+    <View style={gs.wrap}>
+      <Image source={source} style={[gs.img30, dim && gs.dim]} />
+      {on ? (
+        <View style={gs.badge}>
+          <Ionicons name="checkmark" size={9} color="#FFFFFF" />
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const gs = StyleSheet.create({
+  wrap: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  img30: { width: 30, height: 30 },
+  dim: { opacity: 0.32 },
+  badge: {
+    position: 'absolute', right: -1, bottom: -1, width: 15, height: 15, borderRadius: 8,
+    backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#FDFDFD',
+  },
+});
+
 /** Le righe si riassestano di molla quando un pagellino si apre o si chiude. */
 const EVAL_LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
 
@@ -513,25 +551,17 @@ export const StudentNotesDetailScreen = () => {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={s.flatLabel}>Impostazioni</Text>
-                  <View style={s.setChips}>
-                    {groupEnabled ? (
-                      <View style={[s.setChip, groupOptIn && s.setChipOn]}>
-                        <Text style={[s.setChipText, groupOptIn && s.setChipTextOn]}>Gruppo</Text>
-                      </View>
-                    ) : null}
-                    {studentPhase === 'PRATICA' ? (
-                      <View style={[s.setChip, examReady && s.setChipOn]}>
-                        <Text style={[s.setChipText, examReady && s.setChipTextOn]}>Pronto esame</Text>
-                      </View>
-                    ) : null}
-                    {locations.length > 0 ? (
-                      <View style={s.setChip}>
-                        <Text style={s.setChipText} numberOfLines={1}>
-                          {defaultLocationName ?? 'Sede'}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
+                </View>
+                <View style={s.setGlyphs}>
+                  {groupEnabled ? (
+                    <SettingGlyph source={FLUENT_PEOPLE} on={groupOptIn} />
+                  ) : null}
+                  {studentPhase === 'PRATICA' ? (
+                    <SettingGlyph source={FLUENT_GRADUATE} on={examReady} />
+                  ) : null}
+                  {locations.length > 0 ? (
+                    <SettingGlyph source={FLUENT_BUILDING} on={false} neutral />
+                  ) : null}
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </Pressable>
@@ -911,11 +941,7 @@ const s = StyleSheet.create({
   tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
 
   statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  setChips: { flexDirection: 'row', gap: 6, marginTop: 7, alignItems: 'center' },
-  setChip: { borderRadius: 8, backgroundColor: '#F2F2F4', paddingHorizontal: 8, paddingVertical: 3, maxWidth: 130 },
-  setChipOn: { backgroundColor: '#F4F5F9', borderWidth: StyleSheet.hairlineWidth, borderColor: '#D6D9E6' },
-  setChipText: { fontSize: 11.5, fontWeight: '600', color: '#929292' },
-  setChipTextOn: { color: '#1A1A2E' },
+  setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 4 },
   pagHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   pagInsight: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
   pagInsightStrong: { fontWeight: '600', color: '#1A1A2E' },

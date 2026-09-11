@@ -29,7 +29,7 @@ export function StudentSettingsSheet() {
   if (!data) return <View style={s.root} />;
 
   return (
-    <View style={[s.root, { paddingTop: 22, paddingBottom: Math.max(insets.bottom - 16, 18) }]}>
+    <View style={[s.root, { paddingTop: 26, paddingBottom: Math.max(insets.bottom - 16, 18) }]}>
       <View style={s.topbar}>
         <View style={{ flex: 1 }}>
           <Text style={s.title} numberOfLines={1}>Impostazioni</Text>
@@ -89,9 +89,11 @@ export function StudentSettingsSheet() {
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg },
-  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 18, gap: 12 },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
-  hint: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
+  // La testata respira: titolo e nome dell'allievo non devono stare addosso
+  // né al bordo del foglio né alla prima riga.
+  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 26, gap: 12 },
+  title: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  hint: { fontSize: 13.5, fontWeight: '500', color: colors.textMuted, marginTop: 5, lineHeight: 18 },
   x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   icon: { width: 40, height: 40 },
