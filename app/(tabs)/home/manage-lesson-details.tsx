@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
@@ -22,6 +31,13 @@ import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+
+/**
+ * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
+ * voce entra o esce, le altre card (e il bottone sotto) scivolano al loro posto
+ * di molla invece di saltarci.
+ */
+const LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
 
 /** Firma stabile di un pagellino, per confrontare "prima" e "dopo". */
 const evalKeyOf = (
@@ -360,13 +376,21 @@ export default function ManageLessonDetailsScreen() {
           anche a metà guida o prima del check-in. Resta fuori solo dalle guide
           annullate senza voti, dove sarebbe solo rumore. */}
       {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
-        <View style={[s.section, { marginBottom: 20 }]}>
+        <Animated.View
+          layout={LAYOUT}
+          entering={FadeIn.duration(260)}
+          style={[s.section, { marginBottom: 20 }]}
+        >
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>
             {evalRows.length > 0 ? (
-              <Text style={s.pagellinoHint}>
+              <Animated.Text
+                key={evalRows.length}
+                entering={FadeIn.duration(180)}
+                style={s.pagellinoHint}
+              >
                 {evalRows.length === 1 ? '1 voce' : `${evalRows.length} voci`}
-              </Text>
+              </Animated.Text>
             ) : null}
           </View>
 
@@ -376,7 +400,16 @@ export default function ManageLessonDetailsScreen() {
                 const value = scores[item.id] ?? 0;
                 const isNa = legacyNa[item.id] === true;
                 return (
-                  <View key={item.id} style={s.voiceCard}>
+                  // entering/exiting + layout: aggiungere o togliere una voce
+                  // non deve far saltare la lista — le altre card scorrono al
+                  // loro posto invece di teletrasportarsi.
+                  <Animated.View
+                    key={item.id}
+                    layout={LAYOUT}
+                    entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic))}
+                    exiting={FadeOut.duration(160)}
+                    style={s.voiceCard}
+                  >
                     <View style={s.pagellinoItemTop}>
                       <Text
                         style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
@@ -388,20 +421,29 @@ export default function ManageLessonDetailsScreen() {
                       {/* Il punteggio è il DATO della riga, non una didascalia:
                           pillola oro (scala gialla del tema) accanto al nome. */}
                       {isNa ? null : (
-                        <View style={[s.scorePill, !scores[item.id] && s.scorePillEmpty]}>
+                        <Animated.View
+                          layout={LAYOUT}
+                          style={[s.scorePill, !scores[item.id] && s.scorePillEmpty]}
+                        >
                           {scores[item.id] ? (
                             // UN SOLO Text con figlio annidato: due Text affiancati
                             // in un row si allineano per box, non per baseline, e
                             // "2" e "/5" finivano sfalsati. Annidati condividono
                             // la stessa riga di testo per costruzione.
-                            <Text style={s.scoreNum}>
+                            <Animated.Text
+                              key={scores[item.id]}
+                              entering={FadeIn.duration(150)}
+                              style={s.scoreNum}
+                            >
                               {scores[item.id]}
                               <Text style={s.scoreMax}>/{item.scaleMax}</Text>
-                            </Text>
+                            </Animated.Text>
                           ) : (
-                            <Text style={s.scoreEmptyText}>da valutare</Text>
+                            <Animated.Text entering={FadeIn.duration(150)} style={s.scoreEmptyText}>
+                              da valutare
+                            </Animated.Text>
                           )}
-                        </View>
+                        </Animated.View>
                       )}
                       {/* La × sta in alto, lontana dalle stelline: togliere una
                           voce non deve essere un errore di mira. */}
@@ -455,29 +497,36 @@ export default function ManageLessonDetailsScreen() {
                         />
                       </View>
                     )}
-                  </View>
+                  </Animated.View>
                 );
               })}
             </View>
           ) : null}
 
           {editable && evalAvailable.length > 0 ? (
-            <Pressable
-              onPress={openAddItems}
-              accessibilityRole="button"
-              style={({ pressed }) => [s.pagellinoAdd, pressed && { opacity: 0.6 }]}
-            >
-              <Ionicons name="add" size={17} color="#6A6A6A" />
-              <Text style={s.pagellinoAddText}>Aggiungi voce da valutare</Text>
-            </Pressable>
+            <Animated.View layout={LAYOUT} exiting={FadeOut.duration(140)}>
+              <Pressable
+                onPress={openAddItems}
+                accessibilityRole="button"
+                style={({ pressed }) => [s.pagellinoAdd, pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="add" size={17} color="#6A6A6A" />
+                <Text style={s.pagellinoAddText}>Aggiungi voce da valutare</Text>
+              </Pressable>
+            </Animated.View>
           ) : null}
 
           {evalRows.length === 0 ? (
-            <Text style={s.pagellinoEmpty}>
+            <Animated.Text
+              layout={LAYOUT}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(120)}
+              style={s.pagellinoEmpty}
+            >
               Nessuna voce: questa guida non ha ancora un pagellino.
-            </Text>
+            </Animated.Text>
           ) : null}
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* Note */}
