@@ -2176,9 +2176,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       payload.notes = currentNotes || null;
     }
 
-    // Pagellino: il foglio manda sempre tutte le voci, così basta un solo
-    // "Salva" anche quando l'istruttore ha toccato solo le stelline.
-    if (input.evaluations?.length) {
+    // Pagellino: il foglio lo manda solo se è cambiato. Attenzione all'array
+    // VUOTO: è il modo di dire "ho tolto tutte le voci", quindi si inoltra.
+    if (input.evaluations !== undefined) {
       payload.evaluations = input.evaluations;
     }
 

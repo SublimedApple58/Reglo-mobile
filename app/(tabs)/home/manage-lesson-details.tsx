@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
@@ -13,15 +13,24 @@ import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
 import {
   EVALUATION_NOT_APPLICABLE_LABEL,
-  defaultEvaluationScore,
   starSizeForScale,
 } from '../../../src/utils/evaluationSheet';
+import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+
+/** Firma stabile di un pagellino, per confrontare "prima" e "dopo". */
+const evalKeyOf = (
+  rows: ReadonlyArray<{ itemId: string; score: number | null; notApplicable?: boolean }>,
+): string =>
+  rows
+    .map((r) => `${r.itemId}:${r.notApplicable ? 'na' : r.score ?? ''}`)
+    .sort()
+    .join('|');
 
 function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | null {
   const s = (status ?? '').toLowerCase();
@@ -32,6 +41,8 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
+  // `as string[]`: dentro una route tipizzata il tuple non ha l'indice 1.
+  const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
 
@@ -48,11 +59,20 @@ export default function ManageLessonDetailsScreen() {
   const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   /**
-   * Voci dichiarate "non valutabili" su QUESTA guida (il trattino accanto alle
-   * stelline). Stato separato dai punteggi: togliendo l'esclusione torna il
-   * voto di prima invece del default.
+   * Voci MESSE nel pagellino di questa guida. Il pagellino non è l'elenco
+   * completo in attesa di stelline: l'istruttore aggiunge le voci che ha
+   * davvero valutato, e quelle sono il pagellino della guida.
    */
-  const [notApplicable, setNotApplicable] = useState<Record<string, boolean>>({});
+  const [evalAdded, setEvalAdded] = useState<string[]>([]);
+  /**
+   * Voci salvate come "non valutabile" prima che quel concetto venisse tolto
+   * dalla compilazione. Non se ne creano di nuove: restano leggibili e si
+   * possono solo togliere, così salvando non si cancellano di nascosto.
+   */
+  const [legacyNa, setLegacyNa] = useState<Record<string, boolean>>({});
+  /** Firma del pagellino come è stato caricato: serve a capire se è cambiato,
+   *  compreso il caso "svuotato del tutto" (array vuoto, non `undefined`). */
+  const [savedEvalKey, setSavedEvalKey] = useState('');
   /** true = questa guida ha già punteggi salvati: il pagellino resta visibile
    *  (in sola lettura se non è più modificabile) per la consultazione. */
   const [hasSavedScores, setHasSavedScores] = useState(false);
@@ -117,8 +137,19 @@ export default function ManageLessonDetailsScreen() {
             items.filter((it) => saved.has(it.id)).map((it) => [it.id, saved.get(it.id)!]),
           ),
         );
-        setNotApplicable(
+        setLegacyNa(
           Object.fromEntries(rows.filter((sc) => sc.notApplicable).map((sc) => [sc.itemId, true])),
+        );
+        // Nel pagellino ci sono le voci che questa guida ha già salvato.
+        setEvalAdded(rows.map((sc) => sc.itemId));
+        setSavedEvalKey(
+          evalKeyOf(
+            rows.map((sc) => ({
+              itemId: sc.itemId,
+              score: sc.score ?? null,
+              notApplicable: sc.notApplicable === true,
+            })),
+          ),
         );
       } catch {
         // Il pagellino non deve impedire di salvare tipo/voto/note: se la
@@ -153,83 +184,61 @@ export default function ManageLessonDetailsScreen() {
   const isMotoLesson =
     isMotoLicenseCategory(lesson.vehicle?.licenseCategory) ||
     isMotoLicenseCategory(lesson.student?.licenseCategory);
-  // Voci effettivamente valutate: il contatore in testa alla sezione.
-  const scoredCount = evalItems.filter(
-    (item) => scores[item.id] != null && !notApplicable[item.id],
-  ).length;
+  /** Righe in elenco, nell'ordine del pagellino della scuola (non di aggiunta). */
+  const evalRows = evalItems.filter((item) => evalAdded.includes(item.id));
+  const evalAvailable = evalItems.filter((item) => !evalAdded.includes(item.id));
   const showTypes =
     lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId && !isMotoLesson;
 
   /**
-   * Azioni in blocco sul pagellino: con molte voci, riempirle o azzerarle a
-   * mano sarebbe il lavoro più noioso della giornata. Menu NATIVO (action sheet
-   * su iOS, Alert su Android), come il menu "•••" dei veicoli.
+   * "Aggiungi voce": apre il form sheet NATIVO riusabile (OptionsPickerSheet),
+   * lo stesso di Durata/Veicolo/Luogo, con le sole voci non ancora in elenco.
+   * Selezione multipla: sul telefono aprire lo sheet una volta per voce
+   * sarebbe un'animazione ogni volta.
    */
-  const openEvalActions = () => {
-    if (!editable) return;
-    const fillAll = () =>
-      setScores((prev) => {
-        const next = { ...prev };
-        for (const item of evalItems) {
-          if (next[item.id] == null && !notApplicable[item.id]) {
-            next[item.id] = defaultEvaluationScore(item.scaleMax);
-          }
-        }
-        return next;
-      });
-    const naRest = () =>
-      setNotApplicable((prev) => {
-        const next = { ...prev };
-        for (const item of evalItems) {
-          if (scores[item.id] == null) next[item.id] = true;
-        }
-        return next;
-      });
-    const clearAll = () => {
-      setScores({});
-      setNotApplicable({});
-    };
-    const options = ['Valuta tutte a metà scala', 'Segna non valutabili le restanti', 'Azzera il pagellino'];
-    const run = [fillAll, naRest, clearAll];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: 'Pagellino · questa guida',
-          options: [...options, 'Annulla'],
-          cancelButtonIndex: options.length,
-          destructiveButtonIndex: 2,
-        },
-        (i) => { if (i < options.length) run[i](); },
-      );
-    } else {
-      Alert.alert('Pagellino · questa guida', undefined, [
-        { text: options[0], onPress: fillAll },
-        { text: options[1], onPress: naRest },
-        { text: options[2], style: 'destructive', onPress: clearAll },
-        { text: 'Annulla', style: 'cancel' },
-      ]);
-    }
+  const openAddItems = () => {
+    if (!editable || !evalAvailable.length) return;
+    optionsPickerStore.set({
+      title: 'Aggiungi voci',
+      multi: true,
+      selected: [],
+      options: evalAvailable.map((item) => ({ value: item.id, label: item.label })),
+      onConfirm: (vals) => {
+        if (vals.length) setEvalAdded((prev) => [...prev, ...vals]);
+      },
+    });
+    // La route del picker è registrata in entrambi gli stack che aprono questo
+    // foglio (home + notes): va spinta su quello da cui siamo arrivati.
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    const long = evalAvailable.length > LONG_PICKER_THRESHOLD;
+    router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
   };
 
   const handleSave = async () => {
     if (!editable) return;
+    const nextRows = evalRows
+      .filter((item) => legacyNa[item.id] || scores[item.id] != null)
+      .map((item) =>
+        legacyNa[item.id]
+          ? { itemId: item.id, score: null, notApplicable: true }
+          : { itemId: item.id, score: scores[item.id]!, notApplicable: false },
+      );
+    const evalChangedPayload =
+      evalKeyOf(nextRows) === savedEvalKey
+        ? undefined
+        : nextRows.map(({ itemId, score, notApplicable }) =>
+            notApplicable ? { itemId, score: null, notApplicable: true } : { itemId, score },
+          );
     setSaving(true);
     try {
       const ok = await onSaveDetails({
         lessonTypes: types,
         notes,
         esito,
-        // Si mandano SOLO le voci toccate: una voce lasciata in bianco non è un
-        // giudizio, e il server cancella le righe omesse.
-        evaluations: evalItems.length
-          ? evalItems
-              .filter((item) => notApplicable[item.id] || scores[item.id] != null)
-              .map((item) =>
-                notApplicable[item.id]
-                  ? { itemId: item.id, score: null, notApplicable: true }
-                  : { itemId: item.id, score: scores[item.id]! },
-              )
-          : undefined,
+        // Solo le voci in elenco e con un voto (più le vecchie "non
+        // valutabili"). `undefined` quando il pagellino non è cambiato: così
+        // l'array VUOTO resta un segnale valido, ed è come si svuota davvero.
+        evaluations: evalChangedPayload,
       });
       if (ok) router.back();
     } finally {
@@ -339,114 +348,114 @@ export default function ManageLessonDetailsScreen() {
               storico guide, sulle guide che non hanno il pagellino. */}
       </Animated.View>
 
-      {/* Pagellino dell'autoscuola: una riga per voce, stelline quante la scala */}
-      {/* Il pagellino NON segue il gate della valutazione complessiva: si compila
-          anche a metà guida o prima del check-in (i punteggi non hanno vincoli di
-          stato lato server). Resta fuori solo dalle guide annullate senza voti,
-          dove un pagellino vuoto e non toccabile sarebbe solo rumore. */}
+      {/* Pagellino dell'autoscuola: NON l'elenco completo in attesa di stelline.
+          L'istruttore aggiunge le voci che questa guida ha toccato, e quelle
+          sono il pagellino della guida. Nessun vincolo di stato: si compila
+          anche a metà guida o prima del check-in. Resta fuori solo dalle guide
+          annullate senza voti, dove sarebbe solo rumore. */}
       {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
         <View style={[s.section, { marginBottom: 20 }]}>
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>
-            <View style={s.pagellinoHeadRight}>
-              {/* Il contatore fa da spiegazione: dice da solo che non è tutto
-                  da compilare. Nessuna riga di testo in più sotto la card. */}
+            {evalRows.length > 0 ? (
               <Text style={s.pagellinoHint}>
-                {`${scoredCount} di ${evalItems.length}`}
+                {evalRows.length === 1 ? '1 voce' : `${evalRows.length} voci`}
               </Text>
-              {editable ? (
-                <Pressable
-                  onPress={openEvalActions}
-                  hitSlop={6}
-                  accessibilityRole="button"
-                  accessibilityLabel="Azioni sul pagellino"
-                  style={({ pressed }) => [s.pagellinoPill, pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={s.pagellinoPillText}>Tutte</Text>
-                  <Ionicons name="chevron-down" size={13} color="#6A6A6A" />
-                </Pressable>
-              ) : null}
-            </View>
+            ) : null}
           </View>
-          <View style={s.pagellinoCard}>
-            {evalItems.map((item, index) => {
-              // Nessuna precompilazione: 0 = voce non ancora valutata.
-              const value = scores[item.id] ?? 0;
-              const isNa = notApplicable[item.id] === true;
-              return (
-                <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
-                  <View style={s.pagellinoItemTop}>
-                    <Text
-                      style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
-                      numberOfLines={2}
-                    >
-                      {item.label}
-                      {item.archived ? ' (non più in uso)' : ''}
-                    </Text>
-                    <Text style={s.pagellinoValue}>
-                      {isNa
-                        ? EVALUATION_NOT_APPLICABLE_LABEL
-                        : value
-                          ? `${value}/${item.scaleMax}`
-                          : ''}
-                    </Text>
-                  </View>
-                  <View style={s.scaleRow}>
-                    {/* Trattino = "non valutabile su questa guida": fa parte
-                        della scala, così la riga delle stelline resta una cosa
-                        sola da toccare. In sola lettura sparisce e resta il
-                        testo "non valutabile" sopra. */}
-                    {editable ? (
-                      <>
+
+          {evalRows.length > 0 ? (
+            <View style={s.pagellinoCard}>
+              {evalRows.map((item, index) => {
+                const value = scores[item.id] ?? 0;
+                const isNa = legacyNa[item.id] === true;
+                return (
+                  <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
+                    <View style={s.pagellinoItemTop}>
+                      <Text
+                        style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
+                        numberOfLines={2}
+                      >
+                        {item.label}
+                        {item.archived ? ' (non più in uso)' : ''}
+                      </Text>
+                      {/* La × sta in alto, lontana dalle stelline: togliere una
+                          voce non deve essere un errore di mira. */}
+                      {editable ? (
                         <Pressable
-                          onPress={() =>
-                            setNotApplicable((prev) => {
+                          onPress={() => {
+                            setEvalAdded((prev) => prev.filter((id) => id !== item.id));
+                            setScores((prev) => {
                               const next = { ...prev };
-                              if (next[item.id]) delete next[item.id];
-                              else next[item.id] = true;
+                              delete next[item.id];
                               return next;
-                            })
-                          }
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                            });
+                            setLegacyNa((prev) => {
+                              const next = { ...prev };
+                              delete next[item.id];
+                              return next;
+                            });
+                          }}
+                          hitSlop={10}
                           accessibilityRole="button"
-                          accessibilityState={{ selected: isNa }}
-                          accessibilityLabel={`${item.label}: non valutabile in questa guida`}
-                          style={({ pressed }) => [
-                            s.naDash,
-                            isNa && s.naDashOn,
-                            pressed && { opacity: 0.7 },
-                          ]}
+                          accessibilityLabel={`Togli ${item.label} dal pagellino`}
+                          style={({ pressed }) => [s.pagellinoRemove, pressed && { opacity: 0.5 }]}
                         >
-                          <Text style={[s.naDashText, isNa && s.naDashTextOn]}>—</Text>
+                          <Ionicons name="close" size={16} color="#C4C4C4" />
                         </Pressable>
-                        <View style={s.scaleSep} />
-                      </>
-                    ) : null}
-                    <StarRating
-                      value={isNa ? 0 : value}
-                      total={item.scaleMax}
-                      tone="gold"
-                      size={starSizeForScale(item.scaleMax)}
-                      onChange={
-                        editable && !isNa
-                          ? (next) =>
-                              setScores((prev) => {
-                                const copy = { ...prev };
-                                // Ritoccare la stellina già scelta riporta la
-                                // voce a "non valutata" (StarRating manda 0).
-                                if (!next) delete copy[item.id];
-                                else copy[item.id] = next;
-                                return copy;
-                              })
-                          : undefined
-                      }
-                      readOnly={!editable || isNa}
-                    />
+                      ) : null}
+                    </View>
+                    {isNa ? (
+                      <Text style={s.pagellinoValue}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
+                    ) : (
+                      <View style={s.pagellinoScaleRow}>
+                        <StarRating
+                          value={value}
+                          total={item.scaleMax}
+                          tone="gold"
+                          size={starSizeForScale(item.scaleMax)}
+                          onChange={
+                            editable
+                              ? (next) =>
+                                  setScores((prev) => {
+                                    const copy = { ...prev };
+                                    // Ritoccare la stellina già scelta svuota il
+                                    // voto; per togliere la voce c'è la ×.
+                                    if (!next) delete copy[item.id];
+                                    else copy[item.id] = next;
+                                    return copy;
+                                  })
+                              : undefined
+                          }
+                          readOnly={!editable}
+                        />
+                        <Text style={s.pagellinoValue}>
+                          {value ? `${value}/${item.scaleMax}` : 'da valutare'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {editable && evalAvailable.length > 0 ? (
+            <Pressable
+              onPress={openAddItems}
+              accessibilityRole="button"
+              style={({ pressed }) => [s.pagellinoAdd, pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="add" size={17} color="#6A6A6A" />
+              <Text style={s.pagellinoAddText}>Aggiungi voce da valutare</Text>
+            </Pressable>
+          ) : null}
+
+          {evalRows.length === 0 ? (
+            <Text style={s.pagellinoEmpty}>
+              Nessuna voce: questa guida non ha ancora un pagellino.
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -494,12 +503,6 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   pagellinoHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  pagellinoHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pagellinoPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, paddingHorizontal: 11,
-    borderRadius: 999, borderWidth: 1.5, borderColor: '#E2E2E8',
-  },
-  pagellinoPillText: { fontSize: 12.5, fontWeight: '600', color: '#6A6A6A' },
   pagellinoCard: {
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
     backgroundColor: '#FFFFFF', paddingHorizontal: 14,
@@ -509,15 +512,14 @@ const s = StyleSheet.create({
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
   pagellinoLabelOff: { color: '#A3A3AD' },
-  scaleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  naDash: {
-    width: 38, height: 34, borderRadius: 10, borderWidth: 1.5, borderColor: '#E2E2E8',
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+  pagellinoRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  pagellinoAdd: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 46,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCDCE2', borderRadius: 16,
   },
-  naDashOn: { borderColor: '#1A1A2E', backgroundColor: '#F7F7F8' },
-  naDashText: { fontSize: 15, fontWeight: '700', color: '#A3A3AD', lineHeight: 18 },
-  naDashTextOn: { color: '#1A1A2E' },
-  scaleSep: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: '#ECECEC' },
+  pagellinoAddText: { fontSize: 14.5, fontWeight: '600', color: '#6A6A6A' },
+  pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3AD', textAlign: 'center' },
   pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {

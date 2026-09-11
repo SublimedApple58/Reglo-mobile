@@ -26,11 +26,11 @@ correggere e usa il "Salva" sticky già presente.
   "Presente") o a guida conclusa. Non segue il gate della valutazione complessiva, che il server
   accetta solo su guide già effettuate; resta nascosto solo sulle guide annullate che non hanno
   punteggi.
-- **Niente precompilazione** (dal 2026-09-11, allineato al web): le stelline partono vuote e
-  una voce non toccata resta "non valutata" — non viene salvata e non entra nelle medie.
-  Ritoccare la stellina già scelta riporta la voce a "non valutata".
-- In testa alla sezione il **contatore** "2 di 5" (fa da spiegazione: dice da solo che non è
-  tutto da compilare) e la pillola **"Tutte"** con le azioni in blocco.
+- **Il pagellino si costruisce** (dal 2026-09-11, stesso modello del web): non c'è nessun
+  elenco completo in attesa di stelline. L'istruttore aggiunge le voci che quella guida ha
+  toccato e quelle sono il pagellino; le altre non esistono.
+- In testa alla sezione il contatore "3 voci" — non c'è un totale da raggiungere.
+- Ritoccare la stellina già scelta svuota il voto; per togliere la voce c'è la ×.
 - Le stelline sono **navy** come quelle della valutazione complessiva: il design system
   mobile è mono-navy, vedi `docs/design-system.md`.
 - Scale possibili: 3 o 5 stelline (30px e 26px rispettivamente).
@@ -73,18 +73,13 @@ Dove la stellina resta:
 Il sottotitolo della card "Dettagli guida" ora riassume il pagellino (`pagellino 4,2`) invece della
 stellina (`4★`); il placeholder è "Tipo, pagellino e note".
 
-## Voce "non valutabile" (trattino nella scala)
+## Voce "non valutabile" (non si crea più)
 
-Non tutte le guide toccano tutti i punti. Ogni riga ha un **trattino `[—]` dentro la scala**,
-subito prima delle stelline: un tap esclude la voce da QUELLA guida, un altro la rimette. Attivo =
-bordo e testo navy; la riga mostra "non valutabile" al posto di "3/5" e le stelline restano vuote.
-
-- Scelta di Tiziano contro swipe sulla riga e long-press: quelle a riposo non comunicano nulla,
-  il trattino sì (ed è raggiungibile da VoiceOver, che uno swipe custom non sarebbe).
-- Il tap-target è 38×34 con `hitSlop`, `accessibilityRole="button"` e
-  `accessibilityState={{ selected }}`.
-- In **sola lettura** (storico, guida non più modificabile) il trattino non compare: resta
-  l'etichetta "non valutabile" sopra le stelline vuote.
+Il trattino `[—]` è stato rimosso col modello "aggiungi voce": dire "questa qui no" ora
+significa non aggiungerla. Le righe **già salvate** col flag restano: si leggono come
+"non valutabile" e si possono solo togliere, così un salvataggio non le cancella di nascosto.
+- In **sola lettura** (storico, guida non più modificabile) non compaiono né × né bottone
+  "Aggiungi": restano le voci con i loro voti.
 - Nel payload la voce esclusa viaggia come `{ itemId, score: null, notApplicable: true }`: la riga
   si salva comunque, altrimenti sarebbe indistinguibile da una voce aggiunta al pagellino dopo.
 - Togliendo l'esclusione torna il **voto di prima** (lo stato `notApplicable` è separato da
@@ -93,15 +88,32 @@ bordo e testo navy; la riga mostra "non valutabile" al posto di "3/5" e le stell
   (`evaluationSummaryLabel` in `src/utils/evaluationSheet.ts` — gemello del web: le tre etichette
   della chip stanno lì, non nei componenti).
 
-## Azioni in blocco: menu nativo
+## "Aggiungi voce": picker nativo riusabile
 
-La pillola "Tutte" apre `ActionSheetIOS` su iOS e `Alert` su Android (lo stesso meccanismo del
-menu "•••" dei veicoli), con tre voci: *Valuta tutte a metà scala* — che ridà in un tap il
-comportamento pre-opt-in a chi vuole il pagellino sempre pieno —, *Segna non valutabili le
-restanti* e *Azzera il pagellino* (distruttiva).
+Il bottone tratteggiato apre **`OptionsPickerSheet`** (`optionsPickerStore.set()` +
+`router.push('/(tabs)/<stack>/select-options')`), lo stesso form sheet nativo di Durata,
+Veicolo, Tipo guida e Luogo — niente componente nuovo. Elenca solo le voci **non ancora in
+elenco** e sparisce quando sono tutte aggiunte.
 
-Sul web le stesse azioni stanno in un dropdown, perché lì è la convenzione; qui un dropdown
-custom sarebbe la "web app rimpicciolita" che questa feature deve evitare.
+- **Selezione multipla** (a differenza del web, dove il menu è a un clic di distanza): sul
+  telefono aprire uno sheet per ogni voce sarebbe un'animazione ogni volta.
+- La route va spinta sullo **stack da cui si è arrivati** (`home` o `notes`, da `useSegments`):
+  è registrata in entrambi.
+- Sopra le 7 voci il picker passa da solo al page sheet scrollabile
+  (`LONG_PICKER_THRESHOLD`), quindi il tetto di 12 voci è coperto.
+- La **×** sulla riga sta in alto, lontana dalle stelline: togliere una voce non deve essere
+  un errore di mira.
+
+Le azioni di massa ("valuta tutte a metà scala", "segna non valutabili le restanti", "azzera")
+sono state tolte insieme al modello vecchio: rimettevano in circolo i giudizi fabbricati.
+
+## Attenzione: l'array vuoto è un segnale
+
+Il foglio manda `evaluations` **solo se il pagellino è cambiato** (confronto con la firma di
+quello caricato). Se l'istruttore toglie tutte le voci il payload è un **array vuoto**, che
+significa "svuota il pagellino": `IstruttoreHomeScreen` e `StudentNotesDetailScreen` lo
+inoltrano guardando `!== undefined`, non `.length` — con il controllo sulla lunghezza la
+rimozione dell'ultima voce si perdeva in silenzio.
 
 ## Il foglio scrolla (regola per i FormSheet)
 

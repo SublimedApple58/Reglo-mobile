@@ -178,7 +178,8 @@ export const StudentNotesDetailScreen = () => {
             }
             const trimmed = notes.trim();
             if (trimmed !== (appt.notes ?? '').trim()) payload.notes = trimmed;
-            if (evaluations?.length) payload.evaluations = evaluations;
+            // Array vuoto = pagellino svuotato: va inoltrato, non scartato.
+            if (evaluations !== undefined) payload.evaluations = evaluations;
             if (Object.keys(payload).length) {
               await regloApi.updateAppointmentDetails(appt.id, payload);
             }
