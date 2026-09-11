@@ -863,6 +863,14 @@ Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo 
 | Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
 | Durata / Veicolo / Tipo / Aggiungi allievo | `select-options` (≤7 voci) / `select-options-long` (>7, scrollabile) — route scelta da `optionsPickerPath()` DOPO `optionsPickerStore.set()` | `optionsPickerStore` | `formSheet fitToContents` / `modal` (2026-07-07: il form sheet clippava le liste lunghe senza scroll) |
 | Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
+| Impostazioni allievo (gruppo, pronto esame, luogo) | `student-settings` | `studentSettingsStore` | `formSheet` + `fitToContents` |
+
+**Non solo picker — anche i CONTROLLI possono uscire dalla pagina.** Nella scheda allievo le tre
+righe di impostazione stavano sempre aperte e la riempivano: ora sono una riga sola con le chip
+di stato (`Gruppo` · `Pronto esame` · `Sede`, in navy quando attive) e il chevron, e i controlli
+veri vivono nel form sheet. Lo stato resta leggibile senza aprire nulla, che era l'unica cosa che
+quelle righe davano in cambio dello spazio occupato. Gli handler (chiamate API, toast, rollback)
+restano nella schermata: il foglio disegna soltanto.
 
 `OptionsPickerData` accetta anche `hint` (riga di servizio sotto il titolo), `confirmLabel`
 (etichetta della CTA multipla) e `subtitle` per opzione. Per le misure interne dello sheet

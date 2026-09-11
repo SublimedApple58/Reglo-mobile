@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
+import { studentSettingsStore } from '../stores/studentSettingsStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
 import {
@@ -76,6 +77,8 @@ export const StudentNotesDetailScreen = () => {
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   /** Guida con il pagellino espanso nello storico (una alla volta). */
   const [openEvalId, setOpenEvalId] = useState<string | null>(null);
+  /** Blocco pagellino aggregato: a riposo è una riga sola. */
+  const [pagellinoOpen, setPagellinoOpen] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
   const [groupEnabled, setGroupEnabled] = useState(false);
@@ -249,6 +252,61 @@ export const StudentNotesDetailScreen = () => {
     router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
   }, [locations, defaultLocationId, applyDefaultLocation, router, segments]);
 
+  /** Semina e apre il foglio "Impostazioni allievo". Gli handler restano qui:
+   *  il foglio disegna, la scheda conserva stato e chiamate. */
+  const openStudentSettings = useCallback(() => {
+    studentSettingsStore.set({
+      // `name` arriva dai params: `fullName` è calcolato più in basso.
+      studentName: typeof name === 'string' ? name : null,
+      group: groupEnabled
+        ? {
+            value: groupOptIn,
+            saving: groupSaving,
+            onChange: async (next: boolean) => {
+              setGroupOptIn(next);
+              setGroupSaving(true);
+              try {
+                await regloApi.updateStudentGroupLessonOptIn(String(studentId), next);
+                setToast({ text: next ? 'Abilitato alle guide di gruppo.' : 'Disabilitato dalle guide di gruppo.', tone: 'success' });
+              } catch (e) {
+                setGroupOptIn(!next);
+                setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+              } finally {
+                setGroupSaving(false);
+              }
+            },
+          }
+        : null,
+      examReady: studentPhase === 'PRATICA'
+        ? {
+            value: examReady,
+            saving: examReadySaving,
+            onChange: async (next: boolean) => {
+              setExamReady(next);
+              setExamReadySaving(true);
+              try {
+                await regloApi.setStudentExamReady(String(studentId), next);
+                setToast({ text: next ? 'Allievo segnato pronto per l\'esame.' : 'Rimosso dai pronti.', tone: 'success' });
+              } catch (e) {
+                setExamReady(!next);
+                setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+              } finally {
+                setExamReadySaving(false);
+              }
+            },
+          }
+        : null,
+      location: locations.length
+        ? { label: defaultLocationName ?? 'Sede dell\u2019autoscuola', onPress: openLocationPicker }
+        : null,
+    });
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    router.push(`/(tabs)/${stack}/student-settings`);
+  }, [
+    name, groupEnabled, groupOptIn, groupSaving, studentPhase, examReady, examReadySaving,
+    locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, setToast,
+  ]);
+
   const phone = useMemo(() => {
     for (const appt of appointments) if (appt.student?.phone) return appt.student.phone;
     return null;
@@ -376,7 +434,12 @@ export const StudentNotesDetailScreen = () => {
               <Animated.View entering={FadeIn.duration(350)} style={s.profileStats}>
                 <View style={s.statBlock}><Text style={s.statNum}>{completedCount}</Text><Text style={s.statLbl}>completate</Text></View>
                 <View style={s.statHr} />
-                <View style={s.statBlock}><Text style={s.statNum}>{avgRating ?? '—'}</Text><Text style={s.statLbl}>voto medio</Text></View>
+                <View style={s.statBlock}>
+                  <View style={s.statValueRow}>
+                    <Text style={s.statNum}>{avgRating ?? '—'}</Text>
+                  </View>
+                  <Text style={s.statLbl}>voto medio</Text>
+                </View>
                 <View style={s.statHr} />
                 <View style={s.statBlock}><Text style={s.statNum}>{totalHours}h</Text><Text style={s.statLbl}>ore guidate</Text></View>
               </Animated.View>
@@ -438,83 +501,39 @@ export const StudentNotesDetailScreen = () => {
             )}
           </View>
 
-          {/* Guide di gruppo — opt-in toggle (instructor/owner) */}
-          {!loading && groupEnabled ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.groupOptBlock}>
-              <Image source={FLUENT_PEOPLE} style={s.groupOptIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.groupOptTitle}>Guide di gruppo</Text>
-                <Text style={s.groupOptSub}>
-                  {groupOptIn ? 'Può partecipare' : 'Non può partecipare'}
-                </Text>
-              </View>
-              <ToggleSwitch
-                value={groupOptIn}
-                disabled={groupSaving}
-                onValueChange={async (next) => {
-                  setGroupOptIn(next);
-                  setGroupSaving(true);
-                  try {
-                    await regloApi.updateStudentGroupLessonOptIn(String(studentId), next);
-                    setToast({ text: next ? 'Abilitato alle guide di gruppo.' : 'Disabilitato dalle guide di gruppo.', tone: 'success' });
-                  } catch (e) {
-                    setGroupOptIn(!next);
-                    setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
-                  } finally {
-                    setGroupSaving(false);
-                  }
-                }}
-              />
-            </Animated.View>
-          ) : null}
-
-          {/* Pronto per l'esame — toggle interno, solo in fase PRATICA */}
-          {!loading && studentPhase === 'PRATICA' ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.groupOptBlock}>
-              <Image source={FLUENT_GRADUATE} style={s.groupOptIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.groupOptTitle}>Pronto per l&apos;esame</Text>
-                <Text style={s.groupOptSub}>
-                  {examReady ? 'Segnato come pronto' : 'Non segnato'}
-                </Text>
-              </View>
-              <ToggleSwitch
-                value={examReady}
-                disabled={examReadySaving}
-                onValueChange={async (next) => {
-                  setExamReady(next);
-                  setExamReadySaving(true);
-                  try {
-                    await regloApi.setStudentExamReady(String(studentId), next);
-                    setToast({ text: next ? 'Allievo segnato pronto per l\'esame.' : 'Rimosso dai pronti.', tone: 'success' });
-                  } catch (e) {
-                    setExamReady(!next);
-                    setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
-                  } finally {
-                    setExamReadySaving(false);
-                  }
-                }}
-              />
-            </Animated.View>
-          ) : null}
-
-          {/* Luogo di default (REG-392): stessa riga delle adiacenti (icona
-              Fluent 40x40 senza contenitore), apre il form sheet nativo. */}
-          {!loading && locations.length > 0 ? (
-            <Animated.View entering={FadeIn.duration(350)}>
+          {/* Impostazioni allievo — una riga sola: le tre voci (gruppo, pronto
+              per l'esame, luogo) vivono nel form sheet, dove hanno spazio.
+              Qui resta lo STATO, leggibile senza aprire nulla. */}
+          {!loading && (groupEnabled || studentPhase === 'PRATICA' || locations.length > 0) ? (
+            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
               <Pressable
-                style={s.groupOptBlock}
-                onPress={openLocationPicker}
-                disabled={locSaving}
+                onPress={openStudentSettings}
+                accessibilityRole="button"
+                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
               >
-                <Image source={FLUENT_BUILDING} style={s.groupOptIcon} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.groupOptTitle}>Luogo di default</Text>
-                  <Text style={s.groupOptSub} numberOfLines={1}>
-                    {defaultLocationName ?? 'Sede dell’autoscuola'}
-                  </Text>
+                  <Text style={s.flatLabel}>Impostazioni</Text>
+                  <View style={s.setChips}>
+                    {groupEnabled ? (
+                      <View style={[s.setChip, groupOptIn && s.setChipOn]}>
+                        <Text style={[s.setChipText, groupOptIn && s.setChipTextOn]}>Gruppo</Text>
+                      </View>
+                    ) : null}
+                    {studentPhase === 'PRATICA' ? (
+                      <View style={[s.setChip, examReady && s.setChipOn]}>
+                        <Text style={[s.setChipText, examReady && s.setChipTextOn]}>Pronto esame</Text>
+                      </View>
+                    ) : null}
+                    {locations.length > 0 ? (
+                      <View style={s.setChip}>
+                        <Text style={s.setChipText} numberOfLines={1}>
+                          {defaultLocationName ?? 'Sede'}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#C4C4C4" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </Pressable>
             </Animated.View>
           ) : null}
@@ -531,52 +550,83 @@ export const StudentNotesDetailScreen = () => {
             </Animated.View>
           ) : null}
 
-          {/* Pagellino — media per voce su tutte le guide. È il riassunto dello
-              storico qui sotto: stesso linguaggio a blocchi piatti di "obbligo
-              guide". Assente se nessuna guida ha punteggi. */}
+          {/* Pagellino — media per voce su tutte le guide. A RIPOSO è una riga
+              sola: il dettaglio si apre al tap, come la chip della singola
+              guida. Un pannello sempre aperto qui in mezzo era ingombrante. */}
           {!loading && pagellino ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
-              <View style={s.obbligoTop}>
-                <Text style={s.flatLabel}>Pagellino</Text>
+            <Animated.View layout={EVAL_LAYOUT} entering={FadeIn.duration(350)} style={s.flatBlock}>
+              <Pressable
+                onPress={() => setPagellinoOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: pagellinoOpen }}
+                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.flatLabel}>Pagellino</Text>
+                  <Text style={s.pagInsight}>
+                    {pagellino.lessonCount === 1 ? '1 guida valutata' : `${pagellino.lessonCount} guide valutate`}
+                  </Text>
+                </View>
+
+                {/* Micro-barre: la forma del voto si legge senza aprire nulla. */}
+                <View style={s.sparkRow}>
+                    {pagellino.items.slice(0, 6).map((item) => (
+                      <View key={item.itemId} style={s.sparkTrack}>
+                        <View
+                          style={[s.sparkFill, { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` }]}
+                        />
+                      </View>
+                  ))}
+                </View>
+
                 <View style={s.pagBig}>
                   {pagellino.average != null ? (
                     <>
                       <Text style={s.obbligoCount}>
                         {pagellino.average.toFixed(1).replace('.', ',')}
                       </Text>
-                      <Text style={s.obbligoTotal}>
-                        /{pagellino.scaleMax} · {pagellino.lessonCount} guide
-                      </Text>
+                      <Text style={s.obbligoTotal}>/{pagellino.scaleMax}</Text>
                     </>
                   ) : (
-                    <Text style={s.obbligoTotal}>{pagellino.lessonCount} guide valutate</Text>
+                    <Text style={s.obbligoTotal}>{pagellino.items.length} voci</Text>
                   )}
                 </View>
-              </View>
-              {pagellino.items.map((item) => (
-                <View key={item.itemId} style={s.pagRow}>
-                  <View style={s.pagRowTop}>
-                    <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
-                    <Text style={s.pagVal}>
-                      <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
-                      /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                <Ionicons
+                  name={pagellinoOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textMuted}
+                  style={{ marginLeft: 6 }}
+                />
+              </Pressable>
+
+              {pagellinoOpen ? (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)}>
+                  {pagellino.items.map((item) => (
+                    <View key={item.itemId} style={s.pagRow}>
+                      <View style={s.pagRowTop}>
+                        <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
+                        <Text style={s.pagVal}>
+                          <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
+                          /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                        </Text>
+                      </View>
+                      {/* Barra e non stelline: una media come 4,2 con le stelline
+                          si potrebbe disegnare solo con mezze stelle finte. */}
+                      <View style={s.pagTrack}>
+                        <View
+                          style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                  {pagellino.weakest ? (
+                    <Text style={s.pagFoot}>
+                      Voce più bassa:{' '}
+                      <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
+                      {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax} su ${pagellino.weakest.count === 1 ? '1 guida' : `${pagellino.weakest.count} guide`})`}
                     </Text>
-                  </View>
-                  {/* Barra e non stelline: una media come 4,2 con le stelline
-                      si potrebbe disegnare solo con mezze stelle finte. */}
-                  <View style={s.pagTrack}>
-                    <View
-                      style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]}
-                    />
-                  </View>
-                </View>
-              ))}
-              {pagellino.weakest ? (
-                <Text style={s.pagFoot}>
-                  Voce più bassa:{' '}
-                  <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
-                  {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax} su ${pagellino.weakest.count === 1 ? '1 guida' : `${pagellino.weakest.count} guide`})`}
-                </Text>
+                  ) : null}
+                </Animated.View>
               ) : null}
             </Animated.View>
           ) : null}
@@ -657,7 +707,7 @@ export const StudentNotesDetailScreen = () => {
                               >
                                 <Ionicons name="star" size={11} color={open ? '#A16207' : '#FACC15'} />
                                 <Text style={[s.tlPagellinoText, open && s.tlPagellinoTextOpen]}>
-                                  {`Pagellino ${label}`}
+                                  {label}
                                 </Text>
                                 <Ionicons
                                   name={open ? 'chevron-up' : 'chevron-down'}
@@ -852,15 +902,29 @@ const s = StyleSheet.create({
   tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
   tlPagellinoOpen: { backgroundColor: '#FEF9C3' },
   tlPagellinoTextOpen: { color: '#A16207' },
-  tlVoci: {
-    marginTop: 9, borderRadius: 14, backgroundColor: '#FBFBFC',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EFEFF2', paddingHorizontal: 12,
-  },
-  tlVoce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 9 },
-  tlVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
-  tlVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#1A1A2E' },
+  // Niente pannello incorniciato: le voci sono un rientro della riga, non una
+  // scatola appoggiata dentro la timeline.
+  tlVoci: { marginTop: 6, paddingLeft: 2 },
+  tlVoce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 7 },
+  tlVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F4F4F6' },
+  tlVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
   tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
 
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  setChips: { flexDirection: 'row', gap: 6, marginTop: 7, alignItems: 'center' },
+  setChip: { borderRadius: 8, backgroundColor: '#F2F2F4', paddingHorizontal: 8, paddingVertical: 3, maxWidth: 130 },
+  setChipOn: { backgroundColor: '#F4F5F9', borderWidth: StyleSheet.hairlineWidth, borderColor: '#D6D9E6' },
+  setChipText: { fontSize: 11.5, fontWeight: '600', color: '#929292' },
+  setChipTextOn: { color: '#1A1A2E' },
+  pagHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  pagInsight: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
+  pagInsightStrong: { fontWeight: '600', color: '#1A1A2E' },
+  sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 26 },
+  sparkTrack: {
+    width: 6, height: '100%', borderRadius: 3, backgroundColor: '#EFEFF2',
+    justifyContent: 'flex-end', overflow: 'hidden',
+  },
+  sparkFill: { width: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
   pagBig: { flexDirection: 'row', alignItems: 'baseline' },
   pagRow: { marginTop: 14 },
   pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },

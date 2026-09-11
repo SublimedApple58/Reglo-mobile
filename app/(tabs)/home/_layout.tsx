@@ -31,6 +31,8 @@ export default function HomeLayout() {
       <Stack.Screen name="select-exam-students" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="out-of-availability" options={TALL_SHEET} />
       <Stack.Screen name="select-options" options={HUG_SHEET} />
+      {/* Impostazioni allievo: lista corta e statica → hug del contenuto. */}
+      <Stack.Screen name="student-settings" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello
