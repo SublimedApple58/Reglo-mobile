@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { optionsPickerStore } from '../stores/optionsPickerStore';
 import { UserPhotoCircle } from './UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
-import { colors } from '../theme/colors';
+import { colors, navy } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
 const NAVY = '#1A1A2E';
@@ -46,10 +46,9 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
     const on = data.multi ? picked.includes(o.value) : data.selected.includes(o.value);
     return (
       <View key={o.value}>
-        {idx > 0 ? <View style={s.divider} /> : null}
         <Pressable
           onPress={() => (data.multi ? toggleMulti(o.value) : pickSingle(o.value))}
-          style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [s.row, on && s.rowOn, pressed && { opacity: 0.7 }]}
         >
           {o.leadingInitials ? (
             <UserPhotoCircle userId={o.leadingUserId} size={36} style={{ marginRight: 13 }}>
@@ -57,36 +56,71 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
             </UserPhotoCircle>
           ) : null}
           <View style={s.body}>
-            <Text style={[s.label, on && { fontWeight: '600' }]} numberOfLines={1}>{o.label}</Text>
+            <Text style={s.label} numberOfLines={1}>{o.label}</Text>
             {o.subtitle ? <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text> : null}
           </View>
-          {on ? <Ionicons name="checkmark-circle" size={23} color={NAVY} /> : <View style={s.dot} />}
+          {/* La selezione tinge TUTTA la riga (non è una spunta in fondo):
+              il tocco ha una superficie, non un bersaglio da 23px. */}
+          <View style={[s.mark, on && s.markOn]}>
+            {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
+          </View>
         </Pressable>
       </View>
     );
   });
 
   return (
-    <View style={[scrollable ? s.rootTall : s.root, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}>
+    <View
+      style={[
+        scrollable ? s.rootTall : s.root,
+        // paddingTop generoso: il titolo non deve sembrare incollato al bordo.
+        // In fondo: il FORM SHEET (hug) non arriva all'home indicator — sta già
+        // staccato dal bordo schermo — ma `insets.bottom` riporta comunque la
+        // safe area della FINESTRA (34pt): sommandola la CTA restava a mezz'aria.
+        // Lì basta un respiro fisso; la safe area serve solo al page sheet, che
+        // invece è a tutta altezza.
+        { paddingTop: 22, paddingBottom: scrollable ? Math.max(insets.bottom, 16) : 18 },
+      ]}
+    >
       <View style={s.topbar}>
-        <Text style={s.title} numberOfLines={1}>{data.title}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.title} numberOfLines={1}>{data.title}</Text>
+          {data.hint ? <Text style={s.hint} numberOfLines={2}>{data.hint}</Text> : null}
+        </View>
         <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
           <Ionicons name="close" size={20} color={NAVY} />
         </Pressable>
       </View>
 
       {scrollable ? (
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 8 }}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 8, gap: 10 }}>
           {rows}
         </ScrollView>
       ) : (
-        <View>{rows}</View>
+        <View style={{ gap: 10 }}>{rows}</View>
       )}
 
       {data.multi ? (
-        <Pressable onPress={confirmMulti} style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
-          <GradientCTABackground radius={27} />
-          <Text style={s.ctaText}>Conferma</Text>
+        <Pressable
+          onPress={confirmMulti}
+          disabled={!picked.length}
+          style={({ pressed }) => [
+            s.cta,
+            !picked.length && s.ctaOff,
+            pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+          ]}
+        >
+          {/* Il contatore sta DENTRO la CTA: il bottone smette di essere una
+              pillola che galleggia e diventa il riepilogo di ciò che hai scelto. */}
+          {picked.length ? <GradientCTABackground radius={27} /> : null}
+          {picked.length ? (
+            <View style={s.ctaCount}>
+              <Text style={s.ctaCountText}>{picked.length}</Text>
+            </View>
+          ) : null}
+          <Text style={[s.ctaText, !picked.length && s.ctaTextOff]}>
+            {data.confirmLabel ?? 'Conferma'}
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -96,23 +130,36 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg },
   rootTall: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg },
-  topbar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, gap: 12 },
-  title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
+  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 20, gap: 12 },
+  title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
+  hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
   x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
 
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, minHeight: 58 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68,
+    paddingVertical: 17, paddingHorizontal: 16, borderRadius: 18,
+    backgroundColor: '#F7F7F8', borderWidth: 1.5, borderColor: 'transparent',
+  },
+  rowOn: { backgroundColor: navy[50], borderColor: NAVY },
+  mark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: navy[200], alignItems: 'center', justifyContent: 'center' },
+  markOn: { borderWidth: 0, backgroundColor: NAVY },
   avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 13, backgroundColor: '#F1F2F6', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontWeight: '600', color: NAVY },
   body: { flex: 1, minWidth: 0, gap: 2 },
-  label: { fontSize: 16, fontWeight: '500', color: INK },
-  sub: { fontSize: 13, color: MUTED },
-  dot: { width: 23, height: 23 },
+  label: { fontSize: 15.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
+  sub: { fontSize: 12.5, fontWeight: '500', color: MUTED, marginTop: 3 },
 
   cta: {
-    marginTop: 12, height: 54, borderRadius: 27,
+    marginTop: 22, height: 54, borderRadius: 27, flexDirection: 'row', gap: 8,
     alignItems: 'center', justifyContent: 'center',
     ...primaryCtaShadow,
   },
+  ctaOff: { backgroundColor: '#ECECEF', shadowOpacity: 0, elevation: 0 },
+  ctaCount: {
+    minWidth: 22, height: 22, paddingHorizontal: 7, borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center',
+  },
+  ctaCountText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  ctaTextOff: { color: '#A3A3AD' },
 });

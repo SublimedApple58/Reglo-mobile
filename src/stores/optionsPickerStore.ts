@@ -18,9 +18,13 @@ export type OptionItem = {
 
 export type OptionsPickerData = {
   title: string;
+  /** Riga di servizio sotto il titolo: dice cosa si sta scegliendo. */
+  hint?: string | null;
   options: OptionItem[];
   selected: string[];
   multi: boolean;
+  /** Etichetta della CTA nei picker multipli (default "Conferma"). */
+  confirmLabel?: string;
   onConfirm: (values: string[]) => void;
 };
 

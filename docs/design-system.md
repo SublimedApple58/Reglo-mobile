@@ -864,6 +864,10 @@ Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo 
 | Durata / Veicolo / Tipo / Aggiungi allievo | `select-options` (≤7 voci) / `select-options-long` (>7, scrollabile) — route scelta da `optionsPickerPath()` DOPO `optionsPickerStore.set()` | `optionsPickerStore` | `formSheet fitToContents` / `modal` (2026-07-07: il form sheet clippava le liste lunghe senza scroll) |
 | Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
 
+`OptionsPickerData` accetta anche `hint` (riga di servizio sotto il titolo), `confirmLabel`
+(etichetta della CTA multipla) e `subtitle` per opzione. Per le misure interne dello sheet
+(respiro, CTA ancorata in fondo) vedi §13.2.1.
+
 Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).
 
 ---
@@ -1470,6 +1474,43 @@ Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` c
 - `lesson-detail` — dettaglio guida (fitToContents)
 - `booking-flow` — prenotazione guida 2 step (fitToContents)
 - `quiz-hint` — hint quiz con HTML (fitToContents)
+
+### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
+
+Misure verificate su simulatore (iPhone 17 Pro, set. 2026) sul picker
+`OptionsPickerSheet`, valide per ogni form sheet con CTA in fondo.
+
+**La regola che costa più tempo: dentro un form sheet NON sommare `insets.bottom`.**
+`useSafeAreaInsets()` restituisce la safe area della **finestra** (34pt, l'home
+indicator), ma un `formSheet` hug-to-content **non arriva al bordo dello schermo**:
+è già staccato per conto suo. Sommando le due cose la CTA resta a mezz'aria — nel
+caso reale erano **52pt** di vuoto sotto il bottone. La safe area serve solo al
+**page sheet** (`presentation: 'modal'`), che invece è a tutta altezza.
+
+```tsx
+// root dello sheet
+{ paddingTop: 22, paddingBottom: scrollable ? Math.max(insets.bottom, 16) : 18 }
+//                               ^ page sheet              ^ form sheet: respiro fisso
+```
+
+| Elemento | Valore | Nota |
+|---|---|---|
+| Preset route | `HUG_SHEET` (≤7 voci) / `PAGE_SHEET` (>7) | `src/utils/sheetPresentation.ts`; la scelta è in `optionsPickerPath()` |
+| Padding top del root | `22` | il titolo non deve sembrare incollato al bordo |
+| Padding bottom | `18` (form sheet) · `max(insets.bottom, 16)` (page sheet) | vedi regola sopra |
+| Header → contenuto | `paddingBottom: 20` sulla topbar | titolo `20/600`, hint `13/500` `lineHeight 18` `marginTop 5` |
+| Riga selezionabile | `minHeight 68`, `paddingVertical 17`, `paddingHorizontal 16`, `borderRadius 18` | sotto questi valori la lista "si compatta" e sembra una tabella web |
+| Spazio tra righe | `gap: 10` | **niente divisori**: le righe sono superfici, non celle |
+| Riga a riposo / selezionata | `#F7F7F8` / `navy[50]` + `borderWidth 1.5` `borderColor` navy | la selezione tinge **tutta la riga**, non una spunta in fondo |
+| Marker selezione | cerchio `24` — a riposo bordo `navy[200]`, attivo pieno navy con check bianco | |
+| CTA | `marginTop 22`, `height 54`, `borderRadius 27`, gradient + `primaryCtaShadow` | spenta = `#ECECEF`, testo `#A3A3AD`, **senza ombra** (non è tappabile) |
+| Contatore nella CTA | pill `rgba(255,255,255,0.18)`, testo `13/700` bianco | il bottone diventa il riepilogo della scelta ("2 · Aggiungi al pagellino") |
+
+**Perché superfici e non righe con divisori**: vale la regola §5.0 (ombra/superficie
+esterna = tappabile). Una lista di testo separata da hairline è un idioma da tabella
+web: non dice che si tocca e non dà gerarchia. Vedi anche `hint` e `confirmLabel` su
+`OptionsPickerData`, che permettono di spiegare **cosa** si sta scegliendo e di dare
+alla CTA un'etichetta parlante invece di "Conferma".
 
 ### 13.3 Haptic Feedback
 

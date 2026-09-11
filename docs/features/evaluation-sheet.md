@@ -103,6 +103,13 @@ elenco** e sparisce quando sono tutte aggiunte.
   (`LONG_PICKER_THRESHOLD`), quindi il tetto di 12 voci è coperto.
 - La **×** sulla riga sta in alto, lontana dalle stelline: togliere una voce non deve essere
   un errore di mira.
+- **Aspetto (set. 2026)**: il picker usa righe-superficie con la selezione che tinge tutta la
+  riga, e la CTA porta dentro il contatore ("2 · Aggiungi al pagellino"). Misure e regola della
+  safe area in `docs/design-system.md` §13.2.1 — il restyle vale per TUTTI i picker
+  (Durata, Veicolo, Tipo guida, Luogo), non solo per il pagellino.
+- Nella lista, ogni voce è una **card** (raggio 20) e il punteggio è una **pillola oro**
+  (`#FEF9C3` / testo `#A16207`, scala gialla del tema) accanto al nome: il voto è il dato della
+  riga, non una didascalia. Le voci senza voto portano una pillola neutra "da valutare".
 
 Le azioni di massa ("valuta tutte a metà scala", "segna non valutabili le restanti", "azzera")
 sono state tolte insieme al modello vecchio: rimettevano in circolo i giudizi fabbricati.

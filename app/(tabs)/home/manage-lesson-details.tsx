@@ -200,9 +200,15 @@ export default function ManageLessonDetailsScreen() {
     if (!editable || !evalAvailable.length) return;
     optionsPickerStore.set({
       title: 'Aggiungi voci',
+      hint: 'Scegli cosa valutare in questa guida.',
       multi: true,
       selected: [],
-      options: evalAvailable.map((item) => ({ value: item.id, label: item.label })),
+      confirmLabel: 'Aggiungi al pagellino',
+      options: evalAvailable.map((item) => ({
+        value: item.id,
+        label: item.label,
+        subtitle: `scala a ${item.scaleMax} stelline`,
+      })),
       onConfirm: (vals) => {
         if (vals.length) setEvalAdded((prev) => [...prev, ...vals]);
       },
@@ -365,12 +371,12 @@ export default function ManageLessonDetailsScreen() {
           </View>
 
           {evalRows.length > 0 ? (
-            <View style={s.pagellinoCard}>
-              {evalRows.map((item, index) => {
+            <View>
+              {evalRows.map((item) => {
                 const value = scores[item.id] ?? 0;
                 const isNa = legacyNa[item.id] === true;
                 return (
-                  <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
+                  <View key={item.id} style={s.voiceCard}>
                     <View style={s.pagellinoItemTop}>
                       <Text
                         style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
@@ -379,6 +385,20 @@ export default function ManageLessonDetailsScreen() {
                         {item.label}
                         {item.archived ? ' (non più in uso)' : ''}
                       </Text>
+                      {/* Il punteggio è il DATO della riga, non una didascalia:
+                          pillola oro (scala gialla del tema) accanto al nome. */}
+                      {isNa ? null : (
+                        <View style={[s.scorePill, !scores[item.id] && s.scorePillEmpty]}>
+                          {scores[item.id] ? (
+                            <>
+                              <Text style={s.scoreNum}>{scores[item.id]}</Text>
+                              <Text style={s.scoreMax}>/{item.scaleMax}</Text>
+                            </>
+                          ) : (
+                            <Text style={s.scoreEmptyText}>da valutare</Text>
+                          )}
+                        </View>
+                      )}
                       {/* La × sta in alto, lontana dalle stelline: togliere una
                           voce non deve essere un errore di mira. */}
                       {editable ? (
@@ -429,9 +449,6 @@ export default function ManageLessonDetailsScreen() {
                           }
                           readOnly={!editable}
                         />
-                        <Text style={s.pagellinoValue}>
-                          {value ? `${value}/${item.scaleMax}` : 'da valutare'}
-                        </Text>
                       </View>
                     )}
                   </View>
@@ -512,11 +529,27 @@ const s = StyleSheet.create({
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
   pagellinoLabelOff: { color: '#A3A3AD' },
+  voiceCard: {
+    borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#EFEFF2', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 13,
+    marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04,
+    shadowRadius: 5, elevation: 1,
+  },
+  scorePill: {
+    flexDirection: 'row', alignItems: 'baseline', height: 26, paddingHorizontal: 10,
+    borderRadius: 13, backgroundColor: '#FEF9C3',
+  },
+  scorePillEmpty: { backgroundColor: '#F2F2F4', alignItems: 'center' },
+  scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207' },
+  scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04' },
+  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3AD' },
   pagellinoRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   pagellinoAdd: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 46,
-    borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCDCE2', borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 48,
+    borderRadius: 18, backgroundColor: '#F7F7F8', borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E9EBF2',
   },
   pagellinoAddText: { fontSize: 14.5, fontWeight: '600', color: '#6A6A6A' },
   pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3AD', textAlign: 'center' },
