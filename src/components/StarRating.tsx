@@ -39,8 +39,10 @@ const STAR_EMPTY_COLOR = '#D7DBE2';
 const STAR_COLOR_GOLD = '#FACC15';
 const STAR_EMPTY_COLOR_GOLD = '#E7E7EC';
 
-/** Ritardo fra una stella e l'altra quando il voto si accende "a cascata". */
-const CASCADE_MS = 26;
+/** Ritardo fra una stella e l'altra quando il voto si accende "a cascata".
+ *  12ms: si legge come una cascata, non come un'attesa — su 5 stelle l'ultima
+ *  parte dopo 48ms invece di 104. */
+const CASCADE_MS = 12;
 
 type StarProps = {
   index: number;
@@ -66,13 +68,13 @@ const Star = ({ index, filled, size, filledColor, emptyColor, onPress }: StarPro
     wasFilled.current = filled;
     if (filled) {
       const delay = index * CASCADE_MS;
-      fill.value = withDelay(delay, withTiming(1, { duration: 130 }));
+      fill.value = withDelay(delay, withTiming(1, { duration: 110 }));
       // Scatto con overshoot: sale oltre il 100% e rientra di molla.
       scale.value = withDelay(
         delay,
         withSequence(
-          withTiming(1.3, { duration: 110, easing: Easing.out(Easing.quad) }),
-          withSpring(1, { damping: 8, stiffness: 260, mass: 0.55 }),
+          withTiming(1.3, { duration: 90, easing: Easing.out(Easing.quad) }),
+          withSpring(1, { damping: 8, stiffness: 300, mass: 0.5 }),
         ),
       );
     } else {
