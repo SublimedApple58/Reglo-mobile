@@ -35,6 +35,27 @@ correggere e usa il "Salva" sticky già presente.
   mobile è mono-navy, vedi `docs/design-system.md`.
 - Scale possibili: 3 o 5 stelline (30px e 26px rispettivamente).
 
+## Scheda allievo: media per voce + pagellino della singola guida
+
+Nella scheda allievo (`StudentNotesDetailScreen`), fra "obbligo guide" e lo storico, c'è il
+blocco **PAGELLINO**: media generale, una riga per voce (barra oro + media + "su N guide") e la
+**voce più bassa**. Stesso linguaggio a blocchi piatti del resto della schermata.
+
+- Calcolo in `aggregateStudentEvaluations` (`src/utils/evaluationSheet.ts`). Gemello del web con
+  UNA differenza: l'app non conosce l'elenco delle voci configurate dall'autoscuola, quindi
+  l'ordine viene dalla **prima guida in cui la voce compare** (le guide arrivano dalla più
+  recente) e manca il conteggio delle "voci mai valutate". Se servirà la parità esatta, la strada
+  è un endpoint `GET /api/autoscuole/evaluation-sheet`.
+- Fuori dal calcolo: guide annullate, voci "non valutabili", voci senza voto.
+- **Zero chiamate nuove**: i punteggi arrivano già col payload dello storico.
+- La statistica **"voto medio"** della card profilo è ora la media del pagellino; le vecchie
+  stelline singole restano come ripiego per gli allievi storici (senza, su un allievo nuovo
+  quel numero resterebbe vuoto per sempre).
+
+Nella timeline la chip `★ Pagellino 4,5/5` **si apre**: mostra le voci della singola guida in
+sola lettura (compreso "— non valutabile" sulle righe vecchie), una guida alla volta, con la
+transizione di molla condivisa. Il foglio "Dettagli guida" resta il posto dove si **modifica**.
+
 ## Consultazione dallo storico guide
 
 Nello storico guide di un allievo (`StudentNotesDetailScreen`) la riga mostra una chip

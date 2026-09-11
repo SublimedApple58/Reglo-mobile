@@ -70,3 +70,94 @@ export const evaluationSummaryLabel = (summary: EvaluationSummary | null): strin
 
 /** Testo della singola voce esclusa, identico su web e app. */
 export const EVALUATION_NOT_APPLICABLE_LABEL = 'non valutabile';
+
+/* ── Media del pagellino su tutto lo storico di un allievo ───────────────── */
+
+export type StudentEvaluationAverage = {
+  itemId: string;
+  label: string;
+  scaleMax: number;
+  /** Media dei voti dati su questa voce. */
+  average: number;
+  /** Quante guide hanno un voto su questa voce. */
+  count: number;
+};
+
+export type StudentEvaluationAggregate = {
+  items: StudentEvaluationAverage[];
+  /** Guide con almeno un voto (le annullate non contano). */
+  lessonCount: number;
+  /** Media di tutti i voti; null con scale miste. */
+  average: number | null;
+  scaleMax: number | null;
+  /** Voce con la media più bassa in proporzione alla sua scala. */
+  weakest: StudentEvaluationAverage | null;
+};
+
+/**
+ * Media per voce su tutte le guide di un allievo (scheda allievo).
+ * Gemello di `aggregateStudentEvaluations` in reglo/lib/autoscuole/evaluation-sheet.ts
+ * — con una differenza: l'app non conosce l'elenco delle voci configurate
+ * dall'autoscuola, quindi l'ordine si ricava dalla PRIMA guida in cui ciascuna
+ * voce compare (le guide arrivano dalla più recente) e manca il conteggio delle
+ * voci mai valutate, che sul web viene dalla configurazione.
+ *
+ * Fuori dal calcolo: guide annullate, voci "non valutabili" e voci senza voto.
+ */
+export const aggregateStudentEvaluations = (
+  lessons: ReadonlyArray<{
+    cancelledAt?: string | null;
+    evaluations?: ReadonlyArray<EvaluationRowLike & { itemId: string; label: string }> | null;
+  }> | null | undefined,
+): StudentEvaluationAggregate | null => {
+  if (!lessons?.length) return null;
+  const acc = new Map<string, { label: string; scaleMax: number; sum: number; count: number }>();
+  let lessonCount = 0;
+
+  for (const lesson of lessons) {
+    if (lesson.cancelledAt) continue;
+    let scoredHere = false;
+    for (const row of lesson.evaluations ?? []) {
+      if (row.notApplicable || row.score == null) continue;
+      scoredHere = true;
+      const prev = acc.get(row.itemId);
+      if (prev) {
+        prev.sum += row.score;
+        prev.count += 1;
+      } else {
+        acc.set(row.itemId, { label: row.label, scaleMax: row.scaleMax, sum: row.score, count: 1 });
+      }
+    }
+    if (scoredHere) lessonCount += 1;
+  }
+
+  if (!acc.size) return null;
+
+  // L'ordine di inserimento nella Map È l'ordine di prima comparsa.
+  const items: StudentEvaluationAverage[] = [...acc.entries()].map(([itemId, row]) => ({
+    itemId,
+    label: row.label,
+    scaleMax: row.scaleMax,
+    average: row.sum / row.count,
+    count: row.count,
+  }));
+
+  const scales = new Set(items.map((i) => i.scaleMax));
+  const totalScores = items.reduce((sum, i) => sum + i.count, 0);
+  const average =
+    scales.size === 1
+      ? items.reduce((sum, i) => sum + i.average * i.count, 0) / totalScores
+      : null;
+  const weakest =
+    items.length > 1
+      ? items.reduce((min, i) => (i.average / i.scaleMax < min.average / min.scaleMax ? i : min))
+      : null;
+
+  return {
+    items,
+    lessonCount,
+    average,
+    scaleMax: scales.size === 1 ? items[0].scaleMax : null,
+    weakest,
+  };
+};

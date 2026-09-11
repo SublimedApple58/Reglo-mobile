@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeIn } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +18,11 @@ import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
-import { evaluationSummary, evaluationSummaryLabel } from '../utils/evaluationSheet';
+import {
+  aggregateStudentEvaluations,
+  evaluationSummary,
+  evaluationSummaryLabel,
+} from '../utils/evaluationSheet';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -61,12 +65,17 @@ const formatExamDate = (iso: string) => {
   return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+/** Le righe si riassestano di molla quando un pagellino si apre o si chiude. */
+const EVAL_LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
+
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
   const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  /** Guida con il pagellino espanso nello storico (una alla volta). */
+  const [openEvalId, setOpenEvalId] = useState<string | null>(null);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
   const [groupEnabled, setGroupEnabled] = useState(false);
@@ -254,12 +263,20 @@ export const StudentNotesDetailScreen = () => {
   );
   const isCompleted = completedCount >= REQUIRED_LESSONS;
 
+  /** Media per voce su tutto lo storico: alimenta sia il blocco "Pagellino"
+   *  sia la statistica "voto medio" della card profilo. */
+  const pagellino = useMemo(() => aggregateStudentEvaluations(appointments), [appointments]);
+
   const avgRating = useMemo(() => {
+    // Il "voto medio" è la media del PAGELLINO: la stellina singola non si
+    // compila più, quindi su un allievo nuovo resterebbe vuota per sempre.
+    // Le vecchie stelline restano come ripiego per gli allievi storici.
+    if (pagellino?.average != null) return pagellino.average.toFixed(1).replace('.', ',');
     const rated = appointments.filter((a) => a.rating != null);
     if (!rated.length) return null;
     const avg = rated.reduce((s, a) => s + (a.rating as number), 0) / rated.length;
     return avg.toFixed(1).replace('.', ',');
-  }, [appointments]);
+  }, [appointments, pagellino]);
 
   const totalHours = useMemo(() => {
     const mins = appointments
@@ -514,6 +531,56 @@ export const StudentNotesDetailScreen = () => {
             </Animated.View>
           ) : null}
 
+          {/* Pagellino — media per voce su tutte le guide. È il riassunto dello
+              storico qui sotto: stesso linguaggio a blocchi piatti di "obbligo
+              guide". Assente se nessuna guida ha punteggi. */}
+          {!loading && pagellino ? (
+            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
+              <View style={s.obbligoTop}>
+                <Text style={s.flatLabel}>Pagellino</Text>
+                <View style={s.pagBig}>
+                  {pagellino.average != null ? (
+                    <>
+                      <Text style={s.obbligoCount}>
+                        {pagellino.average.toFixed(1).replace('.', ',')}
+                      </Text>
+                      <Text style={s.obbligoTotal}>
+                        /{pagellino.scaleMax} · {pagellino.lessonCount} guide
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={s.obbligoTotal}>{pagellino.lessonCount} guide valutate</Text>
+                  )}
+                </View>
+              </View>
+              {pagellino.items.map((item) => (
+                <View key={item.itemId} style={s.pagRow}>
+                  <View style={s.pagRowTop}>
+                    <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
+                    <Text style={s.pagVal}>
+                      <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
+                      /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                    </Text>
+                  </View>
+                  {/* Barra e non stelline: una media come 4,2 con le stelline
+                      si potrebbe disegnare solo con mezze stelle finte. */}
+                  <View style={s.pagTrack}>
+                    <View
+                      style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]}
+                    />
+                  </View>
+                </View>
+              ))}
+              {pagellino.weakest ? (
+                <Text style={s.pagFoot}>
+                  Voce più bassa:{' '}
+                  <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
+                  {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax} su ${pagellino.weakest.count === 1 ? '1 guida' : `${pagellino.weakest.count} guide`})`}
+                </Text>
+              ) : null}
+            </Animated.View>
+          ) : null}
+
           <View style={s.divider} />
 
           {/* Storico guide — flat timeline (skeleton → fade) */}
@@ -565,18 +632,67 @@ export const StudentNotesDetailScreen = () => {
                           ) : null}
                         </View>
                         {(() => {
-                          // Pagellino: la riga lo riassume, il dettaglio completo
-                          // si apre toccando la guida (foglio "Dettagli guida").
+                          // La chip riassume E apre: il pagellino della guida si
+                          // legge qui, senza passare dal foglio "Dettagli guida"
+                          // (che resta il posto dove si MODIFICA).
                           const summary = evaluationSummary(appt.evaluations);
                           if (!summary) return null;
                           const label = evaluationSummaryLabel(summary);
+                          const open = openEvalId === appt.id;
+                          const rows = (appt.evaluations ?? []).filter(
+                            (row) => row.notApplicable || row.score != null,
+                          );
                           return (
-                            <View style={s.tlPagellino}>
-                              <Ionicons name="star" size={11} color="#FACC15" />
-                              <Text style={s.tlPagellinoText}>
-                                {`Pagellino ${label}`}
-                              </Text>
-                            </View>
+                            <Animated.View layout={EVAL_LAYOUT}>
+                              <Pressable
+                                onPress={() => setOpenEvalId((cur) => (cur === appt.id ? null : appt.id))}
+                                hitSlop={6}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: open }}
+                                style={({ pressed }) => [
+                                  s.tlPagellino,
+                                  open && s.tlPagellinoOpen,
+                                  pressed && { opacity: 0.6 },
+                                ]}
+                              >
+                                <Ionicons name="star" size={11} color={open ? '#A16207' : '#FACC15'} />
+                                <Text style={[s.tlPagellinoText, open && s.tlPagellinoTextOpen]}>
+                                  {`Pagellino ${label}`}
+                                </Text>
+                                <Ionicons
+                                  name={open ? 'chevron-up' : 'chevron-down'}
+                                  size={12}
+                                  color={open ? '#A16207' : colors.textMuted}
+                                />
+                              </Pressable>
+                              {open ? (
+                                <Animated.View
+                                  entering={FadeIn.duration(180)}
+                                  exiting={FadeOut.duration(120)}
+                                  style={s.tlVoci}
+                                >
+                                  {rows.map((row, i) => (
+                                    <View
+                                      key={row.itemId}
+                                      style={[s.tlVoce, i > 0 && s.tlVoceBorder]}
+                                    >
+                                      <Text style={s.tlVoceName} numberOfLines={2}>{row.label}</Text>
+                                      {row.notApplicable || row.score == null ? (
+                                        <Text style={s.tlVoceNa}>— non valutabile</Text>
+                                      ) : (
+                                        <StarRating
+                                          value={row.score}
+                                          total={row.scaleMax}
+                                          readOnly
+                                          size={13}
+                                          tone="gold"
+                                        />
+                                      )}
+                                    </View>
+                                  ))}
+                                </Animated.View>
+                              ) : null}
+                            </Animated.View>
                           );
                         })()}
                         {isExam ? (
@@ -734,6 +850,27 @@ const s = StyleSheet.create({
     borderRadius: 8, backgroundColor: '#F2F2F4',
   },
   tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
+  tlPagellinoOpen: { backgroundColor: '#FEF9C3' },
+  tlPagellinoTextOpen: { color: '#A16207' },
+  tlVoci: {
+    marginTop: 9, borderRadius: 14, backgroundColor: '#FBFBFC',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EFEFF2', paddingHorizontal: 12,
+  },
+  tlVoce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 9 },
+  tlVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
+  tlVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#1A1A2E' },
+  tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
+
+  pagBig: { flexDirection: 'row', alignItems: 'baseline' },
+  pagRow: { marginTop: 14 },
+  pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1A1A2E' },
+  pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  pagValNum: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
+  pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
+  pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
+  pagFootStrong: { fontWeight: '600', color: '#1A1A2E' },
   tlDate: { fontSize: 11, fontWeight: '700', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
   tlTime: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
   tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
