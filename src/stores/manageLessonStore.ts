@@ -46,7 +46,7 @@ export type ManageLessonDetailsPayload = {
    * quando l'autoscuola non ha il pagellino attivo — così le guide di chi non
    * lo usa continuano a salvare esattamente come prima.
    */
-  evaluations?: Array<{ itemId: string; score: number }>;
+  evaluations?: Array<{ itemId: string; score: number | null; notApplicable?: boolean }>;
   /**
    * Esito scelto nel sub-sheet quando `showEsito` è attivo (usato solo dallo
    * storico allievo: segnare effettuata per poter valutare). Il flusso home lo

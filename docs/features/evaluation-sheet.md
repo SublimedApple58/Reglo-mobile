@@ -11,6 +11,7 @@ correggere e usa il "Salva" sticky già presente.
 |---|---|
 | Sezione Pagellino | `app/(tabs)/home/manage-lesson-details.tsx` |
 | Stelline (N a scelta) | `src/components/StarRating.tsx` (prop `total`, default 5) |
+| Trattino "non valutabile" | `app/(tabs)/home/manage-lesson-details.tsx` (stato `notApplicable`) |
 | Punteggio di partenza + dimensione stelline | `src/utils/evaluationSheet.ts` |
 | Tipi + chiamata | `src/types/regloApi.ts` (`EvaluationItem`, `AppointmentEvaluation`), `src/services/regloApi.ts` (`getAppointmentEvaluation`) |
 | Salvataggio | `ManageLessonDetailsPayload.evaluations` → `IstruttoreHomeScreen.saveLessonDetails` e `StudentNotesDetailScreen` |
@@ -70,6 +71,26 @@ Dove la stellina resta:
 
 Il sottotitolo della card "Dettagli guida" ora riassume il pagellino (`pagellino 4,2`) invece della
 stellina (`4★`); il placeholder è "Tipo, pagellino e note".
+
+## Voce "non valutabile" (trattino nella scala)
+
+Non tutte le guide toccano tutti i punti. Ogni riga ha un **trattino `[—]` dentro la scala**,
+subito prima delle stelline: un tap esclude la voce da QUELLA guida, un altro la rimette. Attivo =
+bordo e testo navy; la riga mostra "non valutabile" al posto di "3/5" e le stelline restano vuote.
+
+- Scelta di Tiziano contro swipe sulla riga e long-press: quelle a riposo non comunicano nulla,
+  il trattino sì (ed è raggiungibile da VoiceOver, che uno swipe custom non sarebbe).
+- Il tap-target è 38×34 con `hitSlop`, `accessibilityRole="button"` e
+  `accessibilityState={{ selected }}`.
+- In **sola lettura** (storico, guida non più modificabile) il trattino non compare: resta
+  l'etichetta "non valutabile" sopra le stelline vuote.
+- Nel payload la voce esclusa viaggia come `{ itemId, score: null, notApplicable: true }`: la riga
+  si salva comunque, altrimenti sarebbe indistinguibile da una voce aggiunta al pagellino dopo.
+- Togliendo l'esclusione torna il **voto di prima** (lo stato `notApplicable` è separato da
+  `scores`).
+- Si possono escludere tutte le voci: la chip dello storico diventa "Pagellino non applicabile"
+  (`evaluationSummaryLabel` in `src/utils/evaluationSheet.ts` — gemello del web: le tre etichette
+  della chip stanno lì, non nei componenti).
 
 ## Il foglio scrolla (regola per i FormSheet)
 

@@ -33,7 +33,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
-import { evaluationSummary, formatEvaluationAverage } from '../../../src/utils/evaluationSheet';
+import { evaluationSummary, evaluationSummaryLabel } from '../../../src/utils/evaluationSheet';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
 import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
@@ -440,9 +440,11 @@ export default function ManageLessonScreen() {
   // compila più). Con scale miste non si fa la media: si conta le voci.
   const evalRecap = evaluationSummary(lesson.evaluations);
   if (evalRecap) {
-    const avg = formatEvaluationAverage(evalRecap);
+    const label = evaluationSummaryLabel(evalRecap);
     summaryParts.push(
-      avg ? `pagellino ${avg.split('/')[0]}` : `pagellino · ${evalRecap.count} voci`,
+      // Con la media si mostra solo il numero ("pagellino 4,2"); senza media
+      // (scale miste o tutte le voci escluse) si mostra l'etichetta intera.
+      evalRecap.average != null ? `pagellino ${label!.split('/')[0]}` : `pagellino ${label}`,
     );
   }
   if (lesson.notes && lesson.notes.trim()) summaryParts.push('note');

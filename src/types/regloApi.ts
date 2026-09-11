@@ -563,22 +563,29 @@ export type AppointmentEvaluationRow = {
   itemId: Uuid;
   label: string;
   scaleMax: number;
-  score: number;
+  /** null quando la voce è "non valutabile" su questa guida. */
+  score: number | null;
+  /** La voce non si applicava a questa guida: si mostra, ma non fa media. */
+  notApplicable?: boolean;
 };
 
 /** Pagellino di UNA guida: interruttore, voci e punteggi già dati. */
 export type AppointmentEvaluation = {
   enabled: boolean;
   items: EvaluationItem[];
-  scores: Array<{ itemId: Uuid; score: number }>;
+  scores: Array<{ itemId: Uuid; score: number | null; notApplicable?: boolean }>;
 };
 
 export type UpdateAppointmentDetailsInput = {
   lessonType?: string;
   lessonTypes?: string[];
   rating?: number | null;
-  /** Pagellino: un punteggio per voce, salvato insieme agli altri dettagli. */
-  evaluations?: Array<{ itemId: Uuid; score: number }>;
+  /**
+   * Pagellino: un punteggio per voce, salvato insieme agli altri dettagli.
+   * `notApplicable: true` (con `score: null`) = voce non valutabile su questa
+   * guida: la riga si salva comunque, ma resta fuori dalla media.
+   */
+  evaluations?: Array<{ itemId: Uuid; score: number | null; notApplicable?: boolean }>;
   notes?: string | null;
   locationId?: Uuid | null;
   /** Reassign the appointment to a different company vehicle (null = unassign). */

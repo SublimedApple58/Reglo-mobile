@@ -18,7 +18,7 @@ import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
-import { evaluationSummary, formatEvaluationAverage } from '../utils/evaluationSheet';
+import { evaluationSummary, evaluationSummaryLabel } from '../utils/evaluationSheet';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -163,7 +163,11 @@ export const StudentNotesDetailScreen = () => {
               lessonType?: string;
               lessonTypes?: string[];
               notes?: string;
-              evaluations?: Array<{ itemId: string; score: number }>;
+              evaluations?: Array<{
+                itemId: string;
+                score: number | null;
+                notApplicable?: boolean;
+              }>;
             } = {};
             const initialTypes = resolveInitialLessonTypes(appt);
             const typesChanged =
@@ -564,12 +568,12 @@ export const StudentNotesDetailScreen = () => {
                           // si apre toccando la guida (foglio "Dettagli guida").
                           const summary = evaluationSummary(appt.evaluations);
                           if (!summary) return null;
-                          const average = formatEvaluationAverage(summary);
+                          const label = evaluationSummaryLabel(summary);
                           return (
                             <View style={s.tlPagellino}>
                               <Ionicons name="star" size={11} color="#FACC15" />
                               <Text style={s.tlPagellinoText}>
-                                {`Pagellino ${average ?? `· ${summary.count} voci`}`}
+                                {`Pagellino ${label}`}
                               </Text>
                             </View>
                           );

@@ -11,7 +11,11 @@ import { GradientCTABackground, primaryCtaShadow } from '../../../src/components
 import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
-import { defaultEvaluationScore, starSizeForScale } from '../../../src/utils/evaluationSheet';
+import {
+  EVALUATION_NOT_APPLICABLE_LABEL,
+  defaultEvaluationScore,
+  starSizeForScale,
+} from '../../../src/utils/evaluationSheet';
 import { regloApi } from '../../../src/services/regloApi';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
@@ -43,6 +47,12 @@ export default function ManageLessonDetailsScreen() {
   // nascosta) per le autoscuole che non lo usano.
   const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
+  /**
+   * Voci dichiarate "non valutabili" su QUESTA guida (il trattino accanto alle
+   * stelline). Stato separato dai punteggi: togliendo l'esclusione torna il
+   * voto di prima invece del default.
+   */
+  const [notApplicable, setNotApplicable] = useState<Record<string, boolean>>({});
   /** true = questa guida ha già punteggi salvati: il pagellino resta visibile
    *  (in sola lettura se non è più modificabile) per la consultazione. */
   const [hasSavedScores, setHasSavedScores] = useState(false);
@@ -95,13 +105,19 @@ export default function ManageLessonDetailsScreen() {
         const data = await regloApi.getAppointmentEvaluation(id);
         if (!alive || !data?.enabled) return;
         const items = data.items ?? [];
-        const saved = new Map((data.scores ?? []).map((sc) => [sc.itemId, sc.score]));
+        const rows = data.scores ?? [];
+        const saved = new Map(
+          rows.filter((sc) => sc.score != null).map((sc) => [sc.itemId, sc.score as number]),
+        );
         setEvalItems(items);
-        setHasSavedScores((data.scores ?? []).length > 0);
+        setHasSavedScores(rows.length > 0);
         setScores(
           Object.fromEntries(
             items.map((it) => [it.id, saved.get(it.id) ?? defaultEvaluationScore(it.scaleMax)]),
           ),
+        );
+        setNotApplicable(
+          Object.fromEntries(rows.filter((sc) => sc.notApplicable).map((sc) => [sc.itemId, true])),
         );
       } catch {
         // Il pagellino non deve impedire di salvare tipo/voto/note: se la
@@ -148,7 +164,14 @@ export default function ManageLessonDetailsScreen() {
         notes,
         esito,
         evaluations: evalItems.length
-          ? evalItems.map((item) => ({ itemId: item.id, score: scores[item.id] ?? defaultEvaluationScore(item.scaleMax) }))
+          ? evalItems.map((item) =>
+              notApplicable[item.id]
+                ? { itemId: item.id, score: null, notApplicable: true }
+                : {
+                    itemId: item.id,
+                    score: scores[item.id] ?? defaultEvaluationScore(item.scaleMax),
+                  },
+            )
           : undefined,
       });
       if (ok) router.back();
@@ -268,35 +291,75 @@ export default function ManageLessonDetailsScreen() {
         <View style={[s.section, { marginBottom: 20 }]}>
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>
-            <Text style={s.pagellinoHint}>tocca solo ciò che correggi</Text>
+            <Text style={s.pagellinoHint}>
+              {editable ? '“—” = non valutabile' : 'sola lettura'}
+            </Text>
           </View>
           <View style={s.pagellinoCard}>
             {evalItems.map((item, index) => {
               const value = scores[item.id] ?? defaultEvaluationScore(item.scaleMax);
+              const isNa = notApplicable[item.id] === true;
               return (
                 <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
                   <View style={s.pagellinoItemTop}>
-                    <Text style={s.pagellinoLabel} numberOfLines={2}>
+                    <Text
+                      style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
+                      numberOfLines={2}
+                    >
                       {item.label}
                       {item.archived ? ' (non più in uso)' : ''}
                     </Text>
-                    <Text style={s.pagellinoValue}>{`${value}/${item.scaleMax}`}</Text>
+                    <Text style={s.pagellinoValue}>
+                      {isNa ? EVALUATION_NOT_APPLICABLE_LABEL : `${value}/${item.scaleMax}`}
+                    </Text>
                   </View>
-                  <StarRating
-                    value={value}
-                    total={item.scaleMax}
-                    tone="gold"
-                    size={starSizeForScale(item.scaleMax)}
-                    onChange={
-                      editable
-                        ? (next) =>
-                            // Ritoccare la stessa stellina non azzera la voce:
-                            // il pagellino non ha lo stato "non valutato".
-                            setScores((prev) => ({ ...prev, [item.id]: next || value }))
-                        : undefined
-                    }
-                    readOnly={!editable}
-                  />
+                  <View style={s.scaleRow}>
+                    {/* Trattino = "non valutabile su questa guida": fa parte
+                        della scala, così la riga delle stelline resta una cosa
+                        sola da toccare. In sola lettura sparisce e resta il
+                        testo "non valutabile" sopra. */}
+                    {editable ? (
+                      <>
+                        <Pressable
+                          onPress={() =>
+                            setNotApplicable((prev) => {
+                              const next = { ...prev };
+                              if (next[item.id]) delete next[item.id];
+                              else next[item.id] = true;
+                              return next;
+                            })
+                          }
+                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isNa }}
+                          accessibilityLabel={`${item.label}: non valutabile in questa guida`}
+                          style={({ pressed }) => [
+                            s.naDash,
+                            isNa && s.naDashOn,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <Text style={[s.naDashText, isNa && s.naDashTextOn]}>—</Text>
+                        </Pressable>
+                        <View style={s.scaleSep} />
+                      </>
+                    ) : null}
+                    <StarRating
+                      value={isNa ? 0 : value}
+                      total={item.scaleMax}
+                      tone="gold"
+                      size={starSizeForScale(item.scaleMax)}
+                      onChange={
+                        editable && !isNa
+                          ? (next) =>
+                              // Ritoccare la stessa stellina non azzera la voce:
+                              // il pagellino non ha lo stato "non valutato".
+                              setScores((prev) => ({ ...prev, [item.id]: next || value }))
+                          : undefined
+                      }
+                      readOnly={!editable || isNa}
+                    />
+                  </View>
                 </View>
               );
             })}
@@ -356,6 +419,16 @@ const s = StyleSheet.create({
   pagellinoItemBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  pagellinoLabelOff: { color: '#A3A3AD' },
+  scaleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  naDash: {
+    width: 38, height: 34, borderRadius: 10, borderWidth: 1.5, borderColor: '#E2E2E8',
+    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+  },
+  naDashOn: { borderColor: '#1A1A2E', backgroundColor: '#F7F7F8' },
+  naDashText: { fontSize: 15, fontWeight: '700', color: '#A3A3AD', lineHeight: 18 },
+  naDashTextOn: { color: '#1A1A2E' },
+  scaleSep: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: '#ECECEC' },
   pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {

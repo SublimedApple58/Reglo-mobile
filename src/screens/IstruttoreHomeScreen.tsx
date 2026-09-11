@@ -2161,7 +2161,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       lessonType?: string;
       lessonTypes?: string[];
       notes?: string | null;
-      evaluations?: Array<{ itemId: string; score: number }>;
+      evaluations?: Array<{ itemId: string; score: number | null; notApplicable?: boolean }>;
     } = {};
     const initialTypes = resolveInitialLessonTypes(lesson);
     const typesChanged = JSON.stringify([...input.lessonTypes].sort()) !== JSON.stringify([...initialTypes].sort());
