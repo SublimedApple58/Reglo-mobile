@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
@@ -111,9 +111,10 @@ export default function ManageLessonDetailsScreen() {
         );
         setEvalItems(items);
         setHasSavedScores(rows.length > 0);
+        // Niente precompilazione: restano solo i voti davvero salvati.
         setScores(
           Object.fromEntries(
-            items.map((it) => [it.id, saved.get(it.id) ?? defaultEvaluationScore(it.scaleMax)]),
+            items.filter((it) => saved.has(it.id)).map((it) => [it.id, saved.get(it.id)!]),
           ),
         );
         setNotApplicable(
@@ -152,8 +153,63 @@ export default function ManageLessonDetailsScreen() {
   const isMotoLesson =
     isMotoLicenseCategory(lesson.vehicle?.licenseCategory) ||
     isMotoLicenseCategory(lesson.student?.licenseCategory);
+  // Voci effettivamente valutate: il contatore in testa alla sezione.
+  const scoredCount = evalItems.filter(
+    (item) => scores[item.id] != null && !notApplicable[item.id],
+  ).length;
   const showTypes =
     lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId && !isMotoLesson;
+
+  /**
+   * Azioni in blocco sul pagellino: con molte voci, riempirle o azzerarle a
+   * mano sarebbe il lavoro più noioso della giornata. Menu NATIVO (action sheet
+   * su iOS, Alert su Android), come il menu "•••" dei veicoli.
+   */
+  const openEvalActions = () => {
+    if (!editable) return;
+    const fillAll = () =>
+      setScores((prev) => {
+        const next = { ...prev };
+        for (const item of evalItems) {
+          if (next[item.id] == null && !notApplicable[item.id]) {
+            next[item.id] = defaultEvaluationScore(item.scaleMax);
+          }
+        }
+        return next;
+      });
+    const naRest = () =>
+      setNotApplicable((prev) => {
+        const next = { ...prev };
+        for (const item of evalItems) {
+          if (scores[item.id] == null) next[item.id] = true;
+        }
+        return next;
+      });
+    const clearAll = () => {
+      setScores({});
+      setNotApplicable({});
+    };
+    const options = ['Valuta tutte a metà scala', 'Segna non valutabili le restanti', 'Azzera il pagellino'];
+    const run = [fillAll, naRest, clearAll];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: 'Pagellino · questa guida',
+          options: [...options, 'Annulla'],
+          cancelButtonIndex: options.length,
+          destructiveButtonIndex: 2,
+        },
+        (i) => { if (i < options.length) run[i](); },
+      );
+    } else {
+      Alert.alert('Pagellino · questa guida', undefined, [
+        { text: options[0], onPress: fillAll },
+        { text: options[1], onPress: naRest },
+        { text: options[2], style: 'destructive', onPress: clearAll },
+        { text: 'Annulla', style: 'cancel' },
+      ]);
+    }
+  };
 
   const handleSave = async () => {
     if (!editable) return;
@@ -163,15 +219,16 @@ export default function ManageLessonDetailsScreen() {
         lessonTypes: types,
         notes,
         esito,
+        // Si mandano SOLO le voci toccate: una voce lasciata in bianco non è un
+        // giudizio, e il server cancella le righe omesse.
         evaluations: evalItems.length
-          ? evalItems.map((item) =>
-              notApplicable[item.id]
-                ? { itemId: item.id, score: null, notApplicable: true }
-                : {
-                    itemId: item.id,
-                    score: scores[item.id] ?? defaultEvaluationScore(item.scaleMax),
-                  },
-            )
+          ? evalItems
+              .filter((item) => notApplicable[item.id] || scores[item.id] != null)
+              .map((item) =>
+                notApplicable[item.id]
+                  ? { itemId: item.id, score: null, notApplicable: true }
+                  : { itemId: item.id, score: scores[item.id]! },
+              )
           : undefined,
       });
       if (ok) router.back();
@@ -291,13 +348,30 @@ export default function ManageLessonDetailsScreen() {
         <View style={[s.section, { marginBottom: 20 }]}>
           <View style={s.pagellinoHead}>
             <Text style={s.sectionLabel}>Pagellino</Text>
-            <Text style={s.pagellinoHint}>
-              {editable ? '“—” = non valutabile' : 'sola lettura'}
-            </Text>
+            <View style={s.pagellinoHeadRight}>
+              {/* Il contatore fa da spiegazione: dice da solo che non è tutto
+                  da compilare. Nessuna riga di testo in più sotto la card. */}
+              <Text style={s.pagellinoHint}>
+                {`${scoredCount} di ${evalItems.length}`}
+              </Text>
+              {editable ? (
+                <Pressable
+                  onPress={openEvalActions}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Azioni sul pagellino"
+                  style={({ pressed }) => [s.pagellinoPill, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={s.pagellinoPillText}>Tutte</Text>
+                  <Ionicons name="chevron-down" size={13} color="#6A6A6A" />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
           <View style={s.pagellinoCard}>
             {evalItems.map((item, index) => {
-              const value = scores[item.id] ?? defaultEvaluationScore(item.scaleMax);
+              // Nessuna precompilazione: 0 = voce non ancora valutata.
+              const value = scores[item.id] ?? 0;
               const isNa = notApplicable[item.id] === true;
               return (
                 <View key={item.id} style={[s.pagellinoItem, index > 0 && s.pagellinoItemBorder]}>
@@ -310,7 +384,11 @@ export default function ManageLessonDetailsScreen() {
                       {item.archived ? ' (non più in uso)' : ''}
                     </Text>
                     <Text style={s.pagellinoValue}>
-                      {isNa ? EVALUATION_NOT_APPLICABLE_LABEL : `${value}/${item.scaleMax}`}
+                      {isNa
+                        ? EVALUATION_NOT_APPLICABLE_LABEL
+                        : value
+                          ? `${value}/${item.scaleMax}`
+                          : ''}
                     </Text>
                   </View>
                   <View style={s.scaleRow}>
@@ -352,9 +430,14 @@ export default function ManageLessonDetailsScreen() {
                       onChange={
                         editable && !isNa
                           ? (next) =>
-                              // Ritoccare la stessa stellina non azzera la voce:
-                              // il pagellino non ha lo stato "non valutato".
-                              setScores((prev) => ({ ...prev, [item.id]: next || value }))
+                              setScores((prev) => {
+                                const copy = { ...prev };
+                                // Ritoccare la stellina già scelta riporta la
+                                // voce a "non valutata" (StarRating manda 0).
+                                if (!next) delete copy[item.id];
+                                else copy[item.id] = next;
+                                return copy;
+                              })
                           : undefined
                       }
                       readOnly={!editable || isNa}
@@ -409,8 +492,14 @@ const s = StyleSheet.create({
   esitoTextPresente: { color: '#047857' },
   esitoTextAssente: { color: '#B91C1C' },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
-  pagellinoHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  pagellinoHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  pagellinoHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pagellinoPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, paddingHorizontal: 11,
+    borderRadius: 999, borderWidth: 1.5, borderColor: '#E2E2E8',
+  },
+  pagellinoPillText: { fontSize: 12.5, fontWeight: '600', color: '#6A6A6A' },
   pagellinoCard: {
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
     backgroundColor: '#FFFFFF', paddingHorizontal: 14,

@@ -26,10 +26,11 @@ correggere e usa il "Salva" sticky già presente.
   "Presente") o a guida conclusa. Non segue il gate della valutazione complessiva, che il server
   accetta solo su guide già effettuate; resta nascosto solo sulle guide annullate che non hanno
   punteggi.
-- Le stelline partono da **metà scala** (3 su 5, 2 su 3) e valgono come punteggio anche
-  se l'istruttore non le tocca: una guida valutata ha sempre il pagellino completo.
-- Ritoccare la stellina già selezionata **non azzera** la voce (il pagellino non ha lo
-  stato "non valutato", a differenza della valutazione complessiva).
+- **Niente precompilazione** (dal 2026-09-11, allineato al web): le stelline partono vuote e
+  una voce non toccata resta "non valutata" — non viene salvata e non entra nelle medie.
+  Ritoccare la stellina già scelta riporta la voce a "non valutata".
+- In testa alla sezione il **contatore** "2 di 5" (fa da spiegazione: dice da solo che non è
+  tutto da compilare) e la pillola **"Tutte"** con le azioni in blocco.
 - Le stelline sono **navy** come quelle della valutazione complessiva: il design system
   mobile è mono-navy, vedi `docs/design-system.md`.
 - Scale possibili: 3 o 5 stelline (30px e 26px rispettivamente).
@@ -91,6 +92,16 @@ bordo e testo navy; la riga mostra "non valutabile" al posto di "3/5" e le stell
 - Si possono escludere tutte le voci: la chip dello storico diventa "Pagellino non applicabile"
   (`evaluationSummaryLabel` in `src/utils/evaluationSheet.ts` — gemello del web: le tre etichette
   della chip stanno lì, non nei componenti).
+
+## Azioni in blocco: menu nativo
+
+La pillola "Tutte" apre `ActionSheetIOS` su iOS e `Alert` su Android (lo stesso meccanismo del
+menu "•••" dei veicoli), con tre voci: *Valuta tutte a metà scala* — che ridà in un tap il
+comportamento pre-opt-in a chi vuole il pagellino sempre pieno —, *Segna non valutabili le
+restanti* e *Azzera il pagellino* (distruttiva).
+
+Sul web le stesse azioni stanno in un dropdown, perché lì è la convenzione; qui un dropdown
+custom sarebbe la "web app rimpicciolita" che questa feature deve evitare.
 
 ## Il foglio scrolla (regola per i FormSheet)
 
