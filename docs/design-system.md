@@ -1514,6 +1514,11 @@ caso reale erano **52pt** di vuoto sotto il bottone. La safe area serve solo al
 | CTA | `marginTop 22`, `height 54`, `borderRadius 27`, gradient + `primaryCtaShadow` | spenta = `#ECECEF`, testo `#A3A3AD`, **senza ombra** (non è tappabile) |
 | Contatore nella CTA | pill `rgba(255,255,255,0.18)`, testo `13/700` bianco | il bottone diventa il riepilogo della scelta ("2 · Aggiungi al pagellino") |
 
+**Dove va un'azione distruttiva**: in **testa**, come bottoncino tondo da 33 accanto
+alla × (`#FDECEC`, icona `trash-outline` 18 in `#DC2626`), mai sotto la CTA. In fondo
+occupa una fascia da ~52pt che si legge come padding vuoto e toglie alla CTA il ruolo
+di ultima cosa del foglio (caso reale: `EvaluationItemSheet`, set. 2026).
+
 **Perché superfici e non righe con divisori**: vale la regola §5.0 (ombra/superficie
 esterna = tappabile). Una lista di testo separata da hairline è un idioma da tabella
 web: non dice che si tocca e non dà gerarchia. Vedi anche `hint` e `confirmLabel` su

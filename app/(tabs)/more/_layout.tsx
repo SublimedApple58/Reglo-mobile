@@ -29,7 +29,7 @@ export default function MoreLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen name="evaluation-item" options={TALL_SHEET} />
+      <Stack.Screen name="evaluation-item" options={HUG_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="color-picker" options={TALL_SHEET} />
       <Stack.Screen name="hours-period" options={TALL_SHEET} />

@@ -169,13 +169,14 @@ const SortableRow = ({
       entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(160)}
     >
+      {/* Niente View con flex:1 qui dentro: riempiva tutta l'altezza e
+          mandava a vuoto il justifyContent, così nome e stelline restavano
+          incollati al bordo alto della card mentre la maniglia era centrata. */}
       <Pressable onPress={onPress} style={s.rowBody}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.rowLabel} numberOfLines={1}>
-            {item.label}
-          </Text>
-          <StarRow total={item.scaleMax} />
-        </View>
+        <Text style={s.rowLabel} numberOfLines={1}>
+          {item.label}
+        </Text>
+        <StarRow total={item.scaleMax} />
       </Pressable>
       <GestureDetector gesture={pan}>
         <View style={s.handle} accessibilityLabel={`Sposta ${item.label}`}>
@@ -548,9 +549,13 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  rowBody: { flex: 1, minWidth: 0, justifyContent: 'center', height: '100%' },
-  rowLabel: { fontSize: 15.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
-  stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 7 },
+  rowBody: { flex: 1, minWidth: 0, height: '100%', justifyContent: 'center', alignItems: 'flex-start' },
+  // lineHeight esplicito: senza, la scatola del testo cambia col font e le due
+  // righe della card non tengono la stessa distanza fra una voce e l'altra.
+  rowLabel: { fontSize: 15.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2, lineHeight: 20 },
+  // marginLeft -1.5: il glifo stella ha un margine interno, senza compensarlo
+  // la fila parte più a destra del nome e le due righe non sono a filo.
+  stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, marginLeft: -1.5 },
   handle: { width: 46, height: ROW_H, alignItems: 'center', justifyContent: 'center' },
 
   add: {

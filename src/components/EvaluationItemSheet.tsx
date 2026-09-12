@@ -85,6 +85,20 @@ export function EvaluationItemSheet() {
             Gli istruttori la aggiungono al pagellino delle guide che la toccano.
           </Text>
         </View>
+        {/* L'eliminazione sta in testa, non sotto la CTA: in fondo occupava una
+            fascia da 52pt che faceva sembrare il foglio pieno di vuoto, e la
+            §13.2.1 vuole la CTA ancorata come ultima cosa del foglio. */}
+        {data.onDelete ? (
+          <Pressable
+            onPress={confirmDelete}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Elimina voce"
+            style={({ pressed }) => [s.trash, pressed && { opacity: 0.5 }]}
+          >
+            <Ionicons name="trash-outline" size={18} color="#DC2626" />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
@@ -106,13 +120,17 @@ export function EvaluationItemSheet() {
         onSubmitEditing={submit}
         style={s.input}
       />
-      {remaining <= 12 ? (
-        <Animated.Text entering={FadeIn.duration(160)} style={s.counter}>
-          {remaining} caratteri rimasti
-        </Animated.Text>
-      ) : null}
+      {/* Spazio riservato sempre: con `fitToContents` Android misura l'altezza
+          una volta sola, e un contatore che compare dopo verrebbe tagliato. */}
+      <View style={s.counterSlot}>
+        {remaining <= 12 ? (
+          <Animated.Text entering={FadeIn.duration(160)} style={s.counter}>
+            {remaining} caratteri rimasti
+          </Animated.Text>
+        ) : null}
+      </View>
 
-      <Text style={[s.fieldLabel, { marginTop: 20 }]}>Scala</Text>
+      <Text style={[s.fieldLabel, { marginTop: 14 }]}>Scala</Text>
       <View style={s.scaleRow}>
         {EVALUATION_SCALES.map((scale) => {
           const on = scale === scaleMax;
@@ -147,14 +165,6 @@ export function EvaluationItemSheet() {
         </Text>
       </Pressable>
 
-      {data.onDelete ? (
-        <Pressable
-          onPress={confirmDelete}
-          style={({ pressed }) => [s.delete, pressed && { opacity: 0.6 }]}
-        >
-          <Text style={s.deleteText}>Elimina voce</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -165,12 +175,16 @@ const s = StyleSheet.create({
   root: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingTop: 26,
+    paddingTop: 22,
     paddingBottom: 18,
   },
-  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 24, gap: 12 },
-  title: { fontSize: 21, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  hint: { fontSize: 13.5, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
+  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 20, gap: 8 },
+  title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
+  hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
+  trash: {
+    width: 33, height: 33, borderRadius: 17, backgroundColor: '#FDECEC',
+    alignItems: 'center', justifyContent: 'center',
+  },
   x: {
     width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4',
     alignItems: 'center', justifyContent: 'center',
@@ -182,7 +196,8 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'transparent',
     paddingHorizontal: 16, fontSize: 16, fontWeight: '600', color: NAVY,
   },
-  counter: { fontSize: 12, fontWeight: '500', color: MUTED, marginTop: 8, marginLeft: 4 },
+  counterSlot: { height: 24, justifyContent: 'center' },
+  counter: { fontSize: 12, fontWeight: '500', color: MUTED, marginLeft: 4 },
 
   scaleRow: { flexDirection: 'row', gap: 10 },
   scaleCard: {
@@ -196,7 +211,7 @@ const s = StyleSheet.create({
   scaleTextOn: { color: NAVY },
 
   cta: {
-    marginTop: 24, height: 54, borderRadius: 27,
+    marginTop: 22, height: 54, borderRadius: 27,
     alignItems: 'center', justifyContent: 'center',
     ...primaryCtaShadow,
   },
@@ -204,6 +219,4 @@ const s = StyleSheet.create({
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   ctaTextOff: { color: '#A3A3AD' },
 
-  delete: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  deleteText: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
 });
