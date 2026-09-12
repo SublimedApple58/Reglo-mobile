@@ -1504,15 +1504,21 @@ caso reale erano **52pt** di vuoto sotto il bottone. La safe area serve solo al
 | Elemento | Valore | Nota |
 |---|---|---|
 | Preset route | `HUG_SHEET` (≤7 voci) / `PAGE_SHEET` (>7) | `src/utils/sheetPresentation.ts`; la scelta è in `optionsPickerPath()` |
-| Padding top del root | `22` | il titolo non deve sembrare incollato al bordo |
+| Padding top del root | `22` lista di scelte · **`26`** testata con titolo+sottotitolo | sotto i 26 la testata "parte compressa" quando in alto convivono anche i bottoncini tondi |
 | Padding bottom | `18` (form sheet) · `max(insets.bottom, 16)` (page sheet) | vedi regola sopra |
-| Header → contenuto | `paddingBottom: 20` sulla topbar | titolo `20/600`, hint `13/500` `lineHeight 18` `marginTop 5` |
+| Header → contenuto | `paddingBottom: 20` (lista di scelte) · **`26`** (testata con titolo+sottotitolo) | rispettivamente titolo `20/600` hint `13/500`, e titolo `21/600` hint `13.5/500`; sempre `lineHeight 18` `marginTop 5` |
 | Riga selezionabile | `minHeight 68`, `paddingVertical 17`, `paddingHorizontal 16`, `borderRadius 18` | sotto questi valori la lista "si compatta" e sembra una tabella web |
 | Spazio tra righe | `gap: 10` | **niente divisori**: le righe sono superfici, non celle |
 | Riga a riposo / selezionata | `#F7F7F8` / `navy[50]` + `borderWidth 1.5` `borderColor` navy | la selezione tinge **tutta la riga**, non una spunta in fondo |
 | Marker selezione | cerchio `24` — a riposo bordo `navy[200]`, attivo pieno navy con check bianco | |
 | CTA | `marginTop 22`, `height 54`, `borderRadius 27`, gradient + `primaryCtaShadow` | spenta = `#ECECEF`, testo `#A3A3AD`, **senza ombra** (non è tappabile) |
 | Contatore nella CTA | pill `rgba(255,255,255,0.18)`, testo `13/700` bianco | il bottone diventa il riepilogo della scelta ("2 · Aggiungi al pagellino") |
+
+**Due tarature della testata, non una.** `OptionsPickerSheet` è una lista di scelte:
+il titolo è corto, il contenuto comincia subito, 22/20 bastano. Un foglio-form con
+titolo, sottotitolo e bottoncini tondi in alto (`StudentSettingsSheet`,
+`EvaluationItemSheet`) a quei valori parte compresso: lì la testata vuole **26 sopra e
+26 sotto**, titolo `21`, hint `13.5`. Verificato due volte sul simulatore (set. 2026).
 
 **Dove va un'azione distruttiva**: in **testa**, come bottoncino tondo da 33 accanto
 alla × (`#FDECEC`, icona `trash-outline` 18 in `#DC2626`), mai sotto la CTA. In fondo

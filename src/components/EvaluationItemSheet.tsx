@@ -175,12 +175,15 @@ const s = StyleSheet.create({
   root: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingTop: 22,
+    paddingTop: 26,
     paddingBottom: 18,
   },
-  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 20, gap: 8 },
-  title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
+  // Testata "ariosa": 26 sopra e 26 sotto, non i 22/20 della lista di scelte.
+  // Qui in alto convivono titolo, sottotitolo e due bottoncini tondi — stretti
+  // si accavallano e il foglio parte compresso. Vedi §13.2.1.
+  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 26, gap: 8 },
+  title: { fontSize: 21, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
+  hint: { fontSize: 13.5, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18, paddingRight: 4 },
   trash: {
     width: 33, height: 33, borderRadius: 17, backgroundColor: '#FDECEC',
     alignItems: 'center', justifyContent: 'center',
