@@ -13,6 +13,7 @@ export default function MoreLayout() {
       <Stack.Screen name="instructors-overview" />
       <Stack.Screen name="locations" />
       <Stack.Screen name="vehicles" />
+      <Stack.Screen name="evaluation-sheet" />
       <Stack.Screen name="profile-edit" options={TALL_SHEET} />
       <Stack.Screen name="agenda-view" options={TALL_SHEET} />
       <Stack.Screen name="availability-mode" options={TALL_SHEET} />
@@ -28,6 +29,7 @@ export default function MoreLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen name="evaluation-item" options={TALL_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="color-picker" options={TALL_SHEET} />
       <Stack.Screen name="hours-period" options={TALL_SHEET} />

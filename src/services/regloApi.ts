@@ -66,6 +66,8 @@ import {
   RescheduleAppointmentInput,
   RescheduleAppointmentResult,
   AppointmentEvaluation,
+  EvaluationSheetConfig,
+  SaveEvaluationSheetInput,
   UpdateAppointmentDetailsInput,
   UpdateAppointmentStatusInput,
   UpdateCaseStatusInput,
@@ -529,6 +531,18 @@ export const createRegloApi = (baseUrl?: string) => {
           },
         },
       ),
+    /**
+     * Configurazione del pagellino dell'autoscuola (Altro → Pagellino).
+     * Stesse action del pane Impostazioni web: permessi e archiviazione delle
+     * voci tolte stanno lato server.
+     */
+    getEvaluationSheet: async () =>
+      client.request<EvaluationSheetConfig>('/api/autoscuole/evaluation-sheet'),
+    saveEvaluationSheet: async (input: SaveEvaluationSheetInput) =>
+      client.request<EvaluationSheetConfig>('/api/autoscuole/evaluation-sheet', {
+        method: 'PUT',
+        body: input,
+      }),
     getLocations: async () =>
       client.request<AutoscuolaLocation[]>('/api/autoscuole/locations'),
     createLocation: async (input: CreateLocationInput) =>

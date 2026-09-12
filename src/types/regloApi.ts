@@ -569,6 +569,30 @@ export type AppointmentEvaluationRow = {
   notApplicable?: boolean;
 };
 
+/**
+ * Configurazione del pagellino dell'autoscuola (Altro → Pagellino): le voci
+ * ATTIVE in ordine + l'interruttore. `archived` non c'è: qui le voci archiviate
+ * non esistono, si vedono solo dentro la guida che ha il loro voto.
+ */
+export type EvaluationSheetItem = {
+  id: Uuid;
+  label: string;
+  /** Numero di stelline della voce: 3 o 5. */
+  scaleMax: number;
+  position: number;
+};
+
+export type EvaluationSheetConfig = {
+  enabled: boolean;
+  items: EvaluationSheetItem[];
+};
+
+/** Payload del salvataggio: l'ordine dell'array È l'ordine del pagellino. */
+export type SaveEvaluationSheetInput = {
+  enabled: boolean;
+  items: Array<{ id?: Uuid; label: string; scaleMax: number }>;
+};
+
 /** Pagellino di UNA guida: interruttore, voci e punteggi già dati. */
 export type AppointmentEvaluation = {
   enabled: boolean;

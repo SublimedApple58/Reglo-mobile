@@ -4,6 +4,37 @@
  * l'autoscuola; qui serve solo sapere da quante stelline si parte.
  */
 
+/* ── Configurazione delle voci (Altro → Pagellino) ───────────────────────── */
+
+/** Stelline ammesse per una voce. Gemello di `EVALUATION_SCALES` sul web. */
+export const EVALUATION_SCALES = [3, 5] as const;
+export type EvaluationScale = (typeof EVALUATION_SCALES)[number];
+
+export const DEFAULT_EVALUATION_SCALE: EvaluationScale = 5;
+
+/** Tetto di voci per autoscuola: oltre, il pagellino non si compila più
+ *  "in pochi secondi" (che è il punto della feature). Validato anche dal BE. */
+export const MAX_EVALUATION_ITEMS = 12;
+
+export const MAX_EVALUATION_LABEL_LENGTH = 60;
+
+/** Modello base proposto a chi non ha mai configurato il pagellino. */
+export const BASE_EVALUATION_TEMPLATE: ReadonlyArray<{
+  label: string;
+  scaleMax: EvaluationScale;
+}> = [
+  { label: 'Sicurezza e precedenze', scaleMax: 5 },
+  { label: 'Controllo del veicolo', scaleMax: 5 },
+  { label: 'Manovre e parcheggio', scaleMax: 5 },
+  { label: 'Osservazione e specchietti', scaleMax: 5 },
+  { label: 'Comportamento in strada', scaleMax: 5 },
+];
+
+export const asEvaluationScale = (value: unknown): EvaluationScale =>
+  EVALUATION_SCALES.includes(value as EvaluationScale)
+    ? (value as EvaluationScale)
+    : DEFAULT_EVALUATION_SCALE;
+
 /** Punteggio di partenza: metà scala arrotondata per eccesso (3 su 5, 2 su 3). */
 export const defaultEvaluationScore = (scaleMax: number): number =>
   Math.max(1, Math.ceil((Number.isFinite(scaleMax) ? scaleMax : 5) / 2));

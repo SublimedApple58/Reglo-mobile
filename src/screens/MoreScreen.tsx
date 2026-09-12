@@ -45,6 +45,12 @@ const LOCATIONS_ITEM: MenuItem = {
   icon: 'location-outline',
 };
 
+const EVALUATION_SHEET_ITEM: MenuItem = {
+  route: 'evaluation-sheet',
+  label: 'Pagellino',
+  icon: 'star-outline',
+};
+
 const APPEARANCE_ITEM: MenuItem = {
   route: 'appearance',
   label: 'Aspetto agenda',
@@ -82,6 +88,9 @@ export const MoreScreen = () => {
     if (isInstructor(autoscuolaRole)) management.push(INSTRUCTOR_HOURS_ITEM);
     if (vehiclesEnabled) management.push(VEHICLES_ITEM);
     if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') management.push(LOCATIONS_ITEM);
+    // Voci del pagellino: le configurano titolari E istruttori — sono loro a
+    // compilarlo tutti i giorni (stesso gate lato server).
+    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) management.push(EVALUATION_SHEET_ITEM);
     // Colori agenda (Aspetto): gestibili dallo staff — titolari E istruttori.
     if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) management.push(APPEARANCE_ITEM);
 

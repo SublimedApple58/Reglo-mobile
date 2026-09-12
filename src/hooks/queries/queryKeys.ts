@@ -22,6 +22,8 @@ export const STALE_TIMES = {
   instructorBlocks: 5 * 60 * 1000,
   /** Driving locations change rarely — 15 min */
   locations: 15 * 60 * 1000,
+  /** Evaluation sheet config (voci del pagellino) — 15 min */
+  evaluationSheet: 15 * 60 * 1000,
   /** Instructor driving hours — 5 min */
   instructorHours: 5 * 60 * 1000,
   /** Instructor availability (base schedule / overrides / published weeks) — 5 min */
@@ -46,6 +48,9 @@ export const queryKeys = {
 
   autoscuolaSettings: (companyId: string | null) =>
     ['autoscuola-settings', companyId] as const,
+
+  evaluationSheet: (companyId: string | null) =>
+    ['evaluation-sheet', companyId] as const,
 
   bookingOptions: (companyId: string | null, studentId: string | null) =>
     ['booking-options', companyId, studentId] as const,
