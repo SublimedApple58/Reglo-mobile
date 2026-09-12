@@ -21,8 +21,13 @@ correggere e usa il "Salva" sticky già presente.
 
 - Il foglio carica pagellino e punteggi in **una sola chiamata** all'apertura
   (`GET /api/autoscuole/appointments/:id/evaluation`).
-- Se l'autoscuola non ha il pagellino attivo (o la chiamata fallisce) la sezione **non
+- Se l'autoscuola non ha **nessuna voce** configurata (o la chiamata fallisce) la sezione **non
   compare** e il foglio resta identico a prima: tipo, stelle complessive, note.
+- Se il pagellino è **spento** ma questa guida ha già dei voti, le righe votate **restano
+  visibili e rimovibili**: spegnere significa "non se ne danno di nuovi", non "sparisce quello
+  che c'è" (allineato al dialog web il 2026-09-12 — prima l'app nascondeva anche i voti già
+  dati). L'elenco si riduce alle voci già votate, quindi "Aggiungi voce" sparisce da solo, e
+  salvando non si cancella nulla: il payload `evaluations` parte solo se il pagellino è cambiato.
 - Il pagellino si compila **in qualsiasi momento**: a guida programmata, a metà guida (dopo
   "Presente") o a guida conclusa. Non segue il gate della valutazione complessiva, che il server
   accetta solo su guide già effettuate; resta nascosto solo sulle guide annullate che non hanno

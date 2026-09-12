@@ -139,9 +139,15 @@ export default function ManageLessonDetailsScreen() {
     (async () => {
       try {
         const data = await regloApi.getAppointmentEvaluation(id);
-        if (!alive || !data?.enabled) return;
-        const items = data.items ?? [];
+        if (!alive || !data) return;
         const rows = data.scores ?? [];
+        // Pagellino SPENTO: non si aggiungono voci nuove (l'elenco si riduce a
+        // quelle che questa guida ha già votato, quindi "Aggiungi voce" sparisce
+        // da solo), ma i voti già dati restano leggibili e rimovibili. Stesso
+        // patto del dialog web: spegnere vuol dire "non se ne danno di nuovi",
+        // non "sparisce quello che c'è".
+        const scoredIds = new Set(rows.map((sc) => sc.itemId));
+        const items = (data.items ?? []).filter((it) => data.enabled || scoredIds.has(it.id));
         const saved = new Map(
           rows.filter((sc) => sc.score != null).map((sc) => [sc.itemId, sc.score as number]),
         );
