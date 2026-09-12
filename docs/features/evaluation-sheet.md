@@ -1,7 +1,8 @@
 # Pagellino di valutazione (REG-443) — lato istruttore
 
-L'autoscuola configura le voci del proprio pagellino dal web (Impostazioni → Pagellino);
-l'app le mostra **dentro il foglio "Dettagli guida"**, sotto la valutazione complessiva.
+Le voci del pagellino si configurano **dal web** (Impostazioni → Pagellino) **e dall'app**
+(Altro → Pagellino, vedi in fondo); l'app le mostra **dentro il foglio "Dettagli guida"**,
+sotto la valutazione complessiva.
 Nessuna schermata nuova: l'istruttore apre il foglio, tocca le stelline che vuole
 correggere e usa il "Salva" sticky già presente.
 
@@ -158,3 +159,55 @@ scrollare**, non si avvolge il contenuto in una View/ScrollView interna aggiunta
   agganciato in fondo.
 - Coda del contenuto (`paddingBottom: 28`) e footer con `paddingBottom: max(insets.bottom, 12)`:
   senza, l'ultima voce del pagellino finisce sotto il "Salva" o a filo del bordo.
+
+
+## Configurare le voci dall'app (Altro → Pagellino)
+
+Dal 2026-09-12 la configurazione non è più solo web. Sta in **Altro → Gestione → Pagellino**,
+accanto a Veicoli e Luoghi guida: è un'impostazione **di autoscuola**, non del singolo allievo,
+quindi non va nel foglio "Impostazioni allievo".
+
+**Chi la vede**: titolari **e istruttori** (`isOwner || isInstructor`). Il permesso vero è lato
+server in `saveEvaluationSheet` (reglo), aperto agli istruttori nella stessa passata: sono loro
+a compilare il pagellino tutti i giorni. Il gate nella route è solo cortesia.
+
+| Cosa | Dove |
+|---|---|
+| Schermata | `src/screens/EvaluationSheetScreen.tsx` |
+| Route + gate di ruolo | `app/(tabs)/more/evaluation-sheet.tsx` |
+| Foglio "voce" (nome, scala, elimina) | `src/components/EvaluationItemSheet.tsx` + `app/(tabs)/more/evaluation-item.tsx` (HUG_SHEET) |
+| Seed del foglio | `src/stores/evaluationItemStore.ts` |
+| Lettura/scrittura | `regloApi.getEvaluationSheet` / `saveEvaluationSheet` → `GET`/`PUT /api/autoscuole/evaluation-sheet` |
+| Cache | `useEvaluationSheet` (`STALE_TIMES.evaluationSheet`, 15 min) |
+| Costanti (scale, max 12 voci, 60 caratteri, modello base) | `src/utils/evaluationSheet.ts` — gemelle del web |
+| Riga nel menu | `src/screens/MoreScreen.tsx` |
+
+### Come funziona
+
+- **Draft + un solo Salva**, come sul web: la CTA "Salva pagellino" entra in scena solo quando
+  c'è davvero qualcosa da salvare e il salvataggio è una **sostituzione integrale** dell'elenco.
+  Niente salvataggio a ogni tocco: la regola no-optimistic renderebbe il riordino a scatti
+  (ogni scambio aspetterebbe il server) e l'API sostituisce comunque tutto.
+- Uscire con modifiche pendenti chiede conferma via `usePreventRemove`, che copre **anche lo
+  swipe-back** iOS, non solo la freccia.
+- **Riordino in drag&drop** scritto a mano con Reanimated + gesture-handler (nessuna dipendenza
+  nuova: `react-native-draggable-flatlist` non è allineato a Reanimated 4 e non deve finire in un
+  OTA). Le righe sono assolute su un passo fisso `STEP = 74 + 10`; una mappa `{key: indice}` in
+  shared value è la verità, ogni riga la insegue con una molla. Il pan vive **solo sulla maniglia**
+  e spegne lo scroll in `onBegin` (non `onStart`): così la ScrollView non ruba mai il gesto.
+  Aptica `Medium` alla presa, `Light` a ogni scambio.
+- L'altezza della card è **fissa** (74): il nome sta su una riga sola, per esteso si legge e si
+  modifica nel foglio. Serve al riordino, che lavora su un passo costante.
+- **Stato vuoto**: chi non ha mai configurato niente trova il **modello base** (le 5 voci del web,
+  stessa costante) con "Usa il modello base" / "Parti da zero", non una lista vuota.
+- Le voci tolte **si archiviano**, non si cancellano: il testo della conferma lo dice
+  esplicitamente ("le valutazioni già date restano leggibili nello storico").
+- Tetto di 12 voci: oltre, il bottone "Aggiungi voce" lascia il posto alla riga che spiega perché.
+
+### Perché il foglio "voce" e non l'editing in riga
+
+Sul web il nome si scrive in un input dentro la riga. Su mobile un campo di testo dentro una card
+trascinabile è una rissa fra tastiera e gesto: nome, scala ed eliminazione stanno in un **form
+sheet nativo** (`HUG_SHEET`, misure §13.2.1 del design system). La scala è un segmented a due
+carte che mostra **le stelline vere**, non le parole "3 stelline". L'eliminazione è un bottoncino
+rosso **in testa**: sotto la CTA occupava una fascia che si leggeva come padding vuoto.
