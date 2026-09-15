@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, typography } from '../theme';
+import { GlassCloseButton } from './GlassCloseButton';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -273,14 +274,16 @@ export const BottomSheet = ({
           <View style={styles.body}>
             {!showHandle ? (
               <View style={styles.header}>
-                <Pressable
-                  onPress={() => triggerClose(false)}
-                  hitSlop={8}
-                  style={styles.close}
-                  disabled={closeDisabled}
-                >
-                  <Text style={styles.closeText}>×</Text>
-                </Pressable>
+                <GlassCloseButton onPress={() => triggerClose(false)} disabled={closeDisabled}>
+                  <Pressable
+                    onPress={() => triggerClose(false)}
+                    hitSlop={8}
+                    style={styles.close}
+                    disabled={closeDisabled}
+                  >
+                    <Text style={styles.closeText}>×</Text>
+                  </Pressable>
+                </GlassCloseButton>
               </View>
             ) : null}
             <View style={styles.content}>

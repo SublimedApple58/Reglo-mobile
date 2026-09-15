@@ -40,6 +40,7 @@ import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const TONE: Record<string, { bg: string; fg: string }> = {
   live: { bg: '#1A1A2E', fg: '#FFFFFF' },
@@ -457,9 +458,11 @@ export default function ManageLessonScreen() {
     <View style={s.sheet}>
       {/* Top action bar — X close */}
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <ScrollView

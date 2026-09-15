@@ -63,7 +63,7 @@ export function GlassCloseButton({
         <Host matchContents style={s.host}>
           <Image
             systemName="xmark"
-            size={17}
+            size={22}
             color="#1A1A2E"
             modifiers={[
               frame({ width: SIZE, height: SIZE }),

@@ -30,6 +30,7 @@ import {
 import type { LicenseCategory, Transmission } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const dayLetters = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 
@@ -340,9 +341,11 @@ export default function VehicleFormScreen() {
   return (
     <View style={s.root}>
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <ScrollView
         style={s.scroll}

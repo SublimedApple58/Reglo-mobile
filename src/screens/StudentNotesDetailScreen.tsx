@@ -35,6 +35,7 @@ import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -431,9 +432,11 @@ export const StudentNotesDetailScreen = () => {
 
       {/* Top bar — close */}
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <ScrollView

@@ -22,6 +22,7 @@ import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
 import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { colors } from '../theme';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const NAVY = colors.primary; // #1A1A2E
 const IVORY = '#F5EFE6';
@@ -253,13 +254,25 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
 
   const header = (
     <View style={[styles.topBar, mode === 'sheet' ? styles.topBarSheet : null]}>
-      <Pressable onPress={back} hitSlop={8} style={[styles.iconBtn, dark ? styles.iconBtnDark : styles.iconBtnLight]}>
-        <Ionicons
-          name={step === 'email' ? 'close' : 'chevron-back'}
-          size={20}
-          color={dark ? IVORY : NAVY_400}
-        />
-      </Pressable>
+      {step === 'email' && !dark ? (
+        <GlassCloseButton onPress={back}>
+        <Pressable onPress={back} hitSlop={8} style={[styles.iconBtn, dark ? styles.iconBtnDark : styles.iconBtnLight]}>
+          <Ionicons
+            name={step === 'email' ? 'close' : 'chevron-back'}
+            size={20}
+            color={dark ? IVORY : NAVY_400}
+          />
+        </Pressable>
+        </GlassCloseButton>
+      ) : (
+        <Pressable onPress={back} hitSlop={8} style={[styles.iconBtn, dark ? styles.iconBtnDark : styles.iconBtnLight]}>
+          <Ionicons
+            name={step === 'email' ? 'close' : 'chevron-back'}
+            size={20}
+            color={dark ? IVORY : NAVY_400}
+          />
+        </Pressable>
+      )}
     </View>
   );
 

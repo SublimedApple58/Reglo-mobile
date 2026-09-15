@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingFlowStore, type BookingFlowState } from '../../../src/stores/bookingFlowStore';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton, HAS_GLASS_CLOSE } from '../../../src/components/GlassCloseButton';
 
 export default function BookingSlotsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [snapshot] = useState(() => bookingFlowStore.get());
   const [selectedSlot, setSelectedSlot] = useState<BookingFlowState['selectedSlot']>(null);
   const [confirming, setConfirming] = useState(false);
@@ -27,6 +30,12 @@ export default function BookingSlotsScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top + 16 }]}>
+      {/* X liquid glass solo dove c'è il vetro (iOS 26): altrove lo sheet resta senza X, come prima. */}
+      {HAS_GLASS_CLOSE ? (
+        <View style={s.glassCloseRow}>
+          <GlassCloseButton onPress={() => router.back()} />
+        </View>
+      ) : null}
       <Text style={s.title}>Scegli un orario</Text>
       <Text style={s.subtitle}>
         {formatDay(preferredDate.toISOString())} {'\u2022'} {durationMinutes} min
@@ -88,6 +97,7 @@ export default function BookingSlotsScreen() {
 }
 
 const s = StyleSheet.create({
+  glassCloseRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, marginBottom: 4 },
   root: { backgroundColor: colors.background, flex: 1 },
   title: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4, paddingHorizontal: spacing.md, marginBottom: 6 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, paddingHorizontal: spacing.md, marginBottom: 8 },

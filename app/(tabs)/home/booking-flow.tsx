@@ -8,6 +8,7 @@ import { GradientCTABackground, primaryCtaShadow } from '../../../src/components
 import { formatDay } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton, HAS_GLASS_CLOSE } from '../../../src/components/GlassCloseButton';
 
 const formatLessonType = (value: string | null | undefined) => {
   const map: Record<string, string> = {
@@ -110,6 +111,8 @@ export default function BookingFlowScreen() {
         {/* Title row */}
         <View style={s.titleRow}>
           <Text style={s.title}>{step === 1 ? 'Prenota una guida' : 'Scegli un orario'}</Text>
+          {/* X liquid glass solo dove c'è il vetro (iOS 26): altrove lo sheet resta senza X, come prima. */}
+          {HAS_GLASS_CLOSE ? <GlassCloseButton onPress={handleClose} /> : null}
         </View>
 
         <View style={{ paddingHorizontal: spacing.md, paddingBottom: 20, gap: 28 }}>

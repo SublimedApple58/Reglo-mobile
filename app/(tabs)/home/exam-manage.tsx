@@ -10,6 +10,7 @@ import { colors } from '../../../src/theme/colors';
 import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { spacing } from '../../../src/theme/spacing';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const FLUENT_GRADUATE = require('../../../assets/icons/fluent-graduate.png');
 
@@ -207,9 +208,11 @@ export default function ExamManageScreen() {
   return (
     <View style={s.root}>
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={close}>
+          <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
