@@ -134,6 +134,14 @@ export function InstructorLinkScreen() {
     else router.replace('/(tabs)/home');
   }, [router]);
 
+  // "Vai alle guide": la schermata è una modale nello stack Impostazioni —
+  // `router.replace` verso la home cambiava la route SOTTO la modale, che
+  // restava aperta. Prima si chiude la modale, poi si va alla home.
+  const goHome = useCallback(() => {
+    if (router.canDismiss()) router.dismissAll();
+    router.navigate('/(tabs)/home');
+  }, [router]);
+
   const toManual = useCallback(() => {
     fromManual.current = true;
     setManualCode('');
@@ -379,7 +387,7 @@ export function InstructorLinkScreen() {
           <Text style={s.body}>Da ora le tue guide sono seguite da questo istruttore. Lo trovi nel tuo profilo.</Text>
           <PersonCard person={step.instructor} companyName={step.companyName} tone="teal" />
         </View>
-        <PrimaryButton label="Vai alle guide" onPress={() => router.replace('/(tabs)/home')} />
+        <PrimaryButton label="Vai alle guide" onPress={goHome} />
       </View>
     );
   }
