@@ -27,6 +27,7 @@ import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -252,9 +253,11 @@ export const CreateExamScreen = () => {
     <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Crea esame</Text>
-        <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => !saving && router.back()} disabled={saving}>
+          <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <SheetScaffold

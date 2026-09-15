@@ -17,6 +17,7 @@ import { GradientCTABackground, primaryCtaShadow } from '../components/GradientC
 import { RegloLogo } from '../components/RegloLogo';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const NAVY = colors.primary; // #1A1A2E
 const IVORY = '#F5EFE6';
@@ -88,9 +89,11 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
       <View style={styles.sheetRoot}>
         <StatusBar style="dark" />
         <View style={styles.sheetTopBar}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={styles.close}>
-            <Ionicons name="close" size={20} color={NAVY_400} />
-          </Pressable>
+          <GlassCloseButton onPress={() => router.back()}>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={styles.close}>
+              <Ionicons name="close" size={20} color={NAVY_400} />
+            </Pressable>
+          </GlassCloseButton>
         </View>
         <Text style={styles.sheetTitle}>Accedi</Text>
         <Text style={styles.sheetSub}>Bentornato 👋</Text>

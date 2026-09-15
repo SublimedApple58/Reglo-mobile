@@ -17,6 +17,7 @@ import { swapStore } from '../../../src/stores/swapStore';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -73,9 +74,11 @@ export default function SwapLessonScreen() {
   return (
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <SheetScaffold keyboardAware contentContainerStyle={{ gap: 14 }}>
       <View style={s.headerBlock}>

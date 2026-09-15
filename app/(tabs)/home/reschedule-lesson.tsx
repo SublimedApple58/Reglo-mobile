@@ -10,6 +10,7 @@ import { rescheduleStore } from '../../../src/stores/rescheduleStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const WD = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
@@ -105,9 +106,11 @@ export default function RescheduleLessonScreen() {
   return (
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn} disabled={pending}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()} disabled={pending}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn} disabled={pending}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <SheetScaffold
         contentContainerStyle={{ gap: 14 }}

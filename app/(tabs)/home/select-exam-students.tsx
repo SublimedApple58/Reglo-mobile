@@ -9,6 +9,7 @@ import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const INK = '#1E293B';
@@ -68,9 +69,11 @@ export default function SelectExamStudentsScreen() {
         ) : null}
         <Text style={s.title} numberOfLines={1}>Allievi all&apos;esame</Text>
         {Platform.OS !== 'android' ? (
-          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
+          <GlassCloseButton onPress={() => router.back()}>
+            <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+              <Ionicons name="close" size={20} color={NAVY} />
+            </Pressable>
+          </GlassCloseButton>
         ) : null}
       </View>
 

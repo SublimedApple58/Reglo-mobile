@@ -8,6 +8,7 @@ import { BookingForm } from '../../../src/components/booking/BookingForm';
 import { BlockForm } from '../../../src/components/booking/BlockForm';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 type Mode = 'lesson' | 'block';
 
@@ -46,9 +47,11 @@ export default function QuickBookScreen() {
             <Text style={[s.segText, mode === 'block' && s.segTextActive]}>Blocca slot</Text>
           </Pressable>
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       {mode === 'lesson' ? <BookingForm embedded /> : <BlockForm embedded />}

@@ -9,6 +9,7 @@ import { UserPhotoCircle } from './UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { colors, navy } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { GlassCloseButton } from './GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const INK = '#222222';
@@ -87,9 +88,11 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           <Text style={s.title} numberOfLines={1}>{data.title}</Text>
           {data.hint ? <Text style={s.hint} numberOfLines={2}>{data.hint}</Text> : null}
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       {scrollable ? (

@@ -1,12 +1,13 @@
 import React, { useSyncExternalStore } from 'react';
 import { Image, ImageSourcePropType, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { homeAddSheetStore } from '../../../src/stores/homeAddSheetStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 type Row = {
   key: string;
@@ -49,8 +50,11 @@ export default function AddActionScreen() {
     <View style={[s.root, { paddingBottom: insets.bottom + 16 }]}>
       <View style={s.header}>
         <Text style={s.title}>Aggiungi</Text>
-        {/* Prova X "liquid glass" nativa iOS 26: se piace si estende agli altri sheet. */}
-        <GlassCloseButton onPress={() => router.back()} testID="add-action-close" />
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={22} color="#64748B" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       {rows.map((r) => (
         <Pressable
@@ -86,6 +90,14 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A2E',
     letterSpacing: -0.4,
+  },
+  close: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EFF0F3',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',

@@ -15,6 +15,7 @@ import {
 import { colors, navy } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
+import { GlassCloseButton } from './GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const MUTED = '#929292';
@@ -99,13 +100,15 @@ export function EvaluationItemSheet() {
             <Ionicons name="trash-outline" size={18} color="#DC2626" />
           </Pressable>
         ) : null}
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}
-        >
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}
+          >
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <Text style={s.fieldLabel}>Nome della voce</Text>

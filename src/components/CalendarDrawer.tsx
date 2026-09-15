@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing } from '../theme';
+import { GlassCloseButton } from './GlassCloseButton';
 
 type CalendarDrawerProps = {
   visible: boolean;
@@ -255,9 +256,11 @@ export const CalendarDrawer = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Seleziona data</Text>
-            <Pressable onPress={() => triggerClose(false)} hitSlop={10} style={styles.sheetClose}>
-              <Ionicons name="close" size={22} color="#1A1A2E" />
-            </Pressable>
+            <GlassCloseButton onPress={() => triggerClose(false)}>
+              <Pressable onPress={() => triggerClose(false)} hitSlop={10} style={styles.sheetClose}>
+                <Ionicons name="close" size={22} color="#1A1A2E" />
+              </Pressable>
+            </GlassCloseButton>
           </View>
 
           {/* Month navigation */}

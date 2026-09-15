@@ -22,6 +22,7 @@ import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { Button } from '../../../src/components/Button';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -147,9 +148,11 @@ export default function SickLeaveScreen() {
     <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Registra malattia</Text>
-        <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => !pending && router.back()} disabled={pending}>
+          <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <SheetScaffold
         footer={(

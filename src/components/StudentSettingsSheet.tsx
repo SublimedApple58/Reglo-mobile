@@ -8,6 +8,7 @@ import { studentSettingsStore } from '../stores/studentSettingsStore';
 import { ToggleSwitch } from './ToggleSwitch';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { GlassCloseButton } from './GlassCloseButton';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -35,9 +36,11 @@ export function StudentSettingsSheet() {
           <Text style={s.title} numberOfLines={1}>Impostazioni</Text>
           {data.studentName ? <Text style={s.hint}>{data.studentName}</Text> : null}
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       {data.group ? (

@@ -6,6 +6,7 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 15, 30, 45];
@@ -61,9 +62,11 @@ export default function TimePickerScreen() {
   return (
     <View style={s.root}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <Text style={s.title}>Seleziona orario</Text>
 

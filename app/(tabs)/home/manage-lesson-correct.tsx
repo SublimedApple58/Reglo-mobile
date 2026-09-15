@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { correctOutcomeStore } from '../../../src/stores/correctOutcomeStore';
 import { colors } from '../../../src/theme/colors';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const INK = '#222222';
@@ -47,9 +48,11 @@ export default function ManageLessonCorrectScreen() {
     <View style={[s.root, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}>
       <View style={s.topbar}>
         <Text style={s.title} numberOfLines={1}>Correggi l&apos;esito</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <Row action="checked_in" label="Presente" />

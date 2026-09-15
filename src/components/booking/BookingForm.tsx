@@ -31,6 +31,7 @@ import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, tran
 import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON, type MotoLessonType } from '../../utils/motoLessonType';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { GlassCloseButton } from '../GlassCloseButton';
 
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
 
@@ -621,9 +622,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       {!embedded && (
         <View style={s.topbar}>
           <View style={{ flex: 1 }} />
-          <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
+          <GlassCloseButton onPress={() => !pending && router.back()} disabled={pending}>
+            <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
+              <Ionicons name="close" size={20} color={NAVY} />
+            </Pressable>
+          </GlassCloseButton>
         </View>
       )}
 

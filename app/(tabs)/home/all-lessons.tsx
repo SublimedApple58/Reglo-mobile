@@ -6,6 +6,7 @@ import { LessonsOverview } from '../../../src/components/LessonsOverview';
 import { allLessonsStore } from '../../../src/stores/allLessonsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 export default function AllLessonsScreen() {
   const router = useRouter();
@@ -22,9 +23,11 @@ export default function AllLessonsScreen() {
   return (
     <View style={s.root}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <LessonsOverview
         studentId={studentId}

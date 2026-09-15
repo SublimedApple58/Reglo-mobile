@@ -13,6 +13,7 @@ import type { GroupLesson } from '../../../src/types/regloApi';
 import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const FADE_MS = 320;
 
@@ -153,9 +154,11 @@ export default function GroupLessonDetailScreen() {
     <View style={[s.sheet, Platform.OS === 'android' && { flex: 1 }]}>
       {/* Top action bar — X close */}
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <SheetScaffold

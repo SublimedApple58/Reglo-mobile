@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '../theme';
+import { GlassCloseButton } from './GlassCloseButton';
 
 /**
  * Content-hugging native sheet: a transparent Modal whose card is anchored to the
@@ -35,9 +36,11 @@ export const NativeFormSheet = ({ visible, onClose, onClosed, title, footer, clo
         <View style={[styles.card, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.header}>
             {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={styles.flex} />}
-            <Pressable onPress={onClose} hitSlop={10} disabled={closeDisabled} style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}>
-              <Ionicons name="close" size={22} color="#1A1A2E" />
-            </Pressable>
+            <GlassCloseButton onPress={onClose} disabled={closeDisabled}>
+              <Pressable onPress={onClose} hitSlop={10} disabled={closeDisabled} style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}>
+                <Ionicons name="close" size={22} color="#1A1A2E" />
+              </Pressable>
+            </GlassCloseButton>
           </View>
           <View>{children}</View>
           {footer ? <View style={styles.footer}>{footer}</View> : null}

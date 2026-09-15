@@ -8,6 +8,7 @@ import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { instructorSettingsStore } from '../../../src/stores/instructorSettingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const weekPresets = [2, 4, 6, 8, 12] as const;
 const reminderOptions = [120, 60, 30, 20, 15] as const;
@@ -28,9 +29,11 @@ export default function AgendaSettingsScreen() {
   return (
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <SheetScaffold
         style={s.body}

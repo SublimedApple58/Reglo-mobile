@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
+import { GlassCloseButton } from './GlassCloseButton';
 
 type TimePickerDrawerProps = {
   visible: boolean;
@@ -87,9 +88,11 @@ export const TimePickerDrawer = ({
       <View style={[styles.sheet, Platform.OS === 'android' && { paddingTop: insets.top }]}>
         <View style={styles.tpHeader}>
           <Text style={styles.title}>Seleziona orario</Text>
-          <Pressable onPress={handleClose} hitSlop={10} style={styles.tpClose}>
-            <Ionicons name="close" size={22} color="#1A1A2E" />
-          </Pressable>
+          <GlassCloseButton onPress={handleClose}>
+            <Pressable onPress={handleClose} hitSlop={10} style={styles.tpClose}>
+              <Ionicons name="close" size={22} color="#1A1A2E" />
+            </Pressable>
+          </GlassCloseButton>
         </View>
 
         <View style={styles.body}>

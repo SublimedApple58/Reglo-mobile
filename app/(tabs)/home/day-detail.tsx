@@ -9,6 +9,7 @@ import { ScrubBubble } from '../../../src/components/BookableBand';
 import { daySummary } from '../../../src/utils/weeklyAgenda';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const WEEKDAYS_FULL = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'] as const;
 const MONTHS_FULL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'] as const;
@@ -41,9 +42,11 @@ export default function DayDetailScreen() {
           <Text style={s.subtitle} numberOfLines={1}>{daySummary(plan)}</Text>
         </View>
         {Platform.OS !== 'android' ? (
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
-          </Pressable>
+          <GlassCloseButton onPress={() => router.back()}>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+              <Ionicons name="close" size={20} color="#1A1A2E" />
+            </Pressable>
+          </GlassCloseButton>
         ) : null}
       </View>
 

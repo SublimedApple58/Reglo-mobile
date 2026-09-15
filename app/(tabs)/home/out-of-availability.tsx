@@ -14,6 +14,7 @@ import { Button } from '../../../src/components/Button';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -76,9 +77,11 @@ export default function OutOfAvailabilityScreen() {
     <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title} numberOfLines={1}>Guide fuori disponibilità</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <SheetScaffold>

@@ -28,6 +28,7 @@ import { vehicleServesStudent as vehicleServesStudentShared, MOTO_LICENSE_CATEGO
 import { instructorCanUseVehicle } from '../utils/vehicles';
 import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, type MotoLessonType } from '../utils/motoLessonType';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -353,9 +354,11 @@ export const CreateGroupLessonScreen = () => {
     <View style={[s.root, { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>Guida di gruppo</Text>
-        <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => !saving && router.back()} disabled={saving}>
+          <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <ScrollView

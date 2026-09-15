@@ -19,6 +19,7 @@ import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
+import { GlassCloseButton } from '../components/GlassCloseButton';
 
 const NAVY = colors.primary; // #1A1A2E
 const IVORY = '#F5EFE6';
@@ -143,9 +144,11 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
     return (
       <View style={styles.sheetRoot}>
         <StatusBar style="dark" />
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.close}>
-          <Ionicons name="close" size={20} color={NAVY_400} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()} style={styles.glassClose}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.close}>
+            <Ionicons name="close" size={20} color={NAVY_400} />
+          </Pressable>
+        </GlassCloseButton>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView
             contentContainerStyle={styles.sheetBody}
@@ -190,6 +193,8 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
 const styles = StyleSheet.create({
   // sheet (iOS)
   sheetRoot: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: 18 },
+  // X glass 44pt: stesso bordo destro della X da 30 (top 16, right 18).
+  glassClose: { position: 'absolute', top: 9, right: 18, zIndex: 5, margin: 0 },
   close: {
     position: 'absolute',
     top: 16,

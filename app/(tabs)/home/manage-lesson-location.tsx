@@ -8,6 +8,7 @@ import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { InlineLocationPicker } from '../../../src/components/InlineLocationPicker';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 export default function ManageLessonLocationScreen() {
   const router = useRouter();
@@ -16,9 +17,11 @@ export default function ManageLessonLocationScreen() {
   return (
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <View style={s.headerBlock}>
         <Text style={s.title}>Cambia luogo</Text>

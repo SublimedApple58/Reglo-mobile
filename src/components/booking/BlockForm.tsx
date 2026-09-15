@@ -22,6 +22,7 @@ import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { GlassCloseButton } from '../GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 const GREY = '#717171';
@@ -212,9 +213,11 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
       {!embedded && (
         <View style={s.header}>
           <Text style={s.title}>{isEditing ? (isTheory ? 'Modifica lezione' : 'Modifica evento') : (isTheory ? 'Lezione teorica' : 'Blocca slot')}</Text>
-          <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
+          <GlassCloseButton onPress={() => !pending && router.back()} disabled={pending}>
+            <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+              <Ionicons name="close" size={20} color={NAVY} />
+            </Pressable>
+          </GlassCloseButton>
         </View>
       )}
 

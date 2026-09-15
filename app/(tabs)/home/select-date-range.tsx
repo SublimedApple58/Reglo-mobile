@@ -9,6 +9,7 @@ import { GradientCTABackground, primaryCtaShadow } from '../../../src/components
 import { dateRangeStore } from '../../../src/stores/dateRangeStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const NAVY = '#1A1A2E';
 
@@ -88,9 +89,11 @@ export default function SelectDateRangeScreen() {
     <View style={[s.root, { paddingBottom: insets.bottom + 16 }, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.header}>
         <Text style={s.title}>{data.title ?? 'Seleziona periodo'}</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color={NAVY} />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color={NAVY} />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <SheetScaffold

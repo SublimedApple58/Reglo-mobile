@@ -9,6 +9,7 @@ import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { groupStudentsStore, type GroupStudent } from '../../../src/stores/groupStudentsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const AVATAR_BG = ['#E9EBF2', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2', '#F1F5F9'];
 const AVATAR_FG = ['#0D0D16', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C', '#475569'];
@@ -90,9 +91,11 @@ export default function GroupStudentsScreen() {
     <View style={s.root}>
       {/* Top bar — close (matches all page sheets) */}
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       {/* Title */}

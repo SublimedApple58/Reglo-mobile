@@ -8,6 +8,7 @@ import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 export default function ExtrasScreen() {
   const router = useRouter();
@@ -46,9 +47,11 @@ export default function ExtrasScreen() {
   return (
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
       <View style={s.headerBlock}>
         <Text style={s.title}>Funzionalità extra</Text>

@@ -13,6 +13,7 @@ import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { LICENSE_CATEGORY_LABELS } from '../../../src/utils/license';
+import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 // Patente che l'allievo sta facendo (categoria del veicolo assegnato) + — per i
 // gruppi moto — la moto assegnata. Riga meta sotto il nome nel roster.
@@ -251,9 +252,11 @@ export default function ManageGroupLessonParticipantsScreen() {
       {/* Top bar — title + X */}
       <View style={s.topBar}>
         <Text style={s.title}>Partecipanti</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-          <Ionicons name="close" size={20} color="#1A1A2E" />
-        </Pressable>
+        <GlassCloseButton onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
+            <Ionicons name="close" size={20} color="#1A1A2E" />
+          </Pressable>
+        </GlassCloseButton>
       </View>
 
       <SheetScaffold
