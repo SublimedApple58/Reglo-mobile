@@ -135,9 +135,16 @@ export function InstructorLinkScreen() {
   const initialCode = typeof params.code === 'string' && params.code.trim() ? params.code.trim() : null;
 
   const cameraAvailable = useRef(hasCameraModule()).current;
-  const [step, setStep] = useState<Step>(
-    initialCode ? { kind: 'loading' } : cameraAvailable ? { kind: 'scanner' } : { kind: 'manuale' },
-  );
+  const [step, setStep] = useState<Step>(() => {
+    // Solo sviluppo (escluso dalle build release): `?code=__dev_successo|__dev_mantieni`
+    // apre lo stato finale senza backend, per verificare la navigazione con Maestro.
+    if (__DEV__ && initialCode?.startsWith('__dev_')) {
+      const demo = { id: 'dev', name: 'Giulia Moretti', initials: 'GM' };
+      if (initialCode === '__dev_mantieni') return { kind: 'mantieni', current: demo, companyName: 'Autoscuola Demo' };
+      return { kind: 'successo', instructor: demo, companyName: 'Autoscuola Demo' };
+    }
+    return initialCode ? { kind: 'loading' } : cameraAvailable ? { kind: 'scanner' } : { kind: 'manuale' };
+  });
   const [manualCode, setManualCode] = useState('');
   const [busy, setBusy] = useState(false);
   // Aperto da Profilo (non da deep link): "Annulla" torna allo scanner/codice.
@@ -147,6 +154,14 @@ export function InstructorLinkScreen() {
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/home');
+  }, [router]);
+
+  // "Vai alle guide": la schermata è una modale nello stack Impostazioni —
+  // `router.replace` verso la home cambiava la route SOTTO la modale, che
+  // restava aperta (bug TestFlight 2.3.0). Prima si chiude la modale, poi si va.
+  const goHome = useCallback(() => {
+    if (router.canDismiss()) router.dismissAll();
+    router.navigate('/(tabs)/home');
   }, [router]);
 
   const toScanner = useCallback(() => {
@@ -190,6 +205,7 @@ export function InstructorLinkScreen() {
   }, []);
 
   useEffect(() => {
+    if (__DEV__ && initialCode?.startsWith('__dev_')) return;
     if (initialCode) void verify(initialCode);
   }, [initialCode, verify]);
 
@@ -417,7 +433,7 @@ export function InstructorLinkScreen() {
           <Text style={s.body}>Da ora le tue guide sono seguite da questo istruttore. Lo trovi nel tuo profilo.</Text>
           <PersonCard person={step.instructor} companyName={step.companyName} tone="teal" />
         </View>
-        <PrimaryButton label="Vai alle guide" onPress={() => router.replace('/(tabs)/home')} />
+        <PrimaryButton label="Vai alle guide" onPress={goHome} />
       </View>
     );
   }
