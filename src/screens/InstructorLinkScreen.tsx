@@ -27,20 +27,31 @@ import { useQueryClient } from '@tanstack/react-query';
 import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
 import type { InstructorLinkPerson } from '../types/regloApi';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
 /**
  * REG-451 — l'allievo si associa al suo istruttore dal QR della card (o col
  * codice a mano). Schermate 1:1 dal prototipo `QR Istruttore.html`: Conferma,
  * Successo, Già associato, Mantieni, Errore, Codice a mano.
  *
- * Lo scanner live dentro l'app richiede un modulo fotocamera nativo che il
- * binario 2.2.0 non ha: finché non arriva la build, "Scansiona QR" apre il
- * codice a mano e il QR si legge con la fotocamera del telefono (pagina web
- * /i/<codice> → deep link `associa-istruttore?code=` → questa schermata).
+ * Scanner: vive in `InstructorQrScanner` (expo-camera, binari ≥ 2.3.0). Sui
+ * binari senza il modulo nativo (2.2.0) si parte dal codice a mano e il QR si
+ * legge con la fotocamera del telefono (pagina web /i/<codice> → deep link
+ * `associa-istruttore?code=` → questa schermata).
  */
+
+/** true se il binario contiene expo-camera (non richiederlo altrimenti: crash). */
+function hasCameraModule(): boolean {
+  try {
+    return !!requireOptionalNativeModule('ExpoCamera');
+  } catch {
+    return false;
+  }
+}
 
 type Step =
   | { kind: 'loading' }
+  | { kind: 'scanner' }
   | { kind: 'manuale' }
   | { kind: 'conferma'; code: string; instructor: InstructorLinkPerson; companyName: string; current: InstructorLinkPerson | null }
   | { kind: 'gia'; code: string; instructor: InstructorLinkPerson; companyName: string; current: InstructorLinkPerson }
@@ -123,10 +134,14 @@ export function InstructorLinkScreen() {
   const params = useLocalSearchParams<{ code?: string }>();
   const initialCode = typeof params.code === 'string' && params.code.trim() ? params.code.trim() : null;
 
-  const [step, setStep] = useState<Step>(initialCode ? { kind: 'loading' } : { kind: 'manuale' });
+  const cameraAvailable = useRef(hasCameraModule()).current;
+  const [step, setStep] = useState<Step>(
+    initialCode ? { kind: 'loading' } : cameraAvailable ? { kind: 'scanner' } : { kind: 'manuale' },
+  );
   const [manualCode, setManualCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const fromManual = useRef(!initialCode);
+  // Aperto da Profilo (non da deep link): "Annulla" torna allo scanner/codice.
+  const inFlow = useRef(!initialCode);
   const inputRef = useRef<TextInput>(null);
 
   const close = useCallback(() => {
@@ -134,8 +149,13 @@ export function InstructorLinkScreen() {
     else router.replace('/(tabs)/home');
   }, [router]);
 
+  const toScanner = useCallback(() => {
+    inFlow.current = true;
+    setStep({ kind: 'scanner' });
+  }, []);
+
   const toManual = useCallback(() => {
-    fromManual.current = true;
+    inFlow.current = true;
     setManualCode('');
     setStep({ kind: 'manuale' });
   }, []);
@@ -203,6 +223,23 @@ export function InstructorLinkScreen() {
     );
   }
 
+  if (step.kind === 'scanner') {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { InstructorQrScanner } = require('../components/InstructorQrScanner') as typeof import('../components/InstructorQrScanner');
+    return (
+      <InstructorQrScanner
+        paddingTop={padTop}
+        paddingBottom={padBottom}
+        onClose={close}
+        onManual={toManual}
+        onScanned={(data) => {
+          setStep({ kind: 'loading' });
+          void verify(data);
+        }}
+      />
+    );
+  }
+
   if (step.kind === 'manuale') {
     const chars = manualCode.split('');
     const ready = manualCode.length === 6;
@@ -210,7 +247,7 @@ export function InstructorLinkScreen() {
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#ffffff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar style="dark" />
         <View style={shell}>
-          <Header left="Indietro" title="CODICE ISTRUTTORE" rightWidth={56} onLeft={close} marginBottom={28} />
+          <Header left="Indietro" title="CODICE ISTRUTTORE" rightWidth={56} onLeft={cameraAvailable ? toScanner : close} marginBottom={28} />
           <Text style={[s.title, { textAlign: 'left' }]}>Inserisci il codice</Text>
           <Text style={[s.body, { marginTop: 10, textAlign: 'left', maxWidth: undefined }]}>
             Lo trovi stampato sotto il QR della card del tuo istruttore. 6 caratteri.
@@ -270,6 +307,7 @@ export function InstructorLinkScreen() {
                 void verify(manualCode);
               }}
             />
+            {cameraAvailable ? <SecondaryButton label="Scansiona il QR" onPress={toScanner} disabled={busy} /> : null}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -284,7 +322,7 @@ export function InstructorLinkScreen() {
         void link(step.code);
       }
     };
-    const onCancel = () => (fromManual.current ? toManual() : close());
+    const onCancel = () => (inFlow.current ? (cameraAvailable ? toScanner() : toManual()) : close());
     return (
       <View style={shell}>
         <StatusBar style="dark" />
@@ -430,8 +468,17 @@ export function InstructorLinkScreen() {
         ) : null}
       </View>
       <View style={s.buttons}>
-        <PrimaryButton label="Inserisci il codice a mano" onPress={toManual} />
-        <SecondaryButton label="Chiudi" onPress={close} />
+        {cameraAvailable ? (
+          <>
+            <PrimaryButton label="Scansiona di nuovo" onPress={toScanner} />
+            <SecondaryButton label="Inserisci il codice a mano" onPress={toManual} />
+          </>
+        ) : (
+          <>
+            <PrimaryButton label="Inserisci il codice a mano" onPress={toManual} />
+            <SecondaryButton label="Chiudi" onPress={close} />
+          </>
+        )}
       </View>
     </View>
   );
