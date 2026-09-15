@@ -73,6 +73,11 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend web**: download originale/portale nel dettaglio allievo (vedi `reglo/docs/features/student-photo-signature.md`)
 - ⚠️ **Build nativa richiesta**: `expo-image-picker` non è nel binario 2.1.0 → NO OTA finché non si builda con bump runtime
 
+### Associazione istruttore via QR (REG-451)
+- → **Settings**: riga "Scansiona QR" nel Profilo allievo.
+- → **Root layout / AuthGate**: consuma il codice pendente del deep link; `+native-intent.tsx` è il primo file di riscrittura link dell'app (aggiungere lì eventuali altri deep link).
+- → **Booking / cluster**: cambiare istruttore cambia le impostazioni effettive se è autonomo → invalidazione globale delle query.
+
 ### Pagellino di valutazione (REG-443)
 - → **Dettagli guida**: la sezione vive dentro `home/manage-lesson-details`, sotto la valutazione complessiva; se il backend risponde `enabled:false` la schermata resta esattamente quella di prima
 - → **StarRating**: ora accetta `total` (3 o 5). La valutazione complessiva continua a passare il default 5 — nessun call-site esistente cambia

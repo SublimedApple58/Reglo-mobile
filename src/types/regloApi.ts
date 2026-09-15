@@ -9,6 +9,25 @@ export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUD
 
 export type AutoscuolaStudentPhase = "AWAITING" | "TEORIA" | "PRATICA" | "PATENTATO";
 
+/** REG-451 — associazione allievo ↔ istruttore via QR / codice. */
+export type InstructorLinkPerson = { id: string; name: string; initials: string };
+
+export type InstructorLinkPreview =
+  | { status: "invalid"; code: string | null }
+  | {
+      status: "ok";
+      code: string;
+      instructor: InstructorLinkPerson;
+      companyName: string;
+      /** Istruttore attuale, se diverso da quello del QR. */
+      currentInstructor: InstructorLinkPerson | null;
+      alreadyLinked: boolean;
+    };
+
+export type InstructorLinkResult =
+  | { status: "invalid" }
+  | { status: "linked"; instructor: InstructorLinkPerson; companyName: string };
+
 export type StudentPhasePayload = {
   phase: AutoscuolaStudentPhase;
   theoryExamAt: IsoDate | null;

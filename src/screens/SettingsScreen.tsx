@@ -760,6 +760,21 @@ export const SettingsScreen = () => {
           <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </Pressable>
 
+        {/* REG-451: "Scansiona QR" — associazione all'istruttore dalla sua card (la card stampata dice "tab Profilo → Scansiona QR") */}
+        <View style={studentStyles.rowDivider} />
+        <Pressable
+          testID="profile-scan-qr"
+          onPress={() => router.push('/(tabs)/settings/associa-istruttore')}
+          style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}
+        >
+          <Ionicons name="qr-code-outline" size={23} color="#1A1A2E" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={studentStyles.rowLabel}>Scansiona QR</Text>
+            <Text style={studentStyles.rowHint} numberOfLines={1}>Associati al tuo istruttore</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+        </Pressable>
+
         <View style={studentStyles.rowDivider} />
         <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
           <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#1A1A2E" />

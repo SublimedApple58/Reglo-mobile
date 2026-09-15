@@ -14,6 +14,11 @@ import { ForceUpdateScreen } from '../src/screens/ForceUpdateScreen';
 import { currentAppVersion, isBelowVersion, isLegacyBlocked } from '../src/config/forceUpdate';
 import { regloApi } from '../src/services/regloApi';
 import { peekLaunchPushIntent } from '../src/services/pushNotifications';
+import {
+  INSTRUCTOR_LINK_ROUTE,
+  subscribePendingInstructorLink,
+  takePendingInstructorLinkCode,
+} from '../src/utils/pendingInstructorLink';
 import { colors } from '../src/theme';
 
 const queryClient = new QueryClient({
@@ -130,6 +135,20 @@ const AuthGate = () => {
       router.replace('/(tabs)/home');
     }
   }, [status, autoscuolaRole, router, segments, signOut, refreshMe]);
+
+  // REG-451: link di associazione istruttore arrivato mentre l'app si apriva
+  // (o prima del login) → apri il flusso ora che la sessione è pronta.
+  const [linkTick, setLinkTick] = useState(0);
+  useEffect(() => subscribePendingInstructorLink(() => setLinkTick((n) => n + 1)), []);
+  useEffect(() => {
+    if (status !== 'ready' || !autoscuolaRole) return;
+    const code = takePendingInstructorLinkCode();
+    if (!code) return;
+    const t = setTimeout(() => {
+      router.push({ pathname: INSTRUCTOR_LINK_ROUTE, params: { code } });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [autoscuolaRole, router, status, linkTick]);
 
   useEffect(() => {
     if (status !== 'ready' || !autoscuolaRole) return;

@@ -10,6 +10,8 @@ export default function SettingsLayout() {
       <Stack.Screen name="profile-edit" options={TALL_SHEET} />
       {/* Firma: fullscreen vero (UI ruotata in landscape), niente sheet/card */}
       <Stack.Screen name="signature" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+      {/* REG-451: associazione all'istruttore (QR / codice a mano), a tutto schermo come il prototipo */}
+      <Stack.Screen name="associa-istruttore" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="availability" options={TALL_SHEET} />
       <Stack.Screen name="le-tue-guide" options={SCROLL_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />

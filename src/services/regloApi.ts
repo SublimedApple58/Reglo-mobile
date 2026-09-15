@@ -3,6 +3,8 @@ import {
   AgendaBootstrapParams,
   AgendaBootstrapPayload,
   AppConfig,
+  InstructorLinkPreview,
+  InstructorLinkResult,
   AuthPayload,
   AutoscuolaAppointment,
   AutoscuolaAppointmentWithRelations,
@@ -245,6 +247,17 @@ export const createRegloApi = (baseUrl?: string) => {
         transmission: string;
         needsLicensePath: boolean;
       }>('/api/autoscuole/me/license-path', { method: 'PATCH', body: input }),
+    // REG-451 — l'allievo si associa a un istruttore dal QR della sua card
+    // (o col codice a mano). `code` accetta anche l'URL completo del QR.
+    getInstructorLinkPreview: async (code: string) =>
+      client.request<InstructorLinkPreview>('/api/autoscuole/me/instructor-link', {
+        params: { code },
+      }),
+    linkInstructor: async (code: string) =>
+      client.request<InstructorLinkResult>('/api/autoscuole/me/instructor-link', {
+        method: 'POST',
+        body: { code },
+      }),
     updateAutoscuolaSettings: async (input: Partial<AutoscuolaSettings>) =>
       client.request<AutoscuolaSettings>('/api/autoscuole/settings', {
         method: 'PATCH',
