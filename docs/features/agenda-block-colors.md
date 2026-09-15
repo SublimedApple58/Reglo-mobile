@@ -42,6 +42,10 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 - **Criterio `patente`**: colore per patente della guida risolta
   dall'allievo (`licenseTagForStudent`: categoria + suffisso " autom." se
   `transmission === 'automatic'`). Il suffisso automatico vince → ciano dedicato.
+  Una voce per ogni patente (REG-461: anche CE/C1/C1E, DE/D1/D1E, CQC, ADR);
+  le sotto-categorie ereditano colore e override della madre C/D finché non
+  personalizzate (`resolveColorOverride`, usato anche dai pallini di
+  `AppearanceSettingsScreen`).
 - **Eccezioni** (vincono sul criterio, prima che matcha, ordine registry; solo
   se attive e pertinenti al criterio):
   - `automatic` (ON default, solo criterio durata): guida a cambio automatico →

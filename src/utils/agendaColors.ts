@@ -36,6 +36,8 @@ export type AgendaColorEntry = {
   bgHex: string;
   /** rgba dell'ombra in tinta (come il web). */
   shadowRgba: string;
+  /** Voce madre (patenti, REG-461): finché non personalizzata ne eredita il colore. */
+  parent?: string;
 };
 
 const ENTRY = (
@@ -44,7 +46,8 @@ const ENTRY = (
   short: string,
   bgHex: string,
   shadowRgba: string,
-): AgendaColorEntry => ({ key, label, short, bgHex, shadowRgba });
+  parent?: string,
+): AgendaColorEntry => ({ key, label, short, bgHex, shadowRgba, ...(parent ? { parent } : {}) });
 
 /** Bucket del criterio "durata" (default storici dei blocchi). */
 export const DURATION_COLOR_ENTRIES: AgendaColorEntry[] = [
@@ -55,6 +58,12 @@ export const DURATION_COLOR_ENTRIES: AgendaColorEntry[] = [
   ENTRY('d90plus', 'Oltre 90 minuti', '> 90', '#FBD9DD', 'rgba(244,63,94,0.22)'),
 ];
 
+const C_BG = '#FCEFC7';
+const C_SHADOW = 'rgba(245,158,11,0.22)';
+const D_BG = '#F9DDF3';
+const D_SHADOW = 'rgba(217,70,239,0.22)';
+
+/** Una voce per ogni patente gestita (REG-461, allineato 1:1 al web). */
 export const LICENSE_COLOR_ENTRIES: AgendaColorEntry[] = [
   ENTRY('b', 'Patente B', 'B', '#E3EEFF', 'rgba(59,130,246,0.22)'),
   ENTRY('autom', 'Cambio automatico (B autom., …)', 'B autom.', '#CFFAFE', 'rgba(6,182,212,0.22)'),
@@ -63,12 +72,29 @@ export const LICENSE_COLOR_ENTRIES: AgendaColorEntry[] = [
   ENTRY('a1', 'Patente A1', 'A1', '#D6F5E3', 'rgba(16,185,129,0.22)'),
   ENTRY('a2', 'Patente A2', 'A2', '#FFE8D1', 'rgba(249,115,22,0.22)'),
   ENTRY('a', 'Patente A', 'A', '#FBD9DD', 'rgba(244,63,94,0.22)'),
-  ENTRY('c', 'Patente C / CE', 'C', '#FCEFC7', 'rgba(245,158,11,0.22)'),
-  ENTRY('d', 'Patente D / DE', 'D', '#F9DDF3', 'rgba(217,70,239,0.22)'),
+  ENTRY('c', 'Patente C', 'C', C_BG, C_SHADOW),
+  ENTRY('ce', 'Patente CE', 'CE', C_BG, C_SHADOW, 'c'),
+  ENTRY('c1', 'Patente C1', 'C1', C_BG, C_SHADOW, 'c'),
+  ENTRY('c1e', 'Patente C1E', 'C1E', C_BG, C_SHADOW, 'c'),
+  ENTRY('d', 'Patente D', 'D', D_BG, D_SHADOW),
+  ENTRY('de', 'Patente DE', 'DE', D_BG, D_SHADOW, 'd'),
+  ENTRY('d1', 'Patente D1', 'D1', D_BG, D_SHADOW, 'd'),
+  ENTRY('d1e', 'Patente D1E', 'D1E', D_BG, D_SHADOW, 'd'),
+  ENTRY('cqc', 'CQC (carta di qualificazione)', 'CQC', C_BG, C_SHADOW, 'c'),
+  ENTRY('adr', 'ADR (merci pericolose)', 'ADR', '#E4E8EE', 'rgba(71,85,105,0.2)'),
   ENTRY('none', 'Patente non impostata', 'Nessuna', '#F3F4F8', 'rgba(100,116,139,0.16)'),
 ];
 
 const licenseEntryByKey = new Map(LICENSE_COLOR_ENTRIES.map((e) => [e.key, e]));
+
+/** Override effettivo: quello della voce, altrimenti quello della voce madre. */
+export function resolveColorOverride(
+  entry: AgendaColorEntry,
+  overrides: Record<string, string> | undefined,
+): string | null {
+  if (!overrides) return null;
+  return overrides[entry.key] ?? (entry.parent ? overrides[entry.parent] ?? null : null);
+}
 
 /** Bucket durata per minuti (stesse soglie storiche del web). */
 export function durationColorEntry(minutes: number): AgendaColorEntry {
@@ -89,6 +115,9 @@ export function licenseColorEntryForTag(tag: string | null | undefined): AgendaC
   const t = tag.trim().toUpperCase();
   if (!t) return none;
   if (t.includes('AUTOM')) return licenseEntryByKey.get('autom')!;
+  const exact = licenseEntryByKey.get(t.split(/\s+/)[0].toLowerCase());
+  if (exact && exact.key !== 'none' && exact.key !== 'autom') return exact;
+  if (t.startsWith('AD')) return licenseEntryByKey.get('adr')!;
   if (t.startsWith('AM')) return licenseEntryByKey.get('am')!;
   if (t.startsWith('A1')) return licenseEntryByKey.get('a1')!;
   if (t.startsWith('A2')) return licenseEntryByKey.get('a2')!;
@@ -290,7 +319,7 @@ export function resolveGuideBlockStyle(
   // Criterio.
   if (config.criterion === 'patente') {
     const entry = licenseColorEntryForTag(licenseTagForStudent(ctx.student));
-    return agendaBlockStyle(entry, config.overrides.patente?.[entry.key]);
+    return agendaBlockStyle(entry, resolveColorOverride(entry, config.overrides.patente));
   }
   const entry = durationColorEntry(ctx.durationMin);
   return agendaBlockStyle(entry, config.overrides.durata?.[entry.key]);

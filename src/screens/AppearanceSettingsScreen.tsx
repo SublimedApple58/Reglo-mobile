@@ -22,6 +22,7 @@ import {
   AGENDA_COLOR_CRITERIA,
   AGENDA_SWATCHES,
   entriesForCriterion,
+  resolveColorOverride,
   exceptionsForCriterion,
   overrideNamespaceForCriterion,
   resolveAgendaColorConfig,
@@ -187,7 +188,7 @@ export const AppearanceSettingsScreen = () => {
               <View key={e.key}>
                 {i > 0 ? <View style={s.divider} /> : null}
                 <Pressable onPress={() => openEntryPicker(e.label, e.key)} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
-                  <View style={[s.dot, { backgroundColor: vividHex(e, overrides[ns]?.[e.key]) }]} />
+                  <View style={[s.dot, { backgroundColor: vividHex(e, resolveColorOverride(e, overrides[ns])) }]} />
                   <Text style={s.rowLabel} numberOfLines={1}>{e.label}</Text>
                   <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
                 </Pressable>
