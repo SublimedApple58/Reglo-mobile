@@ -83,10 +83,40 @@ ordine cronologico inverso (ordine di lettura naturale su mobile). Il segnale
 
 ## Azioni
 
-Il tap sulla riga apre un **menu nativo** (`ActionSheetIOS` su iOS, `Alert` su
-Android) con l'unica azione sensata: "Segna pagata" oppure "Segna da pagare".
-Niente bottoni inline dentro la riga — è una regola del design system. Le righe
-senza azione disponibile non sono tappabili.
+La **pressione lunga** (300 ms) sulla riga apre un **menu nativo**
+(`ActionSheetIOS` su iOS, `Alert` su Android) con l'unica azione sensata:
+"Segna pagata" oppure "Segna da pagare". Niente bottoni inline dentro la riga —
+è una regola del design system. Le righe senza azione non sono premibili.
+
+### Gestualità (`LessonRow`)
+
+| Gesto | Cosa fa |
+|---|---|
+| Pressione lunga (300 ms) | `impactAsync(Medium)` + la riga si solleva (scale 1.02 → 1) e si apre il menu |
+| Tocco breve | **Non** esegue e **non** resta muto: `selectionAsync()` + la riga cede (0.97 → 1) e il suggerimento ricompare per 2,6 s |
+| Dito giù / su | scale 0.985 / 1, molla corta (`damping 20, stiffness 340`) |
+
+**Scopribilità.** Tre livelli, nessuno invasivo:
+1. Il `•••` in coda alla riga è il segno **permanente** che lì c'è un menu (colore `#B4B4BD`, un filo più presente del grigio disabilitato).
+2. Alla **prima apertura in assoluto** una riga di suggerimento entra sotto i filtri ("Tieni premuta una guida per segnarla pagata") e sparisce da sola dopo 5,2 s. Nessun modale, niente "Ho capito" da premere.
+3. Il **tocco breve** la richiama, sempre: chi tocca invece di tenere premuto riceve una risposta, non il silenzio.
+
+Alla prima pressione lunga riuscita si scrive `reg450.paymentsLongPressLearned`
+in AsyncStorage e il suggerimento non parte più da solo (resta la risposta al
+tocco breve).
+
+**VoiceOver**: uno screen reader non sa fare una pressione lunga. Con
+`AccessibilityInfo.isScreenReaderEnabled()` attivo il doppio tocco apre
+direttamente il menu, e la riga espone `accessibilityHint`.
+
+> **Perché `ActionSheetIOS` e non il `ContextMenu` SwiftUI di `@expo/ui`.**
+> Il menu contestuale vero (riga sollevata, sfondo sfocato) esiste in
+> `@expo/ui/swift-ui`, già nel binario. È stato scartato per ora: è `0.2.0-beta`,
+> richiede iOS ≥ 26 (su Android e iOS più vecchi servirebbe comunque il fallback,
+> quindi due esperienze da mantenere) e imporrebbe un `Host` SwiftUI **per ogni
+> riga** dentro una lista scrollabile — un rischio di performance e di crash che
+> non è stato possibile misurare su dispositivo. Da rivalutare quando c'è modo di
+> provarlo su un device vero: il punto di innesto è il solo `LessonRow`.
 
 Una riga è azionabile se **entrambe**:
 - `canToggleLessonPayment` — ricalca `showPaymentToggle` del web: con i crediti

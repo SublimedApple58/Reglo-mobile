@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
+  AccessibilityInfo,
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
@@ -10,7 +11,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { impactAsync, selectionAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -88,6 +99,90 @@ const statusLabel = (status: string) => {
   }
 };
 
+/**
+ * Chiave "l'utente ha già capito che si tiene premuto". Si scrive alla PRIMA
+ * pressione lunga andata a buon fine: da lì il suggerimento non parte più da
+ * solo (resta come risposta al tocco singolo, che una risposta deve averla).
+ */
+const HINT_KEY = 'reg450.paymentsLongPressLearned';
+
+/** Molla corta: il dito preme, la riga cede. Nessun rimbalzo plastico. */
+const PRESS_SPRING = { damping: 20, stiffness: 340, mass: 0.5 } as const;
+
+/**
+ * Riga del registro con la gestualità iOS: il tocco lungo apre il menu, il
+ * tocco breve NON resta muto — cede di molla, fa un tick aptico e richiama il
+ * suggerimento. La riga non azionabile non è nemmeno premibile.
+ *
+ * VoiceOver non sa fare una pressione lunga: con lo screen reader attivo il
+ * doppio tocco apre direttamente il menu.
+ */
+function LessonRow({
+  children,
+  actionable,
+  busy,
+  accessibilityLabel,
+  screenReader,
+  onOpenMenu,
+  onNudge,
+}: {
+  children: React.ReactNode;
+  actionable: boolean;
+  busy: boolean;
+  accessibilityLabel: string;
+  screenReader: boolean;
+  onOpenMenu: () => void;
+  onNudge: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  if (!actionable) return <>{children}</>;
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        disabled={busy}
+        delayLongPress={300}
+        onPressIn={() => {
+          scale.value = withSpring(0.985, PRESS_SPRING);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, PRESS_SPRING);
+        }}
+        onPress={() => {
+          if (screenReader) {
+            onOpenMenu();
+            return;
+          }
+          // Il tocco breve non fa l'azione — la insegna: un tick, un sobbalzo
+          // e il suggerimento torna visibile.
+          void selectionAsync().catch(() => {});
+          scale.value = withSequence(
+            withSpring(0.97, PRESS_SPRING),
+            withSpring(1, PRESS_SPRING),
+          );
+          onNudge();
+        }}
+        onLongPress={() => {
+          // Lo stesso colpo che dà iOS quando si apre un menu contestuale.
+          void impactAsync(ImpactFeedbackStyle.Medium).catch(() => {});
+          scale.value = withSequence(
+            withSpring(1.02, PRESS_SPRING),
+            withSpring(1, PRESS_SPRING),
+          );
+          onOpenMenu();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint="Tieni premuto per segnare il pagamento"
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 type BadgeTone = 'neutral' | 'amber' | 'green' | 'violet' | 'red';
 
 const Badge = ({ tone, label }: { tone: BadgeTone; label: string }) => (
@@ -109,6 +204,46 @@ export const StudentPaymentsScreen = () => {
    * risposto). La scheda sotto si riallinea da sé via `onChanged`.
    */
   const [patched, setPatched] = useState<Record<string, string | null>>({});
+  /** Suggerimento "tieni premuto": discreto, sotto i filtri, a scomparsa. */
+  const [hintVisible, setHintVisible] = useState(false);
+  const [screenReader, setScreenReader] = useState(false);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const learned = useRef(false);
+
+  const showHint = useCallback((ms: number) => {
+    setHintVisible(true);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setHintVisible(false), ms);
+  }, []);
+
+  useEffect(() => {
+    // Alla prima apertura in assoluto il suggerimento si presenta da solo e se
+    // ne va: nessun tutorial, nessun bottone da chiudere.
+    AsyncStorage.getItem(HINT_KEY)
+      .then((v) => {
+        learned.current = v === '1';
+        if (!learned.current) showHint(5200);
+      })
+      .catch(() => {});
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then(setScreenReader)
+      .catch(() => {});
+    return () => {
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+    };
+  }, [showHint]);
+
+  /** Risposta al tocco singolo: il suggerimento torna, breve. */
+  const nudge = useCallback(() => showHint(2600), [showHint]);
+
+  /** Alla prima pressione lunga riuscita il suggerimento ha finito il suo lavoro. */
+  const markLearned = useCallback(() => {
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    setHintVisible(false);
+    if (learned.current) return;
+    learned.current = true;
+    AsyncStorage.setItem(HINT_KEY, '1').catch(() => {});
+  }, []);
 
   const manualMode = isCompanyManualMode(data?.settings);
 
@@ -195,11 +330,13 @@ export const StudentPaymentsScreen = () => {
   );
 
   /**
-   * Menu nativo per riga (convenzione dell'app: mai bottoni inline dentro la
-   * riga di lista). Il tap sulla riga è l'azione primaria: qui è il pagamento.
+   * Menu nativo della riga, aperto dalla PRESSIONE LUNGA (convenzione dell'app:
+   * mai bottoni inline dentro la riga di lista). `ActionSheetIOS` su iOS,
+   * `Alert` su Android.
    */
   const openActions = useCallback(
     (lesson: AutoscuolaAppointmentWithRelations) => {
+      markLearned();
       const paid = lesson.manualPaymentStatus === 'paid';
       const action = paid ? 'Segna da pagare' : 'Segna pagata';
       const next: 'paid' | 'unpaid' = paid ? 'unpaid' : 'paid';
@@ -221,7 +358,7 @@ export const StudentPaymentsScreen = () => {
         ]);
       }
     },
-    [applyStatus],
+    [applyStatus, markLearned],
   );
 
   if (!data) return <View style={s.sheet} />;
@@ -295,6 +432,20 @@ export const StudentPaymentsScreen = () => {
             );
           })}
         </ScrollView>
+
+        {/* Suggerimento: una riga muta sotto i filtri, che entra e se ne va da
+            sola. Niente modali, niente "Ho capito" da premere. */}
+        {hintVisible ? (
+          <Animated.View
+            entering={FadeIn.duration(260)}
+            exiting={FadeOut.duration(200)}
+            style={s.hint}
+            accessibilityLiveRegion="polite"
+          >
+            <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
+            <Text style={s.hintText}>Tieni premuta una guida per segnarla pagata</Text>
+          </Animated.View>
+        ) : null}
 
         {sections.length === 0 ? (
           <View style={s.empty}>
@@ -385,7 +536,9 @@ export const StudentPaymentsScreen = () => {
                         <Ionicons
                           name="ellipsis-horizontal"
                           size={18}
-                          color="#C7C7CC"
+                          // Unico segno permanente che lì c'è un menu: un filo
+                          // più presente del grigio di prima (#C7C7CC).
+                          color="#B4B4BD"
                           style={s.rowTrail}
                         />
                       ) : (
@@ -394,21 +547,20 @@ export const StudentPaymentsScreen = () => {
                     </View>
                   );
 
-                  return actionable ? (
-                    <Pressable
+                  return (
+                    <LessonRow
                       key={lesson.id}
-                      onPress={() => openActions(lesson)}
-                      disabled={busy}
-                      accessibilityRole="button"
+                      actionable={actionable}
+                      busy={busy}
+                      screenReader={screenReader}
                       accessibilityLabel={`Guida del ${start.getDate()} ${
                         MONTHS_SHORT[start.getMonth()]
                       }, ${unpaid ? 'da pagare' : 'saldata'}`}
-                      style={({ pressed }) => (pressed ? s.rowPressed : undefined)}
+                      onOpenMenu={() => openActions(lesson)}
+                      onNudge={nudge}
                     >
                       {row}
-                    </Pressable>
-                  ) : (
-                    <View key={lesson.id}>{row}</View>
+                    </LessonRow>
                   );
                 })}
               </View>
@@ -466,6 +618,12 @@ const s = StyleSheet.create({
   pillCount: { fontSize: 12, fontWeight: '500', color: '#9A9AA2' },
   pillCountActive: { color: 'rgba(255,255,255,0.65)' },
 
+  hint: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 14, paddingVertical: 2,
+  },
+  hintText: { fontSize: 12.5, fontWeight: '400', color: colors.textMuted },
+
   month: {
     fontSize: 12, fontWeight: '600', color: '#A2A2AC', textTransform: 'uppercase',
     letterSpacing: 0.5, marginTop: 26, marginBottom: 4,
@@ -474,7 +632,6 @@ const s = StyleSheet.create({
   // Lista = righe flat sullo sfondo + divider hairline (mai una card attorno).
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14 },
   rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E8E8EE' },
-  rowPressed: { opacity: 0.55 },
   dateCol: { width: 34, alignItems: 'center', paddingTop: 1 },
   dateDay: { fontSize: 17, fontWeight: '500', color: '#1A1A2E', letterSpacing: -0.3 },
   dateMon: { fontSize: 11, fontWeight: '400', color: colors.textMuted, marginTop: -1 },
