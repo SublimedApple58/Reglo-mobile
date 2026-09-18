@@ -22,7 +22,7 @@ import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
 import { useLocations } from '../hooks/queries/useLocations';
-import { resolvePrefilledLocationId } from '../utils/locationForLicense';
+import { resolveGroupPrefilledLocationId } from '../utils/locationForLicense';
 import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
@@ -65,36 +65,6 @@ const initialsOf = (first: string, last: string) => {
   const f = (first ?? '').trim(); const l = (last ?? '').trim();
   if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
   return (f || l || '?').slice(0, 2).toUpperCase();
-};
-
-/**
- * Categoria patente di una guida di GRUPPO, per precompilare il Luogo (REG-409).
- *
- * Nelle guide individuali la patente della guida viene dal veicolo scelto
- * (`utils/locationForLicense`), ma un gruppo non ha un solo allievo ne' —
- * se e' moto — un solo veicolo:
- * - **standard**: c'e' un unico veicolo condiviso → vince la sua categoria;
- * - **moto**: la flotta puo' essere MISTA (A1 + A2 + …). Si usa la categoria
- *   solo quando tutta la flotta concorda; con una flotta mista restituisce
- *   `null` e il Luogo ricade sulla sede, invece di scegliere a caso fra i
- *   luoghi di due patenti diverse.
- *
- * Il default dell'allievo (REG-392, passo 1 della precedenza) qui **non si
- * applica**: gli allievi sono piu' d'uno e i posti restanti si riempiono con
- * gli inviti, quindi non esiste "l'allievo" della guida.
- *
- * ⚠️ PROVVISORIO: da riconciliare col criterio scelto lato web quando
- * `createGroupLesson` con `locationId` sara' su staging. E' l'unico punto da
- * toccare se il web ha deciso diversamente.
- */
-const groupLessonLicenseCategory = (
-  kind: 'standard' | 'moto',
-  standardVehicle: { licenseCategory?: string | null } | null,
-  fleet: Array<{ licenseCategory?: string | null }>,
-): string | null => {
-  if (kind === 'standard') return standardVehicle?.licenseCategory ?? null;
-  const cats = new Set(fleet.map((v) => v.licenseCategory).filter(Boolean) as string[]);
-  return cats.size === 1 ? [...cats][0] : null;
 };
 
 // License eligibility with the moto hierarchy (shared helper), null vehicle = permissive.
@@ -236,22 +206,26 @@ export const CreateGroupLessonScreen = () => {
     [locList, locationId],
   );
 
-  // Precompila il Luogo dalla patente della guida di gruppo, con lo stesso
-  // resolver delle guide individuali (`utils/locationForLicense`, gemello del
-  // modulo web). Ricalcola al cambio tipo/veicolo/flotta finche' il Luogo non
-  // e' stato scelto a mano. Senza lista luoghi in cache non fa nulla.
+  // Precompila il Luogo con `resolveGroupPrefilledLocationId` (gemello del
+  // modulo web): default degli allievi pre-inseriti se concordi → luogo della
+  // patente se i veicoli portano allo stesso luogo → sede. Le categorie sono
+  // quelle del veicolo condiviso (standard) o dell'INTERA flotta (moto);
+  // l'auto al seguito e' esclusa apposta, manderebbe ogni gruppo moto al luogo
+  // della B. Ricalcola finche' il Luogo non e' scelto a mano; senza lista
+  // luoghi in cache non fa nulla.
   useEffect(() => {
     const locations = locList ?? [];
     if (!locations.length || locationTouchedRef.current) return;
-    const resolved = resolvePrefilledLocationId({
-      locations,
-      // Un gruppo non ha "l'allievo": passo 1 della precedenza non si applica.
-      studentDefaultLocationId: null,
-      student: null,
-      vehicle: { licenseCategory: groupLessonLicenseCategory(kind, selectedVehicle, fleet) },
-    });
-    setLocationId(resolved);
-  }, [locList, kind, selectedVehicle, fleet]);
+    setLocationId(
+      resolveGroupPrefilledLocationId({
+        locations,
+        studentDefaultLocationIds: selectedStudents.map((st) => st.defaultLocationId),
+        licenseCategories: isMoto
+          ? fleet.map((v) => v.licenseCategory)
+          : [selectedVehicle?.licenseCategory ?? null],
+      }),
+    );
+  }, [locList, isMoto, selectedVehicle, fleet, selectedStudents]);
 
   if (!data) return <View style={s.root} />;
 

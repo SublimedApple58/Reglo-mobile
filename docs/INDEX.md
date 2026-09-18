@@ -24,7 +24,7 @@
 | Pagamenti guide (REG-450) | [lesson-payments.md](features/lesson-payments.md) | `StudentPaymentsScreen`, `home/student-payments` + `notes/student-payments`, `studentPaymentsStore`, `src/utils/lessonPayments.ts`, `StudentNotesDetailScreen` (blocco Pagamenti) |
 | Locations (+ Luogo per tipo patente, REG-409) | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form`, `src/utils/locationForLicense.ts`, `BookingForm` (precompilazione Luogo) |
 | Vehicles | [vehicles.md](features/vehicles.md) | `VehiclesScreen`, `OwnerVehiclesScreen`, `InstructorVehiclesScreen`, `more/vehicle-form` |
-| Group lessons | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen`, `GroupLessonInvitesScreen`, `DayItinerary`/`weeklyAgenda` (teal card), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
+| Group lessons (+ Luogo, REG-409) | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen` (riga Luogo), `GroupLessonInvitesScreen`, `DayItinerary`/`weeklyAgenda` (teal card), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
 | Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |

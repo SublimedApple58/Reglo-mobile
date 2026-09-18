@@ -1,5 +1,27 @@
 # Guide di gruppo (Group lessons) — mobile
 
+## Luogo della guida di gruppo (REG-409 follow-up)
+`CreateGroupLessonScreen` ha una riga **Luogo**, precompilata da
+`resolveGroupPrefilledLocationId` (`src/utils/locationForLicense.ts`, gemello di
+`../reglo/lib/autoscuole/location-for-license.ts`) e modificabile a mano
+riusando il picker `home/manage-lesson-location`.
+
+**Precedenza**, ogni passo richiede **unanimità** (gli allievi — e sul moto i
+veicoli — sono più d'uno):
+1. `defaultLocationId` degli allievi **pre-inseriti**, se chi ce l'ha concorda
+   (chi non ce l'ha non blocca gli altri)
+2. luogo della patente, se i veicoli della guida portano **allo stesso luogo**
+   (non alla stessa categoria: A1 e A2 assegnate allo stesso luogo vanno bene)
+3. sede
+
+Le categorie sono quelle del **veicolo condiviso** (`kind:"standard"`) o
+dell'**intera flotta** (`kind:"moto"`). L'**auto al seguito è esclusa apposta**:
+è un accessorio di categoria B e manderebbe ogni gruppo moto al luogo della B.
+
+`locationId` viaggia in `CreateGroupLessonInput`. Se il client lo omette, il
+backend risolve con lo stesso criterio (`resolveGroupLessonLocationId`), quindi
+i due lati non divergono mai.
+
 ## What it does
 Mobile side of the **Guide di gruppo** module (1 istruttore + 1 veicolo + fino a 3 o 4 allievi, 3–4h). Optional module, gated on `settings.groupLessonsEnabled` (backend `CompanyService.limits`). Istruttore/titolare creano e gestiscono le guide di gruppo dall'agenda; l'allievo riceve un invito e si iscrive.
 
@@ -19,7 +41,7 @@ Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent
   - `src/stores/dayDetailStore.ts` + `app/(tabs)/home/day-detail.tsx` — `onOpenGroupLesson`.
   - `src/screens/IstruttoreHomeScreen.tsx` — `timelineStatusConfig` teal "GRUPPO" badge for `type==='group_lesson'`; `openGroupLessonManage(groupLessonId)` loads the instructor+vehicle lists then seeds `groupLessonManageStore` and pushes the `manage-group-lesson` page sheet; wired from **both** the day-detail card (`onOpenGroupLesson`) and the hour-grid card (`openLessonDrawer` short-circuits when `type==='group_lesson' && groupLessonId`); `openCreateGroupLesson`; FAB → add-action row "Guida di gruppo" (gated on `settings.groupLessonsEnabled`).
 - **Gestione istruttore** (NEW): "Gestisci guida di gruppo" page sheet, design piatto clonato da `manage-lesson` (overline + titolo + meta + state-pill teal · ring centrale teal `posti/capienza` label "POSTI" · righe piatte Istruttore/Veicolo · toolbar flottante).
-  - `app/(tabs)/home/manage-group-lesson.tsx` (route `presentation:'modal'` page sheet) — carica il detail via `getGroupLesson`, auto-save su selezione istruttore/veicolo (`updateGroupLesson`, vale per tutti), CTA 3D "Partecipanti" → roster sheet, toolbar **Sposta** (data→ora→durata 1–4h → `updateGroupLesson`) + cestino (`cancelGroupLesson`, conferma `Alert`). Niente "Luogo" (non gestito per i gruppi lato web). **La riga "Note" contenitore è stata rimossa (2026-06-16)**: le note sono ora **per-allievo** nel roster.
+  - `app/(tabs)/home/manage-group-lesson.tsx` (route `presentation:'modal'` page sheet) — carica il detail via `getGroupLesson`, auto-save su selezione istruttore/veicolo (`updateGroupLesson`, vale per tutti), CTA 3D "Partecipanti" → roster sheet, toolbar **Sposta** (data→ora→durata 1–4h → `updateGroupLesson`) + cestino (`cancelGroupLesson`, conferma `Alert`). Il "Luogo" si sceglie in **creazione** (`CreateGroupLessonScreen`), non qui: la modale di gestione non lo espone ancora. **La riga "Note" contenitore è stata rimossa (2026-06-16)**: le note sono ora **per-allievo** nel roster.
   - `app/(tabs)/home/manage-group-lesson-participants.tsx` (route `formSheet` content-hugging, X no-grabber, no ScrollView) — roster: ogni riga allievo è **tappabile per la nota per-allievo** (sotto il nome: anteprima nota o "Aggiungi nota" come cue teal) → `notesEditorStore` → `edit-notes` → `updateAppointmentDetails(appointmentId, {notes})` → ricarica `getGroupLesson`; rimozione con **✕ grigia discreta** (`removeGroupLessonParticipant`); riga "Aggiungi allievo" → picker idonei (`getEligibleGroupLessonInvitees` → `select-options` → `addGroupLessonParticipant`); bottone "Invita allievi idonei · N posti" (`inviteToGroupLesson`). `GroupLessonParticipant.notes` arriva da `getGroupLesson`.
   - Store: `src/stores/groupLessonManageStore.ts` (seed: groupLessonId + instructors + vehicles + vehiclesEnabled + onChanged/onClosed) e `src/stores/groupLessonParticipantsStore.ts` (seed: groupLessonId + lesson + onChanged). Riusa i picker esistenti `manage-lesson-instructor` (istruttore), `select-options` (veicolo/durata/aggiungi-allievo), `select-date` (data), `time-picker` (ora).
 - **Creazione** `src/screens/CreateGroupLessonScreen.tsx` + route `app/(tabs)/home/create-group-lesson.tsx` (formSheet) + `src/stores/groupLessonSheetStore.ts`. Reuses `select-date`, `time-picker`, `select-options` (durata/veicolo/istruttore), `select-exam-students` (multi-select allievi). Allievi pre-inseribili = opted-in + license-compatibile col veicolo scelto. Toggle "Apri i posti agli inviti" → `inviteToGroupLesson` dopo la create.
