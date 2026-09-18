@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Platform,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -11,6 +12,8 @@ import {
 import Animated, {
   Extrapolation,
   FadeIn,
+  FadeOut,
+  LinearTransition,
   FadeInDown,
   interpolate,
   useAnimatedScrollHandler,
@@ -29,6 +32,11 @@ import { AutoscuolaAppointmentWithRelations, AutoscuolaStudent } from '../types/
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { formatDay, formatTime } from '../utils/date';
+import {
+  aggregateStudentEvaluations,
+  evaluationSummary,
+  evaluationSummaryLabel,
+} from '../utils/evaluationSheet';
 
 const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
@@ -77,6 +85,10 @@ export const StudentMyNotesScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  /** Blocco pagellino aggregato: a riposo è una riga sola, come dall'istruttore. */
+  const [pagellinoOpen, setPagellinoOpen] = useState(false);
+  /** Guida con il pagellino espanso nella lista (una alla volta). */
+  const [openEvalId, setOpenEvalId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -87,11 +99,13 @@ export const StudentMyNotesScreen = () => {
         return;
       }
       const appts = await regloApi.getAppointments({ studentId: linked.id, limit: 500 });
+      // Prima passavano solo le guide con una nota scritta: da quando esiste il
+      // pagellino, una guida può essere valutata senza testo e sparirebbe.
       const withNotes = appts
-        .filter(
-          (a) =>
-            a.notes?.trim() && (a.status ?? '').trim().toLowerCase() !== 'cancelled'
-        )
+        .filter((a) => {
+          if ((a.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+          return Boolean(a.notes?.trim()) || Boolean(a.evaluations?.length);
+        })
         .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
       setAppointments(withNotes);
     } catch {
@@ -104,6 +118,13 @@ export const StudentMyNotesScreen = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  /** Media per voce su tutto lo storico: stesso aggregatore dell'istruttore,
+   *  quindi l'allievo legge esattamente i numeri che legge la scuola. */
+  const pagellino = useMemo(
+    () => aggregateStudentEvaluations(appointments),
+    [appointments],
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -151,7 +172,11 @@ export const StudentMyNotesScreen = () => {
                 {formatDay(appt.startsAt)}
               </Text>
             </View>
-            {appt.rating != null ? <StarRating value={appt.rating} readOnly size={14} /> : null}
+            {appt.rating != null && !appt.evaluations?.length ? (
+              // Stellina storica: solo sulle guide SENZA pagellino (quelle
+              // precedenti alla feature), dove è l'unica valutazione esistente.
+              <StarRating value={appt.rating} readOnly size={14} />
+            ) : null}
           </View>
 
           <Text style={st.cardTime}>{timeRange(appt.startsAt, appt.endsAt)}</Text>
@@ -185,7 +210,66 @@ export const StudentMyNotesScreen = () => {
           ) : null}
 
           {/* Note */}
-          <Text style={st.note}>{appt.notes?.trim()}</Text>
+          {appt.notes?.trim() ? <Text style={st.note}>{appt.notes.trim()}</Text> : null}
+
+          {/* Pagellino della singola guida: la chip riassume e apre le voci,
+              come nella scheda che vede l'istruttore. */}
+          {(() => {
+            const summary = evaluationSummary(appt.evaluations);
+            if (!summary) return null;
+            const label = evaluationSummaryLabel(summary);
+            const open = openEvalId === appt.id;
+            const rows = (appt.evaluations ?? []).filter(
+              (row) => row.notApplicable || row.score != null,
+            );
+            return (
+              <Animated.View layout={LinearTransition.springify().damping(18)}>
+                <Pressable
+                  onPress={() => setOpenEvalId((cur) => (cur === appt.id ? null : appt.id))}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: open }}
+                  style={({ pressed }) => [
+                    st.pagChip,
+                    open && st.pagChipOpen,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Ionicons name="star" size={11} color={open ? '#A16207' : '#FACC15'} />
+                  <Text style={[st.pagChipText, open && st.pagChipTextOpen]}>{label}</Text>
+                  <Ionicons
+                    name={open ? 'chevron-up' : 'chevron-down'}
+                    size={12}
+                    color={open ? '#A16207' : colors.textMuted}
+                  />
+                </Pressable>
+                {open ? (
+                  <Animated.View
+                    entering={FadeIn.duration(180)}
+                    exiting={FadeOut.duration(120)}
+                    style={st.pagVoci}
+                  >
+                    {rows.map((row, i) => (
+                      <View key={row.itemId} style={[st.pagVoce, i > 0 && st.pagVoceBorder]}>
+                        <Text style={st.pagVoceName} numberOfLines={2}>{row.label}</Text>
+                        {row.notApplicable || row.score == null ? (
+                          <Text style={st.pagVoceNa}>— non valutabile</Text>
+                        ) : (
+                          <StarRating
+                            value={row.score}
+                            total={row.scaleMax}
+                            readOnly
+                            size={13}
+                            tone="gold"
+                          />
+                        )}
+                      </View>
+                    ))}
+                  </Animated.View>
+                ) : null}
+              </Animated.View>
+            );
+          })()}
 
           {/* Instructor footer */}
           <View style={st.footer}>
@@ -237,7 +321,7 @@ export const StudentMyNotesScreen = () => {
         {/* ── Large title ── */}
         <Animated.View style={largeTitleStyle}>
           <Text style={st.largeTitle}>Le mie note</Text>
-          <Text style={st.largeSub}>Note rilasciate dai tuoi istruttori</Text>
+          <Text style={st.largeSub}>Valutazioni e note dei tuoi istruttori</Text>
         </Animated.View>
 
         {loading ? (
@@ -249,13 +333,102 @@ export const StudentMyNotesScreen = () => {
             <View style={st.emptyIconWrap}>
               <Image source={require('../../assets/icons/fluent-memo.png')} style={st.emptyIcon} />
             </View>
-            <Text style={st.emptyTitle}>Nessuna nota</Text>
+            <Text style={st.emptyTitle}>Ancora niente</Text>
             <Text style={st.emptySub}>
-              Le note rilasciate dagli istruttori{'\n'}dopo le guide appariranno qui.
+              Le valutazioni e le note dei tuoi{'\n'}istruttori appariranno qui dopo le guide.
             </Text>
           </Animated.View>
         ) : (
-          <View style={st.list}>{appointments.map(renderCard)}</View>
+          <>
+            {/* Pagellino — media per voce su tutte le guide. Stessa lettura che
+                ha l'istruttore nel dettaglio allievo. */}
+            {pagellino ? (
+              <Animated.View entering={FadeIn.duration(350)} style={st.pagBlock}>
+                <Pressable
+                  onPress={() => setPagellinoOpen((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: pagellinoOpen }}
+                  style={({ pressed }) => [st.pagHeadRow, pressed && { opacity: 0.6 }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.pagLabel}>Pagellino</Text>
+                    <Text style={st.pagInsight}>
+                      {pagellino.lessonCount === 1
+                        ? '1 guida valutata'
+                        : `${pagellino.lessonCount} guide valutate`}
+                    </Text>
+                  </View>
+                  <View style={st.sparkRow}>
+                    {pagellino.items.slice(0, 6).map((item) => (
+                      <View key={item.itemId} style={st.sparkTrack}>
+                        <View
+                          style={[
+                            st.sparkFill,
+                            { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` },
+                          ]}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  <View style={st.pagBig}>
+                    {pagellino.average != null ? (
+                      <>
+                        <Text style={st.pagBigNum}>
+                          {pagellino.average.toFixed(1).replace('.', ',')}
+                        </Text>
+                        <Text style={st.pagBigTot}>/{pagellino.scaleMax}</Text>
+                      </>
+                    ) : (
+                      <Text style={st.pagBigTot}>{pagellino.items.length} voci</Text>
+                    )}
+                  </View>
+                  <Ionicons
+                    name={pagellinoOpen ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={colors.textMuted}
+                    style={{ marginLeft: 6 }}
+                  />
+                </Pressable>
+
+                {pagellinoOpen ? (
+                  <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)}>
+                    {pagellino.items.map((item) => (
+                      <View key={item.itemId} style={st.pagRow}>
+                        <View style={st.pagRowTop}>
+                          <Text style={st.pagName} numberOfLines={1}>{item.label}</Text>
+                          <Text style={st.pagVal}>
+                            <Text style={st.pagValNum}>
+                              {item.average.toFixed(1).replace('.', ',')}
+                            </Text>
+                            /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                          </Text>
+                        </View>
+                        <View style={st.pagTrack}>
+                          <View
+                            style={[
+                              st.pagFill,
+                              { width: `${(item.average / item.scaleMax) * 100}%` },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                    {pagellino.weakest ? (
+                      <Text style={st.pagFoot}>
+                        Voce più bassa:{' '}
+                        <Text style={st.pagFootStrong}>{pagellino.weakest.label}</Text>
+                        {` (${pagellino.weakest.average
+                          .toFixed(1)
+                          .replace('.', ',')}/${pagellino.weakest.scaleMax})`}
+                      </Text>
+                    ) : null}
+                  </Animated.View>
+                ) : null}
+              </Animated.View>
+            ) : null}
+
+            <View style={st.list}>{appointments.map(renderCard)}</View>
+          </>
         )}
 
         <View style={{ height: 110 }} />
@@ -280,6 +453,51 @@ const st = StyleSheet.create({
 
   /* Scroll */
   scroll: { paddingHorizontal: spacing.md, paddingBottom: 20 },
+
+  /* Pagellino aggregato */
+  pagBlock: { marginBottom: 22 },
+  pagLabel: {
+    fontSize: 11, fontWeight: '700', color: '#929292',
+    letterSpacing: 1.2, textTransform: 'uppercase',
+  },
+  pagHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  pagInsight: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
+  sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 26 },
+  sparkTrack: {
+    width: 6, height: '100%', borderRadius: 3, backgroundColor: '#EFEFF2',
+    justifyContent: 'flex-end', overflow: 'hidden',
+  },
+  sparkFill: { width: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
+  pagBig: { flexDirection: 'row', alignItems: 'baseline' },
+  pagBigNum: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
+  pagBigTot: { fontSize: 15, fontWeight: '600', color: '#929292' },
+  pagRow: { marginTop: 14 },
+  pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1A1A2E' },
+  pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  pagValNum: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
+  pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
+  pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
+  pagFootStrong: { fontWeight: '600', color: '#1A1A2E' },
+
+  /* Pagellino della singola guida */
+  pagChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    marginTop: 10, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, backgroundColor: '#F2F2F4',
+  },
+  pagChipText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
+  pagChipOpen: { backgroundColor: '#FEF9C3' },
+  pagChipTextOpen: { color: '#A16207' },
+  pagVoci: { marginTop: 6, paddingLeft: 2 },
+  pagVoce: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    gap: 10, paddingVertical: 7,
+  },
+  pagVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F4F4F6' },
+  pagVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
+  pagVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
 
   /* List */
   list: { gap: 16 },

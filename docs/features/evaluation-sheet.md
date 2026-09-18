@@ -216,3 +216,26 @@ trascinabile è una rissa fra tastiera e gesto: nome, scala ed eliminazione stan
 sheet nativo** (`HUG_SHEET`, misure §13.2.1 del design system). La scala è un segmented a due
 carte che mostra **le stelline vere**, non le parole "3 stelline". L'eliminazione è un bottoncino
 rosso **in testa**: sotto la CTA occupava una fascia che si leggeva come padding vuoto.
+
+## L'allievo vede il proprio pagellino (2026-09-18)
+
+`StudentMyNotesScreen` (tab **Note** dell'app allievo) mostra il pagellino dell'allievo:
+
+- **blocco aggregato** in cima — media per voce su tutto lo storico, micro-barre, media
+  complessiva; a riposo è una riga sola, si apre al tap. Stesso aggregatore
+  (`aggregateStudentEvaluations`) e stessa lettura di `StudentNotesDetailScreen`, così
+  allievo e istruttore leggono gli stessi numeri;
+- **pagellino della singola guida** — chip che riassume ("4,2/5") e apre le voci con le
+  stelline, come nella scheda istruttore.
+
+**Permesso**: nessun setting nuovo. La tab Note è già gated da `useStudentNotesEnabled`
+(`studentNotesEnabled`), e il BE non manda nemmeno le valutazioni col flag spento — il ramo
+`light` di `getAutoscuolaAppointmentsFiltered` le restituisce solo se attivo.
+
+**Allineamento al sistema di valutazione attuale** (stesso giro):
+- la stellina singola storica (`rating`, non più compilata dal 2026-09-10) compare **solo**
+  sulle guide senza punteggi pagellino, dove è l'unica valutazione esistente — come già
+  facevano web e scheda istruttore;
+- la lista includeva solo le guide con una nota scritta: ora include anche quelle **valutate
+  senza testo**, che prima sparivano;
+- copy allineata: "Valutazioni e note dei tuoi istruttori".
