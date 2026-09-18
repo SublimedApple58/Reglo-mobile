@@ -530,6 +530,22 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+    /**
+     * Segna una guida pagata / da pagare (REG-450). `null` azzera lo stato.
+     * Permessi e guardia "solo le tue guide" (istruttore) stanno nel BE:
+     * l'errore torna già in italiano, si mostra così com'è.
+     */
+    setManualPaymentStatus: async (
+      appointmentId: string,
+      status: 'paid' | 'unpaid' | null
+    ) =>
+      client.request<{ manualPaymentStatus: string | null }>(
+        `/api/autoscuole/appointments/${appointmentId}/manual-payment`,
+        {
+          method: 'PATCH',
+          body: { status },
+        }
+      ),
     checkInstructorAvailability: async (input: CheckInstructorAvailabilityInput) =>
       client.request<InstructorAvailabilityResult>(
         '/api/autoscuole/instructor-availability',

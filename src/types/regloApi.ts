@@ -268,6 +268,16 @@ export type AutoscuolaAppointment = {
   penaltyCutoffAt?: IsoDate | null;
   /** Decisione autoscuola sulla cancellazione tardiva: "charged" | "dismissed" | null. */
   lateCancellationAction?: string | null;
+  /**
+   * Tracciamento pagamento manuale della guida (REG-450): "paid" | "unpaid" | null.
+   * Arriva solo dal ramo FULL di `/api/autoscuole/appointments` (il ramo `light`
+   * non lo seleziona): sulle viste allievo seedate light resta `undefined`.
+   */
+  manualPaymentStatus?: string | null;
+  /** La guida è già saldata da un credito del pacchetto → non è "da pagare". */
+  creditApplied?: boolean | null;
+  /** La guida nasce a pagamento (Stripe automatico oppure posto di guida di gruppo). */
+  paymentRequired?: boolean | null;
   replacedByAppointmentId?: Uuid | null;
   /** Annotazioni BE per i colori della vista griglia (solo guide, non esami). */
   mandatoryLesson?: boolean;
@@ -873,6 +883,12 @@ export type AutoscuolaSettings = {
   instructorReminderChannels?: Array<'push' | 'whatsapp' | 'email'>;
   autoPaymentsEnabled?: boolean;
   lessonCreditFlowEnabled?: boolean;
+  /**
+   * Il credito è OBBLIGATORIO per prenotare. Con i crediti attivi ma NON
+   * obbligatori l'autoscuola incassa a mano → "modalità manuale" (REG-450),
+   * vedi `src/utils/lessonPayments.ts`. Default BE quando assente: `true`.
+   */
+  lessonCreditsRequired?: boolean;
   lessonPrice30?: number;
   lessonPrice60?: number;
   penaltyCutoffHoursPreset?: 1 | 2 | 4 | 6 | 12 | 24 | 48;

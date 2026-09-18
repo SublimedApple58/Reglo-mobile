@@ -28,6 +28,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
 | `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | DayItinerary, IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
+| `AutoscuolaAppointment.manualPaymentStatus` / `creditApplied` / `paymentRequired` | `StudentPaymentsScreen`, `StudentNotesDetailScreen` (conteggio "da pagare") via `src/utils/lessonPayments.ts` (REG-450). **Solo ramo full** di `getAppointments`. Vedi [features/lesson-payments.md](features/lesson-payments.md). |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
 ## Feature Adjacency
@@ -122,6 +123,15 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Quick-book**: condivide `BlockForm`/`blockSheetStore` (`kind`); NON nel segmentato quick-book (solo menu ＋)
 - → **Instructor Manage / agenda**: rendering in `IstruttoreHomeScreen` (giornaliera + dot), `DayItinerary`, `WeeklyAgendaView` (`weeklyAgenda.BLOCK_PRESENTATION.theory`) — card piena in tinta, non muted
 - → **Backend**: nessuna modifica; passa dai check di disponibilità esistenti
+
+### Pagamenti guide (REG-450)
+- → **Dettaglio allievo (`StudentNotesDetailScreen`)**: ci vive il blocco "Pagamenti" (visibile SOLO in modalità manuale) e da lì si apre `student-payments`. Chi tocca `loadData` deve continuare a riempire **`allAppointments`** (storico GREZZO, annullate comprese) e **`paymentSettings`**: la schermata pagamenti non fa fetch propri, legge solo il seed dello store. Se qualcuno rifiltra le annullate a monte, i filtri "Annullate" e le penali tardive spariscono in silenzio.
+- → **Due stack**: `student-payments` è registrata in `home/_layout` E `notes/_layout` (la scheda allievo si apre da entrambi). Aggiungerne un terzo significa registrarla anche lì.
+- **Regola gemella** `src/utils/lessonPayments.ts` ↔ `reglo/lib/autoscuole/unpaid-auto-block.ts` (`isCompanyManualMode`, `isLessonUnpaid`): stessa definizione di "guida da pagare" che alimenta badge web, contatore lista allievi e **blocco automatico prenotazioni per debito**. Vanno cambiate INSIEME.
+- → **Guide annullate**: una annullata con `lateCancellationAction === 'charged'` e `manualPaymentStatus === 'unpaid'` è una guida **da pagare**. Se cambiano i valori di `lateCancellationAction`, aggiornare entrambe le copie.
+- → **API Layer**: `manualPaymentStatus` arriva SOLO dal ramo **full** di `getAppointments` (il ramo `light` non lo seleziona) — una vista seedata `light` mostrerebbe tutto come non pagato. `lessonCreditsRequired` arriva da `GET /api/autoscuole/settings`.
+- → **Session**: la guardia "solo le tue guide" usa `session.instructorId` + `autoscuolaRole` (`INSTRUCTOR_OWNER` conta come titolare, nessuna restrizione). È lo specchio della guardia BE: se una cambia, cambiare l'altra o il pulsante compare e poi fallisce.
+- → **Backend (`reglo`)**: `PATCH /api/autoscuole/appointments/:id/manual-payment` (nuova) → azione `setManualPaymentStatus`, permesso scoped `canManageLessonPayments`. I **crediti** restano owner/admin (`canManageStudentCredits`): "Copri con credito" del web NON è stato portato su mobile.
 
 ### Notes
 - → **Instructor Manage**: notes are part of appointment detail editing

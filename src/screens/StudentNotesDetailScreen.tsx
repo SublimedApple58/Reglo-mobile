@@ -17,6 +17,10 @@ import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { studentSettingsStore } from '../stores/studentSettingsStore';
+import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/studentPaymentsStore';
+import { isCompanyManualMode, isLessonUnpaid } from '../utils/lessonPayments';
+import { isOwner as roleIsOwner } from '../utils/roles';
+import { useSession } from '../context/SessionContext';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
 import {
@@ -114,7 +118,16 @@ export const StudentNotesDetailScreen = () => {
   const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
+  const { autoscuolaRole, instructorId } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  /**
+   * Storico GREZZO, annullate comprese: serve al registro pagamenti (REG-450),
+   * dove "Annullate" è un filtro e le penali tardive sono guide da pagare.
+   * `appointments` resta la lista senza annullate usata da tutto il resto.
+   */
+  const [allAppointments, setAllAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  /** Modalità di incasso dell'autoscuola: decide se esiste il "segna pagata". */
+  const [paymentSettings, setPaymentSettings] = useState<StudentPaymentsSettings | null>(null);
   /** Guida con il pagellino espanso nello storico (una alla volta). */
   const [openEvalId, setOpenEvalId] = useState<string | null>(null);
   /** Blocco pagellino aggregato: a riposo è una riga sola. */
@@ -146,12 +159,25 @@ export const StudentNotesDetailScreen = () => {
         regloApi.getAutoscuolaSettings().catch(() => null),
         regloApi.getLocations().catch(() => []),
       ]);
-      const filtered = appts
-        .filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled')
-        .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+      const byRecent = [...appts].sort(
+        (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+      );
+      const filtered = byRecent.filter(
+        (a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled',
+      );
+      setAllAppointments(byRecent);
       setAppointments(filtered);
       setCases(allCases.filter((c) => c.studentId === studentId));
       setGroupEnabled(settings?.groupLessonsEnabled === true);
+      setPaymentSettings(
+        settings
+          ? {
+              autoPaymentsEnabled: settings.autoPaymentsEnabled,
+              lessonCreditFlowEnabled: settings.lessonCreditFlowEnabled,
+              lessonCreditsRequired: settings.lessonCreditsRequired,
+            }
+          : null,
+      );
       setLocations(
         (locs ?? []).map((l) => ({
           id: l.id,
@@ -345,6 +371,34 @@ export const StudentNotesDetailScreen = () => {
   }, [
     name, groupEnabled, groupOptIn, groupSaving, studentPhase, examReady, examReadySaving,
     locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, setToast,
+  ]);
+
+  // ── Pagamenti guide (REG-450) ───────────────────────────────────────────
+  // Il conteggio usa lo stesso predicato del backend (src/utils/lessonPayments),
+  // così il numero qui e quello del dettaglio allievo web non divergono mai.
+  const paymentsManualMode = useMemo(
+    () => isCompanyManualMode(paymentSettings),
+    [paymentSettings],
+  );
+  const unpaidCount = useMemo(
+    () => allAppointments.filter((a) => isLessonUnpaid(a, paymentsManualMode)).length,
+    [allAppointments, paymentsManualMode],
+  );
+
+  const openPayments = useCallback(() => {
+    studentPaymentsStore.set({
+      studentName: typeof name === 'string' ? name : null,
+      lessons: allAppointments,
+      settings: paymentSettings,
+      isOwner: roleIsOwner(autoscuolaRole),
+      myInstructorId: instructorId ?? null,
+      onChanged: loadData,
+    });
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    router.push(`/(tabs)/${stack}/student-payments`);
+  }, [
+    name, allAppointments, paymentSettings, autoscuolaRole, instructorId,
+    loadData, router, segments,
   ]);
 
   const phone = useMemo(() => {
@@ -545,6 +599,42 @@ export const StudentNotesDetailScreen = () => {
               </Animated.View>
             )}
           </View>
+
+          {/* Pagamenti guide (REG-450) — una riga sola con il numero che conta;
+              il registro filtrabile (Tutte / Future / Da pagare / Completate /
+              Annullate) vive nella sua schermata, dove ha spazio. Compare solo
+              se l'autoscuola incassa a mano: con Stripe o coi crediti
+              obbligatori i soldi passano dalla sezione Pagamenti del web. */}
+          {!loading && paymentsManualMode ? (
+            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
+              <Pressable
+                onPress={openPayments}
+                accessibilityRole="button"
+                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.flatLabel}>Pagamenti</Text>
+                  <Text style={s.pagInsight}>
+                    {unpaidCount === 0
+                      ? 'Tutte le guide sono saldate'
+                      : unpaidCount === 1
+                        ? '1 guida da pagare'
+                        : `${unpaidCount} guide da pagare`}
+                  </Text>
+                </View>
+                {unpaidCount > 0 ? (
+                  <View style={s.payPill}>
+                    <Text style={s.payPillText}>{unpaidCount}</Text>
+                  </View>
+                ) : (
+                  <View style={s.payOk}>
+                    <Ionicons name="checkmark" size={13} color="#15803D" />
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </Animated.View>
+          ) : null}
 
           {/* Impostazioni allievo — una riga sola: le tre voci (gruppo, pronto
               per l'esame, luogo) vivono nel form sheet, dove hanno spazio.
@@ -951,6 +1041,18 @@ const s = StyleSheet.create({
   setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 4 },
   pagHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   pagInsight: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
+
+  // Pagamenti (REG-450): il debito si legge dal pallino ambra, il saldato dal
+  // check verde — stesso vocabolario cromatico dei badge del registro.
+  payPill: {
+    minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7,
+    backgroundColor: '#FFF4E5', alignItems: 'center', justifyContent: 'center',
+  },
+  payPillText: { fontSize: 12.5, fontWeight: '600', color: '#B45309' },
+  payOk: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#ECFDF3',
+    alignItems: 'center', justifyContent: 'center',
+  },
   pagInsightStrong: { fontWeight: '600', color: '#1A1A2E' },
   sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 26 },
   sparkTrack: {
