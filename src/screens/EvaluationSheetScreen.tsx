@@ -441,8 +441,7 @@ export const EvaluationSheetScreen = () => {
 
                 {full ? (
                   <Animated.Text entering={FadeIn.duration(200)} style={s.limit}>
-                    Massimo {MAX_EVALUATION_ITEMS} voci: oltre, il pagellino non si compila
-                    più in pochi secondi.
+                    Massimo {MAX_EVALUATION_ITEMS} voci raggiunto.
                   </Animated.Text>
                 ) : (
                   <Animated.View layout={LAYOUT} entering={FadeIn.duration(200)}>

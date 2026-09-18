@@ -127,7 +127,7 @@ elenco** e sparisce quando sono tutte aggiunte.
 - La route va spinta sullo **stack da cui si è arrivati** (`home` o `notes`, da `useSegments`):
   è registrata in entrambi.
 - Sopra le 7 voci il picker passa da solo al page sheet scrollabile
-  (`LONG_PICKER_THRESHOLD`), quindi il tetto di 12 voci è coperto.
+  (`LONG_PICKER_THRESHOLD`), quindi anche il tetto di 40 voci è coperto.
 - La **×** sulla riga sta in alto, lontana dalle stelline: togliere una voce non deve essere
   un errore di mira.
 - **Aspetto (set. 2026)**: il picker usa righe-superficie con la selezione che tinge tutta la
@@ -184,7 +184,7 @@ a compilare il pagellino tutti i giorni. Il gate nella route è solo cortesia.
 | Seed del foglio | `src/stores/evaluationItemStore.ts` |
 | Lettura/scrittura | `regloApi.getEvaluationSheet` / `saveEvaluationSheet` → `GET`/`PUT /api/autoscuole/evaluation-sheet` |
 | Cache | `useEvaluationSheet` (`STALE_TIMES.evaluationSheet`, 15 min) |
-| Costanti (scale, max 12 voci, 60 caratteri, modello base) | `src/utils/evaluationSheet.ts` — gemelle del web |
+| Costanti (scale, max 40 voci, 60 caratteri, modello base) | `src/utils/evaluationSheet.ts` — gemelle del web |
 | Riga nel menu | `src/screens/MoreScreen.tsx` |
 
 ### Come funziona
@@ -207,7 +207,7 @@ a compilare il pagellino tutti i giorni. Il gate nella route è solo cortesia.
   stessa costante) con "Usa il modello base" / "Parti da zero", non una lista vuota.
 - Le voci tolte **si archiviano**, non si cancellano: il testo della conferma lo dice
   esplicitamente ("le valutazioni già date restano leggibili nello storico").
-- Tetto di 12 voci: oltre, il bottone "Aggiungi voce" lascia il posto alla riga che spiega perché.
+- Tetto di 40 voci (era 12 fino al 2026-09-18): oltre, il bottone "Aggiungi voce" lascia il posto alla riga che lo dice.
 
 ### Perché il foglio "voce" e non l'editing in riga
 

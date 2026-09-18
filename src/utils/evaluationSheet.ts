@@ -12,9 +12,10 @@ export type EvaluationScale = (typeof EVALUATION_SCALES)[number];
 
 export const DEFAULT_EVALUATION_SCALE: EvaluationScale = 5;
 
-/** Tetto di voci per autoscuola: oltre, il pagellino non si compila più
- *  "in pochi secondi" (che è il punto della feature). Validato anche dal BE. */
-export const MAX_EVALUATION_ITEMS = 12;
+/** Tetto di voci per autoscuola. Era 12 (soglia di UX, non tecnica), alzato a
+ *  40 il 2026-09-18. Validato anche dal BE: gemella di MAX_EVALUATION_ITEMS in
+ *  `reglo/lib/autoscuole/evaluation-sheet.ts`, vanno tenute allineate. */
+export const MAX_EVALUATION_ITEMS = 40;
 
 export const MAX_EVALUATION_LABEL_LENGTH = 60;
 

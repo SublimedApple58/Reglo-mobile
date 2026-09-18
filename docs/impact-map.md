@@ -84,7 +84,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Salvataggio**: `ManageLessonDetailsPayload.evaluations` attraversa i DUE opener del foglio (`IstruttoreHomeScreen`, `StudentNotesDetailScreen`): se ne aggiungi un terzo, ricordati di inoltrarlo o i voti si perdono in silenzio
 - → **Backend**: contratto `GET /api/autoscuole/appointments/:id/evaluation` + campo `evaluations` nella PATCH dei dettagli (reglo `docs/features/evaluation-sheet.md`)
 - → **Altro (MoreScreen)**: la riga "Pagellino" sta nella sezione Gestione, visibile a titolari E istruttori — chi cambia quel gate deve cambiare anche `saveEvaluationSheet` lato reglo, dove sta il permesso vero
-- → **Configurazione**: `GET`/`PUT /api/autoscuole/evaluation-sheet` è lo stesso contratto del pane Impostazioni web; il salvataggio SOSTITUISCE l'elenco e ARCHIVIA le voci tolte — le costanti in `src/utils/evaluationSheet.ts` (scale, max 12, 60 caratteri, modello base) sono gemelle di quelle in `reglo/lib/autoscuole/evaluation-sheet.ts` e vanno cambiate insieme
+- → **Configurazione**: `GET`/`PUT /api/autoscuole/evaluation-sheet` è lo stesso contratto del pane Impostazioni web; il salvataggio SOSTITUISCE l'elenco e ARCHIVIA le voci tolte — le costanti in `src/utils/evaluationSheet.ts` (scale, max 40, 60 caratteri, modello base) sono gemelle di quelle in `reglo/lib/autoscuole/evaluation-sheet.ts` e vanno cambiate insieme
 - → **Form sheet nativi**: `evaluation-item` usa `HUG_SHEET` e le misure §13.2.1 del design system (testata 26/26 perché ha titolo+sottotitolo+bottoncini)
 
 ### Exam Creation
