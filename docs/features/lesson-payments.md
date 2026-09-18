@@ -94,9 +94,18 @@ Una riga è azionabile se **entrambe**:
   guide effettuate; senza crediti anche quelle già `unpaid` (posti di guida di
   gruppo). Le penali tardive sono sempre segnabili. Una guida coperta da credito
   mai.
-- `canActOnLessonPayment` — **l'istruttore agisce solo sulle proprie guide**
-  (`instructorId === session.instructorId`), il titolare su tutte. È lo specchio
-  della guardia backend: senza questo il pulsante comparirebbe per poi fallire.
+- `canManageLessonPayments(autoscuolaRole)` — l'utente è **staff** (titolare o
+  istruttore). **Non dipende da chi ha tenuto la guida**: qualsiasi membro staff
+  segna qualsiasi guida dell'allievo. Specchio di `canManageLessonPayments` in
+  `reglo/lib/autoscuole/lesson-payments.ts`, dove sta il permesso vero.
+
+> **Storico.** Fino al 18/09/2026 l'istruttore era ristretto alle proprie guide,
+> per simmetria con `updateAutoscuolaAppointmentDetails`. La restrizione è stata
+> rimossa di proposito: l'incasso non è un dato didattico della guida, è un
+> fatto amministrativo dell'allievo, e chi incassa in autoscuola spesso non è
+> l'istruttore che quella guida l'ha tenuta. Il test
+> `tests/unit/autoscuole/lesson-payments.test.ts` lato backend esiste perché non
+> rientri per distrazione.
 
 Nessun optimistic update (convenzione del repo): si scrive solo ciò che il BE ha
 risposto (`res.manualPaymentStatus`), poi `onChanged` fa ricaricare la scheda

@@ -23,7 +23,6 @@ import { colors } from '../theme';
 import { formatTime } from '../utils/date';
 import { LESSON_TYPE_LABEL_MAP } from '../utils/lessonTypes';
 import {
-  canActOnLessonPayment,
   canToggleLessonPayment,
   isCompanyManualMode,
   isLessonUnpaid,
@@ -324,12 +323,8 @@ export const StudentPaymentsScreen = () => {
                     !covered && lesson.manualPaymentStatus === 'paid' && (manualMode || penaltyPaid);
 
                   const actionable =
-                    canToggleLessonPayment(lesson, data.settings) &&
-                    canActOnLessonPayment({
-                      lesson,
-                      isOwner: data.isOwner,
-                      myInstructorId: data.myInstructorId,
-                    });
+                    data.canManagePayments &&
+                    canToggleLessonPayment(lesson, data.settings);
                   const busy = savingId === lesson.id;
 
                   const start = new Date(lesson.startsAt);

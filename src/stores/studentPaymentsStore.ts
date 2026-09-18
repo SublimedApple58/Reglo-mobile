@@ -19,10 +19,11 @@ export type StudentPaymentsData = {
   /** Storico COMPLETO: le annullate servono per il filtro e per le penali tardive. */
   lessons: AutoscuolaAppointmentWithRelations[];
   settings: StudentPaymentsSettings | null;
-  /** L'utente corrente è titolare → nessuna restrizione sulle guide altrui. */
-  isOwner: boolean;
-  /** `session.instructorId`, per la guardia "solo le tue guide". */
-  myInstructorId: string | null;
+  /**
+   * L'utente corrente può segnare i pagamenti (titolare o istruttore). Non
+   * dipende da CHI ha tenuto la guida: vale su tutte quelle dell'allievo.
+   */
+  canManagePayments: boolean;
   onChanged?: () => void | Promise<void>;
 };
 

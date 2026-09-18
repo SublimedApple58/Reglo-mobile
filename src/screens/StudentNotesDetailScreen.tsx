@@ -18,8 +18,7 @@ import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { studentSettingsStore } from '../stores/studentSettingsStore';
 import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/studentPaymentsStore';
-import { isCompanyManualMode, isLessonUnpaid } from '../utils/lessonPayments';
-import { isOwner as roleIsOwner } from '../utils/roles';
+import { isCompanyManualMode, isLessonUnpaid, canManageLessonPayments } from '../utils/lessonPayments';
 import { useSession } from '../context/SessionContext';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
@@ -118,7 +117,7 @@ export const StudentNotesDetailScreen = () => {
   const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
-  const { autoscuolaRole, instructorId } = useSession();
+  const { autoscuolaRole } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   /**
    * Storico GREZZO, annullate comprese: serve al registro pagamenti (REG-450),
@@ -390,14 +389,13 @@ export const StudentNotesDetailScreen = () => {
       studentName: typeof name === 'string' ? name : null,
       lessons: allAppointments,
       settings: paymentSettings,
-      isOwner: roleIsOwner(autoscuolaRole),
-      myInstructorId: instructorId ?? null,
+      canManagePayments: canManageLessonPayments(autoscuolaRole),
       onChanged: loadData,
     });
     const stack = segments[1] === 'notes' ? 'notes' : 'home';
     router.push(`/(tabs)/${stack}/student-payments`);
   }, [
-    name, allAppointments, paymentSettings, autoscuolaRole, instructorId,
+    name, allAppointments, paymentSettings, autoscuolaRole,
     loadData, router, segments,
   ]);
 

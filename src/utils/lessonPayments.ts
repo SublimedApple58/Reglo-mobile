@@ -122,16 +122,24 @@ export function canToggleLessonPayment(
 }
 
 /**
- * L'istruttore incassa solo le proprie guide (guardia speculare a quella del
- * backend). Il titolare non ha restrizioni.
+ * Chi può segnare il pagamento: QUALSIASI membro staff (titolare o istruttore),
+ * su QUALSIASI guida dell'allievo.
+ *
+ * Una prima versione restringeva l'istruttore alle proprie guide. È stata tolta
+ * di proposito: l'incasso non è un dato didattico della guida, è un fatto
+ * amministrativo dell'allievo, e in autoscuola chi incassa spesso non è
+ * l'istruttore che quella guida l'ha tenuta.
+ *
+ * Gemella di `canManageLessonPayments` in
+ * `reglo/lib/autoscuole/lesson-payments.ts` — il permesso VERO sta lì, questa è
+ * solo la copia che decide se disegnare l'azione.
  */
-export function canActOnLessonPayment(params: {
-  lesson: Pick<AutoscuolaAppointment, 'instructorId'>;
-  isOwner: boolean;
-  /** `session.instructorId` dell'utente corrente, se è un istruttore. */
-  myInstructorId: string | null | undefined;
-}): boolean {
-  if (params.isOwner) return true;
-  if (!params.myInstructorId) return false;
-  return params.lesson.instructorId === params.myInstructorId;
+export function canManageLessonPayments(
+  autoscuolaRole: string | null | undefined,
+): boolean {
+  return (
+    autoscuolaRole === 'OWNER' ||
+    autoscuolaRole === 'INSTRUCTOR_OWNER' ||
+    autoscuolaRole === 'INSTRUCTOR'
+  );
 }
