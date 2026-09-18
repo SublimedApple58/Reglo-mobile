@@ -4,6 +4,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -12,20 +13,28 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
+  Easing,
   FadeIn,
   FadeOut,
   LinearTransition,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { impactAsync, selectionAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 
+import {
+  notificationAsync,
+  selectionAsync,
+  NotificationFeedbackType,
+} from '../utils/haptics';
+import { HoldRing } from '../components/HoldRing';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 import { studentPaymentsStore } from '../stores/studentPaymentsStore';
@@ -56,6 +65,7 @@ const MONTHS = [
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ];
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 
 const monthKey = (iso: string) => {
   const d = new Date(iso);
@@ -101,95 +111,269 @@ const statusLabel = (status: string) => {
 
 /**
  * Chiave "l'utente ha già capito che si tiene premuto". Si scrive alla PRIMA
- * pressione lunga andata a buon fine: da lì il suggerimento non parte più da
- * solo (resta come risposta al tocco singolo, che una risposta deve averla).
+ * conferma completata: da lì il suggerimento non parte più da solo (resta come
+ * risposta al tocco singolo, che una risposta deve averla).
  */
 const HINT_KEY = 'reg450.paymentsLongPressLearned';
 
-/** Molla corta: il dito preme, la riga cede. Nessun rimbalzo plastico. */
-const PRESS_SPRING = { damping: 20, stiffness: 340, mass: 0.5 } as const;
+/** Quanto va tenuto premuto perché la conferma scatti. */
+const HOLD_MS = 900;
+
+const SPRING = { damping: 20, stiffness: 340, mass: 0.5 } as const;
+const ROW_LAYOUT = LinearTransition.springify().damping(24).stiffness(260).mass(0.6);
+
+/* ────────────────────────────── stato della riga ────────────────────────── */
+
+type RowTone = 'amber' | 'green' | 'violet' | 'grey';
+type RowIcon = 'euro' | 'check' | 'wallet' | 'close' | 'clock' | 'exam';
+
+const TONE: Record<RowTone, { chip: string; ink: string }> = {
+  amber: { chip: '#FFF3E3', ink: '#B45309' },
+  green: { chip: '#EAF7F0', ink: '#067647' },
+  violet: { chip: '#F3F0FF', ink: '#6D28D9' },
+  grey: { chip: '#F1F1F5', ink: '#A8A8B0' },
+};
+
+const ICON_NAME: Record<Exclude<RowIcon, 'euro'>, React.ComponentProps<typeof Ionicons>['name']> = {
+  check: 'checkmark',
+  wallet: 'wallet',
+  close: 'close',
+  clock: 'time-outline',
+  exam: 'school',
+};
 
 /**
- * Riga del registro con la gestualità iOS: il tocco lungo apre il menu, il
- * tocco breve NON resta muto — cede di molla, fa un tick aptico e richiama il
- * suggerimento. La riga non azionabile non è nemmeno premibile.
- *
- * VoiceOver non sa fare una pressione lunga: con lo screen reader attivo il
- * doppio tocco apre direttamente il menu.
+ * Pastiglia tonda di sinistra: è lei a dire lo stato a colpo d'occhio, al posto
+ * della fila di badge che c'era prima. La lista si legge scorrendo la colonna.
  */
-function LessonRow({
-  children,
-  actionable,
-  busy,
-  accessibilityLabel,
-  screenReader,
-  onOpenMenu,
-  onNudge,
-}: {
-  children: React.ReactNode;
-  actionable: boolean;
-  busy: boolean;
-  accessibilityLabel: string;
-  screenReader: boolean;
-  onOpenMenu: () => void;
-  onNudge: () => void;
-}) {
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  if (!actionable) return <>{children}</>;
-
+function StateGlyph({ tone, icon }: { tone: RowTone; icon: RowIcon }) {
+  const { chip, ink } = TONE[tone];
   return (
-    <Animated.View style={animStyle}>
-      <Pressable
-        disabled={busy}
-        delayLongPress={300}
-        onPressIn={() => {
-          scale.value = withSpring(0.985, PRESS_SPRING);
-        }}
-        onPressOut={() => {
-          scale.value = withSpring(1, PRESS_SPRING);
-        }}
-        onPress={() => {
-          if (screenReader) {
-            onOpenMenu();
-            return;
-          }
-          // Il tocco breve non fa l'azione — la insegna: un tick, un sobbalzo
-          // e il suggerimento torna visibile.
-          void selectionAsync().catch(() => {});
-          scale.value = withSequence(
-            withSpring(0.97, PRESS_SPRING),
-            withSpring(1, PRESS_SPRING),
-          );
-          onNudge();
-        }}
-        onLongPress={() => {
-          // Lo stesso colpo che dà iOS quando si apre un menu contestuale.
-          void impactAsync(ImpactFeedbackStyle.Medium).catch(() => {});
-          scale.value = withSequence(
-            withSpring(1.02, PRESS_SPRING),
-            withSpring(1, PRESS_SPRING),
-          );
-          onOpenMenu();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint="Tieni premuto per segnare il pagamento"
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <View style={[s.glyph, { backgroundColor: chip }]}>
+      {icon === 'euro' ? (
+        <Text style={[s.glyphEuro, { color: ink }]}>€</Text>
+      ) : (
+        <Ionicons name={ICON_NAME[icon]} size={icon === 'check' ? 18 : 15} color={ink} />
+      )}
+    </View>
   );
 }
 
-type BadgeTone = 'neutral' | 'amber' | 'green' | 'violet' | 'red';
+/* ─────────────────────────────────── riga ───────────────────────────────── */
 
-const Badge = ({ tone, label }: { tone: BadgeTone; label: string }) => (
-  <View style={[s.badge, TONE[tone].box]}>
-    <Text style={[s.badgeText, TONE[tone].text]}>{label}</Text>
-  </View>
-);
+/**
+ * Riga del registro (R1): glifo di stato · due righe di testo · valore a destra
+ * · anello di conferma.
+ *
+ * **La pressione lunga È la conferma.** Non apre più un foglio: l'anello si
+ * riempie mentre tieni premuto e al 100% l'azione parte. Mollare prima annulla
+ * e l'anello torna indietro. Niente action sheet che spunta di scatto.
+ *
+ * VoiceOver non sa tenere premuto: con lo screen reader attivo il doppio tocco
+ * apre il menu nativo di ripiego.
+ */
+function LessonRow({
+  lesson,
+  actionable,
+  busy,
+  paid,
+  title,
+  subtitle,
+  value,
+  tone,
+  icon,
+  showSeparator,
+  screenReader,
+  onCommit,
+  onFallbackMenu,
+  onNudge,
+}: {
+  lesson: AutoscuolaAppointmentWithRelations;
+  actionable: boolean;
+  busy: boolean;
+  paid: boolean;
+  title: string;
+  subtitle: string;
+  value: string | null;
+  tone: RowTone;
+  icon: RowIcon;
+  showSeparator: boolean;
+  screenReader: boolean;
+  onCommit: (lesson: AutoscuolaAppointmentWithRelations) => void;
+  onFallbackMenu: (lesson: AutoscuolaAppointmentWithRelations) => void;
+  onNudge: () => void;
+}) {
+  const progress = useSharedValue(0);
+  const press = useSharedValue(0);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    opacity: 1 - press.value * 0.04,
+    transform: [{ scale: 1 - press.value * 0.008 }],
+  }));
+
+  const commit = useCallback(() => {
+    void notificationAsync(NotificationFeedbackType.Success).catch(() => {});
+    onCommit(lesson);
+  }, [lesson, onCommit]);
+
+  const startHold = useCallback(() => {
+    press.value = withTiming(1, { duration: 90 });
+    void selectionAsync().catch(() => {});
+    progress.value = withTiming(1, { duration: HOLD_MS, easing: Easing.linear }, (finished) => {
+      if (finished) {
+        progress.value = 0;
+        runOnJS(commit)();
+      }
+    });
+  }, [commit, press, progress]);
+
+  const endHold = useCallback(() => {
+    press.value = withTiming(0, { duration: 140 });
+    cancelAnimation(progress);
+    progress.value = withSpring(0, SPRING);
+  }, [press, progress]);
+
+  const body = (
+    <View style={s.row}>
+      <StateGlyph tone={tone} icon={icon} />
+      <View style={s.rowBody}>
+        <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
+        <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
+      </View>
+      {value ? (
+        <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
+      ) : null}
+      {busy ? (
+        <ActivityIndicator size="small" color="#1A1A2E" style={s.rowRing} />
+      ) : actionable ? (
+        <View style={s.rowRing}>
+          <HoldRing progress={progress} color={paid ? '#B45309' : '#067647'} />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View>
+      {showSeparator ? <View style={s.sep} /> : null}
+      {actionable ? (
+        <Animated.View style={rowStyle}>
+          <Pressable
+            disabled={busy}
+            onPressIn={screenReader ? undefined : startHold}
+            onPressOut={screenReader ? undefined : endHold}
+            onPress={() => {
+              if (screenReader) {
+                onFallbackMenu(lesson);
+                return;
+              }
+              // Tocco breve: l'anello è appena partito e già rientrato. Non
+              // resta muto — il suggerimento torna a dire cosa fare.
+              onNudge();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`${title}. ${subtitle}. ${value ?? ''}`}
+            accessibilityHint={paid ? 'Tieni premuto per segnare da pagare' : 'Tieni premuto per segnare pagata'}
+          >
+            {body}
+          </Pressable>
+        </Animated.View>
+      ) : (
+        body
+      )}
+    </View>
+  );
+}
+
+/* ────────────────────────────────── filtri ──────────────────────────────── */
+
+type FilterDef = { value: LessonFilter; label: string; count: number };
+
+/**
+ * Barra filtri con la pastiglia che **scivola** da un filtro all'altro invece
+ * di riapparire altrove, e i contatori in cross-fade invece di saltare al
+ * numero nuovo.
+ */
+function FilterBar({
+  defs,
+  active,
+  onChange,
+}: {
+  defs: FilterDef[];
+  active: LessonFilter;
+  onChange: (f: LessonFilter) => void;
+}) {
+  const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
+  const x = useSharedValue(0);
+  const w = useSharedValue(0);
+  const ready = useSharedValue(0);
+
+  const onLayoutFor = (value: LessonFilter) => (e: LayoutChangeEvent) => {
+    const { x: lx, width } = e.nativeEvent.layout;
+    setLayouts((prev) =>
+      prev[value]?.x === lx && prev[value]?.w === width ? prev : { ...prev, [value]: { x: lx, w: width } },
+    );
+  };
+
+  useEffect(() => {
+    const l = layouts[active];
+    if (!l) return;
+    if (ready.value === 0) {
+      // Primo posizionamento: la pastiglia si trova già dov'è, non scivola dal nulla.
+      x.value = l.x;
+      w.value = l.w;
+      ready.value = 1;
+      return;
+    }
+    x.value = withSpring(l.x, SPRING);
+    w.value = withSpring(l.w, SPRING);
+  }, [active, layouts, ready, w, x]);
+
+  const pill = useAnimatedStyle(() => ({
+    opacity: ready.value,
+    transform: [{ translateX: x.value }],
+    width: w.value,
+  }));
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={s.filterRow}
+      style={s.filterScroll}
+    >
+      <Animated.View style={[s.filterPill, pill]} pointerEvents="none" />
+      {defs.map((f) => {
+        const on = f.value === active;
+        return (
+          <Pressable
+            key={f.value}
+            onLayout={onLayoutFor(f.value)}
+            onPress={() => {
+              if (f.value === active) return;
+              void selectionAsync().catch(() => {});
+              onChange(f.value);
+            }}
+            style={s.filterItem}
+          >
+            <Text style={[s.filterText, on && s.filterTextOn]}>{f.label}</Text>
+            {f.count > 0 ? (
+              <Animated.Text
+                key={`${f.value}-${f.count}`}
+                entering={FadeIn.duration(200)}
+                style={[s.filterCount, on && s.filterCountOn]}
+              >
+                {f.count}
+              </Animated.Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+/* ────────────────────────────────── schermo ─────────────────────────────── */
 
 export const StudentPaymentsScreen = () => {
   const router = useRouter();
@@ -204,7 +388,6 @@ export const StudentPaymentsScreen = () => {
    * risposto). La scheda sotto si riallinea da sé via `onChanged`.
    */
   const [patched, setPatched] = useState<Record<string, string | null>>({});
-  /** Suggerimento "tieni premuto": discreto, sotto i filtri, a scomparsa. */
   const [hintVisible, setHintVisible] = useState(false);
   const [screenReader, setScreenReader] = useState(false);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,26 +400,20 @@ export const StudentPaymentsScreen = () => {
   }, []);
 
   useEffect(() => {
-    // Alla prima apertura in assoluto il suggerimento si presenta da solo e se
-    // ne va: nessun tutorial, nessun bottone da chiudere.
     AsyncStorage.getItem(HINT_KEY)
       .then((v) => {
         learned.current = v === '1';
         if (!learned.current) showHint(5200);
       })
       .catch(() => {});
-    AccessibilityInfo.isScreenReaderEnabled()
-      .then(setScreenReader)
-      .catch(() => {});
+    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => {});
     return () => {
       if (hintTimer.current) clearTimeout(hintTimer.current);
     };
   }, [showHint]);
 
-  /** Risposta al tocco singolo: il suggerimento torna, breve. */
   const nudge = useCallback(() => showHint(2600), [showHint]);
 
-  /** Alla prima pressione lunga riuscita il suggerimento ha finito il suo lavoro. */
   const markLearned = useCallback(() => {
     if (hintTimer.current) clearTimeout(hintTimer.current);
     setHintVisible(false);
@@ -251,9 +428,7 @@ export const StudentPaymentsScreen = () => {
     const list = (data?.lessons ?? []).map((l) =>
       l.id in patched ? { ...l, manualPaymentStatus: patched[l.id] } : l,
     );
-    return list.sort(
-      (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
-    );
+    return list.sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [data?.lessons, patched]);
 
   /**
@@ -266,8 +441,7 @@ export const StudentPaymentsScreen = () => {
       const now = Date.now();
       return {
         all: () => true,
-        upcoming: (l) =>
-          FUTURE.includes(normalize(l.status)) && new Date(l.startsAt).getTime() > now,
+        upcoming: (l) => FUTURE.includes(normalize(l.status)) && new Date(l.startsAt).getTime() > now,
         unpaid: (l) => isLessonUnpaid(l, manualMode),
         completed: (l) => DONE.includes(normalize(l.status)),
         cancelled: (l) => MISSED.includes(normalize(l.status)),
@@ -275,7 +449,7 @@ export const StudentPaymentsScreen = () => {
     }, [manualMode]);
 
   // Il segmento "Da pagare" ha senso solo in modalità manuale, come sul web.
-  const filterDefs = useMemo(
+  const filterDefs: FilterDef[] = useMemo(
     () =>
       [
         { value: 'all' as const, label: 'Tutte' },
@@ -318,10 +492,8 @@ export const StudentPaymentsScreen = () => {
         });
         await data?.onChanged?.();
       } catch (e) {
-        setToast({
-          text: e instanceof Error ? e.message : 'Errore nel salvataggio.',
-          tone: 'danger',
-        });
+        void notificationAsync(NotificationFeedbackType.Error).catch(() => {});
+        setToast({ text: e instanceof Error ? e.message : 'Errore nel salvataggio.', tone: 'danger' });
       } finally {
         setSavingId(null);
       }
@@ -329,20 +501,27 @@ export const StudentPaymentsScreen = () => {
     [savingId, data],
   );
 
+  /** La pressione lunga è arrivata in fondo: si scrive, senza altre domande. */
+  const commit = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) => {
+      markLearned();
+      void applyStatus(lesson, lesson.manualPaymentStatus === 'paid' ? 'unpaid' : 'paid');
+    },
+    [applyStatus, markLearned],
+  );
+
   /**
-   * Menu nativo della riga, aperto dalla PRESSIONE LUNGA (convenzione dell'app:
-   * mai bottoni inline dentro la riga di lista). `ActionSheetIOS` su iOS,
-   * `Alert` su Android.
+   * Ripiego per VoiceOver, che non sa tenere premuto: menu nativo
+   * (`ActionSheetIOS` / `Alert`) aperto dal doppio tocco.
    */
-  const openActions = useCallback(
+  const openFallbackMenu = useCallback(
     (lesson: AutoscuolaAppointmentWithRelations) => {
       markLearned();
       const paid = lesson.manualPaymentStatus === 'paid';
       const action = paid ? 'Segna da pagare' : 'Segna pagata';
       const next: 'paid' | 'unpaid' = paid ? 'unpaid' : 'paid';
-      const title = `${new Date(lesson.startsAt).getDate()} ${
-        MONTHS_SHORT[new Date(lesson.startsAt).getMonth()]
-      } · ${formatTime(lesson.startsAt)}`;
+      const start = new Date(lesson.startsAt);
+      const title = `${start.getDate()} ${MONTHS_SHORT[start.getMonth()]} · ${formatTime(lesson.startsAt)}`;
 
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
@@ -371,79 +550,52 @@ export const StudentPaymentsScreen = () => {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons
-              name={Platform.OS === 'android' ? 'arrow-back' : 'close'}
-              size={20}
-              color="#1A1A2E"
-            />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
           </Pressable>
         </GlassCloseButton>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <Text style={s.title}>Pagamenti</Text>
-        {data.studentName ? <Text style={s.subtitle}>{data.studentName}</Text> : null}
+        <View style={s.pad}>
+          <Text style={s.title}>Pagamenti</Text>
+          {data.studentName ? <Text style={s.subtitle}>{data.studentName}</Text> : null}
 
-        {/* Riepilogo: il numero che conta, leggibile senza scorrere nulla. */}
-        {manualMode ? (
-          <Animated.View entering={FadeIn.duration(320)} style={s.hero}>
-            {unpaidCount > 0 ? (
-              <>
-                <Text style={s.heroNum}>{unpaidCount}</Text>
-                <Text style={s.heroLabel}>
-                  {unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}
-                </Text>
-              </>
-            ) : (
-              <>
-                <View style={s.heroOk}>
-                  <Ionicons name="checkmark" size={17} color="#15803D" />
-                </View>
-                <Text style={s.heroLabelOk}>Tutto saldato</Text>
-              </>
-            )}
-          </Animated.View>
-        ) : (
-          <Text style={s.note}>
-            L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
-          </Text>
-        )}
+          {manualMode ? (
+            <Animated.View entering={FadeIn.duration(320)} style={s.hero}>
+              {unpaidCount > 0 ? (
+                <>
+                  <Text style={s.heroNum}>{unpaidCount}</Text>
+                  <Text style={s.heroLabel}>
+                    {unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={s.heroOk}>
+                    <Ionicons name="checkmark" size={17} color="#15803D" />
+                  </View>
+                  <Text style={s.heroLabelOk}>Tutto saldato</Text>
+                </>
+              )}
+            </Animated.View>
+          ) : (
+            <Text style={s.note}>
+              L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
+            </Text>
+          )}
+        </View>
 
-        {/* Filtri */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filterRow}
-          style={s.filterScroll}
-        >
-          {filterDefs.map((f) => {
-            const active = f.value === activeFilter;
-            return (
-              <Pressable
-                key={f.value}
-                onPress={() => setFilter(f.value)}
-                style={({ pressed }) => [s.pill, active && s.pillActive, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={[s.pillText, active && s.pillTextActive]}>{f.label}</Text>
-                {f.count > 0 ? (
-                  <Text style={[s.pillCount, active && s.pillCountActive]}>{f.count}</Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <FilterBar defs={filterDefs} active={activeFilter} onChange={setFilter} />
 
-        {/* Suggerimento: una riga muta sotto i filtri, che entra e se ne va da
-            sola. Niente modali, niente "Ho capito" da premere. */}
         {hintVisible ? (
           <Animated.View
             entering={FadeIn.duration(260)}
             exiting={FadeOut.duration(200)}
-            style={s.hint}
+            style={[s.pad, s.hint]}
             accessibilityLiveRegion="polite"
           >
             <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
-            <Text style={s.hintText}>Tieni premuta una guida per segnarla pagata</Text>
+            <Text style={s.hintText}>Tieni premuta una guida finché il cerchio si chiude</Text>
           </Animated.View>
         ) : null}
 
@@ -456,10 +608,10 @@ export const StudentPaymentsScreen = () => {
             <Text style={s.emptyText}>Non ci sono guide per questo filtro.</Text>
           </View>
         ) : (
-          <Animated.View layout={LinearTransition.duration(220)}>
+          <Animated.View layout={ROW_LAYOUT}>
             {sections.map((section) => (
-              <View key={section.key}>
-                <Text style={s.month}>{section.label}</Text>
+              <Animated.View key={section.key} layout={ROW_LAYOUT}>
+                <Text style={[s.pad, s.month]}>{section.label}</Text>
                 {section.items.map((lesson, i) => {
                   const status = normalize(lesson.status);
                   const done = DONE.includes(status);
@@ -467,103 +619,92 @@ export const StudentPaymentsScreen = () => {
                   const isExam = normalize(lesson.type) === 'esame';
                   const isGroup = normalize(lesson.type) === 'group_lesson' || !!lesson.groupLessonId;
                   const penaltyCharged = isPenaltyCharged(lesson);
-                  const penaltyPaid = isPenaltyPaid(lesson);
                   const unpaid = isLessonUnpaid(lesson, manualMode);
                   const covered = !!lesson.creditApplied;
                   const paid =
-                    !covered && lesson.manualPaymentStatus === 'paid' && (manualMode || penaltyPaid);
+                    !covered && lesson.manualPaymentStatus === 'paid' && (manualMode || isPenaltyPaid(lesson));
 
                   const actionable =
-                    data.canManagePayments &&
-                    canToggleLessonPayment(lesson, data.settings);
+                    data.canManagePayments && canToggleLessonPayment(lesson, data.settings);
                   const busy = savingId === lesson.id;
 
+                  // Lo stato decide colore, glifo e valore a destra: una sola
+                  // lettura, non quattro badge da mettere insieme.
+                  let tone: RowTone = 'grey';
+                  let icon: RowIcon = 'clock';
+                  let value: string | null;
+                  if (unpaid) {
+                    tone = 'amber';
+                    icon = 'euro';
+                    value =
+                      penaltyCharged && lesson.penaltyAmount != null
+                        ? formatEuro(lesson.penaltyAmount)
+                        : 'Da pagare';
+                  } else if (covered) {
+                    tone = 'violet';
+                    icon = 'wallet';
+                    value = 'A credito';
+                  } else if (paid) {
+                    tone = 'green';
+                    icon = 'check';
+                    value = 'Pagata';
+                  } else if (missed) {
+                    tone = 'grey';
+                    icon = 'close';
+                    value = statusLabel(lesson.status);
+                  } else if (isExam) {
+                    tone = 'violet';
+                    icon = 'exam';
+                    value = 'Esame';
+                  } else if (done) {
+                    tone = 'green';
+                    icon = 'check';
+                    value = 'Completata';
+                  } else {
+                    tone = 'grey';
+                    icon = 'clock';
+                    value = 'Programmata';
+                  }
+
                   const start = new Date(lesson.startsAt);
+                  const title = `${WEEKDAYS[start.getDay()]} ${start.getDate()} · ${formatTime(lesson.startsAt)}`;
                   const types = (lesson.types?.length ? lesson.types : [lesson.type])
                     .filter((t) => t && t !== 'guida' && t !== 'group_lesson')
                     .map((t) => LESSON_TYPE_LABEL_MAP[t] ?? t);
-                  const meta = [
-                    isGroup ? 'Guida di gruppo' : types.join(' · ') || null,
-                    lesson.instructor?.name ?? null,
-                    lesson.vehicle?.name ?? null,
-                  ].filter(Boolean).join(' · ');
-
-                  const row = (
-                    <View style={[s.row, i > 0 && s.rowDivider]}>
-                      <View style={s.dateCol}>
-                        <Text style={s.dateDay}>{start.getDate()}</Text>
-                        <Text style={s.dateMon}>{MONTHS_SHORT[start.getMonth()]}</Text>
-                      </View>
-
-                      <View style={s.rowBody}>
-                        <Text style={s.rowTime}>
-                          {formatTime(lesson.startsAt)}
-                          {lesson.endsAt ? ` – ${formatTime(lesson.endsAt)}` : ''}
-                        </Text>
-                        {meta ? (
-                          <Text style={s.rowMeta} numberOfLines={1}>{meta}</Text>
-                        ) : null}
-
-                        <View style={s.badges}>
-                          <Badge
-                            tone={done ? 'green' : missed ? 'red' : 'neutral'}
-                            label={statusLabel(lesson.status)}
-                          />
-                          {isExam ? <Badge tone="violet" label="Esame" /> : null}
-                          {/* "Tardiva" = annullata oltre la soglia di preavviso:
-                              stessa condizione del dettaglio allievo web. */}
-                          {isLate(lesson) ? <Badge tone="amber" label="Tardiva" /> : null}
-                          {covered ? <Badge tone="violet" label="Coperta da credito" /> : null}
-                          {paid ? <Badge tone="green" label="Pagata" /> : null}
-                          {unpaid ? (
-                            <Badge
-                              tone="amber"
-                              label={
-                                // L'importo si mostra solo dove il BE lo conosce
-                                // davvero: la penale tardiva addebitata.
-                                penaltyCharged && lesson.penaltyAmount != null
-                                  ? `Da pagare · ${formatEuro(lesson.penaltyAmount)}`
-                                  : 'Da pagare'
-                              }
-                            />
-                          ) : null}
-                        </View>
-                      </View>
-
-                      {busy ? (
-                        <ActivityIndicator size="small" color="#1A1A2E" style={s.rowTrail} />
-                      ) : actionable ? (
-                        <Ionicons
-                          name="ellipsis-horizontal"
-                          size={18}
-                          // Unico segno permanente che lì c'è un menu: un filo
-                          // più presente del grigio di prima (#C7C7CC).
-                          color="#B4B4BD"
-                          style={s.rowTrail}
-                        />
-                      ) : (
-                        <View style={s.rowTrail} />
-                      )}
-                    </View>
-                  );
+                  const what = isGroup
+                    ? 'Guida di gruppo'
+                    : missed && isLate(lesson)
+                      ? 'Annullata tardi'
+                      : types.join(' · ') || 'Guida';
+                  const subtitle = [what, lesson.instructor?.name ?? null].filter(Boolean).join(' · ');
 
                   return (
-                    <LessonRow
+                    <Animated.View
                       key={lesson.id}
-                      actionable={actionable}
-                      busy={busy}
-                      screenReader={screenReader}
-                      accessibilityLabel={`Guida del ${start.getDate()} ${
-                        MONTHS_SHORT[start.getMonth()]
-                      }, ${unpaid ? 'da pagare' : 'saldata'}`}
-                      onOpenMenu={() => openActions(lesson)}
-                      onNudge={nudge}
+                      entering={FadeIn.duration(220)}
+                      exiting={FadeOut.duration(140)}
+                      layout={ROW_LAYOUT}
                     >
-                      {row}
-                    </LessonRow>
+                      <LessonRow
+                        lesson={lesson}
+                        actionable={actionable}
+                        busy={busy}
+                        paid={paid}
+                        title={title}
+                        subtitle={subtitle}
+                        value={value}
+                        tone={tone}
+                        icon={icon}
+                        showSeparator={i > 0}
+                        screenReader={screenReader}
+                        onCommit={commit}
+                        onFallbackMenu={openFallbackMenu}
+                        onNudge={nudge}
+                      />
+                    </Animated.View>
                   );
                 })}
-              </View>
+              </Animated.View>
             ))}
           </Animated.View>
         )}
@@ -572,13 +713,9 @@ export const StudentPaymentsScreen = () => {
   );
 };
 
-const TONE: Record<BadgeTone, { box: object; text: object }> = {
-  neutral: { box: { backgroundColor: '#F1F1F5' }, text: { color: '#88888F' } },
-  amber: { box: { backgroundColor: '#FFF4E5' }, text: { color: '#B45309' } },
-  green: { box: { backgroundColor: '#ECFDF3' }, text: { color: '#067647' } },
-  violet: { box: { backgroundColor: '#F5F3FF' }, text: { color: '#6D28D9' } },
-  red: { box: { backgroundColor: '#FEF2F2' }, text: { color: '#DC2626' } },
-};
+const PAD = 18;
+/** Rientro dei divisori: larghezza del glifo + il suo gap. Stile lista iOS. */
+const SEP_INSET = PAD + 36 + 13;
 
 const s = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.background },
@@ -590,13 +727,13 @@ const s = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17, backgroundColor: '#DDDDDD',
     alignItems: 'center', justifyContent: 'center',
   },
-  content: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 60 },
+  content: { paddingTop: 4, paddingBottom: 60 },
+  pad: { paddingHorizontal: PAD },
 
   title: { fontSize: 28, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
   subtitle: { fontSize: 14, fontWeight: '400', color: colors.textMuted, marginTop: 4 },
   note: { fontSize: 13, fontWeight: '400', color: colors.textMuted, lineHeight: 19, marginTop: 18 },
 
-  // Riepilogo: informativo → nessuna ombra esterna (regola raised/recessed).
   hero: { flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 22 },
   heroNum: { fontSize: 40, fontWeight: '600', color: '#1A1A2E', letterSpacing: -1.4 },
   heroLabel: { fontSize: 15, fontWeight: '400', color: colors.textSecondary },
@@ -606,43 +743,39 @@ const s = StyleSheet.create({
   },
   heroLabelOk: { fontSize: 17, fontWeight: '500', color: '#15803D', alignSelf: 'center' },
 
-  filterScroll: { marginTop: 22, marginHorizontal: -24 },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingBottom: 2 },
-  pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999, backgroundColor: '#EEF0F3',
+  filterScroll: { marginTop: 20 },
+  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: PAD, paddingBottom: 2 },
+  filterPill: {
+    position: 'absolute', top: 0, bottom: 2, left: 0,
+    borderRadius: 999, backgroundColor: '#1A1A2E',
   },
-  pillActive: { backgroundColor: '#1A1A2E' },
-  pillText: { fontSize: 14, fontWeight: '400', color: '#595959' },
-  pillTextActive: { color: '#FFFFFF', fontWeight: '500' },
-  pillCount: { fontSize: 12, fontWeight: '500', color: '#9A9AA2' },
-  pillCountActive: { color: 'rgba(255,255,255,0.65)' },
+  filterItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999,
+  },
+  filterText: { fontSize: 14, fontWeight: '400', color: '#595959' },
+  filterTextOn: { color: '#FFFFFF', fontWeight: '500' },
+  filterCount: { fontSize: 12, fontWeight: '500', color: '#9A9AA2' },
+  filterCountOn: { color: 'rgba(255,255,255,0.65)' },
 
-  hint: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 14, paddingVertical: 2,
-  },
+  hint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
   hintText: { fontSize: 12.5, fontWeight: '400', color: colors.textMuted },
 
   month: {
-    fontSize: 12, fontWeight: '600', color: '#A2A2AC', textTransform: 'uppercase',
-    letterSpacing: 0.5, marginTop: 26, marginBottom: 4,
+    fontSize: 12, fontWeight: '600', color: '#AEAEB6', textTransform: 'uppercase',
+    letterSpacing: 0.5, marginTop: 26, marginBottom: 2,
   },
 
-  // Lista = righe flat sullo sfondo + divider hairline (mai una card attorno).
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14 },
-  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E8E8EE' },
-  dateCol: { width: 34, alignItems: 'center', paddingTop: 1 },
-  dateDay: { fontSize: 17, fontWeight: '500', color: '#1A1A2E', letterSpacing: -0.3 },
-  dateMon: { fontSize: 11, fontWeight: '400', color: colors.textMuted, marginTop: -1 },
+  // Lista flat sullo sfondo + divisori rientrati sotto il glifo (stile iOS).
+  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: PAD, paddingVertical: 11 },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECF0', marginLeft: SEP_INSET },
+  glyph: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  glyphEuro: { fontSize: 15, fontWeight: '600' },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTime: { fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
-  rowMeta: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-  rowTrail: { width: 20, alignItems: 'center', paddingTop: 3 },
-
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  badge: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 8 },
-  badgeText: { fontSize: 11, fontWeight: '500' },
+  rowTitle: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', letterSpacing: -0.1 },
+  rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9AA2', marginTop: 1 },
+  rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
+  rowRing: { width: 26, height: 26, marginLeft: 9, alignItems: 'center', justifyContent: 'center' },
 
   empty: { alignItems: 'center', paddingTop: 70, gap: 6 },
   emptyIcon: {

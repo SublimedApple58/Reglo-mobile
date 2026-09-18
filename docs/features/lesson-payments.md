@@ -83,59 +83,64 @@ ordine cronologico inverso (ordine di lettura naturale su mobile). Il segnale
 
 ## Azioni
 
-La **pressione lunga** (300 ms) sulla riga apre un **menu nativo**
-(`ActionSheetIOS` su iOS, `Alert` su Android) con l'unica azione sensata:
-"Segna pagata" oppure "Segna da pagare". Niente bottoni inline dentro la riga —
-è una regola del design system. Le righe senza azione non sono premibili.
+La **pressione lunga È la conferma**: non apre più nessun foglio. L'anello a
+destra si riempie mentre tieni premuto e al 100% l'azione parte; mollare prima
+annulla e l'anello torna indietro. Niente action sheet che spunta di scatto.
 
-### Gestualità (`LessonRow`)
+### La riga (`LessonRow`)
+
+Lista flat sullo sfondo, divisori rientrati sotto il glifo — vocabolario delle
+liste iOS (Impostazioni / Wallet):
+
+| Zona | Contenuto |
+|---|---|
+| Glifo tondo 36px | Lo **stato a colpo d'occhio**: € ambra da pagare · ✓ verde pagata · portafoglio viola a credito · ✕ grigia annullata · orologio grigia programmata · tocco viola esame |
+| Titolo | `Mer 17 · 15:00` |
+| Sottotitolo | tipo guida (o "Guida di gruppo" / "Annullata tardi") · istruttore |
+| Valore a destra | `Da pagare` · `Pagata` · `A credito` · `€25` — in tinta col glifo |
+| Anello 26px | Solo se azionabile. Verde per "segna pagata", **ambra** per il verso opposto |
+
+Il glifo fa il lavoro che facevano tre badge in fila: la lista si legge
+scorrendo la colonna di sinistra. Spariti con il redesign: colonna data, fila di
+badge e i **tre puntini**, che dopo il passaggio alla pressione lunga non
+facevano più niente.
+
+### Gestualità
 
 | Gesto | Cosa fa |
 |---|---|
-| Pressione lunga (300 ms) | `impactAsync(Medium)` + la riga si solleva (scale 1.02 → 1) e si apre il menu |
-| Tocco breve | **Non** esegue e **non** resta muto: `selectionAsync()` + la riga cede (0.97 → 1) e il suggerimento ricompare per 2,6 s |
-| Dito giù / su | scale 0.985 / 1, molla corta (`damping 20, stiffness 340`) |
+| Dito giù | `selectionAsync()`, la riga si accende (`#F7F8FA`) e l'anello parte |
+| Tenuta 900 ms | Al cerchio chiuso: `notificationAsync(Success)` e scrittura |
+| Rilascio prima | `cancelAnimation` + l'anello rientra di molla. Niente scrittura |
+| Tocco breve | **Non** resta muto: l'anello fa un lampo e il suggerimento torna per 2,6 s |
 
 **Scopribilità.** Tre livelli, nessuno invasivo:
-1. Il `•••` in coda alla riga è il segno **permanente** che lì c'è un menu (colore `#B4B4BD`, un filo più presente del grigio disabilitato).
-2. Alla **prima apertura in assoluto** una riga di suggerimento entra sotto i filtri ("Tieni premuta una guida per segnarla pagata") e sparisce da sola dopo 5,2 s. Nessun modale, niente "Ho capito" da premere.
-3. Il **tocco breve** la richiama, sempre: chi tocca invece di tenere premuto riceve una risposta, non il silenzio.
+1. L'**anello vuoto** è il segno permanente che su quella riga c'è qualcosa da tenere premuto — ha preso il posto dei puntini, e a differenza loro *fa* qualcosa.
+2. Alla **prima apertura** una riga di suggerimento entra sotto i filtri ("Tieni premuta una guida finché il cerchio si chiude") e sparisce da sola dopo 5,2 s.
+3. Il **tocco breve** la richiama, sempre.
 
-Alla prima pressione lunga riuscita si scrive `reg450.paymentsLongPressLearned`
-in AsyncStorage e il suggerimento non parte più da solo (resta la risposta al
-tocco breve).
+Alla prima conferma completata si scrive `reg450.paymentsLongPressLearned` in
+AsyncStorage e il suggerimento non parte più da solo.
 
-**VoiceOver**: uno screen reader non sa fare una pressione lunga. Con
-`AccessibilityInfo.isScreenReaderEnabled()` attivo il doppio tocco apre
-direttamente il menu, e la riga espone `accessibilityHint`.
+**VoiceOver**: uno screen reader non sa tenere premuto. Con
+`AccessibilityInfo.isScreenReaderEnabled()` attivo il doppio tocco apre il menu
+nativo di ripiego (`ActionSheetIOS` / `Alert`), che resta in piedi solo per
+questo.
 
-> **Perché `ActionSheetIOS` e non il `ContextMenu` SwiftUI di `@expo/ui`.**
-> Il menu contestuale vero (riga sollevata, sfondo sfocato) esiste in
-> `@expo/ui/swift-ui`, già nel binario. È stato scartato per ora: è `0.2.0-beta`,
-> richiede iOS ≥ 26 (su Android e iOS più vecchi servirebbe comunque il fallback,
-> quindi due esperienze da mantenere) e imporrebbe un `Host` SwiftUI **per ogni
-> riga** dentro una lista scrollabile — un rischio di performance e di crash che
-> non è stato possibile misurare su dispositivo. Da rivalutare quando c'è modo di
-> provarlo su un device vero: il punto di innesto è il solo `LessonRow`.
+### Anello (`src/components/HoldRing.tsx`)
 
-Una riga è azionabile se **entrambe**:
-- `canToggleLessonPayment` — ricalca `showPaymentToggle` del web: con i crediti
-  **obbligatori** non si segna nulla a mano; con i crediti facoltativi solo le
-  guide effettuate; senza crediti anche quelle già `unpaid` (posti di guida di
-  gruppo). Le penali tardive sono sempre segnabili. Una guida coperta da credito
-  mai.
-- `canManageLessonPayments(autoscuolaRole)` — l'utente è **staff** (titolare o
-  istruttore). **Non dipende da chi ha tenuto la guida**: qualsiasi membro staff
-  segna qualsiasi guida dell'allievo. Specchio di `canManageLessonPayments` in
-  `reglo/lib/autoscuole/lesson-payments.ts`, dove sta il permesso vero.
+Due semidischi che ruotano dentro due maschere, **niente SVG** — stessa tecnica
+di `ProgressRing`, così viaggia via OTA senza toccare il binario. A differenza
+di `ProgressRing`, che anima da sé un valore fisso al mount, `HoldRing` segue
+uno `SharedValue`: il riempimento è il tempo di pressione.
 
-> **Storico.** Fino al 18/09/2026 l'istruttore era ristretto alle proprie guide,
-> per simmetria con `updateAutoscuolaAppointmentDetails`. La restrizione è stata
-> rimossa di proposito: l'incasso non è un dato didattico della guida, è un
-> fatto amministrativo dell'allievo, e chi incassa in autoscuola spesso non è
-> l'istruttore che quella guida l'ha tenuta. Il test
-> `tests/unit/autoscuole/lesson-payments.test.ts` lato backend esiste perché non
-> rientri per distrazione.
+### Filtri animati
+
+La pastiglia navy **scivola** da un filtro all'altro (`withSpring` su
+`translateX` + `width`, misurati con `onLayout`), le righe entrano e escono in
+dissolvenza (`FadeIn`/`FadeOut` + `LinearTransition`), i contatori fanno
+cross-fade cambiando `key`. Al primo montaggio la pastiglia si posiziona senza
+scivolare (`ready`).
 
 Nessun optimistic update (convenzione del repo): si scrive solo ciò che il BE ha
 risposto (`res.manualPaymentStatus`), poi `onChanged` fa ricaricare la scheda
