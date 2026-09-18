@@ -403,6 +403,13 @@ export type CreateGroupLessonInput = {
   capacity?: number;
   studentIds?: Uuid[];
   notes?: string;
+  /**
+   * Luogo della guida di gruppo (REG-409 follow-up). Precompilato dal tipo di
+   * patente della guida, modificabile a mano. I backend che non lo conoscono
+   * ancora lo scartano in silenzio (zod `.parse()` strippa le chiavi ignote),
+   * quindi inviarlo e' sicuro anche prima che il campo sia su staging.
+   */
+  locationId?: Uuid | null;
 };
 
 export type GetAppointmentsParams = {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,11 +14,15 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
+import { locationPickerStore } from '../stores/locationPickerStore';
+import { locationFormStore } from '../stores/locationFormStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
 import { optionsPickerPath, optionsPickerStore } from '../stores/optionsPickerStore';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
+import { useLocations } from '../hooks/queries/useLocations';
+import { resolvePrefilledLocationId } from '../utils/locationForLicense';
 import { Button } from '../components/Button';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
@@ -63,6 +67,36 @@ const initialsOf = (first: string, last: string) => {
   return (f || l || '?').slice(0, 2).toUpperCase();
 };
 
+/**
+ * Categoria patente di una guida di GRUPPO, per precompilare il Luogo (REG-409).
+ *
+ * Nelle guide individuali la patente della guida viene dal veicolo scelto
+ * (`utils/locationForLicense`), ma un gruppo non ha un solo allievo ne' —
+ * se e' moto — un solo veicolo:
+ * - **standard**: c'e' un unico veicolo condiviso → vince la sua categoria;
+ * - **moto**: la flotta puo' essere MISTA (A1 + A2 + …). Si usa la categoria
+ *   solo quando tutta la flotta concorda; con una flotta mista restituisce
+ *   `null` e il Luogo ricade sulla sede, invece di scegliere a caso fra i
+ *   luoghi di due patenti diverse.
+ *
+ * Il default dell'allievo (REG-392, passo 1 della precedenza) qui **non si
+ * applica**: gli allievi sono piu' d'uno e i posti restanti si riempiono con
+ * gli inviti, quindi non esiste "l'allievo" della guida.
+ *
+ * ⚠️ PROVVISORIO: da riconciliare col criterio scelto lato web quando
+ * `createGroupLesson` con `locationId` sara' su staging. E' l'unico punto da
+ * toccare se il web ha deciso diversamente.
+ */
+const groupLessonLicenseCategory = (
+  kind: 'standard' | 'moto',
+  standardVehicle: { licenseCategory?: string | null } | null,
+  fleet: Array<{ licenseCategory?: string | null }>,
+): string | null => {
+  if (kind === 'standard') return standardVehicle?.licenseCategory ?? null;
+  const cats = new Set(fleet.map((v) => v.licenseCategory).filter(Boolean) as string[]);
+  return cats.size === 1 ? [...cats][0] : null;
+};
+
 // License eligibility with the moto hierarchy (shared helper), null vehicle = permissive.
 const vehicleServesStudent = (
   v: { licenseCategory?: string | null; transmission?: string | null } | null,
@@ -104,6 +138,10 @@ export const CreateGroupLessonScreen = () => {
   const [followVehicleId, setFollowVehicleId] = useState<string | null>(null);
   const [followCarRules, setFollowCarRules] = useState<Record<string, { enabled: boolean }>>({});
   const [instructorId, setInstructorId] = useState<string | null>(null);
+  const [locationId, setLocationId] = useState<string | null>(null);
+  // Alza bandiera alla scelta manuale: da li' il ricalcolo su veicolo/flotta
+  // non tocca piu' il Luogo (stesso patto di `BookingForm`).
+  const locationTouchedRef = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openInvites, setOpenInvites] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,6 +176,7 @@ export const CreateGroupLessonScreen = () => {
     if (!data) return;
     setStartAt(new Date(data.initialDate));
     setSelectedIds([]); setOpenInvites(true); setSaving(false);
+    setLocationId(null); locationTouchedRef.current = false;
   }, [data]);
 
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === vehicleId) ?? null, [vehicles, vehicleId]);
@@ -190,7 +229,43 @@ export const CreateGroupLessonScreen = () => {
     [eligibleStudents, selectedIds],
   );
 
+  // ── Luogo (REG-409) ────────────────────────────────────────────────
+  const { data: locList } = useLocations();
+  const selectedLocation = useMemo(
+    () => (locList ?? []).find((l) => l.id === locationId) ?? null,
+    [locList, locationId],
+  );
+
+  // Precompila il Luogo dalla patente della guida di gruppo, con lo stesso
+  // resolver delle guide individuali (`utils/locationForLicense`, gemello del
+  // modulo web). Ricalcola al cambio tipo/veicolo/flotta finche' il Luogo non
+  // e' stato scelto a mano. Senza lista luoghi in cache non fa nulla.
+  useEffect(() => {
+    const locations = locList ?? [];
+    if (!locations.length || locationTouchedRef.current) return;
+    const resolved = resolvePrefilledLocationId({
+      locations,
+      // Un gruppo non ha "l'allievo": passo 1 della precedenza non si applica.
+      studentDefaultLocationId: null,
+      student: null,
+      vehicle: { licenseCategory: groupLessonLicenseCategory(kind, selectedVehicle, fleet) },
+    });
+    setLocationId(resolved);
+  }, [locList, kind, selectedVehicle, fleet]);
+
   if (!data) return <View style={s.root} />;
+
+  const openLocationPicker = () => {
+    locationPickerStore.set({
+      selectedLocationId: locationId,
+      onSelect: (loc) => { locationTouchedRef.current = true; setLocationId(loc.id); },
+      onRequestCreate: () => {
+        locationFormStore.set({ initial: null, onSubmit: async (values) => { await regloApi.createLocation(values); } });
+        router.push('/(tabs)/home/manage-lesson-location-form');
+      },
+    });
+    router.push('/(tabs)/home/manage-lesson-location');
+  };
 
   const openDatePicker = () => {
     dayPickerStore.set({
@@ -336,6 +411,7 @@ export const CreateGroupLessonScreen = () => {
           ? { kind: 'moto' as const, vehicleIds: fleetIds, followVehicleId: followVehicleId ?? undefined, motoLessonType, capacity: effectiveCapacity }
           : { vehicleId, capacity }),
         studentIds: selectedIds,
+        locationId,
       });
       // Optionally broadcast an invite for the remaining seats.
       if (openInvites && res.participants < effectiveCapacity) {
@@ -416,6 +492,15 @@ export const CreateGroupLessonScreen = () => {
                 <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={saving} />
               </>
             )}
+            <View style={s.divider} />
+            <Row
+              icon="location-outline"
+              label="Luogo"
+              value={selectedLocation ? selectedLocation.name : null}
+              placeholder="Sede dell'autoscuola"
+              onPress={openLocationPicker}
+              disabled={saving}
+            />
           </View>
 
           {isMoto ? (
