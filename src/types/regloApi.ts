@@ -227,6 +227,13 @@ export type AutoscuolaLocation = {
   placeId: string | null;
   isDefault: boolean;
   isPrecise: boolean;
+  /**
+   * Tipi di patente serviti dal luogo (REG-409). Il titolare li assegna dal web
+   * (Impostazioni → Sede e luoghi); il mobile li usa SOLO in lettura per
+   * precompilare il campo "Luogo" in creazione guida (`utils/locationForLicense`).
+   * Assente sui backend precedenti a REG-409 → trattare come lista vuota.
+   */
+  licenseCategories?: string[] | null;
 };
 
 export type AutoscuolaAppointment = {

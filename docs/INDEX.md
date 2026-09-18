@@ -22,7 +22,7 @@
 | Pagellino di valutazione (REG-443) | [evaluation-sheet.md](features/evaluation-sheet.md) | `home/manage-lesson-details`, `StarRating`, `IstruttoreHomeScreen`, `StudentNotesDetailScreen`, `EvaluationSheetScreen` (Altro → Pagellino), `EvaluationItemSheet` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Pagamenti guide (REG-450) | [lesson-payments.md](features/lesson-payments.md) | `StudentPaymentsScreen`, `home/student-payments` + `notes/student-payments`, `studentPaymentsStore`, `src/utils/lessonPayments.ts`, `StudentNotesDetailScreen` (blocco Pagamenti) |
-| Locations | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form` |
+| Locations (+ Luogo per tipo patente, REG-409) | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form`, `src/utils/locationForLicense.ts`, `BookingForm` (precompilazione Luogo) |
 | Vehicles | [vehicles.md](features/vehicles.md) | `VehiclesScreen`, `OwnerVehiclesScreen`, `InstructorVehiclesScreen`, `more/vehicle-form` |
 | Group lessons | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen`, `GroupLessonInvitesScreen`, `DayItinerary`/`weeklyAgenda` (teal card), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |

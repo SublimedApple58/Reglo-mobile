@@ -29,6 +29,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | DayItinerary, IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `AutoscuolaAppointment.manualPaymentStatus` / `creditApplied` / `paymentRequired` | `StudentPaymentsScreen`, `StudentNotesDetailScreen` (conteggio "da pagare") via `src/utils/lessonPayments.ts` (REG-450). **Solo ramo full** di `getAppointments`. Vedi [features/lesson-payments.md](features/lesson-payments.md). |
+| `AutoscuolaLocation.licenseCategories` | `BookingForm` via `src/utils/locationForLicense.ts` — precompilazione del campo Luogo (REG-409). Campo **opzionale**: assente sui backend pre-REG-409 → lista vuota, si ricade sulla sede. Scritto SOLO dal web. Vedi [features/locations.md](features/locations.md). |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
 ## Feature Adjacency
@@ -158,6 +159,8 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Locations
 - → **Booking Flow / Instructor Manage**: i luoghi vengono scelti quando si prenota/crea una guida (`LocationPickerSheet`, `InlineLocationPicker`, `IstruttoreHomeScreen` chiamano anch'essi `getLocations`, ma non condividono ancora `useLocations`).
+- → **Luogo per tipo di patente (REG-409)**: `src/utils/locationForLicense.ts` è **gemello** di `../reglo/lib/autoscuole/location-for-license.ts` — se cambia la precedenza (allievo → patente → sede) o la shape di `GET /api/autoscuole/locations`, **le due copie vanno cambiate insieme**, come `mandatoryLessons.ts` e `agendaColors.ts`. Consumato da `BookingForm` (ricalcolo al cambio allievo/veicolo, `locationTouchedRef` per la scelta manuale).
+- → **Booking Flow (allievo)**: la prenotazione self-service **non ha** un campo Luogo — lo assegna il backend (`createBookingRequest`/`respondWaitlistOffer`), che dal 2026-09-19 applica la stessa precedenza invece della sede fissa. Nessun codice mobile coinvolto, ma il luogo mostrato nel dettaglio guida ora può non essere la sede.
 - → **Settings**: raggiungibile da "Altro" (istruttore/owner).
 - → **Backend**: `getLocations`/`createLocation`/`updateLocation`/`deleteLocation`. Google Places via `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`.
 - Form migrato da `BottomSheet` custom (`LocationFormSheet`, eliminato) a route formSheet `more/location-form` (store-driven).
@@ -206,6 +209,7 @@ When `../reglo/` backend changes:
 | New instructor setting | `InstructorClusterSettings` type + 9 consuming screens |
 | Changed appointment status values | Status-dependent rendering in 14 files |
 | New lesson type | `src/utils/lessonTypes.ts` + screens showing lesson type labels |
+| Cambio precedenza/shape del Luogo precompilato (REG-409) | `src/utils/locationForLicense.ts` (gemello di `reglo/lib/autoscuole/location-for-license.ts`) + `BookingForm` |
 | Student phase model change | `src/types/regloApi.ts` (StudentPhasePayload), `useMyPhase`, `useStudentPhase`, `_layout.tsx`, `RoleHomeScreen` |
 | New theory reminder push kind | `src/types/notifications.ts` + `NotificationInboxScreen` (icon + title + subtitle) |
 

@@ -21,6 +21,7 @@ import { locationFormStore } from '../../stores/locationFormStore';
 import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
 import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
+import { resolvePrefilledLocationId } from '../../utils/locationForLicense';
 import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { Button } from '../Button';
@@ -133,6 +134,13 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   // picker callbacks stored in external stores.
   const lastSelRef = useRef<LastBookingSelection | null>(null);
 
+  // Luogo precompilato (REG-409). `locationTouchedRef` alza bandiera quando il
+  // Luogo è scelto A MANO: da lì il ricalcolo al cambio VEICOLO non lo tocca
+  // più (il cambio ALLIEVO invece riparte sempre da zero, come sul web).
+  // `lastStudentRef` distingue i due casi dentro l'effetto di ricalcolo.
+  const locationTouchedRef = useRef(false);
+  const lastStudentRef = useRef('');
+
   useEffect(() => {
     if (!data) return;
     setStudentId('');
@@ -164,6 +172,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setMultiMode(false);
     setEntries([]);
     setPending(false);
+    locationTouchedRef.current = false;
+    lastStudentRef.current = '';
 
     lastSelRef.current = null;
     if (!data.vehiclesEnabled || !data.instructorId) return;
@@ -212,6 +222,40 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const resolvedLocation = locationId ? locById.get(locationId) : null;
   const locationLabel = resolvedLocation?.name ?? locationName ?? "Sede dell'autoscuola";
   const locationSubLabel = resolvedLocation?.address ?? locationAddress ?? null;
+
+  // Luogo precompilato (REG-409): precedenza default allievo → luogo della
+  // patente della guida → sede. Ricalcola al cambio ALLIEVO (sempre, azzerando
+  // la scelta manuale) e al cambio VEICOLO (solo se il Luogo non è stato scelto
+  // a mano) — stessa regola di `prefillLocationId` nell'agenda web.
+  // Con la lista luoghi non ancora in cache non fa nulla: resta il valore
+  // seedato (sede, o default dell'allievo messo da `openStudentPicker`).
+  useEffect(() => {
+    if (!data) return;
+    const locations = locList ?? [];
+    if (!locations.length) return;
+
+    if (studentId !== lastStudentRef.current) {
+      lastStudentRef.current = studentId;
+      locationTouchedRef.current = false;
+    } else if (locationTouchedRef.current) {
+      return;
+    }
+
+    const student = data.studentOptions.find((o) => o.value === studentId) ?? null;
+    const vehicle = data.vehicles.find((v) => v.id === vehicleId) ?? null;
+    const resolved = resolvePrefilledLocationId({
+      locations,
+      studentDefaultLocationId: student?.defaultLocationId ?? null,
+      student: { licenseCategory: student?.licenseCategory ?? null },
+      vehicle: { licenseCategory: vehicle?.licenseCategory ?? null },
+    });
+    if (!resolved) return;
+
+    const loc = locations.find((l) => l.id === resolved) ?? null;
+    setLocationId(resolved);
+    setLocationName(loc?.name ?? null);
+    setLocationAddress(loc?.address ?? null);
+  }, [data, locList, studentId, vehicleId]);
 
   if (!data) return <View style={s.root} />;
   const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
@@ -318,10 +362,10 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         setStudentId(v);
         const st = studentOptions.find((o) => o.value === v);
         if (st) presetVehiclesForStudent(st);
-        // Luogo di default dell'allievo (REG-392): alla selezione precompila il
-        // Luogo col suo default, SOVRASCRIVENDO il valore corrente. Se l'allievo
-        // non ha un default, torna alla sede. Una modifica manuale successiva
-        // resta (questo scatta solo al cambio allievo).
+        // Luogo di default dell'allievo (REG-392): risposta immediata alla
+        // selezione, indipendente dalla lista luoghi. L'effetto REG-409 sopra
+        // rifinisce subito dopo con la precedenza completa (allievo → patente
+        // → sede) quando la lista è in cache.
         if (st?.defaultLocationId) {
           setLocationId(st.defaultLocationId);
           setLocationName(st.defaultLocationName ?? null);
@@ -352,7 +396,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const openLocationPicker = () => {
     locationPickerStore.set({
       selectedLocationId: locationId ?? defaultLocation?.id ?? null,
-      onSelect: (loc) => { setLocationId(loc.id); setLocationName(loc.name); setLocationAddress(loc.address ?? null); },
+      // Scelta manuale: da qui il ricalcolo al cambio veicolo non tocca più il Luogo.
+      onSelect: (loc) => { locationTouchedRef.current = true; setLocationId(loc.id); setLocationName(loc.name); setLocationAddress(loc.address ?? null); },
       onRequestCreate: () => {
         locationFormStore.set({ initial: null, onSubmit: async (values) => { await regloApi.createLocation(values); } });
         router.push('/(tabs)/home/manage-lesson-location-form');

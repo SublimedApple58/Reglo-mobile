@@ -44,6 +44,18 @@ is the only live path.
   temporaneamente sospese. Contatta la segreteria." e non apre il foglio.
   Backward-compatible: campo assente (backend vecchio) = non bloccato.
 
+## Luogo della guida prenotata (REG-409 follow-up, 2026-09-19)
+Il flow di prenotazione dell'allievo **non ha un campo Luogo**: il luogo lo
+assegna il backend alla creazione dell'appuntamento. Prima era sempre la **sede**
+(query hardcoded `isDefault:true`), ora applica la precedenza
+**default dell'allievo (REG-392) → luogo assegnato alla patente della guida →
+sede**, la stessa del campo "Luogo" in creazione guida da web e da
+`BookingForm`. Vale sia per la prenotazione normale (`createBookingRequest`) sia
+per l'accettazione di un'offerta lista d'attesa (`respondWaitlistOffer`).
+Nessuna modifica lato app: l'allievo vede il luogo nel dettaglio guida come
+prima, ma ora può non essere la sede. Vedi
+`../reglo/docs/features/locations.md` e [locations.md](locations.md).
+
 ## API functions used
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 
