@@ -31,8 +31,9 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { colors } from '../theme';
+import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
-const REQUIRED_LESSONS = 6;
+
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const H_PAD = 22;
 
@@ -121,7 +122,11 @@ export const InstructorNotesScreen = () => {
       const cur = map.get(appt.studentId) ?? { total: 0, completed: 0 };
       cur.total += 1;
       const st = (appt.status ?? '').trim().toLowerCase();
-      if (st === 'completed' || st === 'checked_in') cur.completed += 1;
+      // `total` conta tutte le guide; `completed` alimenta l'obbligo, quindi
+      // prende SOLO le guide da 60 minuti (stesso criterio del BE).
+      if ((st === 'completed' || st === 'checked_in') && isMandatoryLessonDuration(appt)) {
+        cur.completed += 1;
+      }
       map.set(appt.studentId, cur);
     }
     return map;

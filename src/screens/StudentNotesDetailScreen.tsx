@@ -36,13 +36,14 @@ import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import { GlassCloseButton } from '../components/GlassCloseButton';
+import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
 const FLUENT_BUILDING = require('../../assets/icons/fluent-building.png');
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
-const REQUIRED_LESSONS = 6;
+
 
 const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
   manovre: { bg: '#DCFCE7', fg: '#15803D' },
@@ -351,10 +352,13 @@ export const StudentNotesDetailScreen = () => {
     return null;
   }, [appointments]);
 
+  // Obbligo: contano SOLO le guide da 60 minuti (stesso criterio del BE e dei
+  // colori dell'agenda). Le guide da 30 minuti finivano qui dentro per errore.
   const completedCount = useMemo(
     () => appointments.filter((a) => {
       const s = (a.status ?? '').trim().toLowerCase();
-      return s === 'completed' || s === 'checked_in';
+      if (s !== 'completed' && s !== 'checked_in') return false;
+      return isMandatoryLessonDuration(a);
     }).length,
     [appointments],
   );

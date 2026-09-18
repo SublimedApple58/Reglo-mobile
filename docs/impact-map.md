@@ -208,3 +208,8 @@ When `../reglo/` backend changes:
 - → **Tab Layout**: `_layout.tsx` computes `isStudentMoto` → `GlassTabBar.isStudentMoto` → Home icon `bicycle-outline` (Teoria override wins).
 - → **Group Lessons (student view)**: `group-lesson-detail` shows self moto + follow car + "Guida di gruppo moto"; `GroupLessonInvitesScreen` shows "Ti verrà assegnata una moto" (needs backend `getGroupLessonInvites` → `kind`; type `GroupLessonInvite.kind`).
 - Category `B` (auto) students: **unchanged** (default car branch everywhere).
+
+### Guide obbligatorie (contatore x/6)
+- Regola in `src/utils/mandatoryLessons.ts` (`REQUIRED_LESSONS`, `isMandatoryLessonDuration`): contano **solo le guide da esattamente 60 minuti**, `endsAt` nullo escluso. Usata da `StudentNotesDetailScreen` (obbligo dell'allievo) e `InstructorNotesScreen` (riga "obbligo x/6" della lista allievi).
+- **Gemella** di `reglo/lib/autoscuole/mandatory-lessons.ts`, che alimenta il `summary` del dettaglio allievo web e il flag `mandatoryLesson` dei colori agenda: le due copie vanno cambiate insieme.
+- Prima del 2026-09-18 entrambe le schermate contavano tutte le guide completate/checked_in, comprese quelle da 30 minuti.
