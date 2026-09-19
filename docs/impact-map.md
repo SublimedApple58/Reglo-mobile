@@ -16,7 +16,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
-| `BookingForm` | `home/new-booking`, `home/quick-book` (2) | Form completo prenotazione. Legge `bookingSheetStore`. Prop `embedded`. Modificarlo cambia ENTRAMBE le route. |
+| `BookingForm` | `home/new-booking`, `home/quick-book` (2) | Form completo prenotazione. Legge `bookingSheetStore`. Prop `embedded`. Modificarlo cambia ENTRAMBE le route. Lista allievi = solo fase **PRATICA** (REG-499), filtrata in `IstruttoreHomeScreen.bookingStudentOptions` → cambia per ENTRAMBE. |
 | `BlockForm` | `home/block-slot`, `home/quick-book` (2) | Form completo blocca slot. Legge `blockSheetStore`. Prop `embedded`. Modificarlo cambia ENTRAMBE le route. |
 | `MiniCalendar` | InstructorManage, OwnerInstructor, role/availability-exception + used by CalendarDrawer (4) | Navy selected/today/dot (no yellow/pink). |
 

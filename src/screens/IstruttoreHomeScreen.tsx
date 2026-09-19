@@ -83,6 +83,7 @@ import {
   AutoscuolaInstructor,
   AutoscuolaLocation,
   AutoscuolaSettings,
+  AutoscuolaStudentPhase,
   AutoscuolaVehicle,
   InstructorBlock,
   InstructorBookingSuggestion,
@@ -594,7 +595,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
-  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; studentPhase?: AutoscuolaStudentPhase; defaultLocationId?: string | null; defaultLocationName?: string | null }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
@@ -1032,6 +1033,18 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     () => students.filter((s) => s.assignedInstructorId !== instructorId),
     [students, instructorId],
   );
+  // Chi può ricevere una guida (REG-499): solo la fase PRATICA. Un AWAITING non
+  // ha il percorso attivato, un TEORIA non ha ancora il foglio rosa e un
+  // PATENTATO ha finito — nel picker dell'istruttore erano tutti selezionabili,
+  // e i due estremi (patentati e teoria) sono proprio quelli che Tiziano vedeva
+  // in lista. La fase arriva già nel bootstrap agenda, bastava guardarla.
+  // Nota: `studentPhase` assente = autoscuola legacy senza fasi → il default
+  // dello schema è PRATICA, quindi l'allievo resta prenotabile (mai una lista
+  // vuota per chi le fasi non le usa).
+  const bookableStudents = useMemo(
+    () => students.filter((s) => (s.studentPhase ?? 'PRATICA') === 'PRATICA'),
+    [students],
+  );
   const bookingStudentOptions = useMemo(() => {
     const toOption = (student: typeof students[number], offCluster: boolean) => ({
       value: student.id,
@@ -1045,14 +1058,15 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     });
     if (!clustersActive) {
       // No cluster lock \u2014 all students are equivalent
-      return students.map((s) => toOption(s, false));
+      return bookableStudents.map((s) => toOption(s, false));
     }
     // Clusters active: own students first, then others (marked)
+    const bookable = new Set(bookableStudents.map((s) => s.id));
     return [
-      ...assignedStudents.map((s) => toOption(s, false)),
-      ...unassignedStudents.map((s) => toOption(s, true)),
+      ...assignedStudents.filter((s) => bookable.has(s.id)).map((s) => toOption(s, false)),
+      ...unassignedStudents.filter((s) => bookable.has(s.id)).map((s) => toOption(s, true)),
     ];
-  }, [students, assignedStudents, unassignedStudents, clustersActive]);
+  }, [bookableStudents, assignedStudents, unassignedStudents, clustersActive]);
   // SWR: only a true loading state when nothing is loaded yet. Background window
   // refreshes keep the (week) grid painted instead of flashing a loader.
   const appointmentsLoading = (initialLoading || rangeLoading) && appointments.length === 0;

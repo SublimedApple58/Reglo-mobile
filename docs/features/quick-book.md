@@ -89,8 +89,29 @@ Stesso componente di `app/(tabs)/role/availability-exception.tsx`: track `#EBEBE
 pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → attivo
 `#1A1A2E`. Larghezza pill = `(tabsW - 10) / 2` misurata con `onLayout`.
 
+## Chi compare nel picker allievo
+
+Solo la fase **PRATICA** (REG-499, 19/09/2026). Un AWAITING non ha il percorso
+attivato, un TEORIA non ha ancora il foglio rosa, un PATENTATO ha finito: prima
+comparivano tutti e tre, e l'istruttore selezionava gente a cui non può fissare
+una guida. Il filtro sta in `IstruttoreHomeScreen.bookingStudentOptions`
+(`bookableStudents`) — la fase arriva già col bootstrap agenda
+(`AutoscuolaStudent.studentPhase`), non serve nessuna chiamata in più.
+
+`studentPhase` assente ⇒ trattato come PRATICA: è il default dello schema, e le
+autoscuole che le fasi non le usano devono continuare a vedere tutti.
+
+Il filtro vale per entrambe le strade (FAB `new-booking` e quick-book: stesso
+`BookingForm`, stesse opzioni) e per il titolare in `ownerMode`. Il backend non
+impone la fase allo staff — dall'agenda web si prenota ancora per chiunque.
+
 ## Note
 
+- **Blocco prenotazioni dell'allievo (REG-499)**: non ferma l'istruttore. Se il
+  titolare ha bloccato le prenotazioni di un allievo, l'istruttore può prenotargli
+  una guida lo stesso — il blocco toglie il self-service all'allievo, non l'agenda
+  all'autoscuola. Il backend risponde `success` con un `warnings` che oggi l'app
+  **non** mostra (lo legge solo l'agenda web).
 - **Prenotazione nel passato consentita con conferma** (2026-07-15): `openDatePicker` usa
   `allowPast: true` (+ `monthsBack: 3`) → i giorni passati sono selezionabili. In
   `confirmSingle`/`confirmMulti` un `Alert.alert` nativo ("Annulla" / "Prenota comunque")
