@@ -194,18 +194,27 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
 
   return (
     <>
-      <View style={s.header}>
-        <Text style={s.title}>Le tue guide</Text>
-        {/* La chiave forza il rimontaggio: il sottotitolo sfuma invece di
-            scattare da un conteggio all'altro. */}
-        <Animated.Text key={subtitle} entering={FadeIn.duration(180)} style={s.subtitle}>
-          {subtitle}
-        </Animated.Text>
-      </View>
-
-      <LedgerFilterBar defs={filterDefs} active={tab} onChange={setTab} style={s.filters} />
-
+      {/*
+        Titolo e filtri stanno DENTRO lo scaffold, non accanto: in un form sheet
+        deve esserci **un solo** contenitore scrollabile (design-system.md).
+        Tenendo la barra filtri — che è una ScrollView orizzontale — come
+        fratello di `SheetScaffold` (`flex: 1`), i due contenitori si
+        contendevano l'altezza: la barra collassava e il suo contenuto
+        traboccava sopra l'header e la X. È esattamente la struttura di
+        Pagamenti, dove titolo, filtri e lista scorrono insieme.
+      */}
       <SheetScaffold fill>
+        <View style={s.header}>
+          <Text style={s.title}>Le tue guide</Text>
+          {/* La chiave forza il rimontaggio: il sottotitolo sfuma invece di
+              scattare da un conteggio all'altro. */}
+          <Animated.Text key={subtitle} entering={FadeIn.duration(180)} style={s.subtitle}>
+            {subtitle}
+          </Animated.Text>
+        </View>
+
+        <LedgerFilterBar defs={filterDefs} active={tab} onChange={setTab} style={s.filters} />
+
         {loading ? (
           <View style={s.centerState}>
             <ActivityIndicator color="#1A1A2E" />
@@ -344,7 +353,7 @@ const s = StyleSheet.create({
   header: { paddingHorizontal: LEDGER_PAD, marginBottom: 2 },
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
-  filters: { marginTop: 16, marginBottom: 4, flexGrow: 0 },
+  filters: { marginTop: 14, marginBottom: 2, flexGrow: 0 },
 
   list: { paddingBottom: 40 },
   rowPressed: { backgroundColor: '#FAFAFC' },

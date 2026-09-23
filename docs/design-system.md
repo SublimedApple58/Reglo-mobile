@@ -878,6 +878,8 @@ restano nella schermata: il foglio disegna soltanto.
 
 Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).
 
+> **Corollario, costato un rilascio rotto il 23/09/2026 (REG-510).** In un form `SCROLL_SHEET` ci deve essere **un solo contenitore scrollabile**: quello dello `SheetScaffold`. Mettere accanto a lui un'altra `ScrollView` — anche solo **orizzontale**, come una barra filtri — li fa competere per l'altezza dentro la colonna flex: quella orizzontale collassa e il suo contenuto trabocca sopra l'header e la X. Titolo, filtri e lista vanno **dentro** lo scaffold e scorrono insieme, com'è in `StudentPaymentsScreen`.
+
 ---
 
 ## 8. Animazioni
