@@ -19,6 +19,25 @@ Il menu ••• ora si apre **anche con un solo iscritto**: prima usciva un av
 e basta, perché l'unica azione era rimuovere. Un esame con un allievo solo è il
 caso normale, ed è proprio lì che serve l'esito.
 
+### Dettaglio allievo
+
+`src/screens/StudentNotesDetailScreen.tsx` (rotte `home/student-detail` e
+`notes/[studentId]`, entrambe solo staff) — nello storico, la riga di un esame
+porta la **pastiglia dell'esito** accanto alla chip "Esame", con le stesse
+tinte del registro web. Prima l'esame si vedeva ma l'esito no: la lista
+riceveva già `examOutcome` dal ramo *full* di `/api/autoscuole/appointments`,
+semplicemente non lo mostrava.
+
+La pastiglia è **toccabile**: apre lo stesso menu del foglio esame, così
+l'esame di ieri si chiude da dove si guarda l'allievo. Su un esame già
+iniziato senza esito compare al suo posto **"Registra esito"** (contorno
+violetto). Dopo il salvataggio la schermata si **ricarica dal BE** — la fase in
+testa deve muoversi insieme all'esito, e niente update ottimistici.
+
+Menu, etichette, tinte e regola di registrabilità stanno in
+`src/utils/examOutcome.ts`, condiviso fra foglio esame e dettaglio allievo:
+gemello di `reglo/lib/autoscuole/exam-outcome.ts`.
+
 ## Cosa NON fa
 
 **Non chiede il numero di patente.** Arriva quasi sempre giorni dopo l'esame, e

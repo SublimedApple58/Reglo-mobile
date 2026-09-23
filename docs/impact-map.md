@@ -97,6 +97,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Esito esame (REG-513)
 - → **Foglio esame istruttore** (`home/exam-manage`): pastiglia sulla riga + "Registra esito" nel menu •••. Non chiede il numero di patente (lo inserisce il web).
+- → **Dettaglio allievo** (`StudentNotesDetailScreen`, rotte `home/student-detail` + `notes/[studentId]`): pastiglia dell'esito sulla riga dell'esame nello storico, toccabile per registrarlo/cambiarlo. Ricarica `loadData()` dopo il salvataggio (la fase in testa cambia insieme all'esito). Menu e regole condivisi in `src/utils/examOutcome.ts`.
 - → **Picker allievo della prenotazione**: un **idoneo** porta l'allievo a PATENTATO, che il picker esclude (mostra solo PRATICA, REG-499). Chi segna un idoneo non troverà più quell'allievo fra i prenotabili.
 - → **Pronto per l'esame**: `examReady` si azzera uscendo da PRATICA, quindi un idoneo lo spegne.
 

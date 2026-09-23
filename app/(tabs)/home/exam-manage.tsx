@@ -10,6 +10,7 @@ import { colors } from '../../../src/theme/colors';
 import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { spacing } from '../../../src/theme/spacing';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
+import { asExamOutcome, askExamOutcome } from '../../../src/utils/examOutcome';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const FLUENT_GRADUATE = require('../../../assets/icons/fluent-graduate.png');
@@ -126,30 +127,12 @@ export default function ExamManageScreen() {
     }
   };
 
-  const askOutcome = (a: AutoscuolaAppointmentWithRelations) => {
-    const current = a.examOutcome ?? null;
-    const options = ['Idoneo', 'Respinto', ...(current ? ['Togli esito'] : []), 'Annulla'];
-    const cancelIndex = options.length - 1;
-    const pick = (i: number) => {
-      if (i === 0) void doOutcome(a, 'idoneo');
-      else if (i === 1) void doOutcome(a, 'respinto');
-      else if (current && i === 2) void doOutcome(a, null);
-    };
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: studentName(a), options, cancelButtonIndex: cancelIndex,
-          destructiveButtonIndex: current ? 2 : undefined },
-        pick,
-      );
-    } else {
-      Alert.alert('Esito esame', studentName(a), [
-        { text: 'Idoneo', onPress: () => pick(0) },
-        { text: 'Respinto', onPress: () => pick(1) },
-        ...(current ? [{ text: 'Togli esito', style: 'destructive' as const, onPress: () => pick(2) }] : []),
-        { text: 'Annulla', style: 'cancel' as const },
-      ]);
-    }
-  };
+  const askOutcome = (a: AutoscuolaAppointmentWithRelations) =>
+    askExamOutcome({
+      title: studentName(a),
+      current: asExamOutcome(a.examOutcome),
+      onPick: (outcome) => void doOutcome(a, outcome),
+    });
 
   const onStudentMenu = (a: AutoscuolaAppointmentWithRelations) => {
     // L'ultimo iscritto non si può rimuovere (si annulla l'esame), ma il menu

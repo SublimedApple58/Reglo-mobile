@@ -38,6 +38,15 @@ import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import {
+  asExamOutcome,
+  askExamOutcome,
+  canRecordExamOutcome,
+  EXAM_OUTCOME_LABELS,
+  EXAM_OUTCOME_TONE,
+  type ExamOutcome,
+} from '../utils/examOutcome';
+import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
@@ -202,6 +211,50 @@ export const StudentNotesDetailScreen = () => {
   }, [studentId, name]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Esito esame (REG-513) dallo storico: stesso menu del foglio esame, stesso
+  // effetto lato server. Qui l'istruttore arriva a mente fredda — l'esame di
+  // ieri si chiude da dove si guarda l'allievo, non solo dall'agenda.
+  const [outcomeSavingId, setOutcomeSavingId] = useState<string | null>(null);
+
+  const recordOutcome = useCallback(
+    (appt: AutoscuolaAppointmentWithRelations) => {
+      const current = asExamOutcome(appt.examOutcome);
+      void impactAsync(ImpactFeedbackStyle.Light);
+      askExamOutcome({
+        title: name ? String(name) : 'Esito esame',
+        current,
+        onPick: async (outcome: ExamOutcome | null) => {
+          if (outcome === current) return;
+          setOutcomeSavingId(appt.id);
+          try {
+            const res = await regloApi.setExamOutcome(appt.id, outcome);
+            // Nessun update ottimistico: si ricarica dal BE, che intanto può
+            // aver portato l'allievo a PATENTATO (la fase in testa alla
+            // schermata deve muoversi insieme all'esito).
+            await loadData();
+            setToast({
+              text:
+                outcome === null
+                  ? 'Esito rimosso.'
+                  : res?.data?.promoted
+                    ? `${EXAM_OUTCOME_LABELS[outcome]} · allievo ora patentato.`
+                    : `Esito registrato: ${EXAM_OUTCOME_LABELS[outcome]}.`,
+              tone: 'success',
+            });
+          } catch (err) {
+            setToast({
+              text: err instanceof Error ? err.message : 'Impossibile registrare l\u2019esito.',
+              tone: 'danger',
+            });
+          } finally {
+            setOutcomeSavingId(null);
+          }
+        },
+      });
+    },
+    [loadData, name],
+  );
 
   // Apre il foglio "Dettagli guida" (Tipo/Valutazione/Note) per una guida dello
   // storico, seedando lessonDetailsStore (store DEDICATO del foglio: seedare
@@ -871,9 +924,63 @@ export const StudentNotesDetailScreen = () => {
                           );
                         })()}
                         {isExam ? (
-                          <View style={[s.tlChip, { backgroundColor: '#EDE9FE', alignSelf: 'flex-start' }]}>
-                            <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
-                          </View>
+                          (() => {
+                            // Chip "Esame" + esito: sul web la stessa riga del
+                            // registro porta la pill Idoneo/Respinto, qui
+                            // mancava e l'esame sembrava senza esito.
+                            const outcome = asExamOutcome(appt.examOutcome);
+                            const tone = outcome ? EXAM_OUTCOME_TONE[outcome] : null;
+                            const recordable = canRecordExamOutcome(appt);
+                            const saving = outcomeSavingId === appt.id;
+                            return (
+                              <View style={s.tlExamRow}>
+                                <View style={[s.tlChip, { backgroundColor: '#EDE9FE' }]}>
+                                  <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
+                                </View>
+                                {outcome && tone ? (
+                                  <Pressable
+                                    onPress={recordable && !saving ? () => recordOutcome(appt) : undefined}
+                                    disabled={!recordable || saving}
+                                    hitSlop={6}
+                                    accessibilityRole={recordable ? 'button' : 'text'}
+                                    accessibilityLabel={`Esito esame: ${EXAM_OUTCOME_LABELS[outcome]}`}
+                                    style={({ pressed }) => [
+                                      s.tlOutcome,
+                                      { borderColor: tone.border, backgroundColor: tone.bg },
+                                      (pressed || saving) && { opacity: 0.6 },
+                                    ]}
+                                  >
+                                    <Ionicons
+                                      name={outcome === 'idoneo' ? 'checkmark-circle' : 'close-circle'}
+                                      size={12}
+                                      color={tone.ink}
+                                    />
+                                    <Text style={[s.tlOutcomeText, { color: tone.ink }]}>
+                                      {EXAM_OUTCOME_LABELS[outcome]}
+                                    </Text>
+                                  </Pressable>
+                                ) : recordable ? (
+                                  <Pressable
+                                    onPress={saving ? undefined : () => recordOutcome(appt)}
+                                    disabled={saving}
+                                    hitSlop={6}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Registra esito esame"
+                                    style={({ pressed }) => [
+                                      s.tlOutcome,
+                                      s.tlOutcomeEmpty,
+                                      (pressed || saving) && { opacity: 0.6 },
+                                    ]}
+                                  >
+                                    <Ionicons name="ellipsis-horizontal" size={12} color="#6D28D9" />
+                                    <Text style={[s.tlOutcomeText, { color: '#6D28D9' }]}>
+                                      Registra esito
+                                    </Text>
+                                  </Pressable>
+                                ) : null}
+                              </View>
+                            );
+                          })()
                         ) : isGroup ? (
                           <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: isMotoGroup ? '#FFF4EA' : '#ECFDF5' }]}>
                             <Ionicons name="people" size={12} color={isMotoGroup ? '#C2410C' : '#0F766E'} />
@@ -1074,6 +1181,18 @@ const s = StyleSheet.create({
   tlChip: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
   tlChipGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   tlChipText: { fontSize: 11, fontWeight: '700' },
+  tlExamRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  tlOutcome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  tlOutcomeEmpty: { borderColor: '#DDD6F3', backgroundColor: 'transparent' },
+  tlOutcomeText: { fontSize: 11, fontWeight: '700' },
   tlMeta: { fontSize: 13, color: '#929292' },
   tlNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
