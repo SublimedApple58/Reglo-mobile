@@ -258,6 +258,12 @@ export type AutoscuolaAppointment = {
   groupLessonFilled?: number | null;
   /** Guida moto: "birilli" (area chiusa, coni) | "strada" | null (non-moto / non impostato). Sola lettura su mobile. */
   motoLessonType?: 'birilli' | 'strada' | null;
+  /**
+   * Esito di un esame (REG-513): "idoneo" | "respinto" | null = non ancora
+   * registrato. L'istruttore lo segna dal foglio esame; un idoneo porta
+   * l'allievo a PATENTATO lato server.
+   */
+  examOutcome?: 'idoneo' | 'respinto' | null;
   notes: string | null;
   cancelledAt?: IsoDate | null;
   cancellationKind?: string | null;

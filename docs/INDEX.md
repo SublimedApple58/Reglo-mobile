@@ -8,6 +8,7 @@
 | Le tue guide — storico allievo (Tutte/Programmate/Svolte/Annullate) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `settings/le-tue-guide`, `SettingsScreen`, `allLessonsStore` |
 | Availability Editor | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception` |
 | Swaps | [swaps.md](features/swaps.md) | `SwapOffersScreen` |
+| Esito esame (idoneo/respinto dal foglio esame) | [exam-outcome.md](features/exam-outcome.md) | `app/(tabs)/home/exam-manage.tsx`, `regloApi.setExamOutcome`, campo `examOutcome` sull'appuntamento |
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |

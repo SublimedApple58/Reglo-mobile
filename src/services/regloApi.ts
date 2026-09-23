@@ -586,6 +586,19 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     deleteLocation: async (id: string) =>
       client.request<null>(`/api/autoscuole/locations/${id}`, { method: 'DELETE' }),
+    /**
+     * Esito esame (REG-513). `licenseNumber` omesso = non tocca il numero già
+     * registrato: sull'app si segna l'esito, il numero lo inserisce chi ha la
+     * tastiera davanti dal web.
+     */
+    setExamOutcome: async (
+      appointmentId: string,
+      outcome: 'idoneo' | 'respinto' | null,
+    ) =>
+      client.request<{ success: boolean; message?: string; data?: { promoted?: boolean } }>(
+        `/api/autoscuole/appointments/${appointmentId}/exam-outcome`,
+        { method: 'POST', body: { outcome } },
+      ),
     cancelAppointment: async (appointmentId: string) =>
       client.request<CancelAppointmentResult>(
         `/api/autoscuole/appointments/${appointmentId}/cancel`,

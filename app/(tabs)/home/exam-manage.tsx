@@ -94,26 +94,102 @@ export default function ExamManageScreen() {
     }
   };
 
-  const onStudentMenu = (a: AutoscuolaAppointmentWithRelations) => {
-    if (realAppts.length <= 1) {
-      Alert.alert('Ultimo allievo', 'È l’unico allievo dell’esame. Per rimuoverlo, usa "Annulla esame".');
-      return;
+  /**
+   * Esito esame dall'app (REG-513).
+   *
+   * L'istruttore accompagna l'esame e l'esito lo conosce per primo: qui segna
+   * solo idoneo o respinto. Il **numero di patente** non si chiede — arriva
+   * quasi sempre giorni dopo, e lo inserisce dal web chi ha la tastiera
+   * davanti. Ometterlo non cancella quello eventualmente già registrato.
+   *
+   * Un idoneo porta l'allievo a PATENTATO lato server: da quel momento non
+   * compare più nel picker "Seleziona allievo" della prenotazione, che mostra
+   * solo la fase PRATICA (REG-499). È reversibile dal web.
+   */
+  const doOutcome = async (
+    a: AutoscuolaAppointmentWithRelations,
+    outcome: 'idoneo' | 'respinto' | null,
+  ) => {
+    if (a.id.startsWith('pending-')) return;
+    setBusy(true);
+    try {
+      const res = await regloApi.setExamOutcome(a.id, outcome);
+      setAppts((p) => p.map((x) => (x.id === a.id ? { ...x, examOutcome: outcome } : x)));
+      onChanged();
+      if (outcome === 'idoneo' && res?.data?.promoted) {
+        Alert.alert('Esame superato', `${studentName(a)} è ora patentato.`);
+      }
+    } catch (err) {
+      Alert.alert('Errore', err instanceof Error ? err.message : 'Impossibile registrare l’esito.');
+    } finally {
+      setBusy(false);
     }
+  };
+
+  const askOutcome = (a: AutoscuolaAppointmentWithRelations) => {
+    const current = a.examOutcome ?? null;
+    const options = ['Idoneo', 'Respinto', ...(current ? ['Togli esito'] : []), 'Annulla'];
+    const cancelIndex = options.length - 1;
+    const pick = (i: number) => {
+      if (i === 0) void doOutcome(a, 'idoneo');
+      else if (i === 1) void doOutcome(a, 'respinto');
+      else if (current && i === 2) void doOutcome(a, null);
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: studentName(a), options, cancelButtonIndex: cancelIndex,
+          destructiveButtonIndex: current ? 2 : undefined },
+        pick,
+      );
+    } else {
+      Alert.alert('Esito esame', studentName(a), [
+        { text: 'Idoneo', onPress: () => pick(0) },
+        { text: 'Respinto', onPress: () => pick(1) },
+        ...(current ? [{ text: 'Togli esito', style: 'destructive' as const, onPress: () => pick(2) }] : []),
+        { text: 'Annulla', style: 'cancel' as const },
+      ]);
+    }
+  };
+
+  const onStudentMenu = (a: AutoscuolaAppointmentWithRelations) => {
+    // L'ultimo iscritto non si può rimuovere (si annulla l'esame), ma il menu
+    // deve aprirsi lo stesso: un esame con un solo allievo è il caso normale,
+    // ed è proprio lì che serve registrare l'esito.
+    const canRemove = realAppts.length > 1;
     const confirmRemove = () =>
       Alert.alert('Rimuovi allievo', `Rimuovere ${studentName(a)} dall’esame?`, [
         { text: 'Annulla', style: 'cancel' },
         { text: 'Rimuovi', style: 'destructive', onPress: () => doRemove(a) },
       ]);
+    const options = [
+      'Registra esito',
+      'Apri scheda allievo',
+      ...(canRemove ? ['Rimuovi dall’esame'] : []),
+      'Annulla',
+    ];
+    const pick = (i: number) => {
+      if (i === 0) askOutcome(a);
+      else if (i === 1) openStudent(a);
+      else if (canRemove && i === 2) confirmRemove();
+    };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Apri scheda allievo', 'Rimuovi dall’esame', 'Annulla'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-        (i) => { if (i === 0) openStudent(a); else if (i === 1) confirmRemove(); },
+        {
+          title: studentName(a),
+          options,
+          destructiveButtonIndex: canRemove ? 2 : undefined,
+          cancelButtonIndex: options.length - 1,
+        },
+        pick,
       );
     } else {
       Alert.alert(studentName(a), undefined, [
-        { text: 'Apri scheda allievo', onPress: () => openStudent(a) },
-        { text: 'Rimuovi dall’esame', style: 'destructive', onPress: confirmRemove },
-        { text: 'Annulla', style: 'cancel' },
+        { text: 'Registra esito', onPress: () => pick(0) },
+        { text: 'Apri scheda allievo', onPress: () => pick(1) },
+        ...(canRemove
+          ? [{ text: 'Rimuovi dall’esame', style: 'destructive' as const, onPress: () => pick(2) }]
+          : []),
+        { text: 'Annulla', style: 'cancel' as const },
       ]);
     }
   };
@@ -278,6 +354,13 @@ export default function ExamManageScreen() {
                 <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
               </UserPhotoCircle>
               <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
+              {a.examOutcome ? (
+                <View style={[s.outcome, a.examOutcome === 'idoneo' ? s.outcomeOk : s.outcomeKo]}>
+                  <Text style={[s.outcomeTx, a.examOutcome === 'idoneo' ? s.outcomeTxOk : s.outcomeTxKo]}>
+                    {a.examOutcome === 'idoneo' ? 'Idoneo' : 'Respinto'}
+                  </Text>
+                </View>
+              ) : null}
               {readOnly ? (
                 <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
               ) : (
@@ -336,6 +419,14 @@ const s = StyleSheet.create({
   add: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
 
   studentRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#EEF0F4' },
+  // Stessi toni del web: verde idoneo, rosso respinto. Chi non ha esito non
+  // porta pastiglia — un esame futuro non è "in attesa di giudizio".
+  outcome: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
+  outcomeOk: { borderColor: '#C5E8D4', backgroundColor: '#F0FAF4' },
+  outcomeKo: { borderColor: '#FAD4CC', backgroundColor: '#FFF4F2' },
+  outcomeTx: { fontSize: 12, fontWeight: '600' },
+  outcomeTxOk: { color: '#1A7F50' },
+  outcomeTxKo: { color: '#C13515' },
   studentAv: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
   studentAvTx: { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
   studentNm: { flex: 1, fontSize: 16, fontWeight: '500', color: '#1A1A2E' },
