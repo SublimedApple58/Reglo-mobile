@@ -49,6 +49,24 @@ Il backend serviva già tutto: `getAutoscuolaAppointmentsFiltered` non ha limiti
 di data e forza `studentId = utente` per gli allievi. **Nessuna modifica lato
 server.**
 
+## Stile: lo stesso di Pagamenti
+Dal 23/09 la vista usa il **linguaggio del registro**, condiviso con
+`StudentPaymentsScreen` ed estratto in `src/components/ledger/LedgerUI.tsx`:
+
+- `LedgerFilterBar` — filtri con **contatore** accanto all'etichetta, pastiglia
+  che scivola, contatori in cross-fade. Scorre in orizzontale: col contatore le
+  voci non stanno in una riga fissa senza troncare le parole.
+- `StateGlyph` — pastiglia tonda a sinistra che dice lo stato a colpo d'occhio
+  (orologio programmata · spunta svolta · X annullata/non presentato · tocco
+  esame), al posto dei badge pieni.
+- Stato come **testo colorato a destra**, una parola sola. Il dettaglio della
+  penale ("Annullata tardi · Addebitata €20") va nella riga sotto.
+- `formatEuro` — **una sola definizione**, qui. Due copie divergenti sono state
+  la causa del crash REG-511: `penaltyAmount` è un `Decimal` che via JSON arriva
+  come stringa, e la copia non indurita chiamava `.toFixed` su una stringa.
+
+> Chi aggiunge una terza lista di questo tipo parte da `LedgerUI`, non copia.
+
 ## Animazioni
 Reanimated, tempi dal design system:
 - **indicatore del filtro** che scorre sotto la pillola attiva (spring

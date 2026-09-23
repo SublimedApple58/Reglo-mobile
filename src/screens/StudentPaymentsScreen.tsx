@@ -80,23 +80,6 @@ const monthLabel = (iso: string) => {
 };
 
 /**
- * Importo in euro — REG-511.
- *
- * Accetta anche la **stringa**, ed è il punto: `penaltyAmount` e `priceAmount`
- * sono `Decimal` di Prisma e attraversano JSON come `"0.00"`, non come numero.
- * La versione precedente prendeva `number` e chiamava `value.toFixed(2)`
- * direttamente: con la stringa `Number.isInteger` è falso (non converte) e
- * `toFixed` non esiste → l'app crashava aprendo Pagamenti di un allievo con una
- * penale addebitata. Bastava un allievo su cento per far sembrare rotto tutto
- * lo sheet.
- */
-const formatEuro = (value: number | string) => {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return '—';
-  return Number.isInteger(n) ? `€${n}` : `€${n.toFixed(2)}`;
-};
-
-/**
  * Annullamento oltre la soglia di preavviso. Stessa condizione del dettaglio
  * allievo web: non basta che la guida sia annullata, deve esserlo DOPO il
  * `penaltyCutoffAt`.
@@ -131,47 +114,20 @@ const statusLabel = (status: string) => {
 const HINT_KEY = 'reg450.paymentsLongPressLearned';
 
 /** Quanto va tenuto premuto perché la conferma scatti. */
+import {
+  LedgerFilterBar,
+  StateGlyph,
+  TONE,
+  formatEuro,
+  type FilterDef as LedgerFilterDef,
+  type RowIcon,
+  type RowTone,
+} from '../components/ledger/LedgerUI';
+
 const HOLD_MS = 900;
 
 const SPRING = { damping: 20, stiffness: 340, mass: 0.5 } as const;
 const ROW_LAYOUT = LinearTransition.springify().damping(24).stiffness(260).mass(0.6);
-
-/* ────────────────────────────── stato della riga ────────────────────────── */
-
-type RowTone = 'amber' | 'green' | 'violet' | 'grey';
-type RowIcon = 'euro' | 'check' | 'wallet' | 'close' | 'clock' | 'exam';
-
-const TONE: Record<RowTone, { chip: string; ink: string }> = {
-  amber: { chip: '#FFF3E3', ink: '#B45309' },
-  green: { chip: '#EAF7F0', ink: '#067647' },
-  violet: { chip: '#F3F0FF', ink: '#6D28D9' },
-  grey: { chip: '#F1F1F5', ink: '#A8A8B0' },
-};
-
-const ICON_NAME: Record<Exclude<RowIcon, 'euro'>, React.ComponentProps<typeof Ionicons>['name']> = {
-  check: 'checkmark',
-  wallet: 'wallet',
-  close: 'close',
-  clock: 'time-outline',
-  exam: 'school',
-};
-
-/**
- * Pastiglia tonda di sinistra: è lei a dire lo stato a colpo d'occhio, al posto
- * della fila di badge che c'era prima. La lista si legge scorrendo la colonna.
- */
-function StateGlyph({ tone, icon }: { tone: RowTone; icon: RowIcon }) {
-  const { chip, ink } = TONE[tone];
-  return (
-    <View style={[s.glyph, { backgroundColor: chip }]}>
-      {icon === 'euro' ? (
-        <Text style={[s.glyphEuro, { color: ink }]}>€</Text>
-      ) : (
-        <Ionicons name={ICON_NAME[icon]} size={icon === 'check' ? 18 : 15} color={ink} />
-      )}
-    </View>
-  );
-}
 
 /* ─────────────────────────────────── riga ───────────────────────────────── */
 
@@ -299,94 +255,6 @@ function LessonRow({
   );
 }
 
-/* ────────────────────────────────── filtri ──────────────────────────────── */
-
-type FilterDef = { value: LessonFilter; label: string; count: number };
-
-/**
- * Barra filtri con la pastiglia che **scivola** da un filtro all'altro invece
- * di riapparire altrove, e i contatori in cross-fade invece di saltare al
- * numero nuovo.
- */
-function FilterBar({
-  defs,
-  active,
-  onChange,
-}: {
-  defs: FilterDef[];
-  active: LessonFilter;
-  onChange: (f: LessonFilter) => void;
-}) {
-  const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
-  const x = useSharedValue(0);
-  const w = useSharedValue(0);
-  const ready = useSharedValue(0);
-
-  const onLayoutFor = (value: LessonFilter) => (e: LayoutChangeEvent) => {
-    const { x: lx, width } = e.nativeEvent.layout;
-    setLayouts((prev) =>
-      prev[value]?.x === lx && prev[value]?.w === width ? prev : { ...prev, [value]: { x: lx, w: width } },
-    );
-  };
-
-  useEffect(() => {
-    const l = layouts[active];
-    if (!l) return;
-    if (ready.value === 0) {
-      // Primo posizionamento: la pastiglia si trova già dov'è, non scivola dal nulla.
-      x.value = l.x;
-      w.value = l.w;
-      ready.value = 1;
-      return;
-    }
-    x.value = withSpring(l.x, SPRING);
-    w.value = withSpring(l.w, SPRING);
-  }, [active, layouts, ready, w, x]);
-
-  const pill = useAnimatedStyle(() => ({
-    opacity: ready.value,
-    transform: [{ translateX: x.value }],
-    width: w.value,
-  }));
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.filterRow}
-      style={s.filterScroll}
-    >
-      <Animated.View style={[s.filterPill, pill]} pointerEvents="none" />
-      {defs.map((f) => {
-        const on = f.value === active;
-        return (
-          <Pressable
-            key={f.value}
-            onLayout={onLayoutFor(f.value)}
-            onPress={() => {
-              if (f.value === active) return;
-              void selectionAsync().catch(() => {});
-              onChange(f.value);
-            }}
-            style={s.filterItem}
-          >
-            <Text style={[s.filterText, on && s.filterTextOn]}>{f.label}</Text>
-            {f.count > 0 ? (
-              <Animated.Text
-                key={`${f.value}-${f.count}`}
-                entering={FadeIn.duration(200)}
-                style={[s.filterCount, on && s.filterCountOn]}
-              >
-                {f.count}
-              </Animated.Text>
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 /* ────────────────────────────────── schermo ─────────────────────────────── */
 
 export const StudentPaymentsScreen = () => {
@@ -463,7 +331,7 @@ export const StudentPaymentsScreen = () => {
     }, [manualMode]);
 
   // Il segmento "Da pagare" ha senso solo in modalità manuale, come sul web.
-  const filterDefs: FilterDef[] = useMemo(
+  const filterDefs: LedgerFilterDef<LessonFilter>[] = useMemo(
     () =>
       [
         { value: 'all' as const, label: 'Tutte' },
@@ -599,7 +467,7 @@ export const StudentPaymentsScreen = () => {
           )}
         </View>
 
-        <FilterBar defs={filterDefs} active={activeFilter} onChange={setFilter} />
+        <LedgerFilterBar defs={filterDefs} active={activeFilter} onChange={setFilter} />
 
         {hintVisible ? (
           <Animated.View

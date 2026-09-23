@@ -39,6 +39,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `createBookingRequest()`, `getAvailableSlots()`, `getBookingOptions()`
 
 ### Guide annullate (vista allievo)
+- **Componente condiviso** `src/components/ledger/LedgerUI.tsx` (`LedgerFilterBar`, `StateGlyph`, `TONE`, `formatEuro`, stili `ledger`) usato da `StudentPaymentsScreen` **e** `LessonsOverview`. Toccarlo cambia ENTRAMBE le schermate. `formatEuro` accetta `number | string` perché i `Decimal` di Prisma arrivano come stringa: era la causa del crash REG-511, e sta qui perché ne esista una sola copia.
 - **Componente condiviso** `LessonsOverview` (filtri Tutte | Programmate | Svolte | Annullate, REG-510) usato da 2 punti d'accesso: `home/all-lessons` (sheet seedato, card tappabili via `allLessonsStore`) e `settings/le-tue-guide` (Profilo allievo, non tappabili). Cambiare `LessonsOverview` impatta ENTRAMBE le route — **lo storico compare quindi in entrambe**, mentre la Home allievo resta senza guide passate (finestra −7 giorni, invariata).
 - → **Booking Flow**: le "Programmate" sono le guide future dell'allievo; il tap sulla card home riapre il dettaglio guida.
 - → **SettingsScreen** (Profilo allievo): la voce "Le tue guide" è nel `renderStudentContent`; toccare le righe del Profilo può nasconderla/spostarla.
