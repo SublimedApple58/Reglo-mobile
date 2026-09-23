@@ -1010,6 +1010,8 @@ export type ConfirmInstructorBookingInput = {
   skipWeeklyLimitCheck?: boolean;
   // Registra la guida anche se lo start è nel passato (dopo conferma utente).
   allowPast?: boolean;
+  // REG-484: l'utente ha confermato di rinunciare alla pausa dopo la guida.
+  confirmNoBuffer?: boolean;
 };
 
 export type ConfirmInstructorBookingBatchInput = {

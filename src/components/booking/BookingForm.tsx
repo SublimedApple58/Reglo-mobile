@@ -35,6 +35,43 @@ import { GlassCloseButton } from '../GlassCloseButton';
 
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
 
+/** Conferme già date dall'utente, che viaggiano con la richiesta. */
+type BookingConfirmFlags = { skipWeeklyLimit?: boolean; confirmNoBuffer?: boolean };
+
+/**
+ * Risposte del backend che **non sono errori**: sono domande a cui l'utente può
+ * rispondere "procedi", e la risposta torna indietro come flag (REG-509).
+ *
+ * Prima esisteva solo il ramo del limite settimanale, cablato dentro
+ * `runBooking`; tutto il resto finiva nell'alert generico «Errore … OK», che ha
+ * un solo bottone. Risultato: la conferma della pausa (`LESSON_BUFFER_CONFIRM`,
+ * REG-484) si vedeva ma non si poteva dare, e la guida restava impossibile da
+ * prenotare da app — mentre da web funzionava. Tenerle in un elenco evita che
+ * il prossimo codice di conferma aggiunto lato server nasca di nuovo muto.
+ */
+const CONFIRMABLE_CODES: Array<{
+  code: string;
+  title: string;
+  confirmLabel: string;
+  fallback: string;
+  flag: BookingConfirmFlags;
+}> = [
+  {
+    code: 'WEEKLY_LIMIT_CONFIRM',
+    title: 'Limite settimanale',
+    confirmLabel: 'Procedi',
+    fallback: "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?",
+    flag: { skipWeeklyLimit: true },
+  },
+  {
+    code: 'LESSON_BUFFER_CONFIRM',
+    title: 'Pausa tra le guide',
+    confirmLabel: 'Prenota comunque',
+    fallback: 'Non avrai tempo per una pausa. Vuoi procedere comunque?',
+    flag: { confirmNoBuffer: true },
+  },
+];
+
 const NAVY = '#1A1A2E';
 const INK = '#222222';
 const GREY = '#717171';
@@ -429,14 +466,14 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   // refresh the parent's agenda from the BE, then close. The UI only shows the
   // booking once the BE has confirmed it.
   const runBooking = (
-    doBook: (skip?: boolean) => Promise<unknown>,
+    doBook: (flags: BookingConfirmFlags) => Promise<unknown>,
     successMessage: (result: unknown) => string,
-    initialSkip = false,
+    initialFlags: BookingConfirmFlags = {},
   ) => {
     setPending(true);
-    const settle = async (skip = false) => {
+    const settle = async (flags: BookingConfirmFlags = {}) => {
       try {
-        const result = await doBook(skip);
+        const result = await doBook(flags);
         // Remember this booking's vehicle choices in the kind-matching slot so
         // the next same-kind booking opens preset to them. When the follow-car
         // rule is off, the previously remembered follow car is preserved.
@@ -460,11 +497,20 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         router.back();
       } catch (err: unknown) {
         const payload = (err as { payload?: Record<string, unknown> })?.payload;
-        if (payload?.code === 'WEEKLY_LIMIT_CONFIRM') {
-          const msg = typeof payload.message === 'string' ? payload.message : "L'allievo ha raggiunto il limite settimanale. Vuoi procedere comunque?";
-          Alert.alert('Limite settimanale', msg, [
+        // Il BE non risponde "no": risponde "sei sicuro?". Queste NON sono
+        // condizioni d'errore, sono domande — vanno riproposte con due
+        // risposte, e la conferma si accumula alle precedenti (REG-509: una
+        // guida può sforare il limite settimanale E lasciare senza pausa, e
+        // confermando la prima non si deve perdere quella conferma).
+        const confirmable = CONFIRMABLE_CODES.find((c) => c.code === payload?.code);
+        if (confirmable) {
+          const msg = typeof payload?.message === 'string' ? payload.message : confirmable.fallback;
+          Alert.alert(confirmable.title, msg, [
             { text: 'Annulla', style: 'cancel', onPress: () => setPending(false) },
-            { text: 'Procedi', onPress: () => { void settle(true); } },
+            {
+              text: confirmable.confirmLabel,
+              onPress: () => { void settle({ ...flags, ...confirmable.flag }); },
+            },
           ]);
           return;
         }
@@ -472,7 +518,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella prenotazione');
       }
     };
-    void settle(initialSkip);
+    void settle(initialFlags);
   };
 
   /**
@@ -527,16 +573,17 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     const end = new Date(start.getTime() + duration * 60 * 1000);
     const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
     const submit = (allowPast: boolean) => {
-      const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBooking({
+      const book = (skipWeeklyLimit = false) => runBooking((flags) => regloApi.confirmInstructorBooking({
         studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
         vehicleId: vehiclesEnabled ? vehicleId : null,
         followVehicleId: effectiveFollowVehicleId || null,
         extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
         motoLessonType: effectiveMotoLessonType,
         locationId, ...typesPayload,
-        ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
+        ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
+        ...(flags.confirmNoBuffer ? { confirmNoBuffer: true } : {}),
         ...(allowPast ? { allowPast: true } : {}),
-      }), () => 'Guida prenotata.', skip);
+      }), () => 'Guida prenotata.', { skipWeeklyLimit });
       if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
       book();
     };
@@ -559,15 +606,15 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     const nowWeek = isoWeekStartUTC(new Date());
     const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
     const submit = (allowPast: boolean) => {
-      const book = (skip = false) => runBooking((s2) => regloApi.confirmInstructorBookingBatch({
+      const book = (skipWeeklyLimit = false) => runBooking((flags) => regloApi.confirmInstructorBookingBatch({
         studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
         followVehicleId: effectiveFollowVehicleId || null,
         extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
         motoLessonType: effectiveMotoLessonType,
         ...typesPayload,
-        ...(s2 ? { skipWeeklyLimitCheck: true } : {}),
+        ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
         ...(allowPast ? { allowPast: true } : {}), entries: payloadEntries,
-      }), (result) => `${(result as { created: number }).created} guide prenotate.`, skip);
+      }), (result) => `${(result as { created: number }).created} guide prenotate.`, { skipWeeklyLimit });
       if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;
       book();
     };
