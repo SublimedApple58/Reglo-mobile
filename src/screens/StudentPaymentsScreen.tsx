@@ -79,8 +79,22 @@ const monthLabel = (iso: string) => {
     : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-const formatEuro = (value: number) =>
-  Number.isInteger(value) ? `€${value}` : `€${value.toFixed(2)}`;
+/**
+ * Importo in euro — REG-511.
+ *
+ * Accetta anche la **stringa**, ed è il punto: `penaltyAmount` e `priceAmount`
+ * sono `Decimal` di Prisma e attraversano JSON come `"0.00"`, non come numero.
+ * La versione precedente prendeva `number` e chiamava `value.toFixed(2)`
+ * direttamente: con la stringa `Number.isInteger` è falso (non converte) e
+ * `toFixed` non esiste → l'app crashava aprendo Pagamenti di un allievo con una
+ * penale addebitata. Bastava un allievo su cento per far sembrare rotto tutto
+ * lo sheet.
+ */
+const formatEuro = (value: number | string) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return Number.isInteger(n) ? `€${n}` : `€${n.toFixed(2)}`;
+};
 
 /**
  * Annullamento oltre la soglia di preavviso. Stessa condizione del dettaglio
