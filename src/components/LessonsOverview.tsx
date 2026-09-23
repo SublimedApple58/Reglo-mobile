@@ -229,7 +229,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
               let row = 0;
               return sections.map((section) => (
                 <View key={section.month}>
-                  <Text style={ledger.month}>{section.month}</Text>
+                  <Text style={[ledger.month, s.monthPad]}>{section.month}</Text>
                   {section.items.map((lesson, i) => (
                     <Animated.View
                       key={lesson.id}
@@ -356,6 +356,10 @@ const s = StyleSheet.create({
   filters: { marginTop: 14, marginBottom: 2, flexGrow: 0 },
 
   list: { paddingBottom: 40 },
+  // Lo stile condiviso non ha rientro perché in Pagamenti il mese sta dentro un
+  // contenitore già rientrato; qui le righe portano il loro, quindi il rientro
+  // va aggiunto al mese o l'intestazione resta incollata al bordo.
+  monthPad: { paddingHorizontal: LEDGER_PAD },
   rowPressed: { backgroundColor: '#FAFAFC' },
   chevron: { marginLeft: 6 },
 
