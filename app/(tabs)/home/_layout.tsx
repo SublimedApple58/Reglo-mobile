@@ -46,6 +46,8 @@ export default function HomeLayout() {
           scroll nativo pulito + footer agganciato via SheetScaffold fill. */}
       <Stack.Screen name="manage-lesson-details" options={PAGE_SHEET} />
       <Stack.Screen name="manage-lesson-correct" options={HUG_SHEET} />
+      {/* REG-587: "Di chi e' l'imprevisto?" sull'annullamento tardivo. */}
+      <Stack.Screen name="cancel-fault" options={HUG_SHEET} />
       <Stack.Screen name="edit-notes" options={TALL_SHEET} />
       <Stack.Screen name="swap-lesson" options={TALL_SHEET} />
       <Stack.Screen name="reschedule-lesson" options={TALL_SHEET} />

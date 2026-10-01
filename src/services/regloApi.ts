@@ -606,6 +606,17 @@ export const createRegloApi = (baseUrl?: string) => {
           method: 'POST',
         }
       ),
+    /**
+     * Annullamento staff di una guida futura (REG-587): stesso percorso del web
+     * (rilascia gli slot, notifica l'allievo, applica la regola del preavviso).
+     * `fault: 'school'` = imprevisto dell'autoscuola → nessuna penale e la guida
+     * non entra nella coda "Cancellazioni tardive".
+     */
+    annulAppointment: async (appointmentId: string, fault: 'student' | 'school') =>
+      client.request<{ isLate: boolean; coverage: 'credit' | 'money' | 'none'; fault: 'student' | 'school' }>(
+        `/api/autoscuole/appointments/${appointmentId}/annul`,
+        { method: 'POST', body: { fault } },
+      ),
     permanentlyCancelAppointment: async (appointmentId: string) =>
       client.request<{ success: boolean; message?: string }>(
         `/api/autoscuole/appointments/${appointmentId}/permanent-cancel`,

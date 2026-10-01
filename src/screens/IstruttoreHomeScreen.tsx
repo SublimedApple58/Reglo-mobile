@@ -59,6 +59,7 @@ import { sickLeaveSheetStore } from '../stores/sickLeaveSheetStore';
 import { examSheetStore } from '../stores/examSheetStore';
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
+import { cancelFaultStore, type CancelFault } from '../stores/cancelFaultStore';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
@@ -2268,6 +2269,86 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // Permanent delete ("Elimina definitivamente") — same action as the web. Soft
   // delete on the BE (status→cancelled, refunds credit, notifies the student),
   // available regardless of the lesson time/status. Confirmed before running.
+  /**
+   * REG-587 — annullamento di una guida futura oltre il limite di preavviso.
+   * Prima di toccare qualunque cosa chiede DI CHI è l'imprevisto: se è
+   * dell'autoscuola l'allievo non paga penali e la guida non finisce nella coda
+   * "Cancellazioni tardive" del titolare. Passa dall'endpoint `annul`, lo
+   * stesso del web, non dal permanent-delete (che non rilascia gli slot).
+   */
+  const annulWithFault = useCallback(
+    async (lesson: AutoscuolaAppointmentWithRelations, fault: CancelFault) => {
+      const lessonId = lesson.id;
+      setPendingAction('save_details');
+      setToast(null);
+      try {
+        // `request` scarta l'envelope e LANCIA su success:false → basta await.
+        await regloApi.annulAppointment(lessonId, fault);
+        await loadData();
+        setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
+        setToast({
+          text:
+            fault === 'school'
+              ? 'Guida annullata. Nessuna penale per l’allievo.'
+              : 'Guida annullata. La valuta il titolare in Cancellazioni tardive.',
+          tone: 'success',
+        });
+      } catch (err) {
+        // Come per il delete: la cancellazione spesso passa lato server anche
+        // quando la chiamata scade (notifiche lente) — controlla la verità del BE.
+        const refreshed = await loadData();
+        const stillActive = refreshed.some((a) => a.id === lessonId);
+        if (stillActive) {
+          setToast({
+            text: err instanceof Error ? err.message : 'Errore durante l’annullamento.',
+            tone: 'danger',
+          });
+        } else {
+          setSheetLesson((prev) => (prev && prev.id === lessonId ? null : prev));
+          setToast({ text: 'Guida annullata.', tone: 'success' });
+        }
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [loadData],
+  );
+
+  /** La domanda ha senso solo se c'è davvero una penale in ballo: guida futura, non esame/gruppo, oltre il cutoff. */
+  const needsFaultQuestion = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) => {
+      const type = (lesson.type ?? '').trim().toLowerCase();
+      if (type === 'esame' || type === 'group_lesson' || lesson.groupLessonId) return false;
+      const status = (lesson.status ?? '').trim().toLowerCase();
+      if (status !== 'scheduled' && status !== 'confirmed') return false;
+      if (new Date(lesson.startsAt).getTime() <= Date.now()) return false;
+      if (!lesson.penaltyCutoffAt) return false;
+      return Date.now() > new Date(lesson.penaltyCutoffAt).getTime();
+    },
+    [],
+  );
+
+  const askCancelFault = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) => {
+      const startsAt = new Date(lesson.startsAt);
+      const mins = Math.max(0, Math.round((startsAt.getTime() - Date.now()) / 60000));
+      const h = Math.floor(mins / 60);
+      const countdownLabel = h > 0 ? (mins % 60 ? `${h}h ${mins % 60}min` : `${h}h`) : `${mins} min`;
+      cancelFaultStore.set({
+        studentName:
+          `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'L’allievo',
+        whenLabel: `${formatDay(lesson.startsAt)} · ${formatTime(lesson.startsAt)}`,
+        countdownLabel,
+        coverage: lesson.creditApplied ? 'credit' : lesson.paymentRequired ? 'money' : 'none',
+        onPick: (fault) => {
+          void annulWithFault(lesson, fault);
+        },
+      });
+      router.push('/(tabs)/home/cancel-fault');
+    },
+    [annulWithFault, router],
+  );
+
   const handlePermanentDelete = useCallback(
     (lesson: AutoscuolaAppointmentWithRelations) => {
       Alert.alert(
@@ -2472,7 +2553,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           });
           router.push('/(tabs)/home/swap-lesson');
         } else if (key === 'cancella') {
-          handlePermanentDelete(lesson);
+          // Annullamento tardivo di una guida futura → prima la domanda su chi
+          // ha avuto l'imprevisto (REG-587). Tutti gli altri casi (guide
+          // passate, esami, gruppi, annullamenti nei tempi) restano sul
+          // permanent-delete di sempre.
+          if (needsFaultQuestion(lesson)) askCancelFault(lesson);
+          else handlePermanentDelete(lesson);
         }
       },
       onChangeLocation: async (location) => {
