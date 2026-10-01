@@ -275,6 +275,12 @@ export type AutoscuolaAppointment = {
   /** Decisione autoscuola sulla cancellazione tardiva: "charged" | "dismissed" | null. */
   lateCancellationAction?: string | null;
   /**
+   * REG-585 — istruttori AGGIUNTIVI di una guida di gruppo o di un esame.
+   * `instructorId`/`instructor` restano il principale; questi sono i colleghi
+   * che la condividono: la vedono in agenda e ci possono agire come lui.
+   */
+  coInstructors?: Array<{ id: Uuid; name: string }> | null;
+  /**
    * Tracciamento pagamento manuale della guida (REG-450): "paid" | "unpaid" | null.
    * Arriva solo dal ramo FULL di `/api/autoscuole/appointments` (il ramo `light`
    * non lo seleziona): sulle viste allievo seedate light resta `undefined`.
@@ -342,6 +348,8 @@ export type GroupLesson = {
   notes: string | null;
   instructorId: Uuid | null;
   instructorName: string | null;
+  /** REG-585: colleghi che portano la guida insieme al principale. */
+  coInstructors?: Array<{ id: Uuid; name: string }> | null;
   vehicleId: Uuid | null;
   vehicleName: string | null;
   licenseCategory: string | null;

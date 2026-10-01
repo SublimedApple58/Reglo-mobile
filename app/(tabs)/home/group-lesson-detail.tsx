@@ -14,6 +14,7 @@ import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON 
 import { colors } from '../../../src/theme/colors';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { formatInstructorNames } from '../../../src/utils/coInstructors';
 
 const FADE_MS = 320;
 
@@ -94,7 +95,9 @@ export default function GroupLessonDetailScreen() {
   const filled = lesson?.filledSeats ?? 0;
   const capacity = lesson?.capacity ?? 3;
   const durationMin = lesson ? durationOf(lesson.startsAt, lesson.endsAt) : 180;
-  const instructorName = lesson?.instructorName ?? 'Da assegnare';
+  // REG-585: se la guida e' condivisa si leggono tutti, non solo il primo.
+  const instructorName =
+    formatInstructorNames(lesson?.instructorName, lesson?.coInstructors) ?? 'Da assegnare';
 
   // Moto group: the student never sees the shared lesson vehicle (there is none
   // — it's a fleet). They see THEIR assigned moto + the shared follow car. The

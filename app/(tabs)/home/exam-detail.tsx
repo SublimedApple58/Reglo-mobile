@@ -8,6 +8,7 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { formatInstructorNames } from '../../../src/utils/coInstructors';
 
 export default function ExamDetailScreen() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function ExamDetailScreen() {
         <View style={s.row}>
           <Ionicons name="person-outline" size={18} color={colors.textMuted} />
           <View style={{ flex: 1 }}>
-            <Text style={s.rowValue}>{exam.instructor?.name ?? 'Da assegnare'}</Text>
+            <Text style={s.rowValue}>{formatInstructorNames(exam.instructor?.name, exam.coInstructors) ?? 'Da assegnare'}</Text>
             {exam.instructor?.phone ? (
               <Pressable onPress={() => Linking.openURL(`tel:${exam.instructor!.phone}`)}>
                 <Text style={s.rowLink}>{exam.instructor.phone}</Text>

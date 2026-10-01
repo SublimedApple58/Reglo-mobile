@@ -20,6 +20,7 @@ import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { formatInstructorNames } from '../../../src/utils/coInstructors';
 
 const TEAL_BADGE_BG = '#D1FAE5';
 const TEAL_BADGE_FG = '#047857';
@@ -139,7 +140,9 @@ export default function ManageGroupLessonScreen() {
   const openSeats = lesson?.openSeats ?? Math.max(0, capacity - filled);
   const durationMin = lesson ? durationOf(lesson.startsAt, lesson.endsAt) : 180;
   const vehicleName = lesson?.vehicleName ?? 'Nessun veicolo';
-  const instructorName = lesson?.instructorName ?? 'Nessun istruttore';
+  // REG-585: se la guida e' condivisa si leggono tutti, non solo il primo.
+  const instructorName =
+    formatInstructorNames(lesson?.instructorName, lesson?.coInstructors) ?? 'Nessun istruttore';
 
   // Moto group: the container has NO single vehicle (fleet + shared follow car).
   // Show/edit the moto fleet and the follow car instead of a single "Veicolo".

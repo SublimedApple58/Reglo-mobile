@@ -60,6 +60,7 @@ import { examSheetStore } from '../stores/examSheetStore';
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
 import { cancelFaultStore, type CancelFault } from '../stores/cancelFaultStore';
+import { lessonInvolvesInstructor } from '../utils/coInstructors';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
@@ -747,8 +748,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     setStudents(bootstrap.students);
     setVehicles(bootstrap.vehicles ?? []);
     const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
-    const matchesScope = (item: { instructorId?: string | null }) =>
-      effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
+    const matchesScope = (item: {
+      instructorId?: string | null;
+      coInstructors?: Array<{ id: string }> | null;
+    }) => (effectiveInstructorId ? lessonInvolvesInstructor(item, effectiveInstructorId) : true);
     const freshBlocks = (bootstrap.instructorBlocks ?? []).filter(
       (b) => effectiveInstructorId ? b.instructorId === effectiveInstructorId : true,
     );
@@ -894,8 +897,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       }
       setInstructorBlocks(mergedBlocks);
       const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
-      const matchesScope = (item: { instructorId?: string | null }) =>
-        effectiveInstructorId ? item.instructorId === effectiveInstructorId : true;
+      const matchesScope = (item: {
+        instructorId?: string | null;
+        coInstructors?: Array<{ id: string }> | null;
+      }) => (effectiveInstructorId ? lessonInvolvesInstructor(item, effectiveInstructorId) : true);
       const nextAppointments = dedupeAppointments(
         agendaBootstrap.appointments.filter((item) => matchesScope(item) && notCancelled(item)),
       );
