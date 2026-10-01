@@ -143,6 +143,7 @@ export default function ManageGroupLessonScreen() {
   // REG-585: se la guida e' condivisa si leggono tutti, non solo il primo.
   const instructorName =
     formatInstructorNames(lesson?.instructorName, lesson?.coInstructors) ?? 'Nessun istruttore';
+  const isShared = (lesson?.coInstructors?.length ?? 0) > 0;
 
   // Moto group: the container has NO single vehicle (fleet + shared follow car).
   // Show/edit the moto fleet and the follow car instead of a single "Veicolo".
@@ -419,16 +420,17 @@ export default function ManageGroupLessonScreen() {
             <View style={s.detailRow}>
               <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
               <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Istruttore</Text>
-                <RowValue text={instructorName} loaded={!!lesson} width={150} />
+                <Text style={s.detailLabel}>{isShared ? 'Istruttori' : 'Istruttore'}</Text>
+                {/* REG-585: con piu' nomi una riga sola li tagliava a meta'. */}
+                <RowValue text={instructorName} loaded={!!lesson} width={150} lines={isShared ? 2 : 1} />
               </View>
             </View>
           ) : (
             <Pressable onPress={openInstructorPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
               <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
               <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Istruttore</Text>
-                <RowValue text={instructorName} loaded={!!lesson} width={150} />
+                <Text style={s.detailLabel}>{isShared ? 'Istruttori' : 'Istruttore'}</Text>
+                <RowValue text={instructorName} loaded={!!lesson} width={150} lines={isShared ? 2 : 1} />
               </View>
               <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
             </Pressable>

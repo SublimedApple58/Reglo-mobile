@@ -82,9 +82,10 @@ export default function CancelFaultScreen() {
       </View>
 
       <View style={s.context}>
-        <Text style={s.contextStrong}>{data.studentName}</Text>
+        {/* Nome lungo: si accorcia lui, cosi' giorno e ora restano leggibili. */}
+        <Text style={s.contextStrong} numberOfLines={1}>{data.studentName}</Text>
         <Text style={s.contextDot}>·</Text>
-        <Text style={s.contextText}>{data.whenLabel}</Text>
+        <Text style={s.contextText} numberOfLines={1}>{data.whenLabel}</Text>
       </View>
       <Text style={s.lead}>
         Mancano {data.countdownLabel} alla guida: l&apos;annullamento è tardivo.
@@ -122,9 +123,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  contextStrong: { fontSize: 13, fontWeight: '600', color: INK },
-  contextDot: { fontSize: 13, color: colors.textSecondary },
-  contextText: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
+  contextStrong: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: INK },
+  contextDot: { flexShrink: 0, fontSize: 13, color: colors.textSecondary },
+  contextText: { flexShrink: 0, fontSize: 13, fontWeight: '500', color: colors.textSecondary },
   lead: { marginTop: 12, marginBottom: 4, fontSize: 14, color: '#3A3A48', lineHeight: 20 },
   option: {
     flexDirection: 'row',

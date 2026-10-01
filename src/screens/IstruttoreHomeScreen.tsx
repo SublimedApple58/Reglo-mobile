@@ -60,7 +60,7 @@ import { examSheetStore } from '../stores/examSheetStore';
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
 import { cancelFaultStore, type CancelFault } from '../stores/cancelFaultStore';
-import { lessonInvolvesInstructor } from '../utils/coInstructors';
+import { lessonInvolvesInstructor, sharedWithNames, formatSharedWith } from '../utils/coInstructors';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
@@ -1233,8 +1233,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     }
     type Item =
       | { kind: 'appointment'; appointment: AutoscuolaAppointmentWithRelations; sortKey: number }
-      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
-      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; glKind: 'standard' | 'moto'; glMotoType: MotoLessonType | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
+      | { kind: 'examGroup'; id: string; startsAt: string; endsAt: string | null; instructorId: string | null; instructorName: string | null; coInstructors: Array<{ id: string; name: string }> | null; notes: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number }
+      | { kind: 'groupLesson'; id: string; groupLessonId: string | null; startsAt: string; endsAt: string | null; vehicleName: string | null; count: number; capacity: number; glKind: 'standard' | 'moto'; glMotoType: MotoLessonType | null; coInstructors: Array<{ id: string; name: string }> | null; instructorId: string | null; instructorName: string | null; appointments: AutoscuolaAppointmentWithRelations[]; sortKey: number };
     const items: Item[] = [];
     for (const appt of others) {
       items.push({ kind: 'appointment', appointment: appt, sortKey: getStartsAtTs(appt) });
@@ -1248,6 +1248,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         endsAt: first.endsAt,
         instructorId: first.instructorId,
         instructorName: first.instructor?.name ?? null,
+        // REG-585: un esame puo' essere accompagnato da piu' istruttori.
+        coInstructors: first.coInstructors ?? null,
         notes: first.notes ?? null,
         appointments: appts,
         sortKey: getStartsAtTs(first),
@@ -1268,6 +1270,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         capacity: first.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
         glKind: first.groupLessonKind === 'moto' ? 'moto' : 'standard',
         glMotoType: first.groupLessonKind === 'moto' ? asMotoLessonType(first.groupLessonMotoType) : null,
+        // REG-585: chi altro porta questa guida (per il segnale "condivisa").
+        coInstructors: first.coInstructors ?? null,
+        instructorId: first.instructorId ?? null,
+        instructorName: first.instructor?.name ?? null,
         appointments: appts,
         sortKey: getStartsAtTs(first),
       });
@@ -3529,6 +3535,19 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <View style={{ flex: 1 }}>
                           <Text style={styles.examGroupLabel}>Esame di guida</Text>
                           <Text style={styles.examGroupTitle} numberOfLines={1}>{count === 0 ? 'Nessun allievo' : `${count} ${count === 1 ? 'allievo' : 'allievi'}`} · {gapLabel(row.endMin - row.startMin)}</Text>
+                          {/* REG-585: accompagnato anche da un collega. */}
+                          {(() => {
+                            const withNames = sharedWithNames(g, effectiveInstructorId);
+                            if (!withNames.length) return null;
+                            return (
+                              <View style={styles.glSharedRow}>
+                                <Ionicons name="link-outline" size={12} color="#4338CA" />
+                                <Text style={[styles.glSharedText, { color: '#4338CA' }]} numberOfLines={1}>
+                                  {effectiveInstructorId ? 'con ' : ''}{formatSharedWith(withNames)}
+                                </Text>
+                              </View>
+                            );
+                          })()}
                         </View>
                       </Pressable>
                     </View>
@@ -3549,6 +3568,19 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.groupLessonLabel, g.glKind === 'moto' && styles.groupLessonLabelMoto]}>{g.glKind === 'moto' ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
                           <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
+                          {/* REG-585: non sei solo su questa guida, ed ecco con chi. */}
+                          {(() => {
+                            const withNames = sharedWithNames(g, effectiveInstructorId);
+                            if (!withNames.length) return null;
+                            return (
+                              <View style={styles.glSharedRow}>
+                                <Ionicons name="link-outline" size={12} color="#047857" />
+                                <Text style={styles.glSharedText} numberOfLines={1}>
+                                  {effectiveInstructorId ? 'con ' : ''}{formatSharedWith(withNames)}
+                                </Text>
+                              </View>
+                            );
+                          })()}
                           {g.glMotoType ? (
                             <View style={styles.glItinMotoChip}>
                               <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.glMotoType]} size={11} color="#C2410C" />
@@ -5509,6 +5541,9 @@ const styles = StyleSheet.create({
   groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
   // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto della lista
   // itinerario — pill bianca, testo/icona arancio (REG-406).
+  // REG-585: riga "condivisa con ..." sulla card della guida di gruppo.
+  glSharedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  glSharedText: { flex: 1, fontSize: 11.5, fontWeight: '600', color: '#047857' },
   glItinMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
   glItinMotoChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
