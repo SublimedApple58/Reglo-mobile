@@ -17,6 +17,9 @@ export type CancelFaultData = {
   whenLabel: string;
   /** Quanto manca all'inizio, già formattato ("2h 15min"). */
   countdownLabel: string;
+  /** Gli stessi minuti, grezzi: servono per la grammatica della frase
+   *  (singolare/plurale) e per il caso "sta per iniziare". */
+  countdownMinutes: number;
   /** Cosa c'è in gioco: credito del pacchetto, soldi, o niente. */
   coverage: 'credit' | 'money' | 'none';
   /** Esegue l'annullamento con la responsabilità scelta. */

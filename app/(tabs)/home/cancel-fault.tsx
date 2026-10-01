@@ -35,6 +35,13 @@ export default function CancelFaultScreen() {
     setTimeout(() => cb(fault), 260);
   };
 
+  // All'ora esatta di inizio "Mancano 0 min" non si puo' leggere; e con un'ora
+  // o un minuto esatti il verbo va al singolare.
+  const leadText =
+    data.countdownMinutes < 1
+      ? 'La guida sta per iniziare:'
+      : `${data.countdownMinutes === 1 || data.countdownMinutes === 60 ? 'Manca' : 'Mancano'} ${data.countdownLabel} alla guida:`;
+
   const schoolSub =
     data.coverage === 'credit'
       ? `Nessuna penale: il credito torna a ${data.studentName}.`
@@ -88,7 +95,7 @@ export default function CancelFaultScreen() {
         <Text style={s.contextText} numberOfLines={1}>{data.whenLabel}</Text>
       </View>
       <Text style={s.lead}>
-        Mancano {data.countdownLabel} alla guida: l&apos;annullamento è tardivo.
+        {leadText} l&apos;annullamento è tardivo.
       </Text>
 
       <Option

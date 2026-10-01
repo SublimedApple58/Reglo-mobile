@@ -2350,6 +2350,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'L’allievo',
         whenLabel: `${formatDay(lesson.startsAt)} · ${formatTime(lesson.startsAt)}`,
         countdownLabel,
+        countdownMinutes: mins,
         coverage: lesson.creditApplied ? 'credit' : lesson.paymentRequired ? 'money' : 'none',
         onPick: (fault) => {
           void annulWithFault(lesson, fault);
