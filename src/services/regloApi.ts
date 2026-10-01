@@ -318,6 +318,16 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+    /**
+     * REG-585 — accompagnatori aggiuntivi di un esame. Stessa PATCH dell'orario:
+     * è la presenza di `coInstructorIds` a distinguere le due cose. Le righe di
+     * un esame sono una per allievo, quindi si mandano tutte.
+     */
+    updateExamCoInstructors: async (input: { appointmentIds: string[]; coInstructorIds: string[] }) =>
+      client.request<unknown>('/api/autoscuole/exam', {
+        method: 'PATCH',
+        body: input,
+      }),
 
     // ── Group lessons (Guide di gruppo) ──
     getGroupLessons: async (params?: { from?: string; to?: string }) =>
@@ -336,6 +346,11 @@ export const createRegloApi = (baseUrl?: string) => {
       /** Capienza massima (3 o 4) — il BE rifiuta sotto gli iscritti attuali. */
       capacity?: number;
       notes?: string | null;
+      /**
+       * REG-585 — i colleghi che la portano insieme al principale. Assente =
+       * non toccarli; lista vuota = toglili tutti.
+       */
+      coInstructorIds?: string[];
     }) => {
       const { groupLessonId, ...body } = input;
       return client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}`, {

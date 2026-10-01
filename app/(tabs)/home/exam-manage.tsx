@@ -6,6 +6,7 @@ import { examManageStore } from '../../../src/stores/examManageStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { examStudentsStore, type ExamStudentOption } from '../../../src/stores/examStudentsStore';
 import { regloApi } from '../../../src/services/regloApi';
+import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
 import { colors } from '../../../src/theme/colors';
 import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { spacing } from '../../../src/theme/spacing';
@@ -37,6 +38,11 @@ export default function ExamManageScreen() {
   const [startsAt, setStartsAt] = useState<string>(seed?.startsAt ?? '');
   const [endsAt, setEndsAt] = useState<string | null>(seed?.endsAt ?? null);
   const [busy, setBusy] = useState(false);
+  // REG-585: gli accompagnatori in piu'. Stato locale perche' il foglio non
+  // ricarica l'esame dal BE: dopo il salvataggio si aggiorna la riga qui.
+  const [coInstructors, setCoInstructors] = useState<Array<{ id: string; name: string }>>(
+    seed?.coInstructors ?? [],
+  );
 
   useEffect(() => () => { examManageStore.clear(); }, []);
 
@@ -47,6 +53,31 @@ export default function ExamManageScreen() {
   const close = () => router.back();
   // Real participants (exclude the studentless empty-exam placeholder).
   const realAppts = appts.filter((a) => !isExamPlaceholder(a));
+  const coNames = coInstructors.length ? coInstructors.map((c) => c.name).join(' + ') : null;
+
+  /**
+   * REG-585 — aggiungere o togliere un accompagnatore. Le righe di un esame
+   * sono una per allievo, quindi si mandano tutte: il collegamento va scritto
+   * su ognuna, se no il collega vedrebbe solo una parte dei candidati.
+   */
+  const openCoInstructorPicker = () => {
+    const ids = realAppts.map((a) => a.id);
+    if (!ids.length) return;
+    coInstructorPickerStore.set({
+      mainInstructorId: seed.instructorId ?? null,
+      selectedIds: coInstructors.map((c) => c.id),
+      subtitle: 'Chi accompagna questo esame insieme al principale.',
+      onToggle: async (nextIds) => {
+        await regloApi.updateExamCoInstructors({ appointmentIds: ids, coInstructorIds: nextIds });
+        const all = await regloApi.getInstructors().catch(() => []);
+        setCoInstructors(
+          nextIds.map((id) => ({ id, name: all.find((i) => i.id === id)?.name ?? 'Istruttore' })),
+        );
+        onChanged?.();
+      },
+    });
+    router.push('/(tabs)/home/manage-co-instructors');
+  };
 
   // ── Modifica / Imposta orario → native time picker route ──
   const openTimePicker = () => {
@@ -306,10 +337,38 @@ export default function ExamManageScreen() {
 
         {/* Accompagnatore — soft inset info card */}
         {seed.instructorName ? (
-          <View style={s.accomp}>
-            <Ionicons name="person-outline" size={18} color="#6E7596" />
-            <Text style={s.accompKey}>Accompagnatore</Text>
-            <Text style={s.accompVal}>{seed.instructorName}</Text>
+          <View style={s.accompGroup}>
+            <View style={[s.accomp, { marginBottom: 0 }]}>
+              <Ionicons name="person-outline" size={18} color="#6E7596" />
+              <Text style={s.accompKey}>Accompagnatore</Text>
+              <Text style={s.accompVal} numberOfLines={1}>{seed.instructorName}</Text>
+            </View>
+            {/* REG-585: gli accompagnatori in piu', gestibili anche dal telefono.
+                In sola lettura (titolare) la riga compare solo se ce ne sono. */}
+            {readOnly ? (
+              coNames ? (
+                <View style={[s.accomp, { marginBottom: 0 }]}>
+                  <Ionicons name="people-outline" size={18} color="#6E7596" />
+                  <Text style={s.accompKey}>Altri</Text>
+                  <Text style={s.accompVal} numberOfLines={2}>{coNames}</Text>
+                </View>
+              ) : null
+            ) : (
+              <Pressable
+                onPress={openCoInstructorPicker}
+                style={({ pressed }) => [s.accomp, { marginBottom: 0 }, pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="people-outline" size={18} color="#6E7596" />
+                <Text style={s.accompKey}>Altri</Text>
+                <Text
+                  style={[s.accompVal, !coNames && s.accompPlaceholder]}
+                  numberOfLines={2}
+                >
+                  {coNames ?? 'Aggiungi'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#AEB4CC" />
+              </Pressable>
+            )}
           </View>
         ) : null}
 
@@ -394,7 +453,9 @@ const s = StyleSheet.create({
   pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] },
 
   accomp: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#F4F5F9', marginBottom: 26 },
+  accompGroup: { gap: 8, marginBottom: 26 },
   accompKey: { fontSize: 14, fontWeight: '400', color: '#6E7596' },
+  accompPlaceholder: { color: '#8A91AE', fontWeight: '500' },
   accompVal: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginLeft: 'auto' },
 
   secRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },

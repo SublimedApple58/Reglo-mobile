@@ -13,6 +13,8 @@ export type ExamManageData = {
   endsAt: string | null;
   instructorId: string | null;
   instructorName: string | null;
+  /** REG-585: accompagnatori aggiuntivi dell'esame. */
+  coInstructors: Array<{ id: string; name: string }> | null;
   notes: string | null;
   appointments: AutoscuolaAppointmentWithRelations[];
   onChanged: () => void;

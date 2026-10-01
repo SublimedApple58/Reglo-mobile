@@ -1097,10 +1097,16 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       endsAt: string | null;
       instructorId: string | null;
       instructorName: string | null;
+      coInstructors?: Array<{ id: string; name: string }> | null;
       notes: string | null;
       appointments: AutoscuolaAppointmentWithRelations[];
     }) => {
-      examManageStore.set({ ...g, readOnly: ownerMode, onChanged: () => { loadData(); } });
+      examManageStore.set({
+        ...g,
+        coInstructors: g.coInstructors ?? null,
+        readOnly: ownerMode,
+        onChanged: () => { loadData(); },
+      });
       router.push('/(tabs)/home/exam-manage');
     },
     [loadData, router, ownerMode],
@@ -3319,6 +3325,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                             endsAt: item.endsAt,
                             instructorId: item.instructorId,
                             instructorName: item.instructorName,
+                            coInstructors: item.coInstructors ?? null,
                             notes: item.notes,
                             appointments: item.appointments,
                           })
@@ -3531,7 +3538,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   return (
                     <View key={`exam-${g.id}`} style={styles.itinRow}>
                       <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
-                      <Pressable onPress={() => openExamManage({ startsAt: g.startsAt, endsAt: g.endsAt, instructorId: g.instructorId, instructorName: g.instructorName, notes: g.notes, appointments: g.appointments })} style={({ pressed }) => [styles.examGroupCard, pressed && styles.itinCardPressed]}>
+                      <Pressable onPress={() => openExamManage({ startsAt: g.startsAt, endsAt: g.endsAt, instructorId: g.instructorId, instructorName: g.instructorName, coInstructors: g.coInstructors, notes: g.notes, appointments: g.appointments })} style={({ pressed }) => [styles.examGroupCard, pressed && styles.itinCardPressed]}>
                         <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examGroupIcon} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.examGroupLabel}>Esame di guida</Text>
@@ -3883,6 +3890,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                           endsAt: first.endsAt,
                           instructorId: first.instructorId,
                           instructorName: first.instructor?.name ?? null,
+                          coInstructors: first.coInstructors ?? null,
                           notes: first.notes,
                           appointments: appts,
                         });
@@ -3972,6 +3980,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       endsAt: live.endsAt,
                       instructorId: live.instructorId,
                       instructorName: live.instructor?.name ?? null,
+                      coInstructors: live.coInstructors ?? null,
                       notes: live.notes,
                       appointments: sameSlot.length ? sameSlot : [live],
                     });

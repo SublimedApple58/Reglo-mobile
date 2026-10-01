@@ -20,7 +20,7 @@ import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from
 import type { GroupLesson } from '../../../src/types/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { formatInstructorNames } from '../../../src/utils/coInstructors';
+import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
 
 const TEAL_BADGE_BG = '#D1FAE5';
 const TEAL_BADGE_FG = '#047857';
@@ -141,9 +141,11 @@ export default function ManageGroupLessonScreen() {
   const durationMin = lesson ? durationOf(lesson.startsAt, lesson.endsAt) : 180;
   const vehicleName = lesson?.vehicleName ?? 'Nessun veicolo';
   // REG-585: se la guida e' condivisa si leggono tutti, non solo il primo.
-  const instructorName =
-    formatInstructorNames(lesson?.instructorName, lesson?.coInstructors) ?? 'Nessun istruttore';
   const isShared = (lesson?.coInstructors?.length ?? 0) > 0;
+  // Stato vuoto esplicito: "Nessuno" da solo non dice che si puo' aggiungere.
+  const coInstructorsValue = isShared
+    ? (lesson?.coInstructors ?? []).map((c) => c.name).join(' + ')
+    : 'Nessuno · tocca per aggiungere';
 
   // Moto group: the container has NO single vehicle (fleet + shared follow car).
   // Show/edit the moto fleet and the follow car instead of a single "Veicolo".
@@ -158,6 +160,28 @@ export default function ManageGroupLessonScreen() {
   const followCars = vehicles.filter((v) => v.licenseCategory === 'B');
   // Standard group vehicle = a CAR (motos live in the moto flow only).
   const standardVehicles = vehicles.filter((v) => !isMotoLicenseCategory(v.licenseCategory));
+
+  // REG-585: assegnare/togliere i colleghi anche dal telefono, stessa azione
+  // dei chip nel dialogo web. `run` e' la stessa scorciatoia usata dalle altre
+  // modifiche: chiama il BE e ricarica la guida.
+  const openCoInstructorPicker = () => {
+    if (!lesson) return;
+    coInstructorPickerStore.set({
+      mainInstructorId: lesson.instructorId ?? null,
+      selectedIds: (lesson.coInstructors ?? []).map((c) => c.id),
+      subtitle: 'Chi porta questa guida di gruppo insieme al principale.',
+      // Volutamente NON passa da `run`: quello intercetta l'errore con un
+      // Alert, e un Alert sopra il foglio di scelta e' sgradevole. Qui
+      // l'eccezione deve risalire, cosi' la riga torna com'era e il messaggio
+      // compare dentro il foglio.
+      onToggle: async (nextIds) => {
+        await regloApi.updateGroupLesson({ groupLessonId, coInstructorIds: nextIds });
+        seed?.onChanged?.();
+        await reload();
+      },
+    });
+    router.push('/(tabs)/home/manage-co-instructors');
+  };
 
   const openInstructorPicker = () => {
     if (!lesson) return;
@@ -417,23 +441,51 @@ export default function ManageGroupLessonScreen() {
         {/* Istruttore + Veicolo — righe piatte. Read-only (titolare) = statiche. */}
         <View style={s.detailRows}>
           {readOnly ? (
-            <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>{isShared ? 'Istruttori' : 'Istruttore'}</Text>
-                {/* REG-585: con piu' nomi una riga sola li tagliava a meta'. */}
-                <RowValue text={instructorName} loaded={!!lesson} width={150} lines={isShared ? 2 : 1} />
+            <>
+              <View style={s.detailRow}>
+                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>Istruttore</Text>
+                  <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
+                </View>
               </View>
-            </View>
+              {/* In sola lettura la riga dei colleghi compare solo se ce ne sono. */}
+              {isShared ? (
+                <View style={s.detailRow}>
+                  <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailBody}>
+                    <Text style={s.detailLabel}>Altri istruttori</Text>
+                    {/* REG-585: con piu' nomi una riga sola li tagliava a meta'. */}
+                    <RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />
+                  </View>
+                </View>
+              ) : null}
+            </>
           ) : (
-            <Pressable onPress={openInstructorPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>{isShared ? 'Istruttori' : 'Istruttore'}</Text>
-                <RowValue text={instructorName} loaded={!!lesson} width={150} lines={isShared ? 2 : 1} />
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
-            </Pressable>
+            <>
+              <Pressable onPress={openInstructorPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
+                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>Istruttore</Text>
+                  <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              </Pressable>
+
+              {/* REG-585: i colleghi, assegnabili anche dal telefono. */}
+              <Pressable
+                onPress={openCoInstructorPicker}
+                disabled={!lesson || busy}
+                style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
+              >
+                <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailBody}>
+                  <Text style={s.detailLabel}>Altri istruttori</Text>
+                  <RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              </Pressable>
+            </>
           )}
           {vehiclesEnabled && isMoto ? (
             /* MOTO group: moto fleet + shared follow car (no single vehicle). */
