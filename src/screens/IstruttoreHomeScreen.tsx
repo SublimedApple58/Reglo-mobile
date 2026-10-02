@@ -60,7 +60,7 @@ import { examSheetStore } from '../stores/examSheetStore';
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
 import { cancelFaultStore, type CancelFault } from '../stores/cancelFaultStore';
-import { lessonInvolvesInstructor, sharedWithNames, formatSharedWith } from '../utils/coInstructors';
+import { lessonInvolvesInstructor, sharedWithNames, formatSharedWith, unionCoInstructors } from '../utils/coInstructors';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { BookableBand, ScrubBubble } from '../components/BookableBand';
 import { InlineLocationPicker } from '../components/InlineLocationPicker';
@@ -1254,8 +1254,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         endsAt: first.endsAt,
         instructorId: first.instructorId,
         instructorName: first.instructor?.name ?? null,
-        // REG-585: un esame puo' essere accompagnato da piu' istruttori.
-        coInstructors: first.coInstructors ?? null,
+        // REG-585: un esame puo' essere accompagnato da piu' istruttori. Il
+        // join sta su OGNI riga-allievo → unione, non la sola prima riga.
+        coInstructors: unionCoInstructors(appts),
         notes: first.notes ?? null,
         appointments: appts,
         sortKey: getStartsAtTs(first),
@@ -1277,7 +1278,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         glKind: first.groupLessonKind === 'moto' ? 'moto' : 'standard',
         glMotoType: first.groupLessonKind === 'moto' ? asMotoLessonType(first.groupLessonMotoType) : null,
         // REG-585: chi altro porta questa guida (per il segnale "condivisa").
-        coInstructors: first.coInstructors ?? null,
+        coInstructors: unionCoInstructors(appts),
         instructorId: first.instructorId ?? null,
         instructorName: first.instructor?.name ?? null,
         appointments: appts,
@@ -3902,7 +3903,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                           endsAt: first.endsAt,
                           instructorId: first.instructorId,
                           instructorName: first.instructor?.name ?? null,
-                          coInstructors: first.coInstructors ?? null,
+                          coInstructors: unionCoInstructors(appts),
                           notes: first.notes,
                           appointments: appts,
                         });
@@ -3992,7 +3993,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       endsAt: live.endsAt,
                       instructorId: live.instructorId,
                       instructorName: live.instructor?.name ?? null,
-                      coInstructors: live.coInstructors ?? null,
+                      coInstructors: unionCoInstructors(sameSlot.length ? sameSlot : [live]),
                       notes: live.notes,
                       appointments: sameSlot.length ? sameSlot : [live],
                     });
@@ -4032,6 +4033,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               dayDetailStore.set({
                 date,
                 plan,
+                myInstructorId: effectiveInstructorId ?? null,
                 onQuickBook: openQuickBookSheet,
                 onOpenLesson: openLessonDrawer,
                 onOpenExam: (examAppts) => {
@@ -4042,6 +4044,10 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                     endsAt: first.endsAt,
                     instructorId: first.instructorId,
                     instructorName: first.instructor?.name ?? null,
+                    // REG-585: il join dei colleghi sta su OGNI riga-allievo,
+                    // non solo sulla prima — senza questo lo sheet aperto dalla
+                    // vista settimanale mostrava "Nessuno".
+                    coInstructors: unionCoInstructors(examAppts),
                     notes: first.notes,
                     appointments: examAppts,
                   });
@@ -4103,6 +4109,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
             loading={appointmentsLoading}
             refreshing={refreshing}
             onRefresh={handleRefresh}
+            myInstructorId={effectiveInstructorId ?? null}
             studentCompletedMinutes={studentCompletedMinutes}
             weekAvailabilityByDate={weekAvailability}
             onDateChange={(monday) => {
@@ -4124,6 +4131,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 endsAt: first.endsAt,
                 instructorId: first.instructorId,
                 instructorName: first.instructor?.name ?? null,
+                // REG-585: come sopra — unione su tutte le righe dell'esame.
+                coInstructors: unionCoInstructors(appts),
                 notes: first.notes,
                 appointments: appts,
               });

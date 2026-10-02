@@ -73,3 +73,21 @@ La lista studente `GroupLessonInvitesScreen` distingue **due** casi (backend REG
 - **Allievo non-eleggibile moto esatta** (REG-419, setting ON): la guida **non compare** — filtrata lato backend, nessuna modifica mobile.
 
 Backend: `reglo/lib/actions/autoscuole-availability.actions.ts` (`getGroupLessonInvites`, flag `bookable`; `countOnly`/badge resta 0 per i bloccati). Vedi `reglo/docs/features/group-lessons.md`.
+
+## Più istruttori — estetica blocchi in TUTTE le viste (REG-585, 2026-10-02)
+Le tre viste agenda dell'istruttore (`more/agenda-view.tsx`: `day` / `week` / `grid`) hanno **renderer diversi**, quindi ogni modifica estetica ai blocchi gruppo/esame va fatta in **tre** posti:
+
+| Vista | Blocchi | File |
+|---|---|---|
+| Giornaliera | timeline `renderRow` kind `examGroup`/`groupLesson` | `src/screens/IstruttoreHomeScreen.tsx` |
+| Settimanale | parole per giorno + **sheet del giorno** | `src/components/WeeklyOverview.tsx` + `src/components/DayItinerary.tsx` |
+| Griglia | rettangoli nella griglia oraria | `src/components/WeeklyAgendaView.tsx` |
+
+Allineamento fatto (palette = web app): badge tipo `GRUPPO` / `GRUPPO MOTO` / `ESAME` (pill bordo + fondo tenue + testo in tinta), titoli `#115E59` (gruppo) / `#9A3412` (moto) / `#4C1D95` (esame), gruppo moto `#FFEDD5`, esame in griglia da indaco a **lavanda** (`#F5F0FF` / `#6D28D9`), pallini posto `#0F766E`/`#A7D8CE` (moto `#C2410C`/`#FCD9B8`). Segnale "condivisa": icona catena + `con <collega>` (`src/utils/coInstructors.ts` → `sharedWithNames` + `formatSharedWith`), con i propri panni esclusi via `myInstructorId` (`effectiveInstructorId`, assente per il titolare e per la vista "tutti"). In griglia il nome del collega compare solo se il blocco è alto almeno 52px (una riga da 1h = `ROW_H` 56).
+
+**Trappole (costate due giri):**
+- `WeeklyOverview.DayWords` contava solo guide ed esami → un giorno di **soli gruppi** si leggeva "Libero tutto il giorno". Ora `groupLessonCount` entra nel conteggio e ha la sua parola teal.
+- Lo sheet `exam-manage` legge i co-istruttori dal **seed** (`examManageStore`), non dall'API: i seed di vista settimanale e griglia non li passavano → "Altri accompagnatori: Nessuno" aprendo lo stesso esame da là. Ogni `openExamManage` deve passare `coInstructors`.
+- Il join dei co-istruttori sta su **ogni riga-allievo** dell'esame, non solo sulla prima: si usa `unionCoInstructors(appts)` (stessa trappola di REG-589 lato web). `DayExamGroup`/`DayGroupLessonGroup` in `src/utils/weeklyAgenda.ts` portano `instructorId`/`instructorName`/`coInstructors` — qualunque campo nuovo sugli appuntamenti va **ri-aggiunto a mano** su questi gruppi.
+
+Assegnazione dei colleghi da mobile: foglio `home/manage-co-instructors.tsx` (+ `coInstructorPickerStore`), aperto da `manage-group-lesson.tsx` ("Altri istruttori") e `exam-manage.tsx` ("Altri accompagnatori"). Backend: `reglo/docs/features/group-lessons.md`.

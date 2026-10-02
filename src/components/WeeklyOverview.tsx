@@ -252,8 +252,9 @@ const DayWords = ({ plan }: { plan: DayPlan }) => {
   const freeHours = Math.round(plan.freeMinutes / 60);
 
   // Bookings win over availability state, so a day with guide never flashes
-  // "Riposo" while availability is (re)loading.
-  if (plan.lessonCount === 0 && plan.examCount === 0) {
+  // "Riposo" while availability is (re)loading. Le guide di GRUPPO contano:
+  // prima un giorno di soli gruppi si leggeva "Libero tutto il giorno".
+  if (plan.lessonCount === 0 && plan.examCount === 0 && plan.groupLessonCount === 0) {
     if (plan.isEmptyAvail) return <Text style={styles.wRest}>Riposo</Text>;
     return (
       <Text style={styles.wFree}>
@@ -270,8 +271,13 @@ const DayWords = ({ plan }: { plan: DayPlan }) => {
           {plan.examRows.length > 0 && firstExam ? `Esame ${fmtClockFull(firstExam.startMin)}` : `${plan.examCount} ${plan.examCount === 1 ? 'esame' : 'esami'}`}
         </Text>
       ) : null}
+      {plan.groupLessonCount > 0 ? (
+        <Text style={styles.wGroup}>
+          {plan.examCount > 0 ? '· ' : ''}{plan.groupLessonCount} {plan.groupLessonCount === 1 ? 'gruppo' : 'gruppi'}
+        </Text>
+      ) : null}
       {plan.lessonCount > 0 ? (
-        <Text style={styles.wCount}>{plan.examCount > 0 ? '· ' : ''}{plan.lessonCount} {plan.lessonCount === 1 ? 'guida' : 'guide'}</Text>
+        <Text style={styles.wCount}>{plan.examCount > 0 || plan.groupLessonCount > 0 ? '· ' : ''}{plan.lessonCount} {plan.lessonCount === 1 ? 'guida' : 'guide'}</Text>
       ) : null}
       {freeTxt ? (
         <Text style={styles.wFree}>· libero <Text style={styles.wFreeStrong}>{freeTxt}</Text></Text>
@@ -320,6 +326,8 @@ const styles = StyleSheet.create({
   words: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 7 },
   wCount: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
   wExam: { fontSize: 13, fontWeight: '600', color: '#6D28D9' },
+  // Guide di gruppo: teal, la stessa tinta dei blocchi gruppo (web + app).
+  wGroup: { fontSize: 13, fontWeight: '600', color: '#0F766E' },
   wRest: { fontSize: 14, fontWeight: '400', color: '#AEB4CC' },
   wHoliday: { fontSize: 13, fontWeight: '600', color: '#D97706' },
   wSick: { fontSize: 13, fontWeight: '600', color: '#C2410C' },

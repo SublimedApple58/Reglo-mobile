@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { resolveAgendaColorConfig, resolveGuideBlockStyle } from '../utils/agendaColors';
+import { sharedWithNames, formatSharedWith } from '../utils/coInstructors';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -29,6 +30,12 @@ type Props = {
   onOpenExam: (appts: AutoscuolaAppointmentWithRelations[]) => void;
   onOpenGroupLesson: (group: DayGroupLessonGroup) => void;
   onOpenBlock: (block: InstructorBlock) => void;
+  /**
+   * REG-585 — chi sta guardando. Serve a togliere i propri panni dalla riga
+   * "con ...": l'istruttore vuole sapere con CHI porta la guida, non rileggere
+   * il proprio nome. Assente (titolare / vista "tutti") = si elencano tutti.
+   */
+  myInstructorId?: string | null;
 };
 
 /**
@@ -39,7 +46,7 @@ type Props = {
  * hold-to-scrub quick-book gesture. Pure presentational — actions delegated to
  * the caller. Used inside the day-detail page sheet.
  */
-export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOpenGroupLesson, onOpenBlock }: Props) => {
+export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOpenGroupLesson, onOpenBlock, myInstructorId }: Props) => {
   // Colore blocchi guida (pannello web "Aspetto"): criterio + override +
   // eccezioni dai settings company. Cache-first, default sicuri se assenti.
   const settings = useAutoscuolaSettings();
@@ -116,6 +123,10 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                 <View style={{ flex: 1 }}>
                   <Text style={styles.examLabel}>Esame di guida</Text>
                   <Text style={styles.examTitle} numberOfLines={1}>{sub}</Text>
+                  <View style={[styles.typeBadge, styles.badgeExam]}>
+                    <Text style={[styles.typeBadgeText, styles.badgeExamText]}>ESAME</Text>
+                  </View>
+                  <SharedWith group={g} myInstructorId={myInstructorId} color="#6D28D9" />
                 </View>
               </Pressable>
             </View>
@@ -133,13 +144,23 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                 <Image source={FLUENT_PEOPLE} style={styles.groupIcon} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, isMotoGroup && styles.groupLabelMoto]}>{isMotoGroup ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
-                  <Text style={styles.groupTitle} numberOfLines={1}>{sub}</Text>
-                  {isMotoGroup && g.motoLessonType ? (
-                    <View style={styles.motoTypeChip}>
-                      <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.motoLessonType]} size={11} color="#C2410C" />
-                      <Text style={styles.motoTypeChipText}>{MOTO_LESSON_TYPE_LABELS[g.motoLessonType]}</Text>
+                  <Text style={[styles.groupTitle, isMotoGroup && styles.groupTitleMoto]} numberOfLines={1}>{sub}</Text>
+                  {/* Badge di tipo + chip birilli/strada sulla STESSA riga, come
+                      nella vista giornaliera: impilati facevano due pill. */}
+                  <View style={styles.badgeRow}>
+                    <View style={[styles.typeBadge, isMotoGroup ? styles.badgeMoto : styles.badgeGroup]}>
+                      <Text style={[styles.typeBadgeText, isMotoGroup ? styles.badgeMotoText : styles.badgeGroupText]}>
+                        {isMotoGroup ? 'GRUPPO MOTO' : 'GRUPPO'}
+                      </Text>
                     </View>
-                  ) : null}
+                    {isMotoGroup && g.motoLessonType ? (
+                      <View style={[styles.motoTypeChip, { marginTop: 6 }]}>
+                        <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.motoLessonType]} size={11} color="#C2410C" />
+                        <Text style={styles.motoTypeChipText}>{MOTO_LESSON_TYPE_LABELS[g.motoLessonType]}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <SharedWith group={g} myInstructorId={myInstructorId} color={isMotoGroup ? '#C2410C' : '#047857'} />
                 </View>
                 <View style={styles.seats}>
                   {Array.from({ length: g.capacity }).map((_, i) => (
@@ -236,6 +257,31 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
   );
 };
 
+/**
+ * REG-585 — "con Luca": questa guida/esame non la porti da solo. Stesso segnale
+ * della vista giornaliera e dei blocchi web (icona catena + nomi).
+ */
+const SharedWith = ({
+  group,
+  myInstructorId,
+  color,
+}: {
+  group: { instructorId: string | null; instructorName: string | null; coInstructors: Array<{ id: string; name: string }> };
+  myInstructorId?: string | null;
+  color: string;
+}) => {
+  const names = sharedWithNames(group, myInstructorId);
+  if (!names.length) return null;
+  return (
+    <View style={styles.sharedRow}>
+      <Ionicons name="link-outline" size={12} color={color} />
+      <Text style={[styles.sharedText, { color }]} numberOfLines={1}>
+        {myInstructorId ? 'con ' : ''}{formatSharedWith(names)}
+      </Text>
+    </View>
+  );
+};
+
 const Rail = ({ time, isFirst, isLast, muted, hidePill }: { time: string; isFirst: boolean; isLast: boolean; muted?: boolean; hidePill?: boolean }) => (
   <View style={styles.rail}>
     {hidePill ? (
@@ -281,8 +327,8 @@ const styles = StyleSheet.create({
   // Exam — student-app card language (lavender surface, Fluent 3D icon), no right tag.
   examCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F5F0FF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   examIcon: { width: 42, height: 42 },
-  examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  examLabel: { fontSize: 12, fontWeight: '600', color: '#6D28D9' },
+  examTitle: { fontSize: 16, fontWeight: '600', color: '#4C1D95', letterSpacing: -0.2, marginTop: 2 },
 
   // Lezione teorica — sorella indaco della card esame (icona libri 3D). Evento
   // bloccante ma con lo stesso peso visivo di esame/gruppo (card piena in tinta).
@@ -293,21 +339,36 @@ const styles = StyleSheet.create({
 
   // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
   // Moto groups: identical style, ORANGE tint (bg/shadow/label/seats).
-  groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ECFDF5', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
-  groupCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
-  groupIcon: { width: 42, height: 42 },
-  groupLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
+  groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  groupCardMoto: { backgroundColor: '#FFEDD5', shadowColor: '#F97316' },
+  groupIcon: { width: 48, height: 48 },
+  groupLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
   groupLabelMoto: { color: '#C2410C' },
-  groupTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  groupTitle: { fontSize: 16, fontWeight: '600', color: '#115E59', letterSpacing: -0.2, marginTop: 2 },
+  groupTitleMoto: { color: '#9A3412' },
+  // Badge di tipo: stesso pill del web e della vista giornaliera (bordo + fondo
+  // tenue + testo in tinta), così il blocco si riconosce a colpo d'occhio.
+  typeBadge: { alignSelf: 'flex-start', marginTop: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  typeBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  badgeGroup: { borderColor: '#99F6E4', backgroundColor: 'rgba(153,246,228,0.6)' },
+  badgeGroupText: { color: '#0F766E' },
+  badgeMoto: { borderColor: '#FED7AA', backgroundColor: 'rgba(254,215,170,0.6)' },
+  badgeMotoText: { color: '#C2410C' },
+  badgeExam: { borderColor: '#DDD6FE', backgroundColor: 'rgba(221,214,254,0.6)' },
+  badgeExamText: { color: '#6D28D9' },
+  // REG-585: riga "con ..." quando la guida è condivisa con un collega.
+  sharedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  sharedText: { flex: 1, fontSize: 11.5, fontWeight: '600' },
   // Chip tipo guida moto (birilli/strada) sulla card gruppo moto — pill bianca
   // con testo/icona nell'accento arancio della card (REG-406).
   motoTypeChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
   motoTypeChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
   // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
   seats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 3, marginLeft: 8, maxWidth: 57 },
-  seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#10B981' },
-  seatEmpty: { backgroundColor: '#BDEAD6' },
-  seatMoto: { backgroundColor: '#F97316' },
+  seat: { width: 9, height: 9, borderRadius: 3, backgroundColor: '#0F766E' },
+  seatEmpty: { backgroundColor: '#A7D8CE' },
+  seatMoto: { backgroundColor: '#C2410C' },
   seatEmptyMoto: { backgroundColor: '#FCD9B8' },
 
   freeBody: { flex: 1 },

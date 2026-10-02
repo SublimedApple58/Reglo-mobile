@@ -71,3 +71,21 @@ export function formatSharedWith(names: string[]): string {
   if (names.length === 2) return `${names[0]} e ${names[1]}`;
   return `${names[0]} e altri ${names.length - 1}`;
 }
+
+/**
+ * Unione dei co-istruttori di più righe appuntamento.
+ *
+ * Un esame è un gruppo di righe (una per allievo) e il join dei colleghi sta su
+ * OGNI riga: se si legge solo la prima si perde chi è stato aggiunto dopo
+ * l'ultimo allievo. Questa è la stessa trappola di REG-589 lato web — qualunque
+ * campo nuovo sugli appuntamenti va riportato anche sul gruppo.
+ */
+export function unionCoInstructors(
+  appts: Array<{ coInstructors?: Array<{ id: string; name: string }> | null }>,
+): Array<{ id: string; name: string }> {
+  const byId = new Map<string, { id: string; name: string }>();
+  for (const a of appts) {
+    for (const co of a.coInstructors ?? []) byId.set(co.id, co);
+  }
+  return [...byId.values()];
+}

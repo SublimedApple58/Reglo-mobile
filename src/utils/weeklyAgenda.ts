@@ -1,5 +1,6 @@
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { asMotoLessonType, type MotoLessonType } from './motoLessonType';
+import { unionCoInstructors } from './coInstructors';
 
 // ─────────────────────────────────────────────────────────────
 // Pure data layer for the weekly "control in words" overview.
@@ -106,6 +107,11 @@ export type DayGroupLessonGroup = {
   capacity: number;
   kind: 'standard' | 'moto'; // moto groups get a dedicated orange tint
   motoLessonType: MotoLessonType | null; // "birilli" | "strada" per i gruppi moto (REG-406)
+  // REG-585: chi la porta. `instructor*` = il principale, `coInstructors` = i
+  // colleghi (unione su tutte le righe-posto: il join sta su ognuna).
+  instructorId: string | null;
+  instructorName: string | null;
+  coInstructors: Array<{ id: string; name: string }>;
   appts: AutoscuolaAppointmentWithRelations[];
 };
 export const GROUP_LESSON_CAPACITY = 3;
@@ -117,6 +123,11 @@ export type DayExamGroup = {
   endMin: number;
   durationMin: number;
   count: number;
+  // REG-585/589: anche qui il principale + i colleghi. Il gruppo è una struttura
+  // più povera della riga appuntamento: ogni campo nuovo va riportato a mano.
+  instructorId: string | null;
+  instructorName: string | null;
+  coInstructors: Array<{ id: string; name: string }>;
   appts: AutoscuolaAppointmentWithRelations[];
 };
 
@@ -213,6 +224,9 @@ export function computeDayPlan(
       capacity: rowsG[0].appt.groupLessonCapacity ?? GROUP_LESSON_CAPACITY,
       kind: (rowsG[0].appt.groupLessonKind === 'moto' ? 'moto' : 'standard') as 'standard' | 'moto',
       motoLessonType: asMotoLessonType(rowsG[0].appt.groupLessonMotoType),
+      instructorId: rowsG[0].appt.instructorId ?? null,
+      instructorName: rowsG[0].appt.instructor?.name ?? null,
+      coInstructors: unionCoInstructors(rowsG.map((r) => r.appt)),
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);
@@ -235,6 +249,9 @@ export function computeDayPlan(
       durationMin: rowsG[0].durationMin,
       // Empty-exam placeholder rows count as 0 participants (mirrors gl-empty).
       count: rowsG.filter((r) => !isExamPlaceholder(r.appt)).length,
+      instructorId: rowsG[0].appt.instructorId ?? null,
+      instructorName: rowsG[0].appt.instructor?.name ?? null,
+      coInstructors: unionCoInstructors(rowsG.map((r) => r.appt)),
       appts: rowsG.map((r) => r.appt),
     }))
     .sort((a, b) => a.startMin - b.startMin);

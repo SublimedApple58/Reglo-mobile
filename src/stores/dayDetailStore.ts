@@ -12,6 +12,8 @@ export type DayDetailStoreData = {
   onOpenExam: (appts: AutoscuolaAppointmentWithRelations[]) => void;
   onOpenGroupLesson: (group: DayGroupLessonGroup) => void;
   onOpenBlock: (block: InstructorBlock) => void;
+  /** REG-585: chi guarda — serve per la riga "con ..." sui blocchi condivisi. */
+  myInstructorId?: string | null;
 };
 
 let _data: DayDetailStoreData | null = null;

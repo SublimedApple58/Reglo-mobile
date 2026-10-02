@@ -57,6 +57,7 @@ export default function DayDetailScreen() {
           onOpenLesson={(a) => closeThen(() => data.onOpenLesson(a))}
           onOpenExam={(appts) => closeThen(() => data.onOpenExam(appts))}
           onOpenGroupLesson={(g) => closeThen(() => data.onOpenGroupLesson(g))}
+          myInstructorId={data.myInstructorId}
           onOpenBlock={(b) => closeThen(() => data.onOpenBlock(b))}
         />
       </ScrollView>

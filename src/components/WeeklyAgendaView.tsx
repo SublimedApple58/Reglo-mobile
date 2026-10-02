@@ -34,6 +34,7 @@ import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/wee
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { resolveAgendaColorConfig, resolveGuideBlockStyle, type AgendaColorConfig } from '../utils/agendaColors';
+import { sharedWithNames, formatSharedWith, unionCoInstructors } from '../utils/coInstructors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
 /* ------------------------------------------------------------------ */
@@ -54,6 +55,11 @@ type WeeklyAgendaViewProps = {
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
+  /**
+   * REG-585 — chi sta guardando la griglia. Sui blocchi condivisi mostra
+   * l'icona catena + "con <collega>", togliendo i propri panni dai nomi.
+   */
+  myInstructorId?: string | null;
   /**
    * Ghost-block booking: fired from the "Scegli i dettagli" CTA with the
    * placed block's start + duration. `windowStart/windowEnd` keep the legacy
@@ -278,10 +284,12 @@ const getLessonLook = (
 
 // Dedicated tinted looks for exams (indigo) and group lessons (teal) — same
 // palettes as the day/week views, so the event type reads at a glance.
-const EXAM_LOOK = { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' };
-const GROUP_LOOK = { bg: '#ECFDF5', border: '#10B981', text: '#0F766E' };
+// Palette allineata alla web app (e alla vista giornaliera): esame lavanda,
+// gruppo teal, gruppo moto arancio. Il bordo è la versione satura del fondo.
+const EXAM_LOOK = { bg: '#F5F0FF', border: '#C4B5FD', text: '#6D28D9' };
+const GROUP_LOOK = { bg: '#ECFDF5', border: '#99F6E4', text: '#0F766E' };
 // Moto group lessons: identical style, ORANGE tint.
-const GROUP_MOTO_LOOK = { bg: '#FFF4EA', border: '#F97316', text: '#C2410C' };
+const GROUP_MOTO_LOOK = { bg: '#FFEDD5', border: '#FED7AA', text: '#C2410C' };
 const GROUP_CAPACITY = 3; // fallback — real capacity comes from the BE row annotation
 
 /* ------------------------------------------------------------------ */
@@ -614,6 +622,8 @@ type WeekPageProps = {
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
+  /** REG-585 — chi guarda: serve al segnale "condivisa con" sui blocchi. */
+  myInstructorId?: string | null;
   /** Ghost-block booking enabled (instructor, not read-only). */
   canBook: boolean;
   /** Allowed lesson durations (minutes) + the default one used when a block is born. */
@@ -631,7 +641,7 @@ type WeekPageProps = {
 const WeekPage = React.memo(function WeekPage({
   monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
   weekAvailabilityByDate, readOnly, loading,
-  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
+  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, myInstructorId,
   canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick,
   refreshing, onRefresh,
 }: WeekPageProps) {
@@ -1076,6 +1086,12 @@ const WeekPage = React.memo(function WeekPage({
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
             const showMeta = height >= 40;
+            // REG-585: l'esame può essere accompagnato da un collega. Il join sta
+            // su OGNI riga-allievo → unione, non la prima riga.
+            const withNames = sharedWithNames(
+              { instructorId: a0.instructorId ?? null, instructorName: a0.instructor?.name ?? null, coInstructors: unionCoInstructors(appts) },
+              myInstructorId,
+            );
             return (
               <Pressable
                 key={`exam-${colIdx}-${a0.id}`}
@@ -1088,9 +1104,15 @@ const WeekPage = React.memo(function WeekPage({
                 <Ionicons name="school" size={11} color={EXAM_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
                 <Text style={[styles.eventName, { color: EXAM_LOOK.text }]} numberOfLines={1}>Esame</Text>
                 {showMeta && (
-                  <Text style={[styles.eventMeta, { color: EXAM_LOOK.text }]} numberOfLines={1}>
-                    {pad(start.getHours())}:{pad(start.getMinutes())}{appts.length > 1 ? ` · ${appts.length}` : ''}
-                  </Text>
+                  <View style={styles.eventMetaRow}>
+                    {withNames.length ? <Ionicons name="link" size={8.5} color={EXAM_LOOK.text} /> : null}
+                    <Text style={[styles.eventMeta, { color: EXAM_LOOK.text }]} numberOfLines={1}>
+                      {pad(start.getHours())}:{pad(start.getMinutes())}{appts.length > 1 ? ` · ${appts.length}` : ''}
+                    </Text>
+                  </View>
+                )}
+                {withNames.length > 0 && height >= 52 && (
+                  <Text style={[styles.eventShared, { color: EXAM_LOOK.text }]} numberOfLines={1}>{formatSharedWith(withNames)}</Text>
                 )}
               </Pressable>
             );
@@ -1110,6 +1132,11 @@ const WeekPage = React.memo(function WeekPage({
             const showMeta = height >= 40;
             const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
             const glMotoType = a0.groupLessonKind === 'moto' ? asMotoLessonType(a0.groupLessonMotoType) : null;
+            // REG-585: guida di gruppo portata insieme a un collega.
+            const withNames = sharedWithNames(
+              { instructorId: a0.instructorId ?? null, instructorName: a0.instructor?.name ?? null, coInstructors: unionCoInstructors(appts) },
+              myInstructorId,
+            );
             return (
               <Pressable
                 key={`group-${colIdx}-${groupLessonId ?? a0.id}`}
@@ -1122,11 +1149,17 @@ const WeekPage = React.memo(function WeekPage({
                 <Ionicons name="people" size={11} color={look.text} style={{ position: 'absolute', top: 6, right: 6 }} />
                 <Text style={[styles.eventName, { color: look.text }]} numberOfLines={1}>{a0.groupLessonKind === 'moto' ? 'Gruppo moto' : 'Gruppo'}</Text>
                 {showMeta && (
-                  <Text style={[styles.eventMeta, { color: look.text }]} numberOfLines={1}>
-                    {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
-                  </Text>
+                  <View style={styles.eventMetaRow}>
+                    {withNames.length ? <Ionicons name="link" size={8.5} color={look.text} /> : null}
+                    <Text style={[styles.eventMeta, { color: look.text }]} numberOfLines={1}>
+                      {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
+                    </Text>
+                  </View>
                 )}
-                {glMotoType && height >= 58 && (
+                {withNames.length > 0 && height >= 52 && (
+                  <Text style={[styles.eventShared, { color: look.text }]} numberOfLines={1}>{formatSharedWith(withNames)}</Text>
+                )}
+                {glMotoType && height >= (withNames.length ? 70 : 58) && (
                   <View style={styles.glMotoChip}>
                     <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[glMotoType]} size={9} color={look.text} />
                     <Text style={[styles.glMotoChipText, { color: look.text }]} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[glMotoType]}</Text>
@@ -1221,6 +1254,7 @@ export default function WeeklyAgendaView({
   onPressExam,
   onPressGroupLesson,
   onPressBlock,
+  myInstructorId,
   onBookAt,
   allowedDurations,
   onGhostActiveChange,
@@ -1326,6 +1360,7 @@ export default function WeeklyAgendaView({
       onPressExam={onPressExam}
       onPressGroupLesson={onPressGroupLesson}
       onPressBlock={onPressBlock}
+      myInstructorId={myInstructorId}
       canBook={!!onBookAt}
       allowedDur={allowedDur}
       defaultDur={defaultDur}
@@ -1336,7 +1371,7 @@ export default function WeeklyAgendaView({
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-      onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, refreshing, onRefresh]);
+      myInstructorId, onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, refreshing, onRefresh]);
 
   return (
     <View style={styles.container}>
@@ -1598,8 +1633,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  eventName: { fontSize: 11, fontWeight: '700', lineHeight: 14 },
-  eventMeta: { fontSize: 9, fontWeight: '500', marginTop: 2, opacity: 0.85 },
+  eventName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
+  eventMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
+  eventMeta: { flexShrink: 1, fontSize: 9, fontWeight: '500', opacity: 0.85 },
+  // REG-585: "con chi" sotto l'orario, quando il blocco è alto abbastanza.
+  eventShared: { fontSize: 8.5, fontWeight: '600', marginTop: 1, opacity: 0.95 },
   // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto in griglia — pill
   // bianca compatta con testo/icona nell'accento arancio (REG-406).
   glMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', marginTop: 3, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 999, backgroundColor: '#FFFFFF' },
