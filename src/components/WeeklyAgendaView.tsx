@@ -286,11 +286,39 @@ const getLessonLook = (
 // palettes as the day/week views, so the event type reads at a glance.
 // Palette allineata alla web app (e alla vista giornaliera): esame lavanda,
 // gruppo teal, gruppo moto arancio. Il bordo è la versione satura del fondo.
-const EXAM_LOOK = { bg: '#F5F0FF', border: '#C4B5FD', text: '#6D28D9' };
-const GROUP_LOOK = { bg: '#ECFDF5', border: '#99F6E4', text: '#0F766E' };
+// `shadow` = l'accento dell'ombra in tinta, gli stessi hex della web app
+// (`--agenda-card-shadow` in globals.css) e delle card della giornaliera.
+const EXAM_LOOK = { bg: '#F5F0FF', shadow: '#8B5CF6', text: '#6D28D9' };
+const GROUP_LOOK = { bg: '#ECFDF5', shadow: '#10B981', text: '#0F766E' };
 // Moto group lessons: identical style, ORANGE tint.
-const GROUP_MOTO_LOOK = { bg: '#FFEDD5', border: '#FED7AA', text: '#C2410C' };
+const GROUP_MOTO_LOOK = { bg: '#FFEDD5', shadow: '#F97316', text: '#C2410C' };
 const GROUP_CAPACITY = 3; // fallback — real capacity comes from the BE row annotation
+
+/**
+ * Nomi dei partecipanti nello spazio che avanza sotto il blocco: una guida di
+ * gruppo di 3 ore e' alta 168pt e ne usava 30. Si riempie solo quello che
+ * avanza davvero — testa (13) + orario (15) + padding (10) = 38pt occupati,
+ * poi una riga da 11pt per nome. Se non ci stanno tutti, l'ultima riga dice
+ * quanti mancano. In ~39pt di larghezza ci sta un nome di battesimo, quindi e'
+ * quello che si mostra.
+ */
+const EventStudentNames = ({ names, height, color }: { names: string[]; height: number; color: string }) => {
+  if (!names.length) return null;
+  const slots = Math.floor((height - 40) / 11);
+  if (slots < 1) return null;
+  const shown = names.length <= slots ? names : names.slice(0, Math.max(1, slots - 1));
+  const rest = names.length - shown.length;
+  return (
+    <View style={styles.eventNames}>
+      {shown.map((n, i) => (
+        <Text key={i} style={[styles.eventNameLine, { color }]} numberOfLines={1}>{n}</Text>
+      ))}
+      {rest > 0 ? (
+        <Text style={[styles.eventNameLine, { color, opacity: 0.65 }]} numberOfLines={1}>+{rest}</Text>
+      ) : null}
+    </View>
+  );
+};
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton pulse block                                               */
@@ -1075,7 +1103,7 @@ const WeekPage = React.memo(function WeekPage({
           }),
         )}
 
-        {/* Exam slots — collapsed indigo card (icon + count) */}
+        {/* Esami — card lavanda: icona + conteggio, orario, nomi se c'e' spazio */}
         {eventsByCol.map(({ exams }, colIdx) =>
           exams.map((appts) => {
             const a0 = appts[0];
@@ -1085,7 +1113,11 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
-            const examCount = appts.filter((a) => !isExamPlaceholder(a)).length;
+            const examStudents = appts.filter((a) => !isExamPlaceholder(a));
+            const examCount = examStudents.length;
+            const examNames = examStudents
+              .map((a) => a.student?.firstName || a.student?.lastName || '')
+              .filter(Boolean);
             // REG-585: l'esame può essere accompagnato da un collega. Il join sta
             // su OGNI riga-allievo → unione, non la prima riga.
             const withNames = sharedWithNames(
@@ -1098,7 +1130,7 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(appts)}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, borderColor: EXAM_LOOK.border, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, shadowColor: EXAM_LOOK.shadow, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
                 {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
@@ -1116,12 +1148,13 @@ const WeekPage = React.memo(function WeekPage({
                     {pad(start.getHours())}:{pad(start.getMinutes())}
                   </Text>
                 )}
+                <EventStudentNames names={examNames} height={height} color={EXAM_LOOK.text} />
               </Pressable>
             );
           }),
         )}
 
-        {/* Group lessons — collapsed teal card (people icon + seats N/3) */}
+        {/* Guide di gruppo — card teal (arancio se moto): posti N/C + nomi */}
         {eventsByCol.map(({ groups }, colIdx) =>
           groups.map(({ groupLessonId, appts }) => {
             const a0 = appts[0];
@@ -1133,6 +1166,10 @@ const WeekPage = React.memo(function WeekPage({
             const height = Math.max((dur / 60) * ROW_H, 26);
             const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
             const glMotoType = a0.groupLessonKind === 'moto' ? asMotoLessonType(a0.groupLessonMotoType) : null;
+            const glStudents = appts.filter((a) => !String(a.id).startsWith('gl-empty:'));
+            const glNames = glStudents
+              .map((a) => a.student?.firstName || a.student?.lastName || '')
+              .filter(Boolean);
             // REG-585: guida di gruppo portata insieme a un collega.
             const withNames = sharedWithNames(
               { instructorId: a0.instructorId ?? null, instructorName: a0.instructor?.name ?? null, coInstructors: unionCoInstructors(appts) },
@@ -1144,7 +1181,7 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, borderColor: look.border, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, shadowColor: look.shadow, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
                 {/* Stessa regola dell'esame: niente parole, il tipo sta nel
@@ -1161,7 +1198,7 @@ const WeekPage = React.memo(function WeekPage({
                     <Ionicons name="people" size={12} color={look.text} />
                   )}
                   <Text style={[styles.eventCount, { color: look.text }]} numberOfLines={1}>
-                    {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
+                    {glStudents.length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
                   </Text>
                   <View style={{ flex: 1 }} />
                   {withNames.length ? <Ionicons name="link" size={9} color={look.text} /> : null}
@@ -1171,6 +1208,7 @@ const WeekPage = React.memo(function WeekPage({
                     {pad(start.getHours())}:{pad(start.getMinutes())}
                   </Text>
                 )}
+                <EventStudentNames names={glNames} height={height} color={look.text} />
               </Pressable>
             );
           }),
@@ -1624,20 +1662,27 @@ const styles = StyleSheet.create({
   },
   lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
   lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
-  // Dedicated event card (exam / group) — tinted, bordered, rounded.
+  // Card evento (esame / gruppo). Stile allineato UNO A UNO alla web app
+  // (`.agenda-card` in assets/styles/globals.css + `rounded-[8px]` sui blocchi
+  // della griglia) e a `examGroupCard` della vista giornaliera:
+  //   · NIENTE bordo — sul web e' esplicito, "la separazione e' solo
+  //     STRUTTURALE, niente bordo". Qui c'era un bordo da 1.5 saturato: e'
+  //     quello che faceva sembrare il blocco un chip ritagliato.
+  //   · raggio 8 come i blocchi della griglia web (i 22 della giornaliera
+  //     sono di una card larga quanto lo schermo: su 52pt diventa una pillola).
+  //   · ombra IN TINTA col tipo (shadowColor inline), 0.22 / 14 / y5 /
+  //     elevation 4, gli stessi numeri della giornaliera.
   eventCard: {
     position: 'absolute',
-    borderRadius: 13,
+    borderRadius: 8,
     paddingHorizontal: 5,
     paddingVertical: 5,
     overflow: 'hidden',
     zIndex: 4,
-    borderWidth: 1.5,
-    shadowColor: '#0D0D16',
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   // Blocco in colonna stretta: icona del tipo a sinistra, catena "condivisa"
   // a destra, poi orario e conteggio uno sotto l'altro. Niente parole lunghe:
@@ -1645,6 +1690,8 @@ const styles = StyleSheet.create({
   eventHead: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 13 },
   eventCount: { flexShrink: 1, fontSize: 9, fontWeight: '700', opacity: 0.9 },
   eventTime: { fontSize: 11, fontWeight: '600', marginTop: 1, letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
+  eventNames: { marginTop: 3 },
+  eventNameLine: { fontSize: 8.5, fontWeight: '500', lineHeight: 11, opacity: 0.9 },
   // Timeless exams — canonical lavender exam card (matches day-detail style).
   timelessWrap: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
   examBanner: {

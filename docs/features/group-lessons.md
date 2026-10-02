@@ -100,6 +100,20 @@ Allineamento fatto (palette = web app): badge tipo `GRUPPO` / `GRUPPO MOTO` / `E
 └────────────┘
 ```
 
+**Stile della card — identico al web e alla giornaliera** (confronto fatto sulle costanti, non a occhio):
+
+| | web `.agenda-card` + blocco griglia | giornaliera mobile `examGroupCard` | griglia mobile `eventCard` |
+|---|---|---|---|
+| bordo | nessuno (esplicito in `globals.css`: "la separazione è solo STRUTTURALE, niente bordo") | nessuno | ~~`borderWidth: 1.5` saturato~~ → nessuno |
+| raggio | `rounded-[8px]` | 22 (card larga quanto lo schermo) | ~~13~~ → **8**, come il web |
+| ombra | `0 6px 16px rgba(accento, .22)` | `shadowColor` accento, `.22` / 14 / y5 / elev 4 | ~~`#0D0D16` .10 / 8 / y3 / elev 2~~ → accento, `.22` / 14 / y5 / elev 4 |
+| sfondo | `#F5F0FF` / `#ECFDF5` / `#FFEDD5` | idem | idem |
+| accento ombra | `rgba(139,92,246 / 16,185,129 / 249,115,22, .22)` | `#8B5CF6` / `#10B981` / `#F97316` | idem, `LOOK.shadow` inline |
+
+Il bordo da 1.5 era la vera differenza percepita: faceva sembrare il blocco un chip ritagliato invece di una card appoggiata. L'unico scostamento voluto è il raggio: 22 su un blocco da 52pt lo trasformerebbe in una pillola, e il **web stesso** sulla griglia usa 8.
+
+**Nomi degli allievi nello spazio che avanza:** un gruppo di 3 ore è alto 168pt e ne usava 38. `EventStudentNames` riempie il resto con i **nomi di battesimo**, una riga da 11pt ciascuno, `slots = floor((height - 40) / 11)`; se non ci stanno tutti l'ultima riga diventa `+N`.
+
 Regole da rispettare in quella vista: **niente testo di tipo** (lo dicono colore + icona), niente `position:'absolute'` sopra il testo, ogni Text `numberOfLines={1}` con `flexShrink` dove compete con un'icona. I gruppi **moto** usano direttamente l'icona di birilli/strada (`MOTO_LESSON_TYPE_ICON`) al posto della pill bianca con la parola, che veniva tagliata. Badge testuali `GRUPPO`/`ESAME` e riga "con &lt;collega&gt;": solo giornaliera e sheet del giorno, dove la larghezza c'è.
 
 Assegnazione dei colleghi da mobile: foglio `home/manage-co-instructors.tsx` (+ `coInstructorPickerStore`), aperto da `manage-group-lesson.tsx` ("Altri istruttori") e `exam-manage.tsx` ("Altri accompagnatori"). Backend: `reglo/docs/features/group-lessons.md`.

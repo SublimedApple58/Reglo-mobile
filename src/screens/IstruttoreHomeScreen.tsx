@@ -5563,7 +5563,7 @@ const styles = StyleSheet.create({
   groupLessonCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14,
-    shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+    shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
   groupLessonCardMoto: { backgroundColor: '#FFEDD5', shadowColor: '#F97316' },
   groupLessonIcon: { width: 48, height: 48 },

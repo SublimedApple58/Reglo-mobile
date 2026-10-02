@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
 
   // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
   // Moto groups: identical style, ORANGE tint (bg/shadow/label/seats).
-  groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  groupCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14, shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   groupCardMoto: { backgroundColor: '#FFEDD5', shadowColor: '#F97316' },
   groupIcon: { width: 48, height: 48 },
   groupLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
