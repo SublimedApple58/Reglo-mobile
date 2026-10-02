@@ -28,13 +28,13 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import { asMotoLessonType, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
 import * as Haptics from '../utils/haptics';
 import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { resolveAgendaColorConfig, resolveGuideBlockStyle, type AgendaColorConfig } from '../utils/agendaColors';
-import { sharedWithNames, formatSharedWith, unionCoInstructors } from '../utils/coInstructors';
+import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
 /* ------------------------------------------------------------------ */
@@ -1085,7 +1085,7 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
-            const showMeta = height >= 40;
+            const examCount = appts.filter((a) => !isExamPlaceholder(a)).length;
             // REG-585: l'esame può essere accompagnato da un collega. Il join sta
             // su OGNI riga-allievo → unione, non la prima riga.
             const withNames = sharedWithNames(
@@ -1101,18 +1101,20 @@ const WeekPage = React.memo(function WeekPage({
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, borderColor: EXAM_LOOK.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Ionicons name="school" size={11} color={EXAM_LOOK.text} style={{ position: 'absolute', top: 6, right: 6 }} />
-                <Text style={[styles.eventName, { color: EXAM_LOOK.text }]} numberOfLines={1}>Esame</Text>
-                {showMeta && (
-                  <View style={styles.eventMetaRow}>
-                    {withNames.length ? <Ionicons name="link" size={8.5} color={EXAM_LOOK.text} /> : null}
-                    <Text style={[styles.eventMeta, { color: EXAM_LOOK.text }]} numberOfLines={1}>
-                      {pad(start.getHours())}:{pad(start.getMinutes())}{appts.length > 1 ? ` · ${appts.length}` : ''}
-                    </Text>
-                  </View>
-                )}
-                {withNames.length > 0 && height >= 52 && (
-                  <Text style={[styles.eventShared, { color: EXAM_LOOK.text }]} numberOfLines={1}>{formatSharedWith(withNames)}</Text>
+                {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
+                    tipo lo dicono colore e icona, le parole restano nello sheet. */}
+                <View style={styles.eventHead}>
+                  <Ionicons name="school" size={12} color={EXAM_LOOK.text} />
+                  {examCount > 0 ? (
+                    <Text style={[styles.eventCount, { color: EXAM_LOOK.text }]} numberOfLines={1}>{examCount}</Text>
+                  ) : null}
+                  <View style={{ flex: 1 }} />
+                  {withNames.length ? <Ionicons name="link" size={9} color={EXAM_LOOK.text} /> : null}
+                </View>
+                {height >= 40 && (
+                  <Text style={[styles.eventTime, { color: EXAM_LOOK.text }]} numberOfLines={1}>
+                    {pad(start.getHours())}:{pad(start.getMinutes())}
+                  </Text>
                 )}
               </Pressable>
             );
@@ -1129,7 +1131,6 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
-            const showMeta = height >= 40;
             const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
             const glMotoType = a0.groupLessonKind === 'moto' ? asMotoLessonType(a0.groupLessonMotoType) : null;
             // REG-585: guida di gruppo portata insieme a un collega.
@@ -1146,24 +1147,29 @@ const WeekPage = React.memo(function WeekPage({
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, borderColor: look.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Ionicons name="people" size={11} color={look.text} style={{ position: 'absolute', top: 6, right: 6 }} />
-                <Text style={[styles.eventName, { color: look.text }]} numberOfLines={1}>{a0.groupLessonKind === 'moto' ? 'Gruppo moto' : 'Gruppo'}</Text>
-                {showMeta && (
-                  <View style={styles.eventMetaRow}>
-                    {withNames.length ? <Ionicons name="link" size={8.5} color={look.text} /> : null}
-                    <Text style={[styles.eventMeta, { color: look.text }]} numberOfLines={1}>
-                      {pad(start.getHours())}:{pad(start.getMinutes())} · {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
-                    </Text>
-                  </View>
-                )}
-                {withNames.length > 0 && height >= 52 && (
-                  <Text style={[styles.eventShared, { color: look.text }]} numberOfLines={1}>{formatSharedWith(withNames)}</Text>
-                )}
-                {glMotoType && height >= (withNames.length ? 70 : 58) && (
-                  <View style={styles.glMotoChip}>
-                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[glMotoType]} size={9} color={look.text} />
-                    <Text style={[styles.glMotoChipText, { color: look.text }]} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[glMotoType]}</Text>
-                  </View>
+                {/* Stessa regola dell'esame: niente parole, il tipo sta nel
+                    colore e nell'icona. Per i gruppi moto l'icona è già quella
+                    di birilli/strada — la pill con la parola veniva tagliata. */}
+                <View style={styles.eventHead}>
+                  {a0.groupLessonKind === 'moto' ? (
+                    <MaterialCommunityIcons
+                      name={glMotoType ? MOTO_LESSON_TYPE_ICON[glMotoType] : 'motorbike'}
+                      size={12}
+                      color={look.text}
+                    />
+                  ) : (
+                    <Ionicons name="people" size={12} color={look.text} />
+                  )}
+                  <Text style={[styles.eventCount, { color: look.text }]} numberOfLines={1}>
+                    {appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  {withNames.length ? <Ionicons name="link" size={9} color={look.text} /> : null}
+                </View>
+                {height >= 40 && (
+                  <Text style={[styles.eventTime, { color: look.text }]} numberOfLines={1}>
+                    {pad(start.getHours())}:{pad(start.getMinutes())}
+                  </Text>
                 )}
               </Pressable>
             );
@@ -1633,15 +1639,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  eventName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
-  eventMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  eventMeta: { flexShrink: 1, fontSize: 9, fontWeight: '500', opacity: 0.85 },
-  // REG-585: "con chi" sotto l'orario, quando il blocco è alto abbastanza.
-  eventShared: { fontSize: 8.5, fontWeight: '600', marginTop: 1, opacity: 0.95 },
-  // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto in griglia — pill
-  // bianca compatta con testo/icona nell'accento arancio (REG-406).
-  glMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', marginTop: 3, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 999, backgroundColor: '#FFFFFF' },
-  glMotoChipText: { fontSize: 8.5, fontWeight: '700', letterSpacing: 0.2 },
+  // Blocco in colonna stretta: icona del tipo a sinistra, catena "condivisa"
+  // a destra, poi orario e conteggio uno sotto l'altro. Niente parole lunghe:
+  // in ~39pt utili si spezzavano a meta'.
+  eventHead: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 13 },
+  eventCount: { flexShrink: 1, fontSize: 9, fontWeight: '700', opacity: 0.9 },
+  eventTime: { fontSize: 11, fontWeight: '600', marginTop: 1, letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
   // Timeless exams — canonical lavender exam card (matches day-detail style).
   timelessWrap: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
   examBanner: {

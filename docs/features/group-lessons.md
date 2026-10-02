@@ -90,4 +90,16 @@ Allineamento fatto (palette = web app): badge tipo `GRUPPO` / `GRUPPO MOTO` / `E
 - Lo sheet `exam-manage` legge i co-istruttori dal **seed** (`examManageStore`), non dall'API: i seed di vista settimanale e griglia non li passavano → "Altri accompagnatori: Nessuno" aprendo lo stesso esame da là. Ogni `openExamManage` deve passare `coInstructors`.
 - Il join dei co-istruttori sta su **ogni riga-allievo** dell'esame, non solo sulla prima: si usa `unionCoInstructors(appts)` (stessa trappola di REG-589 lato web). `DayExamGroup`/`DayGroupLessonGroup` in `src/utils/weeklyAgenda.ts` portano `instructorId`/`instructorName`/`coInstructors` — qualunque campo nuovo sugli appuntamenti va **ri-aggiunto a mano** su questi gruppi.
 
+### Vista griglia: colonne da ~39pt utili (correzione 2026-10-02)
+`colW = (screenWidth - 32 - 8 - 3*5) / 6` → **~56pt** per colonna, meno 4 di offset, 10 di padding e 3 di bordo = **~39pt di contenuto**. Lì dentro non ci sta nessuna parola: primo giro i blocchi mostravano "Grup👥" ed "Esam🎓" (l'icona era `position:'absolute'` e si stampava SOPRA il titolo, quindi nemmeno un'ellissi) più "⟲ 09:…" e "Gabrie…" tagliati. Ora il blocco è **icona-first**, in due righe:
+
+```
+┌────────────┐
+│ 👥 2/3   ⛓ │  icona tipo + conteggio · catena se condivisa
+│ 09:00      │  orario (height ≥ 40)
+└────────────┘
+```
+
+Regole da rispettare in quella vista: **niente testo di tipo** (lo dicono colore + icona), niente `position:'absolute'` sopra il testo, ogni Text `numberOfLines={1}` con `flexShrink` dove compete con un'icona. I gruppi **moto** usano direttamente l'icona di birilli/strada (`MOTO_LESSON_TYPE_ICON`) al posto della pill bianca con la parola, che veniva tagliata. Badge testuali `GRUPPO`/`ESAME` e riga "con &lt;collega&gt;": solo giornaliera e sheet del giorno, dove la larghezza c'è.
+
 Assegnazione dei colleghi da mobile: foglio `home/manage-co-instructors.tsx` (+ `coInstructorPickerStore`), aperto da `manage-group-lesson.tsx` ("Altri istruttori") e `exam-manage.tsx` ("Altri accompagnatori"). Backend: `reglo/docs/features/group-lessons.md`.
