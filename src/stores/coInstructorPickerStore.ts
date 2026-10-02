@@ -3,14 +3,14 @@
  * telefono. Il web ha i chip nel dialogo di gestione; qui è un foglio a parte,
  * come il picker dell'istruttore principale (`manage-lesson-instructor`).
  *
- * Chi apre il foglio pubblica lo stato attuale + chi è il principale (che non
- * va mostrato: sarebbe la stessa persona due volte) e una `onToggle` che
- * salva. Il salvataggio è immediato a ogni tocco — niente bottone di conferma,
+ * Chi apre il foglio pubblica lo stato attuale + chi è il principale (mostrato
+ * in cima ma bloccato: non può essere collega di se stesso) e una `onToggle`
+ * che salva. Il salvataggio è immediato a ogni tocco — niente bottone di conferma,
  * così non c'è una CTA che gli sheet Android possono tagliare, ed è lo stesso
  * comportamento del picker singolo.
  */
 export type CoInstructorPickerData = {
-  /** L'istruttore principale: escluso dalla lista. */
+  /** L'istruttore principale: mostrato in cima, bloccato, non togglabile. */
   mainInstructorId: string | null;
   /** Id dei colleghi attualmente assegnati. */
   selectedIds: string[];

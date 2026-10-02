@@ -349,24 +349,26 @@ export default function ExamManageScreen() {
               coNames ? (
                 <View style={[s.accomp, { marginBottom: 0 }]}>
                   <Ionicons name="people-outline" size={18} color="#6E7596" />
-                  <Text style={s.accompKey}>Altri</Text>
+                  <Text style={s.accompKey}>Altri accompagnatori</Text>
                   <Text style={s.accompVal} numberOfLines={2}>{coNames}</Text>
                 </View>
               ) : null
             ) : (
+              /* Card BIANCA come "Modifica orario": in questo foglio il bianco
+                 vuol dire toccabile, il grigio vuol dire sola lettura. Prima
+                 era grigia pur essendo toccabile. */
               <Pressable
                 onPress={openCoInstructorPicker}
-                style={({ pressed }) => [s.accomp, { marginBottom: 0 }, pressed && { opacity: 0.6 }]}
+                style={({ pressed }) => [s.editCard, { marginBottom: 0 }, pressed && s.pressed]}
               >
-                <Ionicons name="people-outline" size={18} color="#6E7596" />
-                <Text style={s.accompKey}>Altri</Text>
-                <Text
-                  style={[s.accompVal, !coNames && s.accompPlaceholder]}
-                  numberOfLines={2}
-                >
-                  {coNames ?? 'Aggiungi'}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="#AEB4CC" />
+                <View style={s.editIc}><Ionicons name="people-outline" size={19} color="#1A1A2E" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.editTitle}>Altri accompagnatori</Text>
+                  <Text style={s.editSub} numberOfLines={2}>
+                    {coNames ?? 'Nessuno — tocca per aggiungere un collega'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
               </Pressable>
             )}
           </View>

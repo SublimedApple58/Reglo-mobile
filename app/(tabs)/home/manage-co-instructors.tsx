@@ -28,6 +28,9 @@ export default function ManageCoInstructorsScreen() {
   const [selected, setSelected] = useState<string[]>(data?.selectedIds ?? []);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Chi sta guardando: serve solo per il "(tu)". Se la chiamata fallisce,
+  // semplicemente non si vede l'etichetta — niente di rotto.
+  const [myInstructorId, setMyInstructorId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,10 +44,20 @@ export default function ManageCoInstructorsScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  // Il principale non si sceglie come collega di se stesso.
-  const selectable = list.filter(
-    (it) => it.status !== 'inactive' && it.id !== data?.mainInstructorId,
-  );
+  useEffect(() => {
+    let cancelled = false;
+    regloApi
+      .getInstructorSettings()
+      .then((st) => { if (!cancelled) setMyInstructorId(st?.instructorId ?? null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const active = list.filter((it) => it.status !== 'inactive');
+  // Il principale si VEDE (se no non si capisce chi tiene l'esame) ma non si
+  // tocca: è già lui che lo porta, non può essere anche collega di se stesso.
+  const main = active.find((it) => it.id === data?.mainInstructorId) ?? null;
+  const selectable = active.filter((it) => it.id !== data?.mainInstructorId);
 
   const toggle = async (it: AutoscuolaInstructor) => {
     if (!data || savingId) return;
@@ -91,7 +104,7 @@ export default function ManageCoInstructorsScreen() {
             <Ionicons name="cloud-offline-outline" size={26} color="#AEB4CC" />
             <Text style={s.muted}>Non sono riuscito a caricare gli istruttori.</Text>
           </View>
-        ) : selectable.length === 0 ? (
+        ) : selectable.length === 0 && !main ? (
           <View style={s.center}>
             <Ionicons name="people-outline" size={26} color="#AEB4CC" />
             <Text style={s.muted}>Non ci sono altri istruttori da aggiungere.</Text>
@@ -104,13 +117,28 @@ export default function ManageCoInstructorsScreen() {
                 <Text style={s.errorText}>{error}</Text>
               </View>
             ) : null}
+            {/* Il principale, in cima e bloccato. */}
+            {main ? (
+              <View style={s.mainRow}>
+                <View style={s.iconCol}>
+                  <Ionicons name="person" size={22} color="#1A1A2E" />
+                </View>
+                <View style={s.body}>
+                  <Text style={s.name} numberOfLines={1}>
+                    {main.name}{main.id === myInstructorId ? ' (tu)' : ''}
+                  </Text>
+                  <Text style={s.mainSub}>Principale · tiene lui questa guida</Text>
+                </View>
+                <Ionicons name="lock-closed" size={16} color="#C7CBD1" />
+              </View>
+            ) : null}
             {selectable.map((it, idx) => {
               const isOn = selected.includes(it.id);
               const isSaving = savingId === it.id;
               const blocked = savingId !== null && !isSaving;
               return (
                 <View key={it.id}>
-                  {idx > 0 ? <View style={s.divider} /> : null}
+                  {idx > 0 || main ? <View style={s.divider} /> : null}
                   <Pressable
                     onPress={() => void toggle(it)}
                     disabled={savingId !== null}
@@ -122,7 +150,9 @@ export default function ManageCoInstructorsScreen() {
                       <Ionicons name="person" size={22} color="#1A1A2E" />
                     </View>
                     <View style={s.body}>
-                      <Text style={[s.name, isOn && { fontWeight: '700' }]} numberOfLines={1}>{it.name}</Text>
+                      <Text style={[s.name, isOn && { fontWeight: '700' }]} numberOfLines={1}>
+                        {it.name}{it.id === myInstructorId ? ' (tu)' : ''}
+                      </Text>
                       {isOn ? <Text style={s.sub}>Porta questa guida con te</Text> : null}
                     </View>
                     {isSaving ? (
@@ -156,6 +186,8 @@ const s = StyleSheet.create({
   center: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   muted: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60 },
+  mainRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60, opacity: 0.75 },
+  mainSub: { fontSize: 13, color: colors.textSecondary },
   iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
   name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
