@@ -67,7 +67,14 @@ export default function ExamDetailScreen() {
             <Text style={s.rowValue}>{formatInstructorNames(exam.instructor?.name, exam.coInstructors) ?? 'Da assegnare'}</Text>
             {exam.instructor?.phone ? (
               <Pressable onPress={() => Linking.openURL(`tel:${exam.instructor!.phone}`)}>
-                <Text style={s.rowLink}>{exam.instructor.phone}</Text>
+                <Text style={s.rowLink}>
+                  {exam.instructor.phone}
+                  {/* REG-585: con due accompagnatori il numero e' uno solo, e
+                      senza dirlo non si capisce chi si sta chiamando. */}
+                  {(exam.coInstructors?.length ?? 0) > 0 ? (
+                    <Text style={s.rowLinkNote}> · {exam.instructor.name}, principale</Text>
+                  ) : null}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -148,4 +155,6 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
   rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
   rowLink: { fontSize: 14, fontWeight: '600', color: '#7C3AED', marginTop: 2 },
+  // La nota non e' toccabile come il numero: peso e colore piu' quieti.
+  rowLinkNote: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
 });
