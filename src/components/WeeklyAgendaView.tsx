@@ -1092,12 +1092,14 @@ const WeekPage = React.memo(function WeekPage({
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: pressed ? look.pressed : look.bg },
                 ]}
               >
-                <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
-                {showTime && (
-                  <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1}>
-                    {pad(start.getHours())}:{pad(start.getMinutes())}
-                  </Text>
-                )}
+                <View style={styles.lessonInner}>
+                  <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
+                  {showTime && (
+                    <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1}>
+                      {pad(start.getHours())}:{pad(start.getMinutes())}
+                    </Text>
+                  )}
+                </View>
               </Pressable>
             );
           }),
@@ -1133,6 +1135,7 @@ const WeekPage = React.memo(function WeekPage({
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, shadowColor: EXAM_LOOK.shadow, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
+                <View style={[styles.eventInner, { backgroundColor: EXAM_LOOK.bg }]}>
                 {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
                     tipo lo dicono colore e icona, le parole restano nello sheet. */}
                 <View style={styles.eventHead}>
@@ -1149,6 +1152,7 @@ const WeekPage = React.memo(function WeekPage({
                   </Text>
                 )}
                 <EventStudentNames names={examNames} height={height} color={EXAM_LOOK.text} />
+                </View>
               </Pressable>
             );
           }),
@@ -1184,6 +1188,7 @@ const WeekPage = React.memo(function WeekPage({
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, shadowColor: look.shadow, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
+                <View style={[styles.eventInner, { backgroundColor: look.bg }]}>
                 {/* Stessa regola dell'esame: niente parole, il tipo sta nel
                     colore e nell'icona. Per i gruppi moto l'icona è già quella
                     di birilli/strada — la pill con la parola veniva tagliata. */}
@@ -1209,6 +1214,7 @@ const WeekPage = React.memo(function WeekPage({
                   </Text>
                 )}
                 <EventStudentNames names={glNames} height={height} color={look.text} />
+                </View>
               </Pressable>
             );
           }),
@@ -1650,9 +1656,6 @@ const styles = StyleSheet.create({
   lesson: {
     position: 'absolute',
     borderRadius: 13,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
-    overflow: 'hidden',
     zIndex: 4,
     shadowColor: '#0D0D16',
     shadowOpacity: 0.28,
@@ -1672,17 +1675,33 @@ const styles = StyleSheet.create({
   //     sono di una card larga quanto lo schermo: su 52pt diventa una pillola).
   //   · ombra IN TINTA col tipo (shadowColor inline), 0.22 / 14 / y5 /
   //     elevation 4, gli stessi numeri della giornaliera.
+  // NOTA iOS: `overflow: 'hidden'` e ombra sulla STESSA view si escludono —
+  // RN lo traduce in `clipsToBounds`, che e' `layer.masksToBounds` e ritaglia
+  // via anche l'ombra (disegnata fuori dai bounds). Era questo a rendere i
+  // blocchi piatti nonostante i valori giusti. Quindi: guscio con l'ombra,
+  // interno che ritaglia il contenuto.
   eventCard: {
     position: 'absolute',
     borderRadius: 8,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
-    overflow: 'hidden',
     zIndex: 4,
     shadowOpacity: 0.22,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 5 },
     elevation: 4,
+  },
+  eventInner: {
+    flex: 1,
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    overflow: 'hidden',
+  },
+  lessonInner: {
+    flex: 1,
+    borderRadius: 13,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    overflow: 'hidden',
   },
   // Blocco in colonna stretta: icona del tipo a sinistra, catena "condivisa"
   // a destra, poi orario e conteggio uno sotto l'altro. Niente parole lunghe:

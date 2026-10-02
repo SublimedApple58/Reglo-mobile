@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { examManageStore } from '../../../src/stores/examManageStore';
@@ -13,8 +13,13 @@ import { spacing } from '../../../src/theme/spacing';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { asExamOutcome, askExamOutcome } from '../../../src/utils/examOutcome';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { SheetScaffold } from '../../../src/components/SheetScaffold';
 
+// Icone 3D Fluent, le stesse delle card agenda — al posto dei glifi piatti.
 const FLUENT_GRADUATE = require('../../../assets/icons/fluent-graduate.png');
+const FLUENT_CLOCK = require('../../../assets/icons/fluent-clock.png');
+const FLUENT_ID_CARD = require('../../../assets/icons/fluent-id-card.png');
+const FLUENT_PEOPLE = require('../../../assets/icons/fluent-people.png');
 
 const WD = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 const MO = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -46,7 +51,7 @@ export default function ExamManageScreen() {
 
   useEffect(() => () => { examManageStore.clear(); }, []);
 
-  if (!seed) return <View style={s.root} />;
+  if (!seed) return <View style={s.sheet} />;
 
   const onChanged = seed.onChanged;
   const readOnly = seed.readOnly === true;
@@ -66,7 +71,9 @@ export default function ExamManageScreen() {
     coInstructorPickerStore.set({
       mainInstructorId: seed.instructorId ?? null,
       selectedIds: coInstructors.map((c) => c.id),
-      subtitle: 'Chi accompagna questo esame insieme al principale.',
+      subtitle: seed.instructorId
+        ? 'Chi accompagna questo esame insieme al principale.'
+        : 'Chi accompagna questo esame.',
       onToggle: async (nextIds) => {
         await regloApi.updateExamCoInstructors({ appointmentIds: ids, coInstructorIds: nextIds });
         const all = await regloApi.getInstructors().catch(() => []);
@@ -296,7 +303,7 @@ export default function ExamManageScreen() {
   const timeLabel = endsAt ? `${fmtTime(startsAt)} – ${fmtTime(endsAt)}` : 'Orario da definire';
 
   return (
-    <View style={s.root}>
+    <View style={s.sheet}>
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={close}>
           <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
@@ -305,7 +312,22 @@ export default function ExamManageScreen() {
         </GlassCloseButton>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      {/* Form sheet adattivo: su iOS la sheet abbraccia il contenuto
+          (`TALL_SHEET` → `fitToContents`), su Android prende il detent alto e
+          scrolla da sola col footer inchiodato. Vedi docs/design-system.md
+          §"Modali adattivi" e src/utils/sheetPresentation.ts. */}
+      <SheetScaffold
+        contentContainerStyle={s.scroll}
+        footer={
+          !readOnly ? (
+            <View style={s.footer}>
+              <Pressable onPress={cancelExam} disabled={busy} style={({ pressed }) => [s.cancel, pressed && { opacity: 0.7 }, busy && { opacity: 0.5 }]}>
+                <Text style={s.cancelTx}>Annulla esame</Text>
+              </Pressable>
+            </View>
+          ) : null
+        }
+      >
         {/* Header — Fluent 3D graduate icon */}
         <View style={s.header}>
           <Image source={FLUENT_GRADUATE} style={s.headerIcon} />
@@ -318,7 +340,7 @@ export default function ExamManageScreen() {
         {/* Orario — card 3D modificabile; in read-only (titolare) riga statica. */}
         {readOnly ? (
           <View style={s.editCard}>
-            <View style={s.editIc}><Ionicons name="time-outline" size={19} color="#1A1A2E" /></View>
+            <Image source={FLUENT_CLOCK} style={s.editIc3d} />
             <View style={{ flex: 1 }}>
               <Text style={s.editTitle}>Orario</Text>
               <Text style={s.editSub}>{timeLabel}</Text>
@@ -326,7 +348,7 @@ export default function ExamManageScreen() {
           </View>
         ) : (
           <Pressable onPress={openTimePicker} disabled={busy} style={({ pressed }) => [s.editCard, pressed && s.pressed]}>
-            <View style={s.editIc}><Ionicons name="time-outline" size={19} color="#1A1A2E" /></View>
+            <Image source={FLUENT_CLOCK} style={s.editIc3d} />
             <View style={{ flex: 1 }}>
               <Text style={s.editTitle}>{endsAt ? 'Modifica orario' : 'Imposta orario'}</Text>
               <Text style={s.editSub}>{timeLabel}</Text>
@@ -335,44 +357,51 @@ export default function ExamManageScreen() {
           </Pressable>
         )}
 
-        {/* Accompagnatore — soft inset info card */}
-        {seed.instructorName ? (
-          <View style={s.accompGroup}>
-            <View style={[s.accomp, { marginBottom: 0 }]}>
-              <Ionicons name="person-outline" size={18} color="#6E7596" />
-              <Text style={s.accompKey}>Accompagnatore</Text>
-              <Text style={s.accompVal} numberOfLines={1}>{seed.instructorName}</Text>
-            </View>
-            {/* REG-585: gli accompagnatori in piu', gestibili anche dal telefono.
-                In sola lettura (titolare) la riga compare solo se ce ne sono. */}
-            {readOnly ? (
-              coNames ? (
-                <View style={[s.accomp, { marginBottom: 0 }]}>
-                  <Ionicons name="people-outline" size={18} color="#6E7596" />
-                  <Text style={s.accompKey}>Altri accompagnatori</Text>
-                  <Text style={s.accompVal} numberOfLines={2}>{coNames}</Text>
-                </View>
-              ) : null
-            ) : (
-              /* Card BIANCA come "Modifica orario": in questo foglio il bianco
-                 vuol dire toccabile, il grigio vuol dire sola lettura. Prima
-                 era grigia pur essendo toccabile. */
-              <Pressable
-                onPress={openCoInstructorPicker}
-                style={({ pressed }) => [s.editCard, { marginBottom: 0 }, pressed && s.pressed]}
-              >
-                <View style={s.editIc}><Ionicons name="people-outline" size={19} color="#1A1A2E" /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.editTitle}>Altri accompagnatori</Text>
-                  <Text style={s.editSub} numberOfLines={2}>
-                    {coNames ?? 'Nessuno — tocca per aggiungere un collega'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
-              </Pressable>
-            )}
+        {/* Istruttori dell'esame. La sezione c'e' SEMPRE: un esame puo' nascere
+            senza principale e prima, in quel caso, spariva TUTTO il blocco —
+            accompagnatori compresi, che quindi non si potevano ne' vedere ne'
+            cambiare (segnalato da Tiziano il 2026-10-02 su un esame con
+            instructorId null e un co-istruttore gia' assegnato). */}
+        <View style={s.accompGroup}>
+          <View style={[s.accomp, { marginBottom: 0 }]}>
+            <Image source={FLUENT_ID_CARD} style={s.accompIc} />
+            <Text style={s.accompKey}>Accompagnatore</Text>
+            <Text
+              style={[s.accompVal, !seed.instructorName && s.accompPlaceholder]}
+              numberOfLines={1}
+            >
+              {seed.instructorName ?? 'Non assegnato'}
+            </Text>
           </View>
-        ) : null}
+          {/* REG-585: gli accompagnatori in piu', gestibili anche dal telefono.
+              In sola lettura (titolare) la riga compare solo se ce ne sono. */}
+          {readOnly ? (
+            coNames ? (
+              <View style={[s.accomp, { marginBottom: 0 }]}>
+                <Image source={FLUENT_PEOPLE} style={s.accompIc} />
+                <Text style={s.accompKey}>Altri accompagnatori</Text>
+                <Text style={s.accompVal} numberOfLines={2}>{coNames}</Text>
+              </View>
+            ) : null
+          ) : (
+            /* Card BIANCA come "Modifica orario": in questo foglio il bianco
+               vuol dire toccabile, il grigio vuol dire sola lettura. Prima
+               era grigia pur essendo toccabile. */
+            <Pressable
+              onPress={openCoInstructorPicker}
+              style={({ pressed }) => [s.editCard, { marginBottom: 0 }, pressed && s.pressed]}
+            >
+              <Image source={FLUENT_PEOPLE} style={s.editIc3d} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.editTitle}>Altri accompagnatori</Text>
+                <Text style={s.editSub} numberOfLines={2}>
+                  {coNames ?? 'Nessuno — tocca per aggiungere un collega'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
+            </Pressable>
+          )}
+        </View>
 
         {/* Allievi — flat rows (no card), ••• menu, + to add */}
         <View style={s.secRow}>
@@ -423,22 +452,15 @@ export default function ExamManageScreen() {
             <View style={s.note}><Text style={s.noteTx}>{seed.notes}</Text></View>
           </>
         ) : null}
-      </ScrollView>
-
-      {/* Annulla esame — pinned footer (nascosto in read-only) */}
-      {!readOnly && (
-        <View style={s.footer}>
-          <Pressable onPress={cancelExam} disabled={busy} style={({ pressed }) => [s.cancel, pressed && { opacity: 0.7 }, busy && { opacity: 0.5 }]}>
-            <Text style={s.cancelTx}>Annulla esame</Text>
-          </Pressable>
-        </View>
-      )}
+      </SheetScaffold>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  // Niente `flex: 1`: con un form sheet `fitToContents` il root deve avere
+  // l'altezza del contenuto, se no la sheet non sa quanto abbracciare.
+  sheet: { backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 18, paddingTop: 16 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 24, paddingTop: 2 },
@@ -450,6 +472,9 @@ const s = StyleSheet.create({
 
   editCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: '#FFFFFF', marginBottom: 12, shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   editIc: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
+  // Icone 3D: niente pastiglia grigia dietro, come sulle card dell'agenda.
+  editIc3d: { width: 36, height: 36 },
+  accompIc: { width: 24, height: 24 },
   editTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
   editSub: { fontSize: 12.5, fontWeight: '400', color: '#9CA3AF', marginTop: 1 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] },

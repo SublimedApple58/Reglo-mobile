@@ -45,6 +45,10 @@ yarn-error.*
 service-account*.json
 build-*.ipa
 build-*.aab
+# Artefatti di build scaricati da EAS: stanno in root col nome del pacchetto
+# (reglo-2.3.0.aab), che le due righe sopra non intercettano. Sono ~200MB.
+*.ipa
+*.aab
 
 # Vercel staging protection-bypass secret (local only)
 .staging-bypass

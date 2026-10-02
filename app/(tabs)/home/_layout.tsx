@@ -15,7 +15,11 @@ export default function HomeLayout() {
       <Stack.Screen name="quick-book" options={PAGE_SHEET} />
       <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="day-detail" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="exam-manage" options={{ presentation: 'modal', headerShown: false }} />
+      {/* Gestione esame: form sheet ADATTIVO. iOS abbraccia il contenuto
+          (`fitToContents`), Android prende il detent alto e scrolla col footer
+          inchiodato — l'esame ha una CTA in fondo ("Annulla esame") e una lista
+          allievi che cresce, i due casi per cui esiste TALL_SHEET. */}
+      <Stack.Screen name="exam-manage" options={TALL_SHEET} />
       <Stack.Screen name="manage-group-lesson" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="group-lesson-detail" options={TALL_SHEET} />
       <Stack.Screen name="manage-group-lesson-participants" options={TALL_SHEET} />
