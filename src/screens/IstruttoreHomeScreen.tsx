@@ -3543,14 +3543,17 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <View style={{ flex: 1 }}>
                           <Text style={styles.examGroupLabel}>Esame di guida</Text>
                           <Text style={styles.examGroupTitle} numberOfLines={1}>{count === 0 ? 'Nessun allievo' : `${count} ${count === 1 ? 'allievo' : 'allievi'}`} · {gapLabel(row.endMin - row.startMin)}</Text>
+                          <View style={[styles.typeBadge, styles.badgeExam]}>
+                            <Text style={[styles.typeBadgeText, styles.badgeExamText]}>ESAME</Text>
+                          </View>
                           {/* REG-585: accompagnato anche da un collega. */}
                           {(() => {
                             const withNames = sharedWithNames(g, effectiveInstructorId);
                             if (!withNames.length) return null;
                             return (
                               <View style={styles.glSharedRow}>
-                                <Ionicons name="link-outline" size={12} color="#4338CA" />
-                                <Text style={[styles.glSharedText, { color: '#4338CA' }]} numberOfLines={1}>
+                                <Ionicons name="link-outline" size={12} color="#6D28D9" />
+                                <Text style={[styles.glSharedText, { color: '#6D28D9' }]} numberOfLines={1}>
                                   {effectiveInstructorId ? 'con ' : ''}{formatSharedWith(withNames)}
                                 </Text>
                               </View>
@@ -3575,7 +3578,22 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupLessonIcon} />
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.groupLessonLabel, g.glKind === 'moto' && styles.groupLessonLabelMoto]}>{g.glKind === 'moto' ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
-                          <Text style={styles.groupLessonTitle} numberOfLines={1}>{sub}</Text>
+                          <Text style={[styles.groupLessonTitle, g.glKind === 'moto' && styles.groupLessonTitleMoto]} numberOfLines={1}>{sub}</Text>
+                          {/* Badge di tipo e chip birilli/strada sulla STESSA riga:
+                              impilati facevano due pill una sotto l'altra. */}
+                          <View style={styles.badgeRow}>
+                            <View style={[styles.typeBadge, g.glKind === 'moto' ? styles.badgeMoto : styles.badgeGroup]}>
+                              <Text style={[styles.typeBadgeText, g.glKind === 'moto' ? styles.badgeMotoText : styles.badgeGroupText]}>
+                                {g.glKind === 'moto' ? 'GRUPPO MOTO' : 'GRUPPO'}
+                              </Text>
+                            </View>
+                            {g.glMotoType ? (
+                              <View style={[styles.glItinMotoChip, { marginTop: 6 }]}>
+                                <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.glMotoType]} size={11} color="#C2410C" />
+                                <Text style={styles.glItinMotoChipText}>{MOTO_LESSON_TYPE_LABELS[g.glMotoType]}</Text>
+                              </View>
+                            ) : null}
+                          </View>
                           {/* REG-585: non sei solo su questa guida, ed ecco con chi. */}
                           {(() => {
                             const withNames = sharedWithNames(g, effectiveInstructorId);
@@ -3589,12 +3607,6 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                               </View>
                             );
                           })()}
-                          {g.glMotoType ? (
-                            <View style={styles.glItinMotoChip}>
-                              <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[g.glMotoType]} size={11} color="#C2410C" />
-                              <Text style={styles.glItinMotoChipText}>{MOTO_LESSON_TYPE_LABELS[g.glMotoType]}</Text>
-                            </View>
-                          ) : null}
                           <View style={styles.glSeats}>
                             {Array.from({ length: g.capacity }).map((_, i) => (
                               <View key={i} style={[styles.glSeat, g.glKind === 'moto' && styles.glSeatMoto, i >= g.count && (g.glKind === 'moto' ? styles.glSeatEmptyMoto : styles.glSeatEmpty)]} />
@@ -5527,8 +5539,8 @@ const styles = StyleSheet.create({
     shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
   examGroupIcon: { width: 42, height: 42 },
-  examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examGroupTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  examGroupLabel: { fontSize: 12, fontWeight: '600', color: '#6D28D9' },
+  examGroupTitle: { fontSize: 16, fontWeight: '600', color: '#4C1D95', letterSpacing: -0.2, marginTop: 2 },
   // Lezione teorica — sorella indaco della card esame (icona libri 3D).
   theoryItinCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -5544,11 +5556,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5', borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16, marginBottom: 14,
     shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
-  groupLessonCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
+  groupLessonCardMoto: { backgroundColor: '#FFEDD5', shadowColor: '#F97316' },
   groupLessonIcon: { width: 48, height: 48 },
   groupLessonLabel: { fontSize: 12.5, fontWeight: '600', color: '#0F766E' },
   groupLessonLabelMoto: { color: '#C2410C' },
-  groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  groupLessonTitle: { fontSize: 16, fontWeight: '600', color: '#115E59', letterSpacing: -0.2, marginTop: 2 },
+  groupLessonTitleMoto: { color: '#9A3412' },
   // Chip tipo guida moto (birilli/strada) sulla card gruppo-moto della lista
   // itinerario — pill bianca, testo/icona arancio (REG-406).
   // REG-585: riga "condivisa con ..." sulla card della guida di gruppo.
@@ -5556,6 +5569,20 @@ const styles = StyleSheet.create({
   glSharedText: { flex: 1, fontSize: 11.5, fontWeight: '600', color: '#047857' },
   glItinMotoChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
   glItinMotoChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
+  // Badge di tipo: stesso pill del web (bordo + fondo tenue + testo in tinta),
+  // cosi' la card si riconosce a colpo d'occhio come di la'.
+  typeBadge: {
+    alignSelf: 'flex-start', marginTop: 6, borderWidth: 1, borderRadius: 999,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  typeBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  badgeGroup: { borderColor: '#99F6E4', backgroundColor: 'rgba(153,246,228,0.6)' },
+  badgeGroupText: { color: '#0F766E' },
+  badgeMoto: { borderColor: '#FED7AA', backgroundColor: 'rgba(254,215,170,0.6)' },
+  badgeMotoText: { color: '#C2410C' },
+  badgeExam: { borderColor: '#DDD6FE', backgroundColor: 'rgba(221,214,254,0.6)' },
+  badgeExamText: { color: '#6D28D9' },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
   glSeatEmpty: { backgroundColor: '#A7D8CE' },
