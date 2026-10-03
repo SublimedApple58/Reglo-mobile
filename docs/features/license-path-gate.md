@@ -13,7 +13,7 @@ Il flag arriva dal backend: `GET /api/autoscuole/me` → `needsLicensePath` (`se
 | `src/hooks/useStudentPhase.ts` | Espone `needsLicensePath` (da `StudentPhasePayload`) |
 | `src/services/regloApi.ts` | `setLicensePath({ licenseCategory, transmission })` → `PATCH /api/autoscuole/me/license-path` |
 | `src/types/regloApi.ts` | `StudentPhasePayload.needsLicensePath?: boolean` |
-| `src/utils/license.ts` | `STUDENT_LICENSE_CATEGORIES` (`B/AM/A1/A2/A`) + `LICENSE_CATEGORY_LABELS`, `TRANSMISSION_LABELS`, `isMotoLicenseCategory` |
+| `src/utils/license.ts` | `STUDENT_LICENSE_CATEGORIES` (`B/AMQ/B1/AM/A1/A2/A` — i quadricicli dal 03/10/2026, REG-588) + `LICENSE_CATEGORY_LABELS`, `TRANSMISSION_LABELS`, `isMotoLicenseCategory` |
 
 ## Comportamento
 

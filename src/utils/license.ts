@@ -2,13 +2,13 @@
 // (reglo/lib/autoscuole/license.ts). Used by the vehicle form + list badges.
 import type { LicenseCategory, Transmission } from '../types/regloApi';
 
-export const LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'BE', 'C', 'CE', 'D', 'DE', 'AM', 'A1', 'A2', 'A'];
+export const LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'BE', 'AMQ', 'B1', 'C', 'CE', 'D', 'DE', 'AM', 'A1', 'A2', 'A'];
 export const TRANSMISSIONS: Transmission[] = ['manual', 'automatic'];
 
 // License paths a self-registered student can pick for themselves at first
 // access (REG-410) — mirror of reglo/lib/autoscuole/license.ts. Everyday car +
 // the moto "A" family; pro/trailer categories stay staff-only. Order = display.
-export const STUDENT_LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'AM', 'A1', 'A2', 'A'];
+export const STUDENT_LICENSE_CATEGORIES: LicenseCategory[] = ['B', 'AMQ', 'B1', 'AM', 'A1', 'A2', 'A'];
 
 export const LICENSE_CATEGORY_LABELS: Record<LicenseCategory, string> = {
   B: 'B (auto)',
@@ -17,6 +17,8 @@ export const LICENSE_CATEGORY_LABELS: Record<LicenseCategory, string> = {
   CE: 'CE (camion + rimorchio)',
   D: 'D (autobus)',
   DE: 'DE (autobus + rimorchio)',
+  AMQ: 'AM quadriciclo (microcar)',
+  B1: 'B1 (quadriciclo pesante)',
   AM: 'AM (ciclomotore)',
   A1: 'A1 (125)',
   A2: 'A2 (media)',
@@ -36,8 +38,10 @@ export const transmissionLabel = (value: string | null | undefined): string =>
 export const licenseCategoryLabel = (value: string | null | undefined): string =>
   value ? LICENSE_CATEGORY_LABELS[value as LicenseCategory] ?? value : '';
 
-// Motorcycle license categories — the "A" family only (B/BE/C/CE/D/DE are
-// non-moto). Mirror of the backend `reglo/lib/autoscuole/license.ts`. Drives
+// Motorcycle license categories — the "A" family only (B/BE/C/CE/D/DE e i
+// quadricicli AMQ/B1 sono non-moto: quattro ruote, e la gerarchia qui sotto
+// darebbe una microcar a un allievo della A). Mirror of the backend
+// `reglo/lib/autoscuole/license.ts`. Drives
 // the moto-aware student experience (illustrations, tab icon, wording), keyed
 // off the guide's vehicle category (fallback: the student's own category).
 export const MOTO_LICENSE_CATEGORIES: LicenseCategory[] = ['AM', 'A1', 'A2', 'A'];

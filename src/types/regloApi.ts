@@ -705,7 +705,7 @@ export type CreateLocationInput = {
 export type UpdateLocationInput = Partial<CreateLocationInput>;
 
 export type CreateInstructorInput = { name: string; phone?: string };
-export type LicenseCategory = "B" | "BE" | "C" | "CE" | "D" | "DE" | "AM" | "A1" | "A2" | "A";
+export type LicenseCategory = "B" | "BE" | "AMQ" | "B1" | "C" | "CE" | "D" | "DE" | "AM" | "A1" | "A2" | "A";
 export type Transmission = "manual" | "automatic";
 export type CreateVehicleInput = {
   name: string;
