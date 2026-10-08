@@ -124,7 +124,17 @@ export type NotificationItem =
   | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData }
   | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData }
   | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData }
-  | { kind: 'exam_scheduled'; id: string; data: ExamScheduledData };
+  | { kind: 'exam_scheduled'; id: string; data: ExamScheduledData }
+  | { kind: 'license_path_started'; id: string; data: LicensePathStartedData };
+
+/**
+ * REG-458 — l'autoscuola ha avviato un nuovo percorso patente per l'allievo
+ * (tipicamente dopo che ne ha concluso un altro). Tiene il nome della patente
+ * nuova: un messaggio senza categoria, a chi ne ha già una, non dice niente.
+ */
+export type LicensePathStartedData = {
+  licenseCategory: string | null;
+};
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];

@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
 import { DuckSlot } from '../components/DuckSlot';
 import { useSession } from '../context/SessionContext';
+import { useStudentPhase } from '../hooks/useStudentPhase';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -12,7 +13,22 @@ import { typography } from '../theme/typography';
 
 export const AllievoLicensedScreen: React.FC = () => {
   const { user } = useSession();
+  const { obtainedLicenses } = useStudentPhase();
   const firstName = user?.name?.split(' ')[0] ?? '';
+
+  // REG-458 — dire QUALE patente, non un generico "hai concluso": a chi ne ha
+  // prese due, un messaggio senza nome non dice niente. Senza data (succede
+  // spesso: in produzione quasi nessuno la registra) resta la sola categoria.
+  const ultima = obtainedLicenses[0];
+  const patenteLabel = (() => {
+    if (!ultima?.licenseCategory) return null;
+    const when = ultima.obtainedAt ? new Date(ultima.obtainedAt) : null;
+    if (!when || Number.isNaN(when.getTime())) return `patente ${ultima.licenseCategory}`;
+    return `patente ${ultima.licenseCategory}, ${when.toLocaleDateString('it-IT', {
+      month: 'long',
+      year: 'numeric',
+    })}`;
+  })();
 
   const handleLogout = async () => {
     try {
@@ -39,8 +55,15 @@ export const AllievoLicensedScreen: React.FC = () => {
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.textBlock}>
           <Text style={styles.title}>Congratulazioni{firstName ? `, ${firstName}` : ''}!</Text>
           <Text style={styles.subtitle}>
-            Hai concluso il tuo percorso. Patente alla mano e buona strada.
+            {patenteLabel
+              ? `Hai concluso il tuo percorso: ${patenteLabel}. Buona strada!`
+              : 'Hai concluso il tuo percorso. Patente alla mano e buona strada.'}
           </Text>
+          {obtainedLicenses.length > 1 ? (
+            <Text style={styles.extra}>
+              {`In totale hai conseguito ${obtainedLicenses.length} patenti con questa autoscuola.`}
+            </Text>
+          ) : null}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.footer}>
@@ -101,6 +124,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing.md,
     lineHeight: 22,
+  },
+  extra: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   footer: {
     width: '100%',

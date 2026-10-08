@@ -143,6 +143,11 @@ export const StudentNotesDetailScreen = () => {
   const [pagellinoOpen, setPagellinoOpen] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
+  // REG-458 — l'ultima patente già conseguita, se ce n'è una.
+  const [lastObtained, setLastObtained] = useState<{
+    licenseCategory: string | null;
+    obtainedAt: string | null;
+  } | null>(null);
   const [groupEnabled, setGroupEnabled] = useState(false);
   const [groupOptIn, setGroupOptIn] = useState(false);
   const [groupSaving, setGroupSaving] = useState(false);
@@ -198,6 +203,7 @@ export const StudentNotesDetailScreen = () => {
       const me = students.find((stu) => stu.id === studentId);
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
+        setLastObtained(me.lastObtainedLicense ?? null);
         setGroupOptIn(me.groupLessonsOptIn ?? false);
         setStudentPhase(me.studentPhase ?? null);
         setExamReady(me.examReady ?? false);
@@ -520,6 +526,15 @@ export const StudentNotesDetailScreen = () => {
   const licenseLabel = license?.category
     ? `${license.category} · ${transmissionLabel(license.transmission)}`
     : null;
+  // REG-458 — «B · ott 2026». Senza data (succede: in produzione 67 patentati su
+  // 72 non hanno mai avuto né numero né data) resta la sola categoria.
+  const obtainedLabel = (() => {
+    const cat = lastObtained?.licenseCategory;
+    if (!cat) return null;
+    const when = lastObtained?.obtainedAt ? new Date(lastObtained.obtainedAt) : null;
+    if (!when || Number.isNaN(when.getTime())) return cat;
+    return `${cat} · ${when.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}`;
+  })();
 
   // Flip card (front = summary, back = personal info)
   const flip = useSharedValue(0);
@@ -617,6 +632,19 @@ export const StudentNotesDetailScreen = () => {
               <Ionicons name="card-outline" size={16} color="#929292" />
               <View style={{ flex: 1 }}><Text style={s.backLabel}>Percorso patente</Text><Text style={s.backValue} numberOfLines={1}>{licenseLabel ?? '—'}</Text></View>
             </View>
+            {/* REG-458 — solo se ha già concluso un percorso. All'istruttore
+                serve sapere che chi ha in auto guida già: cambia come gli parla. */}
+            {lastObtained?.licenseCategory ? (
+              <View style={s.backRow}>
+                <Ionicons name="ribbon-outline" size={16} color="#929292" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.backLabel}>Già conseguita</Text>
+                  <Text style={s.backValue} numberOfLines={1}>
+                    {obtainedLabel}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
           </Animated.View>
         </Pressable>

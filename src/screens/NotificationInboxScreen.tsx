@@ -56,6 +56,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   theory_exam_countdown: 'time-outline',
   theory_quiz_inactivity: 'school-outline',
   student_phase_change: 'sparkles-outline',
+  license_path_started: 'car-sport-outline',
   exam_ready_nudge: 'ribbon-outline',
   exam_scheduled: 'school-outline',
 };
@@ -93,6 +94,10 @@ const getTitle = (item: PersistedNotification): string => {
         : `Esame teoria fra ${item.data.offsetDays} giorni`;
     case 'theory_quiz_inactivity':
       return 'Riprendi lo studio';
+    case 'license_path_started':
+      return item.data.licenseCategory
+        ? `Nuovo percorso: patente ${item.data.licenseCategory}`
+        : 'Nuovo percorso avviato';
     case 'student_phase_change':
       switch (item.data.toPhase) {
         case 'TEORIA':
@@ -164,6 +169,8 @@ const getSubtitle = (item: PersistedNotification): string => {
         : 'Continua a esercitarti';
     case 'theory_quiz_inactivity':
       return `Sono ${item.data.inactiveDays} giorni che non studi`;
+    case 'license_path_started':
+      return "L'autoscuola ha avviato il tuo nuovo percorso. Puoi prenotare le guide.";
     case 'student_phase_change':
       switch (item.data.toPhase) {
         case 'TEORIA':

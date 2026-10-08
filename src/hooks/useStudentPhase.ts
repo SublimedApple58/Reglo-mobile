@@ -1,7 +1,7 @@
 import { useSession } from '../context/SessionContext';
 import { useMyPhase } from './queries/useMyPhase';
 import { isStudent as isStudentRole } from '../utils/roles';
-import type { AutoscuolaStudentPhase } from '../types/regloApi';
+import type { AutoscuolaStudentPhase, ObtainedLicense } from '../types/regloApi';
 
 type UseStudentPhaseResult = {
   /** Effective phase for the current user. Defaults to PRATICA for students until data loads. Null for non-students. */
@@ -32,6 +32,12 @@ type UseStudentPhaseResult = {
    * until data loads or for non-students.
    */
   needsLicensePath: boolean;
+  /**
+   * REG-458 — le patenti già conseguite, dalla più recente. Vuoto per chi è al
+   * primo percorso. Serve a non raccontare all'allievo che sta ricominciando
+   * da capo quando apre il secondo.
+   */
+  obtainedLicenses: ObtainedLicense[];
   loading: boolean;
 };
 
@@ -51,6 +57,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
       licenseCategory: null,
       transmission: null,
       needsLicensePath: false,
+      obtainedLicenses: [],
       loading: false,
     };
   }
@@ -65,6 +72,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
     licenseCategory: data?.licenseCategory ?? null,
     transmission: data?.transmission ?? null,
     needsLicensePath: Boolean(data?.needsLicensePath),
+    obtainedLicenses: data?.obtainedLicenses ?? [],
     loading: isLoading,
   };
 };

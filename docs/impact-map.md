@@ -151,6 +151,13 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: 7 API functions (chapters, sessions, answers, stats)
 - → Self-contained: QuizContext holds session state, 3 screens
 
+### Percorsi patente multipli (REG-458)
+- **`useStudentPhase().obtainedLicenses`** (da `/api/autoscuole/me`) → `AllievoLicensedScreen`, che ora nomina la patente conseguita invece di un generico "hai concluso".
+- **`lastObtainedLicense`** sull'elemento `students` di `/api/autoscuole/instructor-settings` → riga «Già conseguita» nel retro della scheda di `StudentNotesDetailScreen`. Solo l'ultima patente: quel payload si legge a ogni apertura.
+- Nuovo kind di notifica **`license_path_started`** (inbox + push). NON riusare `student_phase_change` per un riavvio: direbbe «le tue **prime** guide» a un patentato.
+- ⚠️ `PhaseTimeline` è usata solo da `AllievoAwaitingScreen` con fase fissa: chi riparte non la vede. Se un domani comparisse in PRATICA va resa consapevole dello storico, altrimenti regredisce in silenzio.
+- Backend: `../reglo/docs/features/license-paths.md`.
+
 ### Student Phase
 - → **Quiz Teoria**: tab visibile solo in TEORIA + `hasQuizAccess`; CTA della home TEORIA portano direttamente al quiz.
 - → **Booking Flow**: tab Agenda nascosta in AWAITING e TEORIA + booking server-side bloccato (messaggi distinti per AWAITING vs TEORIA).

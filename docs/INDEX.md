@@ -28,7 +28,7 @@
 | Group lessons | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen`, `GroupLessonInvitesScreen`, `DayItinerary`/`weeklyAgenda` (teal card), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
-| Student Phase | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase` |
+| Student Phase (+ percorsi multipli REG-458) | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase`, `StudentNotesDetailScreen` |
 | Student moto experience | [student-moto-experience.md](features/student-moto-experience.md) | `lessonArt.ts`, `license.ts`, `AllievoHomeScreen`, `all-lessons`, `GlassTabBar`, `_layout.tsx`, `group-lesson-detail`, `GroupLessonInvitesScreen` |
 | Password Reset | [password-reset.md](features/password-reset.md) | `PasswordResetScreen`, `(auth)/password-reset(-sheet)`, `LoginScreen.onForgot` |
 | Phone Gate | [phone-gate.md](features/phone-gate.md) | `PhoneGateScreen`, `(tabs)/_layout.tsx` |

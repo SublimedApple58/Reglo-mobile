@@ -7,6 +7,12 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUDENT";
 
+/** REG-458 — una patente già conseguita dall'allievo. */
+export type ObtainedLicense = {
+  licenseCategory: string | null;
+  obtainedAt: IsoDate | null;
+};
+
 export type AutoscuolaStudentPhase = "AWAITING" | "TEORIA" | "PRATICA" | "PATENTATO";
 
 /** REG-451 — associazione allievo ↔ istruttore via QR / codice. */
@@ -62,6 +68,13 @@ export type StudentPhasePayload = {
    * legacy backends → assume false (never gate).
    */
   needsLicensePath?: boolean;
+  /**
+   * REG-458 — le patenti già conseguite, dalla più recente. Vuoto (o assente su
+   * backend vecchi) per chi è al primo percorso, cioè quasi tutti. Serve a non
+   * far regredire in silenzio la timeline del percorso quando l'allievo ne
+   * comincia un secondo.
+   */
+  obtainedLicenses?: ObtainedLicense[];
 };
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";
@@ -157,6 +170,9 @@ export type AutoscuolaStudent = {
   // Segnale interno "pronto per l'esame" (solo PRATICA). Non vincola nulla.
   examReady?: boolean;
   examReadyAt?: IsoDate | null;
+  // REG-458 — l'ultima patente già conseguita, se ce n'è una. Null al primo
+  // percorso. All'istruttore serve sapere che chi ha in auto guida già.
+  lastObtainedLicense?: ObtainedLicense | null;
   // Luogo di default (REG-392): mostrato nel dettaglio allievo; precompila il
   // campo Luogo nel form di prenotazione alla selezione dell'allievo.
   defaultLocationId?: Uuid | null;

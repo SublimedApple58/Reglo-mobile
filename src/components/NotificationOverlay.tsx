@@ -765,6 +765,35 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     return unsub;
   }, [isStudent, queryClient, activeCompanyId]);
 
+  // ── REG-458: nuovo percorso patente avviato dall'autoscuola ──
+  // Stesso trattamento del cambio fase, e per lo stesso motivo: insieme al
+  // percorso cambia la FASE (da PATENTATO torna a PRATICA), quindi la query va
+  // invalidata o la home resta sulla schermata di fine percorso finché l'app
+  // non viene riaperta.
+  useEffect(() => {
+    if (!isStudent) return;
+    const unsub = subscribePushIntent((intent, data) => {
+      if (intent !== 'license_path_started') return;
+      const raw = data?.licenseCategory;
+      const licenseCategory = typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+      const persisted: PersistedNotification = {
+        kind: 'license_path_started',
+        id: `license_path_started_${licenseCategory ?? 'na'}_${Date.now()}`,
+        data: { licenseCategory },
+        receivedAt: new Date().toISOString(),
+        read: false,
+        dismissed: false,
+      };
+      const merged = mergeFromApi(inboxRef.current, [persisted]);
+      inboxRef.current = merged;
+      setInboxItems(merged);
+      saveInbox(merged);
+      notificationEvents.emitInboxUpdated();
+      queryClient.invalidateQueries({ queryKey: queryKeys.studentPhase(activeCompanyId) });
+    });
+    return unsub;
+  }, [isStudent, queryClient, activeCompanyId]);
+
   // ── AppState: sync server notifications on foreground (all roles) ──
   useEffect(() => {
     if (!user?.id) return;

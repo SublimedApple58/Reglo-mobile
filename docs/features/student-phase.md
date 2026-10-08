@@ -111,3 +111,37 @@ Entrambe informative (inbox, niente overlay). AWAITING non ha reminder dedicati 
 - → **Booking Flow**: in AWAITING e TEORIA la tab non c'è e il backend rifiuta `createBookingRequest`.
 - → **Notifications**: due kinds (`theory_exam_countdown`, `theory_quiz_inactivity`).
 - → **Backend**: `GET /api/autoscuole/me`, `POST /api/mobile/auth/student-register` (decide AWAITING/TEORIA/PRATICA in transaction), `updateStudentPhase` server action, `grantQuizSeat` (owner) per uscire da AWAITING.
+
+
+## REG-458 — percorsi patente multipli
+
+Quando l'autoscuola avvia un **nuovo percorso** per un allievo già patentato, la
+fase torna a PRATICA (o TEORIA) e l'app riapre la home normale: il meccanismo
+esisteva già, la fase è un valore solo.
+
+Cosa è cambiato lato app:
+
+- **`useStudentPhase().obtainedLicenses`** — le patenti già conseguite, dalla
+  più recente, da `GET /api/autoscuole/me`. Vuoto per chi è al primo percorso,
+  cioè quasi tutti. Assente su backend vecchi → trattato come vuoto.
+- **`AllievoLicensedScreen`** dice ORA quale patente e quando
+  («Hai concluso il tuo percorso: patente B, giugno 2026»), e con più di una
+  aggiunge il totale. Senza data registrata resta la sola categoria: in
+  produzione 67 patentati su 72 non hanno mai avuto né numero né data.
+- **`StudentNotesDetailScreen`** (istruttore) mostra una riga «Già conseguita:
+  B · giu 2026» sul retro della scheda, solo se l'allievo ha chiuso un percorso.
+  Arriva da `lastObtainedLicense` nell'array `students` di
+  `GET /api/autoscuole/instructor-settings` — solo l'ultima, non tutto lo
+  storico: quel payload l'app lo legge a ogni apertura.
+- **La push del riavvio** è `license_path_started` («🚗 Nuovo percorso: patente
+  A»), non `student_phase_change`. Quest'ultima, su una transizione verso
+  PRATICA, direbbe «Hai il foglio rosa! prenota le tue **prime** guide» a chi
+  una patente ce l'ha già.
+
+**`PhaseTimeline` non è stata toccata**, ed è una scelta: è usata solo da
+`AllievoAwaitingScreen` con `phase="AWAITING"` fissa, quindi un allievo che
+riparte non la vede mai. Aggiungerle una riga di contesto sarebbe stato codice
+morto. Se un giorno la timeline comparisse anche in PRATICA, allora sì: senza,
+regredirebbe da «Patente» a «Foglio rosa» come se la prima non fosse successa.
+
+Backend e modello: `../reglo/docs/features/license-paths.md`.
