@@ -19,6 +19,7 @@ import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPick
 import { studentSettingsStore } from '../stores/studentSettingsStore';
 import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/studentPaymentsStore';
 import { isCompanyManualMode, isLessonUnpaid, canManageLessonPayments } from '../utils/lessonPayments';
+import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
 import { useSession } from '../context/SessionContext';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
 import { StarRating } from '../components/StarRating';
@@ -850,7 +851,10 @@ export const StudentNotesDetailScreen = () => {
                         <View style={s.tlTopRow}>
                           <Text style={s.tlDate}>{formatDay(appt.startsAt)}</Text>
                           <Text style={s.tlTime}>
-                            {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
+                            {/* REG-604: esame senza orario → scritta, non 00:00. */}
+                            {examTimeIsTbd(appt)
+                              ? EXAM_TIME_TBD
+                              : `${formatTime(appt.startsAt)}${appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}`}
                           </Text>
                           {appt.rating != null && !appt.evaluations?.length ? (
                             // Stellina storica: solo sulle guide che NON hanno il

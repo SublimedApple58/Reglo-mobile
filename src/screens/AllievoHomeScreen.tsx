@@ -61,6 +61,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 import { formatDay, formatTime } from '../utils/date';
+import { EXAM_TIME_TBD, EXAM_TIME_TBD_SHORT, examTimeIsTbd } from '../utils/examTime';
 import { transmissionLabel } from '../utils/license';
 import { lessonArtSource, heroArtSource } from '../utils/lessonArt';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -1567,7 +1568,10 @@ export const AllievoHomeScreen = () => {
                   </View>
                   <View style={styles.examHeroChip}>
                     <Ionicons name="time" size={13} color="#FFFFFF" />
-                    <Text style={styles.examHeroChipText}>{formatTime(nextExam.startsAt)}</Text>
+                    {/* REG-604: senza endsAt l'ora è la mezzanotte segnaposto. */}
+                    <Text style={styles.examHeroChipText}>
+                      {examTimeIsTbd(nextExam) ? EXAM_TIME_TBD : formatTime(nextExam.startsAt)}
+                    </Text>
                   </View>
                 </View>
               </Pressable>
@@ -1611,7 +1615,8 @@ export const AllievoHomeScreen = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.examLabel}>Esame di guida</Text>
                 <Text style={styles.examDate}>
-                  {formatDay(nextExam.startsAt)} {'\u2022'} {formatTime(nextExam.startsAt)}
+                  {formatDay(nextExam.startsAt)} {'\u2022'}{' '}
+                  {examTimeIsTbd(nextExam) ? EXAM_TIME_TBD_SHORT : formatTime(nextExam.startsAt)}
                 </Text>
               </View>
               <View style={styles.examBadge}>

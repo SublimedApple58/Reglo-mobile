@@ -35,6 +35,7 @@ import { NotificationItem, PersistedNotification } from '../types/notifications'
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { formatDay, formatTime, formatRelativeTime } from '../utils/date';
+import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
 
 const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
@@ -56,6 +57,7 @@ const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap>
   theory_quiz_inactivity: 'school-outline',
   student_phase_change: 'sparkles-outline',
   exam_ready_nudge: 'ribbon-outline',
+  exam_scheduled: 'school-outline',
 };
 
 const getTitle = (item: PersistedNotification): string => {
@@ -76,14 +78,15 @@ const getTitle = (item: PersistedNotification): string => {
       return `${item.data.studentName ?? 'Un allievo'} assente`;
     case 'sick_leave_cancelled':
       return 'Guida cancellata';
+    // REG-604: lo stesso kind serve guide ed esami — il payload dice quale.
     case 'appointment_rescheduled':
-      return 'Guida spostata';
+      return item.data.isExam ? 'Esame spostato' : 'Guida spostata';
     case 'appointment_cancelled':
-      return 'Guida annullata';
+      return item.data.isExam ? 'Esame annullato' : 'Guida annullata';
     case 'availability_published':
       return 'Disponibilità pubblicate';
     case 'appointment_location_changed':
-      return 'Luogo guida aggiornato';
+      return item.data.isExam ? "Luogo dell'esame aggiornato" : 'Luogo guida aggiornato';
     case 'theory_exam_countdown':
       return item.data.offsetDays === 1
         ? 'Esame teoria domani'
@@ -105,7 +108,22 @@ const getTitle = (item: PersistedNotification): string => {
       return item.data.count === 1
         ? "1 allievo pronto per l'esame"
         : `${item.data.count} allievi pronti per l'esame`;
+    case 'exam_scheduled':
+      return item.data.reason === 'time_set' ? "Orario dell'esame definito" : 'Esame fissato';
   }
+};
+
+/**
+ * REG-604: «mer 14 ott · 09:00», oppure «mer 14 ott · orario da definire» per
+ * l'esame di cui l'autoscuola non ha ancora fissato l'ora.
+ *
+ * `timeSet` manca sulle notifiche già in posta da prima del rilascio: in quel
+ * caso si comporta come sempre e scrive l'ora.
+ */
+const whenLabel = (data: { startsAt: string; isExam?: boolean; timeSet?: boolean }) => {
+  const giorno = formatDay(data.startsAt);
+  if (data.isExam && data.timeSet === false) return `${giorno} · ${EXAM_TIME_TBD_SHORT}`;
+  return `${giorno} · ${formatTime(data.startsAt)}`;
 };
 
 const getSubtitle = (item: PersistedNotification): string => {
@@ -126,14 +144,20 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
     case 'sick_leave_cancelled':
       return `Istruttore ${item.data.instructorName ?? ''} in malattia`;
-    case 'appointment_rescheduled':
-      return `Spostata al ${formatDay(item.data.startsAt)} · ${formatTime(item.data.startsAt)}`;
+    // REG-604: l'orario si scrive solo se è stato definito. Un esame senza
+    // orario porta la mezzanotte segnaposto, e qui diceva «· 00:00».
+    case 'appointment_rescheduled': {
+      const quando = whenLabel(item.data);
+      return item.data.isExam ? `Esame spostato al ${quando}` : `Spostata al ${quando}`;
+    }
     case 'appointment_cancelled':
-      return `${formatDay(item.data.startsAt)} · ${formatTime(item.data.startsAt)}`;
+      return whenLabel(item.data);
     case 'availability_published':
       return `Settimana del ${formatDay(`${item.data.weekStart}T00:00:00Z`)}`;
     case 'appointment_location_changed':
       return `${formatDay(item.data.startsAt)} · ${item.data.newLocationName}`;
+    case 'exam_scheduled':
+      return whenLabel({ ...item.data, isExam: true });
     case 'theory_exam_countdown':
       return item.data.theoryExamAt
         ? `Esame il ${formatDay(item.data.theoryExamAt)}`

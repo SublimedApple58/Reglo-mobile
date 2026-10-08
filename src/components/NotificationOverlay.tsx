@@ -543,6 +543,9 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
             appointmentId: String(data?.appointmentId ?? ''),
             startsAt: String(data?.startsAt ?? ''),
             oldStartsAt: String(data?.oldStartsAt ?? ''),
+            // REG-604: dicono all'inbox se è un esame e se l'orario esiste.
+            isExam: data?.isExam === true,
+            timeSet: data?.timeSet !== false,
           },
           receivedAt: new Date().toISOString(),
           read: false,
@@ -564,6 +567,37 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
           data: {
             appointmentId: String(data?.appointmentId ?? ''),
             startsAt: String(data?.startsAt ?? ''),
+            isExam: data?.isExam === true,
+            timeSet: data?.timeSet !== false,
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
+      /**
+       * REG-604: esame fissato, o con l'orario appena definito.
+       *
+       * Solo posta, nessun drawer: non c'è niente da accettare o rifiutare,
+       * è una notizia. Lo stesso trattamento di `appointment_rescheduled`.
+       */
+      if (intent === 'exam_scheduled') {
+        const notifId = `exam_scheduled_${data?.appointmentId ?? ''}_${Date.now()}`;
+        const persisted: PersistedNotification = {
+          kind: 'exam_scheduled',
+          id: notifId,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+            timeSet: data?.timeSet !== false,
+            reason: data?.reason === 'time_set' ? 'time_set' : 'created',
           },
           receivedAt: new Date().toISOString(),
           read: false,
@@ -587,6 +621,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
             startsAt: String(data?.startsAt ?? ''),
             oldLocationName: String(data?.oldLocationName ?? ''),
             newLocationName: String(data?.newLocationName ?? ''),
+            isExam: data?.isExam === true,
+            timeSet: data?.timeSet !== false,
           },
           receivedAt: new Date().toISOString(),
           read: false,
@@ -799,6 +835,9 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
             appointmentId: String(data?.appointmentId ?? ''),
             startsAt: String(data?.startsAt ?? ''),
             oldStartsAt: String(data?.oldStartsAt ?? ''),
+            // REG-604: dicono all'inbox se è un esame e se l'orario esiste.
+            isExam: data?.isExam === true,
+            timeSet: data?.timeSet !== false,
           },
           receivedAt: new Date().toISOString(),
           read: false,

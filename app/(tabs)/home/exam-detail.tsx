@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { examDetailStore } from '../../../src/stores/examDetailStore';
 import { formatDay, formatTime } from '../../../src/utils/date';
+import { EXAM_TIME_TBD, examTimeIsTbd } from '../../../src/utils/examTime';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
@@ -42,7 +43,8 @@ export default function ExamDetailScreen() {
         <View style={{ flex: 1 }}>
           <Text style={s.heroLabel}>Esame di guida</Text>
           <Text style={s.heroTime}>
-            {formatTime(exam.startsAt)}
+            {/* REG-604: esame senza orario → non la mezzanotte segnaposto. */}
+            {examTimeIsTbd(exam) ? EXAM_TIME_TBD : formatTime(exam.startsAt)}
           </Text>
           <Text style={s.heroDate}>{formatDay(exam.startsAt)}</Text>
         </View>

@@ -32,6 +32,7 @@ import { AutoscuolaAppointmentWithRelations, AutoscuolaStudent } from '../types/
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { formatDay, formatTime } from '../utils/date';
+import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
 import {
   aggregateStudentEvaluations,
   evaluationSummary,
@@ -57,8 +58,14 @@ const typeTheme = (t: string) =>
     label: t.charAt(0).toUpperCase() + t.slice(1),
   };
 
-const timeRange = (startsAt: string, endsAt?: string | null) =>
-  `${formatTime(startsAt)}${endsAt ? ` – ${formatTime(endsAt)}` : ''}`;
+/**
+ * REG-604: `type` serve per l'esame senza orario, dove `startsAt` è la
+ * mezzanotte segnaposto e stampava «00:00».
+ */
+const timeRange = (startsAt: string, endsAt?: string | null, type?: string | null) => {
+  if (examTimeIsTbd({ type, endsAt })) return EXAM_TIME_TBD;
+  return `${formatTime(startsAt)}${endsAt ? ` – ${formatTime(endsAt)}` : ''}`;
+};
 
 const normalize = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
 
@@ -179,7 +186,7 @@ export const StudentMyNotesScreen = () => {
             ) : null}
           </View>
 
-          <Text style={st.cardTime}>{timeRange(appt.startsAt, appt.endsAt)}</Text>
+          <Text style={st.cardTime}>{timeRange(appt.startsAt, appt.endsAt, appt.type)}</Text>
 
           {/* Group-lesson badge / exam badge / type chips */}
           {isGroup ? (

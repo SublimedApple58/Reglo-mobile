@@ -230,3 +230,8 @@ When `../reglo/` backend changes:
 - Regola in `src/utils/mandatoryLessons.ts` (`REQUIRED_LESSONS`, `isMandatoryLessonDuration`): contano **solo le guide da esattamente 60 minuti**, `endsAt` nullo escluso. Usata da `StudentNotesDetailScreen` (obbligo dell'allievo) e `InstructorNotesScreen` (riga "obbligo x/6" della lista allievi).
 - **Gemella** di `reglo/lib/autoscuole/mandatory-lessons.ts`, che alimenta il `summary` del dettaglio allievo web e il flag `mandatoryLesson` dei colori agenda: le due copie vanno cambiate insieme.
 - Prima del 2026-09-18 entrambe le schermate contavano tutte le guide completate/checked_in, comprese quelle da 30 minuti.
+
+## Notifiche esame (REG-604)
+- ← **Backend `exam-notifications.ts`**: i testi li decide il backend, l'app li mostra. `data.isExam` / `data.timeSet` nel payload di `appointment_rescheduled`, `appointment_cancelled`, `appointment_location_changed` e `exam_scheduled` servono all'inbox per non scrivere «00:00» su un esame senza orario
+- → **`src/utils/examTime.ts`**: `examTimeIsTbd()` è il marcatore unico lato app (`!endsAt`). **Non** `isExamPlaceholder` in `weeklyAgenda.ts`, che è l'esame senza *allievi*
+- → **Schermi allievo**: `AllievoHomeScreen`, `exam-detail`, `StudentMyNotesScreen`, `StudentNotesDetailScreen`, `NotificationInboxScreen`

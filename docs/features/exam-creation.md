@@ -1,5 +1,14 @@
 # Exam Creation
 
+> **REG-604 — creare un esame ora avvisa l'allievo.** Prima era muto su tutti
+> i canali (non esisteva nessun `appointment_created` in tutto il prodotto).
+> Ora `createExamEvent` e `addExamStudent` mandano «🎓 Esame fissato», e
+> `updateExamTime` manda «🎓 Orario dell'esame definito» quando l'esame passa
+> da senza-orario a con-orario. Un esame creato **senza orario** riceve
+> comunque la notifica, senza l'orario dentro. Vedi
+> [notifications.md](notifications.md) e, lato backend,
+> `reglo/lib/autoscuole/exam-notifications.ts`.
+
 ## What it does
 Create exam appointments for zero or more students at once. Un esame si può creare **senza allievi** (spesso l'autoscuola non sa subito chi parteciperà) e riempirlo dopo dal foglio di gestione.
 

@@ -41,6 +41,14 @@ export type AppointmentRescheduledData = {
   appointmentId: string;
   startsAt: string;
   oldStartsAt: string;
+  /**
+   * REG-604. L'inbox ricostruisce il sottotitolo dal payload, non dal testo
+   * del push: senza questi due campi non sa che la riga è un esame e scrive
+   * «00:00» quando l'orario non è stato ancora definito.
+   * Opzionali: le notifiche già in posta da prima non li hanno.
+   */
+  isExam?: boolean;
+  timeSet?: boolean;
 };
 
 export type AppointmentCancelledData = {
@@ -48,6 +56,23 @@ export type AppointmentCancelledData = {
   startsAt: string;
   instructorName?: string;
   cancellationKind?: string;
+  /** REG-604: vedi `AppointmentRescheduledData`. */
+  isExam?: boolean;
+  timeSet?: boolean;
+};
+
+/**
+ * REG-604: esame fissato, o con l'orario appena definito.
+ *
+ * Un solo kind per i due casi — per l'allievo sono la stessa categoria
+ * («notizie sul tuo esame») e il titolo del push li distingue già. `reason`
+ * serve all'inbox per scegliere il sottotitolo.
+ */
+export type ExamScheduledData = {
+  appointmentId?: string;
+  startsAt: string;
+  timeSet?: boolean;
+  reason?: 'created' | 'time_set';
 };
 
 export type AvailabilityPublishedData = {
@@ -98,7 +123,8 @@ export type NotificationItem =
   | { kind: 'theory_exam_countdown'; id: string; data: TheoryExamCountdownData }
   | { kind: 'theory_quiz_inactivity'; id: string; data: TheoryQuizInactivityData }
   | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData }
-  | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData };
+  | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData }
+  | { kind: 'exam_scheduled'; id: string; data: ExamScheduledData };
 
 export type PersistedNotification = {
   kind: NotificationItem['kind'];
