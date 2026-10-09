@@ -144,6 +144,15 @@ di prodotto), voto medio, ore guidate.
 pagamenti, e i crediti sono dell'allievo, non del percorso. Se un domani filtri
 anche quello, un allievo che riparte si vede azzerare i debiti.
 
-La riga di contesto è neutra per scelta: il design system è 70/20/10
-(neutri / navy / giallo) e `colors.positive` è riservato agli stati di successo
-— «ha già la A2» è un'informazione, non un premio. Il navy sta solo sull'azione.
+La riga di contesto usa `src/components/InfoBanner.tsx`, variante `quiet`:
+niente riempimento, un filetto sotto, occhiello maiuscolo (11/700/1.2, come il
+`sectionLabel` della schermata) sopra il valore in evidenza (15/700, come
+`tlTime`), e l'azione con la freccia di iOS — **senza sottolineatura**, che è
+un'abitudine del web.
+
+La variante `filled` è il banner "Prenotazione multipla" del form di
+prenotazione, da cui il componente nasce: sfondo pieno, icona nel cerchio, un
+toggle a destra. **Due forme per due mestieri**: `filled` contiene un controllo
+che si usa, `quiet` dice soltanto cosa stai guardando. Riempire di grigio una
+riga che informa la farebbe pesare quanto una che si usa, e su una scheda già
+densa diventa una macchia.

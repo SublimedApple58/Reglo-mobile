@@ -31,6 +31,7 @@ import {
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
+import { InfoBanner } from '../components/InfoBanner';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
@@ -47,7 +48,7 @@ import {
   lessonsPathFilterId,
   pathForDate,
 } from '../utils/licensePaths';
-import { colors, radii } from '../theme';
+import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
@@ -708,34 +709,30 @@ export const StudentNotesDetailScreen = () => {
 
         <View style={s.below}>
           {/* REG-458 — che cosa si sta guardando. Esiste solo con più di un
-              percorso, cioè quasi mai: con uno solo «solo il percorso B»
-              sarebbe una precisazione inutile. Governa tutto quello che sta
-              sotto — obbligo, voto medio, ore, storico guide — perché è
-              esattamente quello che filtra. */}
+              percorso, cioè quasi mai. Governa tutto quello che sta sotto —
+              obbligo, voto medio, ore, storico guide — perché è esattamente
+              quello che filtra, e per questo sta in cima e non in mezzo. */}
           {licensePaths.length > 1 ? (
-            <Pressable
-              style={s.pathBar}
-              onPress={() =>
-                setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
+            <InfoBanner
+              variant="quiet"
+              eyebrow={shownPath ? 'Percorso in corso' : 'Stai vedendo'}
+              title={
+                shownPath
+                  ? [shownPath.licenseCategory ?? '—', giaConseguite].filter(Boolean).join(' · ')
+                  : 'Tutti i percorsi'
               }
-              hitSlop={8}
-            >
-              <Ionicons name="car-sport-outline" size={15} color={colors.textMuted} />
-              <Text style={s.pathBarText} numberOfLines={2}>
-                {shownPath
-                  ? [`Percorso ${shownPath.licenseCategory ?? '—'}`, giaConseguite]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : 'Tutti i percorsi insieme'}
-              </Text>
-              <Text style={s.pathBarAction}>
-                {shownPath
+              actionLabel={
+                shownPath
                   ? hiddenByPath > 0
                     ? `Vedi tutto (${hiddenByPath})`
                     : 'Vedi tutto'
-                  : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`}
-              </Text>
-            </Pressable>
+                  : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`
+              }
+              onPress={() =>
+                setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
+              }
+              style={{ marginBottom: 18 }}
+            />
           ) : null}
           {/* Obbligo guide — flat (frame always, data fades in) */}
           <View style={s.flatBlock}>
@@ -1204,13 +1201,6 @@ const s = StyleSheet.create({
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
   licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
   licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
-  // REG-458 — riga di contesto del percorso. Neutra per scelta: il design
-  // system e' 70/20/10 (neutri / navy / giallo) e `colors.positive` e'
-  // riservato agli stati di successo — «ha gia' la A2» e' un'informazione, non
-  // un premio. Il navy sta solo sull'azione, l'unica cosa interattiva.
-  pathBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 22, paddingVertical: 10, paddingHorizontal: 12, borderRadius: radii.sm, backgroundColor: '#F7F7F7' },
-  pathBarText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.textPrimary, letterSpacing: -0.1 },
-  pathBarAction: { fontSize: 12.5, fontWeight: '600', color: colors.primary, textDecorationLine: 'underline' },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
   statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },

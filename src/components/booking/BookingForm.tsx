@@ -23,6 +23,7 @@ import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
 import type { MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
+import { InfoBanner } from '../InfoBanner';
 import { Button } from '../Button';
 import { UserPhotoCircle } from '../UserPhotoCircle';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
@@ -707,14 +708,14 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         </View>
 
         {/* Prenotazione multipla — optional, banner leggero (non un input primario) */}
-        <View style={s.optBanner}>
-          <View style={s.optIcon}><Ionicons name="layers-outline" size={18} color={NAVY} /></View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.optTitle}>Prenotazione multipla</Text>
-            <Text style={s.optSub}>Aggiungi più guide insieme</Text>
-          </View>
-          <ToggleSwitch value={multiMode} onValueChange={setMulti} disabled={pending} />
-        </View>
+        <InfoBanner
+          icon="layers-outline"
+          iconColor={NAVY}
+          title="Prenotazione multipla"
+          subtitle="Aggiungi più guide insieme"
+          trailing={<ToggleSwitch value={multiMode} onValueChange={setMulti} disabled={pending} />}
+          style={{ marginBottom: 14 }}
+        />
 
         {/* Quando + Durata (single) — priorità alta */}
         {!multiMode && (
@@ -842,10 +843,6 @@ const s = StyleSheet.create({
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
 
   /* optional multi-booking banner — light tinted, clearly secondary */
-  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
-  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
-  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
 
   /* secondary flat list */
   listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 2, marginLeft: 6 },
