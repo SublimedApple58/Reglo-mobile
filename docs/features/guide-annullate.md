@@ -163,37 +163,50 @@ Il filtro era corretto ma **scattava**: testi sostituiti di colpo, guide che
 comparivano e sparivano senza transizione, la sezione che saltava a una nuova
 altezza, e nessun feedback al tocco su una riga che invece è un controllo.
 
-Tutto il movimento sta su `react-native-reanimated` (già nel binario 2.3.0:
-nessuna dipendenza nativa nuova, quindi **resta rilasciabile via OTA**) e segue
-la §8 del design system.
+⚠️ **Questa sezione è stata riscritta due volte, e la seconda versione è quella
+giusta.** La prima stesura metteva molle, spostamenti, cascate per riga e una
+freccia che ruotava: a schermo la scheda **ondeggiava** e sembrava un
+giocattolo. Bocciata («animazioni totalmente esagerate, sembra il parco
+giochi»). Serve per capire il criterio: su una scheda densa di dati il
+movimento va speso **una volta sola**, dove un salto si vedrebbe.
+
+**Un solo movimento vero**: toccando «Vedi tutto» lo storico si apre o si
+chiude e **l'altezza scorre**, così quello che sta sotto scivola invece di
+saltare. Tutto il resto è opacità.
 
 | Dove | Cosa | Curva / durata |
 |---|---|---|
-| `InfoBanner` (entrambe le forme) | tocco: scala + velo, haptic di selezione | `withTiming` 90ms in, Snappy (damping 20 / stiffness 300) in uscita |
-| `InfoBanner` | testi che cambiano valore | dissolvenza 200ms, chiave sul valore |
-| `InfoBanner` | freccia che si gira quando l'azione si inverte | spring damping 18 / stiffness 220 |
-| `InfoBanner` | larghezza della riga | `LinearTransition` Gentle |
-| Storico guide | righe nuove | `FadeInDown` 240ms + 6px, cascata 45ms sulle sole righe nuove, ferma alla settima |
-| Storico guide | righe che escono | `FadeOut` 130ms |
-| Storico guide | righe che restano, altezza della sezione | `LinearTransition` Gentle |
-| Numeri della scheda, contatore obbligo, frase di stato | dissolvenza sul cambio di percorso | 220ms |
-| Barra dell'obbligo | si riempie da sinistra, si svuota dall'ultimo | colore 180ms, scaglioni 35ms |
+| Storico guide (istruttore) e lista guide (allievo) | l'altezza scorre quando il filtro aggiunge o toglie righe | `LinearTransition.duration(240).easing(Easing.out(Easing.cubic))` |
+| `InfoBanner` (entrambe le forme) | testi che cambiano valore | dissolvenza 160ms, chiave sul valore |
+| Storico guide | contenuto che si sostituisce | dissolvenza 180ms, chiave sul percorso |
+| Numeri della scheda, contatore obbligo, frase di stato | dissolvenza sul cambio di percorso | 160ms |
+| Barra dell'obbligo | cambio di tinta, **tutti i segmenti insieme** | 160ms |
+| Tocco | il solo velo di `opacity` 0.6, come ogni altra riga tappabile | — |
 
-⚠️ **La cascata segue l'ordine di apparizione, non l'indice di lista.** Con
-l'indice, una guida in ventesima posizione aspetterebbe mezzo secondo e la
-cascata partirebbe comunque dall'alto anche quando le righe nuove sono in
-mezzo. `prevShownIds` (un ref) ricorda chi era a schermo prima del commit;
-chi non c'era prende il proprio posto nella cascata.
+⚠️ **`duration` + `easing`, mai `springify()`.** La molla è precisamente quello
+che faceva ondeggiare: una lista che rimbalza a ogni cambio di filtro è il
+difetto, non la cura.
 
-⚠️ **Le righe che restano NON rientrano.** La chiave è `appt.id`: mantengono la
-propria identità e scivolano col `layout`. Rimontarle tutte a ogni cambio di
-filtro sarebbe la velatura che si vuole evitare.
+⚠️ **Per far scorrere l'altezza serve un involucro a identità stabile.** Una
+transizione di layout su un nodo che **si rimonta** (la chiave cambia) non ha
+niente da interpolare: salterebbe. Quindi l'involucro con `layout` sta fuori e
+la chiave, con la sua dissolvenza, sta dentro.
 
-**«Riduci movimento»**: cadono spostamenti, scala, rotazione e cascate, restano
-le dissolvenze — che movimento non sono. Le transizioni di layout si
-disattivano da sé (`ReduceMotion.System` è il loro default); le dissolvenze
-sono marcate `ReduceMotion.Never` **di proposito**, altrimenti Reanimated le
-salterebbe e lo scatto tornerebbe esattamente dov'era.
+**Fuori, deliberatamente**: cascata e scaglionamento delle righe (entrata,
+uscita, ordine di apparizione), scala al tocco, rotazione della freccia,
+riempimento a scaglioni della barra dell'obbligo, scivolamento della larghezza
+della riga di contesto.
+
+⚠️ **La cascata per riga che si vede in «Le tue guide» cambiando percorso non è
+di questo lavoro**: è l'entrata preesistente della lista (`FadeInDown` a 26ms
+per riga), la stessa che parte a ogni cambio di tab. Da quando il percorso è
+nella chiave della lista, parte anche lì.
+
+**«Riduci movimento»**: restano le sole dissolvenze — che movimento non sono.
+Lo scorrimento dell'altezza si disattiva da sé (`ReduceMotion.System` è il
+default delle transizioni di layout); le dissolvenze sono marcate
+`ReduceMotion.Never` **di proposito**, altrimenti Reanimated le salterebbe e lo
+scatto tornerebbe esattamente dov'era.
 
 Lo stesso difetto era in `LessonsOverview` (app allievo) per la stessa
 ragione: la chiave della lista conteneva il tab ma **non** il percorso, quindi
