@@ -13,6 +13,22 @@ export type ObtainedLicense = {
   obtainedAt: IsoDate | null;
 };
 
+/**
+ * REG-458 — un percorso patente dell'allievo. Le guide non hanno una colonna
+ * che dica a quale percorso appartengono: si ricava dalla data, confrontandola
+ * con `startedAt` (vedi `src/utils/licensePaths.ts`).
+ */
+export type LicensePath = {
+  id: Uuid;
+  licenseCategory: string | null;
+  transmission: string | null;
+  /** active | obtained | abandoned */
+  status: string;
+  startedAt: IsoDate;
+  closedAt: IsoDate | null;
+  obtainedAt: IsoDate | null;
+};
+
 export type AutoscuolaStudentPhase = "AWAITING" | "TEORIA" | "PRATICA" | "PATENTATO";
 
 /** REG-451 — associazione allievo ↔ istruttore via QR / codice. */
@@ -75,6 +91,11 @@ export type StudentPhasePayload = {
    * comincia un secondo.
    */
   obtainedLicenses?: ObtainedLicense[];
+  /**
+   * REG-458 — tutti i percorsi, dal più vecchio. Assente su backend vecchi →
+   * nessun filtro per percorso, come prima.
+   */
+  licensePaths?: LicensePath[];
 };
 
 export type ServiceKey = "DOC_MANAGER" | "WORKFLOWS" | "AI_ASSISTANT" | "AUTOSCUOLE";

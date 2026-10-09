@@ -1,7 +1,7 @@
 import { useSession } from '../context/SessionContext';
 import { useMyPhase } from './queries/useMyPhase';
 import { isStudent as isStudentRole } from '../utils/roles';
-import type { AutoscuolaStudentPhase, ObtainedLicense } from '../types/regloApi';
+import type { AutoscuolaStudentPhase, LicensePath, ObtainedLicense } from '../types/regloApi';
 
 type UseStudentPhaseResult = {
   /** Effective phase for the current user. Defaults to PRATICA for students until data loads. Null for non-students. */
@@ -38,6 +38,12 @@ type UseStudentPhaseResult = {
    * da capo quando apre il secondo.
    */
   obtainedLicenses: ObtainedLicense[];
+  /**
+   * REG-458 — tutti i percorsi, dal più vecchio. Serve a "Le tue guide" per
+   * capire quali guide sono del percorso in corso e quali di quelli prima.
+   * Vuoto su backend vecchi → nessun filtro, come prima.
+   */
+  licensePaths: LicensePath[];
   loading: boolean;
 };
 
@@ -58,6 +64,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
       transmission: null,
       needsLicensePath: false,
       obtainedLicenses: [],
+      licensePaths: [],
       loading: false,
     };
   }
@@ -73,6 +80,7 @@ export const useStudentPhase = (): UseStudentPhaseResult => {
     transmission: data?.transmission ?? null,
     needsLicensePath: Boolean(data?.needsLicensePath),
     obtainedLicenses: data?.obtainedLicenses ?? [],
+    licensePaths: data?.licensePaths ?? [],
     loading: isLoading,
   };
 };

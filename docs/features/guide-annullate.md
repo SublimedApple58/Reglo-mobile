@@ -100,3 +100,32 @@ dividono lo spazio: una voce fuori schermo è una voce che nessuno trova.
 - **Backend (`reglo`)** — semantica cancellazioni: `manual_cancel` (annullamento allievo, con preavviso/penale), `record_cleanup` (pulizia storico owner, esclusa da questa vista).
 - **Home allievo** — **non** toccata da REG-510: la Home resta com'era (finestra
   `oggi − 7 giorni`, nessuno storico). Lo storico vive qui.
+
+## Il percorso patente (REG-458)
+
+Le guide **non** hanno una colonna che dica a quale percorso appartengono: si
+ricava dalla data, confrontandola con lo `startedAt` dei percorsi che
+`/api/autoscuole/me` ora restituisce (`licensePaths`, tutti, non solo i
+conseguiti). La regola sta in `src/utils/licensePaths.ts` ed è il **gemello** di
+`lib/autoscuole/license-paths.ts` nel repo web, dove è coperta dai test: se
+cambia una, cambiano entrambe. Un allievo che vede sull'app un insieme di guide
+diverso da quello che la segreteria vede sul gestionale è peggio del bug che
+questo codice risolve.
+
+Tre regole:
+
+1. **Con meno di due percorsi non si filtra e la riga non compare.** È il caso
+   di quasi tutti gli allievi.
+2. **Il default è il percorso in corso.** Chi ha preso la A2 e ha appena
+   iniziato la B non deve ritrovarsi l'esame della A2 in cima a "Le tue guide".
+3. Le guide precedenti **non spariscono**: la riga dice quante sono e «Vedi
+   tutte» le riporta. Anche lo stato vuoto lo dice, invece di un "Nessuna guida"
+   che sarebbe una bugia.
+
+Il filtro si applica **alla fonte** (`everything` → `all`), quindi conteggi,
+sotto-filtri e le programmate seedate dalla home lo rispettano tutti.
+
+> Bug del 2026-10-09: l'app mostrava a `marco@reglo.it` (Autoscuola Maltese)
+> l'esame del 2/9 e la guida del 24/9, entrambi del percorso A2 conseguito,
+> dentro il percorso B appena avviato. Il gemello lato web è descritto in
+> `reglo/docs/features/license-paths.md`.

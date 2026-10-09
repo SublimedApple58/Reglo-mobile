@@ -15,6 +15,14 @@ import {
   type RowTone,
 } from './ledger/LedgerUI';
 import { useAppointments } from '../hooks/queries/useAppointments';
+import { useStudentPhase } from '../hooks/useStudentPhase';
+import {
+  ALL_LESSON_PATHS,
+  currentPath,
+  lessonsPathFilterId,
+  pathForDate,
+  pathLabel,
+} from '../utils/licensePaths';
 import { formatDay, formatTime } from '../utils/date';
 import { colors } from '../theme/colors';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
@@ -103,6 +111,13 @@ function groupByMonth(list: AutoscuolaAppointmentWithRelations[]) {
 
 export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Props) {
   const [tab, setTab] = useState<Tab>('upcoming');
+  /**
+   * REG-458 — quale percorso sta guardando. `null` = non ha scelto, vale il
+   * default (il percorso in corso); `ALL_LESSON_PATHS` = ha chiesto di
+   * vedere tutto. Con un percorso solo non se ne accorge nessuno.
+   */
+  const [pathChoice, setPathChoice] = useState<string | null>(null);
+  const { licensePaths } = useStudentPhase();
 
   // ── Storico completo, una richiesta sola ──
   const historyParams = useMemo(() => {
@@ -125,15 +140,43 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
 
   // Stabili di proposito: ricalcolarli a ogni render invaliderebbe tutti i
   // useMemo qui sotto, e la lista si rigenererebbe a ogni tocco.
-  const all = historyQuery.data ?? EMPTY;
+  const everything = historyQuery.data ?? EMPTY;
   const now = useMemo(() => Date.now(), [historyQuery.data]);
+
+  // ── Percorso patente ──
+  // Le guide del percorso precedente non spariscono, ma di default non si
+  // mescolano a quelle nuove: chi ha preso la A2 e ha appena iniziato la B
+  // non deve ritrovarsi l'esame della A2 in cima a "Le tue guide".
+  const activePathId = lessonsPathFilterId(licensePaths, pathChoice);
+  const shownPath = useMemo(
+    () => licensePaths.find((path) => path.id === activePathId) ?? null,
+    [licensePaths, activePathId],
+  );
+  const thisPath = useMemo(() => currentPath(licensePaths), [licensePaths]);
+  // La riga del percorso esiste solo con più di un percorso.
+  const showPathRow = licensePaths.length > 1;
+  const all = useMemo(
+    () =>
+      activePathId
+        ? everything.filter(
+            (lesson) => pathForDate(licensePaths, lesson.startsAt)?.id === activePathId,
+          )
+        : everything,
+    [everything, licensePaths, activePathId],
+  );
+  const hiddenByPath = everything.length - all.length;
 
   // Finché lo storico non è arrivato, le programmate seedate dalla home
   // evitano lo sfarfallio: la lista è già piena al primo frame.
   const upcoming = useMemo(() => {
-    const source = historyQuery.data ? all.filter((l) => isUpcoming(l, now)) : (seededUpcoming ?? []);
+    const seeded = activePathId
+      ? (seededUpcoming ?? []).filter(
+          (l) => pathForDate(licensePaths, l.startsAt)?.id === activePathId,
+        )
+      : (seededUpcoming ?? []);
+    const source = historyQuery.data ? all.filter((l) => isUpcoming(l, now)) : seeded;
     return [...source].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  }, [historyQuery.data, all, seededUpcoming, now]);
+  }, [historyQuery.data, all, seededUpcoming, now, activePathId, licensePaths]);
 
   const doneSections = useMemo(
     () => groupByMonth(
@@ -213,6 +256,30 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
           </Animated.Text>
         </View>
 
+        {showPathRow ? (
+          <Pressable
+            style={s.pathRow}
+            onPress={() =>
+              setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
+            }
+            hitSlop={8}
+          >
+            <Ionicons name="car-sport-outline" size={15} color={colors.textMuted} />
+            <Text style={s.pathText} numberOfLines={1}>
+              {shownPath
+                ? `Guide della patente ${pathLabel(shownPath)}`
+                : 'Tutte le guide, anche dei percorsi precedenti'}
+            </Text>
+            <Text style={s.pathAction}>
+              {shownPath
+                ? hiddenByPath > 0
+                  ? `Vedi tutte (${hiddenByPath} prima)`
+                  : 'Vedi tutte'
+                : `Solo la ${pathLabel(thisPath)}`}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <LedgerFilterBar defs={filterDefs} active={tab} onChange={setTab} style={s.filters} />
 
         {loading ? (
@@ -220,7 +287,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
             <ActivityIndicator color="#1A1A2E" />
           </View>
         ) : sections.length === 0 ? (
-          <EmptyState tab={tab} />
+          <EmptyState tab={tab} hiddenByPath={hiddenByPath} />
         ) : (
           // La chiave è il filtro: cambiandolo la lista si rimonta ed entra in
           // dissolvenza, invece di sostituirsi di colpo.
@@ -336,15 +403,21 @@ const EMPTY_COPY: Record<Tab, { icon: React.ComponentProps<typeof Ionicons>['nam
   cancelled: { icon: 'close-circle-outline', title: 'Nessuna guida annullata', text: 'Le guide che annulli compariranno qui.' },
 };
 
-function EmptyState({ tab }: { tab: Tab }) {
+function EmptyState({ tab, hiddenByPath }: { tab: Tab; hiddenByPath: number }) {
   const copy = EMPTY_COPY[tab];
+  // REG-458 — "Nessuna guida" a chi ne ha, solo su un percorso precedente,
+  // sarebbe una bugia: qui gli diciamo dove sono finite.
+  const text =
+    hiddenByPath > 0
+      ? `${hiddenByPath === 1 ? 'Ne hai 1' : `Ne hai ${hiddenByPath}`} nei percorsi precedenti: le trovi con «Vedi tutte».`
+      : copy.text;
   return (
     <Animated.View entering={FadeIn.duration(220)} style={s.centerState}>
       <View style={s.emptyIcon}>
         <Ionicons name={copy.icon} size={24} color="#B4B4BD" />
       </View>
       <Text style={s.emptyTitle}>{copy.title}</Text>
-      {copy.text ? <Text style={s.emptyText}>{copy.text}</Text> : null}
+      {text ? <Text style={s.emptyText}>{text}</Text> : null}
     </Animated.View>
   );
 }
@@ -354,6 +427,23 @@ const s = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   filters: { marginTop: 14, marginBottom: 2, flexGrow: 0 },
+
+  // REG-458 — riga del percorso: compare solo a chi ha piu' di una patente,
+  // quindi quasi nessuno la vedra' mai. Volutamente sobria: e' un contesto,
+  // non un'azione da spingere.
+  pathRow: {
+    marginTop: 14,
+    marginHorizontal: LEDGER_PAD,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pathText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: '#1A1A2E' },
+  pathAction: { fontSize: 12.5, fontWeight: '600', color: colors.primary, textDecorationLine: 'underline' },
 
   list: { paddingBottom: 40 },
   // Lo stile condiviso non ha rientro perché in Pagamenti il mese sta dentro un
