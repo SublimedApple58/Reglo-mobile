@@ -1,16 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  ReduceMotion,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, LinearTransition, ReduceMotion } from 'react-native-reanimated';
 import { selectionAsync } from '../utils/haptics';
 import { SheetScaffold } from './SheetScaffold';
 import {
@@ -119,23 +110,17 @@ function groupByMonth(list: AutoscuolaAppointmentWithRelations[]) {
   return out;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+/** I testi della riga cambiano valore restando al loro posto: dissolvenza
+ *  corta, e nient'altro. `ReduceMotion.Never` perché un fade non è movimento —
+ *  con «Riduci movimento» attivo è proprio quello che deve restare. */
+const PATH_DISSOLVE = FadeIn.duration(160).reduceMotion(ReduceMotion.Never);
 
-/** I testi della riga cambiano valore restando al loro posto: dissolvenza, non
- *  spostamento. `ReduceMotion.Never` perché un fade non è movimento — con
- *  «Riduci movimento» attivo è proprio quello che deve restare. */
-const PATH_DISSOLVE = FadeIn.duration(200).reduceMotion(ReduceMotion.Never);
+/** Lo stesso unico movimento della scheda istruttore: l'altezza della lista
+ *  scorre quando il filtro la allunga o l'accorcia. Timing, **nessuna molla**. */
+const HEIGHT_GLIDE = LinearTransition.duration(240).easing(Easing.out(Easing.cubic));
 
 export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Props) {
   const [tab, setTab] = useState<Tab>('upcoming');
-  const reducedMotion = useReducedMotion();
-  const pathPressed = useSharedValue(0);
-  const pathRowPressStyle = useAnimatedStyle(() => ({
-    // 1.5% e non il 3% del design system: su una riga a tutta larghezza il 3%
-    // fa gommare i bordi. Il velo a 0.62 è quello delle altre righe tappabili.
-    transform: [{ scale: reducedMotion ? 1 : 1 - pathPressed.value * 0.015 }],
-    opacity: 1 - pathPressed.value * 0.38,
-  }));
   /**
    * REG-458 — quale percorso sta guardando. `null` = non ha scelto, vale il
    * default (il percorso in corso); `ALL_LESSON_PATHS` = ha chiesto di
@@ -282,20 +267,13 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         </View>
 
         {showPathRow ? (
-          // Stesso trattamento della scheda istruttore: la riga risponde al
-          // dito e i suoi testi sfumano al proprio posto. Era l'unica riga
-          // tappabile della schermata senza alcun feedback al tocco.
-          <AnimatedPressable
-            style={[s.pathRow, pathRowPressStyle]}
+          // Era l'unica riga tappabile della schermata senza alcun feedback al
+          // tocco: ora c'è il velo, come su ogni altra. Niente scala.
+          <Pressable
+            style={({ pressed }) => [s.pathRow, pressed && { opacity: 0.6 }]}
             onPress={() => {
               selectionAsync().catch(() => {});
               setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS));
-            }}
-            onPressIn={() => {
-              pathPressed.value = withTiming(1, { duration: 90 });
-            }}
-            onPressOut={() => {
-              pathPressed.value = withSpring(0, { damping: 20, stiffness: 300 });
             }}
             hitSlop={8}
             accessibilityRole="button"
@@ -322,11 +300,14 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
                   : 'Vedi tutte'
                 : `Solo la ${pathLabel(thisPath)}`}
             </Animated.Text>
-          </AnimatedPressable>
+          </Pressable>
         ) : null}
 
         <LedgerFilterBar defs={filterDefs} active={tab} onChange={setTab} style={s.filters} />
 
+        {/* Involucro a identità stabile: fa scorrere l'altezza. La chiave, e
+            quindi la dissolvenza, sta dentro. */}
+        <Animated.View layout={HEIGHT_GLIDE}>
         {loading ? (
           <View style={s.centerState}>
             <ActivityIndicator color="#1A1A2E" />
@@ -368,6 +349,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
             })()}
           </Animated.View>
         )}
+        </Animated.View>
       </SheetScaffold>
     </>
   );
