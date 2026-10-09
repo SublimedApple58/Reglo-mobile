@@ -34,7 +34,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
+import { AutoscuolaAppointmentWithRelations, AutoscuolaCase, ObtainedLicense } from '../types/regloApi';
 import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
@@ -143,11 +143,9 @@ export const StudentNotesDetailScreen = () => {
   const [pagellinoOpen, setPagellinoOpen] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [license, setLicense] = useState<{ category: string | null; transmission: string | null } | null>(null);
-  // REG-458 — l'ultima patente già conseguita, se ce n'è una.
-  const [lastObtained, setLastObtained] = useState<{
-    licenseCategory: string | null;
-    obtainedAt: string | null;
-  } | null>(null);
+  // REG-458 — le patenti già conseguite, dalla più recente. Vuoto per chi è al
+  // primo percorso, cioè per quasi tutti.
+  const [obtained, setObtained] = useState<ObtainedLicense[]>([]);
   const [groupEnabled, setGroupEnabled] = useState(false);
   const [groupOptIn, setGroupOptIn] = useState(false);
   const [groupSaving, setGroupSaving] = useState(false);
@@ -203,7 +201,7 @@ export const StudentNotesDetailScreen = () => {
       const me = students.find((stu) => stu.id === studentId);
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
-        setLastObtained(me.lastObtainedLicense ?? null);
+        setObtained(me.obtainedLicenses ?? []);
         setGroupOptIn(me.groupLessonsOptIn ?? false);
         setStudentPhase(me.studentPhase ?? null);
         setExamReady(me.examReady ?? false);
@@ -528,12 +526,21 @@ export const StudentNotesDetailScreen = () => {
     : null;
   // REG-458 — «B · ott 2026». Senza data (succede: in produzione 67 patentati su
   // 72 non hanno mai avuto né numero né data) resta la sola categoria.
-  const obtainedLabel = (() => {
-    const cat = lastObtained?.licenseCategory;
+  const obtainedLabel = (o: ObtainedLicense) => {
+    const cat = o.licenseCategory;
     if (!cat) return null;
-    const when = lastObtained?.obtainedAt ? new Date(lastObtained.obtainedAt) : null;
+    const when = o.obtainedAt ? new Date(o.obtainedAt) : null;
     if (!when || Number.isNaN(when.getTime())) return cat;
     return `${cat} · ${when.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}`;
+  };
+  // Il chip sul FRONTE della scheda: le categorie, senza date. Sta accanto al
+  // percorso in corso perché è lì che l'istruttore guarda prima di salire in
+  // auto — sul retro si vedeva solo girando la scheda, e infatti non si vedeva.
+  const obtainedChip = (() => {
+    const cats = obtained.map((o) => o.licenseCategory).filter(Boolean) as string[];
+    if (cats.length === 0) return null;
+    if (cats.length <= 2) return `Ha già ${cats.join(' e ')}`;
+    return `Ha già ${cats.slice(0, 2).join(', ')} +${cats.length - 2}`;
   })();
 
   // Flip card (front = summary, back = personal info)
@@ -581,6 +588,12 @@ export const StudentNotesDetailScreen = () => {
                 <View style={s.licenseChip}>
                   <Ionicons name="card-outline" size={11} color="#595959" />
                   <Text style={s.licenseChipText}>{licenseLabel}</Text>
+                </View>
+              ) : null}
+              {obtainedChip ? (
+                <View style={s.obtainedChip}>
+                  <Ionicons name="ribbon-outline" size={11} color="#2F6F4E" />
+                  <Text style={s.obtainedChipText} numberOfLines={1}>{obtainedChip}</Text>
                 </View>
               ) : null}
             </View>
@@ -634,13 +647,15 @@ export const StudentNotesDetailScreen = () => {
             </View>
             {/* REG-458 — solo se ha già concluso un percorso. All'istruttore
                 serve sapere che chi ha in auto guida già: cambia come gli parla. */}
-            {lastObtained?.licenseCategory ? (
+            {obtained.length > 0 ? (
               <View style={s.backRow}>
                 <Ionicons name="ribbon-outline" size={16} color="#929292" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.backLabel}>Già conseguita</Text>
-                  <Text style={s.backValue} numberOfLines={1}>
-                    {obtainedLabel}
+                  <Text style={s.backLabel}>
+                    {obtained.length === 1 ? 'Già conseguita' : 'Già conseguite'}
+                  </Text>
+                  <Text style={s.backValue} numberOfLines={2}>
+                    {obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
                   </Text>
                 </View>
               </View>
@@ -1109,6 +1124,9 @@ const s = StyleSheet.create({
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
   licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
   licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
+  // REG-458 — verde sobrio, non un badge premio: e' un'informazione operativa.
+  obtainedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EAF4EE', maxWidth: 160 },
+  obtainedChipText: { fontSize: 11.5, fontWeight: '600', color: '#2F6F4E', letterSpacing: -0.1 },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
   statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },

@@ -11,6 +11,8 @@ export type AutoscuolaRole = "OWNER" | "INSTRUCTOR_OWNER" | "INSTRUCTOR" | "STUD
 export type ObtainedLicense = {
   licenseCategory: string | null;
   obtainedAt: IsoDate | null;
+  /** Presente solo dove il backend lo manda (dettaglio allievo istruttore). */
+  transmission?: string | null;
 };
 
 /**
@@ -191,9 +193,17 @@ export type AutoscuolaStudent = {
   // Segnale interno "pronto per l'esame" (solo PRATICA). Non vincola nulla.
   examReady?: boolean;
   examReadyAt?: IsoDate | null;
-  // REG-458 — l'ultima patente già conseguita, se ce n'è una. Null al primo
-  // percorso. All'istruttore serve sapere che chi ha in auto guida già.
-  lastObtainedLicense?: ObtainedLicense | null;
+  // REG-458 — le patenti GIÀ conseguite, dalla più recente. Assente al primo
+  // percorso, cioè per quasi tutti. All'istruttore serve sapere che chi ha in
+  // auto guida già: cambia come gli parla.
+  //
+  // ⚠️ Arriva da `/api/autoscuole/students`, che è quello che il dettaglio
+  // allievo chiama davvero. Il campo precedente (`lastObtainedLicense`) era
+  // dichiarato qui ma il backend lo metteva su `instructor-settings`: il tipo
+  // prometteva un dato che non arrivava mai, e la riga è rimasta vuota per
+  // tutti dal rilascio fino al 2026-10-09. Se aggiungi un campo qui, verifica
+  // da quale endpoint arriva.
+  obtainedLicenses?: ObtainedLicense[];
   // Luogo di default (REG-392): mostrato nel dettaglio allievo; precompila il
   // campo Luogo nel form di prenotazione alla selezione dell'allievo.
   defaultLocationId?: Uuid | null;
