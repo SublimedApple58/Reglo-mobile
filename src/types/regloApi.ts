@@ -204,6 +204,11 @@ export type AutoscuolaStudent = {
   // tutti dal rilascio fino al 2026-10-09. Se aggiungi un campo qui, verifica
   // da quale endpoint arriva.
   obtainedLicenses?: ObtainedLicense[];
+  // REG-458 — tutti i percorsi, dal più vecchio. Assente per chi ne ha uno
+  // solo. Serve a capire a quale percorso appartiene una guida: senza, lo
+  // storico guide mostra quelle della patente precedente dentro il percorso
+  // nuovo.
+  licensePaths?: LicensePath[];
   // Luogo di default (REG-392): mostrato nel dettaglio allievo; precompila il
   // campo Luogo nel form di prenotazione alla selezione dell'allievo.
   defaultLocationId?: Uuid | null;

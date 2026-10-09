@@ -34,8 +34,20 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
-import { AutoscuolaAppointmentWithRelations, AutoscuolaCase, ObtainedLicense } from '../types/regloApi';
-import { colors } from '../theme';
+import {
+  AutoscuolaAppointmentWithRelations,
+  AutoscuolaCase,
+  LicensePath,
+  ObtainedLicense,
+} from '../types/regloApi';
+import {
+  ALL_LESSON_PATHS,
+  currentPath,
+  isQualification,
+  lessonsPathFilterId,
+  pathForDate,
+} from '../utils/licensePaths';
+import { colors, radii } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
@@ -128,7 +140,7 @@ export const StudentNotesDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
   const { autoscuolaRole } = useSession();
-  const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [rawAppointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   /**
    * Storico GREZZO, annullate comprese: serve al registro pagamenti (REG-450),
    * dove "Annullate" è un filtro e le penali tardive sono guide da pagare.
@@ -146,6 +158,10 @@ export const StudentNotesDetailScreen = () => {
   // REG-458 — le patenti già conseguite, dalla più recente. Vuoto per chi è al
   // primo percorso, cioè per quasi tutti.
   const [obtained, setObtained] = useState<ObtainedLicense[]>([]);
+  // Tutti i percorsi (vuoto se ne ha uno solo) e quale si sta guardando:
+  // `null` = non ha scelto, vale il default, cioè il percorso in corso.
+  const [licensePaths, setLicensePaths] = useState<LicensePath[]>([]);
+  const [pathChoice, setPathChoice] = useState<string | null>(null);
   const [groupEnabled, setGroupEnabled] = useState(false);
   const [groupOptIn, setGroupOptIn] = useState(false);
   const [groupSaving, setGroupSaving] = useState(false);
@@ -202,6 +218,7 @@ export const StudentNotesDetailScreen = () => {
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
         setObtained(me.obtainedLicenses ?? []);
+        setLicensePaths(me.licensePaths ?? []);
         setGroupOptIn(me.groupLessonsOptIn ?? false);
         setStudentPhase(me.studentPhase ?? null);
         setExamReady(me.examReady ?? false);
@@ -458,9 +475,38 @@ export const StudentNotesDetailScreen = () => {
   ]);
 
   const phone = useMemo(() => {
-    for (const appt of appointments) if (appt.student?.phone) return appt.student.phone;
+    // Grezzo di proposito: il numero e' dell'allievo, non del percorso.
+    for (const appt of rawAppointments) if (appt.student?.phone) return appt.student.phone;
     return null;
-  }, [appointments]);
+  }, [rawAppointments]);
+
+  // ── REG-458: tutto quello che segue e' del PERCORSO, non dell'allievo ──
+  //
+  // Le guide non hanno una colonna che dica a quale percorso appartengono: si
+  // ricava dalla data. Filtrando qui, **alla fonte**, diventano coerenti in un
+  // colpo solo lo storico guide, il contatore dell'obbligo (che per decisione
+  // di prodotto e' per percorso), il voto medio e le ore guidate: prima un
+  // allievo che ripartiva si portava dietro le guide della patente precedente
+  // dentro quella nuova.
+  //
+  // `allAppointments` resta **non filtrato** di proposito: alimenta i pagamenti,
+  // e i crediti sono dell'allievo, non del percorso (portafoglio unico).
+  const shownPathId = lessonsPathFilterId(licensePaths, pathChoice);
+  const shownPath = useMemo(
+    () => licensePaths.find((p) => p.id === shownPathId) ?? null,
+    [licensePaths, shownPathId],
+  );
+  const thisPath = useMemo(() => currentPath(licensePaths), [licensePaths]);
+  const appointments = useMemo(
+    () =>
+      shownPathId
+        ? rawAppointments.filter(
+            (a) => pathForDate(licensePaths, a.startsAt)?.id === shownPathId,
+          )
+        : rawAppointments,
+    [rawAppointments, licensePaths, shownPathId],
+  );
+  const hiddenByPath = rawAppointments.length - appointments.length;
 
   // Obbligo: contano SOLO le guide da 60 minuti (stesso criterio del BE e dei
   // colori dell'agenda). Le guide da 30 minuti finivano qui dentro per errore.
@@ -521,8 +567,12 @@ export const StudentNotesDetailScreen = () => {
   const email = student?.email ?? null;
   const initials = (firstName[0] ?? displayName[0] ?? '?').toUpperCase();
   const cleanPhone = phone?.replace(/\s+/g, '').replace(/^\+/, '');
+  // Su una qualificazione (CQC, ADR) il cambio non vuol dire niente:
+  // «CQC · Manuale» e' una riga che non significa nulla.
   const licenseLabel = license?.category
-    ? `${license.category} · ${transmissionLabel(license.transmission)}`
+    ? isQualification(license.category)
+      ? license.category
+      : `${license.category} · ${transmissionLabel(license.transmission)}`
     : null;
   // REG-458 — «B · ott 2026». Senza data (succede: in produzione 67 patentati su
   // 72 non hanno mai avuto né numero né data) resta la sola categoria.
@@ -533,14 +583,12 @@ export const StudentNotesDetailScreen = () => {
     if (!when || Number.isNaN(when.getTime())) return cat;
     return `${cat} · ${when.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}`;
   };
-  // Il chip sul FRONTE della scheda: le categorie, senza date. Sta accanto al
-  // percorso in corso perché è lì che l'istruttore guarda prima di salire in
-  // auto — sul retro si vedeva solo girando la scheda, e infatti non si vedeva.
-  const obtainedChip = (() => {
+  /** «ha già A2», «ha già A2 e B», «ha già A2, B +2». */
+  const giaConseguite = (() => {
     const cats = obtained.map((o) => o.licenseCategory).filter(Boolean) as string[];
     if (cats.length === 0) return null;
-    if (cats.length <= 2) return `Ha già ${cats.join(' e ')}`;
-    return `Ha già ${cats.slice(0, 2).join(', ')} +${cats.length - 2}`;
+    if (cats.length <= 2) return `ha già ${cats.join(' e ')}`;
+    return `ha già ${cats.slice(0, 2).join(', ')} +${cats.length - 2}`;
   })();
 
   // Flip card (front = summary, back = personal info)
@@ -588,12 +636,6 @@ export const StudentNotesDetailScreen = () => {
                 <View style={s.licenseChip}>
                   <Ionicons name="card-outline" size={11} color="#595959" />
                   <Text style={s.licenseChipText}>{licenseLabel}</Text>
-                </View>
-              ) : null}
-              {obtainedChip ? (
-                <View style={s.obtainedChip}>
-                  <Ionicons name="ribbon-outline" size={11} color="#2F6F4E" />
-                  <Text style={s.obtainedChipText} numberOfLines={1}>{obtainedChip}</Text>
                 </View>
               ) : null}
             </View>
@@ -665,6 +707,36 @@ export const StudentNotesDetailScreen = () => {
         </Pressable>
 
         <View style={s.below}>
+          {/* REG-458 — che cosa si sta guardando. Esiste solo con più di un
+              percorso, cioè quasi mai: con uno solo «solo il percorso B»
+              sarebbe una precisazione inutile. Governa tutto quello che sta
+              sotto — obbligo, voto medio, ore, storico guide — perché è
+              esattamente quello che filtra. */}
+          {licensePaths.length > 1 ? (
+            <Pressable
+              style={s.pathBar}
+              onPress={() =>
+                setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
+              }
+              hitSlop={8}
+            >
+              <Ionicons name="car-sport-outline" size={15} color={colors.textMuted} />
+              <Text style={s.pathBarText} numberOfLines={2}>
+                {shownPath
+                  ? [`Percorso ${shownPath.licenseCategory ?? '—'}`, giaConseguite]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : 'Tutti i percorsi insieme'}
+              </Text>
+              <Text style={s.pathBarAction}>
+                {shownPath
+                  ? hiddenByPath > 0
+                    ? `Vedi tutto (${hiddenByPath})`
+                    : 'Vedi tutto'
+                  : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`}
+              </Text>
+            </Pressable>
+          ) : null}
           {/* Obbligo guide — flat (frame always, data fades in) */}
           <View style={s.flatBlock}>
             <View style={s.obbligoTop}>
@@ -874,7 +946,15 @@ export const StudentNotesDetailScreen = () => {
               ))}
             </View>
           ) : appointments.length === 0 ? (
-            <Text style={s.emptyText}>Nessuna guida registrata con questo allievo.</Text>
+            <Text style={s.emptyText}>
+              {/* REG-458 — «nessuna guida» a chi ne ha, solo sul percorso
+                  precedente, sarebbe falso. */}
+              {hiddenByPath === 1
+                ? "Nessuna guida in questo percorso. L'altra è sotto «Vedi tutto»."
+                : hiddenByPath > 1
+                  ? `Nessuna guida in questo percorso. Le altre ${hiddenByPath} sono sotto «Vedi tutto».`
+                  : 'Nessuna guida registrata con questo allievo.'}
+            </Text>
           ) : (
             <Animated.View entering={FadeIn.duration(350)}>
               {appointments.map((appt, idx) => {
@@ -1124,9 +1204,13 @@ const s = StyleSheet.create({
   profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
   licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
   licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
-  // REG-458 — verde sobrio, non un badge premio: e' un'informazione operativa.
-  obtainedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EAF4EE', maxWidth: 160 },
-  obtainedChipText: { fontSize: 11.5, fontWeight: '600', color: '#2F6F4E', letterSpacing: -0.1 },
+  // REG-458 — riga di contesto del percorso. Neutra per scelta: il design
+  // system e' 70/20/10 (neutri / navy / giallo) e `colors.positive` e'
+  // riservato agli stati di successo — «ha gia' la A2» e' un'informazione, non
+  // un premio. Il navy sta solo sull'azione, l'unica cosa interattiva.
+  pathBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 22, paddingVertical: 10, paddingHorizontal: 12, borderRadius: radii.sm, backgroundColor: '#F7F7F7' },
+  pathBarText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.textPrimary, letterSpacing: -0.1 },
+  pathBarAction: { fontSize: 12.5, fontWeight: '600', color: colors.primary, textDecorationLine: 'underline' },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
   statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },

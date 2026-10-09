@@ -70,6 +70,15 @@ export function lessonsPathFilterId(
   return currentPath(paths)?.id ?? null;
 }
 
+/**
+ * CQC e ADR sono **qualificazioni**, non patenti: non hanno un cambio, e
+ * scrivere «CQC · Manuale» non vuol dire niente. Gemello di `isQualification`
+ * nel repo web.
+ */
+const QUALIFICATIONS = ['CQC', 'ADR'];
+export const isQualification = (category: string | null | undefined): boolean =>
+  !!category && QUALIFICATIONS.some((q) => category.toUpperCase().startsWith(q));
+
 /** Come si chiama un percorso a schermo: "B", "A2", "CQC". */
 export const pathLabel = (path: LicensePath | null): string =>
   path?.licenseCategory ?? 'attuale';

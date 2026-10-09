@@ -129,3 +129,21 @@ sotto-filtri e le programmate seedate dalla home lo rispettano tutti.
 > l'esame del 2/9 e la guida del 24/9, entrambi del percorso A2 conseguito,
 > dentro il percorso B appena avviato. Il gemello lato web è descritto in
 > `reglo/docs/features/license-paths.md`.
+
+## La stessa regola nella scheda ISTRUTTORE
+
+`StudentNotesDetailScreen` (dettaglio allievo lato istruttore) usa lo stesso
+`src/utils/licensePaths.ts`, con i percorsi che arrivano da
+`/api/autoscuole/students` (`licensePaths`, presente solo per chi ne ha più di
+uno). Il filtro si applica **alla fonte**: `rawAppointments` resta grezzo,
+`appointments` è il derivato filtrato, e ogni consumatore a valle eredita il
+filtro — storico guide, contatore dell'obbligo (per percorso, come da decisione
+di prodotto), voto medio, ore guidate.
+
+⚠️ `allAppointments` resta **non filtrato** di proposito: alimenta il blocco
+pagamenti, e i crediti sono dell'allievo, non del percorso. Se un domani filtri
+anche quello, un allievo che riparte si vede azzerare i debiti.
+
+La riga di contesto è neutra per scelta: il design system è 70/20/10
+(neutri / navy / giallo) e `colors.positive` è riservato agli stati di successo
+— «ha già la A2» è un'informazione, non un premio. Il navy sta solo sull'azione.
