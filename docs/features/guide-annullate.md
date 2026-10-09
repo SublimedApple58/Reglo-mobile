@@ -156,3 +156,46 @@ toggle a destra. **Due forme per due mestieri**: `filled` contiene un controllo
 che si usa, `quiet` dice soltanto cosa stai guardando. Riempire di grigio una
 riga che informa la farebbe pesare quanto una che si usa, e su una scheda già
 densa diventa una macchia.
+
+### Il movimento del filtro (2026-10-10)
+
+Il filtro era corretto ma **scattava**: testi sostituiti di colpo, guide che
+comparivano e sparivano senza transizione, la sezione che saltava a una nuova
+altezza, e nessun feedback al tocco su una riga che invece è un controllo.
+
+Tutto il movimento sta su `react-native-reanimated` (già nel binario 2.3.0:
+nessuna dipendenza nativa nuova, quindi **resta rilasciabile via OTA**) e segue
+la §8 del design system.
+
+| Dove | Cosa | Curva / durata |
+|---|---|---|
+| `InfoBanner` (entrambe le forme) | tocco: scala + velo, haptic di selezione | `withTiming` 90ms in, Snappy (damping 20 / stiffness 300) in uscita |
+| `InfoBanner` | testi che cambiano valore | dissolvenza 200ms, chiave sul valore |
+| `InfoBanner` | freccia che si gira quando l'azione si inverte | spring damping 18 / stiffness 220 |
+| `InfoBanner` | larghezza della riga | `LinearTransition` Gentle |
+| Storico guide | righe nuove | `FadeInDown` 240ms + 6px, cascata 45ms sulle sole righe nuove, ferma alla settima |
+| Storico guide | righe che escono | `FadeOut` 130ms |
+| Storico guide | righe che restano, altezza della sezione | `LinearTransition` Gentle |
+| Numeri della scheda, contatore obbligo, frase di stato | dissolvenza sul cambio di percorso | 220ms |
+| Barra dell'obbligo | si riempie da sinistra, si svuota dall'ultimo | colore 180ms, scaglioni 35ms |
+
+⚠️ **La cascata segue l'ordine di apparizione, non l'indice di lista.** Con
+l'indice, una guida in ventesima posizione aspetterebbe mezzo secondo e la
+cascata partirebbe comunque dall'alto anche quando le righe nuove sono in
+mezzo. `prevShownIds` (un ref) ricorda chi era a schermo prima del commit;
+chi non c'era prende il proprio posto nella cascata.
+
+⚠️ **Le righe che restano NON rientrano.** La chiave è `appt.id`: mantengono la
+propria identità e scivolano col `layout`. Rimontarle tutte a ogni cambio di
+filtro sarebbe la velatura che si vuole evitare.
+
+**«Riduci movimento»**: cadono spostamenti, scala, rotazione e cascate, restano
+le dissolvenze — che movimento non sono. Le transizioni di layout si
+disattivano da sé (`ReduceMotion.System` è il loro default); le dissolvenze
+sono marcate `ReduceMotion.Never` **di proposito**, altrimenti Reanimated le
+salterebbe e lo scatto tornerebbe esattamente dov'era.
+
+Lo stesso difetto era in `LessonsOverview` (app allievo) per la stessa
+ragione: la chiave della lista conteneva il tab ma **non** il percorso, quindi
+«Vedi tutte» faceva comparire le guide vecchie di scatto. È il terzo caso in
+cui questo bug ricompare su una superficie dimenticata.
