@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Linking,
@@ -9,7 +9,20 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useReducedMotion,
+  withDelay,
+  withTiming,
+  interpolate,
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  ReduceMotion,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -132,8 +145,86 @@ const gs = StyleSheet.create({
   },
 });
 
-/** Le righe si riassestano di molla quando un pagellino si apre o si chiude. */
+/** Le righe si riassestano di molla quando un pagellino si apre o si chiude,
+ *  e quando il filtro per percorso ne aggiunge o ne toglie. Gentle (§8.2):
+ *  fluido, nessun rimbalzo — su una lista densa un rimbalzo diventa
+ *  un'onda. Con «Riduci movimento» Reanimated le disattiva da sé
+ *  (`ReduceMotion.System` è il default delle transizioni di layout). */
 const EVAL_LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
+
+/** REG-458 — le guide che compaiono o scompaiono cambiando percorso.
+ *
+ *  Entrano con una dissolvenza e **sei pixel** di risalita: abbastanza per
+ *  leggere la direzione («arrivano da sotto, sono più vecchie»), troppo pochi
+ *  per sembrare una slide. 240ms sta in fascia Standard (§8.3).
+ *
+ *  Il ritardo è a scaglioni di 45ms sulle sole righe NUOVE, fermato alla
+ *  settima: la cascata dà ritmo finché si legge come ritmo, dopo mezzo secondo
+ *  diventa lentezza. Le righe che restano non rientrano: scivolano col `layout`
+ *  mantenendo la propria identità (la chiave è `appt.id`).
+ *
+ *  In uscita solo dissolvenza, e corta: Reanimated posiziona in absolute la
+ *  riga che esce, e su una timeline con il filo di congiunzione più di 130ms
+ *  di sovrapposizione si noterebbero. */
+const ROW_STAGGER_MS = 45;
+const ROW_STAGGER_CAP = 6;
+const rowEnter = (order: number, reduced: boolean) => {
+  const delay = Math.min(order, ROW_STAGGER_CAP) * ROW_STAGGER_MS;
+  // Con «Riduci movimento»: nessuno spostamento, nessuna cascata, solo un fade
+  // rapido. `ReduceMotion.Never` perché una dissolvenza non è movimento e
+  // altrimenti Reanimated la salterebbe, facendo ricomparire lo scatto.
+  return reduced
+    ? FadeIn.duration(120).reduceMotion(ReduceMotion.Never)
+    : FadeInDown.duration(240).delay(delay).springify().damping(20);
+};
+const ROW_EXIT = FadeOut.duration(130).reduceMotion(ReduceMotion.Never);
+
+/** I numeri della scheda cambiano valore restando dove sono: dissolvenza, mai
+ *  spostamento. 220ms — abbastanza da vedersi, non da far aspettare. */
+const STAT_DISSOLVE = FadeIn.duration(220).reduceMotion(ReduceMotion.Never);
+
+const SEGMENT_EMPTY = '#DDDDDD';
+const SEGMENT_FULL = '#1A1A2E';
+const SEGMENT_STAGGER_MS = 35;
+
+/**
+ * Un segmento della barra dell'obbligo.
+ *
+ * Esiste come componente a sé perché `useAnimatedStyle` non si può chiamare
+ * dentro una `map`. Il colore passa in 180ms, la durata che il design system
+ * (§8.4) dà a ogni cambio acceso/spento.
+ *
+ * Il ritardo dà il verso: riempiendosi va da sinistra a destra, svuotandosi
+ * dall'ultimo verso il primo — come un recipiente che si riempie e si versa.
+ * Serve perché il filtro per percorso cambia il conteggio (l'obbligo è PER
+ * percorso): senza, la barra sbiancava di colpo tutta insieme.
+ */
+const ObbligoSegment = ({
+  filled,
+  index,
+  total,
+  reduced,
+}: {
+  filled: boolean;
+  index: number;
+  total: number;
+  reduced: boolean;
+}) => {
+  const style = useAnimatedStyle(() => {
+    const target = filled ? SEGMENT_FULL : SEGMENT_EMPTY;
+    // Una tinta che cambia non è movimento, quindi resta anche con «Riduci
+    // movimento»: cade solo la cascata, che movimento è.
+    if (reduced) return { backgroundColor: withTiming(target, { duration: 120 }) };
+    const delay = (filled ? index : total - 1 - index) * SEGMENT_STAGGER_MS;
+    return {
+      backgroundColor: withDelay(
+        delay,
+        withTiming(target, { duration: 180, easing: Easing.out(Easing.cubic) }),
+      ),
+    };
+  });
+  return <Animated.View style={[s.segment, style]} />;
+};
 
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
@@ -509,6 +600,32 @@ export const StudentNotesDetailScreen = () => {
   );
   const hiddenByPath = rawAppointments.length - appointments.length;
 
+  const reducedMotion = useReducedMotion();
+  /**
+   * REG-458 — chi è appena comparso, e in che ordine.
+   *
+   * Serve alla cascata: scaglionare sull'indice di lista darebbe mezzo secondo
+   * di ritardo a una guida che si trova in ventesima posizione, e la cascata
+   * partirebbe comunque dall'alto anche quando le righe nuove sono in mezzo.
+   * Qui il ritardo segue l'ordine di **apparizione**, così allargando il
+   * filtro la cascata parte dalla prima riga che non c'era.
+   *
+   * L'insieme si aggiorna dopo il commit: durante il render `prevShownIds`
+   * descrive ancora quello che è a schermo, che è esattamente il confronto che
+   * serve. Reanimated legge `entering` al mount, quindi il valore calcolato qui
+   * è quello che la riga userà.
+   */
+  const prevShownIds = useRef<Set<string>>(new Set());
+  const enterOrder = useMemo(() => {
+    const order = new Map<string, number>();
+    let n = 0;
+    for (const a of appointments) if (!prevShownIds.current.has(a.id)) order.set(a.id, n++);
+    return order;
+  }, [appointments]);
+  useEffect(() => {
+    prevShownIds.current = new Set(appointments.map((a) => a.id));
+  }, [appointments]);
+
   // Obbligo: contano SOLO le guide da 60 minuti (stesso criterio del BE e dei
   // colori dell'agenda). Le guide da 30 minuti finivano qui dentro per errore.
   const completedCount = useMemo(
@@ -653,17 +770,33 @@ export const StudentNotesDetailScreen = () => {
                 ))}
               </View>
             ) : (
+              // REG-458 — tutti e tre questi numeri sono PER percorso: cambiando
+              // il filtro cambiano insieme. La chiave sul valore li fa sfumare
+              // al proprio posto; l'etichetta sotto non si muove, così si legge
+              // «è cambiato il numero», non «è cambiata la scheda».
               <Animated.View entering={FadeIn.duration(350)} style={s.profileStats}>
-                <View style={s.statBlock}><Text style={s.statNum}>{completedCount}</Text><Text style={s.statLbl}>completate</Text></View>
+                <View style={s.statBlock}>
+                  <Animated.Text key={completedCount} entering={STAT_DISSOLVE} style={s.statNum}>
+                    {completedCount}
+                  </Animated.Text>
+                  <Text style={s.statLbl}>completate</Text>
+                </View>
                 <View style={s.statHr} />
                 <View style={s.statBlock}>
                   <View style={s.statValueRow}>
-                    <Text style={s.statNum}>{avgRating ?? '—'}</Text>
+                    <Animated.Text key={avgRating ?? '—'} entering={STAT_DISSOLVE} style={s.statNum}>
+                      {avgRating ?? '—'}
+                    </Animated.Text>
                   </View>
                   <Text style={s.statLbl}>voto medio</Text>
                 </View>
                 <View style={s.statHr} />
-                <View style={s.statBlock}><Text style={s.statNum}>{totalHours}h</Text><Text style={s.statLbl}>ore guidate</Text></View>
+                <View style={s.statBlock}>
+                  <Animated.Text key={totalHours} entering={STAT_DISSOLVE} style={s.statNum}>
+                    {totalHours}h
+                  </Animated.Text>
+                  <Text style={s.statLbl}>ore guidate</Text>
+                </View>
               </Animated.View>
             )}
             <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
@@ -728,6 +861,10 @@ export const StudentNotesDetailScreen = () => {
                     : 'Vedi tutto'
                   : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`
               }
+              // Avanti = allarga («Vedi tutto»), indietro = restringe («Solo la
+              // B»). Stesso asse nei due versi, quindi la stessa freccia che si
+              // gira, non due icone diverse da riconoscere.
+              actionFlipped={!shownPath}
               onPress={() =>
                 setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
               }
@@ -742,20 +879,42 @@ export const StudentNotesDetailScreen = () => {
                 <SkeletonBlock width={44} height={22} radius={6} />
               ) : (
                 <Animated.View entering={FadeIn.duration(350)} style={s.obbligoCountRow}>
-                  <Text style={s.obbligoCount}>{Math.min(completedCount, REQUIRED_LESSONS)}</Text>
+                  {/* La chiave è il numero: cambiando percorso cambia il
+                      conteggio, e una cifra che si sostituisce di colpo è lo
+                      scatto più visibile della schermata, perché è grossa. */}
+                  <Animated.Text
+                    key={Math.min(completedCount, REQUIRED_LESSONS)}
+                    entering={FadeIn.duration(220).reduceMotion(ReduceMotion.Never)}
+                    style={s.obbligoCount}
+                  >
+                    {Math.min(completedCount, REQUIRED_LESSONS)}
+                  </Animated.Text>
                   <Text style={s.obbligoTotal}>/{REQUIRED_LESSONS}</Text>
                 </Animated.View>
               )}
             </View>
             <View style={s.segments}>
               {Array.from({ length: REQUIRED_LESSONS }).map((_, i) => (
-                <View key={i} style={[s.segment, !loading && i < completedCount && s.segmentFilled]} />
+                <ObbligoSegment
+                  key={i}
+                  index={i}
+                  total={REQUIRED_LESSONS}
+                  filled={!loading && i < completedCount}
+                  reduced={reducedMotion}
+                />
               ))}
             </View>
             {loading ? (
               <SkeletonBlock width={150} height={13} radius={6} style={{ marginTop: 12 }} />
             ) : (
-              <Animated.View entering={FadeIn.duration(350)} style={s.obbligoStatusRow}>
+              <Animated.View
+                // «Obbligo completato» ↔ «Mancano 4 guide»: la frase cambia con
+                // il percorso, e con lei la spunta verde. La chiave la fa
+                // dissolvere invece di sostituirla a scatto.
+                key={isCompleted ? 'done' : REQUIRED_LESSONS - completedCount}
+                entering={FadeIn.duration(220).reduceMotion(ReduceMotion.Never)}
+                style={s.obbligoStatusRow}
+              >
                 {isCompleted ? <Ionicons name="checkmark-circle" size={15} color="#16A34A" /> : null}
                 <Text style={[s.obbligoStatus, isCompleted && { color: '#16A34A' }]}>
                   {isCompleted ? 'Obbligo completato' : `Mancano ${REQUIRED_LESSONS - completedCount} guide`}
@@ -943,7 +1102,13 @@ export const StudentNotesDetailScreen = () => {
               ))}
             </View>
           ) : appointments.length === 0 ? (
-            <Text style={s.emptyText}>
+            // Vuoto ↔ lista è un cambio di stato, non un taglio: §8.6.
+            <Animated.Text
+              layout={EVAL_LAYOUT}
+              entering={FadeIn.duration(220).reduceMotion(ReduceMotion.Never)}
+              exiting={ROW_EXIT}
+              style={s.emptyText}
+            >
               {/* REG-458 — «nessuna guida» a chi ne ha, solo sul percorso
                   precedente, sarebbe falso. */}
               {hiddenByPath === 1
@@ -951,9 +1116,13 @@ export const StudentNotesDetailScreen = () => {
                 : hiddenByPath > 1
                   ? `Nessuna guida in questo percorso. Le altre ${hiddenByPath} sono sotto «Vedi tutto».`
                   : 'Nessuna guida registrata con questo allievo.'}
-            </Text>
+            </Animated.Text>
           ) : (
-            <Animated.View entering={FadeIn.duration(350)}>
+            // `layout` sul contenitore: cambiando percorso la sezione cresce e
+            // si accorcia scorrendo, invece di saltare a una nuova altezza.
+            // Niente `entering` qui: la cascata è delle righe (§8.5), e due
+            // dissolvenze sovrapposte sarebbero una velatura, non un ritmo.
+            <Animated.View layout={EVAL_LAYOUT}>
               {appointments.map((appt, idx) => {
                   const isLast = idx === appointments.length - 1;
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
@@ -962,7 +1131,13 @@ export const StudentNotesDetailScreen = () => {
                   const motoType = asMotoLessonType(appt.motoLessonType);
                   const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida' && t !== 'group_lesson');
                   return (
-                    <View key={appt.id} style={s.tlRow}>
+                    <Animated.View
+                      key={appt.id}
+                      layout={EVAL_LAYOUT}
+                      entering={rowEnter(enterOrder.get(appt.id) ?? 0, reducedMotion)}
+                      exiting={ROW_EXIT}
+                      style={s.tlRow}
+                    >
                       <View style={s.tlLeft}>
                         <View style={[s.tlDot, isExam && s.tlDotExam]} />
                         {!isLast ? <View style={s.tlLine} /> : null}
@@ -1145,7 +1320,7 @@ export const StudentNotesDetailScreen = () => {
                           <Ionicons name="create-outline" size={15} color={colors.textMuted} style={{ marginTop: 1 }} />
                         </Pressable>
                       </View>
-                    </View>
+                    </Animated.View>
                   );
                 })}
               </Animated.View>
@@ -1223,7 +1398,6 @@ const s = StyleSheet.create({
   obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#929292' },
   segments: { flexDirection: 'row', gap: 6, marginTop: 12 },
   segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#DDDDDD' },
-  segmentFilled: { backgroundColor: '#1A1A2E' },
   obbligoStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
   obbligoStatus: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
 

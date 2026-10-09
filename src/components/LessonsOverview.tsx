@@ -1,7 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  ReduceMotion,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { selectionAsync } from '../utils/haptics';
 import { SheetScaffold } from './SheetScaffold';
 import {
   LEDGER_PAD,
@@ -109,8 +119,23 @@ function groupByMonth(list: AutoscuolaAppointmentWithRelations[]) {
   return out;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** I testi della riga cambiano valore restando al loro posto: dissolvenza, non
+ *  spostamento. `ReduceMotion.Never` perché un fade non è movimento — con
+ *  «Riduci movimento» attivo è proprio quello che deve restare. */
+const PATH_DISSOLVE = FadeIn.duration(200).reduceMotion(ReduceMotion.Never);
+
 export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Props) {
   const [tab, setTab] = useState<Tab>('upcoming');
+  const reducedMotion = useReducedMotion();
+  const pathPressed = useSharedValue(0);
+  const pathRowPressStyle = useAnimatedStyle(() => ({
+    // 1.5% e non il 3% del design system: su una riga a tutta larghezza il 3%
+    // fa gommare i bordi. Il velo a 0.62 è quello delle altre righe tappabili.
+    transform: [{ scale: reducedMotion ? 1 : 1 - pathPressed.value * 0.015 }],
+    opacity: 1 - pathPressed.value * 0.38,
+  }));
   /**
    * REG-458 — quale percorso sta guardando. `null` = non ha scelto, vale il
    * default (il percorso in corso); `ALL_LESSON_PATHS` = ha chiesto di
@@ -257,27 +282,47 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         </View>
 
         {showPathRow ? (
-          <Pressable
-            style={s.pathRow}
-            onPress={() =>
-              setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
-            }
+          // Stesso trattamento della scheda istruttore: la riga risponde al
+          // dito e i suoi testi sfumano al proprio posto. Era l'unica riga
+          // tappabile della schermata senza alcun feedback al tocco.
+          <AnimatedPressable
+            style={[s.pathRow, pathRowPressStyle]}
+            onPress={() => {
+              selectionAsync().catch(() => {});
+              setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS));
+            }}
+            onPressIn={() => {
+              pathPressed.value = withTiming(1, { duration: 90 });
+            }}
+            onPressOut={() => {
+              pathPressed.value = withSpring(0, { damping: 20, stiffness: 300 });
+            }}
             hitSlop={8}
+            accessibilityRole="button"
           >
             <Ionicons name="car-sport-outline" size={15} color={colors.textMuted} />
-            <Text style={s.pathText} numberOfLines={1}>
+            <Animated.Text
+              key={shownPath ? 'one' : 'all'}
+              entering={PATH_DISSOLVE}
+              style={s.pathText}
+              numberOfLines={1}
+            >
               {shownPath
                 ? `Guide della patente ${pathLabel(shownPath)}`
                 : 'Tutte le guide, anche dei percorsi precedenti'}
-            </Text>
-            <Text style={s.pathAction}>
+            </Animated.Text>
+            <Animated.Text
+              key={shownPath ? `see-${hiddenByPath}` : 'only'}
+              entering={PATH_DISSOLVE}
+              style={s.pathAction}
+            >
               {shownPath
                 ? hiddenByPath > 0
                   ? `Vedi tutte (${hiddenByPath} prima)`
                   : 'Vedi tutte'
                 : `Solo la ${pathLabel(thisPath)}`}
-            </Text>
-          </Pressable>
+            </Animated.Text>
+          </AnimatedPressable>
         ) : null}
 
         <LedgerFilterBar defs={filterDefs} active={tab} onChange={setTab} style={s.filters} />
@@ -291,7 +336,16 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         ) : (
           // La chiave è il filtro: cambiandolo la lista si rimonta ed entra in
           // dissolvenza, invece di sostituirsi di colpo.
-          <Animated.View key={tab} entering={FadeIn.duration(200)} style={s.list}>
+          //
+          // REG-458 — e il percorso è un filtro quanto il tab: senza di lui
+          // nella chiave, «Vedi tutte» faceva comparire di scatto le guide dei
+          // percorsi precedenti. Stesso scatto che la scheda istruttore aveva
+          // per la stessa ragione.
+          <Animated.View
+            key={`${tab}:${activePathId ?? 'all'}`}
+            entering={FadeIn.duration(200)}
+            style={s.list}
+          >
             {(() => {
               let row = 0;
               return sections.map((section) => (
