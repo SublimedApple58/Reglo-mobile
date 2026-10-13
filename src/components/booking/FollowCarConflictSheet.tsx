@@ -39,6 +39,32 @@ const formatSlot = (startsAt: string, endsAt: string) => {
 const capitalize = (text: string) => (text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text);
 
 /**
+ * Le date da sistemare in ordine **cronologico**, non in quello in cui sono
+ * state aggiunte: qui si guarda un calendario, e un 15:00 in mezzo fra le 9 e
+ * le 11 fa perdere il filo. La numerazione segue l'elenco (1, 2, 3...).
+ * Gemello del web: `FollowCarConflictPane.orderConflicts`.
+ */
+const orderConflicts = (entries: FollowCarConflictData['entries']) =>
+  entries
+    .filter((entry) => entry.conflict)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+/**
+ * Quante guide nascono premendo **adesso**: le date libere piu' quelle gia'
+ * sistemate, meno quelle tolte. Il bottone non promette numeri che non puo'
+ * mantenere — una riga ancora senza risposta non e' una guida.
+ */
+const countCreatable = (
+  entries: FollowCarConflictData['entries'],
+  choice: Record<number, ConflictChoice>,
+) =>
+  entries.filter(
+    (entry) =>
+      choice[entry.index] !== 'remove' &&
+      (!entry.conflict || choice[entry.index] !== undefined),
+  ).length;
+
+/**
  * Una sola auto libera non e' una scelta: la mettiamo gia' noi (stessa regola
  * del veicolo precompilato). Con piu' d'una si lascia decidere.
  */
@@ -79,7 +105,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
   if (!data) return <View style={scrollable ? s.rootTall : s.root} />;
 
   const total = data.entries.length;
-  const conflicts = data.entries.filter((e) => e.conflict);
+  const conflicts = orderConflicts(data.entries);
   const followConflicts = conflicts.filter((e) => e.conflict?.role === 'follow');
   // Il nome si puo' dire solo se a bloccare e' SEMPRE quella macchina: con
   // motivi misti (anche l'istruttore occupato) la frase mentirebbe.
@@ -90,6 +116,8 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
   const anyChoosable = conflicts.some((e) => (e.freeFollowCars?.length ?? 0) > 0);
   const pendingCount = conflicts.filter((e) => choice[e.index] === undefined).length;
   const keptCount = data.entries.filter((e) => choice[e.index] !== 'remove').length;
+  // Il numero sulla CTA e' quello che nascerebbe premendo adesso.
+  const creatableCount = countCreatable(data.entries, choice);
 
   const pick = (index: number, value: ConflictChoice | undefined) =>
     setChoice((prev) => {
@@ -157,7 +185,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
     data.onConfirm(payload);
   };
 
-  const rows = conflicts.map((entry) => {
+  const rows = conflicts.map((entry, position) => {
     const answer = choice[entry.index];
     const answered = answer !== undefined;
     const removed = answer === 'remove';
@@ -179,7 +207,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
             {answered ? (
               <Ionicons name="checkmark" size={12} color="#FFFFFF" />
             ) : (
-              <Text style={s.numTxt}>{entry.index + 1}</Text>
+              <Text style={s.numTxt}>{position + 1}</Text>
             )}
           </View>
           <Text style={s.slot} numberOfLines={1}>
@@ -350,7 +378,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
       >
         {pendingCount === 0 && keptCount > 0 ? <GradientCTABackground radius={27} /> : null}
         <Text style={[s.ctaTxt, (pendingCount > 0 || keptCount === 0) && s.ctaTxtOff]}>
-          {`Prenota ${keptCount} guid${keptCount === 1 ? 'a' : 'e'}`}
+          {`Prenota ${creatableCount} guid${creatableCount === 1 ? 'a' : 'e'}`}
         </Text>
       </Pressable>
 
