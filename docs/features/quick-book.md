@@ -150,6 +150,14 @@ tutto il lavoro di scelta.
 ancora la rotta) si prenota come si è sempre fatto, tutto-o-niente: una
 verifica che è solo un aiuto non deve poter bloccare una prenotazione.
 
+**Il controllo è lo stesso del web** (`reglo/lib/autoscuole/conflict-scan.ts`):
+prova a vuoto e creazione passano dalla stessa funzione, quindi non possono
+dire due cose diverse. Lo dicevano, fino a REG-616: le righe d'agenda si
+leggono una volta sola per tutte le date e bastava che una qualsiasi si
+sovrapponesse perché la data risultasse bloccata «dall'istruttore» — la
+creazione rifiutava *dopo* che l'utente aveva scelto l'auto sostitutiva. È il
+difetto che è saltato fuori provando questo foglio fino in fondo.
+
 Gemello web: `reglo/components/pages/Autoscuole/dialogs/FollowCarConflictPane.tsx`
 (REG-613) — stessi testi, stesse regole.
 
