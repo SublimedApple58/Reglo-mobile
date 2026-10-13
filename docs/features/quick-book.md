@@ -105,6 +105,54 @@ Il filtro vale per entrambe le strade (FAB `new-booking` e quick-book: stesso
 `BookingForm`, stesse opzioni) e per il titolare in `ownerMode`. Il backend non
 impone la fase allo staff — dall'agenda web si prenota ancora per chiunque.
 
+## «Auto al seguito occupata» — auto sostitutiva per data (REG-608 / T7)
+
+Una prenotazione multipla condivide **tutto** fra le date tranne una cosa:
+l'**auto al seguito**. Prima bastava che fosse occupata in UNA data per far
+fallire l'intero batch (è una transazione tutto-o-niente), con un messaggio che
+non diceva nemmeno quale auto fosse. Ora, al tocco su «Prenota N guide»:
+
+1. **Prova a vuoto** (`regloApi.checkInstructorBookingBatch` →
+   `POST /api/autoscuole/instructor-bookings/check-batch`): non scrive niente,
+   dice quali date sono libere, perché le altre no e **quali auto al seguito
+   sono libere in ciascuno slot**. Non controlla il limite settimanale: quella
+   conferma resta sulla creazione vera (e si chiede *prima* della prova).
+2. Nessun conflitto → si prenota come sempre, **l'utente non vede niente di
+   nuovo** (il caso normale).
+3. Altrimenti si apre il foglio **«Auto al seguito occupata»**
+   (`FollowCarConflictSheet`): una riga per ogni data da sistemare, l'auto
+   sostitutiva si scegli dal picker nativo delle sole auto **libere a
+   quell'ora**, con la scorciatoia «Applica a tutte» quando una macchina è
+   libera in tutte le date in conflitto. Le date libere non si elencano: sono
+   già riassunte in cima. **Il punto è trovare un'altra auto, non un'altra data.**
+4. Le guide si creano **alla fine, tutte insieme**: «Prenota N guide» (richiede
+   una risposta per ogni riga) oppure «Prenota solo le N libere».
+
+| File | Ruolo |
+|------|-------|
+| `src/stores/followCarConflictStore.ts` | Esito della prova a vuoto + `onConfirm`. `followCarConflictPath()`: **1-3** conflitti → `follow-car-conflict` (`HUG_SHEET`), **4+** → `follow-car-conflict-long` (`PAGE_SHEET`). |
+| `src/components/booking/FollowCarConflictSheet.tsx` | Il foglio. `scrollable={false}` radice `<View>` senza ScrollView (il `fitToContents` non la sa misurare), `scrollable` corpo che scorre + CTA ancorata. |
+| `app/(tabs)/home/follow-car-conflict.tsx` / `-long.tsx` | Le due rotte, stesso componente (stesso schema di `select-options` / `select-options-long`). |
+| `BookingForm.confirmMulti` | Prova a vuoto → foglio → `submitBatch`. `batchSharedPayload()` è l'unico posto dove si dice cosa è condiviso. |
+
+Risposte possibili per riga: un'auto libera · «Nessuna auto al seguito» ·
+«Togli la guida» (con «Ripristina»). `entries[].followVehicleId` ha **tre stati
+da non appiattire**: assente = eredita l'auto condivisa, `null` = nessuna auto,
+id = quell'auto.
+
+**Il foglio si chiude prima di prenotare**: lo spinner resta uno solo, quello
+della CTA del form sotto. Se la creazione fallisce comunque (qualcuno ha preso
+lo slot fra la verifica e la conferma), `runBooking` chiama `onFailure` → si
+rifà la prova a vuoto e si torna sul foglio aggiornato, invece di buttare via
+tutto il lavoro di scelta.
+
+**Se la prova a vuoto non risponde** (rete, oppure un backend che non conosce
+ancora la rotta) si prenota come si è sempre fatto, tutto-o-niente: una
+verifica che è solo un aiuto non deve poter bloccare una prenotazione.
+
+Gemello web: `reglo/components/pages/Autoscuole/dialogs/FollowCarConflictPane.tsx`
+(REG-613) — stessi testi, stesse regole.
+
 ## Note
 
 - **Blocco prenotazioni dell'allievo (REG-499)**: non ferma l'istruttore. Se il

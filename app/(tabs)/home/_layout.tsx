@@ -41,6 +41,12 @@ export default function HomeLayout() {
           allievo arriva a decine di guide) → page sheet con scroll nativo. */}
       <Stack.Screen name="student-payments" options={PAGE_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
+      {/* «Auto al seguito occupata» (REG-608): 1-3 date in conflitto stanno in
+          un foglio che abbraccia il contenuto; da 4 in su serve un corpo che
+          scorre, e una ScrollView dentro un fitToContents non si misura →
+          page sheet (vedi followCarConflictPath). */}
+      <Stack.Screen name="follow-car-conflict" options={HUG_SHEET} />
+      <Stack.Screen name="follow-car-conflict-long" options={PAGE_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) NON basta: il

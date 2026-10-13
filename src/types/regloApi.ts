@@ -1094,12 +1094,66 @@ export type ConfirmInstructorBookingBatchInput = {
   skipWeeklyLimitCheck?: boolean;
   // Vedi ConfirmInstructorBookingInput.allowPast.
   allowPast?: boolean;
-  entries: Array<{ startsAt: IsoDate; endsAt: IsoDate }>;
+  entries: Array<{
+    startsAt: IsoDate;
+    endsAt: IsoDate;
+    /**
+     * Auto al seguito solo per QUESTA data (REG-608). Tre stati distinti, da
+     * non appiattire: **assente** = eredita quella condivisa del batch,
+     * `null` = nessuna auto al seguito, id = quell'auto.
+     */
+    followVehicleId?: Uuid | null;
+  }>;
 };
 
 export type ConfirmInstructorBookingBatchResult = {
   created: number;
   appointments: AutoscuolaAppointment[];
+};
+
+/** Auto al seguito libera in uno slot (REG-608). */
+export type FreeFollowCar = {
+  id: Uuid;
+  name: string;
+  transmission: string | null;
+};
+
+/**
+ * Esito della prova a vuoto per UNA data del batch: se non si puo' creare,
+ * `conflict.label` e' la frase gia' pronta (le stesse parole del web) e
+ * `freeFollowCars` dice con cosa si puo' sostituire l'auto occupata.
+ */
+export type BookingBatchCheckEntry = {
+  index: number;
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  conflict?: {
+    kind: 'instructor' | 'block' | 'overlap' | 'vehicle';
+    inGroupLesson?: boolean;
+    role?: 'primary' | 'extra_moto' | 'follow';
+    vehicleId?: Uuid;
+    vehicleName?: string;
+    label: string;
+  };
+  /** Valorizzata solo quando il conflitto e' sull'auto al seguito: e' l'unico
+   *  caso in cui cambiare mezzo risolve. Lista vuota = nessuna auto libera. */
+  freeFollowCars?: FreeFollowCar[];
+};
+
+export type CheckInstructorBookingBatchInput = {
+  instructorId: Uuid;
+  vehicleId: Uuid | null;
+  followVehicleId?: Uuid | null;
+  extraMotoVehicleIds?: Uuid[];
+  entries: Array<{ startsAt: IsoDate; endsAt: IsoDate; followVehicleId?: Uuid | null }>;
+};
+
+export type CheckInstructorBookingBatchResult = {
+  entries: BookingBatchCheckEntry[];
+  freeCount: number;
+  conflictCount: number;
+  /** Un'auto libera in TUTTE le date in conflitto: la scorciatoia "per tutte". */
+  suggestedForAll: { id: Uuid; name: string } | null;
 };
 
 export type InstructorBlock = {

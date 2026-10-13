@@ -54,6 +54,8 @@ import {
   ConfirmInstructorBookingInput,
   ConfirmInstructorBookingBatchInput,
   ConfirmInstructorBookingBatchResult,
+  CheckInstructorBookingBatchInput,
+  CheckInstructorBookingBatchResult,
   LatestStudentAppointmentNote,
   DeleteAccountInput,
   DeleteAccountPayload,
@@ -788,6 +790,17 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     confirmInstructorBookingBatch: async (input: ConfirmInstructorBookingBatchInput) =>
       client.request<ConfirmInstructorBookingBatchResult>('/api/autoscuole/instructor-bookings/confirm-batch', {
+        method: 'POST',
+        body: input,
+      }),
+    /**
+     * Prova a vuoto della prenotazione multipla (REG-608): non crea niente,
+     * dice quali date sono libere, perche' le altre no e quali auto al seguito
+     * sono libere in ciascuno slot. Non controlla il limite settimanale —
+     * quella conferma resta sulla creazione vera.
+     */
+    checkInstructorBookingBatch: async (input: CheckInstructorBookingBatchInput) =>
+      client.request<CheckInstructorBookingBatchResult>('/api/autoscuole/instructor-bookings/check-batch', {
         method: 'POST',
         body: input,
       }),

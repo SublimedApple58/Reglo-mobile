@@ -19,9 +19,14 @@ import { studentPickerStore } from '../../stores/studentPickerStore';
 import { locationPickerStore } from '../../stores/locationPickerStore';
 import { locationFormStore } from '../../stores/locationFormStore';
 import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
+import {
+  followCarConflictPath,
+  followCarConflictStore,
+  type ConflictResolvedEntry,
+} from '../../stores/followCarConflictStore';
 import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
-import type { MobileBookingOptions } from '../../types/regloApi';
+import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { ToggleSwitch } from '../ToggleSwitch';
 import { InfoBanner } from '../InfoBanner';
 import { Button } from '../Button';
@@ -470,6 +475,9 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     doBook: (flags: BookingConfirmFlags) => Promise<unknown>,
     successMessage: (result: unknown) => string,
     initialFlags: BookingConfirmFlags = {},
+    /** Chiamata dopo l'alert di errore vero (non sulle domande di conferma):
+     *  serve alla multipla per riportare l'utente sulle date da sistemare. */
+    onFailure?: () => void,
   ) => {
     setPending(true);
     const settle = async (flags: BookingConfirmFlags = {}) => {
@@ -517,6 +525,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         }
         setPending(false);
         Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella prenotazione');
+        onFailure?.();
       }
     };
     void settle(initialFlags);
@@ -592,6 +601,99 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     submit(false);
   };
 
+  /** Quel che tutte le date del batch hanno in comune (l'auto al seguito e' la
+   *  sola cosa che poi puo' cambiare data per data — REG-608). */
+  const batchSharedPayload = () => ({
+    instructorId,
+    vehicleId: vehiclesEnabled ? vehicleId : null,
+    followVehicleId: effectiveFollowVehicleId || null,
+    extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
+  });
+
+  /** La prenotazione vera: una sola strada, sia col batch intatto sia con le
+   *  auto sostituite nel foglio dei conflitti. */
+  const submitBatch = (
+    slots: ConflictResolvedEntry[],
+    opts: { allowPast: boolean; skipWeeklyLimit: boolean; onFailure?: () => void },
+  ) =>
+    runBooking(
+      (flags) => regloApi.confirmInstructorBookingBatch({
+        studentId, ...batchSharedPayload(),
+        motoLessonType: effectiveMotoLessonType,
+        ...typesPayload,
+        ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
+        ...(opts.allowPast ? { allowPast: true } : {}), entries: slots,
+      }),
+      (result) => `${(result as { created: number }).created} guide prenotate.`,
+      { skipWeeklyLimit: opts.skipWeeklyLimit },
+      opts.onFailure,
+    );
+
+  /** Apre «Auto al seguito occupata» con l'esito della prova a vuoto. */
+  const openConflictSheet = (
+    check: CheckInstructorBookingBatchResult,
+    opts: { allowPast: boolean; skipWeeklyLimit: boolean },
+  ) => {
+    followCarConflictStore.set({
+      entries: check.entries,
+      freeCount: check.freeCount,
+      conflictCount: check.conflictCount,
+      suggestedForAll: check.suggestedForAll,
+      onConfirm: (resolved) =>
+        submitBatch(resolved, {
+          ...opts,
+          // Qualcuno può aver preso lo slot fra la verifica e la conferma:
+          // invece di buttare via tutto, si rifà la prova e si torna a scegliere.
+          onFailure: () => void refreshConflictSheet(resolved, opts),
+        }),
+    });
+    router.push(followCarConflictPath());
+  };
+
+  const checkBatch = (slots: ConflictResolvedEntry[]) =>
+    regloApi.checkInstructorBookingBatch({ ...batchSharedPayload(), entries: slots });
+
+  const refreshConflictSheet = async (
+    slots: ConflictResolvedEntry[],
+    opts: { allowPast: boolean; skipWeeklyLimit: boolean },
+  ) => {
+    try {
+      const check = await checkBatch(slots);
+      if (check.conflictCount) openConflictSheet(check, opts);
+    } catch {
+      // La prova a vuoto è un aiuto, non un passaggio obbligato: se non
+      // risponde, l'errore della creazione l'utente l'ha già letto.
+    }
+  };
+
+  /**
+   * Prova a vuoto, poi prenota: se tutte le date sono libere non si vede
+   * niente di nuovo (il caso normale). Altrimenti si apre il foglio dove si
+   * scambia l'auto al seguito occupata — il punto è trovare un'altra auto,
+   * non un'altra data (REG-608).
+   */
+  const runBatchCheck = async (
+    slots: ConflictResolvedEntry[],
+    opts: { allowPast: boolean; skipWeeklyLimit: boolean },
+  ) => {
+    setPending(true);
+    let check: CheckInstructorBookingBatchResult | null = null;
+    try {
+      check = await checkBatch(slots);
+    } catch {
+      // Backend che non conosce ancora la prova a vuoto (o rete che cade): si
+      // prenota come si è sempre fatto, tutto-o-niente. Mai bloccare una
+      // prenotazione per una verifica che è solo un aiuto.
+      check = null;
+    }
+    if (!check || !check.conflictCount) {
+      submitBatch(slots, opts);
+      return;
+    }
+    setPending(false);
+    openConflictSheet(check, opts);
+  };
+
   const confirmMulti = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
@@ -607,17 +709,12 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     const nowWeek = isoWeekStartUTC(new Date());
     const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
     const submit = (allowPast: boolean) => {
-      const book = (skipWeeklyLimit = false) => runBooking((flags) => regloApi.confirmInstructorBookingBatch({
-        studentId, instructorId, vehicleId: vehiclesEnabled ? vehicleId : null,
-        followVehicleId: effectiveFollowVehicleId || null,
-        extraMotoVehicleIds: effectiveExtraMotoVehicleIds,
-        motoLessonType: effectiveMotoLessonType,
-        ...typesPayload,
-        ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
-        ...(allowPast ? { allowPast: true } : {}), entries: payloadEntries,
-      }), (result) => `${(result as { created: number }).created} guide prenotate.`, { skipWeeklyLimit });
-      if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => book(true))) return;
-      book();
+      // Il limite settimanale si chiede PRIMA della prova a vuoto: la prova
+      // non lo controlla (è una conferma, non un conflitto di agenda).
+      const go = (skipWeeklyLimit = false) =>
+        void runBatchCheck(payloadEntries, { allowPast, skipWeeklyLimit });
+      if (confirmWeeklyLimitIfNeeded(currentWeekAdds, () => go(true))) return;
+      go();
     };
     // Se una o più guide del batch sono nel passato, conferma sulla più vecchia.
     const earliestPast = payloadEntries
