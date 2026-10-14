@@ -286,7 +286,13 @@ export default function ManageGroupLessonParticipantsScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={s.inviteTitle}>Invita allievi idonei</Text>
-                  <Text style={s.inviteSub}>Apri i {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'} agli allievi idonei</Text>
+                  {/* L'articolo cambia col numero: "Apri 1 posto libero",
+                      "Apri i 2 posti liberi". Prima diceva "Apri i 1 posto". */}
+                  <Text style={s.inviteSub}>
+                    {openSeats === 1
+                      ? 'Apri 1 posto libero agli allievi idonei'
+                      : `Apri i ${openSeats} posti liberi agli allievi idonei`}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
               </Pressable>
