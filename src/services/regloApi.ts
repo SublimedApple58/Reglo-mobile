@@ -400,10 +400,19 @@ export const createRegloApi = (baseUrl?: string) => {
         body: { all: true },
       }),
     inviteToGroupLesson: async (groupLessonId: string, expiresInHours?: number) =>
-      client.request<{ inviteId: string }>(`/api/autoscuole/group-lessons/${groupLessonId}/invite`, {
-        method: 'POST',
-        body: { expiresInHours },
-      }),
+      client.request<{ inviteId: string; invitedCount: number }>(
+        `/api/autoscuole/group-lessons/${groupLessonId}/invite`,
+        {
+          method: 'POST',
+          body: { expiresInHours },
+          // REG-617: gli invii veri ora partono DOPO la risposta, quindi la
+          // richiesta e' corta. Il margine sopra i 15s di default resta come
+          // cintura: su un'autoscuola grande il calcolo degli idonei legge
+          // comunque qualche centinaio di righe, e un timeout qui si vedeva
+          // come "Aborted" su un invito andato a buon fine.
+          timeoutMs: 30_000,
+        },
+      ),
     getEligibleGroupLessonInvitees: async (groupLessonId: string) =>
       client.request<GroupLessonInvitee[]>(
         `/api/autoscuole/group-lessons/${groupLessonId}/eligible-invitees`,

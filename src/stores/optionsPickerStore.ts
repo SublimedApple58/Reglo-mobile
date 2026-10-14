@@ -25,6 +25,12 @@ export type OptionsPickerData = {
   multi: boolean;
   /** Etichetta della CTA nei picker multipli (default "Conferma"). */
   confirmLabel?: string;
+  /**
+   * Cosa scrivere quando la ricerca non trova niente. Il picker e' condiviso
+   * (allievi, veicoli, durate), quindi il testo lo decide chi lo apre;
+   * default generico.
+   */
+  emptyLabel?: string;
   onConfirm: (values: string[]) => void;
 };
 
@@ -38,6 +44,20 @@ const _listeners = new Set<() => void>();
  * 2026-07-07) and a ScrollView inside fitToContents breaks the measuring.
  */
 export const LONG_PICKER_THRESHOLD = 7;
+
+/**
+ * Da quante voci il foglio si porta dietro un campo di ricerca (REG-617).
+ *
+ * Non sempre: su una lista corta la ricerca e' un ingombro che allontana la
+ * prima riga dal pollice. Oltre questa soglia e' il contrario — scorrere
+ * centinaia di allievi a mano non e' una risposta (segnalazione Robatto, 14/10:
+ * 256 allievi idonei). La ricerca compare **solo nel foglio che scorre**: in un
+ * `fitToContents` il filtro cambierebbe l'altezza a ogni lettera, e quel foglio
+ * non si rimisura.
+ */
+export const PICKER_SEARCH_THRESHOLD = 8;
+export const shouldShowPickerSearch = (count: number, scrollable: boolean) =>
+  scrollable && count > PICKER_SEARCH_THRESHOLD;
 export const optionsPickerPath = () =>
   (_data?.options.length ?? 0) > LONG_PICKER_THRESHOLD
     ? ('/(tabs)/home/select-options-long' as const)

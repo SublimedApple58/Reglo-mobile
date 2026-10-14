@@ -1,10 +1,12 @@
-import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState, useSyncExternalStore } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { optionsPickerStore } from '../stores/optionsPickerStore';
+import { optionsPickerStore, shouldShowPickerSearch } from '../stores/optionsPickerStore';
+import { matchesPersonSearch } from '../utils/peopleSearch';
 import { UserPhotoCircle } from './UserPhotoCircle';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { colors, navy } from '../theme/colors';
@@ -22,6 +24,10 @@ const MUTED = '#929292';
  *   breaks the native measuring (title collapses over the rows).
  * - `scrollable` → full-height page sheet (presentation 'modal') whose body
  *   scrolls — for long lists (students, big fleets) that a form sheet clips.
+ *
+ * Oltre le `PICKER_SEARCH_THRESHOLD` voci il foglio che scorre si porta dietro
+ * un campo di ricerca (REG-617): senza, «Aggiungi allievo» su un'autoscuola
+ * vera era una lista da scorrere a mano per centinaia di righe.
  */
 export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
   const router = useRouter();
@@ -29,6 +35,19 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
   const data = useSyncExternalStore(optionsPickerStore.subscribe, optionsPickerStore.get);
 
   const [picked, setPicked] = useState<string[]>(data?.selected ?? []);
+  const [query, setQuery] = useState('');
+
+  const options = data?.options ?? [];
+  const showSearch = shouldShowPickerSearch(options.length, scrollable);
+  // Si cerca su etichetta E sottotitolo: nel picker degli allievi il
+  // sottotitolo porta la patente, e cercare "B" per vedere i B e' legittimo.
+  const visible = useMemo(
+    () =>
+      showSearch
+        ? options.filter((o) => matchesPersonSearch(`${o.label} ${o.subtitle ?? ''}`, query))
+        : options,
+    [options, query, showSearch],
+  );
 
   if (!data) return <View style={scrollable ? s.rootTall : s.root} />;
 
@@ -43,7 +62,7 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
     router.back();
   };
 
-  const rows = data.options.map((o, idx) => {
+  const rows = visible.map((o) => {
     const on = data.multi ? picked.includes(o.value) : data.selected.includes(o.value);
     return (
       <View key={o.value}>
@@ -95,9 +114,40 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
         </GlassCloseButton>
       </View>
 
+      {showSearch ? (
+        <View style={s.searchWrap}>
+          <Ionicons name="search" size={19} color={MUTED} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Cerca per nome..."
+            returnKeyType="search"
+            placeholderTextColor={MUTED}
+            style={s.searchInput}
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+          />
+        </View>
+      ) : null}
+
       {scrollable ? (
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 8, gap: 10 }}>
-          {rows}
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator
+          contentContainerStyle={{ paddingBottom: 8, gap: 10 }}
+          // Con la tastiera aperta, il primo tocco su una riga deve scegliere
+          // quella riga — non servire solo a chiudere la tastiera.
+          keyboardShouldPersistTaps="handled"
+        >
+          {visible.length === 0 ? (
+            // Il vuoto non appare di scatto: comparire e' un'informazione.
+            <Animated.Text entering={FadeIn.duration(140)} style={s.empty}>
+              {data.emptyLabel ?? 'Nessun risultato'}
+            </Animated.Text>
+          ) : (
+            rows
+          )}
         </ScrollView>
       ) : (
         <View style={{ gap: 10 }}>{rows}</View>
@@ -137,6 +187,16 @@ const s = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
   hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
   x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+
+  // Stesso campo del picker allievi di "Nuova prenotazione": card bianca su
+  // fondo chiaro, non un input incassato. Coerenza prima di originalita'.
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 16, borderWidth: 1, borderColor: '#ECECEC', backgroundColor: '#FFFFFF',
+  },
+  searchInput: { flex: 1, fontSize: 16, color: INK, padding: 0 },
+  empty: { fontSize: 14, fontWeight: '500', color: MUTED, textAlign: 'center', paddingVertical: 34 },
 
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68,

@@ -179,6 +179,9 @@ export default function ManageGroupLessonParticipantsScreen() {
         multi: false,
         selected: [],
         options: list.map((e) => ({ value: e.id, label: e.name ?? 'Allievo', leadingInitials: initialsOf(e.name ?? null), leadingUserId: e.id })),
+        // Oltre le 8 voci il foglio mostra da solo la ricerca (REG-617): qui
+        // si cercano persone, quindi il vuoto lo dice con le loro parole.
+        emptyLabel: 'Nessun allievo trovato',
         onConfirm: (values) => {
           const studentId = values[0];
           if (!studentId) return;
@@ -204,7 +207,19 @@ export default function ManageGroupLessonParticipantsScreen() {
     setInviting(true);
     regloApi
       .inviteToGroupLesson(groupLessonId)
-      .then(() => {
+      .then((res) => {
+        // REG-617 — dire A QUANTI e' l'unica conferma che si vede: gli invii
+        // partono dopo la risposta, quindi qui non c'e' piu' niente da
+        // attendere e senza un messaggio il bottone sembrerebbe non aver
+        // fatto nulla. Alert e non toast: questo e' un form sheet, e un toast
+        // ancorato alla safe area della finestra resterebbe a mezz'aria.
+        const n = res?.invitedCount ?? 0;
+        Alert.alert(
+          'Invito inviato',
+          n
+            ? `Invito inviato a ${n} ${n === 1 ? 'allievo' : 'allievi'}.`
+            : "Invito aperto, ma non c'è nessun allievo idoneo da avvisare.",
+        );
         seed?.onChanged?.();
         return refreshLocal();
       })

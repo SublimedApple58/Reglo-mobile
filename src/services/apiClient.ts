@@ -189,6 +189,15 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
               : JSON.stringify(options.body),
         signal: controller.signal,
       });
+    } catch (error) {
+      // REG-617 — scaduto il timeout, `fetch` rifiuta con un AbortError il cui
+      // messaggio e' la parola "Aborted", e le schermate la mostravano cosi'
+      // com'e' ("Errore — Aborted"). Qui diventa una frase che dice cosa e'
+      // successo e cosa fare; il nome dell'errore resta per chi lo ispeziona.
+      if ((error as Error | null)?.name === 'AbortError') {
+        throw new RegloApiError('La richiesta ha superato il tempo massimo. Riprova.');
+      }
+      throw error;
     } finally {
       clearTimeout(timeoutId);
     }

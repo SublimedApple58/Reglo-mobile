@@ -862,6 +862,23 @@ Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo 
 | Allievo (ricerca + lista, single) | `select-student` | `studentPickerStore` | `modal` |
 | Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
 | Durata / Veicolo / Tipo / Aggiungi allievo | `select-options` (≤7 voci) / `select-options-long` (>7, scrollabile) — route scelta da `optionsPickerPath()` DOPO `optionsPickerStore.set()` | `optionsPickerStore` | `formSheet fitToContents` / `modal` (2026-07-07: il form sheet clippava le liste lunghe senza scroll) |
+
+**Ricerca nel picker lungo (REG-617, 14/10/2026).** Oltre `PICKER_SEARCH_THRESHOLD` (**8**) voci il
+foglio che scorre si porta dietro un campo di ricerca, da solo: `shouldShowPickerSearch(count,
+scrollable)`. Due confini voluti:
+
+- **Solo nella variante `scrollable`.** In un `fitToContents` il filtro cambierebbe l'altezza del
+  foglio a ogni lettera, e quel foglio non si rimisura (§13.2.1).
+- **Solo sopra la soglia.** Su una lista corta la ricerca è un ingombro che allontana la prima
+  riga dal pollice; oltre, è il contrario — scorrere 256 allievi a mano non è una risposta.
+
+Il campo è lo stesso di `select-student` (card bianca, bordo `#ECECEC`, radius 16, icona `search`
+a sinistra, `clearButtonMode="while-editing"`): coerenza prima di originalità. La `ScrollView`
+vuole `keyboardShouldPersistTaps="handled"`, altrimenti con la tastiera aperta il primo tocco su
+una riga serve solo a chiuderla. Il confronto sta in `src/utils/peopleSearch.ts` — **senza accenti
+né maiuscole, e a parole**: "rossi mario" trova "Mario Rossi". Lo stato vuoto lo decide chi apre
+il picker (`emptyLabel`, default "Nessun risultato"), perché il foglio è condiviso: nel caso degli
+allievi è "Nessun allievo trovato".
 | Luogo (+ crea) | `manage-lesson-location` (+ `-location-form`) | `locationPickerStore` (+ `locationFormStore`) | `formSheet` + `fitToContents` |
 | Impostazioni allievo (gruppo, pronto esame, luogo) | `student-settings` | `studentSettingsStore` | `formSheet` + `fitToContents` |
 
