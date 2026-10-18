@@ -992,8 +992,12 @@ export type AutoscuolaSettings = {
   agendaColorCriterion?: AgendaColorCriterion;
   // Colori personalizzati per voce (per criterio + eccezioni), hex `#RRGGBB`.
   agendaColorOverrides?: AgendaColorOverrides;
-  // On/off delle eccezioni pre-costruite (automatic/exam_ready/moto).
+  // On/off delle eccezioni pre-costruite (exam_ready/moto).
   agendaColorExceptions?: AgendaColorExceptions;
+  // REG-622: bordo sulle guide a cambio automatico (on/off) e suo colore
+  // (null = nero standard). Il backend risolve già l'eredità dai setting vecchi.
+  automaticLessonMarker?: boolean;
+  automaticLessonMarkerColor?: string | null;
 };
 
 // ── Aspetto / colori agenda ──────────────────────────────────────────────────

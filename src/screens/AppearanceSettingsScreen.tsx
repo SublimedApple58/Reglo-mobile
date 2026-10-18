@@ -21,6 +21,10 @@ import type {
 import {
   AGENDA_COLOR_CRITERIA,
   AGENDA_SWATCHES,
+  AUTOMATIC_MARKER_WIDTH,
+  DEFAULT_AUTOMATIC_MARKER_COLOR,
+  DURATION_COLOR_ENTRIES,
+  previewColor,
   entriesForCriterion,
   resolveColorOverride,
   exceptionsForCriterion,
@@ -44,6 +48,11 @@ export const AppearanceSettingsScreen = () => {
   const [criterion, setCriterion] = useState<AgendaColorCriterion>('durata');
   const [overrides, setOverrides] = useState<AgendaColorOverrides>({});
   const [exceptions, setExceptions] = useState<AgendaColorExceptions>({});
+  // REG-622: bordo sulle guide a cambio automatico (color null = nero standard).
+  const [marker, setMarker] = useState<{ enabled: boolean; color: string | null }>({
+    enabled: true,
+    color: null,
+  });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -56,6 +65,7 @@ export const AppearanceSettingsScreen = () => {
     setCriterion(cfg.criterion);
     setOverrides(cfg.overrides);
     setExceptions(cfg.exceptions);
+    setMarker(cfg.automaticMarker);
     seededRef.current = true;
   }, [settingsQ.data]);
 
@@ -92,6 +102,38 @@ export const AppearanceSettingsScreen = () => {
     },
     [criterion, overrides, exceptions, persist],
   );
+
+  const applyMarker = useCallback(
+    async (next: { enabled: boolean; color: string | null }) => {
+      setMarker(next);
+      setSaving(true);
+      try {
+        const updated = await regloApi.updateAgendaColorSettings({
+          automaticLessonMarker: next.enabled,
+          automaticLessonMarkerColor: next.color,
+        });
+        queryClient.setQueryData(queryKeys.autoscuolaSettings(activeCompanyId), updated);
+      } catch {
+        setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
+        setMarker(resolveAgendaColorConfig(settingsQ.data).automaticMarker);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [activeCompanyId, queryClient, settingsQ.data],
+  );
+
+  const openMarkerPicker = () => {
+    colorPickerStore.set({
+      title: 'Colore del bordo',
+      currentHex: marker.color,
+      swatches: AGENDA_SWATCHES,
+      resetLabel: 'Nero (standard)',
+      resetHex: DEFAULT_AUTOMATIC_MARKER_COLOR,
+      onSelect: (hex) => applyMarker({ enabled: true, color: hex ? hex.toUpperCase() : null }),
+    });
+    router.push('/(tabs)/more/color-picker');
+  };
 
   const setEntryOverride = useCallback(
     (key: string, hex: string | null) => {
@@ -228,6 +270,37 @@ export const AppearanceSettingsScreen = () => {
               </View>
             </>
           ) : null}
+
+          {/* ── Guide automatiche (REG-622): bordo, non colore ── */}
+          <Text style={s.sectionLabel}>GUIDE AUTOMATICHE</Text>
+          <View style={s.list}>
+            <View style={s.markerRow}>
+              <Text style={s.markerLabel}>Contrassegna le guide con mezzi automatici</Text>
+              <ToggleSwitch value={marker.enabled} onValueChange={(v) => applyMarker({ ...marker, enabled: v })} />
+            </View>
+            <Text style={s.markerHint}>
+              Le guide con veicolo o percorso a cambio automatico tengono il loro colore e hanno in più un bordo.
+            </Text>
+            {marker.enabled ? (
+              <>
+                <View style={[s.divider, s.dividerFull]} />
+                <Pressable onPress={openMarkerPicker} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
+                  <View
+                    style={[
+                      s.markerPreview,
+                      {
+                        backgroundColor: previewColor(DURATION_COLOR_ENTRIES[2], overrides.durata?.[DURATION_COLOR_ENTRIES[2].key]),
+                        borderColor: marker.color ?? DEFAULT_AUTOMATIC_MARKER_COLOR,
+                      },
+                    ]}
+                  />
+                  <Text style={s.rowLabel} numberOfLines={1}>Colore del bordo</Text>
+                  <Text style={s.rowValue}>{marker.color ? (AGENDA_SWATCHES.find((sw) => sw.hex === marker.color)?.name ?? 'Personalizzato') : 'Nero'}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                </Pressable>
+              </>
+            ) : null}
+          </View>
         </ScrollView>
       )}
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
@@ -275,4 +348,11 @@ const s = StyleSheet.create({
   dot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#00000012' },
   dotOff: { backgroundColor: '#E5E7EB' },
   rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#1A1A2E' },
+  rowValue: { fontSize: 15, fontWeight: '500', color: '#8A8F98' },
+  dividerFull: { marginLeft: 0 },
+  markerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 15, minHeight: 56 },
+  markerLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#1A1A2E', lineHeight: 21 },
+  markerHint: { fontSize: 13.5, fontWeight: '500', color: '#8A8F98', lineHeight: 19, marginTop: 4, marginBottom: 15, paddingRight: 64 },
+  // Mini blocco guida col bordo: anteprima a colpo d'occhio di come appare in agenda.
+  markerPreview: { width: 34, height: 24, borderRadius: 7, borderWidth: AUTOMATIC_MARKER_WIDTH },
 });

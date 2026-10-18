@@ -14,7 +14,7 @@ export default function ColorPickerScreen() {
   const data = useSyncExternalStore(colorPickerStore.subscribe, colorPickerStore.get);
   if (!data) return <View style={s.root} />;
 
-  const { title, currentHex, swatches, onSelect } = data;
+  const { title, currentHex, swatches, onSelect, resetLabel, resetHex } = data;
   const norm = (h: string | null) => (h ?? '').toUpperCase();
   const pick = (hex: string | null) => {
     onSelect(hex);
@@ -40,10 +40,14 @@ export default function ColorPickerScreen() {
           onPress={() => pick(null)}
           style={({ pressed }) => [s.stdRow, pressed && { opacity: 0.6 }]}
         >
-          <View style={s.stdDot}>
-            <Ionicons name="ban-outline" size={18} color="#94A3B8" />
-          </View>
-          <Text style={s.stdLabel}>Colore standard</Text>
+          {resetHex ? (
+            <View style={[s.stdDot, { backgroundColor: resetHex, borderWidth: 0 }]} />
+          ) : (
+            <View style={s.stdDot}>
+              <Ionicons name="ban-outline" size={18} color="#94A3B8" />
+            </View>
+          )}
+          <Text style={s.stdLabel}>{resetLabel ?? 'Colore standard'}</Text>
           {currentHex == null ? <Ionicons name="checkmark-circle" size={22} color="#1A1A2E" /> : null}
         </Pressable>
 

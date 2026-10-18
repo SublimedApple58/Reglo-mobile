@@ -17,6 +17,10 @@ import { isMotoLicenseCategory } from './license';
  * eccezioni pre-costruite arrivano dai settings company (`AutoscuolaSettings`,
  * già esposti da `GET /api/autoscuole/settings`). Gli hex, le soglie e l'ordine
  * delle eccezioni sono allineati 1:1 al web per coerenza cross-platform.
+ *
+ * Le guide a cambio automatico NON hanno un colore loro (REG-622): tengono il
+ * colore del criterio e prendono un BORDO, se il titolare tiene acceso
+ * "Contrassegna le guide con mezzi automatici".
  */
 
 export const AGENDA_COLOR_CRITERIA = ['durata', 'patente'] as const;
@@ -69,7 +73,6 @@ const D_SHADOW = 'rgba(217,70,239,0.22)';
 /** Una voce per ogni patente gestita (REG-461, allineato 1:1 al web). */
 export const LICENSE_COLOR_ENTRIES: AgendaColorEntry[] = [
   ENTRY('b', 'Patente B', 'B', '#E3EEFF', 'rgba(59,130,246,0.22)'),
-  ENTRY('autom', 'Cambio automatico (B autom., …)', 'B autom.', '#CFFAFE', 'rgba(6,182,212,0.22)'),
   ENTRY('be', 'Patente BE', 'BE', '#E6E9FF', 'rgba(99,102,241,0.22)'),
   ENTRY('amq', 'AM quadriciclo (microcar)', 'AM quadr.', QUAD_BG, QUAD_SHADOW),
   ENTRY('b1', 'Patente B1', 'B1', QUAD_BG, QUAD_SHADOW, 'amq'),
@@ -111,17 +114,16 @@ export function durationColorEntry(minutes: number): AgendaColorEntry {
 }
 
 /**
- * Risolve il tag patente ("B", "B autom.", "AM", …) nella voce colore.
- * Il suffisso " autom." vince sulla categoria (nativo del criterio patente).
+ * Risolve il tag patente ("B", "B autom.", "AM", …) nella voce colore. Il
+ * suffisso " autom." non cambia colore: "B autom." è una B (lo dice il bordo).
  */
 export function licenseColorEntryForTag(tag: string | null | undefined): AgendaColorEntry {
   const none = licenseEntryByKey.get('none')!;
   if (!tag) return none;
   const t = tag.trim().toUpperCase();
   if (!t) return none;
-  if (t.includes('AUTOM')) return licenseEntryByKey.get('autom')!;
   const exact = licenseEntryByKey.get(t.split(/\s+/)[0].toLowerCase());
-  if (exact && exact.key !== 'none' && exact.key !== 'autom') return exact;
+  if (exact && exact.key !== 'none') return exact;
   if (t.startsWith('AD')) return licenseEntryByKey.get('adr')!;
   if (t.startsWith('AM')) return licenseEntryByKey.get('am')!;
   if (t.startsWith('A1')) return licenseEntryByKey.get('a1')!;
@@ -153,15 +155,6 @@ export type AgendaColorException = {
 };
 
 export const AGENDA_COLOR_EXCEPTIONS: AgendaColorException[] = [
-  {
-    key: 'automatic',
-    label: 'Cambio automatico in evidenza',
-    description:
-      'Le guide con veicolo o percorso a cambio automatico sono sempre in ciano invece del colore per durata.',
-    defaultEnabled: true,
-    criteria: ['durata'],
-    entry: ENTRY('automatic', 'Cambio automatico', 'Autom.', '#CFFAFE', 'rgba(6,182,212,0.22)'),
-  },
   {
     key: 'exam_ready',
     label: "Pronti per l'esame in evidenza",
@@ -250,8 +243,14 @@ export function softenTint(hex: string): string {
   return toHex(r, g, b);
 }
 
-/** Stile React Native del blocco: background in tinta soft + ombra in tinta. */
-export type AgendaBlockStyle = { backgroundColor: string; shadowColor: string };
+/** Stile React Native del blocco: background in tinta soft + ombra in tinta,
+ * più il bordo delle guide automatiche quando serve (REG-622). */
+export type AgendaBlockStyle = {
+  backgroundColor: string;
+  shadowColor: string;
+  borderWidth?: number;
+  borderColor?: string;
+};
 
 /**
  * Colore del blocco per una voce (default o override del titolare), reso in
@@ -271,18 +270,34 @@ export type AgendaColorConfig = {
   criterion: AgendaColorCriterion;
   overrides: AgendaColorOverrides;
   exceptions: AgendaColorExceptions;
+  /** Contrassegno guide automatiche (REG-622): color null = nero standard. */
+  automaticMarker: { enabled: boolean; color: string | null };
 };
+
+/** Nero standard del bordo delle guide automatiche (come sul web). */
+export const DEFAULT_AUTOMATIC_MARKER_COLOR = '#111111';
+/** Spessore del bordo: deve leggersi anche sui blocchi stretti della settimana. */
+export const AUTOMATIC_MARKER_WIDTH = 2;
 
 /** Estrae/normalizza la config dai settings company (default sicuri se assenti). */
 export function resolveAgendaColorConfig(settings?: {
   agendaColorCriterion?: unknown;
   agendaColorOverrides?: unknown;
   agendaColorExceptions?: unknown;
+  automaticLessonMarker?: unknown;
+  automaticLessonMarkerColor?: unknown;
 } | null): AgendaColorConfig {
+  const markerColor = settings?.automaticLessonMarkerColor;
   return {
     criterion: asAgendaColorCriterion(settings?.agendaColorCriterion),
     overrides: asAgendaColorOverrides(settings?.agendaColorOverrides),
     exceptions: asAgendaColorExceptions(settings?.agendaColorExceptions),
+    // Il backend risolve già l'eredità dai setting vecchi; se il campo manca
+    // (backend precedente) si resta sul default: acceso.
+    automaticMarker: {
+      enabled: settings?.automaticLessonMarker !== false,
+      color: typeof markerColor === 'string' && HEX_RE.test(markerColor) ? markerColor.toUpperCase() : null,
+    },
   };
 }
 
@@ -295,9 +310,17 @@ export type GuideColorContext = {
 const isAutomaticGuide = (ctx: GuideColorContext): boolean =>
   ctx.vehicle?.transmission === 'automatic' || ctx.student?.transmission === 'automatic';
 
+/** Colore del bordo per la guida, o null se non è automatica o il contrassegno è spento. */
+export function automaticMarkerColorFor(
+  ctx: GuideColorContext,
+  config: AgendaColorConfig,
+): string | null {
+  if (!config.automaticMarker.enabled || !isAutomaticGuide(ctx)) return null;
+  return config.automaticMarker.color ?? DEFAULT_AUTOMATIC_MARKER_COLOR;
+}
+
 /** Predicati delle eccezioni (mirror dei predicati web in AutoscuoleAgendaPage). */
 const EXCEPTION_MATCHERS: Record<string, (ctx: GuideColorContext) => boolean> = {
-  automatic: (ctx) => isAutomaticGuide(ctx),
   exam_ready: (ctx) => ctx.student?.examReady === true,
   moto: (ctx) => isMotoLicenseCategory(ctx.student?.licenseCategory),
 };
@@ -313,6 +336,12 @@ export function resolveGuideBlockStyle(
   ctx: GuideColorContext,
   config: AgendaColorConfig,
 ): AgendaBlockStyle | null {
+  const base = resolveGuideTint(ctx, config);
+  const marker = automaticMarkerColorFor(ctx, config);
+  return marker ? { ...base, borderWidth: AUTOMATIC_MARKER_WIDTH, borderColor: marker } : base;
+}
+
+function resolveGuideTint(ctx: GuideColorContext, config: AgendaColorConfig): AgendaBlockStyle {
   // Eccezioni: prima che matcha vince (solo se attiva e valida per il criterio).
   for (const exc of AGENDA_COLOR_EXCEPTIONS) {
     if (!config.exceptions[exc.key]) continue;

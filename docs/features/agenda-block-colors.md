@@ -23,7 +23,7 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 | File | Ruolo |
 |------|------|
 | `src/types/regloApi.ts` | Campi `agendaColorCriterion?/Overrides?/Exceptions?` su `AutoscuolaSettings` + tipi `AgendaColorCriterion`, `AgendaColorOverrides`, `AgendaColorExceptions` |
-| `src/utils/agendaColors.ts` | Porta 1:1 di `reglo/lib/autoscuole/agenda-color-criterion.ts`: entries durata/patente (stessi hex/soglie), eccezioni (`automatic`/`exam_ready`/`moto`), normalizzatori, `resolveAgendaColorConfig(settings)`, `resolveGuideBlockStyle(ctx, config)` (output stile RN: `{ backgroundColor, shadowColor }`) |
+| `src/utils/agendaColors.ts` | Porta 1:1 di `reglo/lib/autoscuole/agenda-color-criterion.ts`: entries durata/patente (stessi hex/soglie), eccezioni (`exam_ready`/`moto`), contrassegno guide automatiche (REG-622), normalizzatori, `resolveAgendaColorConfig(settings)`, `resolveGuideBlockStyle(ctx, config)` (output stile RN: `{ backgroundColor, shadowColor }`) |
 | `src/components/DayItinerary.tsx` | Day-detail + espansione inline in `WeeklyOverview`: legge la config via `useAutoscuolaSettings`, tinge la card guida (`styles.card`) |
 | `src/screens/IstruttoreHomeScreen.tsx` | Timeline giornaliera (`itinCard`): stessa tinta sulle guide normali via `agendaColorConfig` (memo su `settings`) |
 | `src/components/WeeklyAgendaView.tsx` | Griglia oraria (vista `grid`, la più simile al web): `getLessonLook(appt, config)` colora i blocchi guida col criterio (pastello soft + testo scuro). Priorità mantenute: annullata/assente → grigio, esame-il-giorno-dopo (`examNextDay`) → rosso, poi criterio. Config via `useAutoscuolaSettings` in `WeekPage` |
@@ -41,18 +41,27 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
   soglie/hex del web.
 - **Criterio `patente`**: colore per patente della guida risolta
   dall'allievo (`licenseTagForStudent`: categoria + suffisso " autom." se
-  `transmission === 'automatic'`). Il suffisso automatico vince → ciano dedicato.
+  `transmission === 'automatic'`). Il suffisso NON cambia colore: "B autom." è
+  una B (REG-622, la distingue il bordo).
   Una voce per ogni patente (REG-461: anche CE/C1/C1E, DE/D1/D1E, CQC, ADR);
   le sotto-categorie ereditano colore e override della madre C/D finché non
   personalizzate (`resolveColorOverride`, usato anche dai pallini di
   `AppearanceSettingsScreen`).
 - **Eccezioni** (vincono sul criterio, prima che matcha, ordine registry; solo
   se attive e pertinenti al criterio):
-  - `automatic` (ON default, solo criterio durata): guida a cambio automatico →
-    ciano. Match: `vehicle.transmission` o `student.transmission === 'automatic'`.
   - `exam_ready` (OFF, entrambi i criteri): `student.examReady` → viola.
   - `moto` (OFF, entrambi): `isMotoLicenseCategory(student.licenseCategory)` →
     arancio.
+- **Guide automatiche: bordo, non colore (REG-622, 2026-10-18)**. Prima c'era
+  il ciano (eccezione `automatic` / voce `autom`); ora la guida tiene il colore
+  normale e, se `automaticLessonMarker` è acceso (default sì), prende
+  `borderWidth` 2 + `borderColor` (nero `#111111` o `automaticLessonMarkerColor`).
+  Match: `vehicle.transmission` o `student.transmission === 'automatic'`
+  (`automaticMarkerColorFor`). Solo guide individuali; nella griglia vale anche
+  sopra il rosso `examNextDay`. Niente badge. Il backend risolve già l'eredità
+  dai setting vecchi; se i campi mancano (backend vecchio) resta acceso. Nella
+  schermata Aspetto agenda: sezione "GUIDE AUTOMATICHE" (toggle + riga "Colore
+  del bordo" che apre `more/color-picker` con reset "Nero (standard)").
 - **Override**: hex scelto dal titolare (namespace `durata`/`patente`/`eccezioni`)
   → ammorbidito come i default (vedi resa "Airbnb soft" sotto).
 - **Resa "Airbnb soft"** (`softenTint`): tutte le tinte (default + override) sono

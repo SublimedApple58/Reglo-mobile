@@ -13,6 +13,9 @@ export type ColorPickerData = {
   /** Override corrente (null = colore standard/default). */
   currentHex: string | null;
   swatches: AgendaSwatch[];
+  /** Voce di reset: etichetta e, se non è un "nessun colore", il suo colore reale. */
+  resetLabel?: string;
+  resetHex?: string;
   onSelect: (hex: string | null) => void;
 };
 

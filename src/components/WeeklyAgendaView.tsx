@@ -33,7 +33,13 @@ import * as Haptics from '../utils/haptics';
 import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
-import { resolveAgendaColorConfig, resolveGuideBlockStyle, type AgendaColorConfig } from '../utils/agendaColors';
+import {
+  AUTOMATIC_MARKER_WIDTH,
+  automaticMarkerColorFor,
+  resolveAgendaColorConfig,
+  resolveGuideBlockStyle,
+  type AgendaColorConfig,
+} from '../utils/agendaColors';
 import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 
@@ -248,7 +254,7 @@ const formatWeekLabel = (monday: Date): string => {
 /*  Lesson appearance — mono-navy (Variant A)                          */
 /* ------------------------------------------------------------------ */
 
-type LessonLook = { bg: string; text: string; sub: string; pressed: string };
+type LessonLook = { bg: string; text: string; sub: string; pressed: string; ring?: string | null };
 
 // Active guides are navy-filled pills; "spent" states (cancelled / no_show) recede
 // to a muted grey so the eye reads the live week at a glance.
@@ -265,19 +271,24 @@ const getLessonLook = (
   if (status === 'cancelled' || status === 'no_show') return MUTED;
   // Esame il giorno dopo → rosso: segnale di priorità mantenuto SOPRA il criterio
   // colore (REG-403). I flag arrivano dal BE; se assente → passa al criterio.
-  if (appt.examNextDay) return RED;
-  // Colore del blocco per criterio Aspetto (durata|patente) + eccezioni, come
-  // sul web. Tinta soft (pastello) + testo scuro leggibile (stessa lingua di
-  // esami/gruppi in questa griglia).
   const durationMin = appt.endsAt
     ? (new Date(appt.endsAt).getTime() - new Date(appt.startsAt).getTime()) / 60000
     : 60;
-  const style = resolveGuideBlockStyle(
-    { durationMin, student: appt.student, vehicle: appt.vehicle },
-    colorConfig,
-  );
+  const ctx = { durationMin, student: appt.student, vehicle: appt.vehicle };
+  // Bordo delle guide automatiche (REG-622): vale anche sopra il rosso.
+  if (appt.examNextDay) return { ...RED, ring: automaticMarkerColorFor(ctx, colorConfig) };
+  // Colore del blocco per criterio Aspetto (durata|patente) + eccezioni, come
+  // sul web. Tinta soft (pastello) + testo scuro leggibile (stessa lingua di
+  // esami/gruppi in questa griglia).
+  const style = resolveGuideBlockStyle(ctx, colorConfig);
   if (style) {
-    return { bg: style.backgroundColor, text: '#1A1A2E', sub: 'rgba(26,26,46,0.62)', pressed: style.backgroundColor };
+    return {
+      bg: style.backgroundColor,
+      text: '#1A1A2E',
+      sub: 'rgba(26,26,46,0.62)',
+      pressed: style.backgroundColor,
+      ring: style.borderColor ?? null,
+    };
   }
   return NAVY;
 };
@@ -1090,6 +1101,7 @@ const WeekPage = React.memo(function WeekPage({
                 style={({ pressed }) => [
                   styles.lesson,
                   { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: pressed ? look.pressed : look.bg },
+                  look.ring ? { borderWidth: AUTOMATIC_MARKER_WIDTH, borderColor: look.ring } : null,
                 ]}
               >
                 <View style={styles.lessonInner}>
