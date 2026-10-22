@@ -40,6 +40,7 @@ import {
   MePayload,
   GetAppointmentsParams,
   UpdateProfileInput,
+  WhatsAppPreference,
   RespondWaitlistOfferInput,
   RespondWaitlistOfferResult,
   AutoscuolaSwapOfferWithDetails,
@@ -210,6 +211,13 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },
+    getWhatsAppPreference: async () =>
+      client.request<WhatsAppPreference>('/api/mobile/me/whatsapp', { method: 'GET' }),
+    setWhatsAppPreference: async (enabled: boolean) =>
+      client.request<WhatsAppPreference>('/api/mobile/me/whatsapp', {
+        method: 'PATCH',
+        body: { enabled },
+      }),
     updateProfile: async (input: UpdateProfileInput) =>
       client.request<UserPublic>('/api/mobile/profile', {
         method: 'PATCH',

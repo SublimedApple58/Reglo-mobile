@@ -11,6 +11,7 @@ import { regloApi } from '../../../src/services/regloApi';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { WhatsAppAlertsRow } from '../../../src/components/WhatsAppAlertsRow';
 
 export default function MoreProfileEditScreen() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function MoreProfileEditScreen() {
           <Text style={s.label}>Numero di cellulare</Text>
           <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         </View>
+        <WhatsAppAlertsRow />
 
         {error ? <Text style={s.error}>{error}</Text> : null}
       </SheetScaffold>

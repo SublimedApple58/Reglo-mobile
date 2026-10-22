@@ -897,7 +897,12 @@ export type StudentRegisterInput = {
   password: string;
   confirmPassword: string;
   schoolCode: string;
+  /** REG-500: consenso agli avvisi di servizio su WhatsApp, dato in registrazione. */
+  whatsappConsent?: boolean;
 };
+
+/** REG-500: avvisi su WhatsApp dal profilo. `enabled: false` = revoca (come STOP). */
+export type WhatsAppPreference = { enabled: boolean; hasPhone?: boolean };
 
 // Self-service password reset (OTP via email)
 export type PasswordResetRequestInput = { email: string };

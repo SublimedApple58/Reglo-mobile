@@ -56,6 +56,8 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
         password,
         confirmPassword: password,
         schoolCode: schoolCode.trim().toUpperCase(),
+        // REG-500: la frase sotto il modulo lo dice prima del tasto.
+        whatsappConsent: true,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registrazione non riuscita');
@@ -107,6 +109,13 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
         </Text>
       </View>
       {accessory}
+
+      {/* REG-500: consenso agli avvisi di servizio su WhatsApp, detto prima
+          di creare l'account. Si revoca dal profilo o rispondendo STOP. */}
+      <Text style={styles.whatsappNote}>
+        Creando l'account accetti di ricevere su WhatsApp gli avvisi sulle tue guide. Puoi
+        smettere quando vuoi dal profilo o rispondendo STOP.
+      </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </>
@@ -237,6 +246,7 @@ const styles = StyleSheet.create({
     color: IVORY,
   },
   codeHint: { fontSize: 11.5, marginTop: 7, marginLeft: 3 },
+  whatsappNote: { fontSize: 12, lineHeight: 17, color: '#6B6B6B', marginTop: 2, marginHorizontal: 3 },
 
   // shared
   error: { fontSize: 14, fontWeight: '500', color: colors.destructive, marginTop: 12, textAlign: 'center' },

@@ -12,6 +12,7 @@
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
+| Avvisi su WhatsApp — consenso (REG-500) | [whatsapp-alerts.md](features/whatsapp-alerts.md) | `WhatsAppAlertsRow`, `settings/profile-edit`, `more/profile-edit`, `SignupScreen` |
 | Associazione istruttore via QR (REG-451) | [instructor-qr-link.md](features/instructor-qr-link.md) | `InstructorLinkScreen`, `settings/associa-istruttore`, `+native-intent`, `pendingInstructorLink`, `SettingsScreen` (riga Scansiona QR) |
 | Foto profilo + Firma allievo | [student-photo-signature.md](features/student-photo-signature.md) | `settings/profile-edit`, `settings/signature`, `SettingsScreen` (avatar), `apiClient` (FormData) |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |

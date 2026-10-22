@@ -11,6 +11,7 @@ import { useSession } from '../../../src/context/SessionContext';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { WhatsAppAlertsRow } from '../../../src/components/WhatsAppAlertsRow';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -81,6 +82,7 @@ export default function ProfileEditScreen() {
           <Text style={s.label}>Numero di cellulare</Text>
           <Input placeholder="Cellulare" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         </View>
+        <WhatsAppAlertsRow />
       </SheetScaffold>
     </View>
   );

@@ -25,6 +25,7 @@ type SessionContextValue = SessionState & {
     password: string;
     confirmPassword: string;
     schoolCode: string;
+    whatsappConsent?: boolean;
   }) => Promise<void>;
   signOut: () => Promise<void>;
   selectCompany: (companyId: string) => Promise<void>;
@@ -234,6 +235,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       password: string;
       confirmPassword: string;
       schoolCode: string;
+      whatsappConsent?: boolean;
     }) => {
       const payload = await regloApi.studentRegister(input);
       await applyAuthPayload(payload);
