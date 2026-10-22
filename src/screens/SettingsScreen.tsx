@@ -446,7 +446,11 @@ export const SettingsScreen = () => {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Elimina account',
-      "Questa azione è definitiva: perderai accesso all'app e i tuoi dati profilo verranno rimossi.",
+      // REG-629: l'allievo deve sapere che l'autoscuola non lo perde di vista
+      // del tutto. Nome, guide e pagamenti restano per gli obblighi contabili.
+      isStudent(autoscuolaRole)
+        ? "Questa azione è definitiva: perderai l'accesso all'app e cancelleremo email, telefono, foto e firma.\n\nLa tua autoscuola conserverà il tuo nome, lo storico delle guide e dei pagamenti, come richiesto dagli obblighi contabili."
+        : "Questa azione è definitiva: perderai accesso all'app e i tuoi dati profilo verranno rimossi.",
       [
         {
           text: 'Annulla',

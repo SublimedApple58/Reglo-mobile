@@ -47,3 +47,7 @@ Screen, Card, Button, Input, SelectableChip, TimePickerDrawer, BottomSheet
 - **Availability Editor** — availabilityMode toggle
 - **Booking Flow** — governance settings affect booking
 - **Instructor Manage** — cluster config shared with ClusterSettingsScreen
+
+## Elimina account — testo per l'allievo (REG-629)
+
+Per il ruolo allievo l'alert «Elimina account» spiega cosa succede: si cancellano email, telefono, foto e firma; l'autoscuola conserva nome, storico guide e pagamenti per gli obblighi contabili (lato backend: `reglo/docs/features/former-students.md`). Titolari e istruttori vedono il testo di prima.
