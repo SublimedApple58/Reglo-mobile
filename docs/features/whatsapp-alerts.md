@@ -19,8 +19,13 @@ la parte di consenso.
 ## Regole
 
 - Spegnere = revoca (`User.whatsappOptOutAt`), lo stesso effetto di rispondere
-  STOP al numero di Reglo. Riaccendere registra il consenso
-  (`whatsappConsentSource: app_profilo`).
+  STOP al numero di Reglo.
+- **Riaccendere passa da WhatsApp.** Dopo uno STOP Telnyx blocca il numero
+  finché la persona non scrive START (o UNSTOP), e quel blocco non si toglie
+  via API. Se c'è una revoca, `PATCH` risponde `needsStart` + `startUrl`
+  (`https://wa.me/<numero>?text=START`): l'app apre la chat con il testo
+  pronto, il webhook riceve lo START e toglie la revoca, e la riga si
+  riaccende quando l'app torna in primo piano (`AppState` → rilettura).
 - Gli utenti già registrati prima del 22/10 hanno consenso implicito: ogni
   messaggio WhatsApp porta «Rispondi STOP per non ricevere più questi avvisi».
 - Solo JS: si rilascia via OTA, nessun modulo nativo.

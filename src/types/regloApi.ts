@@ -902,7 +902,17 @@ export type StudentRegisterInput = {
 };
 
 /** REG-500: avvisi su WhatsApp dal profilo. `enabled: false` = revoca (come STOP). */
-export type WhatsAppPreference = { enabled: boolean; hasPhone?: boolean };
+export type WhatsAppPreference = {
+  enabled: boolean;
+  hasPhone?: boolean;
+  /**
+   * Riaccendere non basta: c'è una revoca (STOP) che si toglie solo scrivendo
+   * START a Reglo su WhatsApp. L'app apre `startUrl` con il testo già pronto.
+   */
+  needsStart?: boolean;
+  /** `https://wa.me/<numero Reglo>?text=START`, `null` se WhatsApp non è attivo. */
+  startUrl?: string | null;
+};
 
 // Self-service password reset (OTP via email)
 export type PasswordResetRequestInput = { email: string };
