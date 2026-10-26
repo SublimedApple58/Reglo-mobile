@@ -53,6 +53,8 @@ export const AppearanceSettingsScreen = () => {
     enabled: true,
     color: null,
   });
+  // REG-633: nome del veicolo nei blocchi del calendario.
+  const [showVehicle, setShowVehicle] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -66,6 +68,7 @@ export const AppearanceSettingsScreen = () => {
     setOverrides(cfg.overrides);
     setExceptions(cfg.exceptions);
     setMarker(cfg.automaticMarker);
+    setShowVehicle(settingsQ.data.agendaShowVehicle === true);
     seededRef.current = true;
   }, [settingsQ.data]);
 
@@ -116,6 +119,23 @@ export const AppearanceSettingsScreen = () => {
       } catch {
         setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
         setMarker(resolveAgendaColorConfig(settingsQ.data).automaticMarker);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [activeCompanyId, queryClient, settingsQ.data],
+  );
+
+  const applyShowVehicle = useCallback(
+    async (next: boolean) => {
+      setShowVehicle(next);
+      setSaving(true);
+      try {
+        const updated = await regloApi.updateAgendaColorSettings({ agendaShowVehicle: next });
+        queryClient.setQueryData(queryKeys.autoscuolaSettings(activeCompanyId), updated);
+      } catch {
+        setToast({ text: 'Errore nel salvataggio', tone: 'danger' });
+        setShowVehicle(settingsQ.data?.agendaShowVehicle === true);
       } finally {
         setSaving(false);
       }
@@ -301,6 +321,22 @@ export const AppearanceSettingsScreen = () => {
               </>
             ) : null}
           </View>
+
+          {/* ── Veicolo nei blocchi (REG-633), solo col modulo veicoli ── */}
+          {settingsQ.data?.vehiclesEnabled !== false ? (
+            <>
+              <Text style={s.sectionLabel}>VEICOLO</Text>
+              <View style={s.list}>
+                <View style={s.markerRow}>
+                  <Text style={s.markerLabel}>Mostra il veicolo nei blocchi delle guide</Text>
+                  <ToggleSwitch value={showVehicle} onValueChange={applyShowVehicle} />
+                </View>
+                <Text style={s.markerHint}>
+                  Sotto il nome dell&apos;allievo compare il mezzo della guida, nel calendario e sul web. Per le guide moto anche l&apos;auto al seguito.
+                </Text>
+              </View>
+            </>
+          ) : null}
         </ScrollView>
       )}
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />

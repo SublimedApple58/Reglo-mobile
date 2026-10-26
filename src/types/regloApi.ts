@@ -1013,6 +1013,9 @@ export type AutoscuolaSettings = {
   // (null = nero standard). Il backend risolve già l'eredità dai setting vecchi.
   automaticLessonMarker?: boolean;
   automaticLessonMarkerColor?: string | null;
+  // REG-633: nome del veicolo nei blocchi guida del calendario (spento di
+  // default; conta solo col modulo veicoli attivo).
+  agendaShowVehicle?: boolean;
 };
 
 // ── Aspetto / colori agenda ──────────────────────────────────────────────────

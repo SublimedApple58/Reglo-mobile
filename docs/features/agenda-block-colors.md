@@ -102,3 +102,21 @@ Se cambiano hex/soglie/eccezioni o si aggiunge un criterio in
 rimuovere `softenTint`: la resa mobile è volutamente più soft del web (richiesta
 di design del titolare) — gli hex-sorgente restano allineati, diverge solo il
 rendering.
+
+## Veicolo nei blocchi (REG-633)
+
+Setting dell'autoscuola `agendaShowVehicle` (spento di default; conta solo con
+`vehiclesEnabled`), stesso JSON `limits` del web. Acceso, le guide mostrano il
+**nome** del mezzo (mai la targa), troncato con ellissi; guida moto = «Moto +
+moto extra + Auto al seguito», come la timeline giornaliera della home.
+
+| File | Ruolo |
+|------|------|
+| `src/utils/agendaVehicle.ts` | `agendaVehicleLabel(appt)` (mirror di `reglo/lib/autoscuole/agenda-vehicle-label.ts`) + `showVehicleOnBlocks(settings)` |
+| `src/components/DayItinerary.tsx` | Card guida: riga propria sotto nome e durata, allineata al nome, con icona auto/moto (`car-side`/`motorbike`; moto = patente moto dell'allievo, auto al seguito o moto extra). Accanto al badge di tipo non ci stava: il primo giro «1h · Fiat Pa…» era illeggibile |
+| `src/components/WeeklyAgendaView.tsx` | Griglia: terza riga `lessonVehicle` sotto l'orario, solo nei blocchi alti ≥50pt (un'ora o più); nei blocchi bassi non c'è spazio in colonne da ~52pt |
+| `src/screens/AppearanceSettingsScreen.tsx` | Sezione «VEICOLO» con `ToggleSwitch`, visibile solo col modulo veicoli; salva via `updateAgendaColorSettings({ agendaShowVehicle })` |
+
+La timeline giornaliera della home (`itinCard`) mostrava già il veicolo sempre
+e resta così. Allievo escluso. Esami (raggruppati) e guide di gruppo (card con
+i posti) non mostrano il veicolo.

@@ -33,6 +33,7 @@ import * as Haptics from '../utils/haptics';
 import { isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../types/regloApi';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import { agendaVehicleLabel, showVehicleOnBlocks } from '../utils/agendaVehicle';
 import {
   AUTOMATIC_MARKER_WIDTH,
   automaticMarkerColorFor,
@@ -691,6 +692,8 @@ const WeekPage = React.memo(function WeekPage({
   // eccezioni dai settings company. Cache-first, default sicuri se assenti.
   const agendaSettings = useAutoscuolaSettings();
   const colorConfig = useMemo(() => resolveAgendaColorConfig(agendaSettings.data), [agendaSettings.data]);
+  // REG-633: nome del mezzo nei blocchi, se l'autoscuola l'ha acceso.
+  const showVehicle = showVehicleOnBlocks(agendaSettings.data);
 
   const weekDays = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(monday, i)), [monday]);
 
@@ -1094,6 +1097,8 @@ const WeekPage = React.memo(function WeekPage({
             const look = getLessonLook(appt, colorConfig);
             const label = [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || 'Guida';
             const showTime = height >= 40;
+            // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
+            const vehicleLabel = showVehicle && height >= 50 ? agendaVehicleLabel(appt) : null;
             return (
               <Pressable
                 key={appt.id}
@@ -1111,6 +1116,11 @@ const WeekPage = React.memo(function WeekPage({
                       {pad(start.getHours())}:{pad(start.getMinutes())}
                     </Text>
                   )}
+                  {vehicleLabel ? (
+                    <Text style={[styles.lessonVehicle, { color: look.sub }]} numberOfLines={1}>
+                      {vehicleLabel}
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -1677,6 +1687,7 @@ const styles = StyleSheet.create({
   },
   lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
   lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
+  lessonVehicle: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   // Card evento (esame / gruppo). Stile allineato UNO A UNO alla web app
   // (`.agenda-card` in assets/styles/globals.css + `rounded-[8px]` sui blocchi
   // della griglia) e a `examGroupCard` della vista giornaliera:

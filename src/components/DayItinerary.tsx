@@ -10,6 +10,8 @@ import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../typ
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { resolveAgendaColorConfig, resolveGuideBlockStyle } from '../utils/agendaColors';
 import { sharedWithNames, formatSharedWith } from '../utils/coInstructors';
+import { agendaVehicleLabel, showVehicleOnBlocks } from '../utils/agendaVehicle';
+import { isMotoLicenseCategory } from '../utils/license';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
@@ -51,6 +53,8 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
   // eccezioni dai settings company. Cache-first, default sicuri se assenti.
   const settings = useAutoscuolaSettings();
   const colorConfig = React.useMemo(() => resolveAgendaColorConfig(settings.data), [settings.data]);
+  // REG-633: nome del mezzo accanto alla durata, se l'autoscuola l'ha acceso.
+  const showVehicle = showVehicleOnBlocks(settings.data);
 
   const seq: Seq[] = [];
   // One start/end marker per availability window (mirrors the daily timeline).
@@ -233,6 +237,13 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
               { durationMin: row.durationMin, student: a.student, vehicle: a.vehicle },
               colorConfig,
             );
+        // Riga propria a tutta larghezza: accanto al badge non ci starebbe.
+        const vehicleLabel = showVehicle ? agendaVehicleLabel(a) : null;
+        // Moto: patente dell'allievo, oppure i mezzi che solo una guida moto ha.
+        const isMoto =
+          isMotoLicenseCategory(a.student?.licenseCategory) ||
+          Boolean(a.followVehicle) ||
+          (a.extraMotoVehicles?.length ?? 0) > 0;
         return (
           <View key={`ap-${idx}`} style={styles.row}>
             <Rail time={fmtClockFull(item.min)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} />
@@ -249,6 +260,12 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
                   <Text style={[styles.badgeText, { color: row.badge.text }]} numberOfLines={1}>{row.badge.label}</Text>
                 </View>
               </View>
+              {vehicleLabel ? (
+                <View style={styles.vehicleRow}>
+                  <MaterialCommunityIcons name={isMoto ? 'motorbike' : 'car-side'} size={15} color="#8A8F98" />
+                  <Text style={styles.vehicleText} numberOfLines={1}>{vehicleLabel}</Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         );
@@ -323,6 +340,9 @@ const styles = StyleSheet.create({
   meta: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   badgeText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
+  // REG-633: il mezzo, allineato al nome (avatar 42 + gap 12).
+  vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginLeft: 54 },
+  vehicleText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#5C616B', letterSpacing: -0.1 },
 
   // Exam — student-app card language (lavender surface, Fluent 3D icon), no right tag.
   examCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F5F0FF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },

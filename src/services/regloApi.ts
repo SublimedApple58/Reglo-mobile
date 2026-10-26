@@ -284,6 +284,7 @@ export const createRegloApi = (baseUrl?: string) => {
           | 'agendaColorExceptions'
           | 'automaticLessonMarker'
           | 'automaticLessonMarkerColor'
+          | 'agendaShowVehicle'
         >
       >,
     ) =>
