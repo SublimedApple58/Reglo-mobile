@@ -20,7 +20,7 @@ Ambienti: **dev** → **staging** (CONDIVISO) → **prod** (`master`). Lavori gr
 
 - **Testare contro staging**: `npm run ios:staging` / `android:staging` puntano l'app all'API `staging.reglo.it` (serve `reglo-mobile/.staging-bypass` col Protection Bypass secret). Modifiche solo-JS = hot-reload, niente rebuild nativo.
 - Il mobile **non** ha un branch `staging` proprio da deployare: si testa contro il **backend** di staging. Il flusso `ship:staging` (allinea `origin/staging` nel branch → ship) vive lato `reglo` — vedi `../reglo/docs/architecture/git-flow.md`.
-- **Rilascio prod** (solo con OK utente): merge → `master`, poi OTA `eas update --platform ios --branch production` **poi** `--platform android` (MAI `--auto`, MAI `--platform all`); native build solo se cambiano moduli nativi.
+- **Rilascio prod** (solo con OK utente): merge → `master`, poi OTA `eas update --platform ios --branch production` **poi** `--platform android` (MAI `--auto`, MAI `--platform all`); native build solo se cambia lo strato nativo → checklist «Rilascio build nativa (store) + OTA dopo» in `docs/git-flow.md` (runtimeVersion, store, force-update floor, recovery).
 
 Dettagli: [docs/git-flow.md](docs/git-flow.md) · staging operativo: `../reglo/docs/STAGING.md`.
 

@@ -28,7 +28,58 @@ Le modifiche solo-JS si vedono in **hot-reload** (Metro), niente rebuild nativo;
 1. Merge `feature` → **`master`**.
 2. **OTA** (per modifiche solo-JS): `eas update --platform ios --branch production --message "..."` **poi** `eas update --platform android --branch production --message "..."`.
    - **MAI `--auto`** (punta a `master` invece che a `production`). **MAI `--platform all`** (sempre ios e android separati).
-3. **Native build** (solo se cambiano moduli nativi): `eas build --profile production --platform ios|android`, e ricordarsi del `runtimeVersion` (vedi memorie / `app.json`).
+3. **Native build** (solo se cambia lo strato nativo): segui la checklist [Rilascio build nativa (store) + OTA dopo](#rilascio-build-nativa-store--ota-dopo).
+
+## Rilascio build nativa (store) + OTA dopo
+
+> **Stato attuale** (aggiorna questa riga a ogni rilascio nativo): `runtimeVersion` **2.3.0** (= `version` 2.3.0, live su App Store + Play Store dal 2026-09-16) · force-update floor **2.3.0** iOS+Android.
+
+Ogni passo outward-facing (build prod, submit, OTA, floor) solo con **OK esplicito dell'utente**.
+
+### 1. Serve davvero una build nativa?
+Serve se cambia lo **strato nativo**: nuovo pacchetto con codice nativo (o rimosso), upgrade Expo SDK / React Native, config nativa (`app.json` plugin, permessi, `ios`/`android`, icone/splash).
+Check prima di ogni OTA e prima di decidere:
+```bash
+git diff <commit del binario live> HEAD -- package.json app.json
+```
+Se compaiono moduli nativi nuovi → **niente OTA**, serve la build. Un OTA con un modulo nativo assente dal binario **crasha l'app al lancio** (successo il 2026-06-10).
+
+### 2. `runtimeVersion`
+- È una **stringa fissa manuale** in `app.json` (non `policy: appVersion`, non `fingerprint`): definisce il cohort OTA.
+- Si bumpa **SOLO** su cambio nativo **o** su un cutover force-update voluto (cohort nuovo). Per OTA JS/asset resta invariato.
+- Si bumpa **sempre insieme a `version`** marketing (es. 2.3.0 → 2.4.0 entrambi) e si aggiorna la nota `"//"` in `app.json`.
+- iOS e Android si buildano **insieme** (stesso runtime):
+  ```bash
+  eas build --profile production --platform ios
+  eas build --profile production --platform android
+  ```
+  Build number: `autoIncrement` + `appVersionSource: "remote"` in `eas.json` → non toccarlo a mano.
+
+### 3. Submit agli store
+Upload manuale (Transporter per iOS, Play Console per Android), poi review e rilascio. Da quando il runtime è bumpato, gli OTA vanno **solo** al nuovo cohort: i binari vecchi restano fermi al loro ultimo OTA.
+
+### 4. Dopo che è live su ENTRAMBI gli store: alza il force-update floor
+- In `reglo/` → `app/api/mobile/app-config/route.ts` → `MIN_SUPPORTED_VERSION = { ios, android }` = nuova versione.
+- Passa dal flusso web normale: feature branch → `staging` → `main` (push su `main` = deploy Vercel).
+- Verifica (~2-3 min di propagazione): `curl https://app.reglo.it/api/mobile/app-config`.
+- Il gate (`useForceUpdate` in `app/_layout.tsx`, `src/config/forceUpdate.ts`) è nei binari da 2.0.0: nessuna modifica mobile. Scatta al cold-start, fail-open. Rollback = rimetti il valore precedente.
+
+### 5. OTA successivi
+```bash
+eas update --branch production --platform ios --message "..."
+eas update --branch production --platform android --message "..."
+```
+Raggiungono solo i binari col runtime corrente. **MAI `--auto`** (punta a `master`), **MAI `--platform all`**. Niente staging mobile: si verifica in locale e si rilascia in prod.
+
+### 6. Recovery (OTA rotto in prod)
+```bash
+eas update:roll-back-to-embedded --branch production --platform ios --runtime-version <runtime> --message "..."
+# poi lo stesso con --platform android
+```
+In non-interattivo `--runtime-version` è obbligatorio.
+
+### 7. Chiudi il giro
+Aggiorna la riga **Stato attuale** in cima a questa sezione (runtime + floor + data).
 
 ## Regole d'oro
 1. `staging` è condiviso → lato backend si allinea PRIMA di shippare (doc reglo).
