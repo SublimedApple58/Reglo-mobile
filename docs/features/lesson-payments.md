@@ -44,6 +44,7 @@ lettura (i soldi passano dalla sezione Pagamenti del web).
 **Guida da pagare** (`isLessonUnpaid`):
 
 ```
+cancellationKind !== 'record_cleanup' &&
 !creditApplied && manualPaymentStatus !== 'paid' && (
    (status ∈ {completed, checked_in} && manualMode)
 || (status ∈ {cancelled, no_show} && lateCancellationAction === 'charged'
@@ -52,7 +53,9 @@ lettura (i soldi passano dalla sezione Pagamenti del web).
 ```
 
 Cioè: **solo guide effettuate** non saldate, oppure **penali tardive addebitate**.
-Mai le future programmate (anche se marcate `unpaid`), mai quelle coperte da credito.
+Mai le future programmate (anche se marcate `unpaid`), mai quelle coperte da credito,
+mai quelle **rimosse dallo storico** dal titolare (`record_cleanup`, REG-634: anche
+se conservano una penale addebitata). Gemello di `reglo/lib/autoscuole/lesson-unpaid.ts`.
 
 ## Filtri
 
