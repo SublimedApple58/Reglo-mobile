@@ -3,7 +3,7 @@ import type { AutoscuolaAppointment, AutoscuolaSettings } from '../types/regloAp
 /**
  * Pagamento manuale delle guide (REG-450) — lato istruttore/titolare.
  *
- * GEMELLO di `reglo/lib/autoscuole/unpaid-auto-block.ts` (`isCompanyManualMode`,
+ * GEMELLO di `reglo/lib/autoscuole/lesson-unpaid.ts` (`isCompanyManualMode`,
  * `isLessonUnpaid`): è la STESSA definizione di "guida da pagare" che alimenta
  * il badge del dettaglio allievo web, il contatore della lista allievi e il
  * blocco automatico delle prenotazioni per debito. Le due copie vanno cambiate
@@ -38,14 +38,25 @@ export function isCompanyManualMode(
   return (!auto && !credits) || (credits && !creditsRequired);
 }
 
+/**
+ * Marcatore di "Rimuovi dallo storico" (REG-634): la guida esce da tutti i
+ * conteggi, debito compreso, anche se conserva una penale addebitata.
+ */
+const RECORD_CLEANUP_KIND = 'record_cleanup';
+
 /** Predicato "guida da pagare non saldata". Copia esatta della regola backend. */
 export function isLessonUnpaid(
   lesson: Pick<
     AutoscuolaAppointment,
-    'status' | 'manualPaymentStatus' | 'creditApplied' | 'lateCancellationAction'
+    | 'status'
+    | 'manualPaymentStatus'
+    | 'creditApplied'
+    | 'lateCancellationAction'
+    | 'cancellationKind'
   >,
   manualMode: boolean,
 ): boolean {
+  if (lesson.cancellationKind === RECORD_CLEANUP_KIND) return false;
   if (lesson.creditApplied) return false;
   if (lesson.manualPaymentStatus === 'paid') return false;
   const s = normalizeStatus(lesson.status);
