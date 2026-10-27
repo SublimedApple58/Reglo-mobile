@@ -13,6 +13,7 @@ import { GradientCTA, primaryCtaShadow } from '../../../src/components/GradientC
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
+import { countSentiments, SentimentCounts } from '../../../src/components/road/RoadSentiment';
 import { regloApi } from '../../../src/services/regloApi';
 import { roadRouteMapStore } from '../../../src/road/routeMapStore';
 import { formatKm, formatMinutes } from '../../../src/road/format';
@@ -169,6 +170,7 @@ export default function LessonDetailScreen() {
                 {formatKm(road.distanceMeters)} km · {formatMinutes(road.durationSec)} min
               </Text>
             </View>
+            <SentimentCounts {...countSentiments(road.markers)} style={{ paddingHorizontal: 8, marginTop: 4, marginBottom: 2 }} />
             <View style={{ paddingHorizontal: 8 }}>
               <RoadMarkerList
                 items={road.markers.map((m) => ({
@@ -177,6 +179,7 @@ export default function LessonDetailScreen() {
                   label: m.label,
                   street: m.street,
                   note: m.note,
+                  sentiment: m.sentiment ?? null,
                   recordedAt: m.recordedAt,
                 }))}
               />

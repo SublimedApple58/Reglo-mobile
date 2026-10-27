@@ -2,8 +2,17 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { markerArt } from '../../road/markerArt';
 import { formatHm } from '../../road/format';
+import { SentimentBadge, type Sentiment } from './RoadSentiment';
 
-type Item = { key: string; kind: string; label: string; street: string | null; note?: string | null; recordedAt: string };
+type Item = {
+  key: string;
+  kind: string;
+  label: string;
+  street: string | null;
+  note?: string | null;
+  sentiment?: Sentiment | null;
+  recordedAt: string;
+};
 
 /** Elenco segnalazioni: simbolo, etichetta, via (o nota), ora. */
 export function RoadMarkerList({ items }: { items: Item[] }) {
@@ -14,6 +23,7 @@ export function RoadMarkerList({ items }: { items: Item[] }) {
         <View key={m.key} style={[s.row, i > 0 && s.sep]}>
           <View style={s.sy}>
             <Image source={markerArt(m.kind)} style={s.img} resizeMode="contain" />
+            {m.sentiment ? <SentimentBadge sentiment={m.sentiment} size={19} style={s.sg} /> : null}
           </View>
           <View style={s.tx}>
             <Text style={s.title} numberOfLines={1}>{m.label}</Text>
@@ -35,6 +45,7 @@ const s = StyleSheet.create({
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(60,60,67,0.18)' },
   sy: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center' },
   img: { width: 28, height: 28 },
+  sg: { position: 'absolute', right: -5, bottom: -5 },
   tx: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
   sub: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },

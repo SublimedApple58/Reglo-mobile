@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Marker, Polyline } from 'react-native-maps';
 import { carTopArt, markerArt } from '../../road/markerArt';
+import { sentimentColor, type Sentiment } from './RoadSentiment';
 
 /**
  * REG-638 Reglo Road — pezzi di mappa condivisi (Road dal vivo, riepilogo,
@@ -59,14 +60,17 @@ export function RoadMarkerPin({
   label,
   small = false,
   zIndex,
+  sentiment,
 }: {
   coordinate: LatLng;
   kind: string;
   label: string;
   small?: boolean;
   zIndex?: number;
+  /** Bordo verde/rosso: fatto bene / da migliorare. */
+  sentiment?: Sentiment | null;
 }) {
-  const tracksViewChanges = useTracksViewChanges([kind, label, small]);
+  const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '']);
   const tagH = small ? TAG_H_SMALL : TAG_H;
   const height = tagH + GAP + DOT;
   const anchorY = (height - DOT / 2) / height;
@@ -79,7 +83,13 @@ export function RoadMarkerPin({
       zIndex={zIndex ?? (small ? 3 : 5)}
     >
       <View style={[pin.wrap, { height }]} pointerEvents="none">
-        <View style={[pin.tag, small ? pin.tagSmall : null]}>
+        <View
+          style={[
+            pin.tag,
+            small ? pin.tagSmall : null,
+            sentiment ? { borderWidth: 2.5, borderColor: sentimentColor(sentiment) } : null,
+          ]}
+        >
           <Image source={markerArt(kind)} style={small ? pin.imgSmall : pin.img} resizeMode="contain" />
           {small ? null : <Text style={pin.label} numberOfLines={1}>{label}</Text>}
           <View style={pin.tail} />

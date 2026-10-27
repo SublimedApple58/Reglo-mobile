@@ -35,10 +35,20 @@ export type RoadLocalMarker = {
   lat: number;
   lng: number;
   street: string | null;
+  sentiment: 'good' | 'bad' | null;
   recordedAt: string;
 };
 
-export type RoadToast = { clientId: string; kind: string; label: string; street: string | null; at: string };
+export type RoadSentiment = 'good' | 'bad';
+
+export type RoadToast = {
+  clientId: string;
+  kind: string;
+  label: string;
+  street: string | null;
+  sentiment: RoadSentiment | null;
+  at: string;
+};
 
 export type RoadPhase = 'idle' | 'active' | 'ending' | 'summary';
 
@@ -57,6 +67,8 @@ type State = {
   evaluationEnabled: boolean;
   /** Guida su cui si può entrare in Road adesso (da `/road/state`). */
   eligible: RoadLesson | null;
+  /** Ultimo segno scelto in «Segnala»: resta per la sessione (default «da migliorare»). */
+  sentimentMode: RoadSentiment;
 };
 
 const INITIAL: State = {
@@ -72,6 +84,7 @@ const INITIAL: State = {
   summary: null,
   evaluationEnabled: false,
   eligible: null,
+  sentimentMode: 'bad',
 };
 
 let state: State = INITIAL;
@@ -97,6 +110,10 @@ export const roadStore = {
 
   setCatalog(catalog: RoadCatalog) {
     set({ catalog: { base: catalog.base?.length ? catalog.base : FALLBACK_BASE_CATALOG, custom: catalog.custom ?? [] } });
+  },
+
+  setSentimentMode(sentimentMode: RoadSentiment) {
+    if (sentimentMode !== state.sentimentMode) set({ sentimentMode });
   },
 
   setEligible(eligible: RoadLesson | null) {
@@ -152,6 +169,7 @@ export const roadStore = {
         lat: m.lat,
         lng: m.lng,
         street: m.street,
+        sentiment: m.sentiment ?? null,
         recordedAt: m.recordedAt,
       }));
     set({
@@ -191,7 +209,14 @@ export const roadStore = {
   addMarker(marker: RoadLocalMarker) {
     set({
       markers: [...state.markers, marker],
-      toast: { clientId: marker.clientId, kind: marker.kind, label: marker.label, street: marker.street, at: marker.recordedAt },
+      toast: {
+        clientId: marker.clientId,
+        kind: marker.kind,
+        label: marker.label,
+        street: marker.street,
+        sentiment: marker.sentiment,
+        at: marker.recordedAt,
+      },
     });
   },
 

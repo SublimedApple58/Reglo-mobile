@@ -216,7 +216,12 @@ async function currentPosition(): Promise<{ lat: number; lng: number } | null> {
 }
 
 /** Segna una segnalazione sul punto in cui si è ora. */
-export async function recordRoadMarker(input: { kind: string; label: string; note?: string | null }) {
+export async function recordRoadMarker(input: {
+  kind: string;
+  label: string;
+  note?: string | null;
+  sentiment: 'good' | 'bad';
+}) {
   const { session } = roadStore.get();
   if (!session) return null;
   const pos = await currentPosition();
@@ -240,6 +245,7 @@ export async function recordRoadMarker(input: { kind: string; label: string; not
       lat: pos.lat,
       lng: pos.lng,
       street,
+      sentiment: input.sentiment,
       recordedAt,
     },
   });
@@ -251,6 +257,7 @@ export async function recordRoadMarker(input: { kind: string; label: string; not
     lat: pos.lat,
     lng: pos.lng,
     street,
+    sentiment: input.sentiment,
     recordedAt,
   });
   void roadUploader.flush(true);

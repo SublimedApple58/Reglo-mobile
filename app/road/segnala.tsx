@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '../../src/utils/haptics';
 import { GlassCloseButton } from '../../src/components/GlassCloseButton';
 import { SheetScaffold } from '../../src/components/SheetScaffold';
-import { useRoadState } from '../../src/road/roadStore';
+import { roadStore, useRoadState, type RoadSentiment } from '../../src/road/roadStore';
+import { SENTIMENT_BAD, SENTIMENT_GOOD } from '../../src/components/road/RoadSentiment';
 import { recordRoadMarker } from '../../src/road/roadActions';
 import { CUSTOM_KIND_PREFIX, markerArt, shortMarkerLabel } from '../../src/road/markerArt';
 import { formatHm } from '../../src/road/format';
@@ -15,7 +16,8 @@ import { formatHm } from '../../src/road/format';
 type Item = { kind: string; label: string; short: string };
 
 /**
- * REG-638 — «Cosa è successo?». Form sheet nativo che abbraccia il contenuto
+ * REG-638 — «Cosa è da migliorare?» / «Cosa è andato bene?». In testa il segno
+ * (fatto bene / da migliorare), che resta per la sessione. Form sheet nativo che abbraccia il contenuto
  * (niente ScrollView: su iOS `fitToContents`, su Android detent alto +
  * SheetScaffold). Tocco = segnala subito sul punto in cui sei e chiude;
  * pressione lunga = prima una nota (Alert.prompt su iOS, campo qui su Android).
@@ -23,7 +25,13 @@ type Item = { kind: string; label: string; short: string };
 export default function SegnalaSheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { catalog, street } = useRoadState();
+  const { catalog, street, sentimentMode } = useRoadState();
+  const good = sentimentMode === 'good';
+  const setMode = (m: RoadSentiment) => {
+    if (m === sentimentMode) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    roadStore.setSentimentMode(m);
+  };
   const [noteFor, setNoteFor] = useState<Item | null>(null);
   const [note, setNote] = useState('');
   const [openedAt] = useState(() => new Date().toISOString());
@@ -38,7 +46,7 @@ export default function SegnalaSheet() {
   const commit = (item: Item, withNote?: string | null) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    void recordRoadMarker({ kind: item.kind, label: item.label, note: withNote ?? null });
+    void recordRoadMarker({ kind: item.kind, label: item.label, note: withNote ?? null, sentiment: sentimentMode });
     router.back();
   };
 
@@ -75,7 +83,7 @@ export default function SegnalaSheet() {
         >
           {({ pressed }) => (
             <>
-              <View style={[s.sq, pressed && s.sqPressed]}>
+              <View style={[s.sq, good ? s.sqGood : s.sqBad, pressed && s.sqPressed]}>
                 <Image source={markerArt(item.kind)} style={s.sqImg} resizeMode="contain" />
               </View>
               <Text style={s.tileTx} numberOfLines={2}>{item.short}</Text>
@@ -90,7 +98,7 @@ export default function SegnalaSheet() {
     <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
       <View style={s.top}>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>Cosa è successo?</Text>
+          <Text style={s.title}>{good ? 'Cosa è andato bene?' : 'Cosa è da migliorare?'}</Text>
           <Text style={s.lead} numberOfLines={1}>
             {[street, formatHm(openedAt)].filter(Boolean).join(' · ')}
           </Text>
@@ -100,6 +108,30 @@ export default function SegnalaSheet() {
             <Ionicons name="close" size={20} color="#3A3A3C" />
           </Pressable>
         </GlassCloseButton>
+      </View>
+
+      <View style={s.seg} accessibilityRole="tablist">
+        {(
+          [
+            ['good', 'Fatto bene', 'thumbs-up-outline', SENTIMENT_GOOD],
+            ['bad', 'Da migliorare', 'thumbs-down-outline', SENTIMENT_BAD],
+          ] as const
+        ).map(([key, label, icon, color]) => {
+          const on = sentimentMode === key;
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setMode(key)}
+              style={[s.segBtn, on && s.segBtnOn]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              testID={`road-sentiment-${key}`}
+            >
+              <Ionicons name={icon} size={18} color={color} />
+              <Text style={[s.segTx, on && s.segTxOn]}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <SheetScaffold
@@ -167,7 +199,21 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sqGood: { backgroundColor: '#EEF8F1' },
+  sqBad: { backgroundColor: '#FDF1F0' },
   sqPressed: { backgroundColor: '#E6E6E3', transform: [{ scale: 0.96 }] },
+  seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: '#F2F2F0', marginTop: 16 },
+  segBtn: { flex: 1, height: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  segBtnOn: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  segTx: { fontSize: 15, fontWeight: '500', color: '#6A6A6A', letterSpacing: -0.2 },
+  segTxOn: { color: '#111111', fontWeight: '600' },
   sqImg: { width: 48, height: 48 },
   tileTx: { fontSize: 12.5, fontWeight: '400', color: '#3A3A3C', textAlign: 'center', lineHeight: 15, letterSpacing: -0.1 },
   sec: { fontSize: 13, fontWeight: '500', color: '#6A6A6A', marginTop: 20, letterSpacing: -0.05 },

@@ -15,6 +15,7 @@ import { endRoad, undoRoadMarker } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange, initialsOf } from '../../src/road/format';
+import { SentimentBadge } from '../../src/components/road/RoadSentiment';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
 
 /**
@@ -233,6 +234,7 @@ export default function RoadScreen() {
             kind={m.kind}
             label={m.label}
             small={m.clientId !== lastMarkerId}
+            sentiment={m.sentiment}
           />
         ))}
         {fix ? (
@@ -274,6 +276,9 @@ export default function RoadScreen() {
         <RoadToastFrame key={st.toast.clientId} style={[s.toast, { top: headerTop + 70 + 10 }]}>
           <View style={s.toastIc}>
             <Image source={markerArt(st.toast.kind)} style={s.toastImg} resizeMode="contain" />
+            {st.toast.sentiment ? (
+              <SentimentBadge sentiment={st.toast.sentiment} size={18} style={s.toastSg} />
+            ) : null}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.toastT1} numberOfLines={1}>{st.toast.label} segnato</Text>
@@ -438,6 +443,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   toastImg: { width: 32, height: 32 },
+  toastSg: { position: 'absolute', right: -4, bottom: -4 },
   toastT1: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   toastT2: { fontSize: 13, fontWeight: '400', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   undo: {

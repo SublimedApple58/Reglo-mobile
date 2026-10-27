@@ -7,6 +7,7 @@ import { GlassCloseButton } from '../../src/components/GlassCloseButton';
 import { SheetScaffold } from '../../src/components/SheetScaffold';
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
+import { countSentiments, SentimentCounts } from '../../src/components/road/RoadSentiment';
 import { lessonStudentName, useRoadState } from '../../src/road/roadStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
@@ -151,8 +152,10 @@ export default function RiepilogoScreen() {
           </View>
         </View>
 
+        <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
+
         {shown.length ? (
-          <View style={{ marginTop: 10 }}>
+          <View style={{ marginTop: 6 }}>
             <RoadMarkerList
               items={shown.map((m) => ({
                 key: m.id,
@@ -160,6 +163,7 @@ export default function RiepilogoScreen() {
                 label: m.label,
                 street: m.street,
                 note: m.note,
+                sentiment: m.sentiment ?? null,
                 recordedAt: m.recordedAt,
               }))}
             />

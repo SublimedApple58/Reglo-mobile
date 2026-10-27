@@ -100,6 +100,7 @@ export function RoadRouteMap({
             kind={m.kind}
             label={m.label}
             small={!labeled}
+            sentiment={m.sentiment ?? null}
           />
         ))}
       </MapView>

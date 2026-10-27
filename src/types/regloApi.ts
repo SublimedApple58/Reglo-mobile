@@ -1614,6 +1614,8 @@ export type RoadMarker = {
   lat: number;
   lng: number;
   street: string | null;
+  /** «Fatto bene» / «da migliorare»; null = neutra (segnalazioni prima del segno). */
+  sentiment?: 'good' | 'bad' | null;
   recordedAt: string;
 };
 
@@ -1657,6 +1659,7 @@ export type AddRoadMarkerInput = {
   lat: number;
   lng: number;
   street?: string | null;
+  sentiment?: 'good' | 'bad' | null;
   recordedAt?: string;
 };
 
