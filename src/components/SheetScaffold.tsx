@@ -30,7 +30,6 @@ export function SheetScaffold({
   scrollEnabled = true,
   keyboardAware = false,
   fill = false,
-  hugScroll = false,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -44,32 +43,9 @@ export function SheetScaffold({
    * scroll and the footer pin to the bottom on iOS too.
    */
   fill?: boolean;
-  /**
-   * iOS, form sheet `fitToContents` con contenuto di lunghezza variabile: il
-   * foglio abbraccia il contenuto (niente vuoto sotto) e, solo se supera lo
-   * schermo, il corpo si accorcia e scorre col footer sempre visibile.
-   */
-  hugScroll?: boolean;
 }) {
   if (isAndroid || fill) {
     return <FillScaffold {...{ footer, style, contentContainerStyle, scrollEnabled, keyboardAware }}>{children}</FillScaffold>;
-  }
-  if (hugScroll) {
-    return (
-      <View style={[{ flexShrink: 1 }, style]}>
-        <ScrollView
-          style={{ flexGrow: 0, flexShrink: 1 }}
-          contentContainerStyle={contentContainerStyle}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          alwaysBounceVertical={false}
-          scrollEnabled={scrollEnabled}
-        >
-          {children}
-        </ScrollView>
-        {footer}
-      </View>
-    );
   }
   return (
     <View style={style}>

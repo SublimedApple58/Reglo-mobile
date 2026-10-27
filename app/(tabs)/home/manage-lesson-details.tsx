@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -249,11 +249,7 @@ export default function ManageLessonDetailsScreen() {
     }
   };
 
-  return (
-    // Home/note: PAGE_SHEET, il root riempie lo schermo e il corpo scorre
-    // (SheetScaffold `fill`). Da Road: form sheet che abbraccia il contenuto
-    // (QA 27/10, niente vuoto sotto) e scorre solo se supera lo schermo.
-    <View style={[s.root, road ? s.rootRoad : { flex: 1 }]}>
+  const topBar = (
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
@@ -261,17 +257,8 @@ export default function ManageLessonDetailsScreen() {
           </Pressable>
         </GlassCloseButton>
       </View>
-
-      <SheetScaffold
-        // fill: corpo scrollabile + "Salva" agganciato in fondo su ENTRAMBE le
-        // piattaforme (stesso pattern di quick-book e booking-rules).
-        fill={!road}
-        hugScroll={!!road}
-        keyboardAware
-        // Coda del contenuto: senza, l'ultima voce del pagellino finisce
-        // incollata al bordo del "Salva" e sembra tagliata.
-        contentContainerStyle={[s.scaffoldBody, road ? { paddingBottom: 8 } : { paddingBottom: 28, flexGrow: 1 }]}
-        footer={
+  );
+  const saveFooter = (
           <View style={{ paddingBottom: road ? 18 : Math.max(insets.bottom, 12) }}>
             <Pressable
               onPress={handleSave}
@@ -292,8 +279,9 @@ export default function ManageLessonDetailsScreen() {
               )}
             </Pressable>
           </View>
-        }
-      >
+  );
+  const content = (
+    <>
       {road ? (
         <View style={[s.headerBlock, s.headerBlockRoad]}>
           <Text style={s.title}>Pagellino</Text>
@@ -531,7 +519,44 @@ export default function ManageLessonDetailsScreen() {
         />
       </View>
       )}
+    </>
+  );
+
+  if (road) {
+    // Da Road: form sheet `fitToContents`. La radice È lo scroll del foglio
+    // (nessuna View contenitore): il foglio abbraccia il contenuto e, se supera
+    // lo schermo, iOS lo porta al detent massimo e scorre nativamente.
+    return (
+      <ScrollView
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={[s.root, s.rootRoad, s.scaffoldBody]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        alwaysBounceVertical={false}
+      >
+        {topBar}
+        {content}
+        {saveFooter}
+      </ScrollView>
+    );
+  }
+
+  return (
+    // Home/note: PAGE_SHEET, il root riempie lo schermo e il corpo scorre
+    // (SheetScaffold `fill`) con «Salva» agganciato in fondo.
+    <View style={[s.root, { flex: 1 }]}>
+      {topBar}
+      <SheetScaffold
+        fill
+        keyboardAware
+        // Coda del contenuto: senza, l'ultima voce del pagellino finisce
+        // incollata al bordo del "Salva" e sembra tagliata.
+        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28, flexGrow: 1 }]}
+        footer={saveFooter}
+      >
+        {content}
       </SheetScaffold>
+
 
       {accessory}
     </View>
