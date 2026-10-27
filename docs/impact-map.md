@@ -32,6 +32,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | DayItinerary, IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `AutoscuolaAppointment.manualPaymentStatus` / `creditApplied` / `paymentRequired` | `StudentPaymentsScreen`, `StudentNotesDetailScreen` (conteggio "da pagare") via `src/utils/lessonPayments.ts` (REG-450). **Solo ramo full** di `getAppointments`. Vedi [features/lesson-payments.md](features/lesson-payments.md). |
+| `AutoscuolaAppointment.paymentHistory` (REG-637) | `StudentPaymentsScreen` (riga chi/quando + tocco → `payment-history`), `PaymentHistorySheet`. Solo staff, solo `getAppointments({ studentId })` ramo full. Regola gemella `src/utils/paymentHistory.ts` ↔ `reglo/components/pages/Autoscuole/LessonPaymentTrail.tsx`. |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
 ## Feature Adjacency

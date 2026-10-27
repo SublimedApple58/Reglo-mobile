@@ -27,7 +27,7 @@ import Animated, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 
 import {
   notificationAsync,
@@ -38,6 +38,7 @@ import { HoldRing } from '../components/HoldRing';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 import { studentPaymentsStore } from '../stores/studentPaymentsStore';
+import { paymentHistoryStore } from '../stores/paymentHistoryStore';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme';
 import { formatTime } from '../utils/date';
@@ -49,7 +50,13 @@ import {
   isPenaltyCharged,
   isPenaltyPaid,
 } from '../utils/lessonPayments';
-import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
+import {
+  PAYMENT_EVENT_DOT,
+  PAYMENT_EVENT_LABEL,
+  formatPaymentEventWhen,
+  lastEventMatchesState,
+} from '../utils/paymentHistory';
+import type { AutoscuolaAppointmentWithRelations, PaymentHistoryEvent } from '../types/regloApi';
 
 /** Filtri del registro guide — stessi identici del dettaglio allievo web. */
 type LessonFilter = 'all' | 'upcoming' | 'unpaid' | 'completed' | 'cancelled';
@@ -157,6 +164,7 @@ function LessonRow({
   onCommit,
   onFallbackMenu,
   onNudge,
+  onOpenHistory,
 }: {
   lesson: AutoscuolaAppointmentWithRelations;
   actionable: boolean;
@@ -172,7 +180,15 @@ function LessonRow({
   onCommit: (lesson: AutoscuolaAppointmentWithRelations) => void;
   onFallbackMenu: (lesson: AutoscuolaAppointmentWithRelations) => void;
   onNudge: () => void;
+  /** REG-637: con almeno 2 eventi il tocco apre lo storico (sheet nativo). */
+  onOpenHistory: (lesson: AutoscuolaAppointmentWithRelations) => void;
 }) {
+  const history = lesson.paymentHistory ?? [];
+  const last = history[0];
+  const trail =
+    last && lastEventMatchesState(last, lesson) ? { event: last, when: formatPaymentEventWhen(last.at) } : null;
+  const hasHistory = history.length >= 2;
+
   const progress = useSharedValue(0);
   const press = useSharedValue(0);
 
@@ -209,6 +225,27 @@ function LessonRow({
       <View style={s.rowBody}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
         <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
+        {trail || hasHistory ? (
+          <View style={s.trail}>
+            {trail ? (
+              <>
+                <View style={[s.trailDot, { backgroundColor: PAYMENT_EVENT_DOT[trail.event.kind] }]} />
+                <Text style={s.trailText} numberOfLines={1}>
+                  <Text style={s.trailLabel}>{PAYMENT_EVENT_LABEL[trail.event.kind]}</Text>
+                  {` · ${trail.when.day}, ${trail.when.time}`}
+                  {trail.event.actorName ? ` · ${trail.event.actorName}` : ''}
+                </Text>
+              </>
+            ) : null}
+            {hasHistory ? (
+              <View style={s.trailHistory}>
+                <Ionicons name="time-outline" size={12} color="#6B6B78" />
+                <Text style={s.trailHistoryText}>{history.length}</Text>
+                <Ionicons name="chevron-forward" size={11} color="#B4B4BD" />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       {value ? (
         <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
@@ -237,8 +274,12 @@ function LessonRow({
                 onFallbackMenu(lesson);
                 return;
               }
-              // Tocco breve: l'anello è appena partito e già rientrato. Non
-              // resta muto — il suggerimento torna a dire cosa fare.
+              // Tocco breve: con uno storico lo apre (la pressione lunga resta la
+              // conferma); senza, il suggerimento torna a dire cosa fare.
+              if (hasHistory) {
+                onOpenHistory(lesson);
+                return;
+              }
               onNudge();
             }}
             accessibilityRole="button"
@@ -248,6 +289,16 @@ function LessonRow({
             {body}
           </Pressable>
         </Animated.View>
+      ) : hasHistory ? (
+        <Pressable
+          onPress={() => onOpenHistory(lesson)}
+          style={({ pressed }) => pressed && { opacity: 0.6 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${title}. ${subtitle}. ${value ?? ''}`}
+          accessibilityHint="Apre lo storico pagamento"
+        >
+          {body}
+        </Pressable>
       ) : (
         body
       )}
@@ -259,6 +310,7 @@ function LessonRow({
 
 export const StudentPaymentsScreen = () => {
   const router = useRouter();
+  const segments = useSegments();
   const data = useSyncExternalStore(studentPaymentsStore.subscribe, studentPaymentsStore.get);
 
   const [filter, setFilter] = useState<LessonFilter>('all');
@@ -269,7 +321,9 @@ export const StudentPaymentsScreen = () => {
    * storico (niente optimistic update: si scrive solo ciò che il server ha
    * risposto). La scheda sotto si riallinea da sé via `onChanged`.
    */
-  const [patched, setPatched] = useState<Record<string, string | null>>({});
+  const [patched, setPatched] = useState<
+    Record<string, { status: string | null; events: PaymentHistoryEvent[] }>
+  >({});
   const [hintVisible, setHintVisible] = useState(false);
   const [screenReader, setScreenReader] = useState(false);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -307,8 +361,15 @@ export const StudentPaymentsScreen = () => {
   const manualMode = isCompanyManualMode(data?.settings);
 
   const lessons = useMemo(() => {
+    // REG-637: gli eventi scritti qui vanno in testa allo storico del seed.
     const list = (data?.lessons ?? []).map((l) =>
-      l.id in patched ? { ...l, manualPaymentStatus: patched[l.id] } : l,
+      l.id in patched
+        ? {
+            ...l,
+            manualPaymentStatus: patched[l.id].status,
+            paymentHistory: [...patched[l.id].events, ...(l.paymentHistory ?? [])],
+          }
+        : l,
     );
     return list.sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [data?.lessons, patched]);
@@ -367,7 +428,15 @@ export const StudentPaymentsScreen = () => {
       setSavingId(lesson.id);
       try {
         const res = await regloApi.setManualPaymentStatus(lesson.id, status);
-        setPatched((prev) => ({ ...prev, [lesson.id]: res.manualPaymentStatus }));
+        setPatched((prev) => ({
+          ...prev,
+          [lesson.id]: {
+            status: res.manualPaymentStatus,
+            events: res.paymentEvent
+              ? [res.paymentEvent, ...(prev[lesson.id]?.events ?? [])]
+              : (prev[lesson.id]?.events ?? []),
+          },
+        }));
         setToast({
           text: status === 'paid' ? 'Guida segnata come pagata.' : 'Guida segnata come da pagare.',
           tone: 'success',
@@ -381,6 +450,20 @@ export const StudentPaymentsScreen = () => {
       }
     },
     [savingId, data],
+  );
+
+  /** REG-637: storico della guida in un form sheet nativo, già pieno dal seed. */
+  const openHistory = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) => {
+      const start = new Date(lesson.startsAt);
+      paymentHistoryStore.set({
+        lessonLabel: `${WEEKDAYS[start.getDay()]} ${start.getDate()} ${MONTHS[start.getMonth()].toLowerCase()} · ${formatTime(lesson.startsAt)}`,
+        events: lesson.paymentHistory ?? [],
+      });
+      const stack = (segments as string[]).includes('notes') ? 'notes' : 'home';
+      router.push(`/(tabs)/${stack}/payment-history`);
+    },
+    [router, segments],
   );
 
   /** La pressione lunga è arrivata in fondo: si scrive, senza altre domande. */
@@ -405,21 +488,27 @@ export const StudentPaymentsScreen = () => {
       const start = new Date(lesson.startsAt);
       const title = `${start.getDate()} ${MONTHS_SHORT[start.getMonth()]} · ${formatTime(lesson.startsAt)}`;
 
+      // REG-637: con VoiceOver lo storico si apre da qui (il tocco è il menu).
+      const withHistory = (lesson.paymentHistory?.length ?? 0) >= 2;
+
       if (Platform.OS === 'ios') {
+        const options = withHistory ? [action, 'Storico pagamento', 'Annulla'] : [action, 'Annulla'];
         ActionSheetIOS.showActionSheetWithOptions(
-          { title, options: [action, 'Annulla'], cancelButtonIndex: 1 },
+          { title, options, cancelButtonIndex: options.length - 1 },
           (i) => {
             if (i === 0) void applyStatus(lesson, next);
+            if (withHistory && i === 1) openHistory(lesson);
           },
         );
       } else {
         Alert.alert(title, undefined, [
           { text: action, onPress: () => void applyStatus(lesson, next) },
-          { text: 'Annulla', style: 'cancel' },
+          ...(withHistory ? [{ text: 'Storico pagamento', onPress: () => openHistory(lesson) }] : []),
+          { text: 'Annulla', style: 'cancel' as const },
         ]);
       }
     },
-    [applyStatus, markLearned],
+    [applyStatus, markLearned, openHistory],
   );
 
   if (!data) return <View style={s.sheet} />;
@@ -582,6 +671,7 @@ export const StudentPaymentsScreen = () => {
                         onCommit={commit}
                         onFallbackMenu={openFallbackMenu}
                         onNudge={nudge}
+                        onOpenHistory={openHistory}
                       />
                     </Animated.View>
                   );
@@ -657,6 +747,18 @@ const s = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', letterSpacing: -0.1 },
   rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9AA2', marginTop: 1 },
   rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
+  // REG-637: «chi e quando» sotto il sottotitolo. Più piccolo e più chiaro
+  // del sottotitolo: è un dettaglio, non deve gareggiare con la guida.
+  trail: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  trailDot: { width: 6, height: 6, borderRadius: 3 },
+  trailText: { flexShrink: 1, fontSize: 12, fontWeight: '400', color: '#9A9AA2', letterSpacing: -0.05 },
+  trailLabel: { color: '#4A4A57', fontWeight: '500' },
+  trailHistory: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingLeft: 6, paddingRight: 4, paddingVertical: 1.5,
+    borderRadius: 999, backgroundColor: '#F2F2F5',
+  },
+  trailHistoryText: { fontSize: 11.5, fontWeight: '500', color: '#6B6B78', fontVariant: ['tabular-nums'] },
   rowRing: { width: 26, height: 26, marginLeft: 9, alignItems: 'center', justifyContent: 'center' },
 
   empty: { alignItems: 'center', paddingTop: 70, gap: 6 },

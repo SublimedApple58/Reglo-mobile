@@ -168,3 +168,31 @@ cambia `loadData` in `StudentNotesDetailScreen` deve continuare a passare
 - **Guide annullate** — le annullate con penale addebitata sono guide da pagare.
 - **Backend (`reglo`)** — `docs/features/payments.md`, regola gemella in
   `lib/autoscuole/unpaid-auto-block.ts`.
+
+## Storico pagamento — chi e quando (REG-637)
+
+Ogni guida della lista porta `paymentHistory` (dal più recente), che il BE manda
+**solo allo staff** e solo sulla lista guide di un allievo
+(`getAppointments({ studentId })`, ramo FULL). Eventi: `paid` / `unpaid` /
+`cleared` (gesti manuali) e `credit_applied` / `credit_refunded` (dal ledger
+crediti). Guide segnate prima di REG-637: storico vuoto → nessuna riga.
+
+- **Riga sotto il sottotitolo** (`LessonRow`): punto colorato + «Segnata pagata
+  · 27 ott, 11:17 · Mario Rossi», solo se l'ultimo evento racconta ancora lo
+  stato (`lastEventMatchesState`). Con ≥ 2 eventi compare il chip
+  orologio + numero + chevron.
+- **Tocco breve** su una riga con ≥ 2 eventi → apre lo storico; senza storico
+  resta il suggerimento «tieni premuto». La **pressione lunga resta la
+  conferma** del pagamento. Con VoiceOver lo storico è una voce del menu di
+  ripiego («Storico pagamento»).
+- **Foglio storico**: rotta `payment-history` in ENTRAMBI gli stack (home +
+  notes), `HUG_SHEET` (form sheet nativo che abbraccia il contenuto, root `View`
+  semplice, niente ScrollView). Seed via `paymentHistoryStore`, catturato al
+  mount. Componente `src/components/PaymentHistorySheet.tsx`: timeline
+  verticale, ultimo evento a punto pieno colorato.
+- Dopo «Segna pagata» il BE restituisce `paymentEvent`: si mette in testa allo
+  storico locale (`patched`) senza rileggere.
+
+Etichette, colori e `lastEventMatchesState` in `src/utils/paymentHistory.ts`:
+copia gemella di `reglo/components/pages/Autoscuole/LessonPaymentTrail.tsx`,
+cambiarle insieme.

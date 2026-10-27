@@ -281,6 +281,20 @@ export type AutoscuolaLocation = {
   isPrecise: boolean;
 };
 
+/**
+ * REG-637 — un cambio dello stato pagamento di una guida. `paid`/`unpaid`/
+ * `cleared` sono gesti manuali ("Segna pagata"…); `credit_applied`/
+ * `credit_refunded` arrivano dal ledger crediti. `actorName` null = utente
+ * eliminato o gesto di sistema.
+ */
+export type PaymentHistoryKind = 'paid' | 'unpaid' | 'cleared' | 'credit_applied' | 'credit_refunded';
+export type PaymentHistoryEvent = {
+  id: Uuid;
+  kind: PaymentHistoryKind;
+  at: IsoDate;
+  actorName: string | null;
+};
+
 export type AutoscuolaAppointment = {
   id: Uuid;
   companyId: Uuid;
@@ -340,6 +354,12 @@ export type AutoscuolaAppointment = {
   manualPaymentStatus?: string | null;
   /** La guida è già saldata da un credito del pacchetto → non è "da pagare". */
   creditApplied?: boolean | null;
+  /**
+   * REG-637 — chi/quando sullo stato pagamento, dal più recente. Arriva solo
+   * allo staff sulla lista guide di UN allievo (`studentId`, ramo FULL): mai
+   * all'allievo, mai sull'agenda. Vuoto sulle guide segnate prima di REG-637.
+   */
+  paymentHistory?: PaymentHistoryEvent[];
   /** La guida nasce a pagamento (Stripe automatico oppure posto di guida di gruppo). */
   paymentRequired?: boolean | null;
   replacedByAppointmentId?: Uuid | null;

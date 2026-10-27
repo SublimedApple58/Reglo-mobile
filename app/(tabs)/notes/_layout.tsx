@@ -16,6 +16,8 @@ export default function NotesLayout() {
       {/* Pagamenti guide (REG-450): registro a lunghezza libera (lo storico di un
           allievo arriva a decine di guide) → page sheet con scroll nativo. */}
       <Stack.Screen name="student-payments" options={PAGE_SHEET} />
+      {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
+      <Stack.Screen name="payment-history" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       <Stack.Screen name="group-students" options={{ presentation: 'modal', headerShown: false }} />
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello

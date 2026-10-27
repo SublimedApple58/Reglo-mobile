@@ -114,6 +114,7 @@ import {
   StudentPhasePayload,
   CheckInstructorAvailabilityInput,
   InstructorAvailabilityResult,
+  PaymentHistoryEvent,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -574,14 +575,16 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     /**
      * Segna una guida pagata / da pagare (REG-450). `null` azzera lo stato.
-     * Permessi e guardia "solo le tue guide" (istruttore) stanno nel BE:
-     * l'errore torna già in italiano, si mostra così com'è.
+     * Permessi (titolare e istruttori, su qualsiasi guida dell'allievo) stanno
+     * nel BE: l'errore torna già in italiano, si mostra così com'è.
+     * REG-637: `paymentEvent` è la riga di storico appena scritta (null se lo
+     * stato era già quello).
      */
     setManualPaymentStatus: async (
       appointmentId: string,
       status: 'paid' | 'unpaid' | null
     ) =>
-      client.request<{ manualPaymentStatus: string | null }>(
+      client.request<{ manualPaymentStatus: string | null; paymentEvent?: PaymentHistoryEvent | null }>(
         `/api/autoscuole/appointments/${appointmentId}/manual-payment`,
         {
           method: 'PATCH',
