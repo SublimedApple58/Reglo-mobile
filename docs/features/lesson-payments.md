@@ -177,10 +177,12 @@ Ogni guida della lista porta `paymentHistory` (dal più recente), che il BE mand
 `cleared` (gesti manuali) e `credit_applied` / `credit_refunded` (dal ledger
 crediti). Guide segnate prima di REG-637: storico vuoto → nessuna riga.
 
-- **Riga sotto il sottotitolo** (`LessonRow`): punto colorato + «Segnata pagata
-  · 27 ott, 11:17 · Mario Rossi», solo se l'ultimo evento racconta ancora lo
-  stato (`lastEventMatchesState`). Con ≥ 2 eventi compare il chip
-  orologio + numero + chevron.
+- **Riga sotto la guida, a tutta larghezza** (`LessonRow`, allineata al testo,
+  non accanto a valore e anello: lì data e nome si troncavano): punto colorato
+  + etichetta CORTA «Pagata · 27 ott, 11:17 · Mario Rossi»
+  (`PAYMENT_EVENT_SHORT_LABEL`; il foglio usa quella estesa), solo se l'ultimo
+  evento racconta ancora lo stato (`lastEventMatchesState`). Con ≥ 2 eventi
+  compare il chip orologio + numero + chevron.
 - **Tocco breve** su una riga con ≥ 2 eventi → apre lo storico; senza storico
   resta il suggerimento «tieni premuto». La **pressione lunga resta la
   conferma** del pagamento. Con VoiceOver lo storico è una voce del menu di

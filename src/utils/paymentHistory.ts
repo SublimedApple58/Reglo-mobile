@@ -16,6 +16,19 @@ export const PAYMENT_EVENT_LABEL: Record<PaymentHistoryKind, string> = {
   credit_refunded: 'Credito restituito',
 };
 
+/**
+ * Etichetta corta per la riga sotto la guida («Pagata · 9 ott, 19:30 · Mario
+ * Rossi»): su telefono la riga è stretta e data e nome sono ciò che conta.
+ * Lo storico (foglio) usa quella estesa.
+ */
+export const PAYMENT_EVENT_SHORT_LABEL: Record<PaymentHistoryKind, string> = {
+  paid: 'Pagata',
+  unpaid: 'Da pagare',
+  cleared: 'Stato rimosso',
+  credit_applied: 'A credito',
+  credit_refunded: 'Credito restituito',
+};
+
 /** Micro-accento del punto davanti all'evento: l'unico colore della riga. */
 export const PAYMENT_EVENT_DOT: Record<PaymentHistoryKind, string> = {
   paid: '#15803D',

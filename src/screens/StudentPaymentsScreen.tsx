@@ -52,7 +52,7 @@ import {
 } from '../utils/lessonPayments';
 import {
   PAYMENT_EVENT_DOT,
-  PAYMENT_EVENT_LABEL,
+  PAYMENT_EVENT_SHORT_LABEL,
   formatPaymentEventWhen,
   lastEventMatchesState,
 } from '../utils/paymentHistory';
@@ -219,42 +219,46 @@ function LessonRow({
     progress.value = withSpring(0, SPRING);
   }, [press, progress]);
 
+  // REG-637: la riga «chi e quando» sta SOTTO la guida a tutta larghezza
+  // (allineata al testo): accanto a valore e anello data e nome si troncavano.
   const body = (
-    <View style={s.row} testID={hasHistory ? 'payment-row-history' : trail ? 'payment-row-trail' : undefined}>
-      <StateGlyph tone={tone} icon={icon} />
-      <View style={s.rowBody}>
-        <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
-        <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
-        {trail || hasHistory ? (
-          <View style={s.trail}>
-            {trail ? (
-              <>
-                <View style={[s.trailDot, { backgroundColor: PAYMENT_EVENT_DOT[trail.event.kind] }]} />
-                <Text style={s.trailText} numberOfLines={1}>
-                  <Text style={s.trailLabel}>{PAYMENT_EVENT_LABEL[trail.event.kind]}</Text>
-                  {` · ${trail.when.day}, ${trail.when.time}`}
-                  {trail.event.actorName ? ` · ${trail.event.actorName}` : ''}
-                </Text>
-              </>
-            ) : null}
-            {hasHistory ? (
-              <View style={s.trailHistory}>
-                <Ionicons name="time-outline" size={12} color="#6B6B78" />
-                <Text style={s.trailHistoryText}>{history.length}</Text>
-                <Ionicons name="chevron-forward" size={11} color="#B4B4BD" />
-              </View>
-            ) : null}
+    <View testID={hasHistory ? 'payment-row-history' : trail ? 'payment-row-trail' : undefined}>
+      <View style={[s.row, (trail || hasHistory) && s.rowWithTrail]}>
+        <StateGlyph tone={tone} icon={icon} />
+        <View style={s.rowBody}>
+          <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
+          <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
+        </View>
+        {value ? (
+          <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
+        ) : null}
+        {busy ? (
+          <ActivityIndicator size="small" color="#1A1A2E" style={s.rowRing} />
+        ) : actionable ? (
+          <View style={s.rowRing}>
+            <HoldRing progress={progress} color={paid ? '#B45309' : '#067647'} />
           </View>
         ) : null}
       </View>
-      {value ? (
-        <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
-      ) : null}
-      {busy ? (
-        <ActivityIndicator size="small" color="#1A1A2E" style={s.rowRing} />
-      ) : actionable ? (
-        <View style={s.rowRing}>
-          <HoldRing progress={progress} color={paid ? '#B45309' : '#067647'} />
+      {trail || hasHistory ? (
+        <View style={s.trail}>
+          {trail ? (
+            <>
+              <View style={[s.trailDot, { backgroundColor: PAYMENT_EVENT_DOT[trail.event.kind] }]} />
+              <Text style={s.trailText} numberOfLines={1}>
+                <Text style={s.trailLabel}>{PAYMENT_EVENT_SHORT_LABEL[trail.event.kind]}</Text>
+                {` · ${trail.when.day}, ${trail.when.time}`}
+                {trail.event.actorName ? ` · ${trail.event.actorName}` : ''}
+              </Text>
+            </>
+          ) : null}
+          {hasHistory ? (
+            <View style={s.trailHistory}>
+              <Ionicons name="time-outline" size={12} color="#6B6B78" />
+              <Text style={s.trailHistoryText}>{history.length}</Text>
+              <Ionicons name="chevron-forward" size={11} color="#B4B4BD" />
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -749,7 +753,11 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
   // REG-637: «chi e quando» sotto il sottotitolo. Più piccolo e più chiaro
   // del sottotitolo: è un dettaglio, non deve gareggiare con la guida.
-  trail: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  rowWithTrail: { paddingBottom: 3 },
+  trail: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingLeft: SEP_INSET, paddingRight: PAD, paddingBottom: 12,
+  },
   trailDot: { width: 6, height: 6, borderRadius: 3 },
   trailText: { flexShrink: 1, fontSize: 12, fontWeight: '400', color: '#9A9AA2', letterSpacing: -0.05 },
   trailLabel: { color: '#4A4A57', fontWeight: '500' },
