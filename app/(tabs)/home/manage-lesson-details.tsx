@@ -232,6 +232,8 @@ export default function ManageLessonDetailsScreen() {
       multi: true,
       selected: [],
       confirmLabel: 'Aggiungi al pagellino',
+      // In Road niente navy: selezione e CTA in bianco/nero.
+      tone: road ? 'mono' : undefined,
       options: evalAvailable.map((item) => ({
         value: item.id,
         label: item.label,
@@ -291,7 +293,7 @@ export default function ManageLessonDetailsScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color={road ? '#3A3A3C' : '#1A1A2E'} />
           </Pressable>
         </GlassCloseButton>
       </View>

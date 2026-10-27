@@ -20,8 +20,9 @@ export default function RoadLayout() {
       <Stack.Screen name="pagellino" options={PAGE_SHEET} />
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
-      {/* Riepilogo: si esce solo con «Chiudi»/X (lo swipe lascerebbe Road a metà). */}
-      <Stack.Screen name="riepilogo" options={{ ...PAGE_SHEET, gestureEnabled: false }} />
+      {/* Riepilogo: form sheet che abbraccia il contenuto, CTA in fondo (§13.2.1).
+          Si esce solo con «Chiudi»/X (lo swipe lascerebbe Road a metà). */}
+      <Stack.Screen name="riepilogo" options={{ ...TALL_SHEET, gestureEnabled: false }} />
     </Stack>
   );
 }

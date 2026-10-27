@@ -6,6 +6,8 @@ export function formatKm(meters: number): string {
 }
 
 export function formatMinutes(seconds: number): string {
+  // Sotto il minuto «0» si leggeva come «non ha contato niente» (QA 27/10).
+  if (seconds > 0 && seconds < 60) return '<1';
   return String(Math.max(0, Math.floor(seconds / 60)));
 }
 

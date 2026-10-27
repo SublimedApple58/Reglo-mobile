@@ -40,6 +40,11 @@ export type OptionsPickerData = {
   emptyLabel?: string;
   /** Riga di servizio sotto la lista (es. quali moto non compaiono e perché). */
   footnote?: string | null;
+  /**
+   * `mono`: bianco/nero senza navy (selezione, spunta, CTA nera piena). Lo usa
+   * Reglo Road, dove nessun bottone è navy (REG-638).
+   */
+  tone?: 'mono';
   onConfirm: (values: string[]) => void;
 };
 

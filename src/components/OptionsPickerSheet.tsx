@@ -36,6 +36,7 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(optionsPickerStore.subscribe, optionsPickerStore.get);
+  const mono = data?.tone === 'mono';
 
   const [picked, setPicked] = useState<string[]>(data?.selected ?? []);
   const [query, setQuery] = useState('');
@@ -71,7 +72,7 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
       <View key={o.value}>
         <Pressable
           onPress={() => (data.multi ? toggleMulti(o.value) : pickSingle(o.value))}
-          style={({ pressed }) => [s.row, on && s.rowOn, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [s.row, on && (mono ? s.rowOnMono : s.rowOn), pressed && { opacity: 0.7 }]}
         >
           {o.leadingInitials ? (
             <UserPhotoCircle userId={o.leadingUserId} size={36} style={{ marginRight: 13 }}>
@@ -105,7 +106,7 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           {o.trailingInitials && !on ? (
             <View style={s.trailingAvatar}><Text style={s.trailingAvatarText}>{o.trailingInitials}</Text></View>
           ) : (
-            <View style={[s.mark, on && s.markOn]}>
+            <View style={[s.mark, mono && s.markMono, on && (mono ? s.markOnMono : s.markOn)]}>
               {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
             </View>
           )}
@@ -187,12 +188,13 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           style={({ pressed }) => [
             s.cta,
             !picked.length && s.ctaOff,
+            mono && picked.length ? s.ctaMono : null,
             pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
           ]}
         >
           {/* Il contatore sta DENTRO la CTA: il bottone smette di essere una
               pillola che galleggia e diventa il riepilogo di ciò che hai scelto. */}
-          {picked.length ? <GradientCTABackground radius={27} /> : null}
+          {picked.length && !mono ? <GradientCTABackground radius={27} /> : null}
           {picked.length ? (
             <View style={s.ctaCount}>
               <Text style={s.ctaCountText}>{picked.length}</Text>
@@ -233,6 +235,9 @@ const s = StyleSheet.create({
   rowOn: { backgroundColor: navy[50], borderColor: NAVY },
   mark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: navy[200], alignItems: 'center', justifyContent: 'center' },
   markOn: { borderWidth: 0, backgroundColor: NAVY },
+  rowOnMono: { backgroundColor: '#F4F4F4', borderColor: '#111111' },
+  markMono: { borderColor: '#D4D4D4' },
+  markOnMono: { borderWidth: 0, backgroundColor: '#111111' },
   avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 13, backgroundColor: '#F1F2F6', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontWeight: '600', color: NAVY },
   body: { flex: 1, minWidth: 0, gap: 2 },
@@ -251,6 +256,7 @@ const s = StyleSheet.create({
     ...primaryCtaShadow,
   },
   ctaOff: { backgroundColor: '#ECECEF', shadowOpacity: 0, elevation: 0 },
+  ctaMono: { backgroundColor: '#111111' },
   ctaCount: {
     minWidth: 22, height: 22, paddingHorizontal: 7, borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center',
