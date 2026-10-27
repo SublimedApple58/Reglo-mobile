@@ -29,6 +29,23 @@ export const roadEntryStore = {
 /** Il form sheet dell'invito è aperto (niente doppioni al ritorno in foreground). */
 export const roadInviteOpen = { current: false };
 
+/**
+ * Richiesta di rilettura di `/road/state` (es. subito dopo «Presente»):
+ * la ascolta il RoadController. `force` ripropone l'invito anche se era stato
+ * chiuso con «Non ora» per questa guida.
+ */
+type RoadCheckRequest = { force?: boolean };
+const checkListeners = new Set<(req: RoadCheckRequest) => void>();
+export function requestRoadCheck(req: RoadCheckRequest = {}) {
+  checkListeners.forEach((fn) => fn(req));
+}
+export function onRoadCheckRequest(fn: (req: RoadCheckRequest) => void) {
+  checkListeners.add(fn);
+  return () => {
+    checkListeners.delete(fn);
+  };
+}
+
 export const ROAD_INVITE_ROUTE = '/(tabs)/home/road-invite' as const;
 export const ROAD_PRIVACY_ROUTE = '/(tabs)/home/road-privacy' as const;
 export const ROAD_ROUTE = '/road' as const;

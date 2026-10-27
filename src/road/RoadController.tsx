@@ -10,12 +10,16 @@ import { isInviteDismissed, resumeRoad } from './roadActions';
 import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
 import { roadQueue } from './queue';
-import { ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
+import { onRoadCheckRequest, ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
+
+/** Mentre l'app resta aperta: l'invito deve comparire quando si apre la finestra (15 min prima). */
+const RECHECK_MS = 60_000;
 
 /**
  * REG-638 Reglo Road — regia della modalità Road (montata nell'AuthGate).
  *
- * - All'avvio e a ogni ritorno in primo piano legge `/road/state`:
+ * - All'avvio, a ogni ritorno in primo piano, ogni minuto con l'app aperta e
+ *   subito dopo «Presente» (`requestRoadCheck`) legge `/road/state`:
  *   · sessione attiva → rientra in Road (e riaccende il GPS dopo un kill);
  *   · guida idonea, invito non silenziato → apre il foglio «Entri in Road?».
  * - Instrada: con una sessione Road (attiva / in chiusura / riepilogo) l'app
@@ -33,7 +37,7 @@ export function RoadController() {
   rootRef.current = root;
   const checking = useRef(false);
 
-  const check = useCallback(async () => {
+  const check = useCallback(async (opts: { force?: boolean } = {}) => {
     if (!allowed || checking.current) return;
     checking.current = true;
     try {
@@ -62,7 +66,7 @@ export function RoadController() {
       const lesson = st.eligibleLesson;
       if (!lesson || roadStore.get().phase !== 'idle' || roadInviteOpen.current) return;
       if (rootRef.current !== '(tabs)') return;
-      if (await isInviteDismissed(lesson.appointmentId)) return;
+      if (!opts.force && (await isInviteDismissed(lesson.appointmentId))) return;
       roadEntryStore.set({ lesson });
       roadInviteOpen.current = true;
       router.push(ROAD_INVITE_ROUTE);
@@ -80,9 +84,17 @@ export function RoadController() {
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') void check();
     });
+    // Senza questo, con l'app rimasta aperta da prima della finestra l'invito
+    // (e il bottone «Entra in Road») non arrivavano mai.
+    const tick = setInterval(() => {
+      if (AppState.currentState === 'active' && roadStore.get().phase === 'idle') void check();
+    }, RECHECK_MS);
+    const off = onRoadCheckRequest((req) => void check(req));
     return () => {
       clearTimeout(t);
+      clearInterval(tick);
       sub.remove();
+      off();
     };
   }, [allowed, check]);
 

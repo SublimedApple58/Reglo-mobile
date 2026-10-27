@@ -70,7 +70,7 @@ import { SelectableChip } from '../components/SelectableChip';
 import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
 import { useRoadState } from '../road/roadStore';
-import { beginRoadEntry } from '../road/entryFlow';
+import { beginRoadEntry, requestRoadCheck } from '../road/entryFlow';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
@@ -102,6 +102,9 @@ import { useInstructorSettings } from '../hooks/queries/useInstructorSettings';
 import { useAgendaBootstrap } from '../hooks/queries/useAgendaBootstrap';
 import { useHolidays } from '../hooks/queries/useHolidays';
 import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
+
+// REG-638: icona del bottone «Entra in Road» (stessa della live card).
+const ROAD_ENTRY_ICON = require('../../assets/road/fluent-road.png');
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
 type DrawerAction = InstructorActionStatus | 'save_details';
@@ -2162,6 +2165,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         });
         // Refresh from the BE before closing so the list/card show the true state.
         await loadData();
+        // REG-638: «Presente» = la guida parte → proponi subito Reglo Road
+        // (anche se l'invito era stato chiuso prima della guida).
+        if (action === 'checked_in') requestRoadCheck({ force: true });
         setToast({
           text: options?.correction
             ? `Esito corretto: ${action === 'checked_in' ? 'Presente' : 'Assente'}`
@@ -3530,6 +3536,19 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                               <Text style={styles.itinActNoText}>{pendingAction === 'no_show' ? 'Attendi…' : '✗ Assente'}</Text>
                             </Pressable>
                           </View>
+                        ) : null}
+                        {/* REG-638: ingresso in Reglo Road sempre visibile sulla guida idonea
+                            (da 15 min prima e anche quando è già «presente / in corso»). */}
+                        {!ownerMode && roadPhase === 'idle' && roadEligible?.appointmentId === a.id ? (
+                          <Pressable
+                            onPress={(e) => { e.stopPropagation?.(); void beginRoadEntry(router, roadEligible); }}
+                            style={({ pressed }) => [styles.itinRoadBtn, pressed && { opacity: 0.88 }]}
+                            accessibilityRole="button"
+                            testID="itin-enter-road"
+                          >
+                            <Image source={ROAD_ENTRY_ICON} style={styles.itinRoadIc} />
+                            <Text style={styles.itinRoadTx}>Entra in Road</Text>
+                          </Pressable>
                         ) : null}
                       </Pressable>
                     </View>
@@ -5616,6 +5635,9 @@ const styles = StyleSheet.create({
   itinStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   itinStatusPillText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
   itinActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  itinRoadBtn: { minHeight: 46, marginTop: 10, borderRadius: 999, backgroundColor: '#111111', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  itinRoadIc: { width: 20, height: 20 },
+  itinRoadTx: { fontSize: 14.5, fontWeight: '600', color: '#FFFFFF' },
   itinActBtn: { flex: 1, minHeight: 46, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   itinActCheck: { backgroundColor: '#1A1A2E' },
   itinActCheckText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
