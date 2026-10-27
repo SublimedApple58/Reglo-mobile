@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +16,8 @@ import { formatHm } from '../../../src/road/format';
 import { TAB_BAR_CONTENT_H } from '../../../src/components/GlassTabBar';
 
 const ROAD_ICON = require('../../../assets/road/road-3d.png');
+// Fluent 3D Emoji di Microsoft (per ora; poi icone stile Airbnb).
+const READY_ICON = require('../../../assets/road/fluent-oncoming-car.png');
 
 const PITCH = 40;
 const ALTITUDE = 900; // iOS (metri)
@@ -87,8 +90,9 @@ export default function RoadTab() {
     : current
       ? `Hai una guida adesso con ${lessonStudentName(current)}`
       : options?.nextLessonAt
-        ? `Nessuna guida fino alle ${formatHm(options.nextLessonAt)}`
-        : 'Nessun\'altra guida oggi: parti quando vuoi';
+        ? `Nessuna guida fino alle ${formatHm(options.nextLessonAt)}: porta un allievo in strada.`
+        : 'Nessun\'altra guida oggi: parti quando vuoi.';
+  const badge = inRoad ? 'In guida' : current ? 'Guida adesso' : 'Sei libero';
 
   const onPrimary = () => {
     if (inRoad) {
@@ -132,7 +136,18 @@ export default function RoadTab() {
       </View>
 
       <View style={[s.panelWrap, { bottom: barH + 10 }]} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
-        <View style={s.panel} testID="road-tab-panel">
+        <LinearGradient
+          colors={['#FFF3E6', '#FFE4D6', '#FFD9CF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={s.panel}
+          testID="road-tab-panel"
+        >
+          <Image source={READY_ICON} style={s.readyIcon} resizeMode="contain" />
+          <View style={s.badge}>
+            <View style={s.badgeDot} />
+            <Text style={s.badgeTx}>{badge}</Text>
+          </View>
           <Text style={s.title}>{inRoad ? 'Guida in corso' : 'Pronto a partire?'}</Text>
           <Text style={s.sub} numberOfLines={2}>
             {error && !options ? error : subtitle}
@@ -166,7 +181,7 @@ export default function RoadTab() {
               <Text style={s.ctaTx}>{primaryLabel}</Text>
             )}
           </Pressable>
-        </View>
+        </LinearGradient>
       </View>
     </View>
   );
@@ -194,24 +209,37 @@ const s = StyleSheet.create({
   brandImg: { width: 28, height: 28 },
   brandTx: { fontSize: 16.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   panelWrap: { position: 'absolute', left: 10, right: 10, bottom: 10 },
+  // Pannello vivace: pesca caldo (niente blu), auto 3D che esce dal bordo.
   panel: {
     borderRadius: 30,
-    backgroundColor: '#FFFFFF',
     paddingTop: 22,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: '#7A3214',
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  title: { fontSize: 23, fontWeight: '600', color: '#111111', letterSpacing: -0.6 },
-  sub: { fontSize: 14.5, fontWeight: '400', color: '#6A6A6A', marginTop: 4, letterSpacing: -0.1 },
+  readyIcon: { position: 'absolute', right: 12, top: -36, width: 118, height: 118 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  badgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#E5484D',
+    shadowColor: '#E5484D',
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  badgeTx: { fontSize: 12, fontWeight: '600', color: '#A14A25', letterSpacing: 0.6, textTransform: 'uppercase' },
+  title: { fontSize: 25, fontWeight: '600', color: '#111111', letterSpacing: -0.7, maxWidth: 230 },
+  sub: { fontSize: 14.5, fontWeight: '400', color: '#7A4A35', marginTop: 6, letterSpacing: -0.1, maxWidth: 240, lineHeight: 19.5 },
   tiles: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  tile: { flex: 1, borderRadius: 16, backgroundColor: '#F4F4F2', paddingVertical: 11, paddingHorizontal: 12 },
+  tile: { flex: 1, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.72)', paddingVertical: 11, paddingHorizontal: 12 },
   tileNum: { fontSize: 16.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
-  tileLabel: { fontSize: 12.5, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
+  tileLabel: { fontSize: 12.5, fontWeight: '400', color: '#7A5A4A', marginTop: 1 },
   cta: {
     height: 54,
     borderRadius: 27,

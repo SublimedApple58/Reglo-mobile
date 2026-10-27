@@ -1643,6 +1643,10 @@ export type RoadFreeVehicle = {
   carColor: string;
   /** Già impegnato in un'altra guida adesso. */
   busy: boolean;
+  /** Istruttore che la sta usando adesso (se `busy`). Assente sui backend vecchi. */
+  busyWith?: string | null;
+  /** «la tua»: esclusiva o preferita dell'istruttore. Assente sui backend vecchi. */
+  mine?: boolean;
 };
 
 export type RoadFreeOptions = {

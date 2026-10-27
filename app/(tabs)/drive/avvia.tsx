@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { regloApi } from '../../../src/services/regloApi';
-import type { AutoscuolaStudent, RoadFreeOptions } from '../../../src/types/regloApi';
+import type { AutoscuolaStudent, RoadFreeOptions, RoadFreeVehicle } from '../../../src/types/regloApi';
 import { vehicleServesStudent } from '../../../src/utils/license';
 import { matchesPersonSearch } from '../../../src/utils/peopleSearch';
 import { beginRoadEntry, ROAD_ROUTE, roadPendingStart, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
@@ -40,8 +40,8 @@ function detailOf(st: AutoscuolaStudent | undefined, minutes: number | undefined
  * REG-638 Road libero — «Avvia guida» in due passi (anteprime avvia/1-2).
  * 1. «Con chi guidi?»: ricerca in cima, prima le tue ultime guide, poi tutti
  *    gli allievi in ordine alfabetico (regge decine di allievi).
- * 2. Riepilogo: allievo (Cambia), auto preselezionata con la lista per
- *    cambiarla, durata, «Parti con …».
+ * 2. Riepilogo: allievo (Cambia), una riga con l'auto preselezionata (la
+ *    tua) che apre la scelta con ricerca, durata, «Parti con …».
  * Form sheet alto quanto il contenuto: la radice è lo scroll del foglio
  * (design-system §13.2.1); la ricerca resta attaccata in cima.
  */
@@ -51,8 +51,9 @@ export default function AvviaGuidaSheet() {
   const [options] = useState<RoadFreeOptions | null>(() => live);
   const [students, setStudents] = useState<AutoscuolaStudent[] | null>(null);
   const [minutes, setMinutes] = useState<Record<string, number>>({});
-  const [step, setStep] = useState<'student' | 'summary'>('student');
+  const [step, setStep] = useState<'student' | 'summary' | 'vehicle'>('student');
   const [query, setQuery] = useState('');
+  const [vehicleQuery, setVehicleQuery] = useState('');
   const [studentId, setStudentId] = useState<string | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(options?.defaultVehicleId ?? null);
   const [duration, setDuration] = useState<number>(options?.defaultDuration ?? 60);
@@ -110,11 +111,13 @@ export default function AvviaGuidaSheet() {
     return selectedStudent ? all.filter((v) => vehicleServesStudent(v, selectedStudent)) : all;
   }, [options, selectedStudent]);
 
-  // Cambia allievo → se l'auto scelta non va bene, la prima libera adatta.
+  // Cambia allievo → se l'auto scelta non va bene, la tua libera, poi la prima libera adatta.
   useEffect(() => {
     if (vehicles.some((v) => v.id === vehicleId && !v.busy)) return;
-    setVehicleId(vehicles.find((v) => !v.busy)?.id ?? null);
+    setVehicleId((vehicles.find((v) => v.mine && !v.busy) ?? vehicles.find((v) => !v.busy))?.id ?? null);
   }, [vehicles, vehicleId]);
+
+  const selectedVehicle = vehicles.find((v) => v.id === vehicleId) ?? null;
 
   const pick = (id: string) => {
     Haptics.selectionAsync().catch(() => undefined);
@@ -156,6 +159,11 @@ export default function AvviaGuidaSheet() {
     setTimeout(() => router.push(ROAD_ROUTE), SHEET_HANDOFF_MS);
   };
 
+  const back = (to: 'student' | 'summary') => (
+    <Pressable onPress={() => setStep(to)} hitSlop={10} style={s.x} accessibilityLabel="Indietro">
+      <Ionicons name="chevron-back" size={20} color="#3A3A3C" />
+    </Pressable>
+  );
   const close = (
     <GlassCloseButton onPress={() => router.back()}>
       <Pressable onPress={() => router.back()} hitSlop={10} style={s.x} accessibilityLabel="Chiudi">
@@ -244,6 +252,72 @@ export default function AvviaGuidaSheet() {
     );
   }
 
+  // ── Scelta dell'auto (dal riepilogo): ricerca, la tua, libere, occupate ──
+  if (step === 'vehicle') {
+    const vq = vehicleQuery.trim();
+    const match = (v: RoadFreeVehicle) => !vq || matchesPersonSearch(`${v.name} ${v.plate ?? ''}`, vq);
+    const list = vehicles.filter(match);
+    const mine = list.filter((v) => v.mine && !v.busy);
+    const free = list.filter((v) => !v.mine && !v.busy);
+    const busy = list.filter((v) => v.busy);
+    const choose = (v: RoadFreeVehicle) => {
+      Haptics.selectionAsync().catch(() => undefined);
+      setVehicleId(v.id);
+      setVehicleQuery('');
+      setStep('summary');
+    };
+    const section = (title: string, items: RoadFreeVehicle[]) =>
+      items.length ? (
+        <View>
+          <Text style={s.section}>{title}</Text>
+          {items.map((v) => (
+            <VehicleRow key={v.id} vehicle={v} selected={v.id === vehicleId} onPress={v.busy ? undefined : () => choose(v)} />
+          ))}
+        </View>
+      ) : null;
+    const who = selected ? firstName(selected.name) : null;
+    const lic = selectedStudent?.licenseCategory ? `patente ${selectedStudent.licenseCategory}` : null;
+    return (
+      <ScrollView
+        style={{ backgroundColor: '#FFFFFF' }}
+        contentContainerStyle={s.listRoot}
+        stickyHeaderIndices={[0]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        testID="road-free-vehicles"
+      >
+        <View style={s.stickyHead}>
+          <View style={s.top}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>Che auto usi?</Text>
+              <Text style={s.sub}>{[who ? `Per ${who}` : null, lic].filter(Boolean).join(' · ') || nowLabel}</Text>
+            </View>
+            {back('summary')}
+          </View>
+          <View style={s.search}>
+            <Ionicons name="search" size={18} color="#8E8E93" />
+            <TextInput
+              value={vehicleQuery}
+              onChangeText={setVehicleQuery}
+              placeholder="Cerca per nome o targa"
+              placeholderTextColor="#8E8E93"
+              style={s.searchInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+            />
+          </View>
+        </View>
+        {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
+        {section(`Libere adesso · ${free.length}`, free)}
+        {section('Occupate adesso', busy)}
+        {!list.length ? <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text> : null}
+      </ScrollView>
+    );
+  }
+
   // ── Passo 2: riepilogo ─────────────────────────────────────────────────
   return (
     <ScrollView
@@ -278,42 +352,31 @@ export default function AvviaGuidaSheet() {
       </Pressable>
 
       <Text style={s.label}>Auto</Text>
-      {vehicles.length ? (
-        <View style={s.vehList}>
-          {vehicles.map((v, i) => {
-            const on = v.id === vehicleId;
-            return (
-              <Pressable
-                key={v.id}
-                onPress={() => {
-                  if (v.busy) return;
-                  Haptics.selectionAsync().catch(() => undefined);
-                  setVehicleId(v.id);
-                }}
-                disabled={v.busy}
-                style={({ pressed }) => [s.vehRow, i > 0 && s.vehSep, pressed && !v.busy && { backgroundColor: '#FAFAFA' }]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on, disabled: v.busy }}
-              >
-                <Image source={car34Art(v.carColor)} style={[s.car, v.busy && { opacity: 0.4 }]} resizeMode="contain" />
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.name, v.busy && s.muted]} numberOfLines={1}>{v.name}</Text>
-                  <Text style={[s.detail, v.busy && s.muted]} numberOfLines={1}>
-                    {v.busy ? 'occupata adesso' : [v.plate, v.transmission === 'automatic' ? 'automatica' : null].filter(Boolean).join(' · ') || ' '}
-                  </Text>
-                </View>
-                {v.busy ? null : (
-                  <View style={[s.radio, on && s.radioOn]}>
-                    {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : (
-        <Text style={s.empty}>Nessuna auto adatta a questo allievo.</Text>
-      )}
+      <Pressable
+        onPress={() => setStep('vehicle')}
+        style={({ pressed }) => [s.autoRow, pressed && { backgroundColor: '#FAFAFA' }]}
+        accessibilityRole="button"
+        accessibilityLabel="Cambia auto"
+        testID="road-free-vehicle"
+      >
+        {selectedVehicle ? (
+          <>
+            <Image source={car34Art(selectedVehicle.carColor)} style={s.car} resizeMode="contain" />
+            <View style={{ flex: 1 }}>
+              <View style={s.nameLine}>
+                <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
+                {selectedVehicle.mine ? <Text style={s.mineTag}>la tua</Text> : null}
+              </View>
+              <Text style={s.detail} numberOfLines={1}>{vehicleDetail(selectedVehicle)}</Text>
+            </View>
+          </>
+        ) : (
+          <Text style={[s.name, { flex: 1, color: '#6A6A6A' }]}>
+            {vehicles.length ? 'Scegli l\'auto' : 'Nessuna auto adatta a questo allievo'}
+          </Text>
+        )}
+        <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
+      </Pressable>
 
       <Text style={s.label}>Durata</Text>
       <View style={s.segment}>
@@ -348,6 +411,30 @@ export default function AvviaGuidaSheet() {
         )}
       </Pressable>
     </ScrollView>
+  );
+}
+
+function vehicleDetail(v: RoadFreeVehicle) {
+  if (v.busy) return v.busyWith ? `in guida con ${firstName(v.busyWith)}` : 'occupata adesso';
+  return [v.plate, v.transmission === 'automatic' ? 'automatica' : null].filter(Boolean).join(' · ') || ' ';
+}
+
+function VehicleRow({ vehicle, selected, onPress }: { vehicle: RoadFreeVehicle; selected: boolean; onPress?: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [s.row, pressed && !!onPress && { backgroundColor: '#F7F7F5' }]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected, disabled: !onPress }}
+    >
+      <Image source={car34Art(vehicle.carColor)} style={[s.car, vehicle.busy && { opacity: 0.4 }]} resizeMode="contain" />
+      <View style={s.rowBody}>
+        <Text style={[s.name, vehicle.busy && s.muted]} numberOfLines={1}>{vehicle.name}</Text>
+        <Text style={[s.detail, vehicle.busy && s.muted]} numberOfLines={1}>{vehicleDetail(vehicle)}</Text>
+      </View>
+      {selected ? <Ionicons name="checkmark" size={21} color="#111111" style={{ marginRight: 22 }} /> : <View style={{ width: 43 }} />}
+    </Pressable>
   );
 }
 
@@ -437,12 +524,29 @@ const s = StyleSheet.create({
   },
   change: { fontSize: 15, fontWeight: '600', color: '#111111' },
   label: { fontSize: 13.5, fontWeight: '500', color: '#6A6A6A', marginTop: 22, marginBottom: 10 },
-  vehList: { borderRadius: 22, borderWidth: 1, borderColor: '#ECECEC', overflow: 'hidden' },
-  vehRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14 },
-  vehSep: { borderTopWidth: 1, borderTopColor: '#F2F2F2' },
+  autoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 64,
+  },
   car: { width: 58, height: 42 },
-  radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#D0D0D0', alignItems: 'center', justifyContent: 'center' },
-  radioOn: { backgroundColor: '#111111', borderColor: '#111111' },
+  nameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mineTag: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 18, backgroundColor: '#F2F2F0' },
   segItem: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   segItemOn: {
