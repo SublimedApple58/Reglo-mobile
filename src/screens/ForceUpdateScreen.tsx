@@ -56,7 +56,7 @@ const s = StyleSheet.create({
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
   logo: { width: 88, height: 88, borderRadius: 22 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   body: {
     fontSize: 15,
     fontWeight: '400',
@@ -65,7 +65,7 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   button: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',

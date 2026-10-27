@@ -7,7 +7,7 @@ export const LoadingScreen = () => {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <RegloLogo size={128} tone="navy" spin />
+      <RegloLogo size={128} tone="black" spin />
     </View>
   );
 };

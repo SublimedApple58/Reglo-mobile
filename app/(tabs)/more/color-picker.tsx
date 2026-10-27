@@ -26,7 +26,7 @@ export default function ColorPickerScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -44,11 +44,11 @@ export default function ColorPickerScreen() {
             <View style={[s.stdDot, { backgroundColor: resetHex, borderWidth: 0 }]} />
           ) : (
             <View style={s.stdDot}>
-              <Ionicons name="ban-outline" size={18} color="#94A3B8" />
+              <Ionicons name="ban-outline" size={18} color="#9A9A9A" />
             </View>
           )}
           <Text style={s.stdLabel}>{resetLabel ?? 'Colore standard'}</Text>
-          {currentHex == null ? <Ionicons name="checkmark-circle" size={22} color="#1A1A2E" /> : null}
+          {currentHex == null ? <Ionicons name="checkmark-circle" size={22} color="#111111" /> : null}
         </Pressable>
 
         <View style={s.divider} />
@@ -79,17 +79,17 @@ export default function ColorPickerScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   stdRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, minHeight: 52 },
   stdDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F3F7', alignItems: 'center', justifyContent: 'center' },
-  stdLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginVertical: 4 },
+  stdLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginVertical: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 },
   swatchCell: { width: '25%', alignItems: 'center', gap: 6 },
   swatch: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  swatchSelected: { borderWidth: 3, borderColor: '#1A1A2E' },
+  swatchSelected: { borderWidth: 3, borderColor: '#111111' },
   swatchName: { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
 });

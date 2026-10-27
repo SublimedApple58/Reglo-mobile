@@ -1142,9 +1142,9 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   instructorCardSelected: {
-    borderColor: '#1A1A2E',
+    borderColor: '#111111',
     borderWidth: 2,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 4,
@@ -1211,14 +1211,14 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailAvatarInitials: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   detailInfo: {
     flex: 1,

@@ -32,7 +32,7 @@ export default function ExamDetailScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -128,16 +128,16 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.md, paddingBottom: 40, gap: 14 },
   scaffoldBody: { gap: 14 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   hero: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#F5F0FF', borderRadius: 26, padding: 20,
+    backgroundColor: '#F7F7F7', borderRadius: 26, padding: 20,
     shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.20, shadowRadius: 10, elevation: 6,
   },
   heroIcon: { width: 52, height: 52 },
   heroLabel: { fontSize: 12, fontWeight: '700', color: '#7C3AED', letterSpacing: 0.3 },
-  heroTime: { fontSize: 28, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.5, marginTop: 2 },
+  heroTime: { fontSize: 28, fontWeight: '800', color: '#111111', letterSpacing: -0.5, marginTop: 2 },
   heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
   countdownBadge: {
     backgroundColor: '#8B5CF6', borderRadius: 16,

@@ -39,7 +39,7 @@ export default function AvailabilityScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -82,8 +82,8 @@ export default function AvailabilityScreen() {
             <View style={{ gap: 10 }}>
               <View style={{ gap: 8 }}>
                 <Pressable onPress={toggleMorning} style={s.slotRow}>
-                  <Text style={[s.slotLabel, { color: morningActive ? '#1A1A2E' : '#9CA3AF' }]}>Mattina</Text>
-                  <View style={[s.slotDot, { backgroundColor: morningActive ? '#22C55E' : '#D1D5DB' }]} />
+                  <Text style={[s.slotLabel, { color: morningActive ? '#111111' : '#9C9C9C' }]}>Mattina</Text>
+                  <View style={[s.slotDot, { backgroundColor: morningActive ? '#22C55E' : '#D4D4D4' }]} />
                 </Pressable>
                 {morningActive && (
                   <View style={s.timeRow}>
@@ -100,8 +100,8 @@ export default function AvailabilityScreen() {
 
               <View style={{ gap: 8 }}>
                 <Pressable onPress={toggleAfternoon} style={s.slotRow}>
-                  <Text style={[s.slotLabel, { color: afternoonActive ? '#1A1A2E' : '#9CA3AF' }]}>Pomeriggio</Text>
-                  <View style={[s.slotDot, { backgroundColor: afternoonActive ? '#22C55E' : '#D1D5DB' }]} />
+                  <Text style={[s.slotLabel, { color: afternoonActive ? '#111111' : '#9C9C9C' }]}>Pomeriggio</Text>
+                  <View style={[s.slotDot, { backgroundColor: afternoonActive ? '#22C55E' : '#D4D4D4' }]} />
                 </Pressable>
                 {afternoonActive && (
                   <View style={s.timeRow}>
@@ -126,16 +126,16 @@ export default function AvailabilityScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginBottom: 4 },
   hint: { fontSize: 13, fontWeight: '400', color: colors.textMuted },
   dayRow: { flexDirection: 'row', gap: 8 },
   day: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  dayOn: { backgroundColor: '#1A1A2E' },
+  dayOn: { backgroundColor: '#111111' },
   dayOff: { backgroundColor: 'rgba(26,18,10,0.06)' },
   dayText: { fontWeight: '700', fontSize: 14 },
   dayTextOn: { color: '#FFFFFF' },
-  dayTextOff: { color: '#9CA3AF' },
+  dayTextOff: { color: '#9C9C9C' },
   slotRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.surface, borderRadius: 16, padding: 14,
@@ -149,8 +149,8 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 2,
   },
-  timeText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  sep: { fontSize: 14, color: '#9CA3AF' },
+  timeText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+  sep: { fontSize: 14, color: '#9C9C9C' },
   cta: {
     minHeight: 50, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,

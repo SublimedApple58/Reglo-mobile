@@ -8,7 +8,7 @@ import { cancelFaultStore, type CancelFault } from '../../../src/stores/cancelFa
 import { colors } from '../../../src/theme/colors';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const INK = '#222222';
 
 /**
@@ -73,7 +73,7 @@ export default function CancelFaultScreen() {
         <Text style={s.optionTitle}>{title}</Text>
         <Text style={s.optionSub}>{sub}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#C3C6CC" />
+      <Ionicons name="chevron-forward" size={18} color="#C7C7C7" />
     </Pressable>
   );
 
@@ -120,7 +120,7 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: 20 },
   topbar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, gap: 12 },
   title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   context: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,7 +133,7 @@ const s = StyleSheet.create({
   contextStrong: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: INK },
   contextDot: { flexShrink: 0, fontSize: 13, color: colors.textSecondary },
   contextText: { flexShrink: 0, fontSize: 13, fontWeight: '500', color: colors.textSecondary },
-  lead: { marginTop: 12, marginBottom: 4, fontSize: 14, color: '#3A3A48', lineHeight: 20 },
+  lead: { marginTop: 12, marginBottom: 4, fontSize: 14, color: '#3F3F3F', lineHeight: 20 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',

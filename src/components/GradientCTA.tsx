@@ -9,21 +9,20 @@ import { colors } from '../theme';
  * Wrap it in a Pressable that owns radius + colored shadow; this fills it.
  * Pass the same borderRadius via `style` (the gradient clips its own corners).
  */
-export const PRIMARY_GRADIENT = ['#26263F', colors.primary, '#131322'] as const;
+export const PRIMARY_GRADIENT = ['#111111', colors.primary, '#111111'] as const;
 export const PRIMARY_GRADIENT_START = { x: 0.2, y: 0 };
 export const PRIMARY_GRADIENT_END = { x: 0.8, y: 1 };
 
 /**
- * Colored drop shadow for the Pressable that hosts a GradientCTA — navy-tinted
- * and deliberately pronounced (phone-gate reference) for the 3D lift effect.
+ * Ombra leggera della CTA nera (stile Road): solleva senza alone colorato.
  * The shadow-owning view must NOT have overflow: 'hidden' (iOS clips it).
  */
 export const primaryCtaShadow: ViewStyle = {
-  shadowColor: colors.primary,
-  shadowOpacity: 0.4,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 10 },
-  elevation: 8,
+  shadowColor: '#000000',
+  shadowOpacity: 0.16,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 5,
 };
 
 export const GradientCTA = ({

@@ -252,7 +252,7 @@ export const BottomSheet = ({
         >
           {gradient && (
             <LinearGradient
-              colors={['#ECEEF4', colors.background]}
+              colors={['#EFEFEF', colors.background]}
               locations={[0, 1]}
               style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}
               pointerEvents="none"
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   backdropOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 15, 30, 0.45)',
+    backgroundColor: 'rgba(18,18,18, 0.45)',
   },
   sheetCard: {
     backgroundColor: colors.background,

@@ -29,11 +29,11 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
 const MUTED = '#929292';
-const N50 = '#F4F5F9';
-const N100 = '#E9EBF2';
+const N50 = '#F4F4F4';
+const N100 = '#EBEBEB';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -79,7 +79,7 @@ const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
         <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>
       )}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
   </Pressable>
 );
 
@@ -310,7 +310,7 @@ export const CreateExamScreen = () => {
                   ) : null}
                 </View>
               ) : null}
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
 
             <View style={s.divider} />
@@ -357,14 +357,14 @@ export const CreateExamScreen = () => {
 };
 
 const ELEV = {
-  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
 } as const;
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
   title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
 
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
 
@@ -377,19 +377,19 @@ const s = StyleSheet.create({
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
   rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
 
   /* avatar stack on the allievi row */
   avatarStack: { flexDirection: 'row', alignItems: 'center' },
   stackAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: N100, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
   stackAvatarTxt: { fontSize: 11, fontWeight: '600', color: NAVY },
-  stackMore: { backgroundColor: '#E2E5EE' },
+  stackMore: { backgroundColor: '#E7E7E7' },
   stackMoreTxt: { fontSize: 10, fontWeight: '600', color: NAVY },
 
   /* note text area */
   fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },
   fieldOptional: { fontSize: 13, fontWeight: '500', color: MUTED },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E4E7EE', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
 
   /* optional banner */
   optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },

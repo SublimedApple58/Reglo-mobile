@@ -388,7 +388,7 @@ export default function ManageGroupLessonScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -445,7 +445,7 @@ export default function ManageGroupLessonScreen() {
           {readOnly ? (
             <>
               <View style={s.detailRow}>
-                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
                 <View style={s.detailBody}>
                   <Text style={s.detailLabel}>Istruttore</Text>
                   <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
@@ -454,7 +454,7 @@ export default function ManageGroupLessonScreen() {
               {/* In sola lettura la riga dei colleghi compare solo se ce ne sono. */}
               {isShared ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Altri istruttori</Text>
                     {/* REG-585: con piu' nomi una riga sola li tagliava a meta'. */}
@@ -466,12 +466,12 @@ export default function ManageGroupLessonScreen() {
           ) : (
             <>
               <Pressable onPress={openInstructorPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
                 <View style={s.detailBody}>
                   <Text style={s.detailLabel}>Istruttore</Text>
                   <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
               </Pressable>
 
               {/* REG-585: i colleghi, assegnabili anche dal telefono. */}
@@ -480,12 +480,12 @@ export default function ManageGroupLessonScreen() {
                 disabled={!lesson || busy}
                 style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
               >
-                <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+                <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
                 <View style={s.detailBody}>
                   <Text style={s.detailLabel}>Altri istruttori</Text>
                   <RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
               </Pressable>
             </>
           )}
@@ -495,7 +495,7 @@ export default function ManageGroupLessonScreen() {
               <View style={s.rowDivider} />
               {readOnly ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Moto della guida</Text>
                     <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
@@ -503,18 +503,18 @@ export default function ManageGroupLessonScreen() {
                 </View>
               ) : (
                 <Pressable onPress={openFleetPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Moto della guida</Text>
                     <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               )}
               <View style={s.rowDivider} />
               {readOnly ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Auto al seguito</Text>
                     <RowValue text={followCarName} loaded={!!lesson} width={120} />
@@ -522,12 +522,12 @@ export default function ManageGroupLessonScreen() {
                 </View>
               ) : (
                 <Pressable onPress={openFollowCarPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Auto al seguito</Text>
                     <RowValue text={followCarName} loaded={!!lesson} width={120} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               )}
               {/* Tipo guida moto (birilli/strada) — sola lettura: si sceglie in
@@ -539,7 +539,7 @@ export default function ManageGroupLessonScreen() {
                   <>
                     <View style={s.rowDivider} />
                     <View style={s.detailRow}>
-                      <View style={s.detailIcon}><MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={24} color="#1A1A2E" /></View>
+                      <View style={s.detailIcon}><MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={24} color="#111111" /></View>
                       <View style={s.detailBody}>
                         <Text style={s.detailLabel}>Tipo guida moto</Text>
                         <Text style={s.detailValue} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
@@ -554,7 +554,7 @@ export default function ManageGroupLessonScreen() {
               <View style={s.rowDivider} />
               {readOnly ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
                     <RowValue text={vehicleName} loaded={!!lesson} width={110} />
@@ -562,12 +562,12 @@ export default function ManageGroupLessonScreen() {
                 </View>
               ) : (
                 <Pressable onPress={openVehiclePicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
                     <RowValue text={vehicleName} loaded={!!lesson} width={110} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               )}
             </>
@@ -579,7 +579,7 @@ export default function ManageGroupLessonScreen() {
           <View style={s.rowDivider} />
           {readOnly ? (
             <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Capienza</Text>
                 <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
@@ -587,12 +587,12 @@ export default function ManageGroupLessonScreen() {
             </View>
           ) : (
             <Pressable onPress={openCapacityPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Capienza</Text>
                 <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           )}
           </>
@@ -606,16 +606,16 @@ export default function ManageGroupLessonScreen() {
           /* REG-636 — titolare in sola lettura, gruppo moto: il roster si
              apre solo per scegliere la moto di ogni partecipante. */
           <Pressable onPress={openParticipants} disabled={!lesson} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#1A1A2E" /></View>
+            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.cardTitle}>Partecipanti</Text>
               <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} iscritti · scegli le moto</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
           </Pressable>
         ) : readOnly ? (
           <View style={s.cardCta}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#1A1A2E" /></View>
+            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.cardTitle}>Partecipanti</Text>
               <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} iscritti</Text>
@@ -623,12 +623,12 @@ export default function ManageGroupLessonScreen() {
           </View>
         ) : (
           <Pressable onPress={openParticipants} disabled={!lesson} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#1A1A2E" /></View>
+            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.cardTitle}>Partecipanti</Text>
               <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} · gestisci iscritti</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
           </Pressable>
         )}
       </ScrollView>
@@ -637,7 +637,7 @@ export default function ManageGroupLessonScreen() {
       {!readOnly && (
         <View style={[s.floatWrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
           <Pressable onPress={openSposta} disabled={!lesson || busy} style={({ pressed }) => [s.spostaPill, pressed && { opacity: 0.85 }]}>
-            <MaterialCommunityIcons name="calendar-arrow-right" size={19} color="#1A1A2E" />
+            <MaterialCommunityIcons name="calendar-arrow-right" size={19} color="#111111" />
             <Text style={s.spostaText}>Sposta</Text>
           </Pressable>
           <Pressable onPress={handleCancel} disabled={!lesson || busy} style={({ pressed }) => [s.trashCircle, pressed && { opacity: 0.85 }]} accessibilityLabel="Annulla guida di gruppo">
@@ -648,7 +648,7 @@ export default function ManageGroupLessonScreen() {
 
       {busy ? (
         <View style={s.busyOverlay} pointerEvents="none">
-          <ActivityIndicator color="#1A1A2E" />
+          <ActivityIndicator color="#111111" />
         </View>
       ) : null}
     </View>
@@ -663,24 +663,24 @@ const s = StyleSheet.create({
 
   // Hero
   hero: { gap: 4 },
-  heroOverline: { fontSize: 13, fontWeight: '500', color: '#94A3B8', letterSpacing: 0.2 },
-  heroName: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  heroOverline: { fontSize: 13, fontWeight: '500', color: '#9A9A9A', letterSpacing: 0.2 },
+  heroName: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },
   statePill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
   statePillText: { fontSize: 12, fontWeight: '600' },
 
   // Posti ring centrale
   progressBlock: { alignItems: 'center', paddingVertical: 4 },
-  ringCount: { fontSize: 34, fontWeight: '700', color: '#1A1A2E', letterSpacing: -1 },
-  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9CA3AF' },
-  ringLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: '#94A3B8', marginTop: 4 },
+  ringCount: { fontSize: 34, fontWeight: '700', color: '#111111', letterSpacing: -1 },
+  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9C9C9C' },
+  ringLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: '#9A9A9A', marginTop: 4 },
 
   // Righe piatte istruttore/veicolo
   detailRows: { gap: 0 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
   detailIcon: { width: 28, alignItems: 'center' },
   detailBody: { flex: 1, gap: 1 },
-  detailLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  detailLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
 
@@ -689,10 +689,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#1A1A2E', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
+    shadowColor: '#111111', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
   },
-  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   cardSub: { fontSize: 13, fontWeight: '400', color: '#717171' },
 
   // Floating bottom toolbar
@@ -702,7 +702,7 @@ const s = StyleSheet.create({
     height: 50, paddingHorizontal: 22, borderRadius: 25, backgroundColor: '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
-  spostaText: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  spostaText: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   trashCircle: {
     width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',

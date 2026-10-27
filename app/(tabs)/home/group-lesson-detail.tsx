@@ -159,7 +159,7 @@ export default function GroupLessonDetailScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -225,7 +225,7 @@ export default function GroupLessonDetailScreen() {
         {/* Istruttore + Veicolo — righe piatte, sola lettura */}
         <View style={s.detailRows}>
           <View style={s.detailRow}>
-            <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+            <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
             <View style={s.detailBody}>
               <Text style={s.detailLabel}>Istruttore</Text>
               <Slot ready={ready} height={19} skWidth={150} skHeight={13}>
@@ -240,7 +240,7 @@ export default function GroupLessonDetailScreen() {
               <View style={s.rowDivider} />
               <View style={s.detailRow}>
                 <View style={s.detailIcon}>
-                  <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[lesson.motoLessonType]} size={23} color="#1A1A2E" />
+                  <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[lesson.motoLessonType]} size={23} color="#111111" />
                 </View>
                 <View style={s.detailBody}>
                   <Text style={s.detailLabel}>Tipo guida</Text>
@@ -259,7 +259,7 @@ export default function GroupLessonDetailScreen() {
                   <MaterialCommunityIcons
                     name={isMoto ? 'motorbike' : 'car-outline'}
                     size={24}
-                    color="#1A1A2E"
+                    color="#111111"
                   />
                 </View>
                 <View style={s.detailBody}>
@@ -275,7 +275,7 @@ export default function GroupLessonDetailScreen() {
             <>
               <View style={s.rowDivider} />
               <View style={s.detailRow}>
-                <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#1A1A2E" /></View>
+                <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
                 <View style={s.detailBody}>
                   <Text style={s.detailLabel}>Auto al seguito</Text>
                   <Text style={s.detailValue} numberOfLines={1}>{followVehicleName}</Text>
@@ -297,8 +297,8 @@ const s = StyleSheet.create({
 
   // Hero — giorno + orario in risalto
   hero: { gap: 2 },
-  kicker: { fontSize: 12, fontWeight: '600', color: '#6E7596', letterSpacing: 0.3, marginBottom: 4 },
-  heroClock: { fontSize: 30, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.8, lineHeight: 34 },
+  kicker: { fontSize: 12, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.3, marginBottom: 4 },
+  heroClock: { fontSize: 30, fontWeight: '600', color: '#111111', letterSpacing: -0.8, lineHeight: 34 },
   heroDay: { fontSize: 15, fontWeight: '500', color: '#717171' },
 
   // Posti — pallini grandi
@@ -314,16 +314,16 @@ const s = StyleSheet.create({
   seatBigMoto: { backgroundColor: '#FFE9D6', shadowColor: '#F97316' },
   seatBigEmpty: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#1A1A2E', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    shadowColor: '#111111', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
-  seatsCaption: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
+  seatsCaption: { fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
 
   // Righe piatte istruttore/veicolo (sola lettura)
   detailRows: { gap: 0 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 12 },
   detailIcon: { width: 28, alignItems: 'center' },
   detailBody: { flex: 1, gap: 2 },
-  detailLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  detailLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
 

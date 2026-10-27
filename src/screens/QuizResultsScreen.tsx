@@ -315,9 +315,9 @@ const st = StyleSheet.create({
   heroCircleNeutral: { backgroundColor: colors.textMuted },
   heroCirclePractice: { backgroundColor: colors.primary },
   schedaLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 4 },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: '#111111', letterSpacing: -0.3, marginTop: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  scoreBig: { fontSize: 48, fontWeight: '800', color: '#1A1A2E', letterSpacing: -3 },
+  scoreBig: { fontSize: 48, fontWeight: '800', color: '#111111', letterSpacing: -3 },
   scoreSep: { fontSize: 28, fontWeight: '300', color: colors.textMuted },
   scoreTotal: { fontSize: 28, fontWeight: '600', color: colors.textMuted },
   metaRow: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' },
@@ -330,7 +330,7 @@ const st = StyleSheet.create({
 
   // Section
   section: { gap: 10 },
-  secTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  secTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
 
   // Breakdown
   bRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
@@ -340,7 +340,7 @@ const st = StyleSheet.create({
   },
   bBadgeText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
   bBarWrap: { flex: 1 },
-  bTrack: { height: 5, borderRadius: 2.5, backgroundColor: '#F0F0F5', overflow: 'hidden' },
+  bTrack: { height: 5, borderRadius: 2.5, backgroundColor: '#F2F2F2', overflow: 'hidden' },
   bFill: { height: '100%', borderRadius: 2.5 },
   fG: { backgroundColor: '#16A34A' }, fY: { backgroundColor: '#EAB308' }, fR: { backgroundColor: colors.destructive },
   bPct: { fontSize: 12, fontWeight: '800', width: 34, textAlign: 'right' },
@@ -354,7 +354,7 @@ const st = StyleSheet.create({
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   wrongTop: { flexDirection: 'row', gap: 8 },
-  wrongQ: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A1A2E', lineHeight: 20 },
+  wrongQ: { flex: 1, fontSize: 14, fontWeight: '600', color: '#111111', lineHeight: 20 },
   wrongCorrectRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wrongCorrectText: { fontSize: 12, fontWeight: '700', color: '#16A34A' },
   wrongCountBadge: {
@@ -369,7 +369,7 @@ const st = StyleSheet.create({
     backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7',
   },
   repeatedBannerText: { fontSize: 13, fontWeight: '600', color: '#92400E' },
-  wrongImageWrap: { backgroundColor: '#1A1A2E', borderRadius: 12, padding: 12, alignItems: 'center' },
+  wrongImageWrap: { backgroundColor: '#111111', borderRadius: 12, padding: 12, alignItems: 'center' },
   wrongImg: { width: '80%', height: 100 },
   wrongHint: {
     padding: 14, borderRadius: 24,
@@ -380,7 +380,7 @@ const st = StyleSheet.create({
   },
   wrongHintHeader: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   wrongHintTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  wrongHintHtml: { fontSize: 12, color: '#4A4458', lineHeight: 17 },
+  wrongHintHtml: { fontSize: 12, color: '#4D4D4D', lineHeight: 17 },
 
   // Actions
   actions: { gap: 10, marginTop: 4 },

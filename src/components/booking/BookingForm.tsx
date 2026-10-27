@@ -78,12 +78,12 @@ const CONFIRMABLE_CODES: Array<{
   },
 ];
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const INK = '#222222';
 const GREY = '#717171';
 const MUTED = '#929292';
-const N50 = '#F4F5F9';
-const N100 = '#E9EBF2';
+const N50 = '#F4F4F4';
+const N100 = '#EBEBEB';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -136,7 +136,7 @@ const Row = ({ icon, leading, label, value, valueSub, placeholder, onPress, disa
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>}
       {valueSub ? <Text style={s.rowValueSub} numberOfLines={1}>{valueSub}</Text> : null}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
   </Pressable>
 );
 
@@ -924,13 +924,13 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 }
 
 const ELEV = {
-  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
 } as const;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 2 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xl },
 
   hero: { marginBottom: 18 },
@@ -953,7 +953,7 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 14, color: GREY },
   rowValueSub: { fontSize: 13, color: '#929292' },
   rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
 
   /* avatar (allievo) */
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
@@ -964,7 +964,7 @@ const s = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: N50 },
   chipTxt: { fontSize: 14, fontWeight: '500', color: INK },
   durRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  durPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F1F2F4' },
+  durPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F2F2F2' },
   durPillOn: { backgroundColor: NAVY },
   durPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
   durPillTxtOn: { color: '#FFFFFF' },

@@ -24,10 +24,10 @@ import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { colors } from '../theme';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
-const NAVY = colors.primary; // #1A1A2E
+const NAVY = colors.primary; // #111111
 const IVORY = '#F5EFE6';
-const NAVY_300 = '#AEB4CC';
-const NAVY_400 = '#6E7596';
+const NAVY_300 = '#B0B0B0';
+const NAVY_400 = '#6A6A6A';
 
 const RESEND_SECONDS = 60;
 
@@ -204,7 +204,7 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
 
       {step === 'code' && (
         <View style={styles.codeWrap}>
-          <Text style={[styles.codeLabel, { color: dark ? NAVY_300 : '#14141F' }]}>Codice</Text>
+          <Text style={[styles.codeLabel, { color: dark ? NAVY_300 : '#0A0A0A' }]}>Codice</Text>
           <TextInput
             style={[styles.codeInput, dark ? styles.codeInputDark : styles.codeInputLight]}
             value={code}
@@ -212,7 +212,7 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
             keyboardType="number-pad"
             maxLength={6}
             placeholder="••••••"
-            placeholderTextColor={dark ? '#7E84A0' : '#9AA1BB'}
+            placeholderTextColor={dark ? '#8B8B8B' : '#A7A7A7'}
             autoFocus
             inputAccessoryViewID={accessoryID}
           />
@@ -285,7 +285,7 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
         <Text style={styles.sheetTitle}>{copy.title}</Text>
         <Text style={styles.sheetSub}>{copy.sub(email)}</Text>
         <View style={{ marginTop: 4 }}>{body}</View>
-        <CtaButton label={primaryLabel} tone="navy" loading={loading} onPress={primaryAction} />
+        <CtaButton label={primaryLabel} tone="black" loading={loading} onPress={primaryAction} />
         <ToastNotice
           message={toast?.text ?? null}
           tone={toast?.tone}
@@ -318,7 +318,7 @@ const CtaButton = ({
   onPress,
 }: {
   label: string;
-  tone: 'navy' | 'ivory';
+  tone: 'black' | 'ivory';
   loading: boolean;
   onPress: () => void;
 }) => (
@@ -326,15 +326,15 @@ const CtaButton = ({
     onPress={loading ? undefined : onPress}
     style={({ pressed }) => [
       styles.cta,
-      tone === 'navy' ? styles.ctaNavy : styles.ctaIvory,
+      tone === 'black' ? styles.ctaBlack : styles.ctaIvory,
       pressed && styles.ctaPressed,
     ]}
   >
-    {tone === 'navy' && <GradientCTABackground radius={15} />}
+    {tone === 'black' && <GradientCTABackground radius={15} />}
     {loading ? (
-      <ActivityIndicator color={tone === 'navy' ? '#FFFFFF' : NAVY} />
+      <ActivityIndicator color={tone === 'black' ? '#FFFFFF' : NAVY} />
     ) : (
-      <Text style={[styles.ctaText, { color: tone === 'navy' ? '#FFFFFF' : NAVY }]}>{label}</Text>
+      <Text style={[styles.ctaText, { color: tone === 'black' ? '#FFFFFF' : NAVY }]}>{label}</Text>
     )}
   </Pressable>
 );
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   // shared
   error: { fontSize: 14, fontWeight: '500', color: colors.destructive, marginTop: 12, textAlign: 'center' },
   cta: { height: 54, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
-  ctaNavy: {
+  ctaBlack: {
     ...primaryCtaShadow,
   },
   ctaIvory: {

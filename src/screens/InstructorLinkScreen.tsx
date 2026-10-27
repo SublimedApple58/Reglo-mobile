@@ -59,7 +59,7 @@ type Step =
   | { kind: 'mantieni'; current: InstructorLinkPerson; companyName: string }
   | { kind: 'errore'; code: string | null; title?: string; message?: string };
 
-const NAVY = '#1a1a2e';
+const NAVY = '#111111';
 
 const pop = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.6 }] },
@@ -105,7 +105,7 @@ function PersonCard({ person, companyName, tone }: { person: InstructorLinkPerso
   return (
     <View style={s.personCard}>
       <View style={[s.avatar40, tone === 'teal' ? s.teal : s.blue]}>
-        <Text style={[s.avatar40Text, { color: tone === 'teal' ? '#0e7490' : '#1e3a5f', fontWeight: tone === 'teal' ? '800' : '700' }]}>{person.initials}</Text>
+        <Text style={[s.avatar40Text, { color: tone === 'teal' ? '#0F766E' : '#111111', fontWeight: tone === 'teal' ? '800' : '700' }]}>{person.initials}</Text>
       </View>
       <View style={{ minWidth: 0, flex: 1 }}>
         <Text style={s.personName} numberOfLines={1}>{person.name}</Text>
@@ -392,7 +392,7 @@ export function InstructorLinkScreen() {
           <View style={s.swapRow}>
             <View style={[s.swapCard, { backgroundColor: '#f7f7f7' }]}>
               <View style={[s.avatar32, s.blue]}>
-                <Text style={[s.avatar32Text, { color: '#1e3a5f', fontWeight: '700' }]}>{step.current.initials}</Text>
+                <Text style={[s.avatar32Text, { color: '#111111', fontWeight: '700' }]}>{step.current.initials}</Text>
               </View>
               <Text style={s.swapName} numberOfLines={1}>{step.current.name}</Text>
             </View>
@@ -401,7 +401,7 @@ export function InstructorLinkScreen() {
             </Svg>
             <View style={[s.swapCard, { backgroundColor: NAVY }]}>
               <View style={[s.avatar32, s.teal]}>
-                <Text style={[s.avatar32Text, { color: '#0e7490', fontWeight: '800' }]}>{step.instructor.initials}</Text>
+                <Text style={[s.avatar32Text, { color: '#0F766E', fontWeight: '800' }]}>{step.instructor.initials}</Text>
               </View>
               <Text style={[s.swapName, { color: '#ffffff' }]} numberOfLines={1}>{step.instructor.name}</Text>
             </View>
@@ -445,7 +445,7 @@ export function InstructorLinkScreen() {
         <StatusBar style="dark" />
         <View style={s.center}>
           <Animated.View entering={pop} style={[s.icon96, s.blue]}>
-            <Text style={[s.bigAvatarText, { fontSize: 34, color: '#1e3a5f' }]}>{step.current.initials}</Text>
+            <Text style={[s.bigAvatarText, { fontSize: 34, color: '#111111' }]}>{step.current.initials}</Text>
           </Animated.View>
           <Text style={s.title}>{`Resti con\n${step.current.name}`}</Text>
           <Text style={s.body}>
@@ -512,13 +512,13 @@ const s = StyleSheet.create({
   bodyStrong: { color: '#222222', fontWeight: '700' },
   bigAvatarWrap: { width: 104, height: 104, marginBottom: 22 },
   bigAvatar: { width: 104, height: 104, borderRadius: 52, alignItems: 'center', justifyContent: 'center' },
-  bigAvatarText: { fontSize: 38, fontWeight: '800', letterSpacing: -0.5, color: '#0e7490' },
+  bigAvatarText: { fontSize: 38, fontWeight: '800', letterSpacing: -0.5, color: '#0F766E' },
   qrBadge: {
     position: 'absolute', right: -4, bottom: -4, width: 34, height: 34, borderRadius: 17,
     backgroundColor: NAVY, borderWidth: 3, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center',
   },
   teal: { backgroundColor: '#d9f2f4' },
-  blue: { backgroundColor: '#dbeafe' },
+  blue: { backgroundColor: '#EBEBEB' },
   codePill: { marginTop: 22, backgroundColor: '#f7f7f7', borderWidth: 1, borderColor: '#dddddd', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
   codePillText: { fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#222222' },
   codePillMuted: { borderWidth: 0 },
@@ -548,7 +548,7 @@ const s = StyleSheet.create({
   boxes: { flexDirection: 'row', gap: 8, marginTop: 28 },
   box: { flex: 1, height: 58, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   boxFilled: { borderColor: '#222222', backgroundColor: '#ffffff' },
-  boxRing: { flex: 1, borderRadius: 17, margin: -3, borderWidth: 3, borderColor: 'rgba(26,26,46,0.12)' },
+  boxRing: { flex: 1, borderRadius: 17, margin: -3, borderWidth: 3, borderColor: 'rgba(17,17,17,0.12)' },
   boxActive: { borderColor: NAVY, backgroundColor: '#ffffff' },
   boxEmpty: { borderColor: '#dddddd', backgroundColor: '#f7f7f7' },
   boxText: { fontSize: 24, fontWeight: '800', color: '#222222' },

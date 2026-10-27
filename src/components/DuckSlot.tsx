@@ -97,10 +97,10 @@ export const DuckSlot: React.FC<Props> = ({
   // Placeholder: a soft duck-shaped silhouette so the slot is never empty.
   const placeholderBg =
     placeholderTone === 'active'
-      ? 'rgba(26, 26, 46, 0.16)'
+      ? 'rgba(17,17,17, 0.16)'
       : placeholderTone === 'success'
-        ? 'rgba(26, 26, 46, 0.32)'
-        : 'rgba(15, 23, 42, 0.06)';
+        ? 'rgba(17,17,17, 0.32)'
+        : 'rgba(27,27,27, 0.06)';
   const placeholderBorder =
     placeholderTone === 'active'
       ? colors.primary

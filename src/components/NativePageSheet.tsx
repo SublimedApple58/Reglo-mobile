@@ -51,7 +51,7 @@ export const NativePageSheet = ({
           {titleRight ?? null}
           <GlassCloseButton onPress={onClose} disabled={closeDisabled}>
             <Pressable onPress={onClose} hitSlop={10} disabled={closeDisabled} style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}>
-              <Ionicons name="close" size={22} color="#1A1A2E" />
+              <Ionicons name="close" size={22} color="#111111" />
             </Pressable>
           </GlassCloseButton>
         </View>
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F2F4',
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },

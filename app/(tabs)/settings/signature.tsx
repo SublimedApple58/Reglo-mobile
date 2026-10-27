@@ -21,8 +21,8 @@ type Point = { x: number; y: number };
 type Stroke = Point[];
 
 const STROKE_WIDTH = 3;
-const STROKE_COLOR = '#1A1A2E';
-const NAVY = '#1A1A2E';
+const STROKE_COLOR = '#111111';
+const NAVY = '#111111';
 
 const strokeToPath = (stroke: Stroke) => {
   if (stroke.length === 0) return '';
@@ -219,7 +219,7 @@ const s = StyleSheet.create({
     right: 60,
     bottom: 64,
     height: 1,
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
   },
   topBar: {
     position: 'absolute',
@@ -235,7 +235,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#F1F2F4',
+    backgroundColor: '#F2F2F2',
   },
   ghostText: { fontSize: 15, fontWeight: '600', color: NAVY },
   doneBtn: {

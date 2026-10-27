@@ -64,7 +64,7 @@ export function GlassCloseButton({
           <Image
             systemName="xmark"
             size={22}
-            color="#1A1A2E"
+            color="#111111"
             modifiers={[
               frame({ width: SIZE, height: SIZE }),
               glassEffect({ glass: { variant: 'regular', interactive: true }, shape: 'circle' }),
@@ -91,7 +91,7 @@ export function GlassCloseButton({
       testID={testID}
       style={({ pressed }) => [s.fallback, pressed && { opacity: 0.5 }]}
     >
-      <Ionicons name="close" size={22} color="#64748B" />
+      <Ionicons name="close" size={22} color="#6A6A6A" />
     </Pressable>
   );
 }
@@ -107,7 +107,7 @@ const s = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#EFF0F3',
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },

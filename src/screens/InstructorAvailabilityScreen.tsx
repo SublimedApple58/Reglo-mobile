@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth, backgroundColor: colors.border,
   },
   compactRow: { height: COMPACT_H, justifyContent: 'center', alignItems: 'center' },
-  compactTitle: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  largeTitle: { fontSize: 32, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  compactTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  largeTitle: { fontSize: 32, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
 
   /* Mode badge */
   modeRow: { flexDirection: 'row', marginTop: 8, marginBottom: 22 },
@@ -183,20 +183,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDDDDD',
   },
   modeIcon: { width: 16, height: 16, resizeMode: 'contain' },
-  modeBadgeText: { fontSize: 12.5, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1 },
+  modeBadgeText: { fontSize: 12.5, fontWeight: '600', color: '#111111', letterSpacing: -0.1 },
 
   /* Skeleton */
   skeletonCard: {
     backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
   },
   skeletonDaysRow: { flexDirection: 'row', gap: 6 },
 
   /* Empty */
   emptyCard: {
     backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, gap: 8,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
   emptyText: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
 });

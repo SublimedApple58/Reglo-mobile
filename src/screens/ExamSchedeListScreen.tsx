@@ -44,7 +44,7 @@ const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
 
 const STATUS_THEME = {
-  not_started: { bg: '#F2F2F2', accent: '#929292', border: '#DDDDDD', lines: '#D1D5DB' },
+  not_started: { bg: '#F2F2F2', accent: '#929292', border: '#DDDDDD', lines: '#D4D4D4' },
   in_progress: { bg: '#FEF9C3', accent: '#CA8A04', border: '#FDE68A', lines: '#FCD34D' },
   passed: { bg: '#DCFCE7', accent: '#16A34A', border: '#BBF7D0', lines: '#86EFAC' },
   failed: { bg: '#FEE2E2', accent: '#C13515', border: '#FECACA', lines: '#FCA5A5' },
@@ -259,7 +259,7 @@ const st = StyleSheet.create({
   compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
   /* Scroll */
@@ -280,7 +280,7 @@ const st = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: colors.border },
   statIcon: { width: 32, height: 32, marginBottom: 2 },
-  statValue: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  statValue: { fontSize: 14, fontWeight: '800', color: '#111111' },
   statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
 
   /* Section */

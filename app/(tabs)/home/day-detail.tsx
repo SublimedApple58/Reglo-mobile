@@ -34,7 +34,7 @@ export default function DayDetailScreen() {
       <View style={s.topBar}>
         {Platform.OS === 'android' ? (
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+            <Ionicons name="arrow-back" size={22} color="#111111" />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }}>
@@ -44,7 +44,7 @@ export default function DayDetailScreen() {
         {Platform.OS !== 'android' ? (
           <GlassCloseButton onPress={() => router.back()}>
             <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-              <Ionicons name="close" size={20} color="#1A1A2E" />
+              <Ionicons name="close" size={20} color="#111111" />
             </Pressable>
           </GlassCloseButton>
         ) : null}
@@ -71,8 +71,8 @@ export default function DayDetailScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.lg, paddingTop: 18, paddingBottom: 12 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4 },
-  subtitle: { fontSize: 13, fontWeight: '500', color: '#9CA3AF', marginTop: 2 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, fontWeight: '500', color: '#9C9C9C', marginTop: 2 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
 });

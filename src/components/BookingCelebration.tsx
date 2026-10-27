@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(14, 24, 40, 0.16)',
+    backgroundColor: 'rgba(26,26,26, 0.16)',
   },
   card: {
     minWidth: 248,

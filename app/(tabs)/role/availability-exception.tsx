@@ -79,7 +79,7 @@ function Chevron({ open }: { open: boolean }) {
   const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.value * 180}deg` }] }));
   return (
     <Animated.View style={style}>
-      <Ionicons name="chevron-down" size={18} color="#9AA1AC" />
+      <Ionicons name="chevron-down" size={18} color="#9E9E9E" />
     </Animated.View>
   );
 }
@@ -247,7 +247,7 @@ export default function AvailabilityExceptionScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -333,7 +333,7 @@ export default function AvailabilityExceptionScreen() {
                         style={({ pressed }) => [s.stepBtn, weeks <= 1 && s.stepBtnDisabled, pressed && { opacity: 0.55 }]}
                         hitSlop={6}
                       >
-                        <Ionicons name="remove" size={22} color={weeks <= 1 ? '#C7C7CC' : '#1A1A2E'} />
+                        <Ionicons name="remove" size={22} color={weeks <= 1 ? '#C7C7CC' : '#111111'} />
                       </Pressable>
                       <Text style={s.stepValue}>
                         <Text style={s.stepValueNum}>{weeks}</Text>
@@ -345,13 +345,13 @@ export default function AvailabilityExceptionScreen() {
                         style={({ pressed }) => [s.stepBtn, weeks >= 52 && s.stepBtnDisabled, pressed && { opacity: 0.55 }]}
                         hitSlop={6}
                       >
-                        <Ionicons name="add" size={22} color={weeks >= 52 ? '#C7C7CC' : '#1A1A2E'} />
+                        <Ionicons name="add" size={22} color={weeks >= 52 ? '#C7C7CC' : '#111111'} />
                       </Pressable>
                     </View>
                   </View>
                   <Pressable style={({ pressed }) => [s.continueBtn, pressed && { opacity: 0.6 }]} onPress={openAvail}>
                     <Text style={s.continueText}>Continua</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#1A1A2E" />
+                    <Ionicons name="chevron-forward" size={16} color="#111111" />
                   </Pressable>
                 </View>
               )}
@@ -436,11 +436,11 @@ export default function AvailabilityExceptionScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 16, paddingBottom: 6, paddingHorizontal: spacing.lg, marginRight: -4 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
 
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 24, gap: 18 },
   headerIcon: { width: 48, height: 48, resizeMode: 'contain', marginBottom: -6 },
-  title: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
 
   /* Mode tabs (Airbnb segmented control) */
   seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: SEG_PAD, position: 'relative' },
@@ -450,22 +450,22 @@ const s = StyleSheet.create({
   },
   segItem: { flex: 1, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
-  segTextActive: { color: '#1A1A2E', fontWeight: '700' },
+  segTextActive: { color: '#111111', fontWeight: '700' },
 
   /* Accordion card */
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0',
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
+    shadowColor: '#111111', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 18, paddingHorizontal: 18,
   },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, marginLeft: 12 },
-  headerSummary: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, flexShrink: 1 },
-  headerSummaryPlaceholder: { fontWeight: '400', color: '#B0B5BD' },
+  headerSummary: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2, flexShrink: 1 },
+  headerSummaryPlaceholder: { fontWeight: '400', color: '#B6B6B6' },
   cardBody: {
     paddingHorizontal: 18, paddingBottom: 18, paddingTop: 2, gap: 16,
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
@@ -476,18 +476,18 @@ const s = StyleSheet.create({
     flexDirection: 'row', paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EEEEEE',
   },
-  calWeekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9AA1AC' },
+  calWeekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9E9E9E' },
   calScroll: { maxHeight: 320 },
 
   /* Disponibilità radios */
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   radioOuter: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#D4D7DC',
+    width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#D8D8D8',
     alignItems: 'center', justifyContent: 'center',
   },
-  radioOuterActive: { borderColor: '#1A1A2E' },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#1A1A2E' },
-  radioTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  radioOuterActive: { borderColor: '#111111' },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#111111' },
+  radioTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   radioDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   rangesWrap: { marginTop: 2 },
 
@@ -495,11 +495,11 @@ const s = StyleSheet.create({
   continueBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     alignSelf: 'stretch', paddingVertical: 13, borderRadius: 24,
-    borderWidth: 1, borderColor: '#DCDFE4', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E0E0E0', backgroundColor: '#FFFFFF',
   },
-  continueText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  continueText: { fontSize: 15, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
 
-  label: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginBottom: 11 },
+  label: { fontSize: 14, fontWeight: '600', color: '#111111', letterSpacing: -0.2, marginBottom: 11 },
 
   /* Round Airbnb chips (SelectableChip) */
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -512,12 +512,12 @@ const s = StyleSheet.create({
   stepBtn: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+    shadowColor: '#111111', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
   },
   stepBtnDisabled: { backgroundColor: '#FAFAFB', shadowOpacity: 0 },
   stepValue: { flex: 1, textAlign: 'center' },
-  stepValueNum: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
-  stepValueUnit: { fontSize: 15, fontWeight: '500', color: '#6B7280', letterSpacing: -0.2 },
+  stepValueNum: { fontSize: 18, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
+  stepValueUnit: { fontSize: 15, fontWeight: '500', color: '#6B6B6B', letterSpacing: -0.2 },
 
   error: { fontSize: 13, fontWeight: '600', color: '#DC2626', textAlign: 'center', marginBottom: 10 },
 
@@ -525,7 +525,7 @@ const s = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg, paddingTop: 12,
     backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E6E8EC',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E8E8E8',
   },
 
   /* CTA */

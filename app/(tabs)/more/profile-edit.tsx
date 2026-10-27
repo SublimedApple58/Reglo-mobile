@@ -45,7 +45,7 @@ export default function MoreProfileEditScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -88,8 +88,8 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   body: { gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginBottom: 4 },
   field: { gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626' },

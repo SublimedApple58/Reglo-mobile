@@ -211,7 +211,7 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.border, backgroundColor: '#FFFFFF',
   },
   heroDualDark: {
-    padding: 18, gap: 6, backgroundColor: '#1A1A2E',
+    padding: 18, gap: 6, backgroundColor: '#111111',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
   },
@@ -223,7 +223,7 @@ const st = StyleSheet.create({
     marginBottom: 4,
   },
   heroDualTitleWhite: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  heroDualTitleDark: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  heroDualTitleDark: { fontSize: 15, fontWeight: '800', color: '#111111' },
   heroDualSubWhite: { fontSize: 11, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
   heroDualSubMuted: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   heroDualExtraWhite: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginTop: 2 },
@@ -243,7 +243,7 @@ const st = StyleSheet.create({
     backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   statLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
-  statValue: { fontSize: 22, fontWeight: '800', color: '#1A1A2E' },
+  statValue: { fontSize: 22, fontWeight: '800', color: '#111111' },
 
   // Readiness
   readinessCard: {
@@ -259,7 +259,7 @@ const st = StyleSheet.create({
     backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
   readinessLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
-  readinessValue: { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
+  readinessValue: { fontSize: 18, fontWeight: '800', color: '#111111' },
   hotBadge: {
     paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10,
     backgroundColor: '#16A34A',
@@ -289,11 +289,11 @@ const st = StyleSheet.create({
     width: 42, height: 42, borderRadius: 14,
     backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
   },
-  libraryCtaTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
+  libraryCtaTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
   libraryCtaSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
 
   // Section
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
 
   // Recent
   recentSection: { gap: 8, marginTop: 4 },

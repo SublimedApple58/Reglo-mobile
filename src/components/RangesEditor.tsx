@@ -33,7 +33,7 @@ export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange,
             <Text style={styles.fieldValue}>{fmtMin(range.startMinutes)}</Text>
           </Pressable>
 
-          <Ionicons name="arrow-forward" size={15} color="#C0C4CC" style={styles.arrow} />
+          <Ionicons name="arrow-forward" size={15} color="#C5C5C5" style={styles.arrow} />
 
           {/* Fine */}
           <Pressable
@@ -64,7 +64,7 @@ export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange,
         onPress={onAddRange}
         disabled={disabled}
       >
-        <Ionicons name="add" size={18} color="#1A1A2E" />
+        <Ionicons name="add" size={18} color="#111111" />
         <Text style={styles.addText}>Aggiungi fascia</Text>
       </Pressable>
     </View>
@@ -82,15 +82,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 2,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,
   },
   fieldPressed: { transform: [{ scale: 0.98 }], shadowOpacity: 0.05 },
-  fieldLabel: { fontSize: 11.5, fontWeight: '700', color: '#9AA1AC', letterSpacing: 0.4, textTransform: 'uppercase' },
-  fieldValue: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  fieldLabel: { fontSize: 11.5, fontWeight: '700', color: '#9E9E9E', letterSpacing: 0.4, textTransform: 'uppercase' },
+  fieldValue: { fontSize: 17, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
 
   arrow: { width: 16, textAlign: 'center' },
 
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DCDFE4',
+    borderColor: '#E0E0E0',
   },
-  addText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  addText: { fontSize: 15, fontWeight: '700', color: '#111111' },
 });

@@ -53,7 +53,7 @@ export default function EditNotesScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -97,14 +97,14 @@ export default function EditNotesScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   notes: {
     minHeight: 130, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12, color: '#1A1A2E', backgroundColor: '#F7F7F8',
+    paddingHorizontal: 14, paddingVertical: 12, color: '#111111', backgroundColor: '#F7F7F7',
     textAlignVertical: 'top', fontSize: 15, lineHeight: 22,
   },
 

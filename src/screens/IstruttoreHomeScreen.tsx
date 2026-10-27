@@ -103,6 +103,8 @@ import { useAgendaBootstrap } from '../hooks/queries/useAgendaBootstrap';
 import { useHolidays } from '../hooks/queries/useHolidays';
 import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 
+import { car34Art } from '../road/markerArt';
+
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
 const ROAD_ENTRY_ICON = require('../../assets/road/fluent-road.png');
 
@@ -554,8 +556,8 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
         </View>
       </View>
       <View style={{ alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 4 }}>
-        <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="time-outline" size={44} color="#1A1A2E" />
+        <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="time-outline" size={44} color="#111111" />
         </View>
         <Text style={{ fontSize: 14, color: '#929292', marginTop: 8 }}>Scegli l'ora della guida</Text>
       </View>
@@ -1501,7 +1503,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     const s = normalizeStatus(status);
     // Exam: distinctive purple/indigo theme, overrides normal status visuals
     if (type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
-      return { border: '#6366F1', badgeBg: '#EEF2FF', badgeText: '#4338CA', label: 'ESAME', isExam: true as const };
+      return { border: '#7C3AED', badgeBg: '#F1F1F1', badgeText: '#6D28D9', label: 'ESAME', isExam: true as const };
     }
     // Group lesson: teal theme (mirrors the agenda card accent).
     if (type === 'group_lesson' && s !== 'cancelled' && s !== 'no_show') {
@@ -1510,7 +1512,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     if (s === 'pending_review')
       return { border: '#F97316', badgeBg: '#FFF7ED', badgeText: '#EA580C', label: 'Da confermare', isExam: false as const };
     if (s === 'checked_in')
-      return { border: '#1A1A2E', badgeBg: '#EEF0F4', badgeText: '#1A1A2E', label: 'In corso', isExam: false as const };
+      return { border: '#111111', badgeBg: '#F0F0F0', badgeText: '#111111', label: 'In corso', isExam: false as const };
     if (s === 'completed')
       return { border: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#16A34A', label: 'Completata', isExam: false as const };
     if (s === 'no_show' || s === 'cancelled')
@@ -1519,7 +1521,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     const completedMins = opts?.studentId ? (studentCompletedMinutes[opts.studentId] ?? 0) : 0;
     const isMandatory = completedMins < MANDATORY_MINUTES_THRESHOLD && (opts?.durationMin ?? 0) >= 60;
     if (isMandatory) {
-      return { border: '#0EA5E9', badgeBg: '#F0F9FF', badgeText: '#0369A1', label: 'Obbligatoria', isExam: false as const };
+      return { border: '#14B8A6', badgeBg: '#F0FDFA', badgeText: '#0F766E', label: 'Obbligatoria', isExam: false as const };
     }
     return { border: '#FACC15', badgeBg: '#FEF9C3', badgeText: '#CA8A04', label: 'Programmata', isExam: false as const };
   };
@@ -1800,7 +1802,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     });
     // Map timelineStatusConfig colors to LessonStateTag tones
     const toneMap: Record<string, 'live' | 'confirmed' | 'scheduled' | 'pending_review'> = {
-      '#1A1A2E': 'live',        // checked_in / in corso
+      '#111111': 'live',        // checked_in / in corso
       '#22C55E': 'confirmed',   // completed
       '#F97316': 'pending_review', // pending_review
       '#929292': 'pending_review', // cancelled / no_show
@@ -2479,7 +2481,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       studentId: lesson.studentId,
     });
     const toneMap: Record<string, 'live' | 'confirmed' | 'scheduled' | 'pending_review'> = {
-      '#1A1A2E': 'live',
+      '#111111': 'live',
       '#22C55E': 'confirmed',
       '#F97316': 'pending_review',
       '#929292': 'pending_review',
@@ -2949,14 +2951,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
               >
                 <View style={oobStyles.bannerIcon}>
-                  <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
+                  <Ionicons name="alert-circle-outline" size={20} color="#111111" />
                 </View>
                 <Text style={oobStyles.bannerText}>
                   <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
                   {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
                 </Text>
                 <Text style={oobStyles.bannerAction}>Gestisci</Text>
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
               </Pressable>
             )}
           </View>
@@ -2974,8 +2976,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={'#1A1A2E'}
-            colors={['#1A1A2E']}
+            tintColor={'#111111'}
+            colors={['#111111']}
           />
         }
       >
@@ -3004,14 +3006,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
             >
               <View style={oobStyles.bannerIcon}>
-                <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
+                <Ionicons name="alert-circle-outline" size={20} color="#111111" />
               </View>
               <Text style={oobStyles.bannerText}>
                 <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
                 {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
               </Text>
               <Text style={oobStyles.bannerAction}>Gestisci</Text>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           )}
         </View>
@@ -3036,7 +3038,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 style={({ pressed }) => [styles.calendarIconBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
                 hitSlop={6}
               >
-                <Ionicons name="calendar-outline" size={21} color="#1A1A2E" />
+                <Ionicons name="calendar-outline" size={21} color="#111111" />
               </Pressable>
             </View>
           </View>
@@ -3158,7 +3160,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
             paddingHorizontal: 24,
             alignItems: 'center',
             gap: 18,
-            shadowColor: '#1A1A2E',
+            shadowColor: '#111111',
             shadowOpacity: 0.06,
             shadowRadius: 22,
             shadowOffset: { width: 0, height: 12 },
@@ -3168,14 +3170,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               width: 88,
               height: 88,
               borderRadius: 44,
-              backgroundColor: '#F4F5F9',
+              backgroundColor: '#F4F4F4',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
               <Image source={require('../../assets/icons/fluent-thermometer.png')} style={{ width: 52, height: 52 }} resizeMode="contain" />
             </View>
             <View style={{ alignItems: 'center', gap: 7 }}>
-              <Text style={{ fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 }}>
+              <Text style={{ fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.4 }}>
                 In malattia
               </Text>
               <Text style={{ fontSize: 14, color: '#717171', textAlign: 'center', lineHeight: 21 }}>
@@ -3183,7 +3185,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               </Text>
             </View>
             <View style={{
-              backgroundColor: '#F4F5F9',
+              backgroundColor: '#F4F4F4',
               borderRadius: 999,
               paddingHorizontal: 16,
               paddingVertical: 9,
@@ -3191,8 +3193,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
               alignItems: 'center',
               gap: 8,
             }}>
-              <Ionicons name="calendar-outline" size={15} color="#1A1A2E" />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1A1A2E' }}>
+              <Ionicons name="calendar-outline" size={15} color="#111111" />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111111' }}>
                 {sickLeaveInfo.rangeStart.toDateString() === sickLeaveInfo.rangeEnd.toDateString()
                   ? sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
                   : `${sickLeaveInfo.rangeStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} \u2013 ${sickLeaveInfo.rangeEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`}
@@ -3220,12 +3222,12 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                   paddingVertical: 12,
                   borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: '#E4E7EE',
-                  backgroundColor: pressed ? '#F4F5F9' : '#FFFFFF',
+                  borderColor: '#E8E8E8',
+                  backgroundColor: pressed ? '#F4F4F4' : '#FFFFFF',
                 },
               ]}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A2E' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#111111' }}>
                 Rimuovi malattia
               </Text>
             </Pressable>
@@ -3345,7 +3347,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                           flexDirection: 'row',
                           alignItems: 'center',
                           gap: 12,
-                          backgroundColor: '#F5F0FF',
+                          backgroundColor: '#F7F7F7',
                           borderRadius: 22,
                           padding: 14,
                           shadowColor: '#8B5CF6',
@@ -3506,14 +3508,17 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       )}
                       <Pressable onPress={() => openLessonDrawer(a)} style={({ pressed }) => [styles.itinCard, blockStyle, isActive && styles.itinCardActive, pressed && styles.itinCardPressed]}>
                         <View style={styles.itinTop}>
-                          {config.isExam ? (
-                            <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
-                              {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
+                          {/* Stile Road: la guida di adesso mostra l'auto 3D nel colore del veicolo. */}
+                          {!config.isExam && isActive && roadEligible?.appointmentId === a.id ? (
+                            <Image source={car34Art(roadEligible.carColor)} style={styles.itinCar} resizeMode="contain" />
+                          ) : config.isExam ? (
+                            <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#F2F2F0' }]}>
+                              {config.isExam ? <Ionicons name="school" size={18} color="#111111" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
                             </View>
                           ) : (
                             <UserPhotoCircle userId={a.student?.id} size={42}>
-                              <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#EEF2FF' }]}>
-                                {config.isExam ? <Ionicons name="school" size={18} color="#4338CA" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
+                              <View style={[styles.itinAvatar, config.isExam && { backgroundColor: '#F2F2F0' }]}>
+                                {config.isExam ? <Ionicons name="school" size={18} color="#111111" /> : <Text style={styles.itinAvatarText}>{initials}</Text>}
                               </View>
                             </UserPhotoCircle>
                           )}
@@ -3521,7 +3526,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                             <Text style={styles.itinName} numberOfLines={1}>{nm}</Text>
                             <Text style={styles.itinMeta} numberOfLines={1}>{meta}</Text>
                           </View>
-                          <View style={[styles.itinStatusPill, { backgroundColor: config.badgeBg }]}>
+                          <View style={[styles.itinStatusPill, { backgroundColor: config.badgeBg }, isActive && styles.itinStatusPillLive]}>
+                            {isActive ? <View style={styles.itinLiveDot} /> : null}
                             <Text style={[styles.itinStatusPillText, { color: config.badgeText }]} numberOfLines={1}>{config.label}</Text>
                           </View>
                         </View>
@@ -3651,12 +3657,12 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                       <Rail time={itFmt(row.startMin)} sub={itFmt(row.endMin)} isFirst={isFirst} isLast={isLast} hidePill={hidePill} lineState={lineState} />
                       <Pressable onPress={() => setClusterDrawerAppts(allAppts)} style={({ pressed }) => [styles.itinCard, pressed && styles.itinCardPressed]}>
                         <View style={styles.itinTop}>
-                          <View style={styles.itinAvatar}><Ionicons name="layers" size={18} color="#1A1A2E" /></View>
+                          <View style={styles.itinAvatar}><Ionicons name="layers" size={18} color="#111111" /></View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.itinName} numberOfLines={1}>{c.items.length} guide insieme</Text>
                             <Text style={styles.itinMeta} numberOfLines={1}>{names.join(', ')}</Text>
                           </View>
-                          <Ionicons name="chevron-forward" size={16} color="#9AA1AC" />
+                          <Ionicons name="chevron-forward" size={16} color="#9E9E9E" />
                         </View>
                       </Pressable>
                     </View>
@@ -3935,7 +3941,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 12,
-                        backgroundColor: '#F5F0FF',
+                        backgroundColor: '#F7F7F7',
                         borderRadius: 22,
                         padding: 14,
                         shadowColor: '#8B5CF6',
@@ -4116,14 +4122,14 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
               >
                 <View style={oobStyles.bannerIcon}>
-                  <Ionicons name="alert-circle-outline" size={20} color="#1A1A2E" />
+                  <Ionicons name="alert-circle-outline" size={20} color="#111111" />
                 </View>
                 <Text style={oobStyles.bannerText}>
                   <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
                   {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
                 </Text>
                 <Text style={oobStyles.bannerAction}>Gestisci</Text>
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
               </Pressable>
             )}
           </View>
@@ -4210,8 +4216,8 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
       >
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="layers" size={20} color={'#1A1A2E'} />
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="layers" size={20} color={'#111111'} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 18, fontWeight: '800', color: '#222222' }}>
@@ -4427,7 +4433,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E6E8EC',
+    backgroundColor: '#E8E8E8',
   },
   stickyHeaderRow: {
     flex: 1,
@@ -4439,7 +4445,7 @@ const styles = StyleSheet.create({
   stickyHeaderTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   largeTitleWrap: {
     height: LARGE_TITLE_H,
@@ -4450,7 +4456,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: -0.3,
-    color: '#1A1A2E',
+    color: '#111111',
   },
   largeSub: {
     fontSize: 13,
@@ -4670,7 +4676,7 @@ const styles = StyleSheet.create({
   /* ── Calendar Section ── */
   calendarSection: {
     gap: spacing.sm,
-    backgroundColor: '#F4F5F9',
+    backgroundColor: '#F4F4F4',
     marginHorizontal: -spacing.lg,
     // leave ~16px of breathing room between the greeting eyebrow and the panel
     // (content container adds `gap: spacing.lg`; we cancel all but ~16px)
@@ -4689,7 +4695,7 @@ const styles = StyleSheet.create({
   calendarMonthTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1A1A2E',
+    color: '#111111',
     letterSpacing: -0.6,
     lineHeight: 26,
   },
@@ -4704,7 +4710,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.10,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -4713,7 +4719,7 @@ const styles = StyleSheet.create({
   calendarTodayChipText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   calendarIconBtn: {
     width: 38,
@@ -4722,7 +4728,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.10,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -4750,9 +4756,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   dayPillSelected: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     borderWidth: 0,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.20,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -4764,7 +4770,7 @@ const styles = StyleSheet.create({
   },
   // Today gets a soft tonal fill (not a ring) — lighter than the selected fill
   dayPillToday: {
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
   },
   dayPillWeekday: {
     fontSize: 11,
@@ -4778,7 +4784,7 @@ const styles = StyleSheet.create({
     color: '#929292',
   },
   dayPillWeekdayToday: {
-    color: '#1A1A2E',
+    color: '#111111',
   },
   dayPillNumber: {
     fontSize: 20,
@@ -4788,10 +4794,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dayPillNumberUnselected: {
-    color: '#1A1A2E',
+    color: '#111111',
   },
   dayPillNumberToday: {
-    color: '#1A1A2E',
+    color: '#111111',
   },
 
   dayPillDot: {
@@ -4800,7 +4806,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   dayPillDotHighlight: {
     backgroundColor: '#FACC15',
@@ -4808,7 +4814,7 @@ const styles = StyleSheet.create({
   // Exam / sick dots: absolute like the booking dot, so the weekday + number
   // stay vertically aligned across every day (inline dots used to push them up).
   dayPillExamDot: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#111111',
   },
   dayPillSickDot: {
     backgroundColor: '#C2410C',
@@ -4817,7 +4823,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F766E',
   },
   dayPillTheoryDot: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#111111',
   },
   dayPillHoliday: {
     backgroundColor: '#FFF3DD',
@@ -4941,7 +4947,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.positive,
   },
   stateTagScheduled: {
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
   },
   stateTagPendingReview: {
     backgroundColor: '#FFF7ED',
@@ -4963,23 +4969,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   stateTagTextScheduled: {
-    color: '#1A1A2E',
+    color: '#111111',
   },
   sheetMoreBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F2F4',
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sheetSaveBtn: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     minHeight: 52,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.18,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -4999,7 +5005,7 @@ const styles = StyleSheet.create({
     borderColor: '#ECECEC',
     padding: 16,
     gap: 4,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
@@ -5018,7 +5024,7 @@ const styles = StyleSheet.create({
   modalInfoPhone: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#111111',
     marginTop: 2,
   },
   studentContactRow: {
@@ -5046,12 +5052,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
     shadowRadius: 12,
@@ -5083,7 +5089,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECECEC',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
@@ -5104,7 +5110,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5120,7 +5126,7 @@ const styles = StyleSheet.create({
   detailRowValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   detailRowSub: {
     fontSize: 13,
@@ -5140,12 +5146,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pickerAvatarActive: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   pickerName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   pickerNameActive: {
     fontWeight: '700',
@@ -5259,7 +5265,7 @@ const styles = StyleSheet.create({
   sheetProgressBarFill: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   sheetProgressHint: {
     fontSize: 12,
@@ -5300,8 +5306,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#1A1A2E',
-    backgroundColor: '#F7F7F8',
+    color: '#111111',
+    backgroundColor: '#F7F7F7',
     textAlignVertical: 'top',
     fontSize: 15,
     lineHeight: 22,
@@ -5345,7 +5351,7 @@ const styles = StyleSheet.create({
   },
   pickerBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(17, 24, 39, 0.3)',
+    backgroundColor: 'rgba(27,27,27, 0.3)',
     justifyContent: 'center',
     padding: spacing.lg,
   },
@@ -5389,7 +5395,7 @@ const styles = StyleSheet.create({
   bookingStudentChange: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
 
   emptyState: {
@@ -5426,15 +5432,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 12,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   nextBannerLive: {
-    backgroundColor: '#EEF0F4',
-    borderColor: '#D6D9E0',
+    backgroundColor: '#F0F0F0',
+    borderColor: '#DADADA',
   },
   nextBannerLeft: {
     flexDirection: 'row',
@@ -5445,12 +5451,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   nextBannerLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   nextBannerInfo: {
     fontSize: 13,
@@ -5493,7 +5499,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5512,7 +5518,7 @@ const styles = StyleSheet.create({
   /* ── Empty state (Fluent, centered) ── */
   dayEmpty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 },
   dayEmptyImg: { width: 76, height: 76, resizeMode: 'contain', marginBottom: 16 },
-  dayEmptyTitle: { fontSize: 19, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  dayEmptyTitle: { fontSize: 19, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   dayEmptySub: { fontSize: 14, fontWeight: '500', color: '#929292', marginTop: 6, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
   dayEmptyCta: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20,
@@ -5526,17 +5532,17 @@ const styles = StyleSheet.create({
   itinRow: { flexDirection: 'row', alignItems: 'stretch' },
   itinRail: { width: 84, paddingTop: 16, alignItems: 'center', position: 'relative' },
   // Line linking the time pills, with a small gap above/below each pill.
-  railLineTop: { position: 'absolute', left: 41, top: 0, height: 12, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
-  railLineBottom: { position: 'absolute', left: 41, top: 46, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
-  railLineFull: { position: 'absolute', left: 41, top: 0, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railLineTop: { position: 'absolute', left: 41, top: 0, height: 12, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
+  railLineBottom: { position: 'absolute', left: 41, top: 46, bottom: -14, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
+  railLineFull: { position: 'absolute', left: 41, top: 0, bottom: -14, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
   railPill: {
     minHeight: 26, minWidth: 52, paddingHorizontal: 9, justifyContent: 'center', alignItems: 'center',
-    borderRadius: 13, backgroundColor: '#EEF0F4',
+    borderRadius: 13, backgroundColor: '#F0F0F0',
   },
   railPillMuted: { backgroundColor: '#F1F3F7' },
   railPillEndpoint: { backgroundColor: '#F1F3F7' },
   railPillNow: { backgroundColor: '#DCFCE7' },
-  railPillText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
+  railPillText: { fontSize: 13, fontWeight: '700', color: '#111111', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
   railPillTextMuted: { color: '#929292' },
   railPillTextNow: { color: '#16A34A' },
   // Past portion of the rail is illuminated (green); future stays grey.
@@ -5544,14 +5550,14 @@ const styles = StyleSheet.create({
   // In-progress lesson rail: start pill (light green) + current-time pill (solid green).
   itinRailNow: { width: 84, paddingTop: 16, alignItems: 'center', position: 'relative' },
   railFlowMid: { width: 2, height: 14, backgroundColor: '#22C55E', borderRadius: 1, marginVertical: 3 },
-  railFlowFill: { width: 2, flex: 1, minHeight: 12, backgroundColor: '#E6E8EC', borderRadius: 1, marginTop: 3, marginBottom: -14 },
+  railFlowFill: { width: 2, flex: 1, minHeight: 12, backgroundColor: '#E8E8E8', borderRadius: 1, marginTop: 3, marginBottom: -14 },
   railPillCurrent: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
   railCurrentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16A34A' },
   // Current-time marker: a coloured dot centred on the rail line (left 41, w2 → centre 42),
   // green line above (past), grey below (future).
   itinNowRow: { flexDirection: 'row', height: 18 },
   railNowLineTop: { position: 'absolute', left: 41, top: 0, height: 9, width: 2, backgroundColor: '#22C55E', borderRadius: 1 },
-  railNowLineBottom: { position: 'absolute', left: 41, top: 9, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
+  railNowLineBottom: { position: 'absolute', left: 41, top: 9, bottom: -14, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
   railNowDot: { position: 'absolute', left: 36, top: 3, width: 12, height: 12, borderRadius: 6, backgroundColor: '#16A34A', borderWidth: 2.5, borderColor: '#FFFFFF', zIndex: 3 },
   itinCard: {
     flex: 1,
@@ -5559,7 +5565,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 14,
     marginBottom: 14,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -5572,7 +5578,7 @@ const styles = StyleSheet.create({
   // Exam card — student-app language (lavender surface + Fluent 3D icon), no right tag.
   examGroupCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#F5F0FF', borderRadius: 22, padding: 14, marginBottom: 14,
+    backgroundColor: '#F7F7F7', borderRadius: 22, padding: 14, marginBottom: 14,
     shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
   examGroupIcon: { width: 42, height: 42 },
@@ -5581,12 +5587,12 @@ const styles = StyleSheet.create({
   // Lezione teorica — sorella indaco della card esame (icona libri 3D).
   theoryItinCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#E6E9FF', borderRadius: 22, padding: 14, marginBottom: 14,
-    shadowColor: '#6366F1', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+    backgroundColor: '#EFEDE8', borderRadius: 22, padding: 14, marginBottom: 14,
+    shadowColor: '#111111', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
   theoryItinIcon: { width: 42, height: 42 },
-  theoryItinLabel: { fontSize: 12, fontWeight: '600', color: '#4F46E5' },
-  theoryItinTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  theoryItinLabel: { fontSize: 12, fontWeight: '600', color: '#111111' },
+  theoryItinTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
   // Group-lesson card — bigger than a normal lesson, teal accent, NO student name.
   groupLessonCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -5618,7 +5624,7 @@ const styles = StyleSheet.create({
   badgeGroupText: { color: '#0F766E' },
   badgeMoto: { borderColor: '#FED7AA', backgroundColor: 'rgba(254,215,170,0.6)' },
   badgeMotoText: { color: '#C2410C' },
-  badgeExam: { borderColor: '#DDD6FE', backgroundColor: 'rgba(221,214,254,0.6)' },
+  badgeExam: { borderColor: '#E6E6E6', backgroundColor: 'rgba(221,214,254,0.6)' },
   badgeExamText: { color: '#6D28D9' },
   glSeats: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   glSeat: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0F766E' },
@@ -5628,20 +5634,23 @@ const styles = StyleSheet.create({
   glSeatsText: { fontSize: 12, fontWeight: '500', color: '#0F766E', marginLeft: 4 },
   glSeatsTextMoto: { color: '#C2410C' },
   itinTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  itinName: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  itinAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  itinAvatarText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+  itinName: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   itinMeta: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 2 },
   itinStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   itinStatusPillText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
   itinActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   itinRoadBtn: { minHeight: 46, marginTop: 10, borderRadius: 999, backgroundColor: '#111111', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   itinRoadIc: { width: 20, height: 20 },
+  itinCar: { width: 52, height: 42 },
+  itinStatusPillLive: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  itinLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#E5484D' },
   itinRoadTx: { fontSize: 14.5, fontWeight: '600', color: '#FFFFFF' },
   itinActBtn: { flex: 1, minHeight: 46, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  itinActCheck: { backgroundColor: '#1A1A2E' },
+  itinActCheck: { backgroundColor: '#111111' },
   itinActCheckText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  itinActNo: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E9EBF2' },
+  itinActNo: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#EBEBEB' },
   itinActNoText: { fontSize: 14, fontWeight: '600', color: '#6A6A6A' },
   itinGapBtn: {
     flexDirection: 'row',
@@ -5657,21 +5666,21 @@ const styles = StyleSheet.create({
     borderColor: '#E6E6EA',
     borderStyle: 'dashed',
   },
-  itinGapText: { fontSize: 13, fontWeight: '600', color: '#9AA1AC' },
+  itinGapText: { fontSize: 13, fontWeight: '600', color: '#9E9E9E' },
   itinGapAdd: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  itinGapAddText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  itinGapAddText: { fontSize: 13, fontWeight: '700', color: '#111111' },
   itinFree: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14,
     borderRadius: 18, borderWidth: 1.5, borderColor: '#E6E6EA', borderStyle: 'dashed',
     backgroundColor: 'transparent',
   },
-  itinFreeAdd: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  itinFreeTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.1 },
-  itinFreeSub: { fontSize: 12, fontWeight: '500', color: '#9AA1AC', marginTop: 1 },
+  itinFreeAdd: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  itinFreeTitle: { fontSize: 14, fontWeight: '700', color: '#111111', letterSpacing: -0.1 },
+  itinFreeSub: { fontSize: 12, fontWeight: '500', color: '#9E9E9E', marginTop: 1 },
   itinMarkerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
   itinMarkerText: { fontSize: 13, fontWeight: '700', color: '#595959', letterSpacing: 0.1 },
-  dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9AA1AC', textAlign: 'center', marginTop: 4, marginBottom: 16, paddingHorizontal: 24, lineHeight: 18 },
+  dayEmptyInline: { fontSize: 13, fontWeight: '500', color: '#9E9E9E', textAlign: 'center', marginTop: 4, marginBottom: 16, paddingHorizontal: 24, lineHeight: 18 },
   itinNowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 22, marginBottom: 14 },
   itinNowLine: { flex: 1, height: 1.5, backgroundColor: '#C13515', opacity: 0.45 },
   itinNowLabel: { fontSize: 11, fontWeight: '700', color: '#C13515' },
@@ -5733,11 +5742,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
   },
   timelineBlockActive: {
-    backgroundColor: '#F4F5F9',
+    backgroundColor: '#F4F4F4',
     borderLeftWidth: 5,
-    borderLeftColor: '#1A1A2E',
-    borderColor: '#D6D9E6',
-    shadowColor: '#1A1A2E',
+    borderLeftColor: '#111111',
+    borderColor: '#D9D9D9',
+    shadowColor: '#111111',
     shadowOpacity: 0.15,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -5883,11 +5892,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.35,
+    shadowColor: '#111111',
+    shadowOpacity: 0.2,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
@@ -5906,7 +5915,7 @@ const oobStyles = StyleSheet.create({
     gap: 12,
     marginTop: spacing.sm,
     marginBottom: 10,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.07,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
@@ -5916,23 +5925,23 @@ const oobStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F4F5F9',
+    backgroundColor: '#F4F4F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerText: {
     flex: 1,
     fontSize: 14,
-    color: '#1A1A2E',
+    color: '#111111',
   },
   bannerCount: {
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   bannerAction: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -5962,10 +5971,10 @@ const oobStyles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
   },
   badgeVehicle: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#EBEBEB',
   },
   badgeBoth: {
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
   },
   badgeText: {
     fontSize: 11,
@@ -5975,10 +5984,10 @@ const oobStyles = StyleSheet.create({
     color: '#92400E',
   },
   badgeTextVehicle: {
-    color: '#1E40AF',
+    color: '#111111',
   },
   badgeTextBoth: {
-    color: '#14141F',
+    color: '#0A0A0A',
   },
   cardTime: {
     fontSize: 12,
@@ -6005,7 +6014,7 @@ const oobStyles = StyleSheet.create({
   actionBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: '#434343',
   },
   actionBtnDanger: {
     borderColor: '#FECACA',
@@ -6015,8 +6024,8 @@ const oobStyles = StyleSheet.create({
     color: '#DC2626',
   },
   actionBtnPrimary: {
-    borderColor: '#1A1A2E',
-    backgroundColor: '#1A1A2E',
+    borderColor: '#111111',
+    backgroundColor: '#111111',
   },
   actionBtnPrimaryText: {
     color: '#FFFFFF',

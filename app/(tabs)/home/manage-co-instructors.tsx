@@ -84,7 +84,7 @@ export default function ManageCoInstructorsScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -96,17 +96,17 @@ export default function ManageCoInstructorsScreen() {
       <SheetScaffold>
         {loading && list.length === 0 ? (
           <View style={s.center}>
-            <ActivityIndicator size="small" color="#1A1A2E" />
+            <ActivityIndicator size="small" color="#111111" />
             <Text style={s.muted}>Carico gli istruttori…</Text>
           </View>
         ) : failed ? (
           <View style={s.center}>
-            <Ionicons name="cloud-offline-outline" size={26} color="#AEB4CC" />
+            <Ionicons name="cloud-offline-outline" size={26} color="#B0B0B0" />
             <Text style={s.muted}>Non sono riuscito a caricare gli istruttori.</Text>
           </View>
         ) : selectable.length === 0 && !main ? (
           <View style={s.center}>
-            <Ionicons name="people-outline" size={26} color="#AEB4CC" />
+            <Ionicons name="people-outline" size={26} color="#B0B0B0" />
             <Text style={s.muted}>Non ci sono altri istruttori da aggiungere.</Text>
           </View>
         ) : (
@@ -121,7 +121,7 @@ export default function ManageCoInstructorsScreen() {
             {main ? (
               <View style={s.mainRow}>
                 <View style={s.iconCol}>
-                  <Ionicons name="person" size={22} color="#1A1A2E" />
+                  <Ionicons name="person" size={22} color="#111111" />
                 </View>
                 <View style={s.body}>
                   <Text style={s.name} numberOfLines={1}>
@@ -129,7 +129,7 @@ export default function ManageCoInstructorsScreen() {
                   </Text>
                   <Text style={s.mainSub}>Principale · tiene lui questa guida</Text>
                 </View>
-                <Ionicons name="lock-closed" size={16} color="#C7CBD1" />
+                <Ionicons name="lock-closed" size={16} color="#C9C9C9" />
               </View>
             ) : null}
             {selectable.map((it, idx) => {
@@ -147,7 +147,7 @@ export default function ManageCoInstructorsScreen() {
                     style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }, blocked && { opacity: 0.4 }]}
                   >
                     <View style={s.iconCol}>
-                      <Ionicons name="person" size={22} color="#1A1A2E" />
+                      <Ionicons name="person" size={22} color="#111111" />
                     </View>
                     <View style={s.body}>
                       <Text style={[s.name, isOn && { fontWeight: '700' }]} numberOfLines={1}>
@@ -156,11 +156,11 @@ export default function ManageCoInstructorsScreen() {
                       {isOn ? <Text style={s.sub}>Porta questa guida con te</Text> : null}
                     </View>
                     {isSaving ? (
-                      <ActivityIndicator size="small" color="#1A1A2E" />
+                      <ActivityIndicator size="small" color="#111111" />
                     ) : isOn ? (
                       <Ionicons name="checkmark-circle" size={22} color="#047857" />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#C7CBD1" />
+                      <Ionicons name="ellipse-outline" size={22} color="#C9C9C9" />
                     )}
                   </Pressable>
                 </View>
@@ -179,9 +179,9 @@ export default function ManageCoInstructorsScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   center: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   muted: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
@@ -190,9 +190,9 @@ const s = StyleSheet.create({
   mainSub: { fontSize: 13, color: colors.textSecondary },
   iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  name: { fontSize: 15, fontWeight: '600', color: '#111111' },
   sub: { fontSize: 13, color: '#047857' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 40 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 40 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

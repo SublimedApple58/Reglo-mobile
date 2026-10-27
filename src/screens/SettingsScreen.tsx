@@ -745,14 +745,14 @@ export const SettingsScreen = () => {
       {/* Menu group: preferences */}
       <Animated.View entering={FadeInUp.delay(140).duration(420).springify()} style={studentStyles.menuGroup}>
         <Pressable onPress={() => router.push('/(tabs)/settings/le-tue-guide')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="car-sport-outline" size={23} color="#1A1A2E" />
+          <Ionicons name="car-sport-outline" size={23} color="#111111" />
           <Text style={studentStyles.rowLabelFlex}>Le tue guide</Text>
           <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </Pressable>
 
         <View style={studentStyles.rowDivider} />
         <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+          <Ionicons name="calendar-outline" size={23} color="#111111" />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={studentStyles.rowLabel}>Disponibilità</Text>
             {availabilityLoading ? (
@@ -771,7 +771,7 @@ export const SettingsScreen = () => {
           onPress={() => router.push('/(tabs)/settings/associa-istruttore')}
           style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}
         >
-          <Ionicons name="qr-code-outline" size={23} color="#1A1A2E" />
+          <Ionicons name="qr-code-outline" size={23} color="#111111" />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={studentStyles.rowLabel}>Scansiona QR</Text>
             <Text style={studentStyles.rowHint} numberOfLines={1}>Associati al tuo istruttore</Text>
@@ -781,7 +781,7 @@ export const SettingsScreen = () => {
 
         <View style={studentStyles.rowDivider} />
         <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#1A1A2E" />
+          <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#111111" />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={studentStyles.rowLabel}>Notifiche</Text>
             <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
@@ -795,7 +795,7 @@ export const SettingsScreen = () => {
       {/* Menu group: account */}
       <Animated.View entering={FadeInUp.delay(210).duration(420).springify()} style={studentStyles.menuGroup}>
         <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+          <Ionicons name="log-out-outline" size={23} color="#111111" />
           <Text style={studentStyles.rowLabelFlex}>Esci</Text>
         </Pressable>
         <View style={studentStyles.rowDivider} />
@@ -815,7 +815,7 @@ export const SettingsScreen = () => {
       {/* 1. Title */}
       {router.canGoBack() ? (
         <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          <Ionicons name="arrow-back" size={22} color="#111111" />
           <Text style={studentStyles.title}>Impostazioni</Text>
         </Pressable>
       ) : (
@@ -843,7 +843,7 @@ export const SettingsScreen = () => {
           <View style={studentStyles.menuGroup}>
             {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
               <Pressable onPress={() => router.push('/(tabs)/more/agenda-view')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                <Ionicons name="grid-outline" size={23} color="#1A1A2E" />
+                <Ionicons name="grid-outline" size={23} color="#111111" />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={studentStyles.rowLabel}>Vista agenda</Text>
                   <Text style={studentStyles.rowHint} numberOfLines={1}>
@@ -858,7 +858,7 @@ export const SettingsScreen = () => {
               <>
                 <View style={studentStyles.rowDivider} />
                 <Pressable onPress={() => router.push('/(tabs)/more/availability-mode')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                  <Ionicons name="calendar-outline" size={23} color="#1A1A2E" />
+                  <Ionicons name="calendar-outline" size={23} color="#111111" />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={studentStyles.rowLabel}>Disponibilità</Text>
                     {settingsLoading ? (
@@ -878,7 +878,7 @@ export const SettingsScreen = () => {
               <>
                 <View style={studentStyles.rowDivider} />
                 <Pressable onPress={() => router.push('/(tabs)/more/agenda-settings')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                  <Ionicons name="time-outline" size={23} color="#1A1A2E" />
+                  <Ionicons name="time-outline" size={23} color="#111111" />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={studentStyles.rowLabel}>Agenda</Text>
                     {settingsLoading ? (
@@ -899,7 +899,7 @@ export const SettingsScreen = () => {
               <Ionicons
                 name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
                 size={23}
-                color="#1A1A2E"
+                color="#111111"
               />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={studentStyles.rowLabel}>Notifiche</Text>
@@ -914,7 +914,7 @@ export const SettingsScreen = () => {
           {/* Account (flat menu group, like student) */}
           <View style={studentStyles.menuGroup}>
             <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="log-out-outline" size={23} color="#1A1A2E" />
+              <Ionicons name="log-out-outline" size={23} color="#111111" />
               <Text style={studentStyles.rowLabelFlex}>Esci</Text>
             </Pressable>
             <View style={studentStyles.rowDivider} />
@@ -970,11 +970,11 @@ export const SettingsScreen = () => {
 /* \u2500\u2500\u2500 Student-specific styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 const studentStyles = StyleSheet.create({
   title: {
-    fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E',
+    fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111',
   },
 
   pageTitle: {
-    fontSize: 30, fontWeight: '600', letterSpacing: -0.5, color: '#1A1A2E',
+    fontSize: 30, fontWeight: '600', letterSpacing: -0.5, color: '#111111',
     marginBottom: 4,
   },
 
@@ -987,14 +987,14 @@ const studentStyles = StyleSheet.create({
   },
   profileAvatar: {
     width: 60, height: 60, borderRadius: 30, overflow: 'hidden',
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
     alignItems: 'center', justifyContent: 'center',
   },
   profileAvatarText: {
     fontSize: 22, fontWeight: '800', color: colors.primary,
   },
   profileName: {
-    fontSize: 18, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.2,
+    fontSize: 18, fontWeight: '800', color: '#111111', letterSpacing: -0.2,
   },
   profileEmail: {
     fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1,
@@ -1022,10 +1022,10 @@ const studentStyles = StyleSheet.create({
     opacity: 0.55,
   },
   rowLabel: {
-    fontSize: 16, fontWeight: '500', color: '#1A1A2E',
+    fontSize: 16, fontWeight: '500', color: '#111111',
   },
   rowLabelFlex: {
-    fontSize: 16, fontWeight: '500', color: '#1A1A2E', flex: 1,
+    fontSize: 16, fontWeight: '500', color: '#111111', flex: 1,
   },
   rowHint: {
     fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2,

@@ -66,7 +66,7 @@ export const WeeklyLiveCard = ({
         {isExam ? (
           <Image source={FLUENT_GRADUATE} style={styles.examIcon} />
         ) : isGroup ? (
-          <View style={styles.avatar}><Ionicons name="people" size={22} color="#1A1A2E" /></View>
+          <View style={styles.avatar}><Ionicons name="people" size={22} color="#111111" /></View>
         ) : (
           <UserPhotoCircle userId={lesson.student?.id} size={48}>
             <View style={styles.avatar}><Text style={styles.avatarTx}>{initials}</Text></View>
@@ -87,7 +87,7 @@ export const WeeklyLiveCard = ({
           ) : null}
         </View>
         {!showActions || (inProgress && isCheckedIn) ? (
-          <Ionicons name="chevron-forward" size={20} color="#AEB4CC" />
+          <Ionicons name="chevron-forward" size={20} color="#B0B0B0" />
         ) : null}
       </View>
 
@@ -125,7 +125,7 @@ export const WeeklyLiveCard = ({
           disabled={isPending}
           style={({ pressed }) => [styles.ghost, pressed && { opacity: 0.6 }, isPending && { opacity: 0.5 }]}
         >
-          <Ionicons name="close" size={14} color="#AEB4CC" />
+          <Ionicons name="close" size={14} color="#B0B0B0" />
           <Text style={styles.ghostTx}>{pendingAction === 'no_show' ? 'Attendi…' : 'Segna assente'}</Text>
         </Pressable>
       ) : null}
@@ -146,37 +146,37 @@ export const WeeklyLiveCard = ({
 };
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: 22, marginBottom: 14, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+  card: { marginHorizontal: 22, marginBottom: 14, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, shadowColor: '#111111', shadowOpacity: 0.08, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
   pressed: { opacity: 0.97, transform: [{ scale: 0.995 }] },
 
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   dotLive: { backgroundColor: '#16A34A', shadowColor: '#16A34A', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } },
-  dotSoon: { backgroundColor: '#AEB4CC' },
+  dotSoon: { backgroundColor: '#B0B0B0' },
   kick: { fontSize: 11, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase' },
-  kickLive: { color: '#1A1A2E' },
-  kickSoon: { color: '#6E7596' },
-  kickSep: { color: '#AEB4CC', fontWeight: '600' },
+  kickLive: { color: '#111111' },
+  kickSoon: { color: '#6A6A6A' },
+  kickSep: { color: '#B0B0B0', fontWeight: '600' },
 
   top: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  avatarTx: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  avatarTx: { fontSize: 15, fontWeight: '600', color: '#111111' },
   examIcon: { width: 48, height: 48 },
   examKicker: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  name: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  name: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   meta: { fontSize: 13, fontWeight: '400', color: '#929292', marginTop: 3 },
   donePill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FDF4', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 },
   donePillTx: { fontSize: 12, fontWeight: '600', color: '#16A34A' },
 
   acts: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btn: { flex: 1, height: 48, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  present: { backgroundColor: '#1A1A2E' },
+  present: { backgroundColor: '#111111' },
   presentTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  absent: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E9EBF2' },
+  absent: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#EBEBEB' },
   absentTx: { fontSize: 14, fontWeight: '600', color: '#6A6A6A' },
 
   ghost: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, marginTop: 8 },
-  ghostTx: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
+  ghostTx: { fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
 
   // REG-638: in Road niente navy, CTA nera.
   road: { height: 48, borderRadius: 999, backgroundColor: '#111111', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14 },

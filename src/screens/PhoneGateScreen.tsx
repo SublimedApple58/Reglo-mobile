@@ -20,7 +20,7 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { colors } from '../theme';
 
-const NAVY = colors.primary; // #1A1A2E
+const NAVY = colors.primary; // #111111
 
 /**
  * Blocking gate for students without a phone number: replaces the whole tab
@@ -84,7 +84,7 @@ export const PhoneGateScreen = () => {
           {/* 3D floating icon */}
           <View style={styles.iconShadow}>
             <LinearGradient
-              colors={['#2B2B4A', NAVY, '#101020']}
+              colors={['#353535', NAVY, '#151515']}
               start={{ x: 0.1, y: 0 }}
               end={{ x: 0.9, y: 1 }}
               style={styles.icon3d}
@@ -112,7 +112,7 @@ export const PhoneGateScreen = () => {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 placeholder="333 123 4567"
-                placeholderTextColor="#AEB4CC"
+                placeholderTextColor="#B0B0B0"
                 autoFocus
                 editable={!saving}
                 inputAccessoryViewID={accessoryID}
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(26,26,46,0.04)',
+    backgroundColor: 'rgba(17,17,17,0.04)',
   },
   blobB: {
     position: 'absolute',
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(26,26,46,0.05)',
+    borderColor: 'rgba(17,17,17,0.05)',
     padding: 20,
     shadowColor: NAVY,
     shadowOpacity: 0.12,

@@ -33,9 +33,9 @@ export const PAYMENT_EVENT_SHORT_LABEL: Record<PaymentHistoryKind, string> = {
 export const PAYMENT_EVENT_DOT: Record<PaymentHistoryKind, string> = {
   paid: '#15803D',
   unpaid: '#C9A200',
-  cleared: '#B4B4BD',
+  cleared: '#B7B7B7',
   credit_applied: '#7C3AED',
-  credit_refunded: '#B4B4BD',
+  credit_refunded: '#B7B7B7',
 };
 
 const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];

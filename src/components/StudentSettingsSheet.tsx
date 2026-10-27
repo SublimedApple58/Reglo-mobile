@@ -38,7 +38,7 @@ export function StudentSettingsSheet() {
         </View>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -95,12 +95,12 @@ const s = StyleSheet.create({
   // La testata respira: titolo e nome dell'allievo non devono stare addosso
   // né al bordo del foglio né alla prima riga.
   topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 26, gap: 12 },
-  title: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   hint: { fontSize: 13.5, fontWeight: '500', color: colors.textMuted, marginTop: 5, lineHeight: 18 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   icon: { width: 40, height: 40 },
   body: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 15.5, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  rowTitle: { fontSize: 15.5, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   rowSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
 });

@@ -52,7 +52,7 @@ export default function AddActionScreen() {
         <Text style={s.title}>Aggiungi</Text>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={22} color="#64748B" />
+            <Ionicons name="close" size={22} color="#6A6A6A" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -88,14 +88,14 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
     letterSpacing: -0.4,
   },
   close: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#EFF0F3',
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -108,7 +108,7 @@ const s = StyleSheet.create({
     marginHorizontal: -spacing.lg,
   },
   rowPressed: {
-    backgroundColor: '#F4F5F9',
+    backgroundColor: '#F4F4F4',
   },
   img: {
     width: 42,
@@ -118,6 +118,6 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#1A1A2E',
+    color: '#111111',
   },
 });

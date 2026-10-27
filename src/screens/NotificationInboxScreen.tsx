@@ -245,7 +245,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
     >
       <Pressable onPress={onTap} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
         <View style={[styles.iconChip, item.read ? styles.iconChipRead : styles.iconChipUnread]}>
-          <Ionicons name={ICON_MAP[item.kind]} size={18} color={item.read ? '#5B6178' : '#FFFFFF'} />
+          <Ionicons name={ICON_MAP[item.kind]} size={18} color={item.read ? '#676767' : '#FFFFFF'} />
         </View>
         <View style={styles.cardCenter}>
           <Text style={[styles.cardTitle, item.read && styles.cardTitleRead]} numberOfLines={1}>
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   markAllText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 18 },
 
   /* List */
@@ -511,8 +511,8 @@ const styles = StyleSheet.create({
   iconChipUnread: { backgroundColor: colors.primary },
   iconChipRead: { backgroundColor: '#F1F2F6' },
   cardCenter: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  cardTitleRead: { color: '#3E4358' },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  cardTitleRead: { color: '#484848' },
   cardSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
   cardTimestamp: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
 
@@ -545,6 +545,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emptyIcon: { width: 46, height: 46 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   emptySub: { fontSize: 14, fontWeight: '400', color: colors.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: 8 },
 });

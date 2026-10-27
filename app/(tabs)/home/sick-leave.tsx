@@ -24,10 +24,10 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
-const MUTED = '#94A3B8';
-const N50 = '#F4F5F9';
+const MUTED = '#9A9A9A';
+const N50 = '#F4F4F4';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -48,7 +48,7 @@ const Row = ({ icon, label, value, valueSub, onPress, disabled }: {
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
       {valueSub ? <Text style={s.rowValueSub} numberOfLines={1}>{valueSub}</Text> : null}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
   </Pressable>
 );
 
@@ -217,14 +217,14 @@ export default function SickLeaveScreen() {
 }
 
 const ELEV = {
-  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
 } as const;
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 6, gap: 12 },
   title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
   lead: { fontSize: 14, color: GREY, marginBottom: 16 },
 
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
@@ -239,7 +239,7 @@ const s = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0, gap: 1 },
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
-  rowValueSub: { fontSize: 13, color: '#9CA3AF' },
+  rowValueSub: { fontSize: 13, color: '#9C9C9C' },
 
   footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },

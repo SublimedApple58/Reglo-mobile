@@ -44,11 +44,11 @@ const SCROLL_RANGE = 70;
 
 const TYPE_THEME: Record<string, { bg: string; fg: string; label: string }> = {
   manovre: { bg: '#DCFCE7', fg: '#15803D', label: 'Manovre' },
-  parcheggio: { bg: '#E9EBF2', fg: '#14141F', label: 'Parcheggio' },
-  urbano: { bg: '#DBEAFE', fg: '#2563EB', label: 'Urbano' },
+  parcheggio: { bg: '#EBEBEB', fg: '#0A0A0A', label: 'Parcheggio' },
+  urbano: { bg: '#EBEBEB', fg: '#111111', label: 'Urbano' },
   extraurbano: { bg: '#CCFBF1', fg: '#0D9488', label: 'Extraurbano' },
-  notturna: { bg: '#E0E7FF', fg: '#4F46E5', label: 'Notturna' },
-  autostrada: { bg: '#EDE9FE', fg: '#7C3AED', label: 'Autostrada' },
+  notturna: { bg: '#F2F2F0', fg: '#111111', label: 'Notturna' },
+  autostrada: { bg: '#F1F1F1', fg: '#7C3AED', label: 'Autostrada' },
 };
 
 const typeTheme = (t: string) =>
@@ -173,8 +173,8 @@ export const StudentMyNotesScreen = () => {
         <View style={[st.card, isExam && st.examCard, isGroup && st.groupCard]}>
           {/* Top: date + rating */}
           <View style={st.cardTop}>
-            <View style={[st.dateChip, isExam && { backgroundColor: '#EDE9FE' }, isGroup && { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : isGroup ? '#0F766E' : '#14141F'} />
+            <View style={[st.dateChip, isExam && { backgroundColor: '#F1F1F1' }, isGroup && { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="calendar" size={13} color={isExam ? '#7C3AED' : isGroup ? '#0F766E' : '#0A0A0A'} />
               <Text style={[st.dateChipText, isExam && { color: '#7C3AED' }, isGroup && { color: '#0F766E' }]}>
                 {formatDay(appt.startsAt)}
               </Text>
@@ -455,7 +455,7 @@ const st = StyleSheet.create({
   compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 18 },
 
   /* Scroll */
@@ -476,17 +476,17 @@ const st = StyleSheet.create({
   },
   sparkFill: { width: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
   pagBig: { flexDirection: 'row', alignItems: 'baseline' },
-  pagBigNum: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
+  pagBigNum: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
   pagBigTot: { fontSize: 15, fontWeight: '600', color: '#929292' },
   pagRow: { marginTop: 14 },
   pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1A1A2E' },
+  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#111111' },
   pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  pagValNum: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  pagValNum: { fontSize: 13, fontWeight: '700', color: '#111111' },
   pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
   pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
   pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
-  pagFootStrong: { fontWeight: '600', color: '#1A1A2E' },
+  pagFootStrong: { fontWeight: '600', color: '#111111' },
 
   /* Pagellino della singola guida */
   pagChip: {
@@ -494,7 +494,7 @@ const st = StyleSheet.create({
     marginTop: 10, paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 8, backgroundColor: '#F2F2F4',
   },
-  pagChipText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
+  pagChipText: { fontSize: 11.5, fontWeight: '700', color: '#111111' },
   pagChipOpen: { backgroundColor: '#FEF9C3' },
   pagChipTextOpen: { color: '#A16207' },
   pagVoci: { marginTop: 6, paddingLeft: 2 },
@@ -504,7 +504,7 @@ const st = StyleSheet.create({
   },
   pagVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F4F4F6' },
   pagVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
-  pagVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
+  pagVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3A3' },
 
   /* List */
   list: { gap: 16 },
@@ -512,7 +512,7 @@ const st = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.07,
     shadowRadius: 24,
@@ -526,13 +526,13 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  dateChipText: { fontSize: 12, fontWeight: '700', color: '#14141F', letterSpacing: -0.1 },
-  cardTime: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 10 },
+  dateChipText: { fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.1 },
+  cardTime: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginTop: 10 },
 
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   typeChip: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
@@ -541,7 +541,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: '#F1F1F1',
     borderRadius: 999,
     paddingHorizontal: 11,
     paddingVertical: 6,
@@ -588,7 +588,7 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   emptyIcon: { width: 46, height: 46 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   emptySub: {
     fontSize: 14,
     fontWeight: '400',

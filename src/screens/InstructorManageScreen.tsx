@@ -1458,7 +1458,7 @@ export const InstructorManageScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Inizio</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
+                        <Ionicons name="time-outline" size={16} color="#111111" />
                         <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityStart)}</Text>
                       </View>
                     </Pressable>
@@ -1471,7 +1471,7 @@ export const InstructorManageScreen = () => {
                     >
                       <Text style={styles.timeCardLabel}>Fine</Text>
                       <View style={styles.timeCardRow}>
-                        <Ionicons name="time-outline" size={16} color="#1A1A2E" />
+                        <Ionicons name="time-outline" size={16} color="#111111" />
                         <Text style={styles.timeCardValue}>{toTimeString(vehicleAvailabilityEnd)}</Text>
                       </View>
                     </Pressable>
@@ -1536,14 +1536,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   mainTabActive: {
-    borderBottomColor: '#1A1A2E',
+    borderBottomColor: '#111111',
   },
   mainTabText: {
     fontSize: 16,
     fontWeight: '600',
   },
   mainTabTextActive: {
-    color: '#1A1A2E',
+    color: '#111111',
   },
   mainTabTextInactive: {
     color: '#929292',
@@ -1787,8 +1787,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weekPillActive: {
-    backgroundColor: '#1A1A2E',
-    borderColor: '#1A1A2E',
+    backgroundColor: '#111111',
+    borderColor: '#111111',
   },
   weekPillText: {
     fontSize: 15,

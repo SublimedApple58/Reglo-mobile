@@ -6,9 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegloLogo } from '../components/RegloLogo';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 
-const NAVY = '#1A1A2E';
-const INK = '#1B1B27';
-const MUTED = '#8A8A96';
+const NAVY = '#111111';
+const INK = '#1F1F1F';
+const MUTED = '#8E8E8E';
 
 /** iOS entry screen: light brand backdrop with two entry points. The actual
  *  forms are presented as native sheets (login = form sheet, signup = page sheet). */
@@ -22,7 +22,7 @@ export const AuthWelcomeScreen = () => {
 
       <View style={[styles.brand, { paddingTop: insets.top + 150 }]}>
         <View style={styles.sunShadow}>
-          <RegloLogo size={116} tone="navy" />
+          <RegloLogo size={116} tone="black" />
         </View>
         <Text style={styles.title}>Benvenuto in Reglo</Text>
         <Text style={styles.sub}>La tua autoscuola, in tasca</Text>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderColor: '#ECECEF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },

@@ -27,7 +27,7 @@ export default function ProfileEditScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -63,7 +63,7 @@ export default function ProfileEditScreen() {
               resizeMode="contain"
             />
           ) : (
-            <Ionicons name="create-outline" size={24} color="#1A1A2E" />
+            <Ionicons name="create-outline" size={24} color="#111111" />
           )}
           <View style={{ flex: 1 }}>
             <Text style={s.signatureTitle}>Firma</Text>
@@ -91,8 +91,8 @@ export default function ProfileEditScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginBottom: 4 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginBottom: 4 },
   signatureRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 14,
@@ -100,7 +100,7 @@ const s = StyleSheet.create({
     borderColor: '#EBEBEB',
   },
   signaturePreview: { width: 64, height: 32 },
-  signatureTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  signatureTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
   signatureSubtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
   field: { gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: colors.textMuted },

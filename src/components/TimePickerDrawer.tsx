@@ -90,7 +90,7 @@ export const TimePickerDrawer = ({
           <Text style={styles.title}>Seleziona orario</Text>
           <GlassCloseButton onPress={handleClose}>
             <Pressable onPress={handleClose} hitSlop={10} style={styles.tpClose}>
-              <Ionicons name="close" size={22} color="#1A1A2E" />
+              <Ionicons name="close" size={22} color="#111111" />
             </Pressable>
           </GlassCloseButton>
         </View>
@@ -175,11 +175,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingTop: 16, paddingBottom: 6,
   },
   tpClose: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F2F4',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F2F2F2',
     alignItems: 'center', justifyContent: 'center',
   },
   title: {
-    fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3,
+    fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.3,
   },
   body: { flex: 1, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   columnsRow: {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemSelected: {
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
   },
   itemText: {
     fontSize: 18,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   },
   itemTextSelected: {
     fontWeight: '700',
-    color: '#14141F',
+    color: '#0A0A0A',
   },
   mascotSection: {
     alignItems: 'center',

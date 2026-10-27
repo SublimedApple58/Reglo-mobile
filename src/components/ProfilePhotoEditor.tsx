@@ -101,10 +101,10 @@ export function ProfilePhotoEditor({ size = 128 }: { size?: number }) {
         )}
         <View style={s.editPill}>
           {uploading ? (
-            <ActivityIndicator size="small" color="#1A1A2E" />
+            <ActivityIndicator size="small" color="#111111" />
           ) : (
             <>
-              <Ionicons name="camera" size={15} color="#1A1A2E" />
+              <Ionicons name="camera" size={15} color="#111111" />
               <Text style={s.editPillText}>Modifica</Text>
             </>
           )}
@@ -118,7 +118,7 @@ const s = StyleSheet.create({
   block: { alignItems: 'center', marginTop: 4, marginBottom: 10 },
   wrap: { alignItems: 'center' },
   fallback: {
-    backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EBEBEB', alignItems: 'center', justifyContent: 'center',
   },
   initials: { fontSize: 36, fontWeight: '600', color: colors.primary, letterSpacing: -0.5 },
   editPill: {
@@ -129,5 +129,5 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  editPillText: { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
+  editPillText: { fontSize: 14, fontWeight: '600', color: '#111111' },
 });

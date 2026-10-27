@@ -56,7 +56,7 @@ export default function SelectDateScreen() {
         {Platform.OS === 'android' ? (
           <>
             <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-              <Ionicons name="arrow-back" size={20} color="#1A1A2E" />
+              <Ionicons name="arrow-back" size={20} color="#111111" />
             </Pressable>
             <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
             <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
@@ -71,7 +71,7 @@ export default function SelectDateScreen() {
             <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
             <GlassCloseButton onPress={() => router.back()}>
               <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-                <Ionicons name="close" size={20} color="#1A1A2E" />
+                <Ionicons name="close" size={20} color="#111111" />
               </Pressable>
             </GlassCloseButton>
           </>
@@ -108,10 +108,10 @@ export default function SelectDateScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background, paddingTop: 14, paddingHorizontal: spacing.lg },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  title: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 17, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   todayBtn: { minWidth: 52, paddingVertical: 6 },
-  todayText: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  weekRow: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EBEDF0' },
-  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9AA1AC' },
+  todayText: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  weekRow: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ECECEC' },
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9E9E9E' },
 });

@@ -337,7 +337,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
         onPress={() => openExceptionSheet()}
         style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
       >
-        <Ionicons name="add" size={18} color="#1A1A2E" />
+        <Ionicons name="add" size={18} color="#111111" />
         <Text style={styles.addText}>Aggiungi eccezione</Text>
       </Pressable>
     </View>
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   /* Header — single Fluent accent + confident title */
   head: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 6 },
   headIcon: { width: 26, height: 26, resizeMode: 'contain' },
-  headTitle: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  headTitle: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
 
   /* Flat list — full-bleed hairline dividers, lots of air */
   list: { marginTop: 4 },
@@ -357,17 +357,17 @@ const styles = StyleSheet.create({
     gap: 12, paddingVertical: 17, minHeight: 56,
   },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HAIRLINE },
-  dayName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  dayNameOff: { color: '#9AA1AC' },
+  dayName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  dayNameOff: { color: '#9E9E9E' },
 
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, justifyContent: 'flex-end' },
-  offText: { fontSize: 14, fontWeight: '500', color: '#9AA1AC' },
+  offText: { fontSize: 14, fontWeight: '500', color: '#9E9E9E' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
   timeChip: {
     backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 1,
+    shadowColor: '#111111', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 1,
   },
-  timeChipText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  timeChipText: { fontSize: 13, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
 
   /* Save CTA */
   cta: {
@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
 
   /* Eccezioni */
   exHead: { marginTop: 38, marginBottom: 2 },
-  exTitle: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
-  exDate: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  exTitle: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
+  exDate: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
 
   /* Empty — flat */
   emptyWrap: { paddingVertical: 26 },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, borderRadius: 26,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCDFE4', marginTop: 14,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', marginTop: 14,
   },
-  addText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  addText: { fontSize: 15, fontWeight: '700', color: '#111111' },
 });

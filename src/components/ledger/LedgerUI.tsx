@@ -31,9 +31,9 @@ export type RowIcon = 'euro' | 'check' | 'wallet' | 'close' | 'clock' | 'exam' |
 export const TONE: Record<RowTone, { chip: string; ink: string }> = {
   amber: { chip: '#FFF3E3', ink: '#B45309' },
   green: { chip: '#EAF7F0', ink: '#067647' },
-  violet: { chip: '#F3F0FF', ink: '#6D28D9' },
-  grey: { chip: '#F1F1F5', ink: '#A8A8B0' },
-  blue: { chip: '#EFF4FF', ink: '#1D4ED8' },
+  violet: { chip: '#F6F6F6', ink: '#6D28D9' },
+  grey: { chip: '#F1F1F5', ink: '#ABABAB' },
+  blue: { chip: '#F2F2F0', ink: '#111111' },
   red: { chip: '#FFF1F0', ink: '#B42318' },
 };
 
@@ -164,7 +164,7 @@ export const ledger = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: LEDGER_PAD, paddingBottom: 2 },
   filterPill: {
     position: 'absolute', top: 0, bottom: 2, left: 0,
-    borderRadius: 999, backgroundColor: '#1A1A2E',
+    borderRadius: 999, backgroundColor: '#111111',
   },
   filterItem: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -172,11 +172,11 @@ export const ledger = StyleSheet.create({
   },
   filterText: { fontSize: 14, fontWeight: '400', color: '#595959' },
   filterTextOn: { color: '#FFFFFF', fontWeight: '500' },
-  filterCount: { fontSize: 12, fontWeight: '500', color: '#9A9AA2' },
+  filterCount: { fontSize: 12, fontWeight: '500', color: '#9D9D9D' },
   filterCountOn: { color: 'rgba(255,255,255,0.65)' },
 
   month: {
-    fontSize: 12, fontWeight: '600', color: '#AEAEB6', textTransform: 'uppercase',
+    fontSize: 12, fontWeight: '600', color: '#B1B1B1', textTransform: 'uppercase',
     letterSpacing: 0.5, marginTop: 26, marginBottom: 2,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: LEDGER_PAD, paddingVertical: 11 },
@@ -184,8 +184,8 @@ export const ledger = StyleSheet.create({
   glyph: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   glyphEuro: { fontSize: 15, fontWeight: '600' },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', letterSpacing: -0.1 },
-  rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9AA2', marginTop: 1 },
+  rowTitle: { fontSize: 15, fontWeight: '400', color: '#111111', letterSpacing: -0.1 },
+  rowSub: { fontSize: 13, fontWeight: '400', color: '#9D9D9D', marginTop: 1 },
   rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
 });
 

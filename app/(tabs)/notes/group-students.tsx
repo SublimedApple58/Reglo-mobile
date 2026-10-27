@@ -11,8 +11,8 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const AVATAR_BG = ['#E9EBF2', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2', '#F1F5F9'];
-const AVATAR_FG = ['#0D0D16', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C', '#475569'];
+const AVATAR_BG = ['#EBEBEB', '#EBEBEB', '#DCFCE7', '#F1F1F1', '#FFEDD5', '#CCFBF1', '#FEE2E2', '#F2F2F2'];
+const AVATAR_FG = ['#000000', '#111111', '#15803D', '#6D28D9', '#C2410C', '#0F766E', '#B91C1C', '#4A4A4A'];
 const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
 const avatarColors = (id: string) => { const i = hashStr(id) % AVATAR_BG.length; return { bg: AVATAR_BG[i], fg: AVATAR_FG[i] }; };
 const initials = (f: string, l: string) => `${(f[0] ?? '')}${(l[0] ?? '')}`.toUpperCase() || '?';
@@ -93,7 +93,7 @@ export default function GroupStudentsScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -106,12 +106,12 @@ export default function GroupStudentsScreen() {
 
       {/* Search */}
       <View style={s.searchRow}>
-        <Ionicons name="search" size={18} color="#94A3B8" />
+        <Ionicons name="search" size={18} color="#9A9A9A" />
         <TextInput
           style={s.searchInput}
           placeholder="Cerca allievo..."
           returnKeyType="search"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor="#9A9A9A"
           value={search}
           onChangeText={setSearch}
           autoCorrect={false}
@@ -119,7 +119,7 @@ export default function GroupStudentsScreen() {
         />
         {search.length > 0 ? (
           <Pressable onPress={() => setSearch('')} hitSlop={10}>
-            <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+            <Ionicons name="close-circle" size={18} color="#D4D4D4" />
           </Pressable>
         ) : null}
       </View>
@@ -145,7 +145,7 @@ export default function GroupStudentsScreen() {
         contentContainerStyle={{ paddingBottom: 16 }}
         ListEmptyComponent={
           <Animated.View entering={FadeIn.duration(300)} style={s.empty}>
-            <Ionicons name="people-outline" size={30} color="#CBD5E1" />
+            <Ionicons name="people-outline" size={30} color="#D4D4D4" />
             <Text style={s.emptyText}>{search ? 'Nessun allievo trovato.' : 'Nessun allievo in autoscuola.'}</Text>
           </Animated.View>
         }
@@ -169,23 +169,23 @@ const s = StyleSheet.create({
 
   /* Top bar + title */
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 16, paddingBottom: 6, marginRight: -4 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   titleBlock: { marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   titleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
 
   /* Search */
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     height: 48, paddingHorizontal: 16, borderRadius: 999,
-    borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E5E5E5', backgroundColor: '#FFFFFF',
   },
-  searchInput: { flex: 1, fontSize: 16, color: '#1A1A2E', padding: 0 },
+  searchInput: { flex: 1, fontSize: 16, color: '#111111', padding: 0 },
 
   /* Meta */
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
   metaCount: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-  clearText: { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
+  clearText: { fontSize: 13, fontWeight: '600', color: '#111111' },
 
   /* Row */
   row: {
@@ -195,28 +195,28 @@ const s = StyleSheet.create({
   rowSel: { backgroundColor: '#F4F5F7' },
   avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontWeight: '700' },
-  name: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  name: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   subDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#F59E0B' },
-  sub: { fontSize: 12, color: '#94A3B8', flexShrink: 1 },
+  sub: { fontSize: 12, color: '#9A9A9A', flexShrink: 1 },
 
   /* Pursued-license tag (e.g. "A2", "B autom.") */
   licTag: {
-    borderRadius: 999, borderWidth: 1, borderColor: '#E5E8EC', backgroundColor: '#FFFFFF',
+    borderRadius: 999, borderWidth: 1, borderColor: '#E8E8E8', backgroundColor: '#FFFFFF',
     paddingHorizontal: 8, paddingVertical: 3,
   },
-  licTagText: { fontSize: 11, fontWeight: '600', color: '#4B5563' },
+  licTagText: { fontSize: 11, fontWeight: '600', color: '#565656' },
 
   check: {
     width: 26, height: 26, borderRadius: 999,
-    backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center',
   },
   checkDot: {
-    width: 22, height: 22, borderRadius: 999, borderWidth: 1.5, borderColor: '#E5E8EC', backgroundColor: 'transparent',
+    width: 22, height: 22, borderRadius: 999, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: 'transparent',
   },
 
   empty: { alignItems: 'center', paddingVertical: 48, gap: 10 },
-  emptyText: { fontSize: 14, color: '#64748B' },
+  emptyText: { fontSize: 14, color: '#6A6A6A' },
 
   /* Footer */
   footer: { paddingTop: 12 },

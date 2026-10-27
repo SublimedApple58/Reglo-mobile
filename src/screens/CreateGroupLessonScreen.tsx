@@ -30,12 +30,12 @@ import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, typ
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
 const MUTED = '#929292';
 const TEAL = '#0F766E';
-const N50 = '#F4F5F9';
-const N100 = '#E9EBF2';
+const N50 = '#F4F4F4';
+const N100 = '#EBEBEB';
 
 const SEG_PAD = 5;
 
@@ -79,7 +79,7 @@ const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
       <Text style={s.rowLabel}>{label}</Text>
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
   </Pressable>
 );
 
@@ -386,7 +386,7 @@ export const CreateGroupLessonScreen = () => {
                   style={s.segItem}
                   hitSlop={6}
                 >
-                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#1A1A2E' : '#717171'} />
+                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#111111' : '#717171'} />
                   <Text style={[s.segText, active && s.segTextActive]}>{k === 'moto' ? 'Moto' : 'Standard'}</Text>
                 </Pressable>
               );
@@ -440,7 +440,7 @@ export const CreateGroupLessonScreen = () => {
                 ))}
               </View>
             ) : null}
-            <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+            <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
           </Pressable>
 
           {/* Open the remaining seats to invites */}
@@ -472,14 +472,14 @@ export const CreateGroupLessonScreen = () => {
   );
 };
 
-const ELEV = { shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 } as const;
+const ELEV = { shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 } as const;
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 4, gap: 12 },
   title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
   lede: { fontSize: 13, fontWeight: '500', color: MUTED, marginBottom: 14 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
   /* Airbnb segmented control (= quick-book.tsx): sliding white pill on grey track */
   seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: SEG_PAD, position: 'relative', marginBottom: 14 },
@@ -489,7 +489,7 @@ const s = StyleSheet.create({
   },
   segItem: { flex: 1, flexDirection: 'row', gap: 7, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
-  segTextActive: { color: '#1A1A2E', fontWeight: '700' },
+  segTextActive: { color: '#111111', fontWeight: '700' },
   hint: { fontSize: 12.5, color: MUTED, marginTop: -4, marginBottom: 14, paddingHorizontal: 4, lineHeight: 17 },
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
   studentsRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
@@ -499,7 +499,7 @@ const s = StyleSheet.create({
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
   rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
   avatarStack: { flexDirection: 'row', alignItems: 'center' },
   stackAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: N100, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
   stackAvatarTxt: { fontSize: 11, fontWeight: '600', color: NAVY },

@@ -121,11 +121,11 @@ const formatLessonType = (value: string | null | undefined) =>
   lessonTypeLabelMap[normalize(value)] ?? value ?? 'Guida';
 
 const LESSON_CARD_COLORS = [
-  { bg: '#F4F5F9', accent: '#1A1A2E' },  // rose
-  { bg: '#EFF6FF', accent: '#3B82F6' },  // sky
+  { bg: '#F4F4F4', accent: '#111111' },  // rose
+  { bg: '#F4F4F4', accent: '#111111' },  // sky
   { bg: '#F0FDF4', accent: '#22C55E' },  // mint
   { bg: '#FFFBEB', accent: '#F59E0B' },  // amber
-  { bg: '#F5F3FF', accent: '#8B5CF6' },  // violet
+  { bg: '#F8F8F8', accent: '#8B5CF6' },  // violet
 ] as const;
 
 const findLinkedStudent = (
@@ -1655,7 +1655,7 @@ export const AllievoHomeScreen = () => {
               <View style={styles.heroFooter}>
                 {mySwapByAppointment.has(nextLesson.id) ? (
                   <View style={styles.heroSwapChip}>
-                    <Ionicons name="swap-horizontal" size={13} color="#14141F" />
+                    <Ionicons name="swap-horizontal" size={13} color="#0A0A0A" />
                     <Text style={styles.heroSwapChipText}>Sostituzione richiesta</Text>
                   </View>
                 ) : (
@@ -1732,7 +1732,7 @@ export const AllievoHomeScreen = () => {
                   >
                     {mySwapByAppointment.has(lesson.id) && (
                       <View style={styles.miniSwapBadge}>
-                        <Ionicons name="swap-horizontal" size={12} color="#14141F" />
+                        <Ionicons name="swap-horizontal" size={12} color="#0A0A0A" />
                       </View>
                     )}
                     <Image
@@ -1938,16 +1938,16 @@ const styles = StyleSheet.create({
   headerBellDot: {
     position: 'absolute', top: 4, right: 4,
     width: 8, height: 8, borderRadius: 999,
-    backgroundColor: '#1A1A2E', borderWidth: 2, borderColor: colors.background,
+    backgroundColor: '#111111', borderWidth: 2, borderColor: colors.background,
   },
 
   /* ── Large title ── */
   largeTitleWrap: { paddingTop: 4, paddingBottom: 2 },
-  largeTitleText: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
+  largeTitleText: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   largeTitleSchoolIcon: { width: 16, height: 16 },
-  licensePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#EEF0F4' },
+  licensePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#F0F0F0' },
   licensePillText: { fontSize: 11, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
 
   /* ── Scambi (swap offers) slot ── */
@@ -1958,7 +1958,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
   },
   swapIcon: { width: 36, height: 36 },
-  swapTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  swapTitle: { fontSize: 15, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   swapSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
   swapBadge: {
     backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, height: 22,
@@ -1998,7 +1998,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent', borderWidth: 1, borderColor: '#929292', borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  bookCardTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  bookCardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   bookCardSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted },
 
   /* ── HERO card: next lesson — warm elevated card ── */
@@ -2013,12 +2013,12 @@ const styles = StyleSheet.create({
   },
   heroPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#AEB4CC', borderRadius: 999,
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#B0B0B0', borderRadius: 999,
     paddingHorizontal: 11, paddingVertical: 3, marginBottom: 6,
   },
-  heroPillText: { fontSize: 11, fontWeight: '700', color: '#14141F' },
+  heroPillText: { fontSize: 11, fontWeight: '700', color: '#0A0A0A' },
   heroTime: {
-    fontSize: 30, fontWeight: '600', color: '#1A1A2E',
+    fontSize: 30, fontWeight: '600', color: '#111111',
     letterSpacing: -0.8, lineHeight: 36,
   },
   heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
@@ -2036,10 +2036,10 @@ const styles = StyleSheet.create({
   heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   heroSwapChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#E9EBF2', borderRadius: 10,
+    backgroundColor: '#EBEBEB', borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#14141F' },
+  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#0A0A0A' },
 
   /* ── Mini-cards: horizontal upcoming lessons ── */
   upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
@@ -2050,13 +2050,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 10, elevation: 5,
   },
   miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
-  miniCardTime: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  miniCardTime: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
-  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#14141F', marginTop: 2 },
+  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#0A0A0A', marginTop: 2 },
   miniSwapBadge: {
     position: 'absolute', top: 10, right: 10,
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#E9EBF2',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#EBEBEB',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -2081,7 +2081,7 @@ const styles = StyleSheet.create({
   glLabelMoto: { color: '#C2410C' },
   glMotoTypeChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
   glMotoTypeChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
-  glTime: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginTop: 3 },
+  glTime: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginTop: 3 },
   glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
   // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
   glSeats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginLeft: 6, maxWidth: 66 },
@@ -2098,13 +2098,13 @@ const styles = StyleSheet.create({
   /* ── Exam countdown card ── */
   examCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#F5F0FF', borderRadius: 22, padding: 16,
+    backgroundColor: '#F7F7F7', borderRadius: 22, padding: 16,
     shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
   },
   examIcon: { width: 44, height: 44 },
   examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examDate: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginTop: 2 },
+  examDate: { fontSize: 15, fontWeight: '700', color: '#111111', marginTop: 2 },
   examBadge: {
     backgroundColor: '#8B5CF6', borderRadius: 16,
     paddingHorizontal: spacing.sm, paddingVertical: 6, alignItems: 'center', minWidth: 64,
@@ -2154,7 +2154,7 @@ const styles = StyleSheet.create({
   examPrompt: { alignItems: 'center', paddingTop: 20, paddingHorizontal: 16, gap: 6 },
   examPromptIcon: { width: 72, height: 72, marginBottom: 4 },
   examPromptTitle: {
-    fontSize: 17, fontWeight: '800', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center',
+    fontSize: 17, fontWeight: '800', color: '#111111', letterSpacing: -0.3, textAlign: 'center',
   },
   examPromptSub: {
     fontSize: 14, fontWeight: '400', color: colors.textMuted, textAlign: 'center',
@@ -2192,7 +2192,7 @@ const styles = StyleSheet.create({
   bkBackBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   bkMonthNav: {
     flexDirection: 'row',
@@ -2247,7 +2247,7 @@ const styles = StyleSheet.create({
   },
   bkDayCellToday: {
     borderWidth: 2,
-    borderColor: '#1A1A2E',
+    borderColor: '#111111',
   },
   bkDayCellSelected: {
     backgroundColor: '#1a120a',
@@ -2259,7 +2259,7 @@ const styles = StyleSheet.create({
   },
   bkDayTextToday: {
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   bkDayTextSelected: {
     fontWeight: '700',
@@ -2269,7 +2269,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     marginTop: 2,
   },
   bkInfoRow: {
@@ -2297,15 +2297,15 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     borderRadius: 20,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: '#F8F8F8',
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: '#E6E6E6',
   },
   blockedByExamIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: '#F1F1F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2425,7 +2425,7 @@ const styles = StyleSheet.create({
   lessonsListTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1A1A2E',
+    color: '#111111',
     letterSpacing: -0.3,
     marginBottom: 4,
   },
@@ -2436,7 +2436,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#AEB4CC',
+    shadowColor: '#B0B0B0',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -2458,7 +2458,7 @@ const styles = StyleSheet.create({
   lessonListDate: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   lessonListTime: {
     fontSize: 13,
@@ -2496,7 +2496,7 @@ const styles = StyleSheet.create({
   cardCtaDetailText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
   },
   cardCtaCancel: {
     backgroundColor: 'rgba(0,0,0,0.2)',
@@ -2565,7 +2565,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 8,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#F2F2F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2579,7 +2579,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
-    color: '#6366F1',
+    color: '#111111',
   },
   agendaExamTitle: {
     fontSize: 16,
@@ -2660,7 +2660,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
     shadowColor: colors.primary,
-    shadowOpacity: 0.32,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
@@ -3001,10 +3001,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chunkyChipActive: {
-    backgroundColor: '#1A1A2E',
-    borderColor: '#1A1A2E',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.32,
+    backgroundColor: '#111111',
+    borderColor: '#111111',
+    shadowColor: '#111111',
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
@@ -3218,7 +3218,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3245,7 +3245,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E9EBF2',
+    backgroundColor: '#EBEBEB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3280,6 +3280,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FDF4',
   },
   assignedInstructorBtnCall: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F4F4F4',
   },
 });

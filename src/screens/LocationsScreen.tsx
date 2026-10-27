@@ -129,11 +129,11 @@ export const LocationsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          <Ionicons name="arrow-back" size={22} color="#111111" />
         </Pressable>
         <Text style={[styles.headerTitle, { flex: 1 }]}>Luoghi guida</Text>
         <Pressable onPress={() => openForm(null)} hitSlop={10} style={styles.headerAdd}>
-          <Ionicons name="add" size={28} color="#1A1A2E" />
+          <Ionicons name="add" size={28} color="#111111" />
         </Pressable>
       </View>
 
@@ -149,7 +149,7 @@ export const LocationsScreen = () => {
           <View style={styles.card}>
             <View style={styles.row}>
               <View style={styles.iconWrap}>
-                <Ionicons name="business-outline" size={23} color="#1A1A2E" />
+                <Ionicons name="business-outline" size={23} color="#111111" />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.cardName} numberOfLines={1}>{sede?.name ?? "Sede dell'autoscuola"}</Text>
@@ -161,7 +161,7 @@ export const LocationsScreen = () => {
               </View>
               {sedeTappable ? (
                 <Pressable onPress={() => openMaps(sede!)} hitSlop={8} style={styles.mapsBtn}>
-                  <Ionicons name="open-outline" size={19} color="#6E7596" />
+                  <Ionicons name="open-outline" size={19} color="#6A6A6A" />
                 </Pressable>
               ) : null}
             </View>
@@ -205,7 +205,7 @@ export const LocationsScreen = () => {
                   <Ionicons
                     name={loc.isPrecise ? 'location-outline' : 'pricetag-outline'}
                     size={23}
-                    color="#1A1A2E"
+                    color="#111111"
                   />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 2 },
   headerAdd: { padding: 2 },
-  headerTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
+  headerTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
 
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
 
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   iconWrap: { width: 32, alignItems: 'center', justifyContent: 'center' },
 
-  cardName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  cardName: { fontSize: 16, fontWeight: '600', color: '#111111', flexShrink: 1 },
   cardAddress: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
   cardAddressMuted: { fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: '#929292', marginTop: 2 },
 
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   // page background (icon at the screen margin), hairline dividers, tap → edit,
   // ••• → native action menu.
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 0 },
-  locRowPressed: { backgroundColor: '#F4F5F9' },
+  locRowPressed: { backgroundColor: '#F4F4F4' },
   locDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 46 },
   ellipsisBtn: { padding: 4 },
 
@@ -277,6 +277,6 @@ const styles = StyleSheet.create({
     ...CARD_SHADOW,
   },
   emptyIcon: { width: 48, height: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
   emptySub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });

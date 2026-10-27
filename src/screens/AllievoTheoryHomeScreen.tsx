@@ -442,7 +442,7 @@ const s = StyleSheet.create({
 
   /* ── Large title ── */
   largeTitleWrap: { paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  largeTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
+  largeTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
   largeTitleTagRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4,
   },
@@ -480,7 +480,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.14, shadowRadius: 6, elevation: 5,
   },
-  ctaCardDark: { backgroundColor: '#1A1A2E' },
+  ctaCardDark: { backgroundColor: '#111111' },
   ctaCardPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
   ctaLoading: {
     ...StyleSheet.absoluteFillObject,
@@ -519,7 +519,7 @@ const s = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: colors.border },
   statIcon: { width: 34, height: 34, marginBottom: 2 },
-  statValue: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  statValue: { fontSize: 15, fontWeight: '800', color: '#111111' },
   statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
 
   /* ── Countdown ── */

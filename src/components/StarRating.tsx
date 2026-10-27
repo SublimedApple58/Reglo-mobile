@@ -34,8 +34,8 @@ type StarRatingProps = {
 // Brand palette monocromatica navy: resta il default ovunque. UNICA eccezione,
 // voluta, il pagellino di valutazione (REG-443), che deve essere identico al
 // web — vedi docs/features/evaluation-sheet.md.
-const STAR_COLOR = '#1A1A2E';
-const STAR_EMPTY_COLOR = '#D7DBE2';
+const STAR_COLOR = '#111111';
+const STAR_EMPTY_COLOR = '#DCDCDC';
 const STAR_COLOR_GOLD = '#FACC15';
 const STAR_EMPTY_COLOR_GOLD = '#E7E7EC';
 

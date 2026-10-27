@@ -107,7 +107,7 @@ export default function ManageLessonVehiclesScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -136,7 +136,7 @@ export default function ManageLessonVehiclesScreen() {
                 disabled={readOnly || !primaryMotoCandidates.length}
                 style={({ pressed }) => [s.mChip, pressed && !readOnly && { opacity: 0.55 }]}
               >
-                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#1A1A2E" /></View>
+                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#111111" /></View>
                 <Text style={s.mChipName} numberOfLines={1}>{primaryVehicle.name}</Text>
                 <View style={s.princTag}><Text style={s.princTagTxt}>PRINC.</Text></View>
               </Pressable>
@@ -144,11 +144,11 @@ export default function ManageLessonVehiclesScreen() {
 
             {extraMotos.map((v) => (
               <View key={v.id} style={s.mChip}>
-                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#1A1A2E" /></View>
+                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#111111" /></View>
                 <Text style={s.mChipName} numberOfLines={1}>{v.name}</Text>
                 {!readOnly ? (
                   <Pressable onPress={() => onChangeExtraMotos(extraMotoIds.filter((x) => x !== v.id))} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
-                    <Ionicons name="close" size={15} color="#8A93A2" />
+                    <Ionicons name="close" size={15} color="#959595" />
                   </Pressable>
                 ) : null}
               </View>
@@ -156,7 +156,7 @@ export default function ManageLessonVehiclesScreen() {
 
             {!readOnly && availableExtraCount > 0 ? (
               <Pressable onPress={openExtraMotosPicker} style={({ pressed }) => [s.chipAdd, pressed && { opacity: 0.5 }]}>
-                <Ionicons name="add" size={18} color="#4B5563" />
+                <Ionicons name="add" size={18} color="#565656" />
                 <Text style={s.chipAddTxt}>Aggiungi</Text>
               </Pressable>
             ) : null}
@@ -171,7 +171,7 @@ export default function ManageLessonVehiclesScreen() {
           </View>
           {followVehicle ? (
             <View style={s.followRow}>
-              <View style={s.vIc}><Ionicons name="car-outline" size={20} color="#1A1A2E" /></View>
+              <View style={s.vIc}><Ionicons name="car-outline" size={20} color="#111111" /></View>
               <Pressable
                 onPress={readOnly || !followCandidates.length ? undefined : openFollowCarPicker}
                 disabled={readOnly || !followCandidates.length}
@@ -182,13 +182,13 @@ export default function ManageLessonVehiclesScreen() {
               </Pressable>
               {!readOnly ? (
                 <Pressable onPress={() => onChangeFollowVehicle(null)} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
-                  <Ionicons name="close" size={16} color="#8A93A2" />
+                  <Ionicons name="close" size={16} color="#959595" />
                 </Pressable>
               ) : null}
             </View>
           ) : !readOnly ? (
             <Pressable onPress={openFollowCarPicker} disabled={!followCandidates.length} style={({ pressed }) => [s.addFollow, pressed && { opacity: 0.5 }]}>
-              <View style={s.addFollowIc}><Ionicons name="add" size={18} color="#6B7280" /></View>
+              <View style={s.addFollowIc}><Ionicons name="add" size={18} color="#6B6B6B" /></View>
               <Text style={s.addFollowTxt}>Aggiungi auto al seguito</Text>
             </Pressable>
           ) : (
@@ -204,38 +204,38 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
   scaffoldBody: { gap: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 0 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   section: { gap: 12 },
-  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   // bigger tags
-  reqTag: { fontSize: 12, fontWeight: '600', color: '#64748B', backgroundColor: '#EEF0F4', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
-  princTag: { backgroundColor: '#1A1A2E', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 },
+  reqTag: { fontSize: 12, fontWeight: '600', color: '#6A6A6A', backgroundColor: '#F0F0F0', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
+  princTag: { backgroundColor: '#111111', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 },
   princTagTxt: { fontSize: 11, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
 
   // moto chips
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9 },
   mChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F4F5F7', borderRadius: 14, paddingVertical: 7, paddingLeft: 7, paddingRight: 12, maxWidth: '100%' },
   mChipIc: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  mChipName: { fontSize: 14.5, fontWeight: '600', color: '#1E293B', flexShrink: 1 },
-  chipX: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', marginLeft: 1 },
-  chipAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#C7CBD6', borderStyle: 'dashed', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 13 },
-  chipAddTxt: { fontSize: 14, fontWeight: '600', color: '#4B5563' },
+  mChipName: { fontSize: 14.5, fontWeight: '600', color: '#1F1F1F', flexShrink: 1 },
+  chipX: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center', marginLeft: 1 },
+  chipAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#CDCDCD', borderStyle: 'dashed', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 13 },
+  chipAddTxt: { fontSize: 14, fontWeight: '600', color: '#565656' },
 
   // follow car
   followRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F4F5F7', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
   vIc: { width: 36, height: 36, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  vName: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
-  vKind: { fontSize: 12.5, color: '#94A3B8', marginTop: 1 },
+  vName: { fontSize: 15, fontWeight: '600', color: '#1F1F1F' },
+  vKind: { fontSize: 12.5, color: '#9A9A9A', marginTop: 1 },
   addFollow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  addFollowIc: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: '#C3C7D4', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  addFollowTxt: { fontSize: 15, fontWeight: '600', color: '#3A3A63' },
-  followEmpty: { fontSize: 14.5, color: '#94A3B8' },
+  addFollowIc: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: '#CACACA', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  addFollowTxt: { fontSize: 15, fontWeight: '600', color: '#2A2A2A' },
+  followEmpty: { fontSize: 14.5, color: '#9A9A9A' },
 
   doneBtn: {
     minHeight: 54, borderRadius: 27,

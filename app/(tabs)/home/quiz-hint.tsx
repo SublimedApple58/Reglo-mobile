@@ -46,7 +46,7 @@ const s = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '600', color: colors.textPrimary, letterSpacing: -0.3 },
   scrollView: { flex: 1 },
   scroll: { paddingHorizontal: spacing.md, paddingBottom: 24 },
-  html: { fontSize: 16, color: '#374151', lineHeight: 26 },
+  html: { fontSize: 16, color: '#434343', lineHeight: 26 },
   closeBtn: { alignItems: 'center', paddingVertical: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   closeText: { fontSize: 16, fontWeight: '600', color: colors.primary },
 });

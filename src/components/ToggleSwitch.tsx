@@ -25,7 +25,7 @@ const TRAVEL = TRACK_W - PAD * 2 - THUMB; // 18
  * Sober custom toggle — flat track (light grey → navy), white thumb with a
  * subtle shadow, smooth slide. Replaces the native liquid-glass Switch.
  */
-export const ToggleSwitch = ({ value, onValueChange, activeColor = '#1A1A2E', disabled, style }: Props) => {
+export const ToggleSwitch = ({ value, onValueChange, activeColor = '#111111', disabled, style }: Props) => {
   const p = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {

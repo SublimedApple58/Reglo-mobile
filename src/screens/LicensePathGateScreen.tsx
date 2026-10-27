@@ -26,7 +26,7 @@ import {
 import type { LicenseCategory, Transmission } from '../types/regloApi';
 import { colors } from '../theme';
 
-const NAVY = colors.primary; // #1A1A2E
+const NAVY = colors.primary; // #111111
 
 // Short descriptor shown under each license code. Kept here (not in the shared
 // taxonomy) because it's copy specific to this student-facing gate.
@@ -108,7 +108,7 @@ export const LicensePathGateScreen = () => {
         {/* 3D floating icon */}
         <View style={styles.iconShadow}>
           <LinearGradient
-            colors={['#2B2B4A', NAVY, '#101020']}
+            colors={['#353535', NAVY, '#151515']}
             start={{ x: 0.1, y: 0 }}
             end={{ x: 0.9, y: 1 }}
             style={styles.icon3d}
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(26,26,46,0.04)',
+    backgroundColor: 'rgba(17,17,17,0.04)',
   },
   blobB: {
     position: 'absolute',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,46,0.06)',
+    borderColor: 'rgba(17,17,17,0.06)',
     shadowColor: NAVY,
     shadowOpacity: 0.06,
     shadowRadius: 22,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     minHeight: 118,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,46,0.06)',
+    borderColor: 'rgba(17,17,17,0.06)',
     backgroundColor: '#FFFFFF',
     paddingVertical: 18,
     paddingHorizontal: 14,

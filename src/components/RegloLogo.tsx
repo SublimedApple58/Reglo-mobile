@@ -10,8 +10,8 @@ import Animated, {
 
 /**
  * Reglo brand mark — the new hand-drawn sun symbol, rendered from a bundled PNG
- * (transparent bg). `tone` picks the colour: `navy` for light surfaces (login),
- * `ivory` for navy surfaces.
+ * (transparent bg). `tone` picks the colour: `black` for light surfaces (login),
+ * `ivory` for dark surfaces.
  *
  * Motion (opt-in):
  *  - `spin`: continuous rotation — the loader; reads clearly as "in corso".
@@ -19,7 +19,7 @@ import Animated, {
  */
 const MARKS = {
   ivory: require('../../assets/reglo-mark-ivory.png'),
-  navy: require('../../assets/reglo-mark-navy.png'),
+  black: require('../../assets/reglo-mark-black.png'),
 } as const;
 
 type RegloLogoProps = {

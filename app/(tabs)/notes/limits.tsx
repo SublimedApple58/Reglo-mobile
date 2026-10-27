@@ -59,7 +59,7 @@ export default function LimitsScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -133,20 +133,20 @@ export default function LimitsScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   toggleDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
 
   selectRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  selectLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
-  selectValue: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  selectLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111111' },
+  selectValue: { fontSize: 15, fontWeight: '600', color: '#6A6A6A' },
 
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 14 },
 

@@ -343,7 +343,7 @@ export default function VehicleFormScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -361,7 +361,7 @@ export default function VehicleFormScreen() {
         value={name}
         onChangeText={setName}
         placeholder="Es. Fiat Panda"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor="#9C9C9C"
         maxLength={60}
         returnKeyType="next"
       />
@@ -372,7 +372,7 @@ export default function VehicleFormScreen() {
         value={plate}
         onChangeText={setPlate}
         placeholder="Es. GA 472 KP"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor="#9C9C9C"
         autoCapitalize="characters"
         maxLength={16}
         returnKeyType="done"
@@ -385,7 +385,7 @@ export default function VehicleFormScreen() {
         >
           <Text style={s.timeLabel}>Categoria patente</Text>
           <View style={s.timeValRow}>
-            <Ionicons name="card-outline" size={17} color="#1A1A2E" />
+            <Ionicons name="card-outline" size={17} color="#111111" />
             <Text style={s.timeVal}>{licenseCategory}</Text>
           </View>
         </Pressable>
@@ -395,7 +395,7 @@ export default function VehicleFormScreen() {
         >
           <Text style={s.timeLabel}>Cambio</Text>
           <View style={s.timeValRow}>
-            <Ionicons name="settings-outline" size={17} color="#1A1A2E" />
+            <Ionicons name="settings-outline" size={17} color="#111111" />
             <Text style={s.timeVal}>{TRANSMISSION_LABELS[transmission]}</Text>
           </View>
         </Pressable>
@@ -473,7 +473,7 @@ export default function VehicleFormScreen() {
                     <Text style={s.timeVal}>
                       {assignedInstructorName ?? (assignedInstructorId ? 'Assegnato' : 'Scegli istruttore')}
                     </Text>
-                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                    <Ionicons name="chevron-forward" size={18} color="#9C9C9C" />
                   </Pressable>
                   <Text style={s.modeHelp}>
                     Riservato a un istruttore, nascosto agli altri. Un istruttore può avere più mezzi esclusivi.
@@ -547,7 +547,7 @@ export default function VehicleFormScreen() {
                   >
                     <Text style={s.timeLabel}>Inizio</Text>
                     <View style={s.timeValRow}>
-                      <Ionicons name="time-outline" size={17} color="#1A1A2E" />
+                      <Ionicons name="time-outline" size={17} color="#111111" />
                       <Text style={s.timeVal}>{toTimeString(start)}</Text>
                     </View>
                   </Pressable>
@@ -557,7 +557,7 @@ export default function VehicleFormScreen() {
                   >
                     <Text style={s.timeLabel}>Fine</Text>
                     <View style={s.timeValRow}>
-                      <Ionicons name="time-outline" size={17} color="#1A1A2E" />
+                      <Ionicons name="time-outline" size={17} color="#111111" />
                       <Text style={s.timeVal}>{toTimeString(end)}</Text>
                     </View>
                   </Pressable>
@@ -594,54 +594,54 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 16 },
-  footer: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEF0F4', backgroundColor: colors.background },
+  footer: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F0', backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginBottom: 6 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginBottom: 6 },
 
-  label: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginTop: 22, marginBottom: 10 },
+  label: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 22, marginBottom: 10 },
   input: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#1A1A2E',
+    borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#111111',
     backgroundColor: '#FFFFFF',
   },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 4, marginTop: 26 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4, marginTop: 26 },
-  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
-  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 3, lineHeight: 18 },
+  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
+  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 3, lineHeight: 18 },
 
-  subSec: { marginTop: 26, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB' },
-  subLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14 },
+  subSec: { marginTop: 26, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5E5' },
+  subLabel: { fontSize: 12, fontWeight: '600', color: '#9C9C9C', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14 },
 
   modeSeg: { flexDirection: 'row', backgroundColor: '#EBEBED', borderRadius: 24, padding: 5, gap: 3 },
   modeBtn: { flex: 1, height: 42, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   modeBtnOn: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
-  modeBtnText: { fontSize: 14, fontWeight: '500', color: '#6E7596' },
-  modeBtnTextOn: { color: '#1A1A2E', fontWeight: '600' },
-  modeHelp: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 12, lineHeight: 18 },
+  modeBtnText: { fontSize: 14, fontWeight: '500', color: '#6A6A6A' },
+  modeBtnTextOn: { color: '#111111', fontWeight: '600' },
+  modeHelp: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 12, lineHeight: 18 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 14 },
   chip: { borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 9999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF' },
-  chipOn: { backgroundColor: '#1A1A2E', borderColor: '#1A1A2E' },
-  chipText: { fontSize: 14, fontWeight: '500', color: '#1A1A2E' },
+  chipOn: { backgroundColor: '#111111', borderColor: '#111111' },
+  chipText: { fontSize: 14, fontWeight: '500', color: '#111111' },
   chipTextOn: { color: '#FFFFFF', fontWeight: '600' },
   pickerRowTight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 15, backgroundColor: '#FFFFFF', marginTop: 14 },
 
   days: { flexDirection: 'row', gap: 8 },
   day: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  dayOn: { backgroundColor: '#1A1A2E' },
-  dayOff: { backgroundColor: '#F4F5F9' },
+  dayOn: { backgroundColor: '#111111' },
+  dayOff: { backgroundColor: '#F4F4F4' },
   dayText: { fontSize: 14, fontWeight: '600' },
   dayTextOn: { color: '#FFFFFF' },
-  dayTextOff: { color: '#6E7596' },
+  dayTextOff: { color: '#6A6A6A' },
 
   times: { flexDirection: 'row', gap: 12, marginTop: 16 },
   licenseRow: { flexDirection: 'row', gap: 12, marginTop: 22 },
-  licenseCard: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
-  timeCard: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
-  timeLabel: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase' },
+  licenseCard: { flex: 1, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
+  timeCard: { flex: 1, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
+  timeLabel: { fontSize: 11, fontWeight: '600', color: '#9C9C9C', letterSpacing: 0.5, textTransform: 'uppercase' },
   timeValRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  timeVal: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  timeVal: { fontSize: 16, fontWeight: '600', color: '#111111' },
 
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {

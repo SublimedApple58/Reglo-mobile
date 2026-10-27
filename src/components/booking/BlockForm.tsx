@@ -24,10 +24,10 @@ import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { GlassCloseButton } from '../GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
 const MUTED = '#929292';
-const N50 = '#F4F5F9';
+const N50 = '#F4F4F4';
 
 const WEEK_OPTIONS = [2, 4, 8, 12];
 
@@ -65,7 +65,7 @@ const Row = ({ icon, label, value, onPress, disabled }: {
       <Text style={s.rowLabel}>{label}</Text>
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
   </Pressable>
 );
 
@@ -252,7 +252,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
       {isTheory ? (
         /* Avviso bloccante — la teorica occupa la fascia in modo duro */
         <View style={s.theoryNotice}>
-          <View style={s.theoryNoticeIcon}><Ionicons name="lock-closed" size={16} color="#4F46E5" /></View>
+          <View style={s.theoryNoticeIcon}><Ionicons name="lock-closed" size={16} color="#111111" /></View>
           <Text style={s.theoryNoticeTxt}>
             In questa fascia risulti occupato: gli allievi non vedranno slot prenotabili e non sarà possibile inserire guide, esami o guide di gruppo sovrapposte.
           </Text>
@@ -330,27 +330,27 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
 }
 
 const ELEV = {
-  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
 } as const;
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
   title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
 
   group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
   warn: { fontSize: 12.5, color: '#C13515', fontWeight: '500', marginTop: -8, marginBottom: 12, marginLeft: 6 },
 
   /* avviso bloccante lezione teorica (indaco) */
-  theoryNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#E6E9FF', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
+  theoryNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#EFEDE8', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
   theoryNoticeIcon: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  theoryNoticeTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18, color: '#3730A3' },
+  theoryNoticeTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18, color: '#3A3A3C' },
 
   /* motivo text area — looks like an editable field, not a tappable card */
   fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },
   fieldOptional: { fontSize: 13, fontWeight: '500', color: MUTED },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E4E7EE', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
 
   /* optional banner */
   optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
@@ -360,7 +360,7 @@ const s = StyleSheet.create({
 
   listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 2, marginBottom: 8, marginLeft: 6 },
   weeksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  weekPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F1F2F4' },
+  weekPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F2F2F2' },
   weekPillOn: { backgroundColor: NAVY },
   weekPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
   weekPillTxtOn: { color: '#FFFFFF' },
@@ -371,7 +371,7 @@ const s = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0, gap: 1 },
   rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
   rowValue: { fontSize: 14, color: GREY },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EFF0F3' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
 
   /* elimina (solo in modifica) */
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: '#FDECEC', marginTop: 2, marginBottom: 4 },

@@ -262,7 +262,7 @@ export const DayItinerary = ({ plan, onQuickBook, onOpenLesson, onOpenExam, onOp
               </View>
               {vehicleLabel ? (
                 <View style={styles.vehicleRow}>
-                  <MaterialCommunityIcons name={isMoto ? 'motorbike' : 'car-side'} size={15} color="#8A8F98" />
+                  <MaterialCommunityIcons name={isMoto ? 'motorbike' : 'car-side'} size={15} color="#909090" />
                   <Text style={styles.vehicleText} numberOfLines={1}>{vehicleLabel}</Text>
                 </View>
               ) : null}
@@ -319,43 +319,43 @@ const Rail = ({ time, isFirst, isLast, muted, hidePill }: { time: string; isFirs
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'stretch' },
   rail: { width: 84, paddingTop: 16, alignItems: 'center', position: 'relative' },
-  railLineTop: { position: 'absolute', left: 41, top: 0, height: 12, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
-  railLineBottom: { position: 'absolute', left: 41, top: 46, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
-  railLineFull: { position: 'absolute', left: 41, top: 0, bottom: -14, width: 2, backgroundColor: '#E6E8EC', borderRadius: 1 },
-  railPill: { minHeight: 26, minWidth: 52, paddingHorizontal: 9, justifyContent: 'center', alignItems: 'center', borderRadius: 13, backgroundColor: '#EEF0F4' },
+  railLineTop: { position: 'absolute', left: 41, top: 0, height: 12, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
+  railLineBottom: { position: 'absolute', left: 41, top: 46, bottom: -14, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
+  railLineFull: { position: 'absolute', left: 41, top: 0, bottom: -14, width: 2, backgroundColor: '#E8E8E8', borderRadius: 1 },
+  railPill: { minHeight: 26, minWidth: 52, paddingHorizontal: 9, justifyContent: 'center', alignItems: 'center', borderRadius: 13, backgroundColor: '#F0F0F0' },
   railPillMuted: { backgroundColor: '#F1F3F7' },
-  railPillText: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
+  railPillText: { fontSize: 13, fontWeight: '700', color: '#111111', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
   railPillTextMuted: { color: '#929292' },
 
   markerBody: { flex: 1, paddingTop: 22, marginBottom: 14 },
   markerText: { fontSize: 13, fontWeight: '700', color: '#595959', letterSpacing: 0.1 },
 
-  card: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  card: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#111111', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   cardMuted: { backgroundColor: '#F7F8FA', shadowOpacity: 0, elevation: 0 },
   cardPressed: { opacity: 0.95, transform: [{ scale: 0.992 }] },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  name: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+  name: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   meta: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginLeft: 8, flexShrink: 0 },
   badgeText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
   // REG-633: il mezzo, allineato al nome (avatar 42 + gap 12).
   vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginLeft: 54 },
-  vehicleText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#5C616B', letterSpacing: -0.1 },
+  vehicleText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#636363', letterSpacing: -0.1 },
 
   // Exam — student-app card language (lavender surface, Fluent 3D icon), no right tag.
-  examCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F5F0FF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  examCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F7F7F7', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#8B5CF6', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   examIcon: { width: 42, height: 42 },
   examLabel: { fontSize: 12, fontWeight: '600', color: '#6D28D9' },
   examTitle: { fontSize: 16, fontWeight: '600', color: '#4C1D95', letterSpacing: -0.2, marginTop: 2 },
 
   // Lezione teorica — sorella indaco della card esame (icona libri 3D). Evento
   // bloccante ma con lo stesso peso visivo di esame/gruppo (card piena in tinta).
-  theoryCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#E6E9FF', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#6366F1', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  theoryCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#EFEDE8', borderRadius: 22, padding: 14, marginBottom: 14, shadowColor: '#111111', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   theoryIcon: { width: 42, height: 42 },
-  theoryLabel: { fontSize: 12, fontWeight: '600', color: '#4F46E5' },
-  theoryTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  theoryLabel: { fontSize: 12, fontWeight: '600', color: '#111111' },
+  theoryTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
 
   // Group lesson — teal sibling of the exam card (Fluent 3D people icon).
   // Moto groups: identical style, ORANGE tint (bg/shadow/label/seats).
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   badgeGroupText: { color: '#0F766E' },
   badgeMoto: { borderColor: '#FED7AA', backgroundColor: 'rgba(254,215,170,0.6)' },
   badgeMotoText: { color: '#C2410C' },
-  badgeExam: { borderColor: '#DDD6FE', backgroundColor: 'rgba(221,214,254,0.6)' },
+  badgeExam: { borderColor: '#E6E6E6', backgroundColor: 'rgba(221,214,254,0.6)' },
   badgeExamText: { color: '#6D28D9' },
   // REG-585: riga "con ..." quando la guida è condivisa con un collega.
   sharedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },

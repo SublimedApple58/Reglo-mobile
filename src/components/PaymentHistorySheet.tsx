@@ -53,7 +53,7 @@ export function PaymentHistorySheet() {
             accessibilityRole="button"
             accessibilityLabel="Chiudi"
           >
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -102,19 +102,19 @@ const DOT = 10;
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg },
   topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 24, gap: 12 },
-  title: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   hint: { fontSize: 13.5, fontWeight: '500', color: colors.textMuted, marginTop: 5, lineHeight: 18 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
 
   item: { flexDirection: 'row', gap: 14 },
   // Il binario: punto allineato alla prima riga di testo, filo fino al successivo.
   rail: { width: 14, alignItems: 'center' },
   dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 6 },
-  dotPast: { borderWidth: 1.5, borderColor: '#CFCFD6', backgroundColor: colors.background },
+  dotPast: { borderWidth: 1.5, borderColor: '#D1D1D1', backgroundColor: colors.background },
   line: { flex: 1, width: StyleSheet.hairlineWidth * 2, backgroundColor: '#E6E6EB', marginTop: 6, marginBottom: -2 },
   body: { flex: 1, minWidth: 0 },
   bodySpaced: { paddingBottom: 20 },
-  label: { fontSize: 15.5, fontWeight: '500', color: '#3D3D4E', letterSpacing: -0.2 },
-  labelLatest: { fontWeight: '600', color: '#1A1A2E' },
+  label: { fontSize: 15.5, fontWeight: '500', color: '#434343', letterSpacing: -0.2 },
+  labelLatest: { fontWeight: '600', color: '#111111' },
   meta: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 3 },
 });

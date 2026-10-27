@@ -19,10 +19,10 @@ import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
-const NAVY = colors.primary; // #1A1A2E
+const NAVY = colors.primary; // #111111
 const IVORY = '#F5EFE6';
-const NAVY_300 = '#AEB4CC';
-const NAVY_400 = '#6E7596';
+const NAVY_300 = '#B0B0B0';
+const NAVY_400 = '#6A6A6A';
 
 type LoginScreenProps = {
   /** 'inline' = Android B1 full navy screen · 'sheet' = iOS native form sheet */
@@ -98,7 +98,7 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
         <Text style={styles.sheetTitle}>Accedi</Text>
         <Text style={styles.sheetSub}>Bentornato 👋</Text>
         {fields}
-        <CtaButton label="Accedi" tone="navy" loading={loading} onPress={handleLogin} />
+        <CtaButton label="Accedi" tone="black" loading={loading} onPress={handleLogin} />
       </View>
     );
   }
@@ -110,7 +110,7 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
       <View style={styles.halo} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.brand}>
-          <RegloLogo size={56} tone="navy" />
+          <RegloLogo size={56} tone="black" />
           <View>
             <Text style={styles.brandTitle}>Bentornato</Text>
             <Text style={styles.brandSub}>Accedi alla tua autoscuola</Text>
@@ -118,7 +118,7 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
         </View>
 
         <View style={{ marginTop: 16 }}>{fields}</View>
-        <CtaButton label="Accedi" tone="navy" loading={loading} onPress={handleLogin} />
+        <CtaButton label="Accedi" tone="black" loading={loading} onPress={handleLogin} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Sei un allievo?</Text>
@@ -138,7 +138,7 @@ const CtaButton = ({
   onPress,
 }: {
   label: string;
-  tone: 'navy' | 'ivory';
+  tone: 'black' | 'ivory';
   loading: boolean;
   onPress: () => void;
 }) => (
@@ -146,15 +146,15 @@ const CtaButton = ({
     onPress={loading ? undefined : onPress}
     style={({ pressed }) => [
       styles.cta,
-      tone === 'navy' ? styles.ctaNavy : styles.ctaIvory,
+      tone === 'black' ? styles.ctaBlack : styles.ctaIvory,
       pressed && styles.ctaPressed,
     ]}
   >
-    {tone === 'navy' && <GradientCTABackground radius={15} />}
+    {tone === 'black' && <GradientCTABackground radius={15} />}
     {loading ? (
-      <ActivityIndicator color={tone === 'navy' ? '#FFFFFF' : NAVY} />
+      <ActivityIndicator color={tone === 'black' ? '#FFFFFF' : NAVY} />
     ) : (
-      <Text style={[styles.ctaText, { color: tone === 'navy' ? '#FFFFFF' : NAVY }]}>{label}</Text>
+      <Text style={[styles.ctaText, { color: tone === 'black' ? '#FFFFFF' : NAVY }]}>{label}</Text>
     )}
   </Pressable>
 );
@@ -187,8 +187,8 @@ const styles = StyleSheet.create({
     opacity: 0.04,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  brandTitle: { fontSize: 27, fontWeight: '600', letterSpacing: -0.4, color: '#1B1B27' },
-  brandSub: { fontSize: 14.5, fontWeight: '400', color: '#8A8A96', marginTop: 4 },
+  brandTitle: { fontSize: 27, fontWeight: '600', letterSpacing: -0.4, color: '#1F1F1F' },
+  brandSub: { fontSize: 14.5, fontWeight: '400', color: '#8E8E8E', marginTop: 4 },
 
   // shared
   forgotWrap: { alignSelf: 'flex-end', marginTop: 11 },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 18,
   },
-  ctaNavy: {
+  ctaBlack: {
     ...primaryCtaShadow,
   },
   ctaIvory: {

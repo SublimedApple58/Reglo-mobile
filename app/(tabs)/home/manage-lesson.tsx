@@ -45,9 +45,9 @@ import { RoadLessonCard } from '../../../src/components/road/RoadLessonCard';
 import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
 
 const TONE: Record<string, { bg: string; fg: string }> = {
-  live: { bg: '#1A1A2E', fg: '#FFFFFF' },
+  live: { bg: '#111111', fg: '#FFFFFF' },
   confirmed: { bg: '#DCFCE7', fg: '#15803D' },
-  scheduled: { bg: '#EEF0F4', fg: '#1A1A2E' },
+  scheduled: { bg: '#F0F0F0', fg: '#111111' },
   pending_review: { bg: '#FEF0E6', fg: '#C2410C' },
 };
 
@@ -98,7 +98,7 @@ function MorphPill({
         disabled={disabled}
         style={({ pressed }) => [iconOnly ? s.pillIcon : s.pill, pressed && { opacity: 0.5 }]}
       >
-        <MaterialCommunityIcons name={PILL_ICON[option.key] ?? 'dots-horizontal'} size={iconOnly ? 21 : 19} color={option.danger ? '#E5484D' : '#1A1A2E'} />
+        <MaterialCommunityIcons name={PILL_ICON[option.key] ?? 'dots-horizontal'} size={iconOnly ? 21 : 19} color={option.danger ? '#E5484D' : '#111111'} />
         {iconOnly ? null : (
           <Text style={s.pillLabel} numberOfLines={1}>{PILL_LABEL[option.key] ?? option.label}</Text>
         )}
@@ -178,7 +178,7 @@ function MorphToolbar({
               disabled={disabled}
               style={({ pressed }) => [s.directPill, pressed && { opacity: 0.5 }]}
             >
-              <MaterialCommunityIcons name={PILL_ICON[o.key] ?? 'dots-horizontal'} size={19} color="#1A1A2E" />
+              <MaterialCommunityIcons name={PILL_ICON[o.key] ?? 'dots-horizontal'} size={19} color="#111111" />
               <Text style={s.pillLabel} numberOfLines={1}>{PILL_LABEL[o.key] ?? o.label}</Text>
             </Pressable>
           ),
@@ -246,10 +246,10 @@ function MorphToolbar({
           accessibilityLabel={expanded ? 'Chiudi azioni' : 'Altre azioni'}
         >
           <Animated.View style={[s.iconAbs, dotsStyle]}>
-            <Ionicons name="ellipsis-horizontal" size={21} color="#1A1A2E" />
+            <Ionicons name="ellipsis-horizontal" size={21} color="#111111" />
           </Animated.View>
           <Animated.View style={[s.iconAbs, xStyle]}>
-            <Ionicons name="close" size={21} color="#1A1A2E" />
+            <Ionicons name="close" size={21} color="#111111" />
           </Animated.View>
         </Pressable>
       ) : null}
@@ -463,7 +463,7 @@ export default function ManageLessonScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -479,7 +479,7 @@ export default function ManageLessonScreen() {
           {/* Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami) */}
           <Pressable onPress={openStudentDetail} hitSlop={6} style={({ pressed }) => [s.heroNameRow, pressed && { opacity: 0.55 }]}>
             <Text style={s.heroName}>{studentName}</Text>
-            <Ionicons name="chevron-forward" size={21} color="#C7CBD1" style={{ marginTop: 3 }} />
+            <Ionicons name="chevron-forward" size={21} color="#C9C9C9" style={{ marginTop: 3 }} />
           </Pressable>
           <Text style={s.heroMeta}>
             {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
@@ -487,8 +487,8 @@ export default function ManageLessonScreen() {
             {vehiclesEnabled && !motoBlock ? ` · ${vehicleText}` : ''}
           </Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <View style={[s.statePill, { backgroundColor: tone ? tone.bg : '#EEF0F4' }]}>
-              <Text style={[s.statePillText, { color: tone ? tone.fg : '#1A1A2E' }]}>
+            <View style={[s.statePill, { backgroundColor: tone ? tone.bg : '#F0F0F0' }]}>
+              <Text style={[s.statePillText, { color: tone ? tone.fg : '#111111' }]}>
                 {stateMeta ? stateMeta.label : stateLabel}
               </Text>
             </View>
@@ -502,14 +502,14 @@ export default function ManageLessonScreen() {
                 style={({ pressed }) => [s.contactCircle, pressed && { opacity: 0.7 }]}
                 accessibilityLabel="Chiama allievo"
               >
-                <Ionicons name="call" size={19} color="#1A1A2E" />
+                <Ionicons name="call" size={19} color="#111111" />
               </Pressable>
               <Pressable
                 onPress={() => Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`)}
                 style={({ pressed }) => [s.contactCircle, pressed && { opacity: 0.7 }]}
                 accessibilityLabel="Scrivi su WhatsApp"
               >
-                <Ionicons name="logo-whatsapp" size={19} color="#1A1A2E" />
+                <Ionicons name="logo-whatsapp" size={19} color="#111111" />
               </Pressable>
             </View>
           ) : null}
@@ -523,7 +523,7 @@ export default function ManageLessonScreen() {
                 size={132}
                 stroke={13}
                 progress={studentProgress.completed / Math.max(1, studentProgress.required)}
-                gradient={['#3A3A63', '#16162A']}
+                gradient={['#2A2A2A', '#111111']}
                 innerColor={colors.background}
               >
                 <Text style={s.ringCount}>
@@ -542,7 +542,7 @@ export default function ManageLessonScreen() {
         <View style={s.detailRows}>
           {readOnly ? (
             <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Istruttore</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
@@ -550,18 +550,18 @@ export default function ManageLessonScreen() {
             </View>
           ) : (
             <Pressable onPress={openInstructorPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Istruttore</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           )}
           <View style={s.rowDivider} />
           {readOnly ? (
             <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Luogo</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
@@ -570,20 +570,20 @@ export default function ManageLessonScreen() {
             </View>
           ) : (
             <Pressable onPress={openLocationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Luogo</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
                 {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           )}
 
           <View style={s.rowDivider} />
           {readOnly ? (
             <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Durata</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
@@ -591,12 +591,12 @@ export default function ManageLessonScreen() {
             </View>
           ) : (
             <Pressable onPress={openDurationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#1A1A2E" /></View>
+              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#111111" /></View>
               <View style={s.detailBody}>
                 <Text style={s.detailLabel}>Durata</Text>
                 <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           )}
 
@@ -605,7 +605,7 @@ export default function ManageLessonScreen() {
               <View style={s.rowDivider} />
               {readOnly ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
                     <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
@@ -617,12 +617,12 @@ export default function ManageLessonScreen() {
                   disabled={!vehicles.length}
                   style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
                 >
-                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicolo</Text>
                     <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               )}
             </>
@@ -636,7 +636,7 @@ export default function ManageLessonScreen() {
               <View style={s.rowDivider} />
               {readOnly ? (
                 <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicoli</Text>
                     <Text style={s.detailValue} numberOfLines={1}>{motoSummaryMain}</Text>
@@ -645,13 +645,13 @@ export default function ManageLessonScreen() {
                 </View>
               ) : (
                 <Pressable onPress={openVehiclesSheet} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#1A1A2E" /></View>
+                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#111111" /></View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Veicoli</Text>
                     <Text style={s.detailValue} numberOfLines={1}>{motoSummaryMain}</Text>
                     {motoSummarySub ? <Text style={s.detailValueSub} numberOfLines={1}>{motoSummarySub}</Text> : null}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               )}
             </>
@@ -667,7 +667,7 @@ export default function ManageLessonScreen() {
                 <View style={s.rowDivider} />
                 <View style={s.detailRow}>
                   <View style={s.detailIcon}>
-                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={23} color="#1A1A2E" />
+                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={23} color="#111111" />
                   </View>
                   <View style={s.detailBody}>
                     <Text style={s.detailLabel}>Tipo guida moto</Text>
@@ -689,12 +689,12 @@ export default function ManageLessonScreen() {
             Nascosta in read-only (il titolare non modifica tipo/voto/note). */}
         {!readOnly && lesson.type !== 'esame' ? (
           <Pressable onPress={openDetails} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="create-outline" size={22} color="#1A1A2E" /></View>
+            <View style={s.cardIcon}><Ionicons name="create-outline" size={22} color="#111111" /></View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.cardTitle}>Dettagli guida</Text>
               <Text style={s.cardSub} numberOfLines={1}>{detailsSummary}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
           </Pressable>
         ) : null}
       </ScrollView>
@@ -766,7 +766,7 @@ const s = StyleSheet.create({
 
   // Hero
   hero: { gap: 4 },
-  heroOverline: { fontSize: 13, fontWeight: '500', color: '#94A3B8', letterSpacing: 0.2 },
+  heroOverline: { fontSize: 13, fontWeight: '500', color: '#9A9A9A', letterSpacing: 0.2 },
   // Correzione: bottom bar (Correggi esito + cestino)
   corrRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   correggiBtn: {
@@ -779,7 +779,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
   heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  heroName: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  heroName: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },
   statePill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
   statePillText: { fontSize: 12, fontWeight: '600' },
@@ -789,23 +789,23 @@ const s = StyleSheet.create({
   contactCircle: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E7EB',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E5E5',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
   },
 
   // Progresso ring centrale
   progressBlock: { alignItems: 'center', paddingVertical: 4 },
-  ringCount: { fontSize: 34, fontWeight: '700', color: '#1A1A2E', letterSpacing: -1 },
-  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9CA3AF' },
+  ringCount: { fontSize: 34, fontWeight: '700', color: '#111111', letterSpacing: -1 },
+  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9C9C9C' },
 
   // Righe piatte istruttore/luogo
   detailRows: { gap: 0 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
   detailIcon: { width: 28, alignItems: 'center' },
   detailBody: { flex: 1, gap: 1 },
-  detailLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  detailLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
-  detailValueSub: { fontSize: 13, color: '#9CA3AF' },
+  detailValueSub: { fontSize: 13, color: '#9C9C9C' },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
 
   // Card 3D CTA dettagli
@@ -813,14 +813,14 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#1A1A2E', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
+    shadowColor: '#111111', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
   },
-  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   cardSub: { fontSize: 13, fontWeight: '400', color: '#717171' },
 
   // Floating bottom cluster
-  backdrop: { flex: 1, backgroundColor: 'rgba(20,20,30,0.04)' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(23,23,23,0.04)' },
   floatWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, gap: 10 },
 
   // Status layer (Presente / Assente) — collapses on expand, leaves room for •••
@@ -862,7 +862,7 @@ const s = StyleSheet.create({
     borderRadius: 25, backgroundColor: '#FFFFFF', paddingHorizontal: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
-  pillLabel: { fontSize: 14, fontWeight: '500', color: '#1A1A2E', letterSpacing: -0.2 },
+  pillLabel: { fontSize: 14, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
   // Elimina — solo icona, cerchio come la X
   pillIconWrap: { width: 50, height: 50 },
   pillIcon: {

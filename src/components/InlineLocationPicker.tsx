@@ -87,7 +87,7 @@ export const InlineLocationPicker = ({
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#1A1A2E" />
+          <ActivityIndicator color="#111111" />
         </View>
       ) : filtered.length === 0 ? (
         <Text style={styles.empty}>Nessun luogo trovato.</Text>
@@ -108,7 +108,7 @@ export const InlineLocationPicker = ({
                   style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
                 >
                   <View style={styles.iconCol}>
-                    <Ionicons name={iconName} size={22} color="#1A1A2E" />
+                    <Ionicons name={iconName} size={22} color="#111111" />
                   </View>
                   <View style={styles.textWrap}>
                     <Text style={styles.name} numberOfLines={1}>
@@ -123,7 +123,7 @@ export const InlineLocationPicker = ({
                     )}
                   </View>
                   {selected ? (
-                    <Ionicons name="checkmark-circle" size={22} color="#1A1A2E" />
+                    <Ionicons name="checkmark-circle" size={22} color="#111111" />
                   ) : null}
                 </Pressable>
               </View>
@@ -137,7 +137,7 @@ export const InlineLocationPicker = ({
         style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.5 }]}
       >
         <View style={styles.iconCol}>
-          <Ionicons name="add" size={22} color="#1A1A2E" />
+          <Ionicons name="add" size={22} color="#111111" />
         </View>
         <Text style={styles.addText}>Aggiungi nuovo luogo</Text>
       </Pressable>
@@ -178,12 +178,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#EBEDF0',
+    backgroundColor: '#ECECEC',
     marginLeft: 40,
   },
   iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   textWrap: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  name: { fontSize: 15, fontWeight: '600', color: '#111111', flexShrink: 1 },
   address: { fontSize: 13, color: '#929292' },
   addressMuted: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
   addRow: {
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#EBEDF0',
+    borderTopColor: '#ECECEC',
   },
-  addText: { fontSize: 15, color: '#1A1A2E', fontWeight: '600' },
+  addText: { fontSize: 15, color: '#111111', fontWeight: '600' },
 });

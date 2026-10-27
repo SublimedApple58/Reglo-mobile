@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     width: '100%',
     // Soft, diffuse Airbnb shadow.
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.16,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
     lineHeight: 20,
     letterSpacing: 0.1,
   },

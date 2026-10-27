@@ -233,7 +233,7 @@ function LessonRow({
           <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
         ) : null}
         {busy ? (
-          <ActivityIndicator size="small" color="#1A1A2E" style={s.rowRing} />
+          <ActivityIndicator size="small" color="#111111" style={s.rowRing} />
         ) : actionable ? (
           <View style={s.rowRing}>
             <HoldRing progress={progress} color={paid ? '#B45309' : '#067647'} />
@@ -254,9 +254,9 @@ function LessonRow({
           ) : null}
           {hasHistory ? (
             <View style={s.trailHistory}>
-              <Ionicons name="time-outline" size={12} color="#6B6B78" />
+              <Ionicons name="time-outline" size={12} color="#6F6F6F" />
               <Text style={s.trailHistoryText}>{history.length}</Text>
-              <Ionicons name="chevron-forward" size={11} color="#B4B4BD" />
+              <Ionicons name="chevron-forward" size={11} color="#B7B7B7" />
             </View>
           ) : null}
         </View>
@@ -525,7 +525,7 @@ export const StudentPaymentsScreen = () => {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -577,7 +577,7 @@ export const StudentPaymentsScreen = () => {
         {sections.length === 0 ? (
           <View style={s.empty}>
             <View style={s.emptyIcon}>
-              <Ionicons name="receipt-outline" size={24} color="#B4B4BD" />
+              <Ionicons name="receipt-outline" size={24} color="#B7B7B7" />
             </View>
             <Text style={s.emptyTitle}>Nessuna guida</Text>
             <Text style={s.emptyText}>Non ci sono guide per questo filtro.</Text>
@@ -706,12 +706,12 @@ const s = StyleSheet.create({
   content: { paddingTop: 4, paddingBottom: 60 },
   pad: { paddingHorizontal: PAD },
 
-  title: { fontSize: 28, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  title: { fontSize: 28, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
   subtitle: { fontSize: 14, fontWeight: '400', color: colors.textMuted, marginTop: 4 },
   note: { fontSize: 13, fontWeight: '400', color: colors.textMuted, lineHeight: 19, marginTop: 18 },
 
   hero: { flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 22 },
-  heroNum: { fontSize: 40, fontWeight: '600', color: '#1A1A2E', letterSpacing: -1.4 },
+  heroNum: { fontSize: 40, fontWeight: '600', color: '#111111', letterSpacing: -1.4 },
   heroLabel: { fontSize: 15, fontWeight: '400', color: colors.textSecondary },
   heroOk: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: '#ECFDF3',
@@ -723,7 +723,7 @@ const s = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: PAD, paddingBottom: 2 },
   filterPill: {
     position: 'absolute', top: 0, bottom: 2, left: 0,
-    borderRadius: 999, backgroundColor: '#1A1A2E',
+    borderRadius: 999, backgroundColor: '#111111',
   },
   filterItem: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -731,14 +731,14 @@ const s = StyleSheet.create({
   },
   filterText: { fontSize: 14, fontWeight: '400', color: '#595959' },
   filterTextOn: { color: '#FFFFFF', fontWeight: '500' },
-  filterCount: { fontSize: 12, fontWeight: '500', color: '#9A9AA2' },
+  filterCount: { fontSize: 12, fontWeight: '500', color: '#9D9D9D' },
   filterCountOn: { color: 'rgba(255,255,255,0.65)' },
 
   hint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
   hintText: { fontSize: 12.5, fontWeight: '400', color: colors.textMuted },
 
   month: {
-    fontSize: 12, fontWeight: '600', color: '#AEAEB6', textTransform: 'uppercase',
+    fontSize: 12, fontWeight: '600', color: '#B1B1B1', textTransform: 'uppercase',
     letterSpacing: 0.5, marginTop: 26, marginBottom: 2,
   },
 
@@ -748,8 +748,8 @@ const s = StyleSheet.create({
   glyph: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   glyphEuro: { fontSize: 15, fontWeight: '600' },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', letterSpacing: -0.1 },
-  rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9AA2', marginTop: 1 },
+  rowTitle: { fontSize: 15, fontWeight: '400', color: '#111111', letterSpacing: -0.1 },
+  rowSub: { fontSize: 13, fontWeight: '400', color: '#9D9D9D', marginTop: 1 },
   rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
   // REG-637: «chi e quando» sotto il sottotitolo. Più piccolo e più chiaro
   // del sottotitolo: è un dettaglio, non deve gareggiare con la guida.
@@ -759,14 +759,14 @@ const s = StyleSheet.create({
     paddingLeft: SEP_INSET, paddingRight: PAD, paddingBottom: 12,
   },
   trailDot: { width: 6, height: 6, borderRadius: 3 },
-  trailText: { flexShrink: 1, fontSize: 12, fontWeight: '400', color: '#9A9AA2', letterSpacing: -0.05 },
-  trailLabel: { color: '#4A4A57', fontWeight: '500' },
+  trailText: { flexShrink: 1, fontSize: 12, fontWeight: '400', color: '#9D9D9D', letterSpacing: -0.05 },
+  trailLabel: { color: '#4E4E4E', fontWeight: '500' },
   trailHistory: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingLeft: 6, paddingRight: 4, paddingVertical: 1.5,
     borderRadius: 999, backgroundColor: '#F2F2F5',
   },
-  trailHistoryText: { fontSize: 11.5, fontWeight: '500', color: '#6B6B78', fontVariant: ['tabular-nums'] },
+  trailHistoryText: { fontSize: 11.5, fontWeight: '500', color: '#6F6F6F', fontVariant: ['tabular-nums'] },
   rowRing: { width: 26, height: 26, marginLeft: 9, alignItems: 'center', justifyContent: 'center' },
 
   empty: { alignItems: 'center', paddingTop: 70, gap: 6 },
@@ -774,6 +774,6 @@ const s = StyleSheet.create({
     width: 52, height: 52, borderRadius: 26, backgroundColor: '#F1F1F5',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 15, fontWeight: '500', color: '#111111' },
   emptyText: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center' },
 });

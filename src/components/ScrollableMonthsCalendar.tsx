@@ -144,7 +144,7 @@ const MONTH_LABEL_BLOCK = 26;
 
 const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', paddingBottom: 8 },
-  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9AA1AC' },
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9E9E9E' },
 
   month: { marginTop: 14 },
   monthLabel: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: '#3A3A3C', letterSpacing: -0.2, marginBottom: 6, marginLeft: 2 },
@@ -152,10 +152,10 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.2857%' as unknown as number, height: CELL, alignItems: 'center', justifyContent: 'center' },
   dayCircle: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, alignItems: 'center', justifyContent: 'center' },
-  dayCircleSelected: { backgroundColor: '#1A1A2E' },
-  dayCircleToday: { borderWidth: 1.5, borderColor: '#1A1A2E' },
+  dayCircleSelected: { backgroundColor: '#111111' },
+  dayCircleToday: { borderWidth: 1.5, borderColor: '#111111' },
   dayText: { fontSize: 15, fontWeight: '400', color: '#4B4B4D' },
-  dayTextPast: { color: '#D4D7DC', fontWeight: '400' },
+  dayTextPast: { color: '#D8D8D8', fontWeight: '400' },
   dayTextSelected: { color: '#FFFFFF', fontWeight: '600' },
-  dot: { position: 'absolute', bottom: 5, width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#9AA1AC' },
+  dot: { position: 'absolute', bottom: 5, width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#9E9E9E' },
 });

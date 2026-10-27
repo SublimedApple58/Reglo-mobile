@@ -128,7 +128,7 @@ export default function BookingFlowScreen() {
               <Text style={s.dateText}>{formatDay(preferredDate.toISOString())}</Text>
               <Text style={s.dateHint}>Scegli quando guidare</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color="#9C9C9C" />
           </Pressable>
         </View>
 
@@ -180,7 +180,7 @@ export default function BookingFlowScreen() {
             <Text style={s.sectionLabel}>Istruttore</Text>
             <View style={s.instructorChip}>
               <View style={s.instructorAvatar}>
-                <Ionicons name="person" size={15} color="#4F46E5" />
+                <Ionicons name="person" size={15} color="#111111" />
               </View>
               <Text style={s.instructorChipText}>{assignedInstructorName}</Text>
             </View>
@@ -248,7 +248,7 @@ export default function BookingFlowScreen() {
                       return (
                         <Pressable key={`c-${mo.month}-${idx}`} onPress={tappable ? () => { bookingFlowStore.set({ preferredDate: date, calendarOpen: false, searchError: null }); } : undefined} disabled={!tappable} style={s.dayWrap}>
                           <View style={[s.dayCell, isSel && s.dayCellSel]}>
-                            <Text style={[s.dayText, isToday && s.dayTextToday, isSel && s.dayTextSel, (inMonth && (!inRange || isUnavail)) && { color: '#CBD5E1' }]}>{date.getDate()}</Text>
+                            <Text style={[s.dayText, isToday && s.dayTextToday, isSel && s.dayTextSel, (inMonth && (!inRange || isUnavail)) && { color: '#D4D4D4' }]}>{date.getDate()}</Text>
                           </View>
                           {hasBooking && <View style={s.dayDot} />}
                         </Pressable>
@@ -268,24 +268,24 @@ export default function BookingFlowScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 24 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 18 },
-  title: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.4 },
   creditsBadge: { backgroundColor: '#F3F4F6', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  creditsText: { fontSize: 12, fontWeight: '700', color: '#6B7280' },
+  creditsText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   section: { gap: 12 },
   sectionLabel: { fontSize: 13, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3, textTransform: 'uppercase' },
-  dateCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.07, shadowRadius: 20, elevation: 4 },
+  dateCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#111111', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.07, shadowRadius: 20, elevation: 4 },
   dateIcon: { width: 42, height: 42 },
-  dateText: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  dateText: { fontSize: 17, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   dateHint: { fontSize: 12, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-  durationSingle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  durationSingle: { fontSize: 16, fontWeight: '600', color: '#111111' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { height: 46, paddingHorizontal: 20, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  chipActive: { backgroundColor: colors.surface, borderColor: '#1A1A2E', borderWidth: 1.5 },
+  chipActive: { backgroundColor: colors.surface, borderColor: '#111111', borderWidth: 1.5 },
   chipText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-  chipTextActive: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  chipTextActive: { fontSize: 14, fontWeight: '700', color: '#111111' },
   instructorChip: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start', backgroundColor: colors.surface, borderRadius: 999, paddingLeft: 6, paddingRight: 16, paddingVertical: 6, borderWidth: 1.5, borderColor: colors.border },
-  instructorAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#E0E7FF', alignItems: 'center', justifyContent: 'center' },
-  instructorChipText: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  instructorAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center' },
+  instructorChipText: { fontSize: 14, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   caption: { fontSize: 12, color: colors.textMuted, marginTop: 6, lineHeight: 16 },
   footer: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   cta: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', ...primaryCtaShadow },
@@ -293,19 +293,19 @@ const s = StyleSheet.create({
   unavailable: { fontSize: 13, fontWeight: '600', color: '#DC2626', textAlign: 'center', marginBottom: 8 },
   // Calendar
   calRoot: { flex: 1, backgroundColor: colors.background, paddingTop: 12 },
-  calHandle: { width: 36, height: 5, borderRadius: 3, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  calHandle: { width: 36, height: 5, borderRadius: 3, backgroundColor: '#D4D4D4', alignSelf: 'center', marginBottom: 16 },
   calTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 16 },
-  calTitle: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  calTitle: { fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   wdRow: { flexDirection: 'row', marginBottom: 6 },
   wdCell: { flex: 1, alignItems: 'center' },
-  wdText: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5 },
+  wdText: { fontSize: 11, fontWeight: '600', color: '#9C9C9C', letterSpacing: 0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayWrap: { width: '14.28%', alignItems: 'center', paddingVertical: 4 },
   dayCell: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  dayCellSel: { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#1A1A2E' },
-  dayText: { fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
-  dayTextToday: { fontWeight: '800', color: '#14141F' },
-  dayTextSel: { fontWeight: '700', color: '#1A1A2E' },
-  dayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#9CA3AF', marginTop: 2 },
-  monthLabel: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
+  dayCellSel: { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#111111' },
+  dayText: { fontSize: 15, fontWeight: '500', color: '#111111' },
+  dayTextToday: { fontWeight: '800', color: '#0A0A0A' },
+  dayTextSel: { fontWeight: '700', color: '#111111' },
+  dayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#9C9C9C', marginTop: 2 },
+  monthLabel: { fontSize: 16, fontWeight: '700', color: '#111111' },
 });

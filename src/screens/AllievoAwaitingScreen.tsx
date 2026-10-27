@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(26, 26, 46, 0.05)',
+    backgroundColor: 'rgba(17,17,17, 0.05)',
   },
   heroShadow: {
     position: 'absolute',
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     width: 116,
     height: 20,
     borderRadius: 60,
-    backgroundColor: 'rgba(26, 26, 46, 0.12)',
+    backgroundColor: 'rgba(17,17,17, 0.12)',
   },
   heroIcon: {
     width: 156,

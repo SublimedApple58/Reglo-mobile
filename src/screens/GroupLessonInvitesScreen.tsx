@@ -14,11 +14,11 @@ import { spacing } from '../theme/spacing';
 import type { AutoscuolaStudent, GroupLessonInvite } from '../types/regloApi';
 
 const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
-const NAVY = '#1A1A2E';
-const NAVY_400 = '#6E7596';
-const NAVY_50 = '#F4F5F9';
-const NAVY_100 = '#E9EBF2';
-const NAVY_200 = '#D6D9E6';
+const NAVY = '#111111';
+const NAVY_400 = '#6A6A6A';
+const NAVY_50 = '#F4F4F4';
+const NAVY_100 = '#EBEBEB';
+const NAVY_200 = '#D9D9D9';
 const TEAL = '#0F766E';
 const MUTED = '#929292';
 
@@ -241,7 +241,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '600', color: NAVY, marginTop: 8 },
   emptySub: { fontSize: 14, fontWeight: '400', color: MUTED, textAlign: 'center', lineHeight: 20 },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 26, padding: 20, marginBottom: 18, shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 26, padding: 20, marginBottom: 18, shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
   // REG-421 — disabled (blocked) card: muted surface, no lift.
   cardBlocked: { backgroundColor: NAVY_50, borderWidth: 1, borderColor: NAVY_100, shadowOpacity: 0.02, elevation: 0 },
   blockedBox: { marginTop: 18, alignItems: 'flex-start', gap: 10 },

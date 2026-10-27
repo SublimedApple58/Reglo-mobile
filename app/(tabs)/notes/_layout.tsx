@@ -13,8 +13,9 @@ export default function NotesLayout() {
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       {/* Impostazioni allievo: lista corta e statica → hug del contenuto. */}
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
-      {/* Pagamenti guide (REG-450): registro a lunghezza libera (lo storico di un
-          allievo arriva a decine di guide) → page sheet con scroll nativo. */}
+      {/* Pagamenti guide (REG-450): ancora page sheet, STORICO. Regola Reglo dal
+          27/10/2026 (design-system §13.2.1): form sheet alto quanto il contenuto
+          che scorre da sé, mai page sheet per le liste lunghe → da migrare. */}
       <Stack.Screen name="student-payments" options={PAGE_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={HUG_SHEET} />
@@ -23,9 +24,9 @@ export default function NotesLayout() {
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) NON basta: il
           pan nativo della sheet ruba il gesto allo scroll e il "Salva" resta
-          irraggiungibile — stesso muro di REG-426 (booking-rules). PAGE_SHEET
-          (presentation:'modal') è il pattern delle form lunghe dell'app:
-          scroll nativo pulito + footer agganciato via SheetScaffold fill. */}
+          irraggiungibile — stesso muro di REG-426 (booking-rules). Qui resta
+          PAGE_SHEET (storico); la variante Road del pagellino segue già la
+          regola §13.2.1: form sheet la cui radice è lo scroll. */}
       <Stack.Screen name="manage-lesson-details" options={PAGE_SHEET} />
       {/* REG-426: il pannello "per percorso" espande il form oltre l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) ha un pan nativo

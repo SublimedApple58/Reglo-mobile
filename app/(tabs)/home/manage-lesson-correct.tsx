@@ -8,7 +8,7 @@ import { correctOutcomeStore } from '../../../src/stores/correctOutcomeStore';
 import { colors } from '../../../src/theme/colors';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const INK = '#222222';
 
 /**
@@ -66,8 +66,8 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: 20 },
   topbar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, gap: 12 },
   title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, minHeight: 58 },
   label: { fontSize: 16, fontWeight: '500', color: INK },
   dot: { width: 23, height: 23 },

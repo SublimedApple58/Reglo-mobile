@@ -141,14 +141,14 @@ export const InstructorHoursScreen = () => {
       {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
+          <Ionicons name="arrow-back" size={22} color="#111111" />
         </Pressable>
         <Text style={s.title}>Ore di guida</Text>
       </View>
 
       {/* Period selector */}
       <Pressable onPress={openPicker} style={({ pressed }) => [s.periodPill, pressed && { opacity: 0.9 }]}>
-        <Ionicons name="calendar-outline" size={16} color="#1A1A2E" />
+        <Ionicons name="calendar-outline" size={16} color="#111111" />
         <Text style={s.periodLabel}>{periodLabel}</Text>
         <Ionicons name="chevron-down" size={16} color="#6A6A6A" />
       </Pressable>
@@ -189,7 +189,7 @@ export const InstructorHoursScreen = () => {
                 </Text>
                 {data.total.theoryMinutes > 0 && (
                   <View style={s.theoryPill}>
-                    <Ionicons name="book" size={12} color="#4F46E5" />
+                    <Ionicons name="book" size={12} color="#111111" />
                     <Text style={s.theoryPillText}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
                   </View>
                 )}
@@ -203,7 +203,7 @@ export const InstructorHoursScreen = () => {
             <View style={s.stats}>
               <View style={s.stat}>
                 <View style={s.statLabelRow}>
-                  <View style={[s.statDot, { backgroundColor: '#1A1A2E' }]} />
+                  <View style={[s.statDot, { backgroundColor: '#111111' }]} />
                   <Text style={s.statLabel}>In orario</Text>
                 </View>
                 <Text style={s.statValue}>
@@ -213,7 +213,7 @@ export const InstructorHoursScreen = () => {
               <View style={s.statDiv} />
               <View style={s.stat}>
                 <View style={s.statLabelRow}>
-                  <View style={[s.statDot, { backgroundColor: '#C9CCD6' }]} />
+                  <View style={[s.statDot, { backgroundColor: '#CECECE' }]} />
                   <Text style={s.statLabel}>Fuori orario</Text>
                 </View>
                 <Text style={s.statValue}>{formatMinutes(data.total.outsideWorkingHoursMinutes)}</Text>
@@ -260,7 +260,7 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm,
   },
   backBtn: { padding: 2 },
-  title: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#1A1A2E' },
+  title: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
 
   periodPill: {
     flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center',
@@ -293,16 +293,16 @@ const s = StyleSheet.create({
   // Lezione teorica — pill indaco (uguale alla web app).
   theoryPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
-    marginTop: 10, backgroundColor: '#E6E9FF', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
+    marginTop: 10, backgroundColor: '#EFEDE8', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
   },
-  theoryPillText: { fontSize: 12.5, fontWeight: '600', color: '#3730A3', letterSpacing: -0.1 },
+  theoryPillText: { fontSize: 12.5, fontWeight: '600', color: '#3A3A3C', letterSpacing: -0.1 },
 
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, height: COLUMN_HEIGHT + 36 },
   column: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   colTrack: { width: '100%', height: COLUMN_HEIGHT, justifyContent: 'flex-end', alignItems: 'center' },
   bar: { width: '58%', borderTopLeftRadius: 4, borderTopRightRadius: 4, minHeight: 4, overflow: 'hidden', flexDirection: 'column' },
-  barInside: { width: '100%', backgroundColor: '#1A1A2E' },
-  barOutside: { width: '100%', backgroundColor: '#C9CCD6' },
+  barInside: { width: '100%', backgroundColor: '#111111' },
+  barOutside: { width: '100%', backgroundColor: '#CECECE' },
   colEmpty: { width: '58%', height: 4, borderRadius: 2, backgroundColor: '#F2F2F4' },
   colValue: { fontSize: 10, fontWeight: '700', color: '#929292', fontVariant: ['tabular-nums'] },
   colLabel: { fontSize: 11, fontWeight: '500', color: '#C1C1C1' },
@@ -320,6 +320,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 16, ...CARD_SHADOW,
   },
   emptyIcon: { width: 48, height: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
   emptySub: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });

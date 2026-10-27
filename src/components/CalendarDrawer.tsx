@@ -258,7 +258,7 @@ export const CalendarDrawer = ({
             <Text style={styles.headerTitle}>Seleziona data</Text>
             <GlassCloseButton onPress={() => triggerClose(false)}>
               <Pressable onPress={() => triggerClose(false)} hitSlop={10} style={styles.sheetClose}>
-                <Ionicons name="close" size={22} color="#1A1A2E" />
+                <Ionicons name="close" size={22} color="#111111" />
               </Pressable>
             </GlassCloseButton>
           </View>
@@ -346,7 +346,7 @@ export const CalendarDrawer = ({
 
           <View style={styles.mascotSection}>
             <View style={styles.mascotCircle}>
-              <Ionicons name="calendar-outline" size={40} color="#1A1A2E" />
+              <Ionicons name="calendar-outline" size={40} color="#111111" />
             </View>
             {caption ? (
               <Text style={styles.mascotText}>{caption}</Text>
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F2F4',
+    backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1A1A2E',
+    borderColor: '#111111',
   },
   dayCellSelected: {
     width: CELL_SIZE,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   dayText: {
     fontSize: 15,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   dayDotHighlight: {
     backgroundColor: '#FFFFFF',
@@ -564,8 +564,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#929292',
     textAlign: 'center',
-    shadowColor: '#1A1A2E',
-    shadowOpacity: 0.3,
+    shadowColor: '#111111',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,

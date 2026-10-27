@@ -401,7 +401,7 @@ export default function ManageGroupLessonParticipantsScreen() {
         <Text style={s.title}>Partecipanti</Text>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -415,7 +415,7 @@ export default function ManageGroupLessonParticipantsScreen() {
             {openSeats > 0 ? (
               <Pressable onPress={handleInvite} disabled={busy} style={({ pressed }) => [s.inviteCard, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
                 <View style={s.inviteIcon}>
-                  {inviting ? <ActivityIndicator size="small" color="#1A1A2E" /> : <Ionicons name="paper-plane-outline" size={20} color="#1A1A2E" />}
+                  {inviting ? <ActivityIndicator size="small" color="#111111" /> : <Ionicons name="paper-plane-outline" size={20} color="#111111" />}
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={s.inviteTitle}>Invita allievi idonei</Text>
@@ -427,7 +427,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                       : `Apri i ${openSeats} posti liberi agli allievi idonei`}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
               </Pressable>
             ) : (
               <Text style={s.fullText}>Posti esauriti.</Text>
@@ -471,7 +471,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                     accessibilityLabel={`Apri la scheda di ${p.studentName ?? 'allievo'}`}
                   >
                     <Text style={[s.name, { flex: 0, flexShrink: 1 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
-                    {motoOnly ? null : <Ionicons name="chevron-forward" size={15} color="#C7CBD1" />}
+                    {motoOnly ? null : <Ionicons name="chevron-forward" size={15} color="#C9C9C9" />}
                   </Pressable>
                   {isMoto ? (
                     <>
@@ -490,17 +490,17 @@ export default function ManageGroupLessonParticipantsScreen() {
                         accessibilityLabel={`Moto di ${p.studentName ?? 'allievo'}: ${p.vehicleName ?? 'a rotazione'}. Cambia moto`}
                       >
                         {motoBusyId === p.appointmentId ? (
-                          <ActivityIndicator size="small" color={p.vehicleId ? '#C2410C' : '#6B7280'} style={{ transform: [{ scale: 0.75 }] }} />
+                          <ActivityIndicator size="small" color={p.vehicleId ? '#C2410C' : '#6B6B6B'} style={{ transform: [{ scale: 0.75 }] }} />
                         ) : p.vehicleId ? (
                           <MaterialCommunityIcons name="motorbike" size={16} color="#C2410C" />
                         ) : (
-                          <Ionicons name="refresh" size={14} color="#6B7280" />
+                          <Ionicons name="refresh" size={14} color="#6B6B6B" />
                         )}
                         <Text style={[s.motoChipText, !p.vehicleId && s.motoChipTextRot]} numberOfLines={1}>
                           {p.vehicleId ? p.vehicleName ?? 'Moto' : 'A rotazione'}
                           {p.vehicleId && p.licenseCategory ? <Text style={s.motoChipCat}> {p.licenseCategory}</Text> : null}
                         </Text>
-                        <Ionicons name="chevron-down" size={12} color={p.vehicleId ? '#C2410C' : '#6B7280'} style={{ opacity: 0.8 }} />
+                        <Ionicons name="chevron-down" size={12} color={p.vehicleId ? '#C2410C' : '#6B6B6B'} style={{ opacity: 0.8 }} />
                       </Pressable>
                       {!motoOnly && p.notes?.trim() ? (
                         <Pressable
@@ -540,7 +540,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                   style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
                   accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
                 >
-                  <Ionicons name={p.notes?.trim() ? 'create' : 'create-outline'} size={19} color={p.notes?.trim() ? '#6B7280' : '#B0B4BD'} />
+                  <Ionicons name={p.notes?.trim() ? 'create' : 'create-outline'} size={19} color={p.notes?.trim() ? '#6B6B6B' : '#B6B6B6'} />
                 </Pressable>
                 <Pressable
                   onPress={() => handleRemove(p.studentId, p.studentName)}
@@ -549,7 +549,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                   style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
                   accessibilityLabel="Rimuovi allievo"
                 >
-                  <Ionicons name="close" size={18} color="#B0B4BD" />
+                  <Ionicons name="close" size={18} color="#B6B6B6" />
                 </Pressable>
                 </>
                 )}
@@ -565,7 +565,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                   accessibilityLabel="Segna presente"
                 >
                   {outcomeBusy === `${p.appointmentId}:present` ? (
-                    <ActivityIndicator size="small" color={p.attendance === 'present' ? '#fff' : '#6B7280'} />
+                    <ActivityIndicator size="small" color={p.attendance === 'present' ? '#fff' : '#6B6B6B'} />
                   ) : (
                     <Text style={[s.attTxt, p.attendance === 'present' && s.attTxtOn]}>Presente</Text>
                   )}
@@ -573,11 +573,11 @@ export default function ManageGroupLessonParticipantsScreen() {
                 <Pressable
                   onPress={() => setOutcome(p.appointmentId, 'absent')}
                   disabled={busy}
-                  style={({ pressed }) => [s.attBtn, p.attendance === 'absent' && { backgroundColor: '#52525B' }, pressed && { opacity: 0.7 }]}
+                  style={({ pressed }) => [s.attBtn, p.attendance === 'absent' && { backgroundColor: '#555555' }, pressed && { opacity: 0.7 }]}
                   accessibilityLabel="Segna assente"
                 >
                   {outcomeBusy === `${p.appointmentId}:absent` ? (
-                    <ActivityIndicator size="small" color={p.attendance === 'absent' ? '#fff' : '#6B7280'} />
+                    <ActivityIndicator size="small" color={p.attendance === 'absent' ? '#fff' : '#6B6B6B'} />
                   ) : (
                     <Text style={[s.attTxt, p.attendance === 'absent' && s.attTxtOn]}>Assente</Text>
                   )}
@@ -593,8 +593,8 @@ export default function ManageGroupLessonParticipantsScreen() {
           <>
             {lesson.participants.length > 0 ? <View style={s.divider} /> : null}
             <View style={s.row}>
-              <View style={s.avatar}><ActivityIndicator size="small" color="#94A3B8" /></View>
-              <Text style={[s.name, { color: '#94A3B8' }]}>Aggiunta in corso…</Text>
+              <View style={s.avatar}><ActivityIndicator size="small" color="#9A9A9A" /></View>
+              <Text style={[s.name, { color: '#9A9A9A' }]}>Aggiunta in corso…</Text>
             </View>
           </>
         ) : null}
@@ -609,7 +609,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                 <Text style={s.name}>Aggiungi allievo</Text>
                 <Text style={s.rowSub}>Seleziona un allievo idoneo</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
             </Pressable>
           </>
         ) : null}
@@ -624,27 +624,27 @@ const s = StyleSheet.create({
   scaffoldBody: { gap: 14 },
   footerWrap: { marginTop: 14 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFEFF1', alignItems: 'center', justifyContent: 'center' },
   subRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: -8 },
-  subtitle: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
+  subtitle: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
   allPresent: { fontSize: 12.5, fontWeight: '600' },
 
   // Attendance segmented pill (second line, indented under the name)
   attWrap: { flexDirection: 'row', alignSelf: 'flex-start', marginLeft: 47, marginTop: -1, marginBottom: 8, backgroundColor: '#F1F2F6', borderRadius: 999, padding: 2 },
   attBtn: { minWidth: 92, paddingVertical: 6, paddingHorizontal: 15, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  attTxt: { fontSize: 12.5, fontWeight: '600', color: '#6B7280' },
+  attTxt: { fontSize: 12.5, fontWeight: '600', color: '#6B6B6B' },
   attTxtOn: { color: '#FFFFFF' },
 
   // Flat list (no card)
   list: { marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13 },
   avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F2F6', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
-  addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
-  name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#1A1A2E' },
+  avatarText: { fontSize: 13, fontWeight: '600', color: '#111111' },
+  addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
+  name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111111' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', maxWidth: '100%' },
-  rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
+  rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
   metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
   metaLineMoto: { color: '#C2410C' },
   // REG-636 — chip moto (pull-down nativo): arancio = moto fissa, grigio = rotazione.
@@ -656,27 +656,27 @@ const s = StyleSheet.create({
   },
   motoChipRot: { backgroundColor: '#F1F2F6' },
   motoChipPressed: { backgroundColor: '#FDE6D0' },
-  motoChipRotPressed: { backgroundColor: '#E6E8EE' },
+  motoChipRotPressed: { backgroundColor: '#E9E9E9' },
   motoChipText: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#C2410C', letterSpacing: -0.1 },
-  motoChipTextRot: { color: '#6B7280' },
+  motoChipTextRot: { color: '#6B6B6B' },
   motoChipCat: { fontWeight: '500', color: '#D9864F' },
-  notePreview: { fontSize: 13, fontWeight: '400', color: '#6B7280' },
+  notePreview: { fontSize: 13, fontWeight: '400', color: '#6B6B6B' },
   actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E9EBF2', marginLeft: 47 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 47 },
 
-  emptyText: { fontSize: 13, fontWeight: '400', color: '#94A3B8', paddingVertical: 8 },
+  emptyText: { fontSize: 13, fontWeight: '400', color: '#9A9A9A', paddingVertical: 8 },
 
   // Separate CTA — easy white card (not primary)
   inviteCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#1A1A2E', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
+    shadowColor: '#111111', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
     marginTop: 6,
   },
-  inviteIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
-  inviteTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
-  inviteSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
+  inviteIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
+  inviteTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  inviteSub: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
 
-  fullText: { fontSize: 13, fontWeight: '400', color: '#94A3B8', textAlign: 'center', paddingVertical: 4 },
+  fullText: { fontSize: 13, fontWeight: '400', color: '#9A9A9A', textAlign: 'center', paddingVertical: 4 },
 });

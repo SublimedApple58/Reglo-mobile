@@ -87,11 +87,11 @@ const SEDE_OPTION = '__sede__';
 
 const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
   manovre: { bg: '#DCFCE7', fg: '#15803D' },
-  parcheggio: { bg: '#E9EBF2', fg: '#0D0D16' },
-  urbano: { bg: '#DBEAFE', fg: '#1D4ED8' },
+  parcheggio: { bg: '#EBEBEB', fg: '#000000' },
+  urbano: { bg: '#EBEBEB', fg: '#111111' },
   extraurbano: { bg: '#CCFBF1', fg: '#0F766E' },
-  notturna: { bg: '#E0E7FF', fg: '#4338CA' },
-  autostrada: { bg: '#EDE9FE', fg: '#6D28D9' },
+  notturna: { bg: '#F2F2F0', fg: '#111111' },
+  autostrada: { bg: '#F1F1F1', fg: '#6D28D9' },
 };
 const tintFor = (t: string) => TYPE_TINT[t.toLowerCase()] ?? { bg: '#F2F2F2', fg: '#595959' };
 
@@ -141,7 +141,7 @@ const gs = StyleSheet.create({
   dim: { opacity: 0.32 },
   badge: {
     position: 'absolute', right: -1, bottom: -1, width: 15, height: 15, borderRadius: 8,
-    backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: '#FDFDFD',
   },
 });
@@ -177,7 +177,7 @@ const HEIGHT_GLIDE = LinearTransition.duration(240).easing(Easing.out(Easing.cub
 const STAT_DISSOLVE = FadeIn.duration(160).reduceMotion(ReduceMotion.Never);
 
 const SEGMENT_EMPTY = '#DDDDDD';
-const SEGMENT_FULL = '#1A1A2E';
+const SEGMENT_FULL = '#111111';
 
 /**
  * Un segmento della barra dell'obbligo.
@@ -692,7 +692,7 @@ export const StudentNotesDetailScreen = () => {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -1179,7 +1179,7 @@ export const StudentNotesDetailScreen = () => {
                             const saving = outcomeSavingId === appt.id;
                             return (
                               <View style={s.tlExamRow}>
-                                <View style={[s.tlChip, { backgroundColor: '#EDE9FE' }]}>
+                                <View style={[s.tlChip, { backgroundColor: '#F1F1F1' }]}>
                                   <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
                                 </View>
                                 {outcome && tone ? (
@@ -1247,9 +1247,9 @@ export const StudentNotesDetailScreen = () => {
                           </View>
                         ) : null}
                         {!isExam && !isGroup && motoType ? (
-                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: '#EEF0F6', alignSelf: 'flex-start', marginTop: allTypes.length ? 6 : 0 }]}>
-                            <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={12} color="#1A1A2E" />
-                            <Text style={[s.tlChipText, { color: '#1A1A2E' }]}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
+                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: '#F1F1F1', alignSelf: 'flex-start', marginTop: allTypes.length ? 6 : 0 }]}>
+                            <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={12} color="#111111" />
+                            <Text style={[s.tlChipText, { color: '#111111' }]}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
                           </View>
                         ) : null}
                         {!isExam ? (
@@ -1290,7 +1290,7 @@ export const StudentNotesDetailScreen = () => {
             onPress={() => Linking.openURL(`tel:${phone}`)}
             style={({ pressed }) => [s.callBtn, pressed && { opacity: 0.85 }]}
           >
-            <Ionicons name="call" size={20} color="#1A1A2E" />
+            <Ionicons name="call" size={20} color="#111111" />
           </Pressable>
           <Pressable
             onPress={() => Linking.openURL(`https://wa.me/${cleanPhone}`)}
@@ -1326,14 +1326,14 @@ const s = StyleSheet.create({
   faceFront: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
   faceBack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: 13 },
   profileLeft: { flex: 1, alignItems: 'center', gap: 4, paddingRight: 8 },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#E9EBF2', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  avatarText: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
-  profileName: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, textAlign: 'center' },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#EBEBEB', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  avatarText: { fontSize: 24, fontWeight: '700', color: '#111111' },
+  profileName: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.3, textAlign: 'center' },
   licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
   licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
   profileStats: { width: 108, alignSelf: 'center' },
   statBlock: { paddingVertical: 6 },
-  statNum: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  statNum: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   statLbl: { fontSize: 12, color: colors.textMuted },
   statHr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   flipHint: { position: 'absolute', top: 12, right: 12 },
@@ -1342,14 +1342,14 @@ const s = StyleSheet.create({
   backTitle: { fontSize: 11, fontWeight: '600', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backLabel: { fontSize: 11, fontWeight: '500', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
-  backValue: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', marginTop: 1 },
+  backValue: { fontSize: 15, fontWeight: '400', color: '#111111', marginTop: 1 },
 
   // Flat blocks
   flatBlock: { marginBottom: 22 },
   flatLabel: { fontSize: 11, fontWeight: '700', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase' },
   obbligoTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   obbligoCountRow: { flexDirection: 'row', alignItems: 'baseline' },
-  obbligoCount: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
+  obbligoCount: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
   obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#929292' },
   segments: { flexDirection: 'row', gap: 6, marginTop: 12 },
   segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#DDDDDD' },
@@ -1360,11 +1360,11 @@ const s = StyleSheet.create({
   examIcon: { width: 40, height: 40 },
   groupOptBlock: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
   groupOptIcon: { width: 40, height: 40 },
-  groupOptTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  groupOptTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   groupOptSub: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 1 },
-  examTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  examTitle: { fontSize: 15, fontWeight: '700', color: '#111111' },
   examDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  examBadge: { backgroundColor: '#EDE9FE', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  examBadge: { backgroundColor: '#F1F1F1', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   examBadgeText: { fontSize: 11, fontWeight: '700', color: '#6D28D9' },
 
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginBottom: 18 },
@@ -1384,7 +1384,7 @@ const s = StyleSheet.create({
     marginTop: 6, paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 8, backgroundColor: '#F2F2F4',
   },
-  tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#1A1A2E' },
+  tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#111111' },
   tlPagellinoOpen: { backgroundColor: '#FEF9C3' },
   tlPagellinoTextOpen: { color: '#A16207' },
   // Niente pannello incorniciato: le voci sono un rientro della riga, non una
@@ -1393,7 +1393,7 @@ const s = StyleSheet.create({
   tlVoce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 7 },
   tlVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F4F4F6' },
   tlVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
-  tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3AD' },
+  tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3A3' },
 
   statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 4 },
@@ -1411,7 +1411,7 @@ const s = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12, backgroundColor: '#ECFDF3',
     alignItems: 'center', justifyContent: 'center',
   },
-  pagInsightStrong: { fontWeight: '600', color: '#1A1A2E' },
+  pagInsightStrong: { fontWeight: '600', color: '#111111' },
   sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 26 },
   sparkTrack: {
     width: 6, height: '100%', borderRadius: 3, backgroundColor: '#EFEFF2',
@@ -1421,15 +1421,15 @@ const s = StyleSheet.create({
   pagBig: { flexDirection: 'row', alignItems: 'baseline' },
   pagRow: { marginTop: 14 },
   pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1A1A2E' },
+  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#111111' },
   pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  pagValNum: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  pagValNum: { fontSize: 13, fontWeight: '700', color: '#111111' },
   pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
   pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
   pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
-  pagFootStrong: { fontWeight: '600', color: '#1A1A2E' },
+  pagFootStrong: { fontWeight: '600', color: '#111111' },
   tlDate: { fontSize: 11, fontWeight: '700', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
-  tlTime: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  tlTime: { fontSize: 15, fontWeight: '700', color: '#111111' },
   tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tlChip: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
   tlChipGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
@@ -1444,11 +1444,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  tlOutcomeEmpty: { borderColor: '#DDD6F3', backgroundColor: 'transparent' },
+  tlOutcomeEmpty: { borderColor: '#E2E2E2', backgroundColor: 'transparent' },
   tlOutcomeText: { fontSize: 11, fontWeight: '700' },
   tlMeta: { fontSize: 13, color: '#929292' },
   tlNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tlNote: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
+  tlNote: { fontSize: 14, color: '#111111', lineHeight: 20 },
   tlNoteEmpty: { color: '#929292', fontStyle: 'italic' },
 
   // Floating contact buttons (no bar — each floats with its own shadow)

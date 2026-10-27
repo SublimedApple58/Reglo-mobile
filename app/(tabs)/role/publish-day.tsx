@@ -54,7 +54,7 @@ export default function PublishDayScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -104,20 +104,20 @@ export default function PublishDayScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 18 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
   headerIcon: { width: 46, height: 46, resizeMode: 'contain', marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, textTransform: 'capitalize' },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, textTransform: 'capitalize' },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ECECEC',
   },
-  toggleLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  toggleLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   toggleDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
 
-  label: { fontSize: 11.5, fontWeight: '700', color: '#9AA1AC', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 12 },
+  label: { fontSize: 11.5, fontWeight: '700', color: '#9E9E9E', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 12 },
 
   cta: {
     minHeight: 54, borderRadius: 27,

@@ -144,10 +144,10 @@ export const MoreScreen = () => {
                 onPress={() => router.push(`/(tabs)/more/${item.route}` as never)}
               >
                 <View style={styles.iconWrap}>
-                  <Ionicons name={item.icon} size={23} color="#1A1A2E" />
+                  <Ionicons name={item.icon} size={23} color="#111111" />
                 </View>
                 <Text style={[styles.rowTitle, { flex: 1 }]}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
+                <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
               </Pressable>
             ))}
           </React.Fragment>
@@ -158,7 +158,7 @@ export const MoreScreen = () => {
 };
 
 const SHADOW = {
-  shadowColor: '#1A1A2E',
+  shadowColor: '#111111',
   shadowOpacity: 0.05,
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 4 },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
     letterSpacing: -0.4,
     marginBottom: 20,
   },
@@ -192,14 +192,14 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: { fontSize: 30, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.4 },
-  heroName: { fontSize: 21, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3, marginTop: 16 },
+  heroName: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginTop: 16 },
   heroEmail: { fontSize: 14, fontWeight: '400', color: '#929292', marginTop: 4 },
-  heroSub: { fontSize: 13, fontWeight: '400', color: '#AEB4CC', marginTop: 2 },
+  heroSub: { fontSize: 13, fontWeight: '400', color: '#B0B0B0', marginTop: 2 },
   companyPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 0,
   },
-  rowPressed: { backgroundColor: '#F4F5F9' },
+  rowPressed: { backgroundColor: '#F4F4F4' },
   iconWrap: {
     width: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTitle: { fontSize: 15.5, fontWeight: '500', color: '#1A1A2E' },
+  rowTitle: { fontSize: 15.5, fontWeight: '500', color: '#111111' },
   divider: { height: 1, backgroundColor: '#F0F1F5', marginVertical: 14 },
 });

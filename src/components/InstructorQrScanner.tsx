@@ -94,8 +94,8 @@ export function InstructorQrScanner({
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#111118' },
-  dim: { backgroundColor: 'rgba(17,17,24,0.35)' },
+  root: { flex: 1, backgroundColor: '#131313' },
+  dim: { backgroundColor: 'rgba(19,19,19,0.35)' },
   content: { flex: 1, paddingHorizontal: 22 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   headerLeft: { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },

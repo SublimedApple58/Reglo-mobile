@@ -61,7 +61,7 @@ export default function RoleTimePickerScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -115,18 +115,18 @@ export default function RoleTimePickerScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28, gap: 18 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
 
   columnsRow: { flexDirection: 'row', gap: spacing.md, justifyContent: 'center' },
   column: { flex: 1, alignItems: 'center', gap: 8 },
-  columnLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, textTransform: 'uppercase' },
-  scrollContainer: { height: COLUMN_HEIGHT, width: '100%', borderRadius: 18, backgroundColor: '#F8FAFC', overflow: 'hidden' },
+  columnLabel: { fontSize: 12, fontWeight: '700', color: '#9A9A9A', letterSpacing: 0.5, textTransform: 'uppercase' },
+  scrollContainer: { height: COLUMN_HEIGHT, width: '100%', borderRadius: 18, backgroundColor: '#F8F8F8', overflow: 'hidden' },
   scrollContent: { paddingVertical: 8, alignItems: 'center' },
   item: { height: ITEM_HEIGHT, width: '82%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  itemSelected: { backgroundColor: '#EEF0F4' },
-  itemText: { fontSize: 18, fontWeight: '500', color: '#64748B' },
-  itemTextSelected: { fontWeight: '700', color: '#1A1A2E' },
+  itemSelected: { backgroundColor: '#F0F0F0' },
+  itemText: { fontSize: 18, fontWeight: '500', color: '#6A6A6A' },
+  itemTextSelected: { fontWeight: '700', color: '#111111' },
 
   cta: {
     height: 54, borderRadius: 27,

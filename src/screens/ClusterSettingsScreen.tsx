@@ -298,7 +298,7 @@ export const ClusterSettingsScreen = () => {
     icon, label, hint, onPress, danger,
   }: { icon: keyof typeof Ionicons.glyphMap; label: string; hint: string; onPress: () => void; danger?: boolean }) => (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-      <Ionicons name={icon} size={23} color={danger ? '#DC2626' : '#1A1A2E'} />
+      <Ionicons name={icon} size={23} color={danger ? '#DC2626' : '#111111'} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.rowLabel}>{label}</Text>
         {loading ? (
@@ -329,7 +329,7 @@ export const ClusterSettingsScreen = () => {
 
         <View style={styles.compactRow}>
           <Pressable onPress={() => router.back()} hitSlop={6} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#1A1A2E" />
+            <Ionicons name="chevron-back" size={22} color="#111111" />
           </Pressable>
           <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Il mio gruppo</Animated.Text>
         </View>
@@ -404,16 +404,16 @@ const styles = StyleSheet.create({
     position: 'absolute', left: H_PAD - 4, width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
   },
-  compactTitle: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  compactTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
 
-  largeTitle: { fontSize: 32, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  largeTitle: { fontSize: 32, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
   pageDesc: { fontSize: 14, color: colors.textMuted, lineHeight: 20, marginTop: 6, marginBottom: 22 },
 
   /* Flat menu rows */
   menuGroup: { paddingHorizontal: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, minHeight: 60 },
   rowPressed: { opacity: 0.55 },
-  rowLabel: { fontSize: 16, fontWeight: '500', color: '#1A1A2E' },
+  rowLabel: { fontSize: 16, fontWeight: '500', color: '#111111' },
   rowHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
   rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 39 },
 
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECECEC',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 5 },
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   codeCardValue: {
     fontSize: 30,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#111111',
     letterSpacing: 6,
     marginTop: 10,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

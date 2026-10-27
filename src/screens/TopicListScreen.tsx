@@ -259,7 +259,7 @@ const st = StyleSheet.create({
   },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   largeSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
   /* List */
@@ -280,7 +280,7 @@ const st = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: colors.border },
   statIcon: { width: 32, height: 32, marginBottom: 2 },
-  statValue: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  statValue: { fontSize: 14, fontWeight: '800', color: '#111111' },
   statLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
 
   /* Chapter card */
@@ -315,7 +315,7 @@ const st = StyleSheet.create({
   rateText: { fontSize: 12, fontWeight: '800' },
   rateGoodText: { color: '#16A34A' },
   rateLowText: { color: '#CA8A04' },
-  barTrack: { height: 4, borderRadius: 2, backgroundColor: '#F0F0F5', overflow: 'hidden' },
+  barTrack: { height: 4, borderRadius: 2, backgroundColor: '#F2F2F2', overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 2, backgroundColor: colors.primary },
   barDone: { backgroundColor: '#16A34A' },
 });

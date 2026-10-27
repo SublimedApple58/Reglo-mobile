@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1A1A2E',
+    borderColor: '#111111',
   },
   dayCellSelected: {
     width: CELL_SIZE,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   dayCellSelectedToday: {
     width: CELL_SIZE,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: CELL_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
   // ── Day text ──────────────────────────────────────────────
   dayText: {
@@ -429,6 +429,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
   },
 });

@@ -41,7 +41,7 @@ export default function SwapDetailScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -50,8 +50,8 @@ export default function SwapDetailScreen() {
         {/* Hero */}
         <View style={s.heroRow}>
           {mine ? (
-            <View style={[s.avatar, { backgroundColor: '#E9EBF2' }]}>
-              <Ionicons name="swap-horizontal" size={24} color="#14141F" />
+            <View style={[s.avatar, { backgroundColor: '#EBEBEB' }]}>
+              <Ionicons name="swap-horizontal" size={24} color="#0A0A0A" />
             </View>
           ) : (
             <UserPhotoCircle userId={offer.requestingStudentId} size={54}>
@@ -89,8 +89,8 @@ export default function SwapDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <View style={[s.chip, { backgroundColor: '#E0E7FF' }]}>
-                  <Ionicons name="person" size={18} color="#4F46E5" />
+                <View style={[s.chip, { backgroundColor: '#F2F2F0' }]}>
+                  <Ionicons name="person" size={18} color="#111111" />
                 </View>
                 <Text style={s.rowText}>{appointment.instructorName}</Text>
               </View>
@@ -101,7 +101,7 @@ export default function SwapDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <View style={[s.chip, { backgroundColor: '#EDE9FE' }]}>
+                <View style={[s.chip, { backgroundColor: '#F1F1F1' }]}>
                   <Ionicons name="car" size={18} color="#7C3AED" />
                 </View>
                 <Text style={s.rowText}>{appointment.vehicleName}</Text>
@@ -112,7 +112,7 @@ export default function SwapDetailScreen() {
           <View style={s.divider} />
           <View style={s.row}>
             <View style={[s.chip, { backgroundColor: '#F3F4F6' }]}>
-              <Ionicons name="time" size={18} color="#6B7280" />
+              <Ionicons name="time" size={18} color="#6B6B6B" />
             </View>
             <Text style={[s.rowText, { color: colors.textSecondary }]}>
               Rispondi entro le {formatTime(offer.expiresAt)}
@@ -148,19 +148,19 @@ export default function SwapDetailScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
 
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 10, marginBottom: 24 },
   avatar: {
     width: 54, height: 54, borderRadius: 27, backgroundColor: '#F4F3F7',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 19, fontWeight: '700', color: '#7C7A8C' },
-  name: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  avatarText: { fontSize: 19, fontWeight: '700', color: '#818181' },
+  name: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   hint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
 
   whenDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-  whenTime: { fontSize: 34, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.6, marginTop: 4 },
+  whenTime: { fontSize: 34, fontWeight: '600', color: '#111111', letterSpacing: -0.6, marginTop: 4 },
 
   rows: { marginTop: 26 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15 },

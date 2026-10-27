@@ -118,7 +118,7 @@ export default function HoursPeriodScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -162,11 +162,11 @@ export default function HoursPeriodScreen() {
       {/* Calendar */}
       <View style={s.calHeader}>
         <Pressable onPress={() => goMonth(-1)} hitSlop={12} style={s.calArrow}>
-          <Ionicons name="chevron-back" size={18} color="#1A1A2E" />
+          <Ionicons name="chevron-back" size={18} color="#111111" />
         </Pressable>
         <Text style={s.calMonth}>{MONTHS[viewMonth]} {viewYear}</Text>
         <Pressable onPress={() => canGoNext && goMonth(1)} hitSlop={12} style={s.calArrow} disabled={!canGoNext}>
-          <Ionicons name="chevron-forward" size={18} color={canGoNext ? '#1A1A2E' : '#D1D5DB'} />
+          <Ionicons name="chevron-forward" size={18} color={canGoNext ? '#111111' : '#D4D4D4'} />
         </Pressable>
       </View>
 
@@ -206,34 +206,34 @@ export default function HoursPeriodScreen() {
   );
 }
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3, marginBottom: 16 },
 
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   chip: {
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+    borderWidth: 1.5, borderColor: '#E5E5E5', backgroundColor: '#F8F8F8',
   },
   chipActive: { borderColor: NAVY, backgroundColor: '#FFFFFF' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
   chipTextActive: { color: NAVY, fontWeight: '700' },
 
   calHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  calArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  calArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   calMonth: { fontSize: 16, fontWeight: '700', color: NAVY, letterSpacing: -0.2 },
 
   weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#94A3B8' },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#9A9A9A' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, height: 44, alignItems: 'center', justifyContent: 'center' },
   // Continuous in-range band (behind the day circle). Half-bands on the edges
   // connect to the full bands of the in-between days.
-  band: { position: 'absolute', top: 3, height: 38, backgroundColor: '#EEF2F6' },
+  band: { position: 'absolute', top: 3, height: 38, backgroundColor: '#F2F2F2' },
   bandFull: { left: 0, right: 0 },
   bandLeft: { left: 0, right: '50%' },
   bandRight: { left: '50%', right: 0 },
@@ -241,7 +241,7 @@ const s = StyleSheet.create({
   dayEdge: { backgroundColor: NAVY },
   dayText: { fontSize: 14, fontWeight: '600', color: NAVY },
   dayTextEdge: { color: '#FFFFFF', fontWeight: '700' },
-  dayTextDisabled: { color: '#CBD5E1' },
+  dayTextDisabled: { color: '#D4D4D4' },
 
   footer: { marginTop: 20, gap: 12 },
   summary: { fontSize: 14, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },

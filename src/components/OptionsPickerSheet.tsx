@@ -13,7 +13,7 @@ import { colors, navy } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { GlassCloseButton } from './GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const INK = '#222222';
 const MUTED = '#929292';
 // REG-636 — toni dei sottotitoli del picker moto (stessi hex del web).
@@ -215,7 +215,7 @@ const s = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 20, gap: 12 },
   title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
   hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
 
   // Stesso campo del picker allievi di "Nuova prenotazione": card bianca su
   // fondo chiaro, non un input incassato. Coerenza prima di originalita'.
@@ -230,7 +230,7 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68,
     paddingVertical: 17, paddingHorizontal: 16, borderRadius: 18,
-    backgroundColor: '#F7F7F8', borderWidth: 1.5, borderColor: 'transparent',
+    backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: 'transparent',
   },
   rowOn: { backgroundColor: navy[50], borderColor: NAVY },
   mark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: navy[200], alignItems: 'center', justifyContent: 'center' },
@@ -263,5 +263,5 @@ const s = StyleSheet.create({
   },
   ctaCountText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  ctaTextOff: { color: '#A3A3AD' },
+  ctaTextOff: { color: '#A3A3A3' },
 });

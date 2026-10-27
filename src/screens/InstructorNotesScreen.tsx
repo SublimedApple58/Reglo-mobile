@@ -41,8 +41,8 @@ const COMPACT_H = 54; // top button row
 const LARGE_TITLE_H = 56;
 const PILLS_H = 60;
 
-const AVATAR_BG = ['#E9EBF2', '#DBEAFE', '#DCFCE7', '#EDE9FE', '#FFEDD5', '#E0F2FE', '#FEE2E2', '#F2F2F2'];
-const AVATAR_FG = ['#0D0D16', '#1D4ED8', '#15803D', '#6D28D9', '#C2410C', '#0369A1', '#B91C1C', '#595959'];
+const AVATAR_BG = ['#EBEBEB', '#EBEBEB', '#DCFCE7', '#F1F1F1', '#FFEDD5', '#CCFBF1', '#FEE2E2', '#F2F2F2'];
+const AVATAR_FG = ['#000000', '#111111', '#15803D', '#6D28D9', '#C2410C', '#0F766E', '#B91C1C', '#595959'];
 const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
 const avatarColors = (id: string) => { const i = hashStr(id) % AVATAR_BG.length; return { bg: AVATAR_BG[i], fg: AVATAR_FG[i] }; };
 
@@ -295,11 +295,11 @@ export const InstructorNotesScreen = () => {
             <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Allievi</Animated.Text>
             <View style={styles.headerBtns}>
               <Pressable onPress={openSearch} hitSlop={6} style={styles.circleBtn}>
-                <Ionicons name="search" size={19} color="#1A1A2E" />
+                <Ionicons name="search" size={19} color="#111111" />
               </Pressable>
               {autonomousMode ? (
                 <Pressable onPress={() => router.push('/(tabs)/notes/cluster-settings' as never)} hitSlop={6} style={styles.circleBtn}>
-                  <Ionicons name="settings-outline" size={19} color="#1A1A2E" />
+                  <Ionicons name="settings-outline" size={19} color="#111111" />
                 </Pressable>
               ) : null}
             </View>
@@ -307,7 +307,7 @@ export const InstructorNotesScreen = () => {
 
           <Animated.View style={[styles.topOverlay, styles.searchOverlayRow, searchRowStyle]} pointerEvents={searchActive ? 'auto' : 'none'}>
             <View style={styles.searchInputBox}>
-              <Ionicons name="search" size={20} color="#1A1A2E" />
+              <Ionicons name="search" size={20} color="#111111" />
               <TextInput
                 ref={searchInputRef}
                 value={searchQuery}
@@ -404,9 +404,9 @@ const styles = StyleSheet.create({
   searchInputBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9,
     height: 46, borderRadius: 999, paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#1A1A2E',
+    backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#111111',
   },
-  compactTitle: { fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3, marginLeft: 2 },
+  compactTitle: { fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.3, marginLeft: 2 },
   headerBtns: { flexDirection: 'row', gap: 10 },
   circleBtn: {
     width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2F2F2',
@@ -414,12 +414,12 @@ const styles = StyleSheet.create({
   },
   pillsWrap: { height: PILLS_H, justifyContent: 'center', paddingHorizontal: H_PAD },
 
-  largeTitle: { fontSize: 32, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5 },
+  largeTitle: { fontSize: 32, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
 
   /* Filter pills */
   filterRow: { flexDirection: 'row', gap: 8 },
   pill: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999, backgroundColor: '#EEF0F3' },
-  pillActive: { backgroundColor: '#1A1A2E' },
+  pillActive: { backgroundColor: '#111111' },
   pillText: { fontSize: 14, fontWeight: '500', color: '#595959' },
   pillTextActive: { color: '#FFFFFF', fontWeight: '600' },
 
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 17, fontWeight: '700' },
   rowBody: { flex: 1, minWidth: 0, gap: 3 },
-  rowName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  rowName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   rowSub: { fontSize: 14, color: '#929292' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
@@ -440,6 +440,6 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', color: '#929292', marginTop: 24, fontSize: 15 },
 
   /* Inline search input */
-  searchInput: { flex: 1, fontSize: 16, color: '#1A1A2E', padding: 0 },
-  cancelText: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  searchInput: { flex: 1, fontSize: 16, color: '#111111', padding: 0 },
+  cancelText: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
 });

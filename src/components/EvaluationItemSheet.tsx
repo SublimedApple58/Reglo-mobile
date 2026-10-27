@@ -17,7 +17,7 @@ import { spacing } from '../theme/spacing';
 import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
 import { GlassCloseButton } from './GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const MUTED = '#929292';
 /** Le stelline del pagellino sono gialle su web e app: deroga voluta al
  *  mono-navy (vedi docs/features/evaluation-sheet.md). */
@@ -118,7 +118,7 @@ export function EvaluationItemSheet() {
         autoFocus={isNew}
         maxLength={MAX_EVALUATION_LABEL_LENGTH}
         placeholder="Es. Manovre e parcheggio"
-        placeholderTextColor="#B8B8C2"
+        placeholderTextColor="#BBBBBB"
         returnKeyType="done"
         onSubmitEditing={submit}
         style={s.input}
@@ -192,13 +192,13 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   x: {
-    width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4',
+    width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2',
     alignItems: 'center', justifyContent: 'center',
   },
 
   fieldLabel: { fontSize: 12.5, fontWeight: '600', color: MUTED, marginBottom: 9, letterSpacing: 0.1 },
   input: {
-    minHeight: 56, borderRadius: 18, backgroundColor: '#F7F7F8',
+    minHeight: 56, borderRadius: 18, backgroundColor: '#F7F7F7',
     borderWidth: 1.5, borderColor: 'transparent',
     paddingHorizontal: 16, fontSize: 16, fontWeight: '600', color: NAVY,
   },
@@ -207,7 +207,7 @@ const s = StyleSheet.create({
 
   scaleRow: { flexDirection: 'row', gap: 10 },
   scaleCard: {
-    flex: 1, minHeight: 82, borderRadius: 18, backgroundColor: '#F7F7F8',
+    flex: 1, minHeight: 82, borderRadius: 18, backgroundColor: '#F7F7F7',
     borderWidth: 1.5, borderColor: 'transparent',
     alignItems: 'center', justifyContent: 'center', gap: 8,
   },
@@ -223,6 +223,6 @@ const s = StyleSheet.create({
   },
   ctaOff: { backgroundColor: '#ECECEF', shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  ctaTextOff: { color: '#A3A3AD' },
+  ctaTextOff: { color: '#A3A3A3' },
 
 });

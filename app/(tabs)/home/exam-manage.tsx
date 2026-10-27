@@ -307,7 +307,7 @@ export default function ExamManageScreen() {
       <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
         <GlassCloseButton onPress={close}>
           <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#1A1A2E" />
+            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -353,7 +353,7 @@ export default function ExamManageScreen() {
               <Text style={s.editTitle}>{endsAt ? 'Modifica orario' : 'Imposta orario'}</Text>
               <Text style={s.editSub}>{timeLabel}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
+            <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
           </Pressable>
         )}
 
@@ -398,7 +398,7 @@ export default function ExamManageScreen() {
                   {coNames ?? 'Nessuno — tocca per aggiungere un collega'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#AEB4CC" />
+              <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
             </Pressable>
           )}
         </View>
@@ -408,7 +408,7 @@ export default function ExamManageScreen() {
           <Text style={s.sec}>ALLIEVI · {realAppts.length}</Text>
           {!readOnly && (
             <Pressable onPress={openAddStudents} hitSlop={8} style={({ pressed }) => [s.add, pressed && { opacity: 0.7 }]}>
-              <Ionicons name="add" size={20} color="#1A1A2E" />
+              <Ionicons name="add" size={20} color="#111111" />
             </Pressable>
           )}
         </View>
@@ -435,10 +435,10 @@ export default function ExamManageScreen() {
                 </View>
               ) : null}
               {readOnly ? (
-                <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
               ) : (
                 <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color="#AEB4CC" />
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#B0B0B0" />
                 </Pressable>
               )}
             </Pressable>
@@ -462,34 +462,34 @@ const s = StyleSheet.create({
   // l'altezza del contenuto, se no la sheet non sa quanto abbracciare.
   sheet: { backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 18, paddingTop: 16 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 24, paddingTop: 2 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
   headerIcon: { width: 52, height: 52 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#9CA3AF', marginTop: 3 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
+  subtitle: { fontSize: 14, fontWeight: '400', color: '#9C9C9C', marginTop: 3 },
 
-  editCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: '#FFFFFF', marginBottom: 12, shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  editIc: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
+  editCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: '#FFFFFF', marginBottom: 12, shadowColor: '#111111', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  editIc: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
   // Icone 3D: niente pastiglia grigia dietro, come sulle card dell'agenda.
   editIc3d: { width: 36, height: 36 },
   accompIc: { width: 24, height: 24 },
-  editTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  editSub: { fontSize: 12.5, fontWeight: '400', color: '#9CA3AF', marginTop: 1 },
+  editTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  editSub: { fontSize: 12.5, fontWeight: '400', color: '#9C9C9C', marginTop: 1 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] },
 
-  accomp: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#F4F5F9', marginBottom: 26 },
+  accomp: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#F4F4F4', marginBottom: 26 },
   accompGroup: { gap: 8, marginBottom: 26 },
-  accompKey: { fontSize: 14, fontWeight: '400', color: '#6E7596' },
-  accompPlaceholder: { color: '#8A91AE', fontWeight: '500' },
-  accompVal: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginLeft: 'auto' },
+  accompKey: { fontSize: 14, fontWeight: '400', color: '#6A6A6A' },
+  accompPlaceholder: { color: '#989898', fontWeight: '500' },
+  accompVal: { fontSize: 14, fontWeight: '600', color: '#111111', marginLeft: 'auto' },
 
   secRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
-  sec: { fontSize: 12, fontWeight: '600', color: '#6E7596', letterSpacing: 0.6 },
-  add: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F4F5F9', alignItems: 'center', justifyContent: 'center' },
+  sec: { fontSize: 12, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.6 },
+  add: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
 
-  studentRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#EEF0F4' },
+  studentRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   // Stessi toni del web: verde idoneo, rosso respinto. Chi non ha esito non
   // porta pastiglia — un esame futuro non è "in attesa di giudizio".
   outcome: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
@@ -498,14 +498,14 @@ const s = StyleSheet.create({
   outcomeTx: { fontSize: 12, fontWeight: '600' },
   outcomeTxOk: { color: '#1A7F50' },
   outcomeTxKo: { color: '#C13515' },
-  studentAv: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF0F4', alignItems: 'center', justifyContent: 'center' },
-  studentAvTx: { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
-  studentNm: { flex: 1, fontSize: 16, fontWeight: '500', color: '#1A1A2E' },
-  emptyStudents: { fontSize: 14, fontWeight: '400', color: '#9CA3AF', paddingVertical: 12, paddingHorizontal: 2 },
+  studentAv: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  studentAvTx: { fontSize: 14, fontWeight: '600', color: '#111111' },
+  studentNm: { flex: 1, fontSize: 16, fontWeight: '500', color: '#111111' },
+  emptyStudents: { fontSize: 14, fontWeight: '400', color: '#9C9C9C', paddingVertical: 12, paddingHorizontal: 2 },
   dots: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
 
-  note: { padding: 14, borderRadius: 16, backgroundColor: '#F4F5F9', marginTop: 6 },
-  noteTx: { fontSize: 14, fontWeight: '400', color: '#6E7596', lineHeight: 21 },
+  note: { padding: 14, borderRadius: 16, backgroundColor: '#F4F4F4', marginTop: 6 },
+  noteTx: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', lineHeight: 21 },
 
   footer: { paddingHorizontal: spacing.lg, paddingTop: 10, paddingBottom: 28, backgroundColor: colors.background },
   cancel: { paddingVertical: 15, borderRadius: 16, backgroundColor: '#FEF2F2', alignItems: 'center' },

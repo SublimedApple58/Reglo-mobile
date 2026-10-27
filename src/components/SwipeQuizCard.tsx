@@ -175,15 +175,15 @@ const st = StyleSheet.create({
   stampText: { fontSize: 20, fontWeight: '900', letterSpacing: 2 },
   cardContent: { padding: 20, paddingTop: 48, gap: 0 },
   imageWrap: {
-    backgroundColor: '#1A1A2E', borderRadius: 16, marginBottom: 16,
+    backgroundColor: '#111111', borderRadius: 16, marginBottom: 16,
     paddingVertical: 20, alignItems: 'center', overflow: 'hidden',
   },
   image: { width: '75%', height: 140 },
-  questionText: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', lineHeight: 26, letterSpacing: -0.2 },
+  questionText: { fontSize: 18, fontWeight: '700', color: '#111111', lineHeight: 26, letterSpacing: -0.2 },
   hintRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F5',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F2F2F2',
   },
   hintText: { fontSize: 11, fontWeight: '600', color: colors.textMuted, letterSpacing: 0.5 },
   hintDot: { fontSize: 12, color: colors.textMuted },

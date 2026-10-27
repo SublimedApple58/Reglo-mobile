@@ -111,7 +111,7 @@ export const WeeklyOverview = ({
             </Pressable>
             {onOpenCalendar ? (
               <Pressable onPress={onOpenCalendar} hitSlop={6} style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.85 }]}>
-                <Ionicons name="calendar-outline" size={21} color="#1A1A2E" />
+                <Ionicons name="calendar-outline" size={21} color="#111111" />
               </Pressable>
             ) : null}
           </View>
@@ -193,7 +193,7 @@ const WeekPage = ({
               <DayWords plan={plan} />
             </View>
             {openable ? (
-              <View style={styles.chev}><Ionicons name="chevron-forward" size={17} color="#D6D9E6" /></View>
+              <View style={styles.chev}><Ionicons name="chevron-forward" size={17} color="#D9D9D9" /></View>
             ) : <View style={styles.chev} />}
           </Pressable>
         );
@@ -290,50 +290,50 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   /* Tonal header panel (mirrors day-view calendar panel) */
-  panel: { backgroundColor: '#F4F5F9', paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 18, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  panel: { backgroundColor: '#F4F4F4', paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 18, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   panelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { flex: 1, fontSize: 26, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5, lineHeight: 28 },
-  titleMonth: { color: '#AEB4CC', fontWeight: '400' },
+  title: { flex: 1, fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
+  titleMonth: { color: '#B0B0B0', fontWeight: '400' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  todayChip: { height: 34, paddingHorizontal: 15, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#1A1A2E', shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  todayChipText: { fontSize: 13, fontWeight: '500', color: '#1A1A2E' },
-  iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#1A1A2E', shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  todayChip: { height: 34, paddingHorizontal: 15, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#111111', shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  todayChipText: { fontSize: 13, fontWeight: '500', color: '#111111' },
+  iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#111111', shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
 
   loadingWrap: { paddingVertical: 24, alignItems: 'center' },
   scroll: { paddingHorizontal: H_PAD, paddingBottom: 140, paddingTop: 6 },
 
-  dRow: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingVertical: 17, borderRadius: 16, borderBottomWidth: 1, borderBottomColor: '#E9EBF2' },
-  dRowToday: { backgroundColor: '#F4F5F9', borderBottomColor: 'transparent', borderRadius: 20, paddingHorizontal: 14, marginHorizontal: -14, marginVertical: 6 },
+  dRow: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingVertical: 17, borderRadius: 16, borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
+  dRowToday: { backgroundColor: '#F4F4F4', borderBottomColor: 'transparent', borderRadius: 20, paddingHorizontal: 14, marginHorizontal: -14, marginVertical: 6 },
 
   dLabel: { width: 40, alignItems: 'center', gap: 3 },
-  dWd: { fontSize: 11, fontWeight: '600', color: '#AEB4CC', letterSpacing: 0.6 },
-  dWdToday: { color: '#1A1A2E' },
-  dNum: { fontSize: 19, fontWeight: '500', letterSpacing: -0.3, color: '#1A1A2E' },
-  dNumWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  dWd: { fontSize: 11, fontWeight: '600', color: '#B0B0B0', letterSpacing: 0.6 },
+  dWdToday: { color: '#111111' },
+  dNum: { fontSize: 19, fontWeight: '500', letterSpacing: -0.3, color: '#111111' },
+  dNumWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   dNumToday: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  dMutedText: { color: '#D6D9E6' },
+  dMutedText: { color: '#D9D9D9' },
 
   dMid: { flex: 1, minWidth: 0, gap: 10 },
-  strip: { height: 8, borderRadius: 4, backgroundColor: '#EEF0F6', overflow: 'hidden', position: 'relative' },
-  stripRest: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E9EBF2' },
-  stripAvail: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#E9EBF2', borderRadius: 4 },
+  strip: { height: 8, borderRadius: 4, backgroundColor: '#F1F1F1', overflow: 'hidden', position: 'relative' },
+  stripRest: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#EBEBEB' },
+  stripAvail: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#EBEBEB', borderRadius: 4 },
   stripSeg: { position: 'absolute', top: 0, bottom: 0, borderRadius: 4 },
-  segBooked: { backgroundColor: '#1A1A2E' },
+  segBooked: { backgroundColor: '#111111' },
   segExam: { backgroundColor: '#8B5CF6' },
   segGroup: { backgroundColor: '#10B981' },
-  segBlock: { backgroundColor: '#D6D9E6' },
+  segBlock: { backgroundColor: '#D9D9D9' },
 
   words: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 7 },
-  wCount: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  wCount: { fontSize: 15, fontWeight: '600', color: '#111111' },
   wExam: { fontSize: 13, fontWeight: '600', color: '#6D28D9' },
   // Guide di gruppo: teal, la stessa tinta dei blocchi gruppo (web + app).
   wGroup: { fontSize: 13, fontWeight: '600', color: '#0F766E' },
-  wRest: { fontSize: 14, fontWeight: '400', color: '#AEB4CC' },
+  wRest: { fontSize: 14, fontWeight: '400', color: '#B0B0B0' },
   wHoliday: { fontSize: 13, fontWeight: '600', color: '#D97706' },
   wSick: { fontSize: 13, fontWeight: '600', color: '#C2410C' },
   wFerie: { fontSize: 13, fontWeight: '600', color: '#0F766E' },
-  wFree: { fontSize: 13, fontWeight: '400', color: '#6E7596' },
-  wFreeStrong: { color: '#1A1A2E', fontWeight: '500' },
+  wFree: { fontSize: 13, fontWeight: '400', color: '#6A6A6A' },
+  wFreeStrong: { color: '#111111', fontWeight: '500' },
 
   chev: { width: 22, alignItems: 'center' },
 });

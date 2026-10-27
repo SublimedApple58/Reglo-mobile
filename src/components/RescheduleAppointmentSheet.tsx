@@ -241,7 +241,7 @@ export const RescheduleAppointmentSheet = ({
             disabled={pending}
           >
             <View style={[styles.iconBox, styles.iconBoxPink]}>
-              <Ionicons name="calendar-outline" size={20} color={'#1A1A2E'} />
+              <Ionicons name="calendar-outline" size={20} color={'#111111'} />
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Cambia data</Text>
@@ -258,7 +258,7 @@ export const RescheduleAppointmentSheet = ({
             disabled={pending}
           >
             <View style={[styles.iconBox, styles.iconBoxYellow]}>
-              <Ionicons name="time-outline" size={20} color="#1A1A2E" />
+              <Ionicons name="time-outline" size={20} color="#111111" />
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Cambia orario</Text>
@@ -350,10 +350,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxPink: {
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
   },
   iconBoxYellow: {
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
   },
   rowText: {
     flex: 1,
@@ -365,14 +365,14 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     ...typography.caption,
-    color: '#1A1A2E',
+    color: '#111111',
     marginTop: 2,
   },
   previewPanel: {
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#D6D9E0',
-    backgroundColor: '#EEF0F4',
+    borderColor: '#DADADA',
+    backgroundColor: '#F0F0F0',
     padding: spacing.md,
     gap: 8,
   },
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   previewBadge: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#111111',
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   diffPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EEF0F4',
+    backgroundColor: '#F0F0F0',
     borderRadius: 999,
     paddingVertical: 3,
     paddingHorizontal: 10,

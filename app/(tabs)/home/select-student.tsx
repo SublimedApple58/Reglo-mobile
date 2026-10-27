@@ -10,11 +10,11 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
-const INK = '#1E293B';
-const MUTED = '#94A3B8';
-const MUTED2 = '#64748B';
-const N100 = '#E9EBF2';
+const NAVY = '#111111';
+const INK = '#1F1F1F';
+const MUTED = '#9A9A9A';
+const MUTED2 = '#6A6A6A';
+const N100 = '#EBEBEB';
 
 const initialsOf = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
@@ -115,7 +115,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 10, gap: 12 },
   title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -126,7 +126,7 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16, color: INK, padding: 0 },
 
   empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 32 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 60 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 60 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 64 },
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },

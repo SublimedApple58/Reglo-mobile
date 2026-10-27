@@ -41,7 +41,7 @@ export default function ManageLessonInstructorScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -53,7 +53,7 @@ export default function ManageLessonInstructorScreen() {
       <SheetScaffold>
         {loading && list.length === 0 ? (
           <View style={s.center}>
-            <ActivityIndicator size="small" color="#1A1A2E" />
+            <ActivityIndicator size="small" color="#111111" />
             <Text style={s.muted}>Carico gli istruttori…</Text>
           </View>
         ) : active.length === 0 ? (
@@ -68,13 +68,13 @@ export default function ManageLessonInstructorScreen() {
                   {idx > 0 ? <View style={s.divider} /> : null}
                   <Pressable onPress={() => pick(it)} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
                     <View style={s.iconCol}>
-                      <Ionicons name="person" size={22} color="#1A1A2E" />
+                      <Ionicons name="person" size={22} color="#111111" />
                     </View>
                     <View style={s.body}>
                       <Text style={[s.name, isSelected && { fontWeight: '700' }]} numberOfLines={1}>{it.name}</Text>
                       {isCurrent ? <Text style={s.sub}>Istruttore attuale</Text> : null}
                     </View>
-                    {isSelected ? <Ionicons name="checkmark-circle" size={22} color="#1A1A2E" /> : null}
+                    {isSelected ? <Ionicons name="checkmark-circle" size={22} color="#111111" /> : null}
                   </Pressable>
                 </View>
               );
@@ -89,9 +89,9 @@ export default function ManageLessonInstructorScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   center: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   muted: { color: colors.textSecondary, fontSize: 13 },
@@ -99,7 +99,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60 },
   iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  sub: { fontSize: 13, color: '#94A3B8' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 40 },
+  name: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  sub: { fontSize: 13, color: '#9A9A9A' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 40 },
 });

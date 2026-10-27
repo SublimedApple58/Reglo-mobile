@@ -38,7 +38,7 @@ export const NativeFormSheet = ({ visible, onClose, onClosed, title, footer, clo
             {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={styles.flex} />}
             <GlassCloseButton onPress={onClose} disabled={closeDisabled}>
               <Pressable onPress={onClose} hitSlop={10} disabled={closeDisabled} style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}>
-                <Ionicons name="close" size={22} color="#1A1A2E" />
+                <Ionicons name="close" size={22} color="#111111" />
               </Pressable>
             </GlassCloseButton>
           </View>
@@ -51,7 +51,7 @@ export const NativeFormSheet = ({ visible, onClose, onClosed, title, footer, clo
 };
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,18,30,0.35)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(21,21,21,0.35)' },
   card: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12, gap: 12 },
   title: { ...typography.subtitle, color: colors.textPrimary, flex: 1 },
-  close: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   footer: { marginTop: spacing.md, gap: spacing.sm },
 });

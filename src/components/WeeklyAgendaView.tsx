@@ -259,8 +259,8 @@ type LessonLook = { bg: string; text: string; sub: string; pressed: string; ring
 
 // Active guides are navy-filled pills; "spent" states (cancelled / no_show) recede
 // to a muted grey so the eye reads the live week at a glance.
-const NAVY: LessonLook = { bg: '#1A1A2E', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#2A2A45' };
-const MUTED: LessonLook = { bg: '#EBEDF3', text: '#8A90A6', sub: 'rgba(110,117,150,0.7)', pressed: '#E1E4EC' };
+const NAVY: LessonLook = { bg: '#111111', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#333333' };
+const MUTED: LessonLook = { bg: '#EEEEEE', text: '#959595', sub: 'rgba(126,126,126,0.7)', pressed: '#E6E6E6' };
 // Allievo con esame il giorno dopo → rosso attenuato ma inconfondibile.
 const RED: LessonLook = { bg: '#F6D2CD', text: '#8E2A20', sub: 'rgba(142,42,32,0.62)', pressed: '#EFC2BC' };
 
@@ -285,8 +285,8 @@ const getLessonLook = (
   if (style) {
     return {
       bg: style.backgroundColor,
-      text: '#1A1A2E',
-      sub: 'rgba(26,26,46,0.62)',
+      text: '#111111',
+      sub: 'rgba(17,17,17,0.62)',
       pressed: style.backgroundColor,
       ring: style.borderColor ?? null,
     };
@@ -300,7 +300,7 @@ const getLessonLook = (
 // gruppo teal, gruppo moto arancio. Il bordo è la versione satura del fondo.
 // `shadow` = l'accento dell'ombra in tinta, gli stessi hex della web app
 // (`--agenda-card-shadow` in globals.css) e delle card della giornaliera.
-const EXAM_LOOK = { bg: '#F5F0FF', shadow: '#8B5CF6', text: '#6D28D9' };
+const EXAM_LOOK = { bg: '#F7F7F7', shadow: '#8B5CF6', text: '#6D28D9' };
 const GROUP_LOOK = { bg: '#ECFDF5', shadow: '#10B981', text: '#0F766E' };
 // Moto group lessons: identical style, ORANGE tint.
 const GROUP_MOTO_LOOK = { bg: '#FFEDD5', shadow: '#F97316', text: '#C2410C' };
@@ -345,7 +345,7 @@ const SkeletonBlock = ({ style }: { style: object }) => {
       true,
     );
   }, [opacity]);
-  const animStyle = useAnimatedStyle(() => ({ backgroundColor: '#1A1A2E', opacity: opacity.value }));
+  const animStyle = useAnimatedStyle(() => ({ backgroundColor: '#111111', opacity: opacity.value }));
   return <Animated.View style={[style, animStyle]} />;
 };
 
@@ -608,8 +608,8 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
     height: (gDur.value / 60) * ROW_H,
     left: GUTTER_W + gCol.value * (colW + COL_GAP) + 2,
     width: colW - 4,
-    backgroundColor: interpolateColor(gLive.value, [0, 1], ['rgba(26,26,46,0.09)', 'rgba(26,26,46,0.16)']),
-    borderColor: interpolateColor(gLive.value, [0, 1], ['rgba(26,26,46,0.45)', 'rgba(26,26,46,0.80)']),
+    backgroundColor: interpolateColor(gLive.value, [0, 1], ['rgba(17,17,17,0.09)', 'rgba(17,17,17,0.16)']),
+    borderColor: interpolateColor(gLive.value, [0, 1], ['rgba(17,17,17,0.45)', 'rgba(17,17,17,0.80)']),
     shadowOpacity: interpolate(gLive.value, [0, 1], [0.10, 0.32]),
   }));
   const knobStyle = useAnimatedStyle(() => ({
@@ -926,8 +926,8 @@ const WeekPage = React.memo(function WeekPage({
               <Text
                 style={[
                   styles.dayLetter,
-                  isPast && !isHoliday && { color: '#C2C7DA' },
-                  isToday && { color: '#1A1A2E' },
+                  isPast && !isHoliday && { color: '#CCCCCC' },
+                  isToday && { color: '#111111' },
                   isHoliday && { color: '#D97706' },
                 ]}
               >
@@ -941,7 +941,7 @@ const WeekPage = React.memo(function WeekPage({
                 <Text
                   style={[
                     styles.dayNumber,
-                    isPast && !isHoliday && { color: '#C2C7DA' },
+                    isPast && !isHoliday && { color: '#CCCCCC' },
                     isHoliday && { color: '#D97706' },
                   ]}
                 >
@@ -991,8 +991,8 @@ const WeekPage = React.memo(function WeekPage({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#1A1A2E"
-              colors={['#1A1A2E']}
+              tintColor="#111111"
+              colors={['#111111']}
             />
           ) : undefined
         }
@@ -1012,9 +1012,9 @@ const WeekPage = React.memo(function WeekPage({
                 width: colW,
                 height: gridHeight,
                 borderRadius: 14,
-                backgroundColor: isHoliday ? '#FFF8EC' : '#F4F5F9',
+                backgroundColor: isHoliday ? '#FFF8EC' : '#F4F4F4',
                 borderWidth: isTodayCol ? 1.5 : 0,
-                borderColor: '#D6D9E6',
+                borderColor: '#D9D9D9',
               }}
             />
           );
@@ -1046,7 +1046,7 @@ const WeekPage = React.memo(function WeekPage({
           >
             <Text style={styles.hourLabel}>{pad(hour)}</Text>
             {idx > 0 && (
-              <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#DCDFEA' }} />
+              <View style={{ position: 'absolute', top: 0, left: GUTTER_W, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: '#E2E2E2' }} />
             )}
           </View>
         ))}
@@ -1454,7 +1454,7 @@ export default function WeeklyAgendaView({
           <Pressable
             onPress={goToday}
             hitSlop={8}
-            style={({ pressed }) => [styles.todayPill, pressed && { backgroundColor: '#2A2A45' }]}
+            style={({ pressed }) => [styles.todayPill, pressed && { backgroundColor: '#333333' }]}
           >
             <Ionicons name="arrow-undo" size={13} color="#FFFFFF" />
             <Text style={styles.todayPillText}>Oggi</Text>
@@ -1494,9 +1494,9 @@ export default function WeeklyAgendaView({
           <Pressable
             onPress={dismissGhost}
             hitSlop={6}
-            style={({ pressed }) => [styles.ctaClose, pressed && { backgroundColor: '#E9EBF2' }]}
+            style={({ pressed }) => [styles.ctaClose, pressed && { backgroundColor: '#EBEBEB' }]}
           >
-            <Ionicons name="close" size={17} color="#6E7596" />
+            <Ionicons name="close" size={17} color="#6A6A6A" />
           </Pressable>
           <View style={styles.ctaInfo}>
             <Text style={styles.ctaDay} numberOfLines={1}>
@@ -1509,7 +1509,7 @@ export default function WeeklyAgendaView({
           </View>
           <Pressable
             onPress={confirmGhost}
-            style={({ pressed }) => [styles.ctaBtn, pressed && { backgroundColor: '#2A2A45', transform: [{ scale: 0.97 }] }]}
+            style={({ pressed }) => [styles.ctaBtn, pressed && { backgroundColor: '#333333', transform: [{ scale: 0.97 }] }]}
           >
             <GradientCTABackground radius={15} />
             <Text style={styles.ctaBtnText}>Scegli i dettagli</Text>
@@ -1535,7 +1535,7 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 12,
   },
-  weekLabel: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  weekLabel: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
   todayPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1543,8 +1543,8 @@ const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: 16,
     borderRadius: 18,
-    backgroundColor: '#1A1A2E',
-    shadowColor: '#1A1A2E',
+    backgroundColor: '#111111',
+    shadowColor: '#111111',
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -1553,18 +1553,18 @@ const styles = StyleSheet.create({
   todayPillText: { fontSize: 13.5, fontWeight: '600', color: '#FFFFFF' },
   dayHeaderRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10 },
   dayHeaderCell: { alignItems: 'center' },
-  dayLetter: { fontSize: 11, fontWeight: '600', color: '#6E7596', letterSpacing: 0.3, marginBottom: 4 },
-  dayNumber: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  dayLetter: { fontSize: 11, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.3, marginBottom: 4 },
+  dayNumber: { fontSize: 15, fontWeight: '600', color: '#111111' },
   todayCircle: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: '#1A1A2E',
+    width: 26, height: 26, borderRadius: 13, backgroundColor: '#111111',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1A1A2E', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    shadowColor: '#111111', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   todayCircleText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   scrollView: { flex: 1 },
   hourLabel: {
     position: 'absolute', top: -7, left: 4, width: GUTTER_W - 8,
-    fontSize: 10, fontWeight: '500', color: '#AEB4CC', fontVariant: ['tabular-nums'],
+    fontSize: 10, fontWeight: '500', color: '#B0B0B0', fontVariant: ['tabular-nums'],
   },
   // Faint availability hint over the grey canvas — just lighter, no shadow.
   availTint: {
@@ -1587,7 +1587,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    shadowColor: '#0D0D16',
+    shadowColor: '#000000',
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
@@ -1596,23 +1596,23 @@ const styles = StyleSheet.create({
   ghostTime: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#1A1A2E',
+    color: '#111111',
     fontVariant: ['tabular-nums'],
   },
   ghostDurChip: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E9EBF2',
+    borderColor: '#EBEBEB',
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    shadowColor: '#0D0D16',
+    shadowColor: '#000000',
     shadowOpacity: 0.08,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  ghostDurText: { fontSize: 8.5, fontWeight: '600', color: '#6E7596' },
+  ghostDurText: { fontSize: 8.5, fontWeight: '600', color: '#6A6A6A' },
   ghostKnob: {
     position: 'absolute',
     left: '50%',
@@ -1622,17 +1622,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#1A1A2E',
+    borderColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0D0D16',
+    shadowColor: '#000000',
     shadowOpacity: 0.22,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 7,
     zIndex: 9,
   },
-  ghostKnobBar: { width: 8, height: 2, borderRadius: 1, backgroundColor: '#AEB4CC' },
+  ghostKnobBar: { width: 8, height: 2, borderRadius: 1, backgroundColor: '#B0B0B0' },
   /* ── Ghost CTA bar ── */
   ctaBar: {
     position: 'absolute',
@@ -1647,7 +1647,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    shadowColor: '#0D0D16',
+    shadowColor: '#000000',
     shadowOpacity: 0.30,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
@@ -1657,14 +1657,14 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F4F5F9',
+    backgroundColor: '#F4F4F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaInfo: { flex: 1, minWidth: 0 },
-  ctaDay: { fontSize: 11, fontWeight: '600', color: '#6E7596', textTransform: 'capitalize' },
-  ctaTime: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 1, fontVariant: ['tabular-nums'] },
-  ctaDur: { fontSize: 12, fontWeight: '600', color: '#AEB4CC', letterSpacing: 0 },
+  ctaDay: { fontSize: 11, fontWeight: '600', color: '#6A6A6A', textTransform: 'capitalize' },
+  ctaTime: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2, marginTop: 1, fontVariant: ['tabular-nums'] },
+  ctaDur: { fontSize: 12, fontWeight: '600', color: '#B0B0B0', letterSpacing: 0 },
   ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1679,7 +1679,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 13,
     zIndex: 4,
-    shadowColor: '#0D0D16',
+    shadowColor: '#000000',
     shadowOpacity: 0.28,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
@@ -1740,7 +1740,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F7F7F7',
     borderRadius: 22,
     padding: 14,
     shadowColor: '#8B5CF6',
@@ -1751,7 +1751,7 @@ const styles = StyleSheet.create({
   },
   examBannerIcon: { width: 42, height: 42 },
   examBannerLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examBannerTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  examBannerTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
   block: {
     position: 'absolute',
     borderRadius: 13,
@@ -1763,7 +1763,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   // Lezione teorica in griglia: pieno, bordo solido (override del dashed).
-  blockSolid: { borderStyle: 'solid', borderWidth: 0, shadowColor: '#6366F1', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  blockSolid: { borderStyle: 'solid', borderWidth: 0, shadowColor: '#111111', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   blockName: { fontSize: 10, fontWeight: '700', lineHeight: 13 },
   blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });

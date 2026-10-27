@@ -89,7 +89,7 @@ export const QuizSessionScreen = () => {
     ],
     borderColor: cardBorderColor.value > 0.5 ? '#16A34A'
       : cardBorderColor.value < -0.5 ? '#C13515'
-      : '#F0F0F5',
+      : '#F2F2F2',
     borderWidth: Math.abs(cardBorderColor.value) > 0.1 ? 2 : 1,
   }));
 
@@ -935,11 +935,11 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
   schedaDotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
-  schedaDotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#1A1A2E' },
+  schedaDotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#111111' },
   schedaDotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   schedaDotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
   schedaDotText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
-  schedaDotTextActive: { color: '#1A1A2E' },
+  schedaDotTextActive: { color: '#111111' },
 
   // Swipe mode
   swipeHeader: {
@@ -948,11 +948,11 @@ const st = StyleSheet.create({
   },
   swipeCounter: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   swipeProgressTrack: {
-    height: 3, backgroundColor: '#F0F0F5', marginHorizontal: spacing.md, borderRadius: 1.5,
+    height: 3, backgroundColor: '#F2F2F2', marginHorizontal: spacing.md, borderRadius: 1.5,
     overflow: 'hidden', marginBottom: 4,
   },
   swipeProgressFill: {
-    height: '100%', backgroundColor: '#1A1A2E', borderRadius: 1.5,
+    height: '100%', backgroundColor: '#111111', borderRadius: 1.5,
   },
   swipeArea: { flex: 1 },
   swipeBtnRow: {
@@ -975,7 +975,7 @@ const st = StyleSheet.create({
     marginHorizontal: spacing.md,
     borderRadius: 24, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
   },
-  swipeAutoFailTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E' },
+  swipeAutoFailTitle: { fontSize: 22, fontWeight: '800', color: '#111111' },
   swipeAutoFailSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 24 },
 
   // Feedback card (tap-anywhere)
@@ -1035,16 +1035,16 @@ const st = StyleSheet.create({
   // Question card
   questionCard: {
     borderRadius: 24, overflow: 'hidden',
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0F0F5',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2F2F2',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 14, elevation: 5,
   },
   imageWrap: {
-    backgroundColor: '#1A1A2E', paddingVertical: 20, alignItems: 'center',
+    backgroundColor: '#111111', paddingVertical: 20, alignItems: 'center',
   },
   questionImage: { width: '80%', height: 160 },
   questionText: {
-    fontSize: 18, fontWeight: '700', color: '#1A1A2E',
+    fontSize: 18, fontWeight: '700', color: '#111111',
     lineHeight: 26, letterSpacing: -0.2,
     padding: 20,
   },
@@ -1097,7 +1097,7 @@ const st = StyleSheet.create({
   },
   explanationHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   explanationTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  explanationHtml: { fontSize: 13, color: '#4A4458', lineHeight: 19 },
+  explanationHtml: { fontSize: 13, color: '#4D4D4D', lineHeight: 19 },
 
   // Next button
   nextBtn: {
@@ -1113,7 +1113,7 @@ const st = StyleSheet.create({
     alignItems: 'center', gap: 10, paddingVertical: 32, paddingHorizontal: 24,
     borderRadius: 24, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
   },
-  examFailTitle: { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
+  examFailTitle: { fontSize: 18, fontWeight: '800', color: '#111111' },
   examFailSub: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, textAlign: 'center' },
 
   // SCHEDA navigation
@@ -1153,11 +1153,11 @@ const st = StyleSheet.create({
     borderWidth: 1.5,
   },
   dotPending: { backgroundColor: '#FFFFFF', borderColor: '#DDDDDD' },
-  dotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#1A1A2E' },
+  dotCurrent: { backgroundColor: '#F2F2F2', borderColor: '#111111' },
   dotCorrect: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   dotWrong: { backgroundColor: '#FEE2E2', borderColor: colors.destructive },
-  dotExamAnswered: { backgroundColor: '#F2F2F2', borderColor: '#D1D5DB' },
+  dotExamAnswered: { backgroundColor: '#F2F2F2', borderColor: '#D4D4D4' },
   dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  dotTextCurrent: { color: '#1A1A2E' },
-  dotTextDone: { color: '#1A1A2E' },
+  dotTextCurrent: { color: '#111111' },
+  dotTextDone: { color: '#111111' },
 });

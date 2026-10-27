@@ -11,7 +11,7 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (y: number, m0: number, d: number) => `${y}-${pad(m0 + 1)}-${pad(d)}`;
@@ -113,11 +113,11 @@ export default function SelectDateRangeScreen() {
       >
       <View style={s.calHeader}>
         <Pressable onPress={() => canGoPrev && goMonth(-1)} hitSlop={12} style={s.calArrow} disabled={!canGoPrev}>
-          <Ionicons name="chevron-back" size={18} color={canGoPrev ? NAVY : '#D1D5DB'} />
+          <Ionicons name="chevron-back" size={18} color={canGoPrev ? NAVY : '#D4D4D4'} />
         </Pressable>
         <Text style={s.calMonth}>{MONTHS[viewMonth]} {viewYear}</Text>
         <Pressable onPress={() => canGoNext && goMonth(1)} hitSlop={12} style={s.calArrow} disabled={!canGoNext}>
-          <Ionicons name="chevron-forward" size={18} color={canGoNext ? NAVY : '#D1D5DB'} />
+          <Ionicons name="chevron-forward" size={18} color={canGoNext ? NAVY : '#D4D4D4'} />
         </Pressable>
       </View>
 
@@ -159,18 +159,18 @@ const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 14, paddingHorizontal: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, gap: 12 },
   title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
 
   calHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  calArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  calArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   calMonth: { fontSize: 16, fontWeight: '700', color: NAVY, letterSpacing: -0.2 },
 
   weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#94A3B8' },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#9A9A9A' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, height: 44, alignItems: 'center', justifyContent: 'center' },
-  band: { position: 'absolute', top: 3, height: 38, backgroundColor: '#EEF2F6' },
+  band: { position: 'absolute', top: 3, height: 38, backgroundColor: '#F2F2F2' },
   bandFull: { left: 0, right: 0 },
   bandLeft: { left: 0, right: '50%' },
   bandRight: { left: '50%', right: 0 },
@@ -178,7 +178,7 @@ const s = StyleSheet.create({
   dayEdge: { backgroundColor: NAVY },
   dayText: { fontSize: 14, fontWeight: '600', color: NAVY },
   dayTextEdge: { color: '#FFFFFF', fontWeight: '700' },
-  dayTextDisabled: { color: '#CBD5E1' },
+  dayTextDisabled: { color: '#D4D4D4' },
 
   footer: { marginTop: 18, gap: 12 },
   summary: { fontSize: 14, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },

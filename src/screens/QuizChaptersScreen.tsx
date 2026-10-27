@@ -115,7 +115,7 @@ export const QuizChaptersScreen = () => {
                       pressed && { transform: [{ scale: 0.95 }] },
                     ]}
                   >
-                    {f.icon && <Ionicons name={f.icon} size={15} color={filter === f.key ? '#1A1A2E' : colors.textMuted} />}
+                    {f.icon && <Ionicons name={f.icon} size={15} color={filter === f.key ? '#111111' : colors.textMuted} />}
                     <Text style={[st.filterChipText, filter === f.key && st.filterChipTextActive]}>
                       {f.label}
                     </Text>
@@ -227,7 +227,7 @@ const st = StyleSheet.create({
     marginBottom: 16,
   },
   pageTitle: {
-    fontSize: 28, fontWeight: '600', color: '#1A1A2E',
+    fontSize: 28, fontWeight: '600', color: '#111111',
     letterSpacing: -0.5, lineHeight: 34,
   },
   pageSubtitle: {
@@ -242,7 +242,7 @@ const st = StyleSheet.create({
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     paddingVertical: 12, paddingHorizontal: 20, borderRadius: 24,
-    backgroundColor: '#F0F0F5',
+    backgroundColor: '#F2F2F2',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
@@ -255,11 +255,11 @@ const st = StyleSheet.create({
     fontSize: 14, fontWeight: '600', color: colors.textMuted,
   },
   filterChipTextActive: {
-    color: '#1A1A2E', fontWeight: '700',
+    color: '#111111', fontWeight: '700',
   },
   searchIconBtn: {
     width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#F0F0F5', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
@@ -268,7 +268,7 @@ const st = StyleSheet.create({
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 14, paddingHorizontal: 18, borderRadius: 24,
-    backgroundColor: '#F0F0F5', marginBottom: 6,
+    backgroundColor: '#F2F2F2', marginBottom: 6,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
@@ -293,7 +293,7 @@ const st = StyleSheet.create({
   cardIconDone: { backgroundColor: '#16A34A' },
   cardInfo: { flex: 1, gap: 6 },
   cardTitle: {
-    fontSize: 17, fontWeight: '700', color: '#1A1A2E', lineHeight: 22,
+    fontSize: 17, fontWeight: '700', color: '#111111', lineHeight: 22,
   },
   cardProgressRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -304,7 +304,7 @@ const st = StyleSheet.create({
   cardProgressPct: { fontSize: 13, fontWeight: '800', color: colors.textPrimary },
   cardProgressPctDone: { color: '#16A34A' },
   cardBarTrack: {
-    height: 5, borderRadius: 2.5, backgroundColor: '#F0F0F5', overflow: 'hidden',
+    height: 5, borderRadius: 2.5, backgroundColor: '#F2F2F2', overflow: 'hidden',
   },
   cardBarFill: {
     height: '100%', borderRadius: 2.5, backgroundColor: colors.primary,

@@ -7,6 +7,16 @@
 
 ## 1. Palette Colori
 
+> **Via il blu (REG-638, 27/10/2026), su TUTTA l'app** (allievo, istruttore,
+> titolare, login, onboarding): `colors.primary` = **`#111111`** come il web e
+> Road; la scala brand si chiama `ink` (`navy` resta come alias deprecato, con
+> valori neutri: 50 `#F4F4F4` · 100 `#EBEBEB` · 200 `#D9D9D9` · 300 `#B0B0B0` ·
+> 400 `#6A6A6A` · 500 `#111111`). CTA nere piene, logo nero, icona e splash neri
+> (nativi: arrivano con la build). Grigi solo **neutri** (niente slate bluastri),
+> nessun blu/indaco/navy. Restano i colori di stato (verde/rosso/ambra), il giallo
+> e il viola degli esami, la palette agenda scelta dal titolare
+> (`agendaColors.ts`, allineata al web). Dove sotto si legge «navy» oggi vale nero.
+
 ### 1.1 Token Semantici
 
 Definiti in `src/theme/colors.ts` → oggetto `colors`:
@@ -209,20 +219,20 @@ opacity: 0.9,
 transform: [{ scale: 0.96 }],
 ```
 
-### 5.2 CTA Navy Primary — GRADIENT (regola 2026-07-02)
+### 5.2 CTA Primary — NERO PIENO (regola REG-638, 27/10/2026; prima gradiente navy)
 
-Ogni CTA primary navy usa il **gradiente diagonale condiviso** (nato sul
-phone gate), NON il navy flat. Componenti in `src/components/GradientCTA.tsx`:
+Dal «via il blu» (REG-638) la CTA primary è **nero pieno `#111111`** come in
+Reglo Road e sul web: niente navy, niente gradiente. I componenti restano gli
+stessi (l'API non cambia, il «gradiente» ha un solo colore). Componenti in `src/components/GradientCTA.tsx`:
 
 - **Bottone nuovo** → `<Button tone="primary" />` (già gradiente) oppure
   `Pressable` (radius+shadow) + `<GradientCTA style={...}>` come fill.
 - **Bottone esistente / conversione** → `<GradientCTABackground radius={R} />`
   come PRIMO figlio del Pressable + rimuovere `backgroundColor` dallo style
   (layout/ombre invariati). `R` = il borderRadius dello style.
-- Gradiente: `['#26263F', colors.primary, '#131322']`, start `{0.2,0}` → end `{0.8,1}`.
-- Ombra colorata OBBLIGATORIA sul Pressable: `primaryCtaShadow` (shadowColor
-  navy `colors.primary`, opacity 0.4, radius 16, offset 0/10, elevation 8) —
-  effetto 3D pronunciato, riferimento phone gate (regola 2026-07-03). Mai ombre
+- Colore: `PRIMARY_GRADIENT = [colors.primary, colors.primary]` (nero pieno).
+- Ombra OBBLIGATORIA sul Pressable: `primaryCtaShadow` (shadowColor `#000`,
+  opacity 0.16, radius 12, offset 0/6, elevation 5) — leggera, stile Road. Mai ombre
   ad-hoc sui CTA gradient: sempre `...primaryCtaShadow` spread nello style.
   Se il gradiente è condizionale (varianti navy/disabled), l'ombra segue la
   STESSA condizione. Il view che porta l'ombra non deve avere
@@ -893,7 +903,7 @@ restano nella schermata: il foglio disegna soltanto.
 (etichetta della CTA multipla) e `subtitle` per opzione. Per le misure interne dello sheet
 (respiro, CTA ancorata in fondo) vedi §13.2.1.
 
-Liste **scrollabili a lunghezza variabile** → `presentation: 'modal'` (page sheet). Liste **corte content-hugging** → `formSheet` + `sheetAllowedDetents: 'fitToContents'` + **NIENTE ScrollView interna** (vedi [[reference_formsheet_layout_rule]]).
+Ogni foglio, anche con liste lunghe, è un **form sheet alto quanto il contenuto che scorre da sé** (regola Reglo, §13.2.1). Il **page sheet non si usa più per le liste lunghe**: quelli che ci sono ancora (`select-options-long`, `select-student`, …) vanno portati alla regola quando si toccano.
 
 > **Corollario, costato un rilascio rotto il 23/09/2026 (REG-510).** In un form `SCROLL_SHEET` ci deve essere **un solo contenitore scrollabile**: quello dello `SheetScaffold`. Mettere accanto a lui un'altra `ScrollView` — anche solo **orizzontale**, come una barra filtri — li fa competere per l'altezza dentro la colonna flex: quella orizzontale collassa e il suo contenuto trabocca sopra l'header e la X. Titolo, filtri e lista vanno **dentro** lo scaffold e scorrono insieme, com'è in `StudentPaymentsScreen`.
 
@@ -1495,7 +1505,7 @@ Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSh
 
 Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` con `useSyncExternalStore`.
 
-**IMPORTANTE:** con `fitToContents` non usare `flex: 1` ne' `ScrollView` nel root — il contenuto deve avere altezza esplicita. Usare `View` per contenuto fisso, `ScrollView` solo per contenuto lungo con detent fissi (es. `[0.7, 0.95]`).
+**IMPORTANTE:** con `fitToContents` niente `flex: 1` nel root e **mai una View/ScrollView interna separata** che scorre dentro il foglio. Se il contenuto supera lo schermo, la radice della schermata È lo scroll (vedi §13.2.1).
 
 **Schermi migrati a formSheet:**
 - `lesson-detail` — dettaglio guida (fitToContents)
@@ -1503,6 +1513,21 @@ Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` c
 - `quiz-hint` — hint quiz con HTML (fitToContents)
 
 ### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
+
+> **Regola Reglo (Tiziano, 27/10/2026) — vale per OGNI foglio.**
+> - Il foglio è un **form sheet nativo** (`presentation: 'formSheet'` +
+>   `sheetAllowedDetents: 'fitToContents'`), **alto quanto il contenuto**:
+>   nessuno spazio bianco sotto l'ultima cosa.
+> - Se il contenuto è lungo, **scorre il form sheet stesso**: la radice della
+>   schermata è la `ScrollView` (meccanismo nativo del foglio, che arriva al
+>   massimo dell'altezza e poi scorre). **Mai** una `View`/`ScrollView` interna
+>   separata che scorre dentro un contenitore fisso (niente `hugScroll`,
+>   niente scaffold con area di scroll interna).
+> - **Mai page sheet per le liste lunghe**: la lunghezza non è un motivo per
+>   passare a `presentation: 'modal'`. Le route `PAGE_SHEET` rimaste sono
+>   storiche e si migrano quando si toccano.
+> - Riferimento in codice: `app/(tabs)/home/manage-lesson-details.tsx`
+>   (variante Road: radice `ScrollView` con testata, voci e CTA dentro).
 
 Misure verificate su simulatore (iPhone 17 Pro, set. 2026) sul picker
 `OptionsPickerSheet`, valide per ogni form sheet con CTA in fondo.

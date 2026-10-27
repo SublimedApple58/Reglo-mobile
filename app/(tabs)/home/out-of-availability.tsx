@@ -16,10 +16,10 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
-const MUTED = '#94A3B8';
-const N100 = '#E9EBF2';
+const MUTED = '#9A9A9A';
+const N100 = '#EBEBEB';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
@@ -154,14 +154,14 @@ export default function OutOfAvailabilityScreen() {
 }
 
 const ELEV = {
-  shadowColor: '#1A1A2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
 } as const;
 
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
   title: { flex: 1, fontSize: 22, fontWeight: '600', color: NAVY, letterSpacing: -0.4 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF0F3', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
 
   empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 40 },
 
@@ -171,7 +171,7 @@ const s = StyleSheet.create({
   glHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
   glPeople: { width: 40, height: 40 },
   glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
-  glCount: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2, marginTop: 2 },
+  glCount: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
   studentName: { flex: 1, fontSize: 16, fontWeight: '600', color: NAVY },
   chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: N100 },

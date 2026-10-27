@@ -45,15 +45,15 @@ export const lessonBadge = (
 ): LessonBadge => {
   const s = norm(a.status);
   if (a.type === 'esame' && s !== 'cancelled' && s !== 'no_show') {
-    return { label: 'Esame', bg: '#EEF2FF', text: '#4338CA', isExam: true };
+    return { label: 'Esame', bg: '#F2F2F0', text: '#111111', isExam: true };
   }
   if (s === 'pending_review') return { label: 'Da confermare', bg: '#FFF7ED', text: '#EA580C', isExam: false };
-  if (s === 'checked_in') return { label: 'In corso', bg: '#EEF0F4', text: '#1A1A2E', isExam: false };
+  if (s === 'checked_in') return { label: 'In corso', bg: '#F0F0F0', text: '#111111', isExam: false };
   if (s === 'completed') return { label: 'Completata', bg: '#F0FDF4', text: '#16A34A', isExam: false };
   if (s === 'no_show' || s === 'cancelled') return { label: s === 'no_show' ? 'Assente' : 'Annullata', bg: '#F2F2F2', text: '#6A6A6A', isExam: false };
   const completed = completedMinutes[a.studentId] ?? 0;
   if (completed < MANDATORY_MINUTES_THRESHOLD && durationMinutesOf(a) >= 60) {
-    return { label: 'Obbligatoria', bg: '#F0F9FF', text: '#0369A1', isExam: false };
+    return { label: 'Obbligatoria', bg: '#F0FDFA', text: '#0F766E', isExam: false };
   }
   return { label: 'Programmata', bg: '#FEF9C3', text: '#CA8A04', isExam: false };
 };
@@ -87,8 +87,8 @@ export const BLOCK_PRESENTATION: Record<
 > = {
   sick: { label: 'In malattia', short: 'Malattia', color: '#C2410C', bg: '#FFF1E9', border: '#F5A97A', icon: 'medkit' },
   ferie: { label: 'In ferie', short: 'Ferie', color: '#0F766E', bg: '#DDF3F0', border: '#5FBFB4', icon: 'sunny' },
-  theory: { label: 'Lezione teorica', short: 'Teorica', color: '#3730a3', bg: '#E6E9FF', border: '#A5ABF0', icon: 'book' },
-  generic: { label: 'Slot bloccato', short: 'Bloccato', color: '#6E7596', bg: '#ECEEF5', border: '#AEB4CC', icon: 'lock-closed' },
+  theory: { label: 'Lezione teorica', short: 'Teorica', color: '#3A3A3C', bg: '#EFEDE8', border: '#D6D2C8', icon: 'book' },
+  generic: { label: 'Slot bloccato', short: 'Bloccato', color: '#6A6A6A', bg: '#F0F0F0', border: '#B0B0B0', icon: 'lock-closed' },
 };
 
 export type DayBlockRow = { block: InstructorBlock; startMin: number; endMin: number; isSick: boolean; kind: BlockKind };

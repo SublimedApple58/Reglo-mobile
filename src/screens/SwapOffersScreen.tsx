@@ -207,8 +207,8 @@ export const SwapOffersScreen = () => {
         {/* Top: who */}
         <View style={st.cardTop}>
           {mine ? (
-            <View style={[st.avatar, { backgroundColor: '#E9EBF2' }]}>
-              <Ionicons name="swap-horizontal" size={22} color="#14141F" />
+            <View style={[st.avatar, { backgroundColor: '#EBEBEB' }]}>
+              <Ionicons name="swap-horizontal" size={22} color="#0A0A0A" />
             </View>
           ) : (
             <UserPhotoCircle userId={offer.requestingStudentId} size={44}>
@@ -224,8 +224,8 @@ export const SwapOffersScreen = () => {
             <Text style={st.cardHint}>{mine ? 'in attesa di un sostituto' : 'cerca un sostituto'}</Text>
           </View>
           {mine ? (
-            <View style={[st.openBadge, { backgroundColor: '#E9EBF2' }]}>
-              <Text style={[st.openBadgeText, { color: '#14141F' }]}>In attesa</Text>
+            <View style={[st.openBadge, { backgroundColor: '#EBEBEB' }]}>
+              <Text style={[st.openBadgeText, { color: '#0A0A0A' }]}>In attesa</Text>
             </View>
           ) : (
             <View style={st.openBadge}>
@@ -237,8 +237,8 @@ export const SwapOffersScreen = () => {
 
         {/* When */}
         <View style={st.whenRow}>
-          <View style={[st.chip, { backgroundColor: '#E9EBF2' }]}>
-            <Ionicons name="calendar" size={17} color="#14141F" />
+          <View style={[st.chip, { backgroundColor: '#EBEBEB' }]}>
+            <Ionicons name="calendar" size={17} color="#0A0A0A" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={st.whenDate}>{formatDay(offer.appointment.startsAt)}</Text>
@@ -417,7 +417,7 @@ const st = StyleSheet.create({
   compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
 
   /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.3 },
+  largeTitle: { fontSize: 24, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
   largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 18 },
 
   /* Scroll */
@@ -431,7 +431,7 @@ const st = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
   },
   emptyIcon: { width: 44, height: 44, opacity: 0.9 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   emptySub: { fontSize: 14, fontWeight: '400', color: colors.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: 8 },
 
   /* Sections */
@@ -443,10 +443,10 @@ const st = StyleSheet.create({
   list: { gap: 18 },
   card: {
     backgroundColor: colors.surface, borderRadius: 28, padding: 18,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 28, elevation: 5,
+    shadowColor: '#111111', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 28, elevation: 5,
   },
   myCard: {
-    borderWidth: 1.5, borderColor: '#D6D9E6', backgroundColor: '#FDFDFD',
+    borderWidth: 1.5, borderColor: '#D9D9D9', backgroundColor: '#FDFDFD',
   },
   cardPressed: { opacity: 0.96, transform: [{ scale: 0.985 }] },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
@@ -454,8 +454,8 @@ const st = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#F4F3F7',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 15, fontWeight: '700', color: '#7C7A8C' },
-  cardName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  avatarText: { fontSize: 15, fontWeight: '700', color: '#818181' },
+  cardName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   cardHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
   openBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -466,7 +466,7 @@ const st = StyleSheet.create({
 
   whenRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   chip: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  whenDate: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  whenDate: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   whenTime: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 1 },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },

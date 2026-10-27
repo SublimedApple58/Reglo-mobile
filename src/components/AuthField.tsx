@@ -8,10 +8,10 @@ import {
   View,
 } from 'react-native';
 
-const NAVY = '#1A1A2E';
-const NAVY_400 = '#6E7596';
-const NAVY_300 = '#AEB4CC';
-const NAVY_100 = '#E9EBF2';
+const NAVY = '#111111';
+const NAVY_400 = '#6A6A6A';
+const NAVY_300 = '#B0B0B0';
+const NAVY_100 = '#EBEBEB';
 const IVORY = '#F5EFE6';
 
 type AuthFieldProps = TextInputProps & {
@@ -47,7 +47,7 @@ export const AuthField = ({
         <TextInput
           {...props}
           secureTextEntry={password ? hidden : props.secureTextEntry}
-          placeholderTextColor={dark ? '#7E84A0' : '#9AA1BB'}
+          placeholderTextColor={dark ? '#8B8B8B' : '#A7A7A7'}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -73,7 +73,7 @@ export const AuthField = ({
 const styles = StyleSheet.create({
   wrap: { marginTop: 13 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6, marginLeft: 3 },
-  labelLight: { color: '#14141F' },
+  labelLight: { color: '#0A0A0A' },
   labelDark: { color: NAVY_300 },
   field: {
     height: 54,

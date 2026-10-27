@@ -307,7 +307,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
             {published ? (
               <Image source={FLUENT_CHECK} style={styles.statusIcon} />
             ) : (
-              <Ionicons name="ellipse-outline" size={17} color="#C0C4CC" />
+              <Ionicons name="ellipse-outline" size={17} color="#C5C5C5" />
             )}
             <Text style={styles.actionTitle}>{published ? 'Pubblicata' : 'Da pubblicare'}</Text>
           </View>
@@ -335,7 +335,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
       {/* ── Swipe hint ────────────────────────────────────── */}
       {!loading && (
         <View style={styles.swipeHint}>
-          <Ionicons name="arrow-back" size={13} color="#B0B5BD" />
+          <Ionicons name="arrow-back" size={13} color="#B6B6B6" />
           <Text style={styles.swipeHintText}>Trascina un giorno verso sinistra per attivarlo o disattivarlo</Text>
         </View>
       )}
@@ -382,16 +382,16 @@ const styles = StyleSheet.create({
   /* ── Week pills ──────────────────────────────────────── */
   rail: { gap: 8, paddingRight: 8, paddingVertical: 2 },
   weekPill: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  weekPillOff: { backgroundColor: '#F1F2F4' },
+  weekPillOff: { backgroundColor: '#F2F2F2' },
   weekPillPub: { backgroundColor: PUB_BG },
-  weekPillSel: { backgroundColor: '#1A1A2E' },
+  weekPillSel: { backgroundColor: '#111111' },
   weekPillText: { fontSize: 14, fontWeight: '600', color: '#929292', letterSpacing: -0.2 },
   weekPillTextPub: { color: '#444444', fontWeight: '700' },
   weekPillTextSel: { color: '#FFFFFF', fontWeight: '700' },
 
   /* ── Swipe hint ──────────────────────────────────────── */
   swipeHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 },
-  swipeHintText: { fontSize: 12, fontWeight: '500', color: '#B0B5BD', letterSpacing: -0.1 },
+  swipeHintText: { fontSize: 12, fontWeight: '500', color: '#B6B6B6', letterSpacing: -0.1 },
 
   /* ── Day list (flat) ─────────────────────────────────── */
   list: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HAIRLINE },
@@ -414,23 +414,23 @@ const styles = StyleSheet.create({
   swipePillDisable: { backgroundColor: '#6A6A6A' },
   swipePillEnable: { backgroundColor: '#34C759' },
   swipeActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
-  dayName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  dayName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   todayLabel: { fontSize: 13, fontWeight: '500', color: '#929292', marginLeft: 1 },
 
   chipsArea: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
   timeChip: {
     backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13,
-    shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
+    shadowColor: '#111111', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
   },
-  timeChipText: { fontSize: 13.5, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
-  restText: { fontSize: 15, fontWeight: '400', color: '#C0C4CC' },
+  timeChipText: { fontSize: 13.5, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
+  restText: { fontSize: 15, fontWeight: '400', color: '#C5C5C5' },
 
   /* ── Action bar (Airbnb footer-style, placed up top) ─── */
   actionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 },
   actionInfo: { flex: 1, gap: 3 },
   actionStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusIcon: { width: 20, height: 20, resizeMode: 'contain' },
-  actionTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.2 },
+  actionTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
   btnPublish: {
     borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
     alignItems: 'center', justifyContent: 'center',

@@ -253,7 +253,7 @@ export default function ManageLessonDetailsScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color={road ? '#3A3A3C' : '#1A1A2E'} />
+            <Ionicons name="close" size={20} color={road ? '#3A3A3C' : '#111111'} />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -570,10 +570,10 @@ const s = StyleSheet.create({
   rootRoad: { paddingTop: 22 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 20 },
   headerBlockRoad: { marginBottom: 2 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
@@ -585,7 +585,7 @@ const s = StyleSheet.create({
   esitoText: { fontSize: 14, fontWeight: '600', color: '#8A8A8F' },
   esitoTextPresente: { color: '#047857' },
   esitoTextAssente: { color: '#B91C1C' },
-  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   pagellinoHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   pagellinoLead: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19, marginBottom: 12, marginTop: -2 },
@@ -596,8 +596,8 @@ const s = StyleSheet.create({
   pagellinoItem: { paddingVertical: 12, gap: 6 },
   pagellinoItemBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  pagellinoLabelOff: { color: '#A3A3AD' },
+  pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
+  pagellinoLabelOff: { color: '#A3A3A3' },
   voiceCard: {
     borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#EFEFF2', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 13,
@@ -614,14 +614,14 @@ const s = StyleSheet.create({
   // font e la pillola "balla" fra una voce e l'altra.
   scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207', lineHeight: 20 },
   scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04', lineHeight: 20 },
-  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3AD', lineHeight: 20 },
+  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3A3', lineHeight: 20 },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3AD', textAlign: 'center' },
+  pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', textAlign: 'center' },
   pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notes: {
     minHeight: 110, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12, color: '#1A1A2E', backgroundColor: '#F7F7F8',
+    paddingHorizontal: 14, paddingVertical: 12, color: '#111111', backgroundColor: '#F7F7F7',
     textAlignVertical: 'top', fontSize: 15, lineHeight: 22,
   },
 

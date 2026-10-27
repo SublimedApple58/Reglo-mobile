@@ -16,7 +16,7 @@ import { GlassCloseButton } from '../GlassCloseButton';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const GREY = '#717171';
 const MUTED = '#929292';
 const RED = '#C13515';
@@ -251,7 +251,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
                 ? 'Nessuna auto al seguito'
                 : (chosenCar?.name ?? "Scegli un'auto libera")}
             </Text>
-            <Ionicons name="chevron-forward" size={16} color="#C7CBD1" />
+            <Ionicons name="chevron-forward" size={16} color="#C9C9C9" />
           </Pressable>
         ) : answered ? (
           <View style={s.quietRow}>
@@ -405,7 +405,7 @@ const s = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 16, gap: 12 },
   title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
   hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
 
   /* riepilogo: quante sono libere, e perche' le altre no */
   strip: {
@@ -445,7 +445,7 @@ const s = StyleSheet.create({
   select: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, marginLeft: 30,
     minHeight: 46, borderRadius: 14, paddingHorizontal: 13,
-    backgroundColor: '#F7F7F8', borderWidth: 1, borderColor: '#EDEEF2',
+    backgroundColor: '#F7F7F7', borderWidth: 1, borderColor: '#EDEEF2',
   },
   selectTxt: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
   selectPlaceholder: { fontWeight: '500', color: GREY },
@@ -471,7 +471,7 @@ const s = StyleSheet.create({
   },
   ctaOff: { backgroundColor: '#ECECEF', shadowOpacity: 0, elevation: 0 },
   ctaTxt: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  ctaTxtOff: { color: '#A3A3AD' },
+  ctaTxtOff: { color: '#A3A3A3' },
   onlyFree: { alignItems: 'center', paddingTop: 14, paddingBottom: 2 },
   onlyFreeTxt: { fontSize: 14, fontWeight: '600', color: NAVY, textDecorationLine: 'underline' },
 });

@@ -157,11 +157,11 @@ export const VehiclesScreen = () => {
 
         <View style={styles.compactRow}>
           <Pressable onPress={() => router.back()} hitSlop={6} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#1A1A2E" />
+            <Ionicons name="chevron-back" size={22} color="#111111" />
           </Pressable>
           <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Veicoli</Animated.Text>
           <Pressable onPress={() => openForm(null)} hitSlop={6} style={styles.addBtn}>
-            <Ionicons name="add" size={27} color="#1A1A2E" />
+            <Ionicons name="add" size={27} color="#111111" />
           </Pressable>
         </View>
       </View>
@@ -193,7 +193,7 @@ export const VehiclesScreen = () => {
                 {i > 0 ? <View style={styles.divider} /> : null}
                 <View style={styles.row}>
                   <View style={styles.vIcon}>
-                    <Ionicons name="car-outline" size={24} color="#D6D9E6" />
+                    <Ionicons name="car-outline" size={24} color="#D9D9D9" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <SkeletonBlock width="45%" height={15} radius={6} />
@@ -206,7 +206,7 @@ export const VehiclesScreen = () => {
         ) : vehicles.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyCircle}>
-              <Ionicons name="car-outline" size={42} color="#6E7596" />
+              <Ionicons name="car-outline" size={42} color="#6A6A6A" />
             </View>
             <Text style={styles.emptyTitle}>Nessun veicolo</Text>
             <Text style={styles.emptySub}>Aggiungi i mezzi dell'autoscuola con il + in alto a destra.</Text>
@@ -242,7 +242,7 @@ export const VehiclesScreen = () => {
                   style={({ pressed }) => [styles.row, !isActive && styles.rowInactive, pressed && styles.rowPressed]}
                 >
                   <View style={styles.vIcon}>
-                    <Ionicons name={isMine ? 'car-sport' : 'car-outline'} size={24} color="#1A1A2E" />
+                    <Ionicons name={isMine ? 'car-sport' : 'car-outline'} size={24} color="#111111" />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={styles.vNameRow}>
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
   compactRow: { height: COMPACT_H, justifyContent: 'center', alignItems: 'center' },
   backBtn: { position: 'absolute', left: H_PAD - 4, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   addBtn: { position: 'absolute', right: H_PAD - 4, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  compactTitle: { fontSize: 17, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  compactTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
 
-  largeTitle: { fontSize: 32, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.5 },
+  largeTitle: { fontSize: 32, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
   pageDesc: { fontSize: 14, color: colors.textMuted, lineHeight: 20, marginTop: 6, marginBottom: 14 },
 
   /* Flat rows */
@@ -291,8 +291,8 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 40 },
   vIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
   vNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  vName: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.1, flexShrink: 1 },
-  minePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#1A1A2E' },
+  vName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.1, flexShrink: 1 },
+  minePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#111111' },
   minePillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
   vSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
   ellipsisBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
@@ -304,6 +304,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
   emptySub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18, maxWidth: 250 },
 });

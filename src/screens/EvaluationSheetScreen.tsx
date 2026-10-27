@@ -48,7 +48,7 @@ import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
 
 const FLUENT_MEMO = require('../../assets/icons/fluent-memo.png');
 
-const NAVY = '#1A1A2E';
+const NAVY = '#111111';
 const MUTED = '#929292';
 const GOLD = '#FACC15';
 
@@ -180,7 +180,7 @@ const SortableRow = ({
       </Pressable>
       <GestureDetector gesture={pan}>
         <View style={s.handle} accessibilityLabel={`Sposta ${item.label}`}>
-          <Ionicons name="reorder-two" size={22} color="#C4C4CE" />
+          <Ionicons name="reorder-two" size={22} color="#C7C7C7" />
         </View>
       </GestureDetector>
     </Animated.View>
@@ -518,7 +518,7 @@ const s = StyleSheet.create({
     borderRadius: 22,
     paddingHorizontal: 18,
     paddingVertical: 18,
-    shadowColor: '#1A1A2E',
+    shadowColor: '#111111',
     shadowOpacity: 0.05,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -528,7 +528,7 @@ const s = StyleSheet.create({
   toggleSub: { fontSize: 12.5, fontWeight: '500', color: MUTED, marginTop: 4, lineHeight: 17 },
 
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  listLabel: { fontSize: 11.5, fontWeight: '700', color: '#A3A3AD', letterSpacing: 0.8 },
+  listLabel: { fontSize: 11.5, fontWeight: '700', color: '#A3A3A3', letterSpacing: 0.8 },
   listCount: { fontSize: 12.5, fontWeight: '600', color: MUTED },
 
   row: {
@@ -564,15 +564,15 @@ const s = StyleSheet.create({
     gap: 7,
     height: 48,
     borderRadius: 18,
-    backgroundColor: '#F7F7F8',
+    backgroundColor: '#F7F7F7',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E9EBF2',
+    borderColor: '#EBEBEB',
     marginTop: 10,
   },
   addText: { fontSize: 14.5, fontWeight: '600', color: '#6A6A6A' },
   limit: { fontSize: 12.5, fontWeight: '500', color: MUTED, textAlign: 'center', marginTop: 14, lineHeight: 17 },
-  none: { fontSize: 12.5, fontWeight: '500', color: '#A3A3AD', textAlign: 'center', marginTop: 14 },
-  footNote: { fontSize: 12, fontWeight: '500', color: '#A3A3AD', lineHeight: 17, marginTop: 18 },
+  none: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', textAlign: 'center', marginTop: 14 },
+  footNote: { fontSize: 12, fontWeight: '500', color: '#A3A3A3', lineHeight: 17, marginTop: 18 },
 
   empty: { alignItems: 'center', marginTop: 30 },
   emptyIcon: { width: 62, height: 62, marginBottom: 14 },

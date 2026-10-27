@@ -21,10 +21,10 @@ import { useSession } from '../context/SessionContext';
 import { colors } from '../theme';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
-const NAVY = colors.primary; // #1A1A2E
+const NAVY = colors.primary; // #111111
 const IVORY = '#F5EFE6';
-const NAVY_300 = '#AEB4CC';
-const NAVY_400 = '#6E7596';
+const NAVY_300 = '#B0B0B0';
+const NAVY_400 = '#6A6A6A';
 
 type SignupScreenProps = {
   /** 'inline' = Android full navy screen · 'sheet' = iOS native page sheet */
@@ -93,7 +93,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
       <AuthField label="Password" dark={dark} password placeholder="••••••••" value={password} onChangeText={setPassword} />
 
       <View style={styles.codeWrap}>
-        <Text style={[styles.codeLabel, { color: dark ? NAVY_300 : '#14141F' }]}>Codice di invito</Text>
+        <Text style={[styles.codeLabel, { color: dark ? NAVY_300 : '#0A0A0A' }]}>Codice di invito</Text>
         <TextInput
           style={[styles.codeInput, dark ? styles.codeInputDark : styles.codeInputLight]}
           value={schoolCode}
@@ -102,7 +102,7 @@ export const SignupScreen = ({ mode = 'inline' }: SignupScreenProps) => {
           autoCorrect={false}
           maxLength={6}
           placeholder="ABC123"
-          placeholderTextColor={dark ? '#7E84A0' : '#9AA1BB'}
+          placeholderTextColor={dark ? '#8B8B8B' : '#A7A7A7'}
         />
         <Text style={[styles.codeHint, { color: dark ? NAVY_400 : NAVY_400 }]}>
           Ricevuto dalla tua autoscuola o dall'istruttore
@@ -223,8 +223,8 @@ const styles = StyleSheet.create({
   // inline (Android)
   inlineRoot: { flex: 1, backgroundColor: '#FFFFFF' },
   inlineBody: { paddingHorizontal: 28 },
-  inlineTitle: { fontSize: 27, fontWeight: '600', color: '#1B1B27', letterSpacing: -0.4 },
-  inlineSub: { fontSize: 14.5, fontWeight: '400', color: '#8A8A96', marginTop: 6 },
+  inlineTitle: { fontSize: 27, fontWeight: '600', color: '#1F1F1F', letterSpacing: -0.4 },
+  inlineSub: { fontSize: 14.5, fontWeight: '400', color: '#8E8E8E', marginTop: 6 },
 
   // code field
   codeWrap: { marginTop: 16 },

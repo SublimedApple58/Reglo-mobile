@@ -158,7 +158,7 @@ export default function LocationFormScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -183,7 +183,7 @@ export default function LocationFormScreen() {
           value={name}
           onChangeText={setName}
           placeholder="Es. Piazzale del Comune"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#9C9C9C"
           maxLength={80}
           returnKeyType="done"
         />
@@ -208,18 +208,18 @@ export default function LocationFormScreen() {
                 value={address}
                 onChangeText={(t) => { setAddress(t); setPlaceId(null); setLatitude(null); setLongitude(null); }}
                 placeholder="Es. Via Roma 14, Milano"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#9C9C9C"
                 editable={Boolean(PLACES_API_KEY)}
                 returnKeyType="search"
               />
-              {searching ? <ActivityIndicator style={s.spinner} color="#9CA3AF" size="small" /> : null}
+              {searching ? <ActivityIndicator style={s.spinner} color="#9C9C9C" size="small" /> : null}
             </View>
 
             {suggestions.length > 0 ? (
               <View style={s.suggestionsBox}>
                 {suggestions.map((sug) => (
                   <Pressable key={sug.placeId} style={s.suggestionRow} onPress={() => selectSuggestion(sug)}>
-                    <Ionicons name="location-outline" size={16} color="#9CA3AF" />
+                    <Ionicons name="location-outline" size={16} color="#9C9C9C" />
                     <View style={{ flex: 1 }}>
                       <Text style={s.suggestionPrimary}>{sug.primaryText}</Text>
                       <Text style={s.suggestionSecondary} numberOfLines={1}>{sug.secondaryText}</Text>
@@ -231,7 +231,7 @@ export default function LocationFormScreen() {
 
             {latitude != null && longitude != null ? (
               <View style={s.coordsRow}>
-                <Ionicons name="checkmark-circle" size={15} color="#6E7596" />
+                <Ionicons name="checkmark-circle" size={15} color="#6A6A6A" />
                 <Text style={s.coords}>Coordinate agganciate · {latitude.toFixed(5)}, {longitude.toFixed(5)}</Text>
               </View>
             ) : null}
@@ -247,36 +247,36 @@ export default function LocationFormScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4, marginBottom: 18 },
-  label: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginTop: 22, marginBottom: 10 },
-  helper: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginBottom: 10, lineHeight: 18 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 22, marginBottom: 10 },
+  helper: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginBottom: 10, lineHeight: 18 },
   input: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#1A1A2E',
+    borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#111111',
     backgroundColor: '#FFFFFF',
   },
-  inputDisabled: { backgroundColor: '#F8FAFC', color: '#9CA3AF' },
+  inputDisabled: { backgroundColor: '#F8F8F8', color: '#9C9C9C' },
   spinner: { position: 'absolute', right: 16, top: 16 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 4, marginTop: 26,
   },
-  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
-  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9CA3AF', marginTop: 3, lineHeight: 18 },
+  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
+  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 3, lineHeight: 18 },
   suggestionsBox: {
-    marginTop: 8, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14,
+    marginTop: 8, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
     backgroundColor: '#FFFFFF', overflow: 'hidden',
   },
   suggestionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F1F5F9',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F2F2F2',
   },
-  suggestionPrimary: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  suggestionSecondary: { fontSize: 13, fontWeight: '400', color: '#9CA3AF' },
+  suggestionPrimary: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  suggestionSecondary: { fontSize: 13, fontWeight: '400', color: '#9C9C9C' },
   coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
-  coords: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
+  coords: { fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
   error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
   cta: {
     height: 56, borderRadius: 28, marginTop: 30,

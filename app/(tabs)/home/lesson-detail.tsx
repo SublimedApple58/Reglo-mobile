@@ -79,7 +79,7 @@ export default function LessonDetailScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -138,7 +138,7 @@ export default function LessonDetailScreen() {
           </Text>
           {hasActiveSwap && (
             <View style={s.swapBanner}>
-              <Ionicons name="swap-horizontal" size={14} color="#14141F" />
+              <Ionicons name="swap-horizontal" size={14} color="#0A0A0A" />
               <Text style={s.swapBannerText}>Sostituzione richiesta · in attesa di un compagno</Text>
             </View>
           )}
@@ -191,8 +191,8 @@ export default function LessonDetailScreen() {
         <View style={[s.groupCard, road && { marginTop: 14 }]}>
           {/* Instructor */}
           <View style={s.row}>
-            <View style={[s.iconChip, { backgroundColor: '#E0E7FF' }]}>
-              <Ionicons name="person" size={18} color="#4F46E5" />
+            <View style={[s.iconChip, { backgroundColor: '#F2F2F0' }]}>
+              <Ionicons name="person" size={18} color="#111111" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.rowValue}>{lesson.instructor?.name ?? 'Da assegnare'}</Text>
@@ -209,7 +209,7 @@ export default function LessonDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#EDE9FE' }]}>
+                <View style={[s.iconChip, { backgroundColor: '#F1F1F1' }]}>
                   <Ionicons name="car" size={18} color="#7C3AED" />
                 </View>
                 <Text style={s.rowValue}>{lesson.vehicle?.name ?? 'Da assegnare'}</Text>
@@ -249,8 +249,8 @@ export default function LessonDetailScreen() {
             <>
               <View style={s.divider} />
               <View style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="flag" size={18} color="#2563EB" />
+                <View style={[s.iconChip, { backgroundColor: '#EBEBEB' }]}>
+                  <Ionicons name="flag" size={18} color="#111111" />
                 </View>
                 <Text style={s.rowValue}>{lesson.types.map(formatLessonType).join(', ')}</Text>
               </View>
@@ -282,16 +282,16 @@ export default function LessonDetailScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   header: { gap: 4, paddingTop: 10 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-  heroTime: { fontSize: 36, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.8, marginTop: 6 },
+  heroTime: { fontSize: 36, fontWeight: '600', color: '#111111', letterSpacing: -0.8, marginTop: 6 },
   statusBadge: {
     backgroundColor: '#F3F4F6', borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 5,
   },
-  statusText: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.2 },
+  statusText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', letterSpacing: 0.2 },
   statusBadgeDone: { backgroundColor: '#E6F6EC' },
   statusTextDone: { color: '#067647' },
   heroDuration: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
@@ -301,7 +301,7 @@ const s = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   rowValue: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
-  rowLink: { fontSize: 14, fontWeight: '600', color: '#3B82F6', marginTop: 2 },
+  rowLink: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 2 },
   swapShadow: {
     borderRadius: 27,
     ...primaryCtaShadow,
@@ -314,9 +314,9 @@ const s = StyleSheet.create({
   swapBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
     marginTop: 12, paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999, backgroundColor: '#E9EBF2',
+    borderRadius: 999, backgroundColor: '#EBEBEB',
   },
-  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#14141F', letterSpacing: -0.1 },
+  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.1 },
   revokeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 54, borderRadius: 27,
@@ -346,6 +346,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingTop: 12, paddingHorizontal: 8, paddingBottom: 2,
   },
-  roadHdTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  roadHdTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   roadHdMeta: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A' },
 });

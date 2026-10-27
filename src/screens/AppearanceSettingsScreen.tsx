@@ -223,7 +223,7 @@ export const AppearanceSettingsScreen = () => {
     <Screen>
       <Header onBack={() => router.back()} saving={saving} />
       {loading ? (
-        <View style={s.center}><ActivityIndicator color="#1A1A2E" /></View>
+        <View style={s.center}><ActivityIndicator color="#111111" /></View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           {/* ── Criterio: segmented ─────────────── */}
@@ -252,7 +252,7 @@ export const AppearanceSettingsScreen = () => {
                 <Pressable onPress={() => openEntryPicker(e.label, e.key)} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
                   <View style={[s.dot, { backgroundColor: vividHex(e, resolveColorOverride(e, overrides[ns])) }]} />
                   <Text style={s.rowLabel} numberOfLines={1}>{e.label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               </View>
             ))}
@@ -316,7 +316,7 @@ export const AppearanceSettingsScreen = () => {
                   />
                   <Text style={s.rowLabel} numberOfLines={1}>Colore del bordo</Text>
                   <Text style={s.rowValue}>{marker.color ? (AGENDA_SWATCHES.find((sw) => sw.hex === marker.color)?.name ?? 'Personalizzato') : 'Nero'}</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#C7CBD1" />
+                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
                 </Pressable>
               </>
             ) : null}
@@ -347,48 +347,48 @@ export const AppearanceSettingsScreen = () => {
 const Header = ({ onBack, saving }: { onBack: () => void; saving: boolean }) => (
   <View style={s.header}>
     <Pressable onPress={onBack} hitSlop={8} style={s.backBtn}>
-      <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
+      <Ionicons name="chevron-back" size={24} color="#111111" />
     </Pressable>
     <Text style={s.headerTitle}>Aspetto agenda</Text>
-    <View style={s.headerRight}>{saving ? <ActivityIndicator size="small" color="#94A3B8" /> : null}</View>
+    <View style={s.headerRight}>{saving ? <ActivityIndicator size="small" color="#9A9A9A" /> : null}</View>
   </View>
 );
 
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, gap: 8 },
   backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4 },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.4 },
   headerRight: { width: 34, alignItems: 'flex-end' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 48 },
 
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6, marginTop: 26, marginBottom: 10 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#9A9A9A', letterSpacing: 0.6, marginTop: 26, marginBottom: 10 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginTop: 16 },
-  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
+  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
 
   // Segmented control: capsula (pillola) — stesso riferimento delle tab
   // "Una volta/Ricorrente" (availability-exception): track grigio, pillola bianca.
   segment: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: 4, gap: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
-  segmentItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  segmentText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
-  segmentTextActive: { color: '#1A1A2E', fontWeight: '700' },
+  segmentItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#111111', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  segmentText: { fontSize: 15, fontWeight: '600', color: '#6B6B6B' },
+  segmentTextActive: { color: '#111111', fontWeight: '700' },
 
   // Liste piatte su sfondo pagina (no card-in-card), divisori inset.
   list: {},
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 56 },
   rowPressed: { opacity: 0.55 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEDF0', marginLeft: 38 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 38 },
   dot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#00000012' },
-  dotOff: { backgroundColor: '#E5E7EB' },
-  rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#1A1A2E' },
-  rowValue: { fontSize: 15, fontWeight: '500', color: '#8A8F98' },
+  dotOff: { backgroundColor: '#E5E5E5' },
+  rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#111111' },
+  rowValue: { fontSize: 15, fontWeight: '500', color: '#909090' },
   dividerFull: { marginLeft: 0 },
   markerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 15, minHeight: 56 },
-  markerLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#1A1A2E', lineHeight: 21 },
-  markerHint: { fontSize: 13.5, fontWeight: '500', color: '#8A8F98', lineHeight: 19, marginTop: 4, marginBottom: 15, paddingRight: 64 },
+  markerLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#111111', lineHeight: 21 },
+  markerHint: { fontSize: 13.5, fontWeight: '500', color: '#909090', lineHeight: 19, marginTop: 4, marginBottom: 15, paddingRight: 64 },
   // Mini blocco guida col bordo: anteprima a colpo d'occhio di come appare in agenda.
   markerPreview: { width: 34, height: 24, borderRadius: 7, borderWidth: AUTOMATIC_MARKER_WIDTH },
 });

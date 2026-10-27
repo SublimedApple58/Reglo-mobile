@@ -91,7 +91,7 @@ export default function BookingRulesScreen() {
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -211,12 +211,12 @@ export default function BookingRulesScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   section: { gap: 11 },
-  label: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  label: { fontSize: 13, fontWeight: '600', color: '#4A4A4A' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // REG-426 per-path panel
   pathCard: {
@@ -224,18 +224,18 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#EBEDF0',
+    borderColor: '#ECECEC',
     paddingHorizontal: 16,
   },
   pathRow: { paddingVertical: 16, gap: 10 },
   pathRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F0' },
-  pathTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  pathTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
   pathCats: { fontSize: 12, fontWeight: '500', color: '#A0A0A0', marginTop: -6 },
   pathChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pathHint: { fontSize: 12, fontWeight: '500', color: colors.textMuted, lineHeight: 17, paddingBottom: 16 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#EBEDF0' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   toggleDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
   cta: {
     minHeight: 54, borderRadius: 27,

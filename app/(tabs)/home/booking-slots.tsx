@@ -43,7 +43,7 @@ export default function BookingSlotsScreen() {
 
       {slots.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md }}>
-          <Ionicons name="calendar-clear-outline" size={28} color="#CBD5E1" />
+          <Ionicons name="calendar-clear-outline" size={28} color="#D4D4D4" />
           <Text style={s.emptyText}>Nessun orario disponibile{'\n'}per questo giorno</Text>
         </View>
       ) : (
@@ -99,7 +99,7 @@ export default function BookingSlotsScreen() {
 const s = StyleSheet.create({
   glassCloseRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, marginBottom: 4 },
   root: { backgroundColor: colors.background, flex: 1 },
-  title: { fontSize: 22, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.4, paddingHorizontal: spacing.md, marginBottom: 6 },
+  title: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.4, paddingHorizontal: spacing.md, marginBottom: 6 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, paddingHorizontal: spacing.md, marginBottom: 8 },
   emptyText: { fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 18 },
   footer: { paddingTop: spacing.md, paddingBottom: 34, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
@@ -108,12 +108,12 @@ const s = StyleSheet.create({
   // Timeline
   tlRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 62 },
   tlLeft: { width: 52, alignItems: 'center', paddingTop: 16 },
-  tlHour: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
+  tlHour: { fontSize: 12, fontWeight: '600', color: '#9C9C9C' },
   tlLine: { width: 1.5, flex: 1, backgroundColor: colors.border, marginTop: 8, minHeight: 20 },
-  tlCard: { flex: 1, minHeight: 52, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingVertical: 10, marginBottom: 10, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
-  tlCardActive: { borderColor: '#1A1A2E', borderWidth: 2, shadowOpacity: 0.08 },
-  tlCardText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
-  tlCardTextActive: { flex: 1, fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  tlCheck: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
+  tlCard: { flex: 1, minHeight: 52, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingVertical: 10, marginBottom: 10, shadowColor: '#111111', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  tlCardActive: { borderColor: '#111111', borderWidth: 2, shadowOpacity: 0.08 },
+  tlCardText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
+  tlCardTextActive: { flex: 1, fontSize: 15, fontWeight: '700', color: '#111111' },
+  tlCheck: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center' },
   tlCheckText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 });

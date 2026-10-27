@@ -49,7 +49,7 @@ export default function QuickBookScreen() {
         </View>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color="#1A1A2E" />
+            <Ionicons name="close" size={20} color="#111111" />
           </Pressable>
         </GlassCloseButton>
       </View>
@@ -73,7 +73,7 @@ const s = StyleSheet.create({
   },
   segItem: { flex: 1, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
-  segTextActive: { color: '#1A1A2E', fontWeight: '700' },
+  segTextActive: { color: '#111111', fontWeight: '700' },
 
-  x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F2F4', alignItems: 'center', justifyContent: 'center' },
+  x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
 });

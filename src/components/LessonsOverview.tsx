@@ -310,7 +310,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
         <Animated.View layout={HEIGHT_GLIDE}>
         {loading ? (
           <View style={s.centerState}>
-            <ActivityIndicator color="#1A1A2E" />
+            <ActivityIndicator color="#111111" />
           </View>
         ) : sections.length === 0 ? (
           <EmptyState tab={tab} hiddenByPath={hiddenByPath} />
@@ -414,7 +414,7 @@ function LessonRow({
         {label}
       </Text>
       {onOpenDetail ? (
-        <Ionicons name="chevron-forward" size={15} color="#C8C8D0" style={s.chevron} />
+        <Ionicons name="chevron-forward" size={15} color="#CBCBCB" style={s.chevron} />
       ) : null}
     </View>
   );
@@ -450,7 +450,7 @@ function EmptyState({ tab, hiddenByPath }: { tab: Tab; hiddenByPath: number }) {
   return (
     <Animated.View entering={FadeIn.duration(220)} style={s.centerState}>
       <View style={s.emptyIcon}>
-        <Ionicons name={copy.icon} size={24} color="#B4B4BD" />
+        <Ionicons name={copy.icon} size={24} color="#B7B7B7" />
       </View>
       <Text style={s.emptyTitle}>{copy.title}</Text>
       {text ? <Text style={s.emptyText}>{text}</Text> : null}
@@ -460,7 +460,7 @@ function EmptyState({ tab, hiddenByPath }: { tab: Tab; hiddenByPath: number }) {
 
 const s = StyleSheet.create({
   header: { paddingHorizontal: LEDGER_PAD, marginBottom: 2 },
-  title: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
+  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   subtitle: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   filters: { marginTop: 14, marginBottom: 2, flexGrow: 0 },
 
@@ -478,7 +478,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  pathText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: '#1A1A2E' },
+  pathText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: '#111111' },
   pathAction: { fontSize: 12.5, fontWeight: '600', color: colors.primary, textDecorationLine: 'underline' },
 
   list: { paddingBottom: 40 },
@@ -491,6 +491,6 @@ const s = StyleSheet.create({
 
   centerState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: LEDGER_PAD, gap: 6 },
   emptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#F1F1F5', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  emptyTitle: { fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  emptyTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
   emptyText: { fontSize: 13, fontWeight: '500', color: colors.textMuted, textAlign: 'center' },
 });
