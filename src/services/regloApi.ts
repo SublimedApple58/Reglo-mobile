@@ -117,6 +117,8 @@ import {
   PaymentHistoryEvent,
   RoadState,
   RoadStartResult,
+  RoadFreeOptions,
+  RoadFreeStartInput,
   RoadDetail,
   RoadStudentItem,
   RoadMarker,
@@ -1017,6 +1019,15 @@ export const createRegloApi = (baseUrl?: string) => {
     // TOO_EARLY, SESSION_CLOSED).
     getRoadState: async () =>
       client.request<RoadState>('/api/autoscuole/road/state'),
+    /** Road libero: durate, veicoli e allievi recenti per «Avvia guida». */
+    getRoadFreeOptions: async () =>
+      client.request<RoadFreeOptions>('/api/autoscuole/road/free'),
+    /** Road libero: crea la guida in agenda (adesso, già presente) e apre la sessione. */
+    startFreeRoadSession: async (input: RoadFreeStartInput) =>
+      client.request<RoadStartResult & { appointmentId: string }>('/api/autoscuole/road/free', {
+        method: 'POST',
+        body: input,
+      }),
     startRoadSession: async (appointmentId: string) =>
       client.request<RoadStartResult>('/api/autoscuole/road/sessions', {
         method: 'POST',

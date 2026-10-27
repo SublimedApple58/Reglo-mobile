@@ -46,6 +46,22 @@ export function onRoadCheckRequest(fn: (req: RoadCheckRequest) => void) {
   };
 }
 
+/**
+ * Road libero: l'avvio da fare dopo «Prima di partire» (primo ingresso sul
+ * dispositivo). Lo lascia il foglio «Avvia guida», lo prende l'informativa.
+ */
+let pendingStart: (() => Promise<boolean>) | null = null;
+export const roadPendingStart = {
+  set(fn: (() => Promise<boolean>) | null) {
+    pendingStart = fn;
+  },
+  take() {
+    const fn = pendingStart;
+    pendingStart = null;
+    return fn;
+  },
+};
+
 export const ROAD_INVITE_ROUTE = '/(tabs)/home/road-invite' as const;
 export const ROAD_PRIVACY_ROUTE = '/(tabs)/home/road-privacy' as const;
 export const ROAD_ROUTE = '/road' as const;

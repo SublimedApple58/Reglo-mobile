@@ -21,6 +21,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   notes: 'people-outline',
   swaps: 'repeat-outline',
   inbox: 'file-tray-outline',
+  drive: 'navigate-outline',
   more: 'ellipsis-horizontal',
   settings: 'options-outline',
   quiz: 'school-outline',

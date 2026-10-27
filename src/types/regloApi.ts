@@ -1626,12 +1626,46 @@ export type RoadCatalog = {
 
 export type RoadState = {
   roadEnabled: boolean;
+  /** Road libero (piano A): tab «Road» con «Avvia guida». Assente sui backend vecchi. */
+  freeStartEnabled?: boolean;
   catalog: RoadCatalog;
   activeSession: RoadSessionWithLesson | null;
   eligibleLesson: RoadLesson | null;
 };
 
 export type RoadStartResult = RoadSessionWithLesson & { resumed: boolean };
+
+/** Road libero: veicolo proponibile per una guida che parte adesso. */
+export type RoadFreeVehicle = {
+  id: Uuid;
+  name: string;
+  plate: string | null;
+  licenseCategory: string;
+  transmission: string;
+  carColor: string;
+  /** Già impegnato in un'altra guida adesso. */
+  busy: boolean;
+};
+
+export type RoadFreeOptions = {
+  durations: number[];
+  defaultDuration: number;
+  vehicles: RoadFreeVehicle[];
+  defaultVehicleId: Uuid | null;
+  recentStudents: Array<{ id: Uuid; name: string }>;
+  /** La guida dell'istruttore di adesso: allora si entra in Road su quella. */
+  currentLesson: RoadLesson | null;
+  todayCount: number;
+  nextLessonAt: string | null;
+};
+
+export type RoadFreeStartInput = {
+  studentId: Uuid;
+  vehicleId: Uuid;
+  durationMin: number;
+  confirmWeeklyLimit?: boolean;
+  confirmNoBuffer?: boolean;
+};
 
 export type RoadPointsResult = {
   accepted: boolean;

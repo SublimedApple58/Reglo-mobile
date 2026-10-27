@@ -67,6 +67,8 @@ type State = {
   evaluationEnabled: boolean;
   /** Guida su cui si può entrare in Road adesso (da `/road/state`). */
   eligible: RoadLesson | null;
+  /** Road libero acceso per l'autoscuola: c'è la tab «Road» con «Avvia guida». */
+  freeStartEnabled: boolean;
   /** Ultimo segno scelto in «Segnala»: resta per la sessione (default «da migliorare»). */
   sentimentMode: RoadSentiment;
 };
@@ -84,6 +86,7 @@ const INITIAL: State = {
   summary: null,
   evaluationEnabled: false,
   eligible: null,
+  freeStartEnabled: false,
   sentimentMode: 'bad',
 };
 
@@ -119,6 +122,10 @@ export const roadStore = {
   setEligible(eligible: RoadLesson | null) {
     if (eligible?.appointmentId === state.eligible?.appointmentId) return;
     set({ eligible });
+  },
+
+  setFreeStartEnabled(enabled: boolean) {
+    if (enabled !== state.freeStartEnabled) set({ freeStartEnabled: enabled });
   },
 
   setEvaluationEnabled(enabled: boolean) {
@@ -246,7 +253,7 @@ export const roadStore = {
   },
 
   reset() {
-    state = { ...INITIAL, catalog: state.catalog, evaluationEnabled: state.evaluationEnabled, eligible: null };
+    state = { ...INITIAL, catalog: state.catalog, evaluationEnabled: state.evaluationEnabled, eligible: null, freeStartEnabled: state.freeStartEnabled };
     listeners.forEach((fn) => fn());
   },
 };

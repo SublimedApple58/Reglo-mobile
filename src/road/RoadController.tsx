@@ -43,6 +43,7 @@ export function RoadController() {
     try {
       const st = await regloApi.getRoadState();
       roadStore.setCatalog(st.catalog);
+      roadStore.setFreeStartEnabled(st.roadEnabled && st.freeStartEnabled === true);
       if (!st.roadEnabled) {
         roadStore.setEligible(null);
         return;

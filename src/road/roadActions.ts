@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
-import type { RoadSessionWithLesson } from '../types/regloApi';
+import type { RoadFreeStartInput, RoadLesson, RoadSessionWithLesson } from '../types/regloApi';
 import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
@@ -165,6 +165,66 @@ export async function enterRoad(appointmentId: string): Promise<boolean> {
   }
   if (started.resumed) void hydrate(started.id);
   return true;
+}
+
+/** Esito di «Parti» in Road libero. */
+export type FreeStartOutcome =
+  | { kind: 'started' }
+  | { kind: 'current'; lesson: RoadLesson }
+  | { kind: 'failed' };
+
+function payloadOf(err: unknown): { code?: string; message?: string; lesson?: RoadLesson } {
+  const p = err instanceof RegloApiError ? err.payload : null;
+  return p && typeof p === 'object' ? (p as { code?: string; message?: string; lesson?: RoadLesson }) : {};
+}
+
+const confirmProceed = (title: string, message: string) =>
+  new Promise<boolean>((resolve) =>
+    Alert.alert(title, message, [
+      { text: 'Annulla', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Procedi comunque', onPress: () => resolve(true) },
+    ]),
+  );
+
+/**
+ * Road libero: crea la guida in agenda (adesso, già presente) e parte in Road.
+ * Limite settimanale e pausa chiedono conferma come nell'agenda; se c'è già la
+ * guida di adesso torna quella, e chi chiama propone di entrare su quella.
+ */
+export async function enterRoadFree(input: RoadFreeStartInput): Promise<FreeStartOutcome> {
+  if (!(await ensureRoadLocationPermission())) return { kind: 'failed' };
+  let req: RoadFreeStartInput = { ...input };
+  let started;
+  for (let attempt = 0; attempt < 3 && !started; attempt += 1) {
+    try {
+      started = await regloApi.startFreeRoadSession(req);
+    } catch (err) {
+      const p = payloadOf(err);
+      const msg = p.message ?? messageOf(err, 'Non è stato possibile avviare la guida. Riprova.');
+      if (p.code === 'CURRENT_LESSON' && p.lesson) return { kind: 'current', lesson: p.lesson };
+      if (p.code === 'WEEKLY_LIMIT_CONFIRM' && !req.confirmWeeklyLimit) {
+        if (!(await confirmProceed('Limite settimanale', msg))) return { kind: 'failed' };
+        req = { ...req, confirmWeeklyLimit: true };
+        continue;
+      }
+      if (p.code === 'LESSON_BUFFER_CONFIRM' && !req.confirmNoBuffer) {
+        if (!(await confirmProceed('Niente pausa dopo', msg))) return { kind: 'failed' };
+        req = { ...req, confirmNoBuffer: true };
+        continue;
+      }
+      Alert.alert('Guida non avviata', msg);
+      return { kind: 'failed' };
+    }
+  }
+  if (!started) return { kind: 'failed' };
+  try {
+    await attachAndTrack(started);
+  } catch (err) {
+    Alert.alert('GPS non disponibile', messageOf(err, 'Non è stato possibile accendere il GPS.'));
+    roadStore.reset();
+    return { kind: 'failed' };
+  }
+  return { kind: 'started' };
 }
 
 /**

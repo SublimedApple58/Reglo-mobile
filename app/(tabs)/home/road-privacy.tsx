@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { enterRoad, markRoadPrivacySeen } from '../../../src/road/roadActions';
-import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore } from '../../../src/road/entryFlow';
+import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore, roadPendingStart } from '../../../src/road/entryFlow';
 
 const ROWS: Array<{ icon: keyof typeof Ionicons.glyphMap; title: string; body: string }> = [
   {
@@ -37,13 +37,15 @@ export default function RoadPrivacySheet() {
   const insets = useSafeAreaInsets();
   const live = useSyncExternalStore(roadEntryStore.subscribe, roadEntryStore.get);
   const [seed] = useState(() => live);
+  // Road libero: arrivo da «Avvia guida», l'avvio è già pronto.
+  const [pending] = useState(() => roadPendingStart.take());
 
   const onContinue = async () => {
     await markRoadPrivacySeen();
     router.back();
-    if (!seed) return;
+    if (!pending && !seed) return;
     setTimeout(async () => {
-      const ok = await enterRoad(seed.lesson.appointmentId);
+      const ok = pending ? await pending() : seed ? await enterRoad(seed.lesson.appointmentId) : false;
       if (ok) router.replace(ROAD_ROUTE);
     }, SHEET_HANDOFF_MS);
   };
