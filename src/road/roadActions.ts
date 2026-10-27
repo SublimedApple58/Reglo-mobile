@@ -192,18 +192,27 @@ export async function resumeRoad(session: RoadSessionWithLesson): Promise<void> 
   }
 }
 
-/** Posizione per una segnalazione: l'ultima del tracking, altrimenti una fresca. */
+/**
+ * Posizione per una segnalazione: l'ultima del tracking (un'auto ferma al
+ * semaforo non manda punti nuovi, quindi va bene fino a 5 minuti), altrimenti
+ * l'ultima nota del telefono, e solo in ultimo una lettura fresca (max 5 s:
+ * il tocco non deve mai restare appeso al GPS).
+ */
 async function currentPosition(): Promise<{ lat: number; lng: number } | null> {
   const fix = roadStore.get().fix;
-  if (fix && Date.now() - fix.t < 60_000) return { lat: fix.lat, lng: fix.lng };
+  if (fix && Date.now() - fix.t < 5 * 60_000) return { lat: fix.lat, lng: fix.lng };
   try {
-    const last = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+    const last = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 });
     if (last) return { lat: last.coords.latitude, lng: last.coords.longitude };
-    const now = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    return { lat: now.coords.latitude, lng: now.coords.longitude };
+    const fresh = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+    if (fresh) return { lat: fresh.coords.latitude, lng: fresh.coords.longitude };
   } catch {
-    return fix ? { lat: fix.lat, lng: fix.lng } : null;
+    // sotto
   }
+  return fix ? { lat: fix.lat, lng: fix.lng } : null;
 }
 
 /** Segna una segnalazione sul punto in cui si è ora. */

@@ -328,7 +328,7 @@ export default function ManageLessonDetailsScreen() {
         }
       >
       {road ? (
-        <View style={s.headerBlock}>
+        <View style={[s.headerBlock, s.headerBlockRoad]}>
           <Text style={s.title}>Pagellino</Text>
           <Text style={s.subtitle}>{road.subtitle}</Text>
           {road.showStayChip ? (
@@ -348,7 +348,8 @@ export default function ManageLessonDetailsScreen() {
       {/* Tipo guida — collapse while typing notes so the sheet
           shrinks and the textarea floats above the keyboard. */}
       <Animated.View
-        style={[s.collapsible, collapsibleStyle]}
+        // In Road il blocco è vuoto (niente tipo/esito): niente spazio fantasma.
+        style={[s.collapsible, collapsibleStyle, road && s.collapsibleRoad]}
         pointerEvents={notesFocused ? 'none' : 'auto'}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
@@ -598,10 +599,12 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 20 },
+  headerBlockRoad: { marginBottom: 2 },
   title: { fontSize: 22, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
+  collapsibleRoad: { paddingBottom: 0, height: 0 },
   section: { gap: 12 },
   esitoRow: { flexDirection: 'row', gap: 6, backgroundColor: '#F2F2F4', borderRadius: 12, padding: 4 },
   esitoBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 9 },

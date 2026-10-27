@@ -64,7 +64,13 @@ export function RoadRouteMap({
   };
 
   return (
-    <View style={[styles.wrap, style]} pointerEvents={interactive ? 'auto' : 'none'}>
+    <View
+      style={[styles.wrap, style]}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      // La mappa può essere pronta prima di avere le misure definitive del
+      // contenitore: si reinquadra anche dopo il layout.
+      onLayout={() => setTimeout(fit, 60)}
+    >
       <MapView
         ref={ref}
         style={StyleSheet.absoluteFill}

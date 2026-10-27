@@ -123,8 +123,10 @@ export default function LessonDetailScreen() {
         <View style={s.header}>
           <View style={s.headerTopRow}>
             <Text style={s.heroDate}>{formatDay(lesson.startsAt)}</Text>
-            <View style={s.statusBadge}>
-              <Text style={s.statusText}>{statusLabel(lesson.status)}</Text>
+            <View style={[s.statusBadge, isCompleted && s.statusBadgeDone]}>
+              <Text style={[s.statusText, isCompleted && s.statusTextDone]}>
+                {isCompleted ? 'COMPLETATA' : statusLabel(lesson.status)}
+              </Text>
             </View>
           </View>
           <Text style={s.heroTime}>
@@ -287,6 +289,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 5,
   },
   statusText: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.2 },
+  statusBadgeDone: { backgroundColor: '#E6F6EC' },
+  statusTextDone: { color: '#067647' },
   heroDuration: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   groupCard: { marginTop: 30 },
   iconChip: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

@@ -6,7 +6,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
@@ -27,12 +27,11 @@ import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/ro
  */
 
 const PITCH = 40;
-const ALTITUDE = 760; // iOS (metri)
-const ZOOM = 16.7; // Android
+const ALTITUDE = 950; // iOS (metri)
+const ZOOM = 16.2; // Android
 // Spazio sopra/sotto in cui la mappa centra l'auto: la tiene un po' sotto la
-// metà dello schermo, con più strada davanti (come l'anteprima). Il bordo
-// basso coincide col pannello, così la scritta «Legal» di Apple resta visibile
-// appena sopra e non finisce sotto il cerchio della velocità.
+// metà dello schermo, con più strada davanti (come l'anteprima). La scritta
+// «Legal» di Apple sta fra il pannello e il cerchio della velocità.
 const MAP_PADDING_TOP = 330;
 
 function useNow(everyMs: number) {
@@ -42,6 +41,22 @@ function useNow(everyMs: number) {
     return () => clearInterval(t);
   }, [everyMs]);
   return now;
+}
+
+/**
+ * Comparsa del toast: animazione esplicita (le `entering` di Reanimated non
+ * partono se lo schermo è ancora coperto dal form sheet che si sta chiudendo).
+ */
+function RoadToastFrame({ children, style }: { children: React.ReactNode; style: object }) {
+  const p = useSharedValue(0);
+  useEffect(() => {
+    p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
+  }, [p]);
+  const anim = useAnimatedStyle(() => ({
+    opacity: p.value,
+    transform: [{ translateY: (1 - p.value) * -14 }],
+  }));
+  return <Animated.View style={[style, anim]}>{children}</Animated.View>;
 }
 
 export default function RoadScreen() {
@@ -158,7 +173,6 @@ export default function RoadScreen() {
         { text: 'Annulla', style: 'cancel' },
         {
           text: 'Termina',
-          isPreferred: true,
           onPress: async () => {
             setEnding(true);
             const ok = await endRoad();
@@ -193,7 +207,8 @@ export default function RoadScreen() {
           altitude: ALTITUDE,
           zoom: ZOOM,
         }}
-        mapPadding={{ top: MAP_PADDING_TOP, right: 0, bottom: Math.max(0, panelH - 60), left: 0 }}
+        mapPadding={{ top: MAP_PADDING_TOP, right: 0, bottom: 8 + panelH, left: 0 }}
+        legalLabelInsets={{ top: 0, right: 0, bottom: 8 + panelH + 14, left: 18 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
         showsBuildings
@@ -255,12 +270,7 @@ export default function RoadScreen() {
 
       {/* Toast della segnalazione appena fatta */}
       {st.toast ? (
-        <Animated.View
-          key={st.toast.clientId}
-          entering={FadeInUp.duration(220)}
-          exiting={FadeOutUp.duration(180)}
-          style={[s.toast, { top: headerTop + 70 + 10 }]}
-        >
+        <RoadToastFrame key={st.toast.clientId} style={[s.toast, { top: headerTop + 70 + 10 }]}>
           <View style={s.toastIc}>
             <Image source={markerArt(st.toast.kind)} style={s.toastImg} resizeMode="contain" />
           </View>
@@ -273,7 +283,7 @@ export default function RoadScreen() {
           <Pressable onPress={onUndo} style={({ pressed }) => [s.undo, pressed && { opacity: 0.7 }]} testID="road-undo">
             <Text style={s.undoTx}>Annulla</Text>
           </Pressable>
-        </Animated.View>
+        </RoadToastFrame>
       ) : null}
 
       {/* Velocità */}
