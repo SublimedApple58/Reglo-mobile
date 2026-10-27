@@ -29,7 +29,14 @@ import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
 import {
   ROAD_CARD_EXIT,
@@ -46,6 +53,8 @@ const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
 const ZOOM = 15.6; // Android
 const FALLBACK = { latitude: 45.0703, longitude: 7.6869 };
+/** Altezza della barra compatta sotto la status bar. */
+const NAV_H = 44;
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
@@ -151,12 +160,30 @@ export default function RoadTab() {
   };
 
   const mapH = Math.round(height * 0.36);
+
+  // Barra in alto: il fondo (blur) entra mentre il bordo del pannello arriva
+  // sotto la status bar, il titolo subito dopo. Tutto legato allo scroll,
+  // quindi segue il dito senza scatti né rimbalzi.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const panelTopAt = mapH - 26 - (insets.top + NAV_H); // offset a cui il pannello tocca la barra
+  const navBgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [panelTopAt - 40, panelTopAt], [0, 1], Extrapolation.CLAMP),
+  }));
+  const navTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [panelTopAt, panelTopAt + 30], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [panelTopAt, panelTopAt + 30], [6, 0], Extrapolation.CLAMP) }],
+  }));
   const briefingOf = (id: string | null | undefined) => (id ? options?.briefings?.[id] ?? null : null);
 
   return (
     <View style={s.root}>
-      <ScrollView
+      <Animated.ScrollView
         style={{ flex: 1 }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
         testID="road-tab"
@@ -405,7 +432,23 @@ export default function RoadTab() {
             ))}
           </Animated.View>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
+
+      {/* Barra iOS che compare scorrendo: il pannello non passa mai «nudo»
+          sotto orario e isola dinamica (blur + fondo bianco, titolo compatto). */}
+      <View style={[s.navWrap, { height: insets.top + NAV_H, paddingTop: insets.top }]} pointerEvents="box-none">
+        <Animated.View style={[StyleSheet.absoluteFill, navBgStyle]} pointerEvents="none">
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.97)' }]} />
+          )}
+          <View style={s.navBorder} />
+        </Animated.View>
+        <View style={s.navRow} pointerEvents="none">
+          <Animated.Text style={[s.navTitle, navTitleStyle]}>Road</Animated.Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -439,6 +482,17 @@ function SessionNumbers({ session, withDay, style }: { session: RoadRecentSessio
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
   bell: { position: 'absolute', right: 20 },
+  navWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  navBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(60,60,67,0.2)',
+  },
+  navRow: { height: NAV_H, alignItems: 'center', justifyContent: 'center' },
+  navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   hq: {
     flexDirection: 'row',
     alignItems: 'center',

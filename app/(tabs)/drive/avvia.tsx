@@ -387,7 +387,8 @@ export default function AvviaGuidaSheet() {
         accessibilityLabel="Cambia auto"
         testID="road-free-vehicle"
       >
-        {/* Solo testo (niente icona stilizzata: la scelta mostra le auto 3D). */}
+        {/* L'auto 3D scelta, la stessa immagine del selettore («Cambia»). */}
+        {selectedVehicle ? <Image source={car34Art(selectedVehicle.carColor)} style={s.car} resizeMode="contain" /> : null}
         {selectedVehicle ? (
           <View style={{ flex: 1 }}>
             <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
