@@ -220,7 +220,7 @@ function LessonRow({
   }, [press, progress]);
 
   const body = (
-    <View style={s.row}>
+    <View style={s.row} testID={hasHistory ? 'payment-row-history' : trail ? 'payment-row-trail' : undefined}>
       <StateGlyph tone={tone} icon={icon} />
       <View style={s.rowBody}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>

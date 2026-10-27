@@ -36,7 +36,10 @@ export function PaymentHistorySheet() {
   if (!data) return <View style={s.root} />;
 
   return (
-    <View style={[s.root, { paddingTop: 26, paddingBottom: Math.max(insets.bottom - 16, 22) }]}>
+    <View
+      testID="payment-history-sheet"
+      style={[s.root, { paddingTop: 26, paddingBottom: Math.max(insets.bottom - 16, 22) }]}
+    >
       <View style={s.topbar}>
         <View style={{ flex: 1 }}>
           <Text style={s.title} numberOfLines={1}>Storico pagamento</Text>
