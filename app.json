@@ -1,10 +1,10 @@
 {
-  "//": "runtimeVersion is the fixed OTA-cohort string. Bumped 2.0.0 -> '2.1.0' on 2026-07-13 for the new-logo + design-system build: a DELIBERATE fresh cohort so (a) EAS updates published from now on target ONLY 2.1.0 binaries, isolated from the live 2.0.0, and (b) once the new build is live on BOTH stores we raise the backend min-version to '2.1.0' to force-update every 2.0.0 user (gate in src/config/forceUpdate.ts compares Updates.runtimeVersion against /api/mobile/app-config). Marketing 'version' climbs with it. RULE: bump runtimeVersion for a fresh cohort (native change OR a forced-update cutover) and rebuild iOS AND Android together. | 2026-09-15: bump 2.2.0 -> '2.3.0' (e version 2.3.0) per expo-camera (scanner QR istruttore, REG-451): nuovo modulo nativo, gli OTA da qui in poi vanno SOLO ai binari 2.3.0; i 2.2.0 restano sul loro ultimo OTA finché non si alza il force-update floor. | Procedura completa: docs/git-flow.md sezione 'Rilascio build nativa (store) + OTA dopo'.",
+  "//": "runtimeVersion is the fixed OTA-cohort string. Bumped 2.0.0 -> '2.1.0' on 2026-07-13 for the new-logo + design-system build: a DELIBERATE fresh cohort so (a) EAS updates published from now on target ONLY 2.1.0 binaries, isolated from the live 2.0.0, and (b) once the new build is live on BOTH stores we raise the backend min-version to '2.1.0' to force-update every 2.0.0 user (gate in src/config/forceUpdate.ts compares Updates.runtimeVersion against /api/mobile/app-config). Marketing 'version' climbs with it. RULE: bump runtimeVersion for a fresh cohort (native change OR a forced-update cutover) and rebuild iOS AND Android together. | 2026-09-15: bump 2.2.0 -> '2.3.0' (e version 2.3.0) per expo-camera (scanner QR istruttore, REG-451): nuovo modulo nativo, gli OTA da qui in poi vanno SOLO ai binari 2.3.0; i 2.2.0 restano sul loro ultimo OTA finché non si alza il force-update floor. | Procedura completa: docs/git-flow.md sezione 'Rilascio build nativa (store) + OTA dopo'. | 2026-10-27: bump 2.3.0 -> '2.4.0' (e version 2.4.0, versionCode 8) per REG-638 Reglo Road: nuovi moduli nativi expo-location, expo-task-manager, react-native-maps (+ expo-keep-awake) e config nativa (UIBackgroundModes location, permessi posizione Android): serve build store, niente OTA verso i 2.3.0. Chiave Google Maps Android da env GOOGLE_MAPS_ANDROID_API_KEY via app.config.js.",
   "expo": {
     "name": "Reglo",
     "slug": "reglo-mobile",
     "scheme": "com.tiziano.developer.reglo-mobile",
-    "version": "2.3.0",
+    "version": "2.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,11 @@
       "bundleIdentifier": "com.tiziano.developer.reglo-mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Reglo usa la fotocamera per scattare foto, acquisire documenti e inquadrare il QR del tuo istruttore."
+        "NSCameraUsageDescription": "Reglo usa la fotocamera per scattare foto, acquisire documenti e inquadrare il QR del tuo istruttore.",
+        "NSLocationWhenInUseUsageDescription": "Reglo usa la posizione solo durante la guida in modalità Road, per registrare il percorso e le segnalazioni.",
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -26,12 +30,18 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.tiziano.developer.reglomobile",
-      "versionCode": 7
+      "versionCode": 8,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "runtimeVersion": "2.3.0",
+    "runtimeVersion": "2.4.0",
     "updates": {
       "url": "https://u.expo.dev/7eefa215-807f-41a7-983c-de8a494de75c"
     },
@@ -61,6 +71,17 @@
           "imageWidth": 300,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Reglo usa la posizione solo durante la guida in modalità Road, per registrare il percorso e le segnalazioni.",
+          "locationAlwaysAndWhenInUsePermission": "Reglo usa la posizione solo durante la guida in modalità Road, per registrare il percorso e le segnalazioni.",
+          "locationAlwaysPermission": "Reglo usa la posizione solo durante la guida in modalità Road, per registrare il percorso e le segnalazioni.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       "expo-web-browser",

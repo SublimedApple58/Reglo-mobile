@@ -5,6 +5,7 @@ import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { UserPhotoCircle } from './UserPhotoCircle';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
+const ROAD_ICON = require('../../assets/road/fluent-road.png');
 
 type Props = {
   lesson: AutoscuolaAppointmentWithRelations;
@@ -23,6 +24,8 @@ type Props = {
   onPresent: () => void;
   onAbsent: () => void;
   onOpen: () => void;
+  /** REG-638 Reglo Road: la guida è idonea → bottone «Entra in Road». */
+  onEnterRoad?: () => void;
 };
 
 /**
@@ -34,7 +37,7 @@ type Props = {
 export const WeeklyLiveCard = ({
   lesson, isExam, examCount, isGroup = false, groupCount = 0,
   inProgress, isCheckedIn, showActions, isPending, pendingAction,
-  topLabel, timeText, vehicleText, onPresent, onAbsent, onOpen,
+  topLabel, timeText, vehicleText, onPresent, onAbsent, onOpen, onEnterRoad,
 }: Props) => {
   const name = `${lesson.student?.firstName ?? ''} ${lesson.student?.lastName ?? ''}`.trim() || 'Allievo';
   const initials = `${lesson.student?.firstName?.[0] ?? ''}${lesson.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
@@ -126,6 +129,18 @@ export const WeeklyLiveCard = ({
           <Text style={styles.ghostTx}>{pendingAction === 'no_show' ? 'Attendi…' : 'Segna assente'}</Text>
         </Pressable>
       ) : null}
+
+      {onEnterRoad ? (
+        <Pressable
+          onPress={(e) => { e.stopPropagation?.(); onEnterRoad(); }}
+          style={({ pressed }) => [styles.road, pressed && { opacity: 0.88 }]}
+          accessibilityRole="button"
+          testID="live-card-enter-road"
+        >
+          <Image source={ROAD_ICON} style={styles.roadIc} />
+          <Text style={styles.roadTx}>Entra in Road</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 };
@@ -162,4 +177,9 @@ const styles = StyleSheet.create({
 
   ghost: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, marginTop: 8 },
   ghostTx: { fontSize: 13, fontWeight: '500', color: '#6E7596' },
+
+  // REG-638: in Road niente navy, CTA nera.
+  road: { height: 48, borderRadius: 999, backgroundColor: '#111111', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14 },
+  roadIc: { width: 20, height: 20 },
+  roadTx: { fontSize: 14.5, fontWeight: '600', color: '#FFFFFF' },
 });

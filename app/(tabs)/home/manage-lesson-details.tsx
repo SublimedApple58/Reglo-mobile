@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -32,6 +32,8 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+
+const FLUENT_ROAD = require('../../../assets/road/fluent-road.png');
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
@@ -197,7 +199,9 @@ export default function ManageLessonDetailsScreen() {
 
   const { isDetailsEditable, onSaveDetails } = data;
   const editable = isDetailsEditable && !saving;
-  const showEsito = data.showEsito === true;
+  // REG-638: aperto da Reglo Road = solo pagellino, CTA nera.
+  const road = data.road ?? null;
+  const showEsito = data.showEsito === true && !road;
   // Il tipo cambierebbe il `type` dell'appuntamento: nascosto su esami/gruppi
   // (ne romperebbe la categoria). Nel flusso home questo foglio si apre solo per
   // guide individuali, quindi il gate è un no-op lì.
@@ -211,6 +215,7 @@ export default function ManageLessonDetailsScreen() {
   const evalRows = evalItems.filter((item) => evalAdded.includes(item.id));
   const evalAvailable = evalItems.filter((item) => !evalAdded.includes(item.id));
   const showTypes =
+    !road &&
     lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId && !isMotoLesson;
 
   /**
@@ -236,10 +241,14 @@ export default function ManageLessonDetailsScreen() {
         if (vals.length) setEvalAdded((prev) => [...prev, ...vals]);
       },
     });
-    // La route del picker è registrata in entrambi gli stack che aprono questo
-    // foglio (home + notes): va spinta su quello da cui siamo arrivati.
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    // La route del picker è registrata in tutti gli stack che aprono questo
+    // foglio (home + notes + road): va spinta su quello da cui siamo arrivati.
     const long = evalAvailable.length > LONG_PICKER_THRESHOLD;
+    if (segments[0] === 'road') {
+      router.push(`/road/select-options${long ? '-long' : ''}`);
+      return;
+    }
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
     router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
   };
 
@@ -300,9 +309,15 @@ export default function ManageLessonDetailsScreen() {
             <Pressable
               onPress={handleSave}
               disabled={!editable}
-              style={({ pressed }) => [s.saveBtn, s.saveFooter, pressed && { opacity: 0.9 }, !editable && { opacity: 0.4 }]}
+              style={({ pressed }) => [
+                s.saveBtn,
+                s.saveFooter,
+                road && s.saveBtnRoad,
+                pressed && { opacity: 0.9 },
+                !editable && { opacity: 0.4 },
+              ]}
             >
-              <GradientCTABackground radius={27} />
+              {road ? null : <GradientCTABackground radius={27} />}
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -312,10 +327,23 @@ export default function ManageLessonDetailsScreen() {
           </View>
         }
       >
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Dettagli guida</Text>
-        <Text style={s.subtitle}>Tipo, pagellino e note di questa guida.</Text>
-      </View>
+      {road ? (
+        <View style={s.headerBlock}>
+          <Text style={s.title}>Pagellino</Text>
+          <Text style={s.subtitle}>{road.subtitle}</Text>
+          {road.showStayChip ? (
+            <View style={s.roadChip}>
+              <Image source={FLUENT_ROAD} style={s.roadChipImg} />
+              <Text style={s.roadChipText}>Resti in Road: il percorso continua</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View style={s.headerBlock}>
+          <Text style={s.title}>Dettagli guida</Text>
+          <Text style={s.subtitle}>Tipo, pagellino e note di questa guida.</Text>
+        </View>
+      )}
 
       {/* Tipo guida — collapse while typing notes so the sheet
           shrinks and the textarea floats above the keyboard. */}
@@ -538,7 +566,8 @@ export default function ManageLessonDetailsScreen() {
         </Animated.View>
       ) : null}
 
-      {/* Note */}
+      {/* Note (non da Road: lì il foglio è solo il pagellino) */}
+      {road ? null : (
       <View style={s.section}>
         <Text style={s.sectionLabel}>Note</Text>
         <TextInput
@@ -554,6 +583,7 @@ export default function ManageLessonDetailsScreen() {
           inputAccessoryViewID={accessoryID}
         />
       </View>
+      )}
       </SheetScaffold>
 
       {accessory}
@@ -631,4 +661,12 @@ const s = StyleSheet.create({
     ...primaryCtaShadow,
   },
   saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  // REG-638: in Road niente navy, CTA nera piena.
+  saveBtnRoad: { backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.18 },
+  roadChip: {
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, height: 26,
+    paddingHorizontal: 10, borderRadius: 13, backgroundColor: '#F2F2F0', marginTop: 8,
+  },
+  roadChipImg: { width: 16, height: 16 },
+  roadChipText: { fontSize: 12.5, fontWeight: '500', color: '#3A3A3C' },
 });

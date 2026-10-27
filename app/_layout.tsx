@@ -20,6 +20,7 @@ import {
   takePendingInstructorLinkCode,
 } from '../src/utils/pendingInstructorLink';
 import { colors } from '../src/theme';
+import { RoadController } from '../src/road/RoadController';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +86,8 @@ const AuthGate = () => {
     const [root, leaf] = segments as unknown as string[];
     const inAuth = root === '(auth)';
     const inTabs = root === '(tabs)';
+    // REG-638: la modalità Road vive fuori dalle tab (`app/road`), a tutto schermo.
+    const inRoad = root === 'road';
 
     if (status === 'unauthenticated') {
       // Cancel all in-flight queries and clear cache to prevent
@@ -131,7 +134,7 @@ const AuthGate = () => {
     }
 
     roleRetryRef.current = false;
-    if (!inTabs) {
+    if (!inTabs && !inRoad) {
       router.replace('/(tabs)/home');
     }
   }, [status, autoscuolaRole, router, segments, signOut, refreshMe]);
@@ -168,7 +171,12 @@ const AuthGate = () => {
     return <LoadingScreen />;
   }
 
-  return <Slot />;
+  return (
+    <>
+      <Slot />
+      <RoadController />
+    </>
+  );
 };
 
 // Backend-driven force-update gate: on launch, ask the backend for the minimum

@@ -1020,6 +1020,11 @@ export type AutoscuolaSettings = {
   instructorClustersEnabled?: boolean;
   autoCheckinEnabled?: boolean;
   vehiclesEnabled?: boolean;
+  /**
+   * REG-638 Reglo Road: modulo acceso dal backoffice, sola lettura. Nasce
+   * spento e vale SOLO `=== true` (vedi `useRoadEnabled`).
+   */
+  roadEnabled?: boolean;
   // "Auto al seguito" opt-in per license category (moto): a guida for an enabled
   // category additionally reserves a follow car.
   followCarRules?: Partial<Record<'AM' | 'A1' | 'A2' | 'A', { enabled: boolean }>>;
@@ -1557,3 +1562,107 @@ export type StartExamSchedaSessionResult = {
 export type AppConfig = {
   minSupportedVersion: { ios: string; android: string };
 };
+
+// ─── REG-638 Reglo Road ──────────────────────────────────────────────────────
+// Contratto: reglo/docs/features/reglo-road.md. Tutte le date sono ISO UTC.
+
+/** Punto GPS: [tMs, lat, lng, speedMs|null, heading|null, accuracyM|null]. */
+export type RoadPoint = [number, number, number, number | null, number | null, number | null];
+
+export type RoadLesson = {
+  appointmentId: Uuid;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  student: { id: Uuid; name: string } | null;
+  instructor: { id: Uuid; name: string; color: string | null } | null;
+  vehicle: { id: Uuid; name: string; plate: string | null } | null;
+};
+
+export type RoadSessionStatus = 'active' | 'completed' | 'abandoned';
+
+export type RoadSession = {
+  id: Uuid;
+  appointmentId: Uuid;
+  status: RoadSessionStatus;
+  startedAt: string;
+  endedAt: string | null;
+  distanceMeters: number;
+  durationSec: number;
+  lastSeq: number;
+  last: {
+    lat: number;
+    lng: number;
+    speed: number | null;
+    heading: number | null;
+    street: string | null;
+    at: string | null;
+  } | null;
+};
+
+export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
+
+export type RoadMarker = {
+  id: Uuid;
+  clientId: string;
+  /** Chiave base (`stop`, `precedenza`, …) o `custom:<id>`. */
+  kind: string;
+  label: string;
+  note: string | null;
+  lat: number;
+  lng: number;
+  street: string | null;
+  recordedAt: string;
+};
+
+export type RoadCatalog = {
+  base: Array<{ key: string; label: string }>;
+  custom: Array<{ id: string; label: string }>;
+};
+
+export type RoadState = {
+  roadEnabled: boolean;
+  catalog: RoadCatalog;
+  activeSession: RoadSessionWithLesson | null;
+  eligibleLesson: RoadLesson | null;
+};
+
+export type RoadStartResult = RoadSessionWithLesson & { resumed: boolean };
+
+export type RoadPointsResult = {
+  accepted: boolean;
+  duplicate?: boolean;
+  reason?: 'SESSION_CLOSED';
+};
+
+export type RoadEvaluationSummary = {
+  items: Array<{ label: string; scaleMax: number; score: number | null; notApplicable: boolean }>;
+  updatedAt: string;
+};
+
+export type RoadDetail = RoadSessionWithLesson & {
+  markers: RoadMarker[];
+  /** [lat, lng, tMs] in ordine. */
+  track: Array<[number, number, number]>;
+  evaluation?: RoadEvaluationSummary | null;
+};
+
+export type AddRoadMarkerInput = {
+  clientId: string;
+  kind: string;
+  label?: string | null;
+  note?: string | null;
+  lat: number;
+  lng: number;
+  street?: string | null;
+  recordedAt?: string;
+};
+
+/** Codici errore delle route Road (`payload.code` del RegloApiError). */
+export type RoadErrorCode =
+  | 'ROAD_DISABLED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'NOT_ELIGIBLE'
+  | 'TOO_EARLY'
+  | 'SESSION_CLOSED';

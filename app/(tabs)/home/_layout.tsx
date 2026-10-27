@@ -78,6 +78,11 @@ export default function HomeLayout() {
       <Stack.Screen name="swaps" options={{ headerShown: false }} />
       <Stack.Screen name="group-lesson-invites" options={{ headerShown: false }} />
       <Stack.Screen name="swap-detail" options={TALL_SHEET} />
+      {/* REG-638 Reglo Road: invito e informativa = form sheet con CTA in fondo;
+          percorso dell'allievo a tutto schermo. */}
+      <Stack.Screen name="road-invite" options={TALL_SHEET} />
+      <Stack.Screen name="road-privacy" options={TALL_SHEET} />
+      <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
     </Stack>
   );
 }

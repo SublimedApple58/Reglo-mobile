@@ -115,6 +115,13 @@ import {
   CheckInstructorAvailabilityInput,
   InstructorAvailabilityResult,
   PaymentHistoryEvent,
+  RoadState,
+  RoadStartResult,
+  RoadDetail,
+  RoadMarker,
+  RoadPoint,
+  RoadPointsResult,
+  AddRoadMarkerInput,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -1002,6 +1009,49 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/quiz/schede/${schedaId}/start`,
         { method: 'POST' },
       ),
+
+    // ── Reglo Road (REG-638) ─────────────────────────────────────
+    // Contratto: reglo/docs/features/reglo-road.md. Errori: RegloApiError con
+    // `payload.code` (ROAD_DISABLED, FORBIDDEN, NOT_FOUND, NOT_ELIGIBLE,
+    // TOO_EARLY, SESSION_CLOSED).
+    getRoadState: async () =>
+      client.request<RoadState>('/api/autoscuole/road/state'),
+    startRoadSession: async (appointmentId: string) =>
+      client.request<RoadStartResult>('/api/autoscuole/road/sessions', {
+        method: 'POST',
+        body: { appointmentId },
+      }),
+    getRoadSession: async (sessionId: string) =>
+      client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}`),
+    /** Lotto di punti idempotente su `seq`: rimandarlo dà `duplicate: true`. */
+    sendRoadPoints: async (
+      sessionId: string,
+      input: { seq: number; points: RoadPoint[]; street?: string | null },
+    ) =>
+      client.request<RoadPointsResult>(`/api/autoscuole/road/sessions/${sessionId}/points`, {
+        method: 'POST',
+        body: input,
+        timeoutMs: 20_000,
+      }),
+    /** Idempotente su `clientId` (coda offline). */
+    addRoadMarker: async (sessionId: string, input: AddRoadMarkerInput) =>
+      client.request<RoadMarker>(`/api/autoscuole/road/sessions/${sessionId}/markers`, {
+        method: 'POST',
+        body: input,
+      }),
+    removeRoadMarker: async (sessionId: string, markerIdOrClientId: string) =>
+      client.request<{ removed: boolean }>(
+        `/api/autoscuole/road/sessions/${sessionId}/markers/${encodeURIComponent(markerIdOrClientId)}`,
+        { method: 'DELETE' },
+      ),
+    endRoadSession: async (sessionId: string) =>
+      client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}/end`, {
+        method: 'POST',
+        timeoutMs: 25_000,
+      }),
+    /** Percorso di una guida (allievo: solo con il setting dell'autoscuola). */
+    getRoadForAppointment: async (appointmentId: string) =>
+      client.request<RoadDetail | null>(`/api/autoscuole/road/appointments/${appointmentId}`),
 
     // ── Exam Schede ────────────────────────────────────────────────
     getExamSchedeProgress: async () =>

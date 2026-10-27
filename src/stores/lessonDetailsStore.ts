@@ -16,6 +16,15 @@ export type LessonDetailsData = {
   isDetailsEditable: boolean;
   /** Save tipo/pagellino/note (+esito). Returns true on success. */
   onSaveDetails: (payload: ManageLessonDetailsPayload) => Promise<boolean>;
+  /**
+   * REG-638 Reglo Road: il foglio aperto da Road mostra SOLO il pagellino
+   * (titolo «Pagellino», niente tipo/esito/note) con CTA nera.
+   */
+  road?: {
+    subtitle: string;
+    /** Chip «Resti in Road: il percorso continua» (guida ancora in corso). */
+    showStayChip: boolean;
+  };
 };
 
 let _data: LessonDetailsData | null = null;

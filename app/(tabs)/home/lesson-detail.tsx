@@ -1,5 +1,6 @@
-import React, { useEffect, useSyncExternalStore } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
@@ -10,6 +11,12 @@ import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GradientCTA, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
+import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
+import { regloApi } from '../../../src/services/regloApi';
+import { roadRouteMapStore } from '../../../src/road/routeMapStore';
+import { formatKm, formatMinutes } from '../../../src/road/format';
+import type { RoadDetail } from '../../../src/types/regloApi';
 
 const statusLabel = (status: string | null | undefined) => {
   const s = (status ?? '').trim().toLowerCase();
@@ -42,6 +49,21 @@ export default function LessonDetailScreen() {
   useEffect(() => {
     return () => { lessonDetailStore.clear(); };
   }, []);
+
+  // REG-638 Reglo Road: percorso della guida, solo a guida completata. Il
+  // server applica già setting dell'autoscuola e permessi (null = niente).
+  const lessonId = data?.lesson.id;
+  const isCompleted = (data?.lesson.status ?? '').trim().toLowerCase() === 'completed';
+  const [road, setRoad] = useState<RoadDetail | null>(null);
+  useEffect(() => {
+    if (!lessonId || !isCompleted) return;
+    let alive = true;
+    regloApi
+      .getRoadForAppointment(lessonId)
+      .then((d) => { if (alive) setRoad(d && d.track ? d : null); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [lessonId, isCompleted]);
 
   if (!data) {
     return <View style={s.root} />;
@@ -119,8 +141,49 @@ export default function LessonDetailScreen() {
           )}
         </View>
 
+        {/* REG-638: «Il tuo percorso» (mappa + segnalazioni) */}
+        {road ? (
+          <View style={s.roadBlock}>
+            <Pressable
+              onPress={() => {
+                roadRouteMapStore.set(road);
+                router.push('/(tabs)/home/road-map');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Apri la mappa del percorso"
+              testID="lesson-road-map"
+            >
+              <RoadRouteMap track={road.track} markers={road.markers} style={s.roadMini} />
+              <View style={s.roadExpand}>
+                <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
+                <View style={s.roadExpandTint} />
+                <Ionicons name="expand-outline" size={15} color="#111111" />
+                <Text style={s.roadExpandTx}>Mappa</Text>
+              </View>
+            </Pressable>
+            <View style={s.roadHd}>
+              <Text style={s.roadHdTitle}>Il tuo percorso</Text>
+              <Text style={s.roadHdMeta}>
+                {formatKm(road.distanceMeters)} km · {formatMinutes(road.durationSec)} min
+              </Text>
+            </View>
+            <View style={{ paddingHorizontal: 8 }}>
+              <RoadMarkerList
+                items={road.markers.map((m) => ({
+                  key: m.id,
+                  kind: m.kind,
+                  label: m.label,
+                  street: m.street,
+                  note: m.note,
+                  recordedAt: m.recordedAt,
+                }))}
+              />
+            </View>
+          </View>
+        ) : null}
+
         {/* Details (flat rows) */}
-        <View style={s.groupCard}>
+        <View style={[s.groupCard, road && { marginTop: 14 }]}>
           {/* Instructor */}
           <View style={s.row}>
             <View style={[s.iconChip, { backgroundColor: '#E0E7FF' }]}>
@@ -259,4 +322,23 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cancelText: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
+  roadBlock: {
+    marginTop: 18, borderRadius: 26, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EFEFF2',
+    paddingTop: 8, paddingHorizontal: 8, paddingBottom: 4,
+    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+  },
+  roadMini: { height: 168, borderRadius: 20 },
+  roadExpand: {
+    position: 'absolute', right: 10, top: 10, height: 32, paddingHorizontal: 12, borderRadius: 16,
+    overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.7)',
+  },
+  roadExpandTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
+  roadExpandTx: { fontSize: 13, fontWeight: '600', color: '#111111' },
+  roadHd: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 12, paddingHorizontal: 8, paddingBottom: 2,
+  },
+  roadHdTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.2 },
+  roadHdMeta: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A' },
 });

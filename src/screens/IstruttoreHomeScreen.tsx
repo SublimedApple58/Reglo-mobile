@@ -69,6 +69,8 @@ import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SelectableChip } from '../components/SelectableChip';
 import { WeeklyOverview } from '../components/WeeklyOverview';
 import { WeeklyLiveCard } from '../components/WeeklyLiveCard';
+import { useRoadState } from '../road/roadStore';
+import { beginRoadEntry } from '../road/entryFlow';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { computeDayPlan, BOOK_DAY_START, BOOK_DAY_END, isExamPlaceholder, BLOCK_PRESENTATION, blockKindOf } from '../utils/weeklyAgenda';
@@ -584,6 +586,8 @@ const InlineTimePicker = ({ selectedTime, onSelectTime, loading }: {
 
 export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolean } = {}) => {
   const router = useRouter();
+  // REG-638 Reglo Road: guida su cui si può entrare adesso (da /road/state).
+  const { eligible: roadEligible, phase: roadPhase } = useRoadState();
   const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
@@ -3986,6 +3990,11 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
                 vehicleText={vehicleText}
                 onPresent={() => executeStatusAction(live, 'checked_in')}
                 onAbsent={() => executeStatusAction(live, 'no_show')}
+                onEnterRoad={
+                  !ownerMode && roadPhase === 'idle' && roadEligible?.appointmentId === live.id
+                    ? () => void beginRoadEntry(router, roadEligible)
+                    : undefined
+                }
                 onOpen={() => {
                   if (isExam) {
                     openExamManage({
