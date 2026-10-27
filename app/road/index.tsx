@@ -27,11 +27,13 @@ import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/ro
  */
 
 const PITCH = 40;
-const ALTITUDE = 430; // iOS (metri)
-const ZOOM = 17.4; // Android
+const ALTITUDE = 760; // iOS (metri)
+const ZOOM = 16.7; // Android
 // Spazio sopra/sotto in cui la mappa centra l'auto: la tiene un po' sotto la
-// metà dello schermo, con più strada davanti (come l'anteprima).
-const MAP_PADDING = { top: 330, right: 0, bottom: 200, left: 0 };
+// metà dello schermo, con più strada davanti (come l'anteprima). Il bordo
+// basso coincide col pannello, così la scritta «Legal» di Apple resta visibile
+// appena sopra e non finisce sotto il cerchio della velocità.
+const MAP_PADDING_TOP = 330;
 
 function useNow(everyMs: number) {
   const [now, setNow] = useState(Date.now());
@@ -191,7 +193,7 @@ export default function RoadScreen() {
           altitude: ALTITUDE,
           zoom: ZOOM,
         }}
-        mapPadding={MAP_PADDING}
+        mapPadding={{ top: MAP_PADDING_TOP, right: 0, bottom: Math.max(0, panelH - 60), left: 0 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
         showsBuildings

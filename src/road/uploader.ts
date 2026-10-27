@@ -101,7 +101,9 @@ async function flushPoints() {
     } catch (err) {
       const code = errorCode(err);
       if (code === 'SESSION_CLOSED' || code === 'NOT_FOUND' || code === 'FORBIDDEN') {
-        await roadQueue.dropPoints();
+        // sessione chiusa/cancellata altrove: la coda si scollega (i punti
+        // successivi non vanno più accodati né spediti)
+        await roadQueue.detach();
         closedHandler?.();
         return;
       }
@@ -113,7 +115,7 @@ async function flushPoints() {
       throw err;
     }
     if (res && res.accepted === false) {
-      await roadQueue.dropPoints();
+      await roadQueue.detach();
       closedHandler?.();
       return;
     }

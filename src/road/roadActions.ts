@@ -174,7 +174,11 @@ export async function enterRoad(appointmentId: string): Promise<boolean> {
 export async function resumeRoad(session: RoadSessionWithLesson): Promise<void> {
   const current = roadStore.get();
   const sameActive = current.session?.id === session.id && current.phase !== 'idle';
-  if (sameActive && (await isRoadTrackingActive())) return;
+  if (sameActive && (await isRoadTrackingActive())) {
+    // il pagellino può essere stato acceso/spento dal titolare nel frattempo
+    void loadEvaluationEnabled(session.appointmentId);
+    return;
+  }
   if (!sameActive) {
     roadStore.startSession(session);
     void hydrate(session.id);

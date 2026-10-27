@@ -7,7 +7,7 @@ import { regloApi } from '../services/regloApi';
 import { isInstructor } from '../utils/roles';
 import { roadStore, useRoadState } from './roadStore';
 import { isInviteDismissed, resumeRoad } from './roadActions';
-import { stopRoadTracking } from './tracking';
+import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
 import { roadQueue } from './queue';
 import { ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
@@ -48,8 +48,11 @@ export function RoadController() {
         await resumeRoad(st.activeSession);
         return;
       }
-      // Sessione chiusa altrove mentre l'app dormiva: si esce da Road.
-      if (roadStore.get().phase === 'active') {
+      // Sessione chiusa altrove mentre l'app dormiva: si esce da Road. Vale
+      // anche per il task GPS che iOS/Android ripristinano da soli dopo un
+      // kill: senza sessione attiva non deve restare acceso.
+      const phaseNow = roadStore.get().phase;
+      if (phaseNow === 'active' || (phaseNow === 'idle' && (await isRoadTrackingActive()))) {
         await stopRoadTracking();
         roadUploader.stop();
         await roadQueue.detach();
