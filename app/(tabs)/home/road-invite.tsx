@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -50,26 +51,27 @@ export default function RoadInviteSheet() {
   };
 
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
-    >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Entri in modalità Road?</Text>
-          <Text style={s.kick}>È l&apos;ora della guida.</Text>
-        </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
+    <FormSheet
+      title={'Entri in modalità Road?'}
+      subtitle={'È l\'ora della guida.'}
+      testID="road-invite"
+      cta={
+        <>
+      <View style={s.stack}>
+        <Pressable
+          onPress={onEnter}
+          style={({ pressed }) => [s.btn, s.btnDark, pressed && { opacity: 0.88 }]}
+          testID="road-invite-enter"
+        >
+          <Text style={s.btnDarkTx}>Entra in Road</Text>
+        </Pressable>
+        <Pressable onPress={onLater} style={({ pressed }) => [s.btn, pressed && { opacity: 0.6 }]} testID="road-invite-later">
+          <Text style={s.btnGhostTx}>Non ora</Text>
+        </Pressable>
       </View>
+        </>
+      }
+    >
 
       <View style={s.hero}>
         <Image source={car34Art(lesson.carColor)} style={s.heroImg} resizeMode="contain" />
@@ -96,19 +98,7 @@ export default function RoadInviteSheet() {
           <Text style={s.featureTx}>Pagellino a portata di mano</Text>
         </View>
       </View>
-      <View style={s.stack}>
-        <Pressable
-          onPress={onEnter}
-          style={({ pressed }) => [s.btn, s.btnDark, pressed && { opacity: 0.88 }]}
-          testID="road-invite-enter"
-        >
-          <Text style={s.btnDarkTx}>Entra in Road</Text>
-        </Pressable>
-        <Pressable onPress={onLater} style={({ pressed }) => [s.btn, pressed && { opacity: 0.6 }]} testID="road-invite-later">
-          <Text style={s.btnGhostTx}>Non ora</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -154,7 +144,7 @@ const s = StyleSheet.create({
   feature: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   featureImg: { width: 30, height: 30 },
   featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: '#3A3A3C', letterSpacing: -0.15 },
-  stack: { gap: 6, marginTop: 20 },
+  stack: { gap: 6 },
   btn: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
   btnDark: { backgroundColor: '#111111' },
   btnDarkTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },

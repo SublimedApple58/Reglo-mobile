@@ -1,6 +1,131 @@
 import React from 'react';
-import { Platform, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, ScrollViewProps, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
+import { GlassCloseButton } from './GlassCloseButton';
+import { SHEET_BOTTOM } from '../utils/sheetPresentation';
+import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
+
+/**
+ * ─── FormSheet: IL form sheet di Reglo (design-system §13.2) ────────────────
+ *
+ * Struttura fissa, uguale per ogni foglio:
+ *   radice = scroll del foglio stesso (contentInsetAdjustmentBehavior never)
+ *   └ intestazione: [leading] titolo + sottotitolo · X in alto a destra
+ *   └ contenuto (entra/esce con dissolvenza morbida, l'altezza scivola)
+ *   └ CTA: l'ULTIMA cosa, poi solo SHEET_BOTTOM (mai insets.bottom)
+ * Presentazione della route: `FORM_SHEET` (utils/sheetPresentation): formSheet,
+ * fitToContents, niente grabber, niente swipe, fondo bianco.
+ *
+ * `contentKey`: quando cambia (es. passo di un foglio a più passi) il contenuto
+ * fa una dissolvenza incrociata invece di cambiare di botto.
+ */
+export function FormSheet({
+  title,
+  subtitle,
+  leading,
+  onClose,
+  cta,
+  children,
+  contentKey,
+  testID,
+  scrollProps,
+  headerStyle,
+}: {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  /** A sinistra del titolo: avatar, chevron «indietro». */
+  leading?: React.ReactNode;
+  /** Default: `router.back()`. La X è l'unico modo di chiudere il foglio. */
+  onClose?: () => void;
+  /** CTA (una o una colonna di bottoni): ultima cosa del foglio. */
+  cta?: React.ReactNode;
+  children?: React.ReactNode;
+  contentKey?: string;
+  testID?: string;
+  scrollProps?: Omit<ScrollViewProps, 'style' | 'contentContainerStyle' | 'contentInsetAdjustmentBehavior'>;
+  headerStyle?: StyleProp<ViewStyle>;
+}) {
+  const router = useRouter();
+  const close = onClose ?? (() => router.back());
+  return (
+    <ScrollView
+      style={fs.scroll}
+      contentContainerStyle={fs.root}
+      // La safe area la gestisce il foglio: iOS non deve aggiungerla sotto la CTA.
+      contentInsetAdjustmentBehavior="never"
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+      testID={testID}
+      {...scrollProps}
+    >
+      <View style={[fs.head, headerStyle]}>
+        {leading}
+        <View style={fs.titles}>
+          {typeof title === 'string' ? (
+            <Text style={fs.title} numberOfLines={2}>{title}</Text>
+          ) : (
+            title
+          )}
+          {typeof subtitle === 'string' ? (
+            <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
+          ) : (
+            subtitle
+          )}
+        </View>
+        <GlassCloseButton onPress={close}>
+          <Pressable onPress={close} hitSlop={10} style={fs.x} accessibilityLabel="Chiudi">
+            <Ionicons name="close" size={20} color="#3A3A3C" />
+          </Pressable>
+        </GlassCloseButton>
+      </View>
+
+      <Animated.View
+        key={contentKey ?? 'content'}
+        entering={contentKey ? SOFT_TEXT_IN : softEnter()}
+        exiting={SOFT_TEXT_OUT}
+        layout={SOFT_LAYOUT}
+      >
+        {children}
+      </Animated.View>
+
+      {cta ? (
+        <Animated.View layout={SOFT_LAYOUT} style={fs.cta}>
+          {cta}
+        </Animated.View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+const fs = StyleSheet.create({
+  scroll: { backgroundColor: '#FFFFFF' },
+  // Misure §13.2.1: testata 26 sopra, CTA in fondo con SHEET_BOTTOM.
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
+  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 18 },
+  titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
+  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
+  subtitle: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, lineHeight: 20 },
+  x: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(120,120,128,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cta: { marginTop: 22 },
+});
+
+/**
+ * ─── Legacy ────────────────────────────────────────────────────────────────
+ * `SheetScaffold` resta solo per i fogli non ancora migrati a `FormSheet`
+ * (elenco in design-system §13.2). Non usarlo nei fogli nuovi.
+ */
 
 const isAndroid = Platform.OS === 'android';
 

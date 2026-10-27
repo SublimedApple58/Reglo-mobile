@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
@@ -191,100 +191,80 @@ export default function AvviaGuidaSheet() {
   };
 
   const back = (to: 'student' | 'summary') => (
-    <Pressable onPress={() => setStep(to)} hitSlop={10} style={s.x} accessibilityLabel="Indietro">
+    <RoadPressable kind="small" onPress={() => setStep(to)} hitSlop={10} style={s.x} accessibilityLabel="Indietro">
       <Ionicons name="chevron-back" size={20} color="#3A3A3C" />
-    </Pressable>
-  );
-  const close = (
-    <GlassCloseButton onPress={() => router.back()}>
-      <Pressable onPress={() => router.back()} hitSlop={10} style={s.x} accessibilityLabel="Chiudi">
-        <Ionicons name="close" size={20} color="#3A3A3C" />
-      </Pressable>
-    </GlassCloseButton>
+    </RoadPressable>
   );
   const nowLabel = `Da adesso, ${formatHm(new Date().toISOString())}`;
 
   if (!options) {
     return (
-      <View style={[s.root, { alignItems: 'center', paddingVertical: 40 }]}>
-        <ActivityIndicator color="#111111" />
-      </View>
+      <FormSheet title="Avvia guida" subtitle={nowLabel}>
+        <ActivityIndicator color="#111111" style={{ marginVertical: 30 }} />
+      </FormSheet>
     );
   }
+
+  const searchField = (value: string, onChange: (v: string) => void, placeholder: string, testID?: string) => (
+    <View style={s.search}>
+      <Ionicons name="search" size={18} color="#8E8E93" />
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor="#8E8E93"
+        style={s.searchInput}
+        autoCorrect={false}
+        autoCapitalize="words"
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+        testID={testID}
+      />
+    </View>
+  );
 
   // ── Passo 1: con chi guidi? ────────────────────────────────────────────
   if (step === 'student') {
     let lastLetter = '';
     return (
-      <ScrollView
-        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-        contentInsetAdjustmentBehavior="never"
-        style={{ backgroundColor: '#FFFFFF' }}
-        contentContainerStyle={s.listRoot}
-        stickyHeaderIndices={[0]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-        testID="road-free-pick"
-      >
-        <View style={s.stickyHead}>
-          <View style={s.top}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.title}>Con chi guidi?</Text>
-              <Text style={s.sub}>{nowLabel}</Text>
+      <FormSheet title="Con chi guidi?" subtitle={nowLabel} contentKey="student" testID="road-free-pick">
+        {searchField(query, setQuery, 'Cerca allievo', 'road-free-search')}
+        {/* Righe a tutta larghezza come le liste native: escono dal margine del foglio. */}
+        <View style={s.bleed}>
+          {shownSuggested.length ? (
+            <View>
+              <Text style={s.section}>Le tue ultime guide</Text>
+              {shownSuggested.map((p, i) => (
+                <Animated.View key={`s-${p.id}`} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+                  <PersonRow person={p} dark onPress={() => pick(p.id)} />
+                </Animated.View>
+              ))}
             </View>
-            {close}
-          </View>
-          <View style={s.search}>
-            <Ionicons name="search" size={18} color="#8E8E93" />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Cerca allievo"
-              placeholderTextColor="#8E8E93"
-              style={s.searchInput}
-              autoCorrect={false}
-              autoCapitalize="words"
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-              testID="road-free-search"
-            />
-          </View>
+          ) : null}
+
+          <Text style={s.section}>
+            {q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`}
+          </Text>
+          {!students ? (
+            <ActivityIndicator color="#6A6A6A" style={{ marginTop: 18 }} />
+          ) : shownAll.length ? (
+            shownAll.map((p, i) => {
+              const letter = p.sortKey[0]?.toUpperCase() ?? '';
+              const header = !q && letter !== lastLetter ? letter : null;
+              lastLetter = letter;
+              return (
+                // Le prime righe entrano a cascata; filtrando, le righe escono e le altre scivolano.
+                <Animated.View key={p.id} entering={roadStagger(Math.min(i, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+                  {header ? <Text style={s.letter}>{header}</Text> : null}
+                  <PersonRow person={p} onPress={() => pick(p.id)} />
+                </Animated.View>
+              );
+            })
+          ) : (
+            <Text style={s.empty}>Nessun allievo trovato.</Text>
+          )}
         </View>
-
-        {shownSuggested.length ? (
-          <View>
-            <Text style={s.section}>Le tue ultime guide</Text>
-            {shownSuggested.map((p, i) => (
-              <Animated.View key={`s-${p.id}`} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-                <PersonRow person={p} dark onPress={() => pick(p.id)} />
-              </Animated.View>
-            ))}
-          </View>
-        ) : null}
-
-        <Text style={s.section}>
-          {q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`}
-        </Text>
-        {!students ? (
-          <ActivityIndicator color="#6A6A6A" style={{ marginTop: 18 }} />
-        ) : shownAll.length ? (
-          shownAll.map((p, i) => {
-            const letter = p.sortKey[0]?.toUpperCase() ?? '';
-            const header = !q && letter !== lastLetter ? letter : null;
-            lastLetter = letter;
-            return (
-              // Le prime righe entrano a cascata; filtrando, le righe escono e le altre scivolano.
-              <Animated.View key={p.id} entering={roadStagger(Math.min(i, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-                {header ? <Text style={s.letter}>{header}</Text> : null}
-                <PersonRow person={p} onPress={() => pick(p.id)} />
-              </Animated.View>
-            );
-          })
-        ) : (
-          <Text style={s.empty}>Nessun allievo trovato.</Text>
-        )}
-      </ScrollView>
+      </FormSheet>
     );
   }
 
@@ -316,47 +296,24 @@ export default function AvviaGuidaSheet() {
     const who = selected ? firstName(selected.name) : null;
     const lic = selectedStudent?.licenseCategory ? `patente ${selectedStudent.licenseCategory}` : null;
     return (
-      <ScrollView
-        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-        contentInsetAdjustmentBehavior="never"
-        style={{ backgroundColor: '#FFFFFF' }}
-        contentContainerStyle={s.listRoot}
-        stickyHeaderIndices={[0]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
+      <FormSheet
+        // Indietro a sinistra, la X (unica chiusura del foglio) in alto a destra.
+        leading={back('summary')}
+        title="Che auto usi?"
+        subtitle={[who ? `Per ${who}` : null, lic].filter(Boolean).join(' · ') || nowLabel}
+        contentKey="vehicle"
         testID="road-free-vehicles"
       >
-        <View style={s.stickyHead}>
-          {/* Indietro a sinistra, la X (unica chiusura del foglio) in alto a destra. */}
-          <View style={[s.top, { alignItems: 'center' }]}>
-            {back('summary')}
-            <View style={{ flex: 1 }}>
-              <Text style={s.title}>Che auto usi?</Text>
-              <Text style={s.sub}>{[who ? `Per ${who}` : null, lic].filter(Boolean).join(' · ') || nowLabel}</Text>
-            </View>
-            {close}
-          </View>
-          <View style={s.search}>
-            <Ionicons name="search" size={18} color="#8E8E93" />
-            <TextInput
-              value={vehicleQuery}
-              onChangeText={setVehicleQuery}
-              placeholder="Cerca per nome o targa"
-              placeholderTextColor="#8E8E93"
-              style={s.searchInput}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-          </View>
+        {searchField(vehicleQuery, setVehicleQuery, 'Cerca per nome o targa')}
+        <View style={s.bleed}>
+          {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
+          {section(mine.length ? `Altre auto · ${free.length}` : `Libere adesso · ${free.length}`, free)}
+          {section('Occupate adesso', busy)}
+          {!list.length ? (
+            <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text>
+          ) : null}
         </View>
-        {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
-        {section(mine.length ? `Altre auto · ${free.length}` : `Libere adesso · ${free.length}`, free)}
-        {section('Occupate adesso', busy)}
-        {!list.length ? <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text> : null}
-      </ScrollView>
+      </FormSheet>
     );
   }
 
@@ -371,41 +328,52 @@ export default function AvviaGuidaSheet() {
   ]
     .filter(Boolean)
     .join(' · ');
+  const toStudents = () => setStep('student');
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
-      testID="road-free-sheet"
-    >
-      <Animated.View entering={roadEnter()} layout={ROAD_LAYOUT}>
-      <View style={[s.top, { alignItems: 'center' }]}>
-        <Pressable
-          onPress={() => setStep('student')}
-          style={({ pressed }) => [s.who, pressed && { opacity: 0.7 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Cambia allievo"
-        >
+    <FormSheet
+      leading={
+        <Pressable onPress={toStudents} accessibilityRole="button" accessibilityLabel="Cambia allievo">
           <RoadAvatar name={selected?.name ?? '?'} size={48} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.whoName} numberOfLines={1}>{selected?.name ?? 'Allievo'}</Text>
-            {selectedDetail ? <Text style={s.detail} numberOfLines={1}>{selectedDetail}</Text> : null}
-          </View>
         </Pressable>
-        {close}
-      </View>
-
+      }
+      title={
+        <Pressable onPress={toStudents} accessibilityRole="button" accessibilityLabel="Cambia allievo">
+          <Text style={s.whoName} numberOfLines={1}>{selected?.name ?? 'Allievo'}</Text>
+          {selectedDetail ? <Text style={s.detail} numberOfLines={1}>{selectedDetail}</Text> : null}
+        </Pressable>
+      }
+      contentKey="summary"
+      testID="road-free-sheet"
+      cta={
+        <RoadPressable
+          kind="cta"
+          onPress={() => void onStart()}
+          disabled={!canStart}
+          style={[s.cta, !canStart && !starting && s.ctaOff]}
+          accessibilityRole="button"
+          testID="road-free-go"
+        >
+          {starting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              {canStart ? <Ionicons name="play" size={17} color="#FFFFFF" /> : null}
+              <Text style={[s.ctaTx, !canStart && s.ctaTxOff]}>
+                {selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
+              </Text>
+            </>
+          )}
+        </RoadPressable>
+      }
+    >
       {briefing?.lines.length ? (
         <>
-          <Text style={s.label}>{briefing.title}</Text>
+          <Text style={[s.label, { marginTop: 4 }]}>{briefing.title}</Text>
           <BriefingRows lines={briefing.lines} />
         </>
       ) : null}
 
-      <Text style={s.label}>Guida</Text>
+      <Text style={[s.label, !briefing?.lines.length && { marginTop: 4 }]}>Guida</Text>
       <Pressable
         onPress={() => setStep('vehicle')}
         style={({ pressed }) => [s.autoRow, pressed && { opacity: 0.7 }]}
@@ -445,28 +413,7 @@ export default function AvviaGuidaSheet() {
         {endLine}
       </Animated.Text>
       <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
-
-      <RoadPressable
-        kind="cta"
-        onPress={() => void onStart()}
-        disabled={!canStart}
-        style={[s.cta, !canStart && !starting && s.ctaOff]}
-        accessibilityRole="button"
-        testID="road-free-go"
-      >
-        {starting ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <>
-            {canStart ? <Ionicons name="play" size={17} color="#FFFFFF" /> : null}
-            <Text style={[s.ctaTx, !canStart && s.ctaTxOff]}>
-              {selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
-            </Text>
-          </>
-        )}
-      </RoadPressable>
-      </Animated.View>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -560,7 +507,8 @@ const s = StyleSheet.create({
   // form sheet: padding fisso, niente safe area (§13.2.1)
   // form sheet: respiro in fondo = SHEET_BOTTOM, mai insets.bottom (§13.2.1)
   root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  listRoot: { backgroundColor: '#FFFFFF', paddingBottom: SHEET_BOTTOM },
+  // Le liste vanno a tutta larghezza (righe native), oltre il margine del foglio.
+  bleed: { marginHorizontal: -22, marginTop: 6 },
   stickyHead: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: 8 },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.7 },
@@ -574,7 +522,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   search: {
-    marginTop: 16,
     height: 44,
     borderRadius: 14,
     backgroundColor: '#F2F2F0',
@@ -670,7 +617,6 @@ const s = StyleSheet.create({
     gap: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
     shadowColor: '#000',
     shadowOpacity: 0.16,
     shadowRadius: 12,

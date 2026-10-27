@@ -61,15 +61,14 @@ export const SCROLL_SHEET = {
 } as const;
 
 /**
- * Fogli di Reglo Road (regola §13.2 / §13.2.1, Tiziano 27/10): form sheet
- * nativo alto quanto il contenuto, SENZA grabber e senza swipe per chiudere:
- * si chiude solo con la X in alto a destra. Fondo bianco dichiarato
- * (sotto il foglio non deve mai spuntare il colore dello stack). La radice
- * della schermata è la ScrollView: se il contenuto supera lo schermo scorre il
- * foglio stesso. CTA ultima cosa, `paddingBottom` fisso 18, mai `insets.bottom`.
- * Android (non ancora rilasciato): detent alto, la radice scrolla lo stesso.
+ * IL modo di presentare un form sheet (design-system §13.2): nativo, alto quanto
+ * il contenuto, SENZA grabber e senza swipe per chiudere (si chiude solo con la
+ * X in alto a destra), fondo bianco dichiarato (sotto il foglio non spunta mai
+ * il colore dello stack). Il corpo è sempre `<FormSheet>` di
+ * `components/SheetScaffold`. Android (non ancora rilasciato): detent alto,
+ * la radice scrolla lo stesso.
  */
-export const ROAD_SHEET = {
+export const FORM_SHEET = {
   presentation: 'formSheet',
   sheetGrabberVisible: false,
   gestureEnabled: false,

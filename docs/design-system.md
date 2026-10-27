@@ -1508,41 +1508,78 @@ headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }
 
 Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
 
-### 13.2 Native FormSheet (Expo Router)
+### 13.2 Form sheet — IL modo di farlo (`FormSheet` + `FORM_SHEET`)
 
-Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'`. Lo sheet si adatta all'altezza del contenuto.
+> **Regola Reglo (Tiziano, 28/10/2026): un solo componente, struttura fissa.**
+> Ogni form sheet dell'app si fa così, senza eccezioni. Non si costruisce più un
+> foglio a mano (ScrollView, testata, X, padding): si usa il componente.
 
-> **Regola Reglo (Tiziano, 27/10/2026): niente grabber, si chiude con la X.**
-> `sheetGrabberVisible: false` e `gestureEnabled: false`: il foglio si chiude
-> **solo** con la X tonda in alto a destra, nell'angolo (`GlassCloseButton`).
-> Dentro un foglio a più passi l'«indietro» è un chevron a sinistra; la X resta
-> sempre a destra. Fondo bianco dichiarato in `contentStyle`, così sotto il
-> foglio non spunta mai il colore dello stack (era la «fascia crema/grigia»).
-> Preset pronto: `ROAD_SHEET` in `src/utils/sheetPresentation.ts`.
+**1. Presentazione della route** — un solo helper, `FORM_SHEET`
+(`src/utils/sheetPresentation.ts`): `presentation: 'formSheet'`,
+`sheetAllowedDetents: 'fitToContents'` (Android: detent alto), **niente grabber**,
+**niente swipe per chiudere** (`gestureEnabled: false`), fondo bianco in
+`contentStyle` (sotto il foglio non spunta mai il colore dello stack).
 
 ```tsx
-// app/(tabs)/home/_layout.tsx
-<Stack.Screen
-  name="my-sheet"
-  options={{
-    presentation: 'formSheet',
-    sheetAllowedDetents: 'fitToContents',
-    sheetGrabberVisible: false,
-    gestureEnabled: false,
-    headerShown: false,
-    contentStyle: { backgroundColor: '#FFFFFF' },
-  }}
-/>
+// app/(tabs)/<stack>/_layout.tsx
+<Stack.Screen name="my-sheet" options={FORM_SHEET} />
 ```
 
-Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` con `useSyncExternalStore`.
+**2. Corpo del foglio** — un solo componente, `<FormSheet>`
+(`src/components/SheetScaffold.tsx`):
 
-**IMPORTANTE:** con `fitToContents` niente `flex: 1` nel root e **mai una View/ScrollView interna separata** che scorre dentro il foglio. Se il contenuto supera lo schermo, la radice della schermata È lo scroll (vedi §13.2.1).
+```tsx
+<FormSheet
+  title="Parti con Sara"          // stringa o nodo
+  subtitle="Patente B · 14ª guida"
+  leading={<Avatar/> /* o chevron «indietro» */}
+  cta={<Bottone/>}                 // ultima cosa del foglio
+  contentKey={step}                // fogli a più passi: dissolvenza fra i passi
+  onClose={...}                    // default router.back()
+>
+  {contenuto}
+</FormSheet>
+```
 
-**Schermi migrati a formSheet:**
-- `lesson-detail` — dettaglio guida (fitToContents)
-- `booking-flow` — prenotazione guida 2 step (fitToContents)
-- `quiz-hint` — hint quiz con HTML (fitToContents)
+Cosa fa da solo, sempre uguale:
+- **radice = scroll del foglio** (`contentInsetAdjustmentBehavior="never"`): se il
+  contenuto supera lo schermo scorre il foglio stesso, mai una scroll interna;
+- **intestazione**: `leading` + titolo `24/600` + sottotitolo `15/400`, e la **X
+  in alto a destra, nell'angolo** (`GlassCloseButton`): è l'unico modo di
+  chiudere. Niente eyebrow sopra il titolo;
+- **contenuto** che entra ed esce con dissolvenza morbida, l'altezza scivola
+  (`utils/motion.ts`, niente rimbalzi, `ReduceMotion.Never`);
+- **CTA in fondo come ultima cosa**, poi solo `SHEET_BOTTOM` (0 da iOS 26, 18
+  prima — vedi §13.2.1). **Mai `insets.bottom`.** Note e spiegazioni stanno
+  sopra la CTA;
+- fondo bianco, padding laterale 22, testata 26 sopra.
+
+Liste a tutta larghezza dentro il foglio (righe native con divisori): un
+contenitore con `marginHorizontal: -22` (vedi `drive/avvia.tsx`, `s.bleed`). La
+ricerca sta nel contenuto, non in una testata sticky (il wrapper sticky di RN
+rompe la riga titolo/X).
+
+**Fogli già su `FormSheet` (28/10/2026):** tutti quelli di Road —
+`drive/avvia` (3 passi), `drive/pagellino` e `road/pagellino`
+(`manage-lesson-details` variante Road), `road/segnala`, `road/riepilogo`,
+`home/road-percorso` (anche da `notes` e `drive`), `home/road-privacy` (anche da
+`drive`), `home/road-invite`.
+
+**Da migrare** (usano ancora `SheetScaffold` legacy o un preset vecchio
+`TALL_SHEET`/`HUG_SHEET`/`SCROLL_SHEET`/`PAGE_SHEET`): home → `booking-flow`,
+`cancel-fault`, `edit-notes`, `exam-detail`, `exam-manage`,
+`group-lesson-detail`, `lesson-detail`, `manage-co-instructors`,
+`manage-group-lesson-participants`, `manage-lesson-correct`,
+`manage-lesson-details` (variante home), `manage-lesson-instructor`,
+`manage-lesson-location`, `manage-lesson-location-form`,
+`manage-lesson-vehicles`, `out-of-availability`, `quick-book`,
+`reschedule-lesson`, `select-date-range`, `select-options`,
+`select-options-long`, `sick-leave`, `swap-detail`, `swap-lesson`; more →
+`agenda-settings`, `availability-mode`, `color-picker`, `hours-period`,
+`location-form`, `profile-edit`; notes → `booking-rules`, `extras`, `limits`;
+role → `publish-day`; settings → `availability`, `profile-edit`; componenti →
+`LessonsOverview`, `PaymentHistorySheet`, `BlockForm`, `BookingForm`,
+`CreateExamScreen`.
 
 ### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
 

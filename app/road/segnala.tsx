@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FormSheet } from '../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -17,7 +18,7 @@ type Item = { kind: string; label: string; short: string };
 /**
  * REG-638 — «Cosa è da migliorare?» / «Cosa è andato bene?». In testa il segno
  * (fatto bene / da migliorare), che resta per la sessione. Form sheet nativo che abbraccia il contenuto
- * (ROAD_SHEET, §13.2.1: la radice è lo scroll del foglio). Tocco = segnala subito sul punto in cui sei e chiude;
+ * (FORM_SHEET, §13.2.1: la radice è lo scroll del foglio). Tocco = segnala subito sul punto in cui sei e chiude;
  * pressione lunga = prima una nota (Alert.prompt su iOS, campo qui su Android).
  */
 export default function SegnalaSheet() {
@@ -92,28 +93,11 @@ export default function SegnalaSheet() {
   );
 
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
+    <FormSheet
+      title={good ? 'Cosa è andato bene?' : 'Cosa è da migliorare?'}
+      subtitle={[street, formatHm(openedAt)].filter(Boolean).join(' · ')}
+      testID="road-segnala-sheet"
     >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>{good ? 'Cosa è andato bene?' : 'Cosa è da migliorare?'}</Text>
-          <Text style={s.lead} numberOfLines={1}>
-            {[street, formatHm(openedAt)].filter(Boolean).join(' · ')}
-          </Text>
-        </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
 
       <View style={s.seg} accessibilityRole="tablist">
         {(
@@ -174,7 +158,7 @@ export default function SegnalaSheet() {
           <Text style={s.hint}>Tocca per segnare dove sei · tieni premuto per aggiungere una nota</Text>
         )}
       </View>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -205,7 +189,7 @@ const s = StyleSheet.create({
   sqGood: { backgroundColor: '#EEF8F1' },
   sqBad: { backgroundColor: '#FDF1F0' },
   sqPressed: { backgroundColor: '#E6E6E3', transform: [{ scale: 0.96 }] },
-  seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: '#F2F2F0', marginTop: 16 },
+  seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: '#F2F2F0' },
   segBtn: { flex: 1, height: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   segBtnOn: {
     backgroundColor: '#FFFFFF',

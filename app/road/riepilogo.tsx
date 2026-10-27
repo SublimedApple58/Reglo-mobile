@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FormSheet } from '../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -88,32 +89,46 @@ export default function RiepilogoScreen() {
   const more = summary.markers.length - shown.length;
 
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
+    <FormSheet
+      title={lessonStudentName(lesson)}
+      subtitle={`Guida completata · ${sub}`}
       testID="road-summary"
-    >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <View style={s.doneK}>
-            <View style={s.doneIc}>
-              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+      onClose={close}
+      cta={
+        <>
+      <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
+        {showPagellino ? (
+          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} style={[s.pg, pgComplete && s.pgDone]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pgTitle}>Pagellino</Text>
+              <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={[s.pgSub, pgComplete && s.pgSubDone]}>
+                {pgEmpty
+                  ? 'Ancora da compilare'
+                  : pgComplete
+                    ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
+                    : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
+              </Animated.Text>
             </View>
-            <Text style={s.doneKTx}>Guida completata</Text>
-          </View>
-          <Text style={s.name} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
-          <Text style={s.sub} numberOfLines={1}>{sub}</Text>
-        </View>
-        <GlassCloseButton onPress={close}>
-          <Pressable onPress={close} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
+            <RoadPressable
+              kind="small"
+              onPress={() =>
+                openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
+              }
+              style={s.pgBtn}
+              testID="road-summary-pagellino"
+            >
+              <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
+            </RoadPressable>
+          </Animated.View>
+        ) : null}
+
+        <RoadPressable kind="cta" onPress={close} style={s.closeBtn} testID="road-summary-close">
+          <Text style={s.closeTx}>Chiudi</Text>
+        </RoadPressable>
+      </Animated.View>
+        </>
+      }
+    >
 
       <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
 
@@ -168,37 +183,7 @@ export default function RiepilogoScreen() {
           ) : null}
         </View>
       ) : null}
-      <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
-        {showPagellino ? (
-          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} style={[s.pg, pgComplete && s.pgDone]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.pgTitle}>Pagellino</Text>
-              <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={[s.pgSub, pgComplete && s.pgSubDone]}>
-                {pgEmpty
-                  ? 'Ancora da compilare'
-                  : pgComplete
-                    ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
-                    : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
-              </Animated.Text>
-            </View>
-            <RoadPressable
-              kind="small"
-              onPress={() =>
-                openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
-              }
-              style={s.pgBtn}
-              testID="road-summary-pagellino"
-            >
-              <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
-            </RoadPressable>
-          </Animated.View>
-        ) : null}
-
-        <RoadPressable kind="cta" onPress={close} style={s.closeBtn} testID="road-summary-close">
-          <Text style={s.closeTx}>Chiudi</Text>
-        </RoadPressable>
-      </Animated.View>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -226,11 +211,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mini: { height: 172, borderRadius: 24, marginTop: 16 },
+  mini: { height: 172, borderRadius: 24 },
   agendaLine: { flexDirection: 'row', gap: 8, marginTop: 14 },
   agendaTx: { flex: 1, fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 8 },
-  foot: { marginTop: 14 },
+  foot: {},
   sum: { flexDirection: 'row', marginTop: 16 },
   sumCol: { flex: 1 },
   sumSep: { borderLeftWidth: 1, borderLeftColor: '#ECECEC', paddingLeft: 14 },

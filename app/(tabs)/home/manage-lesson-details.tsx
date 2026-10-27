@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -31,7 +30,7 @@ import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet, SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 /**
@@ -503,40 +502,12 @@ export default function ManageLessonDetailsScreen() {
   );
 
   if (road) {
-    // Da Road: form sheet nativo (ROAD_SHEET, §13.2.1). La radice È lo scroll
-    // del foglio: testata con «Pagellino» + allievo e la X, poi le voci,
-    // «Salva» è l'ultima cosa. (Niente testata sticky: il wrapper sticky di RN
-    // rompeva la riga e mandava la X sotto il titolo.) Niente
-    // insets.bottom: il form sheet è già staccato dal bordo.
+    // Da Road: IL form sheet (FormSheet, §13.2): titolo «Pagellino» + allievo
+    // e la X, le voci, «Salva» come ultima cosa.
     return (
-      <ScrollView
-        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-        contentInsetAdjustmentBehavior="never"
-        style={{ backgroundColor: '#FFFFFF' }}
-        contentContainerStyle={s.roadRoot}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        alwaysBounceVertical={false}
-        testID="road-pagellino-sheet"
-      >
-        {/* Testata come gli altri fogli di Road: titolo a sinistra, la X (unica
-            chiusura) in alto a destra. */}
-        <View style={s.navBar}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.navTitle} numberOfLines={1}>Pagellino</Text>
-            <Text style={s.navSub} numberOfLines={1}>{road.subtitle}</Text>
-          </View>
-          <GlassCloseButton onPress={() => router.back()}>
-            <Pressable onPress={() => router.back()} hitSlop={8} style={s.roadX}>
-              <Ionicons name="close" size={20} color="#3A3A3C" />
-            </Pressable>
-          </GlassCloseButton>
-        </View>
-        <View style={[s.scaffoldBody, s.roadBody]}>
-          {content}
-          {saveFooter}
-        </View>
-      </ScrollView>
+      <FormSheet title="Pagellino" subtitle={road.subtitle} cta={saveFooter} testID="road-pagellino-sheet">
+        <View style={s.scaffoldBody}>{content}</View>
+      </FormSheet>
     );
   }
 
@@ -621,20 +592,6 @@ const s = StyleSheet.create({
   saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   // REG-638: in Road niente navy, CTA nera piena.
   saveBtnRoad: { backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.18 },
-  // Road: foglio con barra nativa, corpo che scorre, «Salva» fisso.
-  // form sheet: respiro fisso in fondo, mai insets.bottom (§13.2.1)
-  roadRoot: { backgroundColor: '#FFFFFF', paddingBottom: SHEET_BOTTOM },
-  navBar: {
-    backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    paddingTop: 26, paddingHorizontal: spacing.lg, paddingBottom: 14,
-  },
-  navTitle: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
-  navSub: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
-  roadX: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  roadBody: { paddingHorizontal: spacing.lg, paddingTop: 4 },
   roadStay: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginBottom: -6 },
   pagellinoHeadRoad: { justifyContent: 'flex-start' },
 });

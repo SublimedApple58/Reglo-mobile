@@ -1,5 +1,6 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
@@ -16,7 +17,7 @@ const MAX_MARKERS = 5;
 
 /**
  * REG-638 — «Percorso Road» di una guida nell'app istruttore (dettaglio guida e
- * storico allievo). Form sheet nativo alto quanto il contenuto (ROAD_SHEET,
+ * storico allievo). Form sheet nativo alto quanto il contenuto (FORM_SHEET,
  * §13.2.1): la radice è lo scroll del foglio. Titolo = giorno e orario (niente
  * eyebrow). Tocco sulla mappa = mappa a tutto schermo.
  */
@@ -37,28 +38,11 @@ export default function RoadPercorsoSheet() {
   const more = detail.markers.length - shown.length;
 
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
+    <FormSheet
+      title={`${dayLabel(detail.startedAt)} · ${formatHm(detail.startedAt)} – ${formatHm(detail.endedAt ?? lesson.endsAt)}`}
+      subtitle={sub || undefined}
       testID="road-percorso"
     >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title} numberOfLines={1}>
-            {dayLabel(detail.startedAt)} · {formatHm(detail.startedAt)} – {formatHm(detail.endedAt ?? lesson.endsAt)}
-          </Text>
-          {sub ? <Text style={s.sub} numberOfLines={1}>{sub}</Text> : null}
-        </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
 
       <View>
         <Pressable
@@ -114,7 +98,7 @@ export default function RoadPercorsoSheet() {
           <Text style={s.more}>Nessuna segnalazione in questa guida.</Text>
         )}
       </View>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -133,7 +117,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mini: { height: 172, borderRadius: 24, marginTop: 16 },
+  mini: { height: 172, borderRadius: 24 },
   sum: { flexDirection: 'row', marginTop: 16 },
   sumCol: { flex: 1 },
   sumSep: { borderLeftWidth: 1, borderLeftColor: '#ECECEC', paddingLeft: 14 },

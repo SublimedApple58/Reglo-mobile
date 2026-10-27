@@ -1,5 +1,6 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -49,26 +50,22 @@ export default function RoadPrivacySheet() {
   };
 
   return (
-    <ScrollView
-      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
-      contentInsetAdjustmentBehavior="never"
-      style={{ backgroundColor: '#FFFFFF' }}
-      contentContainerStyle={s.root}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
+    <FormSheet
+      title={'Prima di partire'}
+      subtitle={'Road usa la posizione del telefono solo mentre sei in guida.'}
+      testID="road-privacy"
+      cta={
+        <>
+      <Pressable
+        onPress={onContinue}
+        style={({ pressed }) => [s.btn, pressed && { opacity: 0.88 }]}
+        testID="road-privacy-continue"
+      >
+        <Text style={s.btnTx}>Continua</Text>
+      </Pressable>
+        </>
+      }
     >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Prima di partire</Text>
-          <Text style={s.lead}>Road usa la posizione del telefono solo mentre sei in guida.</Text>
-        </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
 
       <View style={s.card}>
         {ROWS.map((r, i) => (
@@ -87,14 +84,7 @@ export default function RoadPrivacySheet() {
           ? "Al passo successivo iPhone ti chiede il permesso. Scegli «Consenti mentre usi l'app»."
           : "Al passo successivo il telefono ti chiede il permesso. Scegli «Mentre usi l'app»."}
       </Text>
-      <Pressable
-        onPress={onContinue}
-        style={({ pressed }) => [s.btn, pressed && { opacity: 0.88 }]}
-        testID="road-privacy-continue"
-      >
-        <Text style={s.btnTx}>Continua</Text>
-      </Pressable>
-    </ScrollView>
+    </FormSheet>
   );
 }
 
@@ -112,7 +102,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: { marginTop: 16, borderRadius: 24, backgroundColor: '#F2F2F0', paddingVertical: 4, paddingHorizontal: 16 },
+  card: { borderRadius: 24, backgroundColor: '#F2F2F0', paddingVertical: 4, paddingHorizontal: 16 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14 },
   rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(60,60,67,0.18)' },
   rowTitle: { fontSize: 15.5, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
@@ -123,7 +113,6 @@ const s = StyleSheet.create({
     backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
   },
   btnTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
   fine: { fontSize: 12.5, fontWeight: '400', color: '#8E8E93', textAlign: 'center', marginTop: 12, lineHeight: 17.5, paddingHorizontal: 10 },
