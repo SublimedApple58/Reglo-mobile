@@ -1647,6 +1647,36 @@ export type RoadFreeVehicle = {
   busyWith?: string | null;
   /** «la tua»: esclusiva o preferita dell'istruttore. Assente sui backend vecchi. */
   mine?: boolean;
+  /** Prossima guida di oggi con quest'auto («libera fino alle 16:00»). */
+  freeUntil?: string | null;
+};
+
+/** Allievo suggerito nella tab Road, col motivo (ordine e testi dal server). */
+export type RoadSuggestion = {
+  id: Uuid;
+  name: string;
+  kind: 'agenda' | 'exam' | 'idle' | 'frequent';
+  /** «Esame il 12 novembre», «Nessuna guida da 9 giorni», «14ª guida · ultima giovedì». */
+  reason: string;
+  /** «Patente B · 14ª guida · 11 h fatte». */
+  detail: string;
+};
+
+/** Riassunto per voce delle ultime guide Road di un allievo. */
+export type RoadBriefing = {
+  /** «L'ultima volta» oppure «Nelle ultime 5 guide». */
+  title: string;
+  sessions: number;
+  lastAt: string;
+  lines: Array<{ kind: string; label: string; tone: 'good' | 'bad' | 'neutral'; detail: string | null }>;
+};
+
+/** Guida Road recente dell'istruttore (tab Road «Ultime guide»). */
+export type RoadRecentSession = RoadSessionWithLesson & {
+  markerCount: number;
+  markerGood: number;
+  markerBad: number;
+  thumb: Array<[number, number]>;
 };
 
 export type RoadFreeOptions = {
@@ -1661,6 +1691,16 @@ export type RoadFreeOptions = {
   nextLessonAt: string | null;
   /** Allievi con le prenotazioni bloccate adesso. Assente sui backend vecchi. */
   blockedStudentIds?: Uuid[];
+  // ── tab Road «mappa corta» (27/10); assenti sui backend vecchi ──
+  nextLesson?: { startsAt: string; studentName: string | null } | null;
+  suggestions?: RoadSuggestion[];
+  /** Briefing per allievo suggerito (chiave = id allievo). */
+  briefings?: Record<string, RoadBriefing>;
+  /** Ultima guida finita da poco col pagellino da compilare. */
+  toClose?: { sessionId: Uuid; appointmentId: Uuid; evalTotal: number; evalDone: number } | null;
+  recentSessions?: RoadRecentSession[];
+  /** Sede di default con coordinate: pin sulla mappa. */
+  headquarters?: { name: string; lat: number; lng: number } | null;
 };
 
 export type RoadFreeStartInput = {

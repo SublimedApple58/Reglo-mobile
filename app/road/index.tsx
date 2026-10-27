@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
 import { BlurView } from 'expo-blur';
@@ -11,7 +11,8 @@ import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
 import { lessonStudentName, roadStore, useRoadState } from '../../src/road/roadStore';
-import { endRoad, undoRoadMarker } from '../../src/road/roadActions';
+import { endRoad, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
+import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange, initialsOf } from '../../src/road/format';
@@ -131,6 +132,28 @@ export default function RoadScreen() {
     if (!fix || fix.speed == null || Date.now() - fix.t > 15_000) return 0;
     return Math.max(0, Math.round(fix.speed * 3.6));
   }, [fix]);
+
+  // Guida appena avviata da Road libero: «Annulla» per 10 secondi.
+  const freeStarted = useSyncExternalStore(roadFreeStarted.subscribe, roadFreeStarted.get);
+  const [undoing, setUndoing] = useState(false);
+  const freeUntil = freeStarted && freeStarted.sessionId === session?.id ? freeStarted.until : 0;
+  const [freeOpen, setFreeOpen] = useState(() => freeUntil > Date.now());
+  useEffect(() => {
+    const left = freeUntil - Date.now();
+    setFreeOpen(left > 0);
+    if (left <= 0) return;
+    const t = setTimeout(() => setFreeOpen(false), left);
+    return () => clearTimeout(t);
+  }, [freeUntil]);
+  const onUndoFree = async () => {
+    if (undoing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    setUndoing(true);
+    const ok = await undoRoadFree();
+    setUndoing(false);
+    // RoadController riporta alle tab appena la fase torna `idle`.
+    if (!ok) setFreeOpen(false);
+  };
 
   if (!session || !lesson) {
     return <View style={s.root} />;
@@ -288,6 +311,24 @@ export default function RoadScreen() {
           </View>
           <Pressable onPress={onUndo} style={({ pressed }) => [s.undo, pressed && { opacity: 0.7 }]} testID="road-undo">
             <Text style={s.undoTx}>Annulla</Text>
+          </Pressable>
+        </RoadToastFrame>
+      ) : null}
+
+      {/* Guida appena avviata da Road: è in agenda, e per 10 secondi si annulla */}
+      {freeOpen && freeStarted && !st.toast ? (
+        <RoadToastFrame key={freeStarted.sessionId} style={[s.toast, s.freeBanner, { top: headerTop + 70 + 10 }]}>
+          <Ionicons name="calendar-outline" size={19} color="#FFFFFF" style={{ marginLeft: 6 }} />
+          <Text style={[s.toastT1, { flex: 1 }]} numberOfLines={1}>
+            In agenda: {freeStarted.label}
+          </Text>
+          <Pressable
+            onPress={() => void onUndoFree()}
+            disabled={undoing}
+            style={({ pressed }) => [s.undo, pressed && { opacity: 0.7 }]}
+            testID="road-free-undo"
+          >
+            {undoing ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={s.undoTx}>Annulla</Text>}
           </Pressable>
         </RoadToastFrame>
       ) : null}
@@ -455,6 +496,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   undoTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  freeBanner: { paddingVertical: 8, paddingLeft: 12 },
 
   glassTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
   speed: {

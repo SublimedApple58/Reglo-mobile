@@ -6,11 +6,12 @@ import { useRouter } from 'expo-router';
 
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { regloApi } from '../../../src/services/regloApi';
-import type { AutoscuolaStudent, RoadFreeOptions, RoadFreeVehicle } from '../../../src/types/regloApi';
+import type { AutoscuolaStudent, RoadBriefing, RoadFreeOptions, RoadFreeVehicle } from '../../../src/types/regloApi';
 import { vehicleServesStudent } from '../../../src/utils/license';
 import { matchesPersonSearch } from '../../../src/utils/peopleSearch';
 import { beginRoadEntry, ROAD_ROUTE, roadPendingStart, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
-import { ROAD_FREE_PRIVACY_ROUTE, roadFreeStore } from '../../../src/road/freeStartStore';
+import { ROAD_FREE_PRIVACY_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
+import { BriefingRows, RoadAvatar } from '../../../src/components/road/RoadTabParts';
 import { enterRoadFree, hasSeenRoadPrivacy } from '../../../src/road/roadActions';
 import { car34Art } from '../../../src/road/markerArt';
 import { formatHm } from '../../../src/road/format';
@@ -53,10 +54,13 @@ export default function AvviaGuidaSheet() {
   const [options] = useState<RoadFreeOptions | null>(() => live);
   const [students, setStudents] = useState<AutoscuolaStudent[] | null>(null);
   const [minutes, setMinutes] = useState<Record<string, number>>({});
-  const [step, setStep] = useState<'student' | 'summary' | 'vehicle'>('student');
+  // Volto già scelto nella tab Road → si apre direttamente su «Parti con».
+  const [preselected] = useState(() => roadFreePreselect.take());
+  const [step, setStep] = useState<'student' | 'summary' | 'vehicle'>(preselected ? 'summary' : 'student');
   const [query, setQuery] = useState('');
   const [vehicleQuery, setVehicleQuery] = useState('');
-  const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(preselected);
+  const [briefings, setBriefings] = useState<Record<string, RoadBriefing | null>>(() => ({ ...(options?.briefings ?? {}) }));
   const [vehicleId, setVehicleId] = useState<string | null>(options?.defaultVehicleId ?? null);
   const [duration, setDuration] = useState<number>(options?.defaultDuration ?? 60);
   const [starting, setStarting] = useState(false);
@@ -75,6 +79,19 @@ export default function AvviaGuidaSheet() {
       alive = false;
     };
   }, []);
+
+  // Briefing dell'allievo scelto: dai suggerimenti, altrimenti dal suo storico Road.
+  useEffect(() => {
+    if (!studentId || studentId in briefings) return;
+    let alive = true;
+    regloApi
+      .getRoadForStudent(studentId)
+      .then((res) => alive && setBriefings((b) => ({ ...b, [studentId]: res?.briefing ?? null })))
+      .catch(() => alive && setBriefings((b) => ({ ...b, [studentId]: null })));
+    return () => {
+      alive = false;
+    };
+  }, [studentId, briefings]);
 
   const byId = useMemo(() => new Map((students ?? []).map((st) => [st.id, st])), [students]);
   const blocked = useMemo(() => new Set(options?.blockedStudentIds ?? []), [options]);
@@ -106,7 +123,13 @@ export default function AvviaGuidaSheet() {
   const shownSuggested = q ? [] : suggested;
   const shownAll = q ? everyone.filter((p) => matchesPersonSearch(p.name, q)) : everyone;
 
-  const selected = everyone.find((p) => p.id === studentId) ?? suggested.find((p) => p.id === studentId) ?? null;
+  const suggestion = options?.suggestions?.find((x) => x.id === studentId) ?? null;
+  const selected =
+    everyone.find((p) => p.id === studentId) ??
+    suggested.find((p) => p.id === studentId) ??
+    (suggestion ? { id: suggestion.id, name: suggestion.name, detail: suggestion.detail, sortKey: '' } : null);
+  // Riga sotto il nome: quella del server (patente · Nª guida · ore) se c'è.
+  const selectedDetail = blocked.has(studentId ?? '') ? 'Prenotazioni bloccate' : suggestion?.detail ?? selected?.detail ?? '';
   const selectedStudent = studentId ? byId.get(studentId) ?? null : null;
 
   const vehicles = useMemo(() => {
@@ -321,7 +344,17 @@ export default function AvviaGuidaSheet() {
     );
   }
 
-  // ── Passo 2: riepilogo ─────────────────────────────────────────────────
+  // ── Passo 2: «Parti con» (anteprima 3-avvio-fuori-agenda) ─────────────
+  const briefing = studentId ? briefings[studentId] ?? null : null;
+  const endsAt = new Date(Date.now() + duration * 60_000);
+  const next = options.nextLesson ?? null;
+  const clash = next && new Date(next.startsAt).getTime() < endsAt.getTime();
+  const endLine = [
+    `Fino alle ${formatHm(endsAt.toISOString())}`,
+    next ? `alle ${formatHm(next.startsAt)} hai ${next.studentName ?? 'un\'altra guida'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <ScrollView
       style={{ backgroundColor: '#FFFFFF' }}
@@ -330,75 +363,77 @@ export default function AvviaGuidaSheet() {
       alwaysBounceVertical={false}
       testID="road-free-sheet"
     >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Avvia guida</Text>
-          <Text style={s.sub}>{nowLabel}</Text>
-        </View>
+      <View style={[s.top, { alignItems: 'center' }]}>
+        <Pressable
+          onPress={() => setStep('student')}
+          style={({ pressed }) => [s.who, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Cambia allievo"
+        >
+          <RoadAvatar name={selected?.name ?? '?'} size={48} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.whoName} numberOfLines={1}>{selected?.name ?? 'Allievo'}</Text>
+            {selectedDetail ? <Text style={s.detail} numberOfLines={1}>{selectedDetail}</Text> : null}
+          </View>
+        </Pressable>
         {close}
       </View>
 
-      <Pressable
-        onPress={() => setStep('student')}
-        style={({ pressed }) => [s.studentCard, pressed && { opacity: 0.8 }]}
-        accessibilityRole="button"
-        accessibilityLabel="Cambia allievo"
-      >
-        <View style={[s.avatar, s.avatarDark]}>
-          <Text style={[s.avatarTx, { color: '#FFFFFF' }]}>{initialsOf(selected?.name ?? '?')}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.name} numberOfLines={1}>{selected?.name ?? 'Allievo'}</Text>
-          {selected?.detail ? <Text style={s.detail} numberOfLines={1}>{selected.detail}</Text> : null}
-        </View>
-        <Text style={s.change}>Cambia</Text>
-      </Pressable>
+      {briefing?.lines.length ? (
+        <>
+          <Text style={s.label}>{briefing.title}</Text>
+          <BriefingRows lines={briefing.lines} />
+        </>
+      ) : null}
 
-      <Text style={s.label}>Auto</Text>
+      <Text style={s.label}>Guida</Text>
       <Pressable
         onPress={() => setStep('vehicle')}
-        style={({ pressed }) => [s.autoRow, pressed && { backgroundColor: '#FAFAFA' }]}
+        style={({ pressed }) => [s.autoRow, pressed && { opacity: 0.7 }]}
         accessibilityRole="button"
         accessibilityLabel="Cambia auto"
         testID="road-free-vehicle"
       >
+        <Ionicons name="car-outline" size={21} color="#111111" />
         {selectedVehicle ? (
-          <>
-            <Image source={car34Art(selectedVehicle.carColor)} style={s.car} resizeMode="contain" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
-              {/* Riga secondaria discreta, alla iOS/Airbnb: «La tua auto · targa». */}
-              <Text style={s.detail} numberOfLines={1}>
-                {selectedVehicle.mine
-                  ? ['La tua auto', selectedVehicle.plate].filter(Boolean).join(' · ')
-                  : vehicleDetail(selectedVehicle)}
-              </Text>
-            </View>
-          </>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
+            {/* Riga secondaria discreta, alla iOS/Airbnb: «La tua auto · targa». */}
+            <Text style={s.detail} numberOfLines={1}>
+              {selectedVehicle.mine
+                ? ['La tua auto', selectedVehicle.plate].filter(Boolean).join(' · ')
+                : vehicleDetail(selectedVehicle)}
+            </Text>
+          </View>
         ) : (
           <Text style={[s.name, { flex: 1, color: '#6A6A6A' }]}>
             {vehicles.length ? 'Scegli l\'auto' : 'Nessuna auto adatta a questo allievo'}
           </Text>
         )}
+        <Text style={s.changeTx}>Cambia</Text>
         <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
       </Pressable>
 
-      <Text style={s.label}>Durata</Text>
-      <View style={s.segment}>
+      <View style={[s.segment, { marginTop: 18 }]}>
         {options.durations.map((d) => {
           const on = d === duration;
           return (
-            <Pressable key={d} onPress={() => setDuration(d)} style={[s.segItem, on && s.segItemOn]} accessibilityRole="button">
+            <Pressable
+              key={d}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => undefined);
+                setDuration(d);
+              }}
+              style={[s.segItem, on && s.segItemOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
               <Text style={[s.segTx, on && s.segTxOn]}>{d} min</Text>
             </Pressable>
           );
         })}
       </View>
-
-      <Text style={s.note}>
-        La guida entra in agenda da adesso, già presente, con crediti e pagamento come le altre. Finisce con «Termina
-        guida».
-      </Text>
+      <Text style={[s.endLine, clash && { color: '#B42318' }]}>{endLine}</Text>
 
       <Pressable
         onPress={() => void onStart()}
@@ -410,18 +445,30 @@ export default function AvviaGuidaSheet() {
         {starting ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={[s.ctaTx, !canStart && s.ctaTxOff]}>
-            {selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
-          </Text>
+          <>
+            {canStart ? <Ionicons name="play" size={17} color="#FFFFFF" /> : null}
+            <Text style={[s.ctaTx, !canStart && s.ctaTxOff]}>
+              {selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
+            </Text>
+          </>
         )}
       </Pressable>
+      <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
     </ScrollView>
   );
 }
 
 function vehicleDetail(v: RoadFreeVehicle) {
-  if (v.busy) return v.busyWith ? `in guida con ${firstName(v.busyWith)}` : 'occupata adesso';
-  return [v.plate, v.transmission === 'automatic' ? 'automatica' : null].filter(Boolean).join(' · ') || ' ';
+  if (v.busy) return [v.plate, v.busyWith ? `in guida con ${firstName(v.busyWith)}` : 'occupata adesso'].filter(Boolean).join(' · ');
+  return (
+    [
+      v.plate,
+      v.transmission === 'automatic' ? 'automatica' : null,
+      v.freeUntil ? `libera fino alle ${formatHm(v.freeUntil)}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || ' '
+  );
 }
 
 function VehicleRow({ vehicle, selected, onPress }: { vehicle: RoadFreeVehicle; selected: boolean; onPress?: () => void }) {
@@ -490,12 +537,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
   },
   searchInput: { flex: 1, height: 44, fontSize: 16.5, color: '#111111' },
+  // Intestazioni di sezione native in frase normale (niente maiuscoletto da eyebrow).
   section: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#6A6A6A',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
     paddingHorizontal: 22,
     paddingTop: 18,
     paddingBottom: 4,
@@ -528,17 +574,19 @@ const s = StyleSheet.create({
     gap: 12,
   },
   change: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  label: { fontSize: 13.5, fontWeight: '500', color: '#6A6A6A', marginTop: 22, marginBottom: 10 },
+  who: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  whoName: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
+  changeTx: { fontSize: 15, fontWeight: '400', color: '#6A6A6A' },
+  endLine: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 10 },
+  label: { fontSize: 14, fontWeight: '500', color: '#6A6A6A', marginTop: 22, marginBottom: 2 },
   autoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#ECECEC',
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    minHeight: 64,
+    minHeight: 60,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(60,60,67,0.18)',
   },
   car: { width: 58, height: 42 },
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 18, backgroundColor: '#F2F2F0' },
@@ -553,11 +601,13 @@ const s = StyleSheet.create({
   },
   segTx: { fontSize: 15, fontWeight: '500', color: '#6A6A6A', letterSpacing: -0.2 },
   segTxOn: { color: '#111111', fontWeight: '600' },
-  note: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', lineHeight: 18, marginTop: 20 },
+  note: { fontSize: 12.5, fontWeight: '400', color: '#8E8E93', lineHeight: 17, marginTop: 12, textAlign: 'center' },
   cta: {
     height: 54,
-    borderRadius: 27,
+    borderRadius: 16,
     backgroundColor: '#111111',
+    flexDirection: 'row',
+    gap: 9,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 16,

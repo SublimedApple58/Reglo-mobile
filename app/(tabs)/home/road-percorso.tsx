@@ -23,7 +23,7 @@ const MAX_MARKERS = 5;
 export default function RoadPercorsoSheet() {
   const router = useRouter();
   const segments = useSegments() as string[];
-  const stack = segments[1] === 'notes' ? 'notes' : 'home';
+  const stack = segments[1] === 'notes' ? 'notes' : segments[1] === 'drive' ? 'drive' : 'home';
   const live = useSyncExternalStore(roadRouteMapStore.subscribe, roadRouteMapStore.get);
   const [detail] = useState(() => live);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
 import { regloApi } from '../../src/services/regloApi';
+import { roadFreeStarted } from '../../src/road/freeStartStore';
 
 type EvalState = { enabled: boolean; total: number; done: number } | null;
 
@@ -50,12 +51,16 @@ export default function RiepilogoScreen() {
     };
   }, [appointmentId, evalStamp]);
 
+  // Guida nata da Road libero: in agenda la fine segue l'ora reale.
+  const freeStarted = useSyncExternalStore(roadFreeStarted.subscribe, roadFreeStarted.get);
+
   const queryClient = useQueryClient();
   const close = () => {
     // La guida è `completed` sul server: la card «In corso» della home va
     // ricaricata, altrimenti resta la versione in cache fino al prossimo giro.
     void queryClient.invalidateQueries({ queryKey: ['agenda-bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    roadFreeStarted.set(null);
     void exitRoad();
     // RoadController riporta alla home appena la fase torna `idle`.
   };
@@ -154,6 +159,16 @@ export default function RiepilogoScreen() {
 
         <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
+        {freeStarted && freeStarted.sessionId === summary.id ? (
+          <View style={s.agendaLine}>
+            <Ionicons name="calendar-outline" size={15} color="#6A6A6A" style={{ marginTop: 1 }} />
+            <Text style={s.agendaTx}>
+              In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
+              dei {freeStarted.bookedMinutes} minuti scelti.
+            </Text>
+          </View>
+        ) : null}
+
         {shown.length ? (
           <View style={{ marginTop: 6 }}>
             <RoadMarkerList
@@ -204,6 +219,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   mini: { height: 172, borderRadius: 24, marginTop: 16 },
+  agendaLine: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  agendaTx: { flex: 1, fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 8 },
   foot: { marginTop: 14 },
   sum: { flexDirection: 'row', marginTop: 16 },

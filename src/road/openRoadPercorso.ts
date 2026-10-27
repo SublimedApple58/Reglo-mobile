@@ -10,7 +10,7 @@ import { roadRouteMapStore } from './routeMapStore';
  */
 export async function openRoadPercorso(
   router: Router,
-  stack: 'home' | 'notes',
+  stack: 'home' | 'notes' | 'drive',
   appointmentId: string,
   preloaded?: RoadDetail | null,
 ): Promise<boolean> {

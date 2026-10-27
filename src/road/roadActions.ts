@@ -8,7 +8,8 @@ import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
 import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tracking';
-import { makeClientId } from './format';
+import { formatRange, makeClientId } from './format';
+import { ROAD_UNDO_SECONDS, roadFreeStarted } from './freeStartStore';
 
 /**
  * REG-638 Reglo Road — azioni (entrata, ripresa, segnalazioni, fine guida).
@@ -229,7 +230,39 @@ export async function enterRoadFree(input: RoadFreeStartInput): Promise<FreeStar
     roadStore.reset();
     return { kind: 'failed' };
   }
+  roadFreeStarted.set({
+    sessionId: started.id,
+    label: `${formatRange(started.lesson.startsAt, started.lesson.endsAt)} con ${firstNameOf(lessonStudentName(started.lesson))}`,
+    bookedMinutes: input.durationMin,
+    until: Date.now() + ROAD_UNDO_SECONDS * 1000,
+  });
   return { kind: 'started' };
+}
+
+const firstNameOf = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+
+/**
+ * «Annulla» sul banner nei primi secondi: la guida esce dall'agenda (il
+ * server rende il credito), il GPS si spegne e si torna alla tab Road.
+ */
+export async function undoRoadFree(): Promise<boolean> {
+  const info = roadFreeStarted.get();
+  const { session } = roadStore.get();
+  if (!info || !session || session.id !== info.sessionId) return false;
+  try {
+    await regloApi.undoFreeRoadSession(info.sessionId);
+  } catch (err) {
+    Alert.alert('Guida non annullata', messageOf(err, 'Riprova tra poco.'));
+    return false;
+  }
+  roadFreeStarted.set(null);
+  await stopRoadTracking();
+  roadUploader.stop();
+  roadUploader.onSessionClosed(null);
+  roadUploader.resetStreet();
+  await roadQueue.detach();
+  roadStore.reset();
+  return true;
 }
 
 /**

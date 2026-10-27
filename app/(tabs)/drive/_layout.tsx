@@ -12,6 +12,9 @@ export default function DriveLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="avvia" options={TALL_SHEET} />
       <Stack.Screen name="road-privacy" options={TALL_SHEET} />
+      {/* «Ultime guide»: percorso della guida e mappa a tutto schermo, come in home. */}
+      <Stack.Screen name="road-percorso" options={TALL_SHEET} />
+      <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
     </Stack>
   );
 }

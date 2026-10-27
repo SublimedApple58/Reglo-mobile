@@ -121,6 +121,7 @@ import {
   RoadFreeStartInput,
   RoadDetail,
   RoadStudentItem,
+  RoadBriefing,
   RoadMarker,
   RoadPoint,
   RoadPointsResult,
@@ -1066,7 +1067,15 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<RoadDetail | null>(`/api/autoscuole/road/appointments/${appointmentId}`),
     /** Percorsi Road delle guide di un allievo (titolare: tutte; istruttore: le sue). */
     getRoadForStudent: async (studentId: string) =>
-      client.request<{ items: RoadStudentItem[] }>(`/api/autoscuole/road/students/${studentId}`),
+      client.request<{ items: RoadStudentItem[]; briefing?: RoadBriefing | null }>(
+        `/api/autoscuole/road/students/${studentId}`,
+      ),
+    /** «Annulla» nei primi secondi di una guida avviata da Road. */
+    undoFreeRoadSession: async (sessionId: string) =>
+      client.request<{ appointmentId: string }>('/api/autoscuole/road/free/undo', {
+        method: 'POST',
+        body: { sessionId },
+      }),
 
     // ── Exam Schede ────────────────────────────────────────────────
     getExamSchedeProgress: async () =>
