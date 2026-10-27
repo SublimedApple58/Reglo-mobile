@@ -12,7 +12,6 @@ import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
 import { ROAD_FREE_SHEET_ROUTE, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadState } from '../../../src/road/roadStore';
 import { formatHm } from '../../../src/road/format';
-import { TAB_BAR_CONTENT_H } from '../../../src/components/GlassTabBar';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
 
 
@@ -36,8 +35,6 @@ export default function RoadTab() {
   const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
   const [error, setError] = useState<string | null>(null);
   const [panelH, setPanelH] = useState(260);
-  // La barra delle tab qui è di vetro sopra la mappa: il pannello sta sopra di lei.
-  const barH = TAB_BAR_CONTENT_H + Math.max(insets.bottom, 8);
 
   const load = useCallback(async () => {
     try {
@@ -110,8 +107,8 @@ export default function RoadTab() {
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialCamera={{ center: pos ?? FALLBACK, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }}
-        mapPadding={{ top: insets.top + 60, right: 0, bottom: barH + panelH + 12, left: 0 }}
-        legalLabelInsets={{ top: 0, right: 0, bottom: barH + panelH + 26, left: 18 }}
+        mapPadding={{ top: insets.top + 60, right: 0, bottom: panelH + 12, left: 0 }}
+        legalLabelInsets={{ top: 0, right: 0, bottom: panelH + 26, left: 18 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
         showsCompass={false}
@@ -126,9 +123,9 @@ export default function RoadTab() {
         {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={defaultVehicle?.carColor ?? null} /> : null}
       </MapView>
 
-      <InboxBellButton glass style={[s.bell, { top: insets.top + 10 }]} />
+      <InboxBellButton style={[s.bell, { top: insets.top + 10 }]} />
 
-      <View style={[s.panelWrap, { bottom: barH + 10 }]} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
+      <View style={s.panelWrap} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
         <View style={s.panel} testID="road-tab-panel">
           <Text style={s.title}>{inRoad ? 'Guida in corso' : 'Pronto a partire?'}</Text>
           <Text style={s.sub} numberOfLines={2}>

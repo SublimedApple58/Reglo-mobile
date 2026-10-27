@@ -60,8 +60,8 @@ import { useAgendaBootstrap } from '../hooks/queries/useAgendaBootstrap';
 import { useHolidays } from '../hooks/queries/useHolidays';
 import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 
-import { InboxBellButton } from '../components/InboxBellButton';
-import { useInstructorRoadTabs } from '../hooks/useInstructorRoadTabs';
+import { AvailabilityButton, InboxBellButton } from '../components/InboxBellButton';
+import { useInstructorTabs } from '../hooks/useInstructorTabs';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
 
@@ -305,8 +305,9 @@ const addDays = (date: Date, amount: number) => {
 
 export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolean } = {}) => {
   const router = useRouter();
-  // REG-638: con Road al centro della tab bar le notifiche si aprono dalla campanella.
-  const inboxInHeader = useInstructorRoadTabs() && !ownerMode;
+  // REG-638 «T1 piatta»: Disponibilità e Notifiche non sono più tab per l'istruttore,
+  // si aprono da orologio e campanella in testa all'Agenda.
+  const headerActions = useInstructorTabs().instructorApp && !ownerMode;
   const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
   const { width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
@@ -1885,7 +1886,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
           <View style={styles.greetRow}>
             <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
-            {inboxInHeader ? <InboxBellButton style={{ marginLeft: 'auto' }} /> : null}
+            {headerActions ? (
+                <View style={styles.headerActions}>
+                  <AvailabilityButton />
+                  <InboxBellButton />
+                </View>
+              ) : null}
           </View>
           {scopeChips}
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
@@ -2138,6 +2144,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingBottom: spacing.xxl * 2 + spacing.md,
   },
+  headerActions: { marginLeft: 'auto', flexDirection: 'row', gap: 10 },
   greetRow: {
     flexDirection: 'row',
     alignItems: 'center',

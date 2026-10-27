@@ -106,7 +106,7 @@ export const MoreScreen = () => {
     <Screen>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Altro</Text>
+        <Text style={styles.title}>{isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'}</Text>
 
         {/* Profile card — big, centered (avatar on top). Opens profile-edit. */}
         <Pressable

@@ -8,12 +8,12 @@ import { useQuizEnabled } from '../../src/hooks/useQuizEnabled';
 import { QuizProvider } from '../../src/context/QuizContext';
 import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
-import { GlassTabBar } from '../../src/components/GlassTabBar';
+import { AppTabBar } from '../../src/components/AppTabBar';
 import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
 import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
-import { useInstructorRoadTabs } from '../../src/hooks/useInstructorRoadTabs';
+import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
 
 
 /* ── Layout ── */
@@ -45,18 +45,18 @@ export default function TabsLayout() {
   const showQuizTab = false;
   // Notifications inbox tab: instructors/owners always; students except those in
   // AWAITING / PATENTATO (who see only home). Shows a red count pill when unread.
-  // REG-638: istruttore con Road acceso → Home · Disponibilità · Road (al centro,
-  // in rilievo) · Allievi · Altro; le notifiche passano alla campanella in alto.
-  const showDriveTab = useInstructorRoadTabs();
+  // REG-638 «T1 piatta»: istruttore → Agenda · Road · Allievi · Tu. Disponibilità
+  // e Notifiche si aprono da orologio e campanella nell'intestazione dell'Agenda.
+  const { instructorApp, showRoad: showDriveTab } = useInstructorTabs();
   const showInboxTab =
-    !showDriveTab && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
+    !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
   const isOwner = autoscuolaRole === 'OWNER';
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
   // filter reliably (expo-router descriptors don't update reactively).
   const hiddenTabs = React.useMemo(() => {
     const set = new Set<string>();
-    if (!showRoleTab) set.add('role');
+    if (!showRoleTab || instructorApp) set.add('role');
     if (!showNotesTab) set.add('notes');
     if (!showMoreTab) set.add('more');
     if (!showQuizTab) set.add('quiz');
@@ -74,6 +74,7 @@ export default function TabsLayout() {
     showQuizTab,
     showInboxTab,
     showDriveTab,
+    instructorApp,
     isStudentAwaiting,
     isStudentLicensed,
   ]);
@@ -97,7 +98,7 @@ export default function TabsLayout() {
     <>
       <Tabs
         tabBar={(props) => (
-          <GlassTabBar
+          <AppTabBar
             {...props}
             isOwner={isOwner}
             isStudent={isStudent}
@@ -106,16 +107,16 @@ export default function TabsLayout() {
             showMoreTab={showMoreTab}
             showRoleTab={showRoleTab}
             hiddenTabs={hiddenTabs}
-            centerRoute={showDriveTab ? 'drive' : undefined}
+            instructorApp={instructorApp}
           />
         )}
         screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
       >
-        <Tabs.Screen name="home" options={{ title: 'Home' }} />
-        <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
+        <Tabs.Screen name="home" options={{ title: instructorApp ? 'Agenda' : 'Home' }} />
+        <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
         <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road' }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
-        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
+        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: instructorApp ? 'Tu' : 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />

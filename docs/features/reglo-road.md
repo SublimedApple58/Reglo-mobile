@@ -165,3 +165,6 @@ percorso» fra orario e righe istruttore/veicolo: minimappa non interattiva con 
 - Riepilogo: una sola riga «Auto» con l'auto preselezionata (la tua libera → prima libera adatta); riga secondaria «La tua auto · targa» (niente pillole/badge). Tocco → scelta con ricerca a sezioni native «La tua» / «Altre auto» / «Occupate adesso» («in guida con …», da `busyWith`).
 - Tab bar istruttore con Road acceso (`useInstructorRoadTabs`): Home · Disponibilità · **Road al centro in rilievo** (cerchio nero con l'icona Road) · Allievi · Altro. «Notifiche» esce dalla barra: campanella con contatore (`InboxBellButton`) nel saluto della home e in alto a destra nella tab Road. Senza Road resta la barra di prima.
 - Pannello «Pronto a partire?»: bianco e sobrio (Tiziano ha bocciato pesca, auto Fluent ed eyebrow). Niente pillola «Road» sulla mappa: solo la campanella. Tasto centrale: glifo bianco `navigate` (Ionicons) nel cerchio nero.
+
+### 28/10 sera — tab bar «T1 piatta»
+Sostituisce la scelta B (Road al centro in rilievo, rimossa con il suo codice). Barra bianca piatta, Agenda · Road · Allievi · Tu per l'istruttore; la tab Road non è più sovrapposta alla mappa. Dettagli in `design-system.md` §6.19.

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
@@ -11,7 +10,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 
 /* ── Icon map: outline (inactive) → filled (active) ── */
@@ -38,8 +36,16 @@ const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
 const ACTIVE = '#111111';
 const INACTIVE = '#8E8E93';
 
-/** Altezza del contenuto della barra (senza safe area): serve a chi ci sta sotto (tab Road). */
-export const TAB_BAR_CONTENT_H = 53;
+/**
+ * Istruttore (REG-638, «T1 piatta»): Agenda · Road · Allievi · Tu, glifi in
+ * stile SF Symbols — contorno grigio a riposo, pieni neri sulla voce attiva.
+ */
+const INSTRUCTOR_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  home: 'calendar-outline',
+  drive: 'map-outline',
+  notes: 'people-outline',
+  more: 'person-circle-outline',
+};
 
 /* ── Tab Item ── */
 
@@ -104,29 +110,6 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
   );
 };
 
-/**
- * Tab centrale in rilievo (REG-638, scelta B): cerchio nero con un glifo
- * monocromatico bianco (freccia di navigazione, come le altre icone della
- * barra), etichetta sotto come le altre.
- */
-const CenterTabItem = ({ label, isFocused, onPress }: { label: string; isFocused: boolean; onPress: () => void }) => (
-  <Pressable
-    accessibilityRole="button"
-    accessibilityState={{ selected: isFocused }}
-    accessibilityLabel={label}
-    onPress={onPress}
-    style={({ pressed }) => [st.tabItem, pressed && { opacity: 0.85 }]}
-    testID="tab-center-road"
-  >
-    <View style={st.fab}>
-      <Ionicons name="navigate" size={25} color="#FFFFFF" style={st.fabIcon} />
-    </View>
-    <Text style={[st.tabLabel, st.fabLabel, isFocused && st.tabLabelActive]} numberOfLines={1}>
-      {label}
-    </Text>
-  </Pressable>
-);
-
 /* ── Tab Bar ── */
 
 type ExtraProps = {
@@ -138,11 +121,11 @@ type ExtraProps = {
   isStudentMoto?: boolean;
   showMoreTab: boolean;
   showRoleTab: boolean;
-  /** Tab disegnata al centro in rilievo (istruttore con Road: «drive»). */
-  centerRoute?: string;
+  /** App istruttore (anche titolare-istruttore): icone della «T1 piatta». */
+  instructorApp?: boolean;
 };
 
-export const GlassTabBar = ({
+export const AppTabBar = ({
   state,
   descriptors,
   navigation,
@@ -151,22 +134,15 @@ export const GlassTabBar = ({
   isStudentTeoria,
   isStudentMoto,
   showRoleTab,
-  centerRoute,
+  instructorApp,
 }: BottomTabBarProps & ExtraProps) => {
   const insets = useSafeAreaInsets();
   const unreadCount = useUnreadNotifications();
 
   const visibleRoutes = state.routes.filter((route) => !hiddenTabs.has(route.name));
-  // Tab Road: la mappa continua sotto la barra di vetro (barra sovrapposta).
-  const floating = state.routes[state.index]?.name === 'drive';
 
   return (
-    <View style={[st.bar, floating && st.barFloating, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      {Platform.OS === 'ios' ? (
-        <BlurView tint="systemChromeMaterialLight" intensity={100} style={StyleSheet.absoluteFill} />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, st.barSolid]} />
-      )}
+    <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={st.row}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
@@ -205,15 +181,12 @@ export const GlassTabBar = ({
           // Context-aware icon overrides. Teoria wins (Home = quiz); otherwise a
           // moto student gets a moto-flavoured Home icon. Ionicons has no
           // "motorcycle", so we reuse the instructor-side moto proxy.
-          let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined;
+          let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined =
+            instructorApp ? INSTRUCTOR_ICONS[route.name] : undefined;
           if (isStudentTeoria && route.name === 'home') {
             tabIconOverride = 'book-outline';
           } else if (isStudentMoto && route.name === 'home') {
             tabIconOverride = 'bicycle-outline';
-          }
-
-          if (route.name === centerRoute) {
-            return <CenterTabItem key={route.key} label={label} isFocused={isFocused} onPress={onPress} />;
           }
 
           return (
@@ -236,15 +209,13 @@ export const GlassTabBar = ({
 /* ── Styles ── */
 
 const st = StyleSheet.create({
-  // Barra nativa: vetro di sistema su iOS, filo sottile in alto, niente ombre.
+  // «T1 piatta»: barra bianca piatta con un filo sottile in alto; niente vetro, niente ombre.
   bar: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(250,250,250,0.6)' : colors.background,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.16)',
+    borderTopColor: 'rgba(0,0,0,0.14)',
     paddingTop: 7,
   },
-  barFloating: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  barSolid: { backgroundColor: 'rgba(250,250,250,0.97)' },
   row: {
     flexDirection: 'row',
   },
@@ -255,25 +226,6 @@ const st = StyleSheet.create({
     gap: 3,
     paddingVertical: 2,
   },
-  fab: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    marginTop: -27,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#FAFAFA',
-    shadowColor: '#000',
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  // la freccia di Ionicons è disegnata spostata: la si rimette al centro ottico
-  fabIcon: { marginLeft: -2, marginTop: 2 },
-  fabLabel: { marginTop: -1 },
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '500',
@@ -296,7 +248,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.background,
+    borderColor: '#FFFFFF',
   },
   badgeText: {
     fontSize: 10,

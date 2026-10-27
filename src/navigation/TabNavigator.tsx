@@ -4,7 +4,7 @@ import { RoleHomeScreen } from '../screens/RoleHomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { InstructorManageScreen } from '../screens/InstructorManageScreen';
 import { OwnerInstructorScreen } from '../screens/OwnerInstructorScreen';
-import { GlassTabBar } from '../components/GlassTabBar';
+import { AppTabBar } from '../components/AppTabBar';
 import { useSession } from '../context/SessionContext';
 
 export type RootTabParamList = {
@@ -24,7 +24,7 @@ export const TabNavigator = () => {
   return (
     <Tab.Navigator
       key={autoscuolaRole ?? 'none'}
-      tabBar={(props) => <GlassTabBar {...props} />}
+      tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
     >
       <Tab.Screen name="Home" component={RoleHomeScreen} />

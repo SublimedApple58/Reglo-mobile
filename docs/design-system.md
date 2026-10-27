@@ -761,7 +761,9 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ---
 
-### 6.19 GlassTabBar
+### 6.19 AppTabBar (era GlassTabBar)
+
+> **28/10/2026 (REG-638, «T1 piatta» scelta da Tiziano):** `src/components/AppTabBar.tsx`, un solo file. Barra **bianca piatta** con filo sottile in alto, niente vetro, niente ombre, niente cerchio in rilievo, niente pillole. Glifi monocromatici in stile SF Symbols: contorno grigio `#8E8E93` a riposo, pieno nero `#111111` sulla voce attiva, etichetta 10.5 sotto. **Istruttore e titolare-istruttore** (`useInstructorTabs`): **Agenda · Road · Allievi · Tu** (`calendar`, `map`, `people`, `person-circle`); Road solo con Road acceso. Disponibilità e Notifiche escono dalla barra: orologio e campanella (cerchi bianchi con ombra morbida, `InboxBellButton.tsx`) nell'intestazione dell'Agenda; la campanella anche nella tab Road. Il testo sotto è storico.
 
 **File:** `GlassTabBar.tsx` (Android) + `GlassTabBar.ios.tsx` (iOS)
 **Scopo:** Tab bar personalizzata.
