@@ -8,6 +8,7 @@ import { GlassCloseButton } from '../../src/components/GlassCloseButton';
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
 import { lessonStudentName, useRoadState } from '../../src/road/roadStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
@@ -45,7 +46,12 @@ export default function RiepilogoScreen() {
     };
   }, [appointmentId, evalStamp]);
 
+  const queryClient = useQueryClient();
   const close = () => {
+    // La guida è `completed` sul server: la card «In corso» della home va
+    // ricaricata, altrimenti resta la versione in cache fino al prossimo giro.
+    void queryClient.invalidateQueries({ queryKey: ['agenda-bootstrap'] });
+    void queryClient.invalidateQueries({ queryKey: ['appointments'] });
     void exitRoad();
     // RoadController riporta alla home appena la fase torna `idle`.
   };

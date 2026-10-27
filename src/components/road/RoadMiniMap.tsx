@@ -78,7 +78,8 @@ export function RoadRouteMap({
         onMapReady={fit}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
-        showsBuildings
+        // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
+        showsBuildings={false}
         showsCompass={false}
         showsScale={false}
         toolbarEnabled={false}

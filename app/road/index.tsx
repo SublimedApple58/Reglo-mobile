@@ -211,7 +211,8 @@ export default function RoadScreen() {
         legalLabelInsets={{ top: 0, right: 0, bottom: 8 + panelH + 14, left: 18 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
-        showsBuildings
+        // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
+        showsBuildings={false}
         showsCompass={false}
         showsScale={false}
         showsTraffic={false}
