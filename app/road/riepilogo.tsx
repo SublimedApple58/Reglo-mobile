@@ -110,7 +110,7 @@ export default function RiepilogoScreen() {
                       ? 'Ancora da compilare'
                       : pgComplete
                         ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
-                        : `${ev!.done} ${ev!.done === 1 ? 'voce' : 'voci'} su ${ev!.total} · da completare`}
+                        : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
                   </Text>
                 </View>
                 <Pressable
@@ -120,7 +120,7 @@ export default function RiepilogoScreen() {
                   style={({ pressed }) => [s.pgBtn, pressed && { opacity: 0.85 }]}
                   testID="road-summary-pagellino"
                 >
-                  <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : pgComplete ? 'Apri' : 'Completa'}</Text>
+                  <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
                 </Pressable>
               </View>
             ) : null}

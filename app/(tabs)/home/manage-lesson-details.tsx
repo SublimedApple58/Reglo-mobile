@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
@@ -24,7 +24,6 @@ import {
   EVALUATION_NOT_APPLICABLE_LABEL,
   starSizeForScale,
 } from '../../../src/utils/evaluationSheet';
-import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
@@ -60,8 +59,6 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
-  // `as string[]`: dentro una route tipizzata il tuple non ha l'indice 1.
-  const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
 
@@ -77,11 +74,7 @@ export default function ManageLessonDetailsScreen() {
   // nascosta) per le autoscuole che non lo usano.
   const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
-  /**
-   * Voci MESSE nel pagellino di questa guida. Il pagellino non è l'elenco
-   * completo in attesa di stelline: l'istruttore aggiunge le voci che ha
-   * davvero valutato, e quelle sono il pagellino della guida.
-   */
+  /** Voci che questa guida ha già salvato (tengono visibili le voci archiviate). */
   const [evalAdded, setEvalAdded] = useState<string[]>([]);
   /**
    * Voci salvate come "non valutabile" prima che quel concetto venisse tolto
@@ -211,48 +204,18 @@ export default function ManageLessonDetailsScreen() {
   const isMotoLesson =
     isMotoLicenseCategory(lesson.vehicle?.licenseCategory) ||
     isMotoLicenseCategory(lesson.student?.licenseCategory);
-  /** Righe in elenco, nell'ordine del pagellino della scuola (non di aggiunta). */
-  const evalRows = evalItems.filter((item) => evalAdded.includes(item.id));
-  const evalAvailable = evalItems.filter((item) => !evalAdded.includes(item.id));
+  /**
+   * Tutte le voci del pagellino della scuola, subito, ognuna con le sue
+   * stelline (QA Road 27/10): l'istruttore valuta solo quelle che vuole, le
+   * altre restano «non valutate». Le voci archiviate compaiono solo se questa
+   * guida le aveva già votate.
+   */
+  const evalRows = evalItems.filter((item) => !item.archived || evalAdded.includes(item.id));
+  const ratedCount = evalRows.filter((item) => legacyNa[item.id] || scores[item.id] != null).length;
   const showTypes =
     !road &&
     lessonTypeLc !== 'group_lesson' && lessonTypeLc !== 'esame' && !lesson.groupLessonId && !isMotoLesson;
 
-  /**
-   * "Aggiungi voce": apre il form sheet NATIVO riusabile (OptionsPickerSheet),
-   * lo stesso di Durata/Veicolo/Luogo, con le sole voci non ancora in elenco.
-   * Selezione multipla: sul telefono aprire lo sheet una volta per voce
-   * sarebbe un'animazione ogni volta.
-   */
-  const openAddItems = () => {
-    if (!editable || !evalAvailable.length) return;
-    optionsPickerStore.set({
-      title: 'Aggiungi voci',
-      hint: 'Scegli cosa valutare in questa guida.',
-      multi: true,
-      selected: [],
-      confirmLabel: 'Aggiungi al pagellino',
-      // In Road niente navy: selezione e CTA in bianco/nero.
-      tone: road ? 'mono' : undefined,
-      options: evalAvailable.map((item) => ({
-        value: item.id,
-        label: item.label,
-        subtitle: `scala a ${item.scaleMax} stelline`,
-      })),
-      onConfirm: (vals) => {
-        if (vals.length) setEvalAdded((prev) => [...prev, ...vals]);
-      },
-    });
-    // La route del picker è registrata in tutti gli stack che aprono questo
-    // foglio (home + notes + road): va spinta su quello da cui siamo arrivati.
-    const long = evalAvailable.length > LONG_PICKER_THRESHOLD;
-    if (segments[0] === 'road') {
-      router.push(`/road/select-options${long ? '-long' : ''}`);
-      return;
-    }
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
-    router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
-  };
 
   const handleSave = async () => {
     if (!editable) return;
@@ -410,9 +373,9 @@ export default function ManageLessonDetailsScreen() {
               storico guide, sulle guide che non hanno il pagellino. */}
       </Animated.View>
 
-      {/* Pagellino dell'autoscuola: NON l'elenco completo in attesa di stelline.
-          L'istruttore aggiunge le voci che questa guida ha toccato, e quelle
-          sono il pagellino della guida. Nessun vincolo di stato: si compila
+      {/* Pagellino dell'autoscuola: tutte le voci subito, ognuna con le sue
+          stelline; l'istruttore valuta solo quelle che vuole e le altre restano
+          «non valutate» (QA Road 27/10). Nessun vincolo di stato: si compila
           anche a metà guida o prima del check-in. Resta fuori solo dalle guide
           annullate senza voti, dove sarebbe solo rumore. */}
       {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
@@ -425,14 +388,22 @@ export default function ManageLessonDetailsScreen() {
             <Text style={s.sectionLabel}>Pagellino</Text>
             {evalRows.length > 0 ? (
               <Animated.Text
-                key={evalRows.length}
+                key={ratedCount}
                 entering={FadeIn.duration(180)}
                 style={s.pagellinoHint}
               >
-                {evalRows.length === 1 ? '1 voce' : `${evalRows.length} voci`}
+                {ratedCount === 0
+                  ? `${evalRows.length} ${evalRows.length === 1 ? 'voce' : 'voci'}`
+                  : `${ratedCount} su ${evalRows.length} ${ratedCount === 1 ? 'valutata' : 'valutate'}`}
               </Animated.Text>
             ) : null}
           </View>
+
+          {editable && evalRows.length > 0 ? (
+            <Text style={s.pagellinoLead}>
+              Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».
+            </Text>
+          ) : null}
 
           {evalRows.length > 0 ? (
             <View>
@@ -452,7 +423,7 @@ export default function ManageLessonDetailsScreen() {
                   >
                     <View style={s.pagellinoItemTop}>
                       <Text
-                        style={[s.pagellinoLabel, isNa && s.pagellinoLabelOff]}
+                        style={[s.pagellinoLabel, (isNa || !scores[item.id]) && s.pagellinoLabelOff]}
                         numberOfLines={2}
                       >
                         {item.label}
@@ -480,40 +451,16 @@ export default function ManageLessonDetailsScreen() {
                             </Animated.Text>
                           ) : (
                             <Animated.Text entering={FadeIn.duration(150)} style={s.scoreEmptyText}>
-                              da valutare
+                              non valutata
                             </Animated.Text>
                           )}
                         </Animated.View>
                       )}
-                      {/* La × sta in alto, lontana dalle stelline: togliere una
-                          voce non deve essere un errore di mira. */}
-                      {editable ? (
-                        <Pressable
-                          onPress={() => {
-                            setEvalAdded((prev) => prev.filter((id) => id !== item.id));
-                            setScores((prev) => {
-                              const next = { ...prev };
-                              delete next[item.id];
-                              return next;
-                            });
-                            setLegacyNa((prev) => {
-                              const next = { ...prev };
-                              delete next[item.id];
-                              return next;
-                            });
-                          }}
-                          hitSlop={10}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Togli ${item.label} dal pagellino`}
-                          style={({ pressed }) => [s.pagellinoRemove, pressed && { opacity: 0.5 }]}
-                        >
-                          <Ionicons name="close" size={16} color="#C4C4C4" />
-                        </Pressable>
-                      ) : null}
                     </View>
                     {isNa ? (
                       <Text style={s.pagellinoValue}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
-                    ) : (
+                    ) : null}
+                    {isNa && !editable ? null : (
                       <View style={s.pagellinoScaleRow}>
                         <StarRating
                           value={value}
@@ -522,15 +469,23 @@ export default function ManageLessonDetailsScreen() {
                           size={starSizeForScale(item.scaleMax)}
                           onChange={
                             editable
-                              ? (next) =>
+                              ? (next) => {
                                   setScores((prev) => {
                                     const copy = { ...prev };
                                     // Ritoccare la stellina già scelta svuota il
-                                    // voto; per togliere la voce c'è la ×.
+                                    // voto: la voce torna «non valutata».
                                     if (!next) delete copy[item.id];
                                     else copy[item.id] = next;
                                     return copy;
-                                  })
+                                  });
+                                  if (legacyNa[item.id]) {
+                                    setLegacyNa((prev) => {
+                                      const copy = { ...prev };
+                                      delete copy[item.id];
+                                      return copy;
+                                    });
+                                  }
+                                }
                               : undefined
                           }
                           readOnly={!editable}
@@ -541,19 +496,6 @@ export default function ManageLessonDetailsScreen() {
                 );
               })}
             </View>
-          ) : null}
-
-          {editable && evalAvailable.length > 0 ? (
-            <Animated.View layout={LAYOUT} exiting={FadeOut.duration(140)}>
-              <Pressable
-                onPress={openAddItems}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.pagellinoAdd, pressed && { opacity: 0.6 }]}
-              >
-                <Ionicons name="add" size={17} color="#6A6A6A" />
-                <Text style={s.pagellinoAddText}>Aggiungi voce da valutare</Text>
-              </Pressable>
-            </Animated.View>
           ) : null}
 
           {evalRows.length === 0 ? (
@@ -617,6 +559,7 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
   pagellinoHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  pagellinoLead: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19, marginBottom: 12, marginTop: -2 },
   pagellinoCard: {
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
     backgroundColor: '#FFFFFF', paddingHorizontal: 14,
@@ -643,14 +586,7 @@ const s = StyleSheet.create({
   scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207', lineHeight: 20 },
   scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04', lineHeight: 20 },
   scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3AD', lineHeight: 20 },
-  pagellinoRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  pagellinoAdd: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 48,
-    borderRadius: 18, backgroundColor: '#F7F7F8', borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E9EBF2',
-  },
-  pagellinoAddText: { fontSize: 14.5, fontWeight: '600', color: '#6A6A6A' },
   pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3AD', textAlign: 'center' },
   pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
