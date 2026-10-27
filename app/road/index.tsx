@@ -357,7 +357,8 @@ export default function RoadScreen() {
             name={following ? 'location.fill' : 'location'}
             size={19}
             color={following ? '#111111' : '#3A3A3C'}
-            fallback={following ? 'navigate' : 'navigate-outline'}
+            // Ripiego: freccia piena Material, la più vicina a location.fill.
+            fallback="near-me"
           />
         </Pressable>
       </View>

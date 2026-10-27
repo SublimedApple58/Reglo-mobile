@@ -1,10 +1,11 @@
 import React from 'react';
 import { Platform, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 /**
- * SF Symbol nativo (via `@expo/ui/swift-ui`, già nei binari 2.2.0+) con
- * ripiego su un'icona Ionicons dove il modulo non c'è (Android, binari vecchi).
+ * SF Symbol nativo (via `@expo/ui/swift-ui`: in package.json da feb. 2026,
+ * quindi in tutti i binari dalla 2.1.0, 2.4.0 compresa) con ripiego su un'icona
+ * Material dove il modulo non disegna (Android, iOS < 17).
  * Solo disegno: i tocchi li gestisce il contenitore (pointerEvents none).
  */
 const IOS_MAJOR = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0;
@@ -33,7 +34,7 @@ export function SFSymbol({
   name: string;
   size: number;
   color: string;
-  fallback: React.ComponentProps<typeof Ionicons>['name'];
+  fallback: React.ComponentProps<typeof MaterialIcons>['name'];
 }) {
   if (SWIFT_UI) {
     const { Host, Image } = SWIFT_UI;
@@ -45,5 +46,5 @@ export function SFSymbol({
       </View>
     );
   }
-  return <Ionicons name={fallback} size={size + 2} color={color} />;
+  return <MaterialIcons name={fallback} size={size + 3} color={color} />;
 }
