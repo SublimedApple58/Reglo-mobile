@@ -33,6 +33,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `AutoscuolaAppointment.manualPaymentStatus` / `creditApplied` / `paymentRequired` | `StudentPaymentsScreen`, `StudentNotesDetailScreen` (conteggio "da pagare") via `src/utils/lessonPayments.ts` (REG-450). **Solo ramo full** di `getAppointments`. Vedi [features/lesson-payments.md](features/lesson-payments.md). |
 | `AutoscuolaAppointment.paymentHistory` (REG-637) | `StudentPaymentsScreen` (riga chi/quando + tocco → `payment-history`), `PaymentHistorySheet`. Solo staff, solo `getAppointments({ studentId })` ramo full. Regola gemella `src/utils/paymentHistory.ts` ↔ `reglo/components/pages/Autoscuole/LessonPaymentTrail.tsx`. |
+| `AutoscuolaSettings.roadEnabled` + tipi `Road*` (REG-638) | `useRoadEnabled` (vale solo `=== true`) → `RoadController` (AuthGate), `IstruttoreHomeScreen` (live card), `app/road/*`, `lesson-detail` (allievo, `RoadDetail`). Contratto: `reglo/docs/features/reglo-road.md`. |
 | `NotificationItem` | NotificationOverlay, NotificationInboxScreen, notificationStore (3) |
 
 ## Feature Adjacency
@@ -93,6 +94,14 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Altro (MoreScreen)**: la riga "Pagellino" sta nella sezione Gestione, visibile a titolari E istruttori — chi cambia quel gate deve cambiare anche `saveEvaluationSheet` lato reglo, dove sta il permesso vero
 - → **Configurazione**: `GET`/`PUT /api/autoscuole/evaluation-sheet` è lo stesso contratto del pane Impostazioni web; il salvataggio SOSTITUISCE l'elenco e ARCHIVIA le voci tolte — le costanti in `src/utils/evaluationSheet.ts` (scale, max 40, 60 caratteri, modello base) sono gemelle di quelle in `reglo/lib/autoscuole/evaluation-sheet.ts` e vanno cambiate insieme
 - → **Form sheet nativi**: `evaluation-item` usa `HUG_SHEET` e le misure §13.2.1 del design system (testata 26/26 perché ha titolo+sottotitolo+bottoncini)
+
+### Reglo Road (REG-638)
+- **AuthGate** (`app/_layout.tsx`): il gruppo `road` è ammesso accanto a `(tabs)`; `RoadController` instrada su `/road` finché `roadStore.phase !== 'idle'`. Toccare l'AuthGate può buttare fuori da Road a metà guida.
+- **Pagellino (REG-443)**: `manage-lesson-details` ha la variante `road` (solo pagellino, CTA nera) ed è registrato anche in `app/road/` (re-export) + `select-options(-long)`. Cambiare il foglio cambia anche il pagellino di Road; cambiare il calcolo «N voci su M» del riepilogo richiede `AppointmentEvaluation` (`getAppointmentEvaluation`).
+- **WeeklyLiveCard / IstruttoreHomeScreen**: prop `onEnterRoad` solo se la guida «In corso» è la `eligibleLesson` di `/road/state`.
+- **lesson-detail (allievo)**: blocco «Il tuo percorso» solo per guide `completed`; il server decide visibilità (`studentNotesEnabled`).
+- **entry.ts**: è il `main` del package e definisce il task GPS prima di Expo Router: rimuoverlo rompe il tracking in background.
+- **Nativo**: `react-native-maps`, `expo-location`, `expo-task-manager`, `expo-keep-awake` → runtime 2.4.0; nessun OTA che li usi può andare ai binari 2.3.0.
 
 ### Exam Creation
 - → **Booking Flow**: exam is a special appointment type
