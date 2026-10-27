@@ -1577,6 +1577,8 @@ export type RoadLesson = {
   student: { id: Uuid; name: string } | null;
   instructor: { id: Uuid; name: string; color: string | null } | null;
   vehicle: { id: Uuid; name: string; plate: string | null } | null;
+  /** Variante colore dell'auto 3D, già risolta dal server (veicolo → tinta istruttore → bianco). */
+  carColor?: string | null;
 };
 
 export type RoadSessionStatus = 'active' | 'completed' | 'abandoned';

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Marker, Polyline } from 'react-native-maps';
-import { markerArt } from '../../road/markerArt';
-import { ROAD_ASSETS } from '../../road/markerArt';
+import { carTopArt, markerArt } from '../../road/markerArt';
 
 /**
  * REG-638 Reglo Road — pezzi di mappa condivisi (Road dal vivo, riepilogo,
@@ -105,8 +104,17 @@ export function RoadEndpointDot({ coordinate }: { coordinate: LatLng }) {
  * Auto vista dall'alto, ruotata nella direzione di marcia. `rotation` è già
  * relativa alla camera (Apple Maps non ruota i marker da sé).
  */
-export function RoadCarMarker({ coordinate, rotation }: { coordinate: LatLng; rotation: number }) {
-  const tracksViewChanges = useTracksViewChanges([Math.round(rotation / 5)]);
+export function RoadCarMarker({
+  coordinate,
+  rotation,
+  color,
+}: {
+  coordinate: LatLng;
+  rotation: number;
+  /** `carColor` della guida: auto nel colore del veicolo. */
+  color?: string | null;
+}) {
+  const tracksViewChanges = useTracksViewChanges([Math.round(rotation / 5), color ?? '']);
   return (
     <Marker
       coordinate={coordinate}
@@ -118,7 +126,7 @@ export function RoadCarMarker({ coordinate, rotation }: { coordinate: LatLng; ro
         <View style={car.haloOuter} />
         <View style={car.haloInner} />
         <Image
-          source={ROAD_ASSETS.carTop}
+          source={carTopArt(color)}
           style={[car.img, { transform: [{ rotate: `${rotation}deg` }] }]}
           resizeMode="contain"
         />

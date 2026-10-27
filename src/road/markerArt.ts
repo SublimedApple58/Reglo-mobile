@@ -26,13 +26,53 @@ const ART: Record<string, ImageSourcePropType> = {
 const CUSTOM_ART: ImageSourcePropType = require('../../assets/road/f-cus.png');
 
 export const ROAD_ASSETS = {
-  carTop: require('../../assets/road/auto-su.png') as ImageSourcePropType,
-  car34: require('../../assets/road/auto-34.png') as ImageSourcePropType,
   pin: require('../../assets/road/f-loc.png') as ImageSourcePropType,
   stop: ART.stop,
   memo: ART.altro,
   road: require('../../assets/road/fluent-road.png') as ImageSourcePropType,
 };
+
+/**
+ * Auto 3D nel colore del veicolo della guida: varianti pre-generate, chiavi =
+ * `carColor` del backend (reglo/lib/autoscuole/road/car-colors.ts). Il server
+ * risolve già veicolo → tinta istruttore → bianco; qui solo il fallback.
+ */
+export const CAR_COLOR_KEYS = ['bianco', 'argento', 'grigio', 'nero', 'rosso', 'arancio', 'giallo', 'verde', 'azzurro', 'blu'] as const;
+export type CarColorKey = (typeof CAR_COLOR_KEYS)[number];
+
+const CAR_TOP: Record<CarColorKey, ImageSourcePropType> = {
+  bianco: require('../../assets/road/cars/auto-su-bianco.png'),
+  argento: require('../../assets/road/cars/auto-su-argento.png'),
+  grigio: require('../../assets/road/cars/auto-su-grigio.png'),
+  nero: require('../../assets/road/cars/auto-su-nero.png'),
+  rosso: require('../../assets/road/cars/auto-su-rosso.png'),
+  arancio: require('../../assets/road/cars/auto-su-arancio.png'),
+  giallo: require('../../assets/road/cars/auto-su-giallo.png'),
+  verde: require('../../assets/road/cars/auto-su-verde.png'),
+  azzurro: require('../../assets/road/cars/auto-su-azzurro.png'),
+  blu: require('../../assets/road/cars/auto-su-blu.png'),
+};
+
+const CAR_34: Record<CarColorKey, ImageSourcePropType> = {
+  bianco: require('../../assets/road/cars/auto-34-bianco.png'),
+  argento: require('../../assets/road/cars/auto-34-argento.png'),
+  grigio: require('../../assets/road/cars/auto-34-grigio.png'),
+  nero: require('../../assets/road/cars/auto-34-nero.png'),
+  rosso: require('../../assets/road/cars/auto-34-rosso.png'),
+  arancio: require('../../assets/road/cars/auto-34-arancio.png'),
+  giallo: require('../../assets/road/cars/auto-34-giallo.png'),
+  verde: require('../../assets/road/cars/auto-34-verde.png'),
+  azzurro: require('../../assets/road/cars/auto-34-azzurro.png'),
+  blu: require('../../assets/road/cars/auto-34-blu.png'),
+};
+
+const carKey = (color: string | null | undefined): CarColorKey =>
+  color && (CAR_COLOR_KEYS as readonly string[]).includes(color) ? (color as CarColorKey) : 'bianco';
+
+/** Auto vista dall'alto (mappa Road). */
+export const carTopArt = (color?: string | null) => CAR_TOP[carKey(color)];
+/** Auto di 3/4 (invito, card). */
+export const car34Art = (color?: string | null) => CAR_34[carKey(color)];
 
 export const CUSTOM_KIND_PREFIX = 'custom:';
 

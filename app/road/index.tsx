@@ -236,7 +236,7 @@ export default function RoadScreen() {
           />
         ))}
         {fix ? (
-          <RoadCarMarker coordinate={{ latitude: fix.lat, longitude: fix.lng }} rotation={carRotation} />
+          <RoadCarMarker coordinate={{ latitude: fix.lat, longitude: fix.lng }} rotation={carRotation} color={lesson.carColor} />
         ) : null}
       </MapView>
 

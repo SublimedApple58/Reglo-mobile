@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '../../../src/utils/haptics';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { ROAD_ASSETS } from '../../../src/road/markerArt';
+import { car34Art, ROAD_ASSETS } from '../../../src/road/markerArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { dismissInvite } from '../../../src/road/roadActions';
@@ -85,7 +85,7 @@ export default function RoadInviteSheet() {
         }
       >
         <View style={s.hero}>
-          <Image source={ROAD_ASSETS.car34} style={s.heroImg} resizeMode="contain" />
+          <Image source={car34Art(lesson.carColor)} style={s.heroImg} resizeMode="contain" />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.heroName} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
             <Text style={s.heroMeta} numberOfLines={1}>{meta}</Text>
