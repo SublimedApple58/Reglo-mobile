@@ -14,6 +14,7 @@ import { ROAD_FREE_SHEET_ROUTE, roadFreeStore } from '../../../src/road/freeStar
 import { lessonStudentName, useRoadState } from '../../../src/road/roadStore';
 import { formatHm } from '../../../src/road/format';
 import { TAB_BAR_CONTENT_H } from '../../../src/components/GlassTabBar';
+import { InboxBellButton } from '../../../src/components/InboxBellButton';
 
 const ROAD_ICON = require('../../../assets/road/road-3d.png');
 // Fluent 3D Emoji di Microsoft (per ora; poi icone stile Airbnb).
@@ -130,6 +131,7 @@ export default function RoadTab() {
         {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={defaultVehicle?.carColor ?? null} /> : null}
       </MapView>
 
+      <InboxBellButton glass style={[s.bell, { top: insets.top + 10 }]} />
       <View style={[s.brand, { top: insets.top + 10 }]} pointerEvents="none">
         <Image source={ROAD_ICON} style={s.brandImg} resizeMode="contain" />
         <Text style={s.brandTx}>Road</Text>
@@ -206,6 +208,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
+  bell: { position: 'absolute', right: 20 },
   brandImg: { width: 28, height: 28 },
   brandTx: { fontSize: 16.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   panelWrap: { position: 'absolute', left: 10, right: 10, bottom: 10 },

@@ -311,7 +311,7 @@ export default function AvviaGuidaSheet() {
           </View>
         </View>
         {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
-        {section(`Libere adesso · ${free.length}`, free)}
+        {section(mine.length ? `Altre auto · ${free.length}` : `Libere adesso · ${free.length}`, free)}
         {section('Occupate adesso', busy)}
         {!list.length ? <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text> : null}
       </ScrollView>
@@ -363,11 +363,13 @@ export default function AvviaGuidaSheet() {
           <>
             <Image source={car34Art(selectedVehicle.carColor)} style={s.car} resizeMode="contain" />
             <View style={{ flex: 1 }}>
-              <View style={s.nameLine}>
-                <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
-                {selectedVehicle.mine ? <Text style={s.mineTag}>la tua</Text> : null}
-              </View>
-              <Text style={s.detail} numberOfLines={1}>{vehicleDetail(selectedVehicle)}</Text>
+              <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
+              {/* Riga secondaria discreta, alla iOS/Airbnb: «La tua auto · targa». */}
+              <Text style={s.detail} numberOfLines={1}>
+                {selectedVehicle.mine
+                  ? ['La tua auto', selectedVehicle.plate].filter(Boolean).join(' · ')
+                  : vehicleDetail(selectedVehicle)}
+              </Text>
             </View>
           </>
         ) : (
@@ -536,17 +538,6 @@ const s = StyleSheet.create({
     minHeight: 64,
   },
   car: { width: 58, height: 42 },
-  nameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mineTag: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    overflow: 'hidden',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 18, backgroundColor: '#F2F2F0' },
   segItem: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   segItemOn: {

@@ -104,6 +104,8 @@ import { useHolidays } from '../hooks/queries/useHolidays';
 import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 
 import { car34Art } from '../road/markerArt';
+import { InboxBellButton } from '../components/InboxBellButton';
+import { useInstructorRoadTabs } from '../hooks/useInstructorRoadTabs';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
 const ROAD_ENTRY_ICON = require('../../assets/road/road-3d.png');
@@ -593,6 +595,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const router = useRouter();
   // REG-638 Reglo Road: guida su cui si può entrare adesso (da /road/state).
   const { eligible: roadEligible, phase: roadPhase } = useRoadState();
+  // REG-638: con Road al centro della tab bar le notifiche si aprono dalla campanella.
+  const inboxInHeader = useInstructorRoadTabs() && !ownerMode;
   const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
   const { height: windowHeight, width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
@@ -2932,6 +2936,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: safeInsets.top, paddingBottom: spacing.sm }}>
             <View style={styles.greetRow}>
               <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'\uD83D\uDC4B'}</Text>
+              {inboxInHeader ? <InboxBellButton style={{ marginLeft: 'auto' }} /> : null}
             </View>
 
             {scopeChips}
@@ -2986,6 +2991,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
           <View>
           <View style={styles.greetRow}>
             <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
+            {inboxInHeader ? <InboxBellButton style={{ marginLeft: 'auto' }} /> : null}
           </View>
 
           {scopeChips}
@@ -4106,6 +4112,7 @@ onChanged: () => { loadOutOfAvailability(); loadData(); },
           <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
             <View style={styles.greetRow}>
               <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
+              {inboxInHeader ? <InboxBellButton style={{ marginLeft: 'auto' }} /> : null}
             </View>
             {scopeChips}
             {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}

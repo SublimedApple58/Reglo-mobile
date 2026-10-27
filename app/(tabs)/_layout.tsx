@@ -13,7 +13,7 @@ import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
 import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
-import { useRoadState } from '../../src/road/roadStore';
+import { useInstructorRoadTabs } from '../../src/hooks/useInstructorRoadTabs';
 
 
 /* ── Layout ── */
@@ -45,12 +45,12 @@ export default function TabsLayout() {
   const showQuizTab = false;
   // Notifications inbox tab: instructors/owners always; students except those in
   // AWAITING / PATENTATO (who see only home). Shows a red count pill when unread.
+  // REG-638: istruttore con Road acceso → Home · Disponibilità · Road (al centro,
+  // in rilievo) · Allievi · Altro; le notifiche passano alla campanella in alto.
+  const showDriveTab = useInstructorRoadTabs();
   const showInboxTab =
-    showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed);
+    !showDriveTab && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
   const isOwner = autoscuolaRole === 'OWNER';
-  // REG-638 Road libero: tab «Road» per chi guida, sempre quando Road è acceso.
-  const { roadEnabled } = useRoadState();
-  const showDriveTab = roadEnabled && (isInstructor || isInstructorOwner);
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
   // filter reliably (expo-router descriptors don't update reactively).
@@ -106,14 +106,15 @@ export default function TabsLayout() {
             showMoreTab={showMoreTab}
             showRoleTab={showRoleTab}
             hiddenTabs={hiddenTabs}
+            centerRoute={showDriveTab ? 'drive' : undefined}
           />
         )}
         screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
       >
         <Tabs.Screen name="home" options={{ title: 'Home' }} />
         <Tabs.Screen name="role" options={{ href: showRoleTab ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
-        <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road' }} />
+        <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -104,6 +104,30 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
   );
 };
 
+const ROAD_ICON = require('../../assets/road/road-3d.png');
+
+/**
+ * Tab centrale in rilievo (REG-638, scelta B): cerchio nero con l'icona Road
+ * che esce dalla barra, etichetta sotto come le altre.
+ */
+const CenterTabItem = ({ label, isFocused, onPress }: { label: string; isFocused: boolean; onPress: () => void }) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityState={{ selected: isFocused }}
+    accessibilityLabel={label}
+    onPress={onPress}
+    style={({ pressed }) => [st.tabItem, pressed && { opacity: 0.85 }]}
+    testID="tab-center-road"
+  >
+    <View style={st.fab}>
+      <Image source={ROAD_ICON} style={st.fabImg} resizeMode="contain" />
+    </View>
+    <Text style={[st.tabLabel, st.fabLabel, isFocused && st.tabLabelActive]} numberOfLines={1}>
+      {label}
+    </Text>
+  </Pressable>
+);
+
 /* ── Tab Bar ── */
 
 type ExtraProps = {
@@ -115,6 +139,8 @@ type ExtraProps = {
   isStudentMoto?: boolean;
   showMoreTab: boolean;
   showRoleTab: boolean;
+  /** Tab disegnata al centro in rilievo (istruttore con Road: «drive»). */
+  centerRoute?: string;
 };
 
 export const GlassTabBar = ({
@@ -126,6 +152,7 @@ export const GlassTabBar = ({
   isStudentTeoria,
   isStudentMoto,
   showRoleTab,
+  centerRoute,
 }: BottomTabBarProps & ExtraProps) => {
   const insets = useSafeAreaInsets();
   const unreadCount = useUnreadNotifications();
@@ -186,6 +213,10 @@ export const GlassTabBar = ({
             tabIconOverride = 'bicycle-outline';
           }
 
+          if (route.name === centerRoute) {
+            return <CenterTabItem key={route.key} label={label} isFocused={isFocused} onPress={onPress} />;
+          }
+
           return (
             <TabItem
               key={route.key}
@@ -212,7 +243,6 @@ const st = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.16)',
     paddingTop: 7,
-    overflow: 'hidden',
   },
   barFloating: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   barSolid: { backgroundColor: 'rgba(250,250,250,0.97)' },
@@ -226,6 +256,24 @@ const st = StyleSheet.create({
     gap: 3,
     paddingVertical: 2,
   },
+  fab: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    marginTop: -27,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#FAFAFA',
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  fabImg: { width: 32, height: 32 },
+  fabLabel: { marginTop: -1 },
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '500',
