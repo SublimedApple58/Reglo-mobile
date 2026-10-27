@@ -8,13 +8,12 @@ Role-conditional settings screen + instructor cluster settings.
 - `src/screens/ClusterSettingsScreen.tsx` — instructor cluster config ("Il mio gruppo")
 - `app/(tabs)/settings/profile-edit.tsx` — profile-edit formSheet (student, settings tab)
 - `app/(tabs)/more/profile-edit.tsx` — profile-edit formSheet (instructor/owner, "Altro" stack; bound to `settingsStore`)
-- `app/(tabs)/more/agenda-view.tsx` — Vista agenda formSheet (day/week)
 - `app/(tabs)/more/availability-mode.tsx` — Disponibilità mode formSheet (default/publication, local select → "Salva" persists)
 - `app/(tabs)/more/agenda-settings.tsx` — Agenda formSheet (owner: weeks + reminders)
 - `src/stores/instructorSettingsStore.ts` — publishes instructor/owner setting values + handlers to those sub-pages
 
 ## Design (design-system aligned)
-The instructor/owner branch (`renderNonStudentContent`): large title, then directly the settings. **The profile card was MOVED to the "Altro" screen (`MoreScreen`)** to avoid duplication between Altro and Impostazioni — it is no longer rendered here (it still opens `more/profile-edit`, now tapped from the Altro hero card). Every setting is a **normal `menuGroup` row** (icon + label + current-value hint + chevron) that opens a **formSheet sub-page** in the "Altro" stack — Vista agenda → `more/agenda-view`, Disponibilità → `more/availability-mode`, Agenda (owner) → `more/agenda-settings`, plus Notifiche; then the account group (Esci / Elimina account). No inline control cards. `SelectableChip` is outline navy globally; selection in the sub-pages = navy radio/check; pink reserved for CTAs. Profile fields are published to `settingsStore` for all roles; instructor/owner setting values to `instructorSettingsStore`. **No yellow anywhere**: `SelectableChip` is now **outline navy** globally (`#1A1A2E`), the agenda segmented control is outline navy, and Switch tracks use pink (not `#FACC15`). Pink reserved for CTAs only. The profile fields are published to `settingsStore` for **all roles** (was student-only) so `more/profile-edit` can bind to them.
+The instructor/owner branch (`renderNonStudentContent`): large title, then directly the settings. **The profile card was MOVED to the "Altro" screen (`MoreScreen`)** to avoid duplication between Altro and Impostazioni — it is no longer rendered here (it still opens `more/profile-edit`, now tapped from the Altro hero card). Every setting is a **normal `menuGroup` row** (icon + label + current-value hint + chevron) that opens a **formSheet sub-page** in the "Altro" stack — Disponibilità → `more/availability-mode`, Agenda (owner) → `more/agenda-settings`, plus Notifiche; then the account group (Esci / Elimina account). No inline control cards. `SelectableChip` is outline navy globally; selection in the sub-pages = navy radio/check; pink reserved for CTAs. Profile fields are published to `settingsStore` for all roles; instructor/owner setting values to `instructorSettingsStore`. **No yellow anywhere**: `SelectableChip` is now **outline navy** globally (`#1A1A2E`), the agenda segmented control is outline navy, and Switch tracks use pink (not `#FACC15`). Pink reserved for CTAs only. The profile fields are published to `settingsStore` for **all roles** (was student-only) so `more/profile-edit` can bind to them.
 
 ## Settings by role
 
@@ -35,7 +34,7 @@ The instructor/owner branch (`renderNonStudentContent`): large title, then direc
 ## Performance — instant render (non-blocking load)
 The screen never blocks on network. `initialLoading` is set `false` as soon as the session-derived UI can render; the network calls that only feed **row hints** run in the **background, in parallel**, gated by a separate loading flag that shows a small `SkeletonBlock` on just that row.
 - **Student:** profile card renders immediately; `loadStudentAvailabilityPreset` runs in background, `availabilityLoading` gates only the Disponibilità hint.
-- **Instructor/Owner:** profile card + Vista agenda (from `sessionStorage`) render immediately; `getAutoscuolaSettings` + `getInstructorSettings` run in parallel in the background, `settingsLoading` gates only the Disponibilità mode + Agenda weeks hints. (Previously these were two sequential awaits blocking the whole screen behind a full skeleton.)
+- **Instructor/Owner:** profile card renders immediately; `getAutoscuolaSettings` + `getInstructorSettings` run in parallel in the background, `settingsLoading` gates only the Disponibilità mode + Agenda weeks hints. (Previously these were two sequential awaits blocking the whole screen behind a full skeleton.)
 
 ## API functions used
 `getAutoscuolaSettings`, `getInstructorSettings`, `updateInstructorSettings`, `deleteAccount`
@@ -51,3 +50,6 @@ Screen, Card, Button, Input, SelectableChip, TimePickerDrawer, BottomSheet
 ## Elimina account — testo per l'allievo (REG-629)
 
 Per il ruolo allievo l'alert «Elimina account» spiega cosa succede: si cancellano email, telefono, foto e firma; l'autoscuola conserva nome, storico guide e pagamenti per gli obblighi contabili (lato backend: `reglo/docs/features/former-students.md`). Titolari e istruttori vedono il testo di prima.
+
+
+> **28/10/2026 (REG-638):** «Vista agenda» rimossa. L'agenda di istruttore e titolare ha solo la vista a griglia; la vecchia preferenza salvata (`reglo_agenda_view_mode`) viene cancellata all'apertura delle Impostazioni (`sessionStorage.forgetAgendaViewMode`).

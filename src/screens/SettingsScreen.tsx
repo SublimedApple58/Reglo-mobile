@@ -202,7 +202,6 @@ export const SettingsScreen = () => {
     'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
   >(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [agendaViewMode, setAgendaViewMode] = useState<'day' | 'week' | 'grid'>('day');
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
@@ -343,11 +342,10 @@ export const SettingsScreen = () => {
 
   const loadSettings = useCallback(async () => {
     try {
-      const savedViewMode = await sessionStorage.getAgendaViewMode();
-      setAgendaViewMode(savedViewMode);
+      // La vista agenda non si sceglie più (solo griglia): via la preferenza salvata.
+      void sessionStorage.forgetAgendaViewMode();
       if (isOwner(autoscuolaRole) || isInstructor(autoscuolaRole)) {
-        // Render immediately — the profile card + Vista agenda (local storage)
-        // need no network. The settings feeding the Disponibilità / Agenda row
+        // Render immediately — the profile card needs no network. The settings feeding the Disponibilità / Agenda row
         // hints load in the background, in parallel, gated by settingsLoading.
         setInitialLoading(false);
         setSettingsLoading(true);
@@ -675,15 +673,10 @@ export const SettingsScreen = () => {
   });
 
   // Publish instructor/owner settings so the "Altro" formSheet sub-pages
-  // (agenda-view, availability-mode, agenda-settings) can bind to live state.
+  // (availability-mode, agenda-settings) can bind to live state.
   useEffect(() => {
     if (isStudent(autoscuolaRole)) return;
     instructorSettingsStore.set({
-      agendaViewMode,
-      onPickAgendaView: async (m) => {
-        setAgendaViewMode(m);
-        await sessionStorage.setAgendaViewMode(m);
-      },
       availabilityMode: instrAvailabilityMode,
       onPickAvailabilityMode: async (m) => {
         const prev = instrAvailabilityMode;
@@ -841,22 +834,8 @@ export const SettingsScreen = () => {
           {/* Preferences — normal rows that open formSheet sub-pages (like student).
               Profile card moved to the "Altro" (More) screen to avoid duplication. */}
           <View style={studentStyles.menuGroup}>
-            {(isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) ? (
-              <Pressable onPress={() => router.push('/(tabs)/more/agenda-view')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                <Ionicons name="grid-outline" size={23} color="#111111" />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={studentStyles.rowLabel}>Vista agenda</Text>
-                  <Text style={studentStyles.rowHint} numberOfLines={1}>
-                    {agendaViewMode === 'day' ? 'Giornaliera' : agendaViewMode === 'grid' ? 'Griglia' : 'Settimanale'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-              </Pressable>
-            ) : null}
-
             {isInstructor(autoscuolaRole) ? (
               <>
-                <View style={studentStyles.rowDivider} />
                 <Pressable onPress={() => router.push('/(tabs)/more/availability-mode')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
                   <Ionicons name="calendar-outline" size={23} color="#111111" />
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -876,7 +855,7 @@ export const SettingsScreen = () => {
 
             {isOwner(autoscuolaRole) ? (
               <>
-                <View style={studentStyles.rowDivider} />
+                {isInstructor(autoscuolaRole) ? <View style={studentStyles.rowDivider} /> : null}
                 <Pressable onPress={() => router.push('/(tabs)/more/agenda-settings')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
                   <Ionicons name="time-outline" size={23} color="#111111" />
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -894,7 +873,7 @@ export const SettingsScreen = () => {
               </>
             ) : null}
 
-            <View style={studentStyles.rowDivider} />
+            {isInstructor(autoscuolaRole) || isOwner(autoscuolaRole) ? <View style={studentStyles.rowDivider} /> : null}
             <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
               <Ionicons
                 name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}

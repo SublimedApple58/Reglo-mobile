@@ -15,7 +15,6 @@ export default function MoreLayout() {
       <Stack.Screen name="vehicles" />
       <Stack.Screen name="evaluation-sheet" />
       <Stack.Screen name="profile-edit" options={TALL_SHEET} />
-      <Stack.Screen name="agenda-view" options={TALL_SHEET} />
       <Stack.Screen name="availability-mode" options={TALL_SHEET} />
       <Stack.Screen name="agenda-settings" options={TALL_SHEET} />
       <Stack.Screen name="location-form" options={TALL_SHEET} />

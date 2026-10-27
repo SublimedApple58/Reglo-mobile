@@ -1,13 +1,9 @@
-export type AgendaViewMode = 'day' | 'week' | 'grid';
 export type InstrAvailabilityMode = 'default' | 'publication';
 
 // Published by SettingsScreen for instructor/owner so the dedicated formSheet
-// sub-pages in the "Altro" stack (more/agenda-view, more/availability-mode,
-// more/agenda-settings) can bind to the live state + handlers.
+// sub-pages in the "Altro" stack (more/availability-mode, more/agenda-settings)
+// can bind to the live state + handlers.
 export type InstructorSettingsStoreData = {
-  // Vista agenda (instructor/owner)
-  agendaViewMode: AgendaViewMode;
-  onPickAgendaView: (m: AgendaViewMode) => void;
   // Disponibilità mode (instructor)
   availabilityMode: InstrAvailabilityMode;
   onPickAvailabilityMode: (m: InstrAvailabilityMode) => void;

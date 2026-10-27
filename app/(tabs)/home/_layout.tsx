@@ -14,7 +14,6 @@ export default function HomeLayout() {
           (a fitToContents form sheet clips the overflow on iOS). */}
       <Stack.Screen name="quick-book" options={PAGE_SHEET} />
       <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="day-detail" options={{ presentation: 'modal', headerShown: false }} />
       {/* Gestione esame: form sheet ADATTIVO. iOS abbraccia il contenuto
           (`fitToContents`), Android prende il detent alto e scrolla col footer
           inchiodato — l'esame ha una CTA in fondo ("Annulla esame") e una lista

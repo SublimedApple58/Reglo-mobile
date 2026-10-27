@@ -11,8 +11,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome (3) | Depends on MiniCalendar + BottomSheet. (TitolareHome ora è un wrapper di IstruttoreHome.) |
 | `RangesEditor` | InstructorManage, OwnerInstructor, PublicationModeEditor, DefaultAvailabilityEditor, role/availability-exception (5) | Time range format changes break all availability UIs. Navy clock circle (no pink). |
 | `SelectableChip` | CalendarNavigator, ClusterSettings, InstructorManage, Settings (4) | |
-| `WeeklyAgendaView` | IstruttoreHome (anche TitolareHome) quando `agendaViewMode === 'grid'` (1) | Hour-grid week view, la vista «griglia» alternativa a `WeeklyOverview`. Colori blocchi via `getLessonLook`, veicolo nei blocchi (REG-633) via `utils/agendaVehicle.ts`. |
-| `WeeklyOverview` | IstruttoreHome (anche TitolareHome via `ownerMode`) (1) | "Control in words" week view (preview 008): density strip + per-day textual summary + tap-to-expand inline `DayItinerary`. Uses `computeDayPlan` (`src/utils/weeklyAgenda.ts`) + `BookableBand` (quick-book, nascosto in `ownerMode`). |
+| `WeeklyAgendaView` | IstruttoreHome (anche TitolareHome), unica vista dell'agenda dal 28/10 (REG-638: vista giorno e settimana rimosse, con `WeeklyOverview`, `WeeklyLiveCard`, `DayItinerary` e `home/day-detail`) | Hour-grid week view. Colori blocchi via `getLessonLook`, veicolo nei blocchi (REG-633) via `utils/agendaVehicle.ts`. |
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
@@ -28,8 +27,8 @@ When modifying a feature, read its connected features to verify nothing breaks.
 |------|----------------------|
 | `AutoscuolaAppointmentWithRelations` | AllievoHome, IstruttoreHome, TitolareHome, InstructorManage, NotificationOverlay, RescheduleAppointmentSheet, notes screens, LessonsOverview (15) — since 2026-06-24 carries `followVehicle` (auto al seguito); a moto lesson reserves **2 vehicles** (moto + follow car). Since 2026-07-20 carries `cancelledAt/penaltyAmount/penaltyCutoffAt/lateCancellationAction` (dal ramo backend `light`), consumati da `LessonsOverview` segmento "Annullate". Since REG-399 carries `motoLessonType` (`'birilli'\|'strada'\|null`) — guide **individuali**: selettore in creazione (`BookingForm`), riga read-only `manage-lesson`, chip `StudentNotesDetailScreen`. Since REG-406 carries `groupLessonMotoType` (annotazione bootstrap agenda) per le guide di **gruppo moto** — selettore in creazione (`CreateGroupLessonScreen`), riga read-only `manage-group-lesson`, badge chip `DayItinerary`; vedi [features/moto-lesson-type.md](features/moto-lesson-type.md). Display it wherever `vehicle.name` is shown. |
 | `InstructorClusterSettings` | Settings, InstructorAvailability, IstruttoreHome, InstructorNotes, CreateExam, ClusterSettings, InstructorManage, PublicationModeEditor (9) |
-| `AutoscuolaSettings.agendaShowVehicle` (REG-633) | DayItinerary, WeeklyAgendaView via `src/utils/agendaVehicle.ts`; scritto da `AppearanceSettingsScreen` (endpoint scoped `agenda-colors`). |
-| `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | DayItinerary, IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
+| `AutoscuolaSettings.agendaShowVehicle` (REG-633) | WeeklyAgendaView via `src/utils/agendaVehicle.ts`; scritto da `AppearanceSettingsScreen` (endpoint scoped `agenda-colors`). |
+| `AutoscuolaSettings.agendaColor*` (`agendaColorCriterion`/`Overrides`/`Exceptions`) | IstruttoreHome (timeline `itinCard`) via `src/utils/agendaColors.ts` — colore blocchi guida in agenda. Già nel payload di `GET /api/autoscuole/settings`. Vedi [features/agenda-block-colors.md](features/agenda-block-colors.md). |
 | `AutoscuolaStudent` | NotificationOverlay, CreateExam, notes screens (7) |
 | `AutoscuolaAppointment.manualPaymentStatus` / `creditApplied` / `paymentRequired` | `StudentPaymentsScreen`, `StudentNotesDetailScreen` (conteggio "da pagare") via `src/utils/lessonPayments.ts` (REG-450). **Solo ramo full** di `getAppointments`. Vedi [features/lesson-payments.md](features/lesson-payments.md). |
 | `AutoscuolaAppointment.paymentHistory` (REG-637) | `StudentPaymentsScreen` (riga chi/quando + tocco → `payment-history`), `PaymentHistorySheet`. Solo staff, solo `getAppointments({ studentId })` ramo full. Regola gemella `src/utils/paymentHistory.ts` ↔ `reglo/components/pages/Autoscuole/LessonPaymentTrail.tsx`. |
@@ -98,7 +97,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 ### Reglo Road (REG-638)
 - **AuthGate** (`app/_layout.tsx`): il gruppo `road` è ammesso accanto a `(tabs)`; `RoadController` instrada su `/road` finché `roadStore.phase !== 'idle'`. Toccare l'AuthGate può buttare fuori da Road a metà guida.
 - **Pagellino (REG-443)**: `manage-lesson-details` ha la variante `road` (solo pagellino, CTA nera) ed è registrato anche in `app/road/` (re-export) + `select-options(-long)`. Cambiare il foglio cambia anche il pagellino di Road; cambiare il calcolo «N voci su M» del riepilogo richiede `AppointmentEvaluation` (`getAppointmentEvaluation`).
-- **WeeklyLiveCard / IstruttoreHomeScreen**: prop `onEnterRoad` solo se la guida «In corso» è la `eligibleLesson` di `/road/state`.
+- **IstruttoreHomeScreen** (WeeklyLiveCard rimossa il 28/10 con la vista settimana): prop `onEnterRoad` solo se la guida «In corso» è la `eligibleLesson` di `/road/state`.
 - **lesson-detail (allievo)**: blocco «Il tuo percorso» solo per guide `completed`; il server decide visibilità (`studentNotesEnabled`).
 - **entry.ts**: è il `main` del package e definisce il task GPS prima di Expo Router: rimuoverlo rompe il tracking in background.
 - **Nativo**: `react-native-maps`, `expo-location`, `expo-task-manager`, `expo-keep-awake` → runtime 2.4.0; nessun OTA che li usi può andare ai binari 2.3.0.
@@ -260,3 +259,6 @@ When `../reglo/` backend changes:
 - ← **Backend `exam-notifications.ts`**: i testi li decide il backend, l'app li mostra. `data.isExam` / `data.timeSet` nel payload di `appointment_rescheduled`, `appointment_cancelled`, `appointment_location_changed` e `exam_scheduled` servono all'inbox per non scrivere «00:00» su un esame senza orario
 - → **`src/utils/examTime.ts`**: `examTimeIsTbd()` è il marcatore unico lato app (`!endsAt`). **Non** `isExamPlaceholder` in `weeklyAgenda.ts`, che è l'esame senza *allievi*
 - → **Schermi allievo**: `AllievoHomeScreen`, `exam-detail`, `StudentMyNotesScreen`, `StudentNotesDetailScreen`, `NotificationInboxScreen`
+
+
+> 28/10/2026 (REG-638): l'agenda istruttore/titolare ha solo la griglia (`WeeklyAgendaView`). `WeeklyOverview`, `WeeklyLiveCard`, `DayItinerary`, `home/day-detail` e `dayDetailStore` sono stati eliminati: dove sopra o nei feature doc compaiono, sono storici.
