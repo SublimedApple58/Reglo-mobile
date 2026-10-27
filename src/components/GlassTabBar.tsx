@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -104,11 +104,10 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
   );
 };
 
-const ROAD_ICON = require('../../assets/road/road-3d.png');
-
 /**
- * Tab centrale in rilievo (REG-638, scelta B): cerchio nero con l'icona Road
- * che esce dalla barra, etichetta sotto come le altre.
+ * Tab centrale in rilievo (REG-638, scelta B): cerchio nero con un glifo
+ * monocromatico bianco (freccia di navigazione, come le altre icone della
+ * barra), etichetta sotto come le altre.
  */
 const CenterTabItem = ({ label, isFocused, onPress }: { label: string; isFocused: boolean; onPress: () => void }) => (
   <Pressable
@@ -120,7 +119,7 @@ const CenterTabItem = ({ label, isFocused, onPress }: { label: string; isFocused
     testID="tab-center-road"
   >
     <View style={st.fab}>
-      <Image source={ROAD_ICON} style={st.fabImg} resizeMode="contain" />
+      <Ionicons name="navigate" size={25} color="#FFFFFF" style={st.fabIcon} />
     </View>
     <Text style={[st.tabLabel, st.fabLabel, isFocused && st.tabLabelActive]} numberOfLines={1}>
       {label}
@@ -272,7 +271,8 @@ const st = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  fabImg: { width: 32, height: 32 },
+  // la freccia di Ionicons è disegnata spostata: la si rimette al centro ottico
+  fabIcon: { marginLeft: -2, marginTop: 2 },
   fabLabel: { marginTop: -1 },
   tabLabel: {
     fontSize: 10.5,
