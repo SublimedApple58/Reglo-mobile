@@ -1626,8 +1626,6 @@ export type RoadCatalog = {
 
 export type RoadState = {
   roadEnabled: boolean;
-  /** Road libero (piano A): tab «Road» con «Avvia guida». Assente sui backend vecchi. */
-  freeStartEnabled?: boolean;
   catalog: RoadCatalog;
   activeSession: RoadSessionWithLesson | null;
   eligibleLesson: RoadLesson | null;

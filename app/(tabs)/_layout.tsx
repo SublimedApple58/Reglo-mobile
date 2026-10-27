@@ -48,9 +48,9 @@ export default function TabsLayout() {
   const showInboxTab =
     showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed);
   const isOwner = autoscuolaRole === 'OWNER';
-  // REG-638 Road libero: tab «Road» per chi guida, solo se l'autoscuola l'ha acceso.
-  const { freeStartEnabled } = useRoadState();
-  const showDriveTab = freeStartEnabled && (isInstructor || isInstructorOwner);
+  // REG-638 Road libero: tab «Road» per chi guida, sempre quando Road è acceso.
+  const { roadEnabled } = useRoadState();
+  const showDriveTab = roadEnabled && (isInstructor || isInstructorOwner);
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
   // filter reliably (expo-router descriptors don't update reactively).
