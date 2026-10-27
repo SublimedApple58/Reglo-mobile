@@ -154,7 +154,8 @@ export default function RoadTab() {
             style={StyleSheet.absoluteFill}
             initialCamera={{ center, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }}
             mapPadding={{ top: insets.top, right: 0, bottom: 28, left: 0 }}
-            legalLabelInsets={{ top: 0, right: 0, bottom: 40, left: 18 }}
+            // Niente legalLabelInsets: con mapPadding Apple mette logo e «Legal»
+            // affiancati sopra il pannello; spostarne uno solo li sovrapponeva.
             mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
             showsPointsOfInterest={false}
             showsCompass={false}
