@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
@@ -55,6 +55,7 @@ function detailOf(st: AutoscuolaStudent | undefined, minutes: number | undefined
  */
 export default function AvviaGuidaSheet() {
   const router = useRouter();
+  const navigation = useNavigation();
   const live = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
   const [options] = useState<RoadFreeOptions | null>(() => live);
   const [students, setStudents] = useState<AutoscuolaStudent[] | null>(null);
@@ -183,11 +184,16 @@ export default function AvviaGuidaSheet() {
       return;
     }
     setStarting(true);
+    // Se parte, RoadController sostituisce la radice con /road: il foglio deve
+    // sparire senza la sua scivolata nativa (il passaggio lo fa il velo, 240 ms).
+    navigation.setOptions({ animation: 'none' });
     const ok = await start();
     setStarting(false);
+    if (!ok) navigation.setOptions({ animation: 'default' });
+    // Partita la sessione, RoadController sostituisce già la radice con /road
+    // (il foglio se ne va con le tab): niente back/push qui, darebbero
+    // «GO_BACK not handled» e un secondo passaggio di schermata.
     if (!ok) return;
-    router.back();
-    setTimeout(() => router.push(ROAD_ROUTE), SHEET_HANDOFF_MS);
   };
 
   const back = (to: 'student' | 'summary') => (
@@ -381,7 +387,7 @@ export default function AvviaGuidaSheet() {
         accessibilityLabel="Cambia auto"
         testID="road-free-vehicle"
       >
-        <Ionicons name="car-outline" size={21} color="#111111" />
+        {/* Solo testo (niente icona stilizzata: la scelta mostra le auto 3D). */}
         {selectedVehicle ? (
           <View style={{ flex: 1 }}>
             <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>

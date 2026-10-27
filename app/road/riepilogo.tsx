@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../src/components/SheetScaffold';
 import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
@@ -58,6 +58,7 @@ export default function RiepilogoScreen() {
   // Guida nata da Road libero: in agenda la fine segue l'ora reale.
   const freeStarted = useSyncExternalStore(roadFreeStarted.subscribe, roadFreeStarted.get);
 
+  const navigation = useNavigation();
   const queryClient = useQueryClient();
   const close = () => {
     // La guida è `completed` sul server: la card «In corso» della home va
@@ -65,7 +66,10 @@ export default function RiepilogoScreen() {
     void queryClient.invalidateQueries({ queryKey: ['agenda-bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['appointments'] });
     roadFreeStarted.set(null);
-    void exitRoad();
+    // Il foglio se ne va SENZA la sua animazione nativa (~300 ms di scivolata
+    // sopra l'agenda): il passaggio lo fa il velo di RoadController, 240 ms.
+    navigation.setOptions({ animation: 'none' });
+    requestAnimationFrame(() => void exitRoad());
     // RoadController riporta alla home appena la fase torna `idle`.
   };
 

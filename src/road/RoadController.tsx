@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, StyleSheet } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter, useSegments } from 'expo-router';
 import { useSession } from '../context/SessionContext';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
@@ -36,6 +37,7 @@ export function RoadController() {
   const rootRef = useRef(root);
   rootRef.current = root;
   const checking = useRef(false);
+  const [veil, setVeil] = useState({ n: 0, color: ROAD_VEIL_OUT });
 
   const check = useCallback(async (opts: { force?: boolean } = {}) => {
     if (!allowed || checking.current) return;
@@ -114,11 +116,35 @@ export function RoadController() {
     if (status !== 'ready') return;
     const inRoad = root === 'road';
     if (phase !== 'idle' && !inRoad) {
+      setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_IN }));
       router.replace(ROAD_ROUTE);
     } else if (phase === 'idle' && inRoad) {
+      setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_OUT }));
       router.replace('/(tabs)/home');
     }
   }, [phase, root, router, status]);
 
-  return null;
+  return <RouteVeil trigger={veil.n} color={veil.color} />;
+}
+
+/** Colore del velo: entrando quello della mappa, uscendo il bianco delle tab. */
+const ROAD_VEIL_IN = '#F2F0EB';
+const ROAD_VEIL_OUT = '#FFFFFF';
+/** Durata del passaggio tab ↔ Road (Tiziano 28/10: corto, 200-250 ms, niente rimbalzo). */
+export const ROAD_SWITCH_MS = 240;
+
+/**
+ * Passaggio tab ↔ Road: invece di vedere la tab bar sparire/ricomparire e i
+ * fogli scivolare via, un velo del colore della schermata copre lo scambio e
+ * si dissolve in 240 ms con easing morbido. Non intercetta i tocchi.
+ */
+function RouteVeil({ trigger, color }: { trigger: number; color: string }) {
+  const opacity = useSharedValue(0);
+  useEffect(() => {
+    if (!trigger) return;
+    opacity.value = 1;
+    opacity.value = withTiming(0, { duration: ROAD_SWITCH_MS, easing: Easing.out(Easing.cubic) });
+  }, [trigger, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color }, style]} />;
 }
