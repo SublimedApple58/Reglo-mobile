@@ -29,7 +29,9 @@ function hoursLabel(minutes: number | undefined) {
   return `${h.toLocaleString('it-IT')} h di guida`;
 }
 
-function detailOf(st: AutoscuolaStudent | undefined, minutes: number | undefined) {
+function detailOf(st: AutoscuolaStudent | undefined, minutes: number | undefined, blocked = false) {
+  // Prenotazioni bloccate: riga secondaria discreta, niente badge (come in agenda non impedisce di partire).
+  if (blocked) return 'Prenotazioni bloccate';
   const license = st?.licenseCategory
     ? `Patente ${st.licenseCategory}${st.transmission === 'automatic' ? ' automatica' : ''}`
     : null;
@@ -75,6 +77,7 @@ export default function AvviaGuidaSheet() {
   }, []);
 
   const byId = useMemo(() => new Map((students ?? []).map((st) => [st.id, st])), [students]);
+  const blocked = useMemo(() => new Set(options?.blockedStudentIds ?? []), [options]);
 
   const everyone: Person[] = useMemo(
     () =>
@@ -82,10 +85,10 @@ export default function AvviaGuidaSheet() {
         .filter((st) => st.status !== 'inactive' && st.studentPhase !== 'PATENTATO')
         .map((st) => {
           const name = `${st.firstName} ${st.lastName}`.trim();
-          return { id: st.id, name, detail: detailOf(st, minutes[st.id]), sortKey: name.toLocaleLowerCase('it') };
+          return { id: st.id, name, detail: detailOf(st, minutes[st.id], blocked.has(st.id)), sortKey: name.toLocaleLowerCase('it') };
         })
         .sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'it')),
-    [students, minutes],
+    [students, minutes, blocked],
   );
 
   const suggested: Person[] = useMemo(
@@ -93,10 +96,10 @@ export default function AvviaGuidaSheet() {
       (options?.recentStudents ?? []).map((r) => ({
         id: r.id,
         name: r.name,
-        detail: detailOf(byId.get(r.id), minutes[r.id]),
+        detail: detailOf(byId.get(r.id), minutes[r.id], blocked.has(r.id)),
         sortKey: r.name.toLocaleLowerCase('it'),
       })),
-    [options, byId, minutes],
+    [options, byId, minutes, blocked],
   );
 
   const q = query.trim();

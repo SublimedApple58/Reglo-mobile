@@ -1659,6 +1659,8 @@ export type RoadFreeOptions = {
   currentLesson: RoadLesson | null;
   todayCount: number;
   nextLessonAt: string | null;
+  /** Allievi con le prenotazioni bloccate adesso. Assente sui backend vecchi. */
+  blockedStudentIds?: Uuid[];
 };
 
 export type RoadFreeStartInput = {
@@ -1667,6 +1669,8 @@ export type RoadFreeStartInput = {
   durationMin: number;
   confirmWeeklyLimit?: boolean;
   confirmNoBuffer?: boolean;
+  /** L'allievo ha le prenotazioni bloccate: l'istruttore procede comunque (come in agenda). */
+  confirmStudentBlocked?: boolean;
 };
 
 export type RoadPointsResult = {

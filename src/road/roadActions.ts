@@ -195,7 +195,7 @@ export async function enterRoadFree(input: RoadFreeStartInput): Promise<FreeStar
   if (!(await ensureRoadLocationPermission())) return { kind: 'failed' };
   let req: RoadFreeStartInput = { ...input };
   let started;
-  for (let attempt = 0; attempt < 3 && !started; attempt += 1) {
+  for (let attempt = 0; attempt < 4 && !started; attempt += 1) {
     try {
       started = await regloApi.startFreeRoadSession(req);
     } catch (err) {
@@ -205,6 +205,11 @@ export async function enterRoadFree(input: RoadFreeStartInput): Promise<FreeStar
       if (p.code === 'WEEKLY_LIMIT_CONFIRM' && !req.confirmWeeklyLimit) {
         if (!(await confirmProceed('Limite settimanale', msg))) return { kind: 'failed' };
         req = { ...req, confirmWeeklyLimit: true };
+        continue;
+      }
+      if (p.code === 'STUDENT_BLOCKED_CONFIRM' && !req.confirmStudentBlocked) {
+        if (!(await confirmProceed('Prenotazioni bloccate', msg))) return { kind: 'failed' };
+        req = { ...req, confirmStudentBlocked: true };
         continue;
       }
       if (p.code === 'LESSON_BUFFER_CONFIRM' && !req.confirmNoBuffer) {
