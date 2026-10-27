@@ -14,6 +14,12 @@ export type GroupLessonParticipantsData = {
   lesson: GroupLesson;
   /** Re-load the detail in the parent modal + refresh the agenda. */
   onChanged: () => void;
+  /**
+   * REG-636 — titolare in modalità titolare (dettaglio in sola lettura): il
+   * roster si apre solo per scegliere le moto dei gruppi moto — niente
+   * presenze, note, rimozioni, aggiunte né inviti.
+   */
+  motoOnly?: boolean;
 };
 
 let _data: GroupLessonParticipantsData | null = null;

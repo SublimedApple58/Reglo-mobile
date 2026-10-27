@@ -14,6 +14,13 @@ export type OptionItem = {
   leadingInitials?: string | null;
   /** userId per mostrare la foto profilo al posto delle iniziali, se presente. */
   leadingUserId?: string | null;
+  /**
+   * REG-636 — tono del sottotitolo: `success` (verde, con pallino: «Libera»)
+   * o `accent` (arancio moto, con icona scambio: «Con Luca B. · scambio»).
+   */
+  subtitleTone?: 'success' | 'accent' | null;
+  /** REG-636 — iniziali in coda al posto del cerchio di selezione (chi ha già la moto). */
+  trailingInitials?: string | null;
 };
 
 export type OptionsPickerData = {
@@ -31,6 +38,8 @@ export type OptionsPickerData = {
    * default generico.
    */
   emptyLabel?: string;
+  /** Riga di servizio sotto la lista (es. quali moto non compaiono e perché). */
+  footnote?: string | null;
   onConfirm: (values: string[]) => void;
 };
 

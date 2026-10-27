@@ -373,9 +373,14 @@ export type GroupLessonParticipant = {
   attendance: 'present' | 'absent' | 'pending';
   /** Per-student note on this seat (instructor → student), null if none. */
   notes: string | null;
-  /** Moto group: the moto assigned to this participant (null otherwise). */
+  /** Moto group: the moto assigned to this participant (null = a rotazione). */
+  vehicleId?: Uuid | null;
   vehicleName?: string | null;
+  /** Category of the ASSIGNED moto (not the student's). */
   licenseCategory?: string | null;
+  /** REG-636 — the license the student pursues (staff, moto groups only). */
+  studentLicenseCategory?: string | null;
+  studentTransmission?: string | null;
 };
 
 /** A moto in a group's fleet (kind="moto"). */

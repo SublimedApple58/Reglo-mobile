@@ -307,6 +307,8 @@ export default function ManageGroupLessonScreen() {
     groupLessonParticipantsStore.set({
       groupLessonId,
       lesson,
+      // REG-636 — il titolare in sola lettura apre il roster solo per le moto.
+      motoOnly: readOnly,
       onChanged: () => {
         seed.onChanged?.();
         reload();
@@ -600,7 +602,18 @@ export default function ManageGroupLessonScreen() {
         </View>
 
         {/* Partecipanti — card 3D CTA → roster sheet. Read-only = card statica. */}
-        {readOnly ? (
+        {readOnly && isMoto ? (
+          /* REG-636 — titolare in sola lettura, gruppo moto: il roster si
+             apre solo per scegliere la moto di ogni partecipante. */
+          <Pressable onPress={openParticipants} disabled={!lesson} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
+            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#1A1A2E" /></View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={s.cardTitle}>Partecipanti</Text>
+              <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} iscritti · scegli le moto</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#C7CBD1" />
+          </Pressable>
+        ) : readOnly ? (
           <View style={s.cardCta}>
             <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#1A1A2E" /></View>
             <View style={{ flex: 1, gap: 2 }}>

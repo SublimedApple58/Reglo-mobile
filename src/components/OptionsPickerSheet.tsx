@@ -16,6 +16,9 @@ import { GlassCloseButton } from './GlassCloseButton';
 const NAVY = '#1A1A2E';
 const INK = '#222222';
 const MUTED = '#929292';
+// REG-636 — toni dei sottotitoli del picker moto (stessi hex del web).
+const SUCCESS = '#2F7A4A';
+const ACCENT = '#C2410C';
 
 /**
  * Shared body of the options picker. Two presentations:
@@ -77,13 +80,35 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           ) : null}
           <View style={s.body}>
             <Text style={s.label} numberOfLines={1}>{o.label}</Text>
-            {o.subtitle ? <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text> : null}
+            {o.subtitle ? (
+              o.subtitleTone ? (
+                <View style={s.subRow}>
+                  {o.subtitleTone === 'success' ? (
+                    <View style={[s.subDot, { backgroundColor: SUCCESS }]} />
+                  ) : (
+                    <Ionicons name="swap-horizontal" size={14} color={ACCENT} />
+                  )}
+                  <Text
+                    style={[s.subToned, { color: o.subtitleTone === 'success' ? SUCCESS : ACCENT }]}
+                    numberOfLines={1}
+                  >
+                    {o.subtitle}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={s.sub} numberOfLines={1}>{o.subtitle}</Text>
+              )
+            ) : null}
           </View>
           {/* La selezione tinge TUTTA la riga (non è una spunta in fondo):
               il tocco ha una superficie, non un bersaglio da 23px. */}
-          <View style={[s.mark, on && s.markOn]}>
-            {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
-          </View>
+          {o.trailingInitials && !on ? (
+            <View style={s.trailingAvatar}><Text style={s.trailingAvatarText}>{o.trailingInitials}</Text></View>
+          ) : (
+            <View style={[s.mark, on && s.markOn]}>
+              {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
+            </View>
+          )}
         </Pressable>
       </View>
     );
@@ -153,6 +178,8 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
         <View style={{ gap: 10 }}>{rows}</View>
       )}
 
+      {data.footnote ? <Text style={s.footnote}>{data.footnote}</Text> : null}
+
       {data.multi ? (
         <Pressable
           onPress={confirmMulti}
@@ -211,6 +238,12 @@ const s = StyleSheet.create({
   body: { flex: 1, minWidth: 0, gap: 2 },
   label: { fontSize: 15.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
   sub: { fontSize: 12.5, fontWeight: '500', color: MUTED, marginTop: 3 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  subDot: { width: 6, height: 6, borderRadius: 3 },
+  subToned: { flexShrink: 1, fontSize: 12.5, fontWeight: '500' },
+  trailingAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  trailingAvatarText: { fontSize: 10.5, fontWeight: '600', color: NAVY },
+  footnote: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', lineHeight: 18, marginTop: 16, marginHorizontal: 4 },
 
   cta: {
     marginTop: 22, height: 54, borderRadius: 27, flexDirection: 'row', gap: 8,

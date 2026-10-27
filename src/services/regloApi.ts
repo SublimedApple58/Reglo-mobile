@@ -410,6 +410,16 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: { appointmentId, outcome },
       }),
+    // REG-636 — change one participant's moto (null = a rotazione). A moto held
+    // by a sibling is a swap: echo the sibling's seat in swapWithAppointmentId.
+    setGroupLessonParticipantMoto: async (
+      groupLessonId: string,
+      payload: { appointmentId: string; vehicleId: string | null; swapWithAppointmentId?: string | null },
+    ) =>
+      client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/participant-moto`, {
+        method: 'POST',
+        body: payload,
+      }),
     markGroupLessonAllPresent: async (groupLessonId: string) =>
       client.request<unknown>(`/api/autoscuole/group-lessons/${groupLessonId}/attendance`, {
         method: 'POST',
