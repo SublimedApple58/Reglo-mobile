@@ -83,6 +83,9 @@ export default function HomeLayout() {
       <Stack.Screen name="road-invite" options={TALL_SHEET} />
       <Stack.Screen name="road-privacy" options={TALL_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+      {/* REG-638: «Percorso Road» di una guida (dettaglio guida, storico allievo):
+          form sheet che abbraccia il contenuto, niente vuoto sotto (§13.2.1). */}
+      <Stack.Screen name="road-percorso" options={TALL_SHEET} />
     </Stack>
   );
 }

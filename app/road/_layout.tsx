@@ -16,8 +16,9 @@ export default function RoadLayout() {
       {/* «Cosa è successo?»: griglia a contenuto fisso → form sheet che abbraccia
           il contenuto (Android: detent alto + SheetScaffold). */}
       <Stack.Screen name="segnala" options={TALL_SHEET} />
-      {/* Pagellino: stesso foglio della home (manage-lesson-details), page sheet. */}
-      <Stack.Screen name="pagellino" options={PAGE_SHEET} />
+      {/* Pagellino: stesso foglio della home (manage-lesson-details), qui form
+          sheet che abbraccia il contenuto e scorre solo se supera lo schermo. */}
+      <Stack.Screen name="pagellino" options={TALL_SHEET} />
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
       {/* Riepilogo: form sheet che abbraccia il contenuto, CTA in fondo (§13.2.1).

@@ -41,6 +41,8 @@ import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { colors } from '../../../src/theme/colors';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { RoadLessonCard } from '../../../src/components/road/RoadLessonCard';
+import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
 
 const TONE: Record<string, { bg: string; fg: string }> = {
   live: { bg: '#1A1A2E', fg: '#FFFFFF' },
@@ -258,6 +260,7 @@ function MorphToolbar({
 export default function ManageLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { enabled: roadEnabled } = useRoadEnabled();
   const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
   const [expanded, setExpanded] = useState(false);
 
@@ -676,6 +679,11 @@ export default function ManageLessonScreen() {
             );
           })()}
         </View>
+
+        {/* REG-638: percorso Road della guida (solo se c'è una sessione chiusa). */}
+        {lesson.type !== 'esame' && !lesson.groupLessonId ? (
+          <RoadLessonCard router={router} appointmentId={lesson.id} startsAt={lesson.startsAt} enabled={roadEnabled} />
+        ) : null}
 
         {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet.
             Nascosta in read-only (il titolare non modifica tipo/voto/note). */}

@@ -72,6 +72,10 @@ import {
 } from '../utils/examOutcome';
 import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { GlassCloseButton } from '../components/GlassCloseButton';
+import { RoadHistoryChip } from '../components/road/RoadLessonCard';
+import { useRoadEnabled } from '../hooks/useRoadEnabled';
+import { openRoadPercorso } from '../road/openRoadPercorso';
+import type { RoadStudentItem } from '../types/regloApi';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
@@ -197,6 +201,22 @@ export const StudentNotesDetailScreen = () => {
   const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
+  // REG-638: percorsi Road delle guide dello storico (chip «Percorso»).
+  const { enabled: roadEnabled } = useRoadEnabled();
+  const [roadByLesson, setRoadByLesson] = useState<Map<string, RoadStudentItem>>(new Map());
+  useEffect(() => {
+    if (!roadEnabled || !studentId) return;
+    let alive = true;
+    regloApi
+      .getRoadForStudent(String(studentId))
+      .then((res) => {
+        if (alive) setRoadByLesson(new Map(res.items.map((it) => [it.appointmentId, it])));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [roadEnabled, studentId]);
   const { autoscuolaRole } = useSession();
   const [rawAppointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   /**
@@ -1234,6 +1254,14 @@ export const StudentNotesDetailScreen = () => {
                         ) : null}
                         {!isExam ? (
                           <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
+                        ) : null}
+                        {roadByLesson.get(appt.id) ? (
+                          <RoadHistoryChip
+                            item={roadByLesson.get(appt.id)!}
+                            onPress={() =>
+                              void openRoadPercorso(router, segments[1] === 'notes' ? 'notes' : 'home', appt.id)
+                            }
+                          />
                         ) : null}
                         <Pressable
                           onPress={() => openDetails(appt)}

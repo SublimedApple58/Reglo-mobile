@@ -250,9 +250,10 @@ export default function ManageLessonDetailsScreen() {
   };
 
   return (
-    // PAGE_SHEET: la schermata ha l'altezza dello schermo, il root la riempie
-    // e il corpo dentro SheetScaffold `fill` ha spazio definito da scrollare.
-    <View style={[s.root, { flex: 1 }]}>
+    // Home/note: PAGE_SHEET, il root riempie lo schermo e il corpo scorre
+    // (SheetScaffold `fill`). Da Road: form sheet che abbraccia il contenuto
+    // (QA 27/10, niente vuoto sotto) e scorre solo se supera lo schermo.
+    <View style={[s.root, road ? s.rootRoad : { flex: 1 }]}>
       <View style={s.topBar}>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
@@ -264,13 +265,14 @@ export default function ManageLessonDetailsScreen() {
       <SheetScaffold
         // fill: corpo scrollabile + "Salva" agganciato in fondo su ENTRAMBE le
         // piattaforme (stesso pattern di quick-book e booking-rules).
-        fill
+        fill={!road}
+        hugScroll={!!road}
         keyboardAware
         // Coda del contenuto: senza, l'ultima voce del pagellino finisce
         // incollata al bordo del "Salva" e sembra tagliata.
-        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28, flexGrow: 1 }]}
+        contentContainerStyle={[s.scaffoldBody, road ? { paddingBottom: 8 } : { paddingBottom: 28, flexGrow: 1 }]}
         footer={
-          <View style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+          <View style={{ paddingBottom: road ? 18 : Math.max(insets.bottom, 12) }}>
             <Pressable
               onPress={handleSave}
               disabled={!editable}
@@ -539,6 +541,8 @@ export default function ManageLessonDetailsScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 0, gap: 20 },
   scaffoldBody: { gap: 20 },
+  // form sheet da Road: padding fisso, niente safe area (§13.2.1)
+  rootRoad: { paddingTop: 22 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },

@@ -34,6 +34,9 @@ export default function NotesLayout() {
           dell'app (quick-book → BookingForm/BlockForm): page sheet senza detent +
           SheetScaffold fill → scroll nativo pulito. */}
       <Stack.Screen name="booking-rules" options={PAGE_SHEET} />
+      {/* REG-638: percorso Road di una guida dallo storico allievo. */}
+      <Stack.Screen name="road-percorso" options={TALL_SHEET} />
+      <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="limits" options={TALL_SHEET} />
       <Stack.Screen name="extras" options={TALL_SHEET} />
     </Stack>

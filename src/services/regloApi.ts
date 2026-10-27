@@ -118,6 +118,7 @@ import {
   RoadState,
   RoadStartResult,
   RoadDetail,
+  RoadStudentItem,
   RoadMarker,
   RoadPoint,
   RoadPointsResult,
@@ -1052,6 +1053,9 @@ export const createRegloApi = (baseUrl?: string) => {
     /** Percorso di una guida (allievo: solo con il setting dell'autoscuola). */
     getRoadForAppointment: async (appointmentId: string) =>
       client.request<RoadDetail | null>(`/api/autoscuole/road/appointments/${appointmentId}`),
+    /** Percorsi Road delle guide di un allievo (titolare: tutte; istruttore: le sue). */
+    getRoadForStudent: async (studentId: string) =>
+      client.request<{ items: RoadStudentItem[] }>(`/api/autoscuole/road/students/${studentId}`),
 
     // ── Exam Schede ────────────────────────────────────────────────
     getExamSchedeProgress: async () =>

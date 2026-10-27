@@ -1651,6 +1651,20 @@ export type RoadDetail = RoadSessionWithLesson & {
   evaluation?: RoadEvaluationSummary | null;
 };
 
+/** Percorso Road di una guida nello storico allievo (`GET /road/students/[id]`). */
+export type RoadStudentItem = {
+  id: Uuid;
+  appointmentId: Uuid;
+  status: RoadSessionStatus;
+  distanceMeters: number;
+  durationSec: number;
+  markerCount: number;
+  markerGood: number;
+  markerBad: number;
+  /** Miniatura del percorso: [lat, lng]. */
+  thumb: Array<[number, number]>;
+};
+
 export type AddRoadMarkerInput = {
   clientId: string;
   kind: string;

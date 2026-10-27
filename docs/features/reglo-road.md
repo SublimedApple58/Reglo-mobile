@@ -146,3 +146,10 @@ percorso» fra orario e righe istruttore/veicolo: minimappa non interattiva con 
 
 - **Colore auto**: `RoadLesson.carColor` (dal backend, già risolto veicolo → tinta istruttore → bianco). Varianti pre-generate in `assets/road/cars/auto-{su,34}-<chiave>.png`; `carTopArt(color)` / `car34Art(color)` in `src/road/markerArt.ts` (chiave sconosciuta → bianco). Usate da `RoadCarMarker` (mappa Road) e dall'invito `road-invite`. Solo immagini JS: arriva via OTA.
 - **Ingresso in Road**: `RoadController` rilegge `/road/state` all'avvio, al ritorno in primo piano, ogni 60 s con l'app aperta e subito dopo «Presente» (`requestRoadCheck({ force: true })` da `executeStatusAction`, ripropone l'invito anche se chiuso con «Non ora»). Il bottone nero «Entra in Road» sta sulla guida idonea sia nella live card della vista settimanale sia nella riga dell'itinerario giornaliero (`testID itin-enter-road`). OTA iOS runtime 2.4.0 del 27/10 (gruppo 9211f025).
+
+## QA 27/10 sera — segno, pagellino, percorso nella guida, fogli
+
+- **Segno**: `RoadMarker.sentiment`; in «Segnala» l'interruttore «Fatto bene / Da migliorare» (`roadStore.sentimentMode`, resta per la sessione, default «da migliorare»). `src/components/road/RoadSentiment.tsx` (`SentimentBadge`, `SentimentCounts`, `countSentiments`); bordo colorato su `RoadMarkerPin`, badge in `RoadMarkerList` e nel toast; conteggi in riepilogo, vista allievo, percorso.
+- **Pagellino** (`manage-lesson-details`, condiviso home/note/Road): tutte le voci subito con le stelline, le non toccate restano «non valutate»; niente più «Aggiungi voci» né ×.
+- **Percorso nella guida (istruttore)**: `RoadLessonCard` nel dettaglio guida (`manage-lesson`), `RoadHistoryChip` nello storico di `StudentNotesDetailScreen` (`getRoadForStudent`). Entrambi aprono `road-percorso` (home + notes), form sheet che abbraccia il contenuto; dalla mappa si va a `road-map`.
+- **Fogli**: riepilogo e pagellino da Road sono form sheet `fitToContents` (`TALL_SHEET`); il pagellino usa `SheetScaffold hugScroll` (abbraccia il contenuto, scorre solo se supera lo schermo, «Salva» sempre visibile).
