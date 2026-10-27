@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../src/utils/haptics';
-import { GlassCloseButton } from '../../src/components/GlassCloseButton';
 import { roadStore, useRoadState, type RoadSentiment } from '../../src/road/roadStore';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from '../../src/components/road/RoadSentiment';
 import { recordRoadMarker } from '../../src/road/roadActions';

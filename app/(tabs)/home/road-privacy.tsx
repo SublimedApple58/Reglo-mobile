@@ -5,7 +5,6 @@ import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { enterRoad, markRoadPrivacySeen } from '../../../src/road/roadActions';
 import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore, roadPendingStart } from '../../../src/road/entryFlow';
 

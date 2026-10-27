@@ -236,7 +236,7 @@ export default function AvviaGuidaSheet() {
               <Text style={s.section}>Le tue ultime guide</Text>
               {shownSuggested.map((p, i) => (
                 <Animated.View key={`s-${p.id}`} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-                  <PersonRow person={p} dark onPress={() => pick(p.id)} />
+                  <PersonRow person={p} onPress={() => pick(p.id)} />
                 </Animated.View>
               ))}
             </View>
@@ -333,7 +333,7 @@ export default function AvviaGuidaSheet() {
     <FormSheet
       leading={
         <Pressable onPress={toStudents} accessibilityRole="button" accessibilityLabel="Cambia allievo">
-          <RoadAvatar name={selected?.name ?? '?'} size={48} />
+          <RoadAvatar userId={studentId} name={selected?.name ?? '?'} size={48} />
         </Pressable>
       }
       title={
@@ -483,7 +483,7 @@ function VehicleRow({ vehicle, selected, onPress }: { vehicle: RoadFreeVehicle; 
   );
 }
 
-function PersonRow({ person, dark, onPress }: { person: Person; dark?: boolean; onPress: () => void }) {
+function PersonRow({ person, onPress }: { person: Person; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -491,9 +491,8 @@ function PersonRow({ person, dark, onPress }: { person: Person; dark?: boolean; 
       accessibilityRole="button"
       testID="road-free-student"
     >
-      <View style={[s.avatar, dark && s.avatarDark]}>
-        <Text style={[s.avatarTx, dark && { color: '#FFFFFF' }]}>{initialsOf(person.name)}</Text>
-      </View>
+      {/* Stesso volto della tab Allievi e del resto di Road (foto o iniziali). */}
+      <RoadAvatar userId={person.id} name={person.name} size={44} />
       <View style={s.rowBody}>
         <Text style={s.name} numberOfLines={1}>{person.name}</Text>
         <Text style={s.detail} numberOfLines={1}>{person.detail}</Text>

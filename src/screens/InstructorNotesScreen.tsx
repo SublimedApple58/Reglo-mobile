@@ -27,6 +27,7 @@ import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
+import { avatarColors } from '../utils/avatarColors';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
@@ -41,10 +42,6 @@ const COMPACT_H = 54; // top button row
 const LARGE_TITLE_H = 56;
 const PILLS_H = 60;
 
-const AVATAR_BG = ['#EBEBEB', '#EBEBEB', '#DCFCE7', '#F1F1F1', '#FFEDD5', '#CCFBF1', '#FEE2E2', '#F2F2F2'];
-const AVATAR_FG = ['#000000', '#111111', '#15803D', '#6D28D9', '#C2410C', '#0F766E', '#B91C1C', '#595959'];
-const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
-const avatarColors = (id: string) => { const i = hashStr(id) % AVATAR_BG.length; return { bg: AVATAR_BG[i], fg: AVATAR_FG[i] }; };
 
 type StudentEntry = {
   id: string;

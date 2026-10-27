@@ -5,7 +5,6 @@ import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
 import { countSentiments, SentimentCounts } from '../../../src/components/road/RoadSentiment';

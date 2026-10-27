@@ -31,7 +31,16 @@ import { InboxBellButton } from '../../../src/components/InboxBellButton';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
 import Animated from 'react-native-reanimated';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
-import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, ROAD_TEXT_OUT, roadEnter, roadStagger } from '../../../src/road/motion';
+import {
+  ROAD_CARD_EXIT,
+  ROAD_EXIT,
+  ROAD_LAYOUT,
+  ROAD_LAYOUT_AFTER_EXIT,
+  ROAD_TEXT_IN,
+  ROAD_TEXT_OUT,
+  roadEnter,
+  roadStagger,
+} from '../../../src/road/motion';
 
 const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
@@ -240,7 +249,7 @@ export default function RoadTab() {
                 <Animated.View
                   key={`close-${toClose.sessionId}`}
                   entering={roadEnter()}
-                  exiting={ROAD_EXIT}
+                  exiting={ROAD_CARD_EXIT}
                   layout={ROAD_LAYOUT}
                   style={s.closeBlock}
                   testID="road-tab-toclose"
@@ -282,7 +291,8 @@ export default function RoadTab() {
 
               {/* ── Libero: con chi guidi? ─────────────────────────────── */}
               <Animated.View
-                layout={ROAD_LAYOUT}
+                // Sale solo dopo che la card «appena finita» è sparita.
+                layout={ROAD_LAYOUT_AFTER_EXIT}
                 style={toClose && toCloseSession ? s.afterClose : null}
                 testID="road-tab-free"
               >
@@ -307,7 +317,7 @@ export default function RoadTab() {
                       accessibilityLabel={`${f.name}, ${f.reason}`}
                       testID="road-tab-face"
                     >
-                      <RoadAvatar name={f.name} size={64} selected={selected?.id === f.id} />
+                      <RoadAvatar userId={f.id} name={f.name} size={64} selected={selected?.id === f.id} />
                       <Text style={[s.faceName, selected?.id === f.id && s.faceNameOn]} numberOfLines={1}>
                         {firstName(f.name)}
                       </Text>
@@ -374,7 +384,7 @@ export default function RoadTab() {
         </Animated.View>
 
         {recent.length && !inRoad ? (
-          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT_AFTER_EXIT}>
             <Text style={s.section}>Ultime guide</Text>
             {recent.map((r, i) => (
               <Animated.View key={r.id} entering={roadStagger(i + 2)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>

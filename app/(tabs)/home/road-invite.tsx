@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../../src/utils/haptics';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import { car34Art, ROAD_ASSETS } from '../../../src/road/markerArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';

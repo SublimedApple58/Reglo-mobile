@@ -40,9 +40,20 @@ export const roadStagger = (i: number) => roadEnter(i * 40);
 /** Uscita: dissolvenza breve con un filo di salita. */
 export const ROAD_EXIT = FadeOutUp.duration(200).easing(DECEL).reduceMotion(N);
 
-/** Testo che cambia (briefing, sottotitolo): dissolvenza incrociata breve. */
-export const ROAD_TEXT_IN = FadeIn.duration(220).easing(SOFT).reduceMotion(N);
-export const ROAD_TEXT_OUT = FadeOut.duration(140).easing(SOFT).reduceMotion(N);
+/**
+ * Card che se ne va lasciando posto (es. «Più tardi»): prima sparisce in fretta,
+ * POI il resto sale (`ROAD_LAYOUT_AFTER_EXIT`), così le due cose non si
+ * sovrappongono a metà transizione.
+ */
+export const ROAD_CARD_EXIT = FadeOut.duration(140).easing(SOFT).reduceMotion(N);
+export const ROAD_LAYOUT_AFTER_EXIT = LinearTransition.duration(320).delay(130).easing(SOFT).reduceMotion(N);
+
+/**
+ * Testo che cambia (briefing, sottotitolo): in sequenza, non sovrapposto. Il
+ * vecchio sparisce in 110 ms, il nuovo entra dopo: mai due testi uno sull'altro.
+ */
+export const ROAD_TEXT_IN = FadeIn.duration(200).delay(110).easing(SOFT).reduceMotion(N);
+export const ROAD_TEXT_OUT = FadeOut.duration(110).easing(SOFT).reduceMotion(N);
 
 // Nomi generici (FormSheet e codice nuovo); i ROAD_* restano come alias.
 export const SOFT_LAYOUT = ROAD_LAYOUT;
@@ -51,4 +62,6 @@ export const softStagger = roadStagger;
 export const SOFT_EXIT = ROAD_EXIT;
 export const SOFT_TEXT_IN = ROAD_TEXT_IN;
 export const SOFT_TEXT_OUT = ROAD_TEXT_OUT;
+export const SOFT_CARD_EXIT = ROAD_CARD_EXIT;
+export const SOFT_LAYOUT_AFTER_EXIT = ROAD_LAYOUT_AFTER_EXIT;
 export const SOFT_SPRING = ROAD_SPRING;

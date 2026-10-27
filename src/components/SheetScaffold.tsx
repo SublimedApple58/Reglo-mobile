@@ -4,7 +4,6 @@ import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-re
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { GlassCloseButton } from './GlassCloseButton';
 import { SHEET_BOTTOM } from '../utils/sheetPresentation';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
 
@@ -77,11 +76,7 @@ export function FormSheet({
             subtitle
           )}
         </View>
-        <GlassCloseButton onPress={close}>
-          <Pressable onPress={close} hitSlop={10} style={fs.x} accessibilityLabel="Chiudi">
-            <Ionicons name="close" size={20} color="#3A3A3C" />
-          </Pressable>
-        </GlassCloseButton>
+        <SheetCloseButton onPress={close} />
       </View>
 
       <Animated.View
@@ -102,6 +97,26 @@ export function FormSheet({
   );
 }
 
+/**
+ * La X dei form sheet: SEMPRE cerchio grigio pieno, identica in ogni foglio.
+ * Niente X «glass» di iOS 26 (GlassCloseButton): sopra fondi diversi cambiava
+ * resa da un foglio all'altro (Tiziano 28/10/2026).
+ */
+export function SheetCloseButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => [fs.x, pressed && { opacity: 0.7, transform: [{ scale: 0.92 }] }]}
+      accessibilityRole="button"
+      accessibilityLabel="Chiudi"
+      testID="sheet-close"
+    >
+      <Ionicons name="close" size={20} color="#3A3A3C" />
+    </Pressable>
+  );
+}
+
 const fs = StyleSheet.create({
   scroll: { backgroundColor: '#FFFFFF' },
   // Misure §13.2.1: testata 26 sopra, CTA in fondo con SHEET_BOTTOM.
@@ -114,7 +129,8 @@ const fs = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
+    // Grigio pieno opaco (non trasparente): uguale su qualunque fondo.
+    backgroundColor: '#EEEEF0',
     alignItems: 'center',
     justifyContent: 'center',
   },

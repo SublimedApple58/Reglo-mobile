@@ -7,6 +7,8 @@ import { ROAD_EXIT, ROAD_LAYOUT, ROAD_SPRING, roadStagger } from '../../road/mot
 
 import type { RoadBriefing } from '../../types/regloApi';
 import { initialsOf } from '../../road/format';
+import { avatarColors } from '../../utils/avatarColors';
+import { UserPhotoCircle } from '../UserPhotoCircle';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
 
 /**
@@ -78,9 +80,22 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
 
 const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
-/** Volto con le iniziali; `selected` = anello nero (scelta corrente). */
-export function RoadAvatar({ name, size = 64, selected }: { name: string; size?: number; selected?: boolean }) {
-  // L'anello della scelta compare e il volto si stringe dentro, a molla (§8.4).
+/**
+ * Volto dell'allievo in tutto Road: lo stesso della tab Allievi (foto profilo
+ * con `UserPhotoCircle`, altrimenti iniziali sul colore ricavato dall'id).
+ * `selected` = anello nero che compare morbido, il volto si stringe dentro.
+ */
+export function RoadAvatar({
+  userId,
+  name,
+  size = 64,
+  selected,
+}: {
+  userId: string | null | undefined;
+  name: string;
+  size?: number;
+  selected?: boolean;
+}) {
   const ring = useAnimatedStyle(() => ({
     opacity: withTiming(selected ? 1 : 0, { duration: 180 }),
     transform: [{ scale: withSpring(selected ? 1 : 0.9, ROAD_SPRING) }],
@@ -88,14 +103,19 @@ export function RoadAvatar({ name, size = 64, selected }: { name: string; size?:
   const face = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(selected ? (size - 8) / size : 1, ROAD_SPRING) }],
   }));
+  const { bg, fg } = avatarColors(userId ?? name);
   return (
     <View style={[s.avatarWrap, { width: size, height: size }]}>
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, s.avatarRing, { borderRadius: size / 2 }, ring]}
       />
-      <Animated.View style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }, face]}>
-        <Text style={[s.avatarTx, { fontSize: Math.round(size * 0.3) }]}>{initialsOf(name)}</Text>
+      <Animated.View style={[{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }, face]}>
+        <UserPhotoCircle userId={userId} size={size}>
+          <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
+            <Text style={[s.avatarTx, { fontSize: Math.round(size * 0.3), color: fg }]}>{initialsOf(name)}</Text>
+          </View>
+        </UserPhotoCircle>
       </Animated.View>
     </View>
   );
