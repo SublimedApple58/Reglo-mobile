@@ -69,7 +69,7 @@ export default function RiepilogoScreen() {
     // Il foglio se ne va SENZA la sua animazione nativa (~300 ms di scivolata
     // sopra l'agenda): il passaggio lo fa il velo di RoadController, 240 ms.
     navigation.setOptions({ animation: 'none' });
-    requestAnimationFrame(() => void exitRoad());
+    void exitRoad();
     // RoadController riporta alla home appena la fase torna `idle`.
   };
 

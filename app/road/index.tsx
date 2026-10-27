@@ -18,6 +18,7 @@ import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange, initialsOf } from '../../src/road/format';
 import { SentimentBadge } from '../../src/components/road/RoadSentiment';
+import { SFSymbol } from '../../src/components/SFSymbol';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
 
 /**
@@ -165,7 +166,8 @@ export default function RoadScreen() {
   const elapsedSec = Math.max(0, (now - new Date(session.startedAt).getTime()) / 1000);
   const carRotation = fix?.heading != null ? fix.heading - camHeading.current : 0;
   const headerTop = insets.top + 2;
-  const floatBottom = 8 + panelH + 60;
+  // 12 pt sopra il pannello (stesso margine dei bordi), mai sopra logo/Legal.
+  const ctlBottom = 8 + panelH + 12;
 
   const onRecenter = () => {
     Haptics.selectionAsync().catch(() => undefined);
@@ -335,24 +337,30 @@ export default function RoadScreen() {
         </RoadToastFrame>
       ) : null}
 
-      {/* Velocità */}
-      <View style={[s.speed, { bottom: floatBottom }]}>
-        <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-        <View style={s.glassTint} />
-        <Text style={s.speedNum}>{speedKmh}</Text>
-        <Text style={s.speedUnit}>km/h</Text>
+      {/* Controlli mappa raggruppati, come in Apple Maps: velocità e «centra»
+          in un'unica card bianca piena con ombra morbida, a destra sopra il
+          pannello. A sinistra restano liberi logo Maps e «Legal». */}
+      <View style={[s.mapCtl, { bottom: ctlBottom }]}>
+        <View style={s.speedCell} accessibilityLabel={`${speedKmh} chilometri orari`}>
+          <Text style={s.speedNum}>{speedKmh}</Text>
+          <Text style={s.speedUnit}>km/h</Text>
+        </View>
+        <View style={s.ctlSep} />
+        <Pressable
+          onPress={onRecenter}
+          style={({ pressed }) => [s.locBtn, pressed && { backgroundColor: '#F2F2F7' }]}
+          accessibilityRole="button"
+          accessibilityLabel="Centra sulla tua posizione"
+          testID="road-recenter"
+        >
+          <SFSymbol
+            name={following ? 'location.fill' : 'location'}
+            size={19}
+            color={following ? '#111111' : '#3A3A3C'}
+            fallback={following ? 'navigate' : 'navigate-outline'}
+          />
+        </Pressable>
       </View>
-
-      {/* Ricentra */}
-      <Pressable
-        onPress={onRecenter}
-        style={({ pressed }) => [s.recenter, { bottom: floatBottom + 6 }, pressed && { opacity: 0.8 }]}
-        accessibilityLabel="Ricentra"
-      >
-        <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-        <View style={s.glassTint} />
-        <Ionicons name={following ? 'navigate' : 'navigate-outline'} size={21} color="#111111" />
-      </Pressable>
 
       {/* Pannello: numeri + azioni */}
       <View
@@ -501,18 +509,19 @@ const s = StyleSheet.create({
   freeBanner: { paddingVertical: 8, paddingLeft: 12 },
 
   glassTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
-  speed: {
+  mapCtl: {
     position: 'absolute',
-    left: 14,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
+    right: 14,
+    width: 58,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
+  speedCell: { height: 58, alignItems: 'center', justifyContent: 'center' },
   speedNum: {
     fontSize: 21,
     fontWeight: '600',
@@ -521,18 +530,14 @@ const s = StyleSheet.create({
     lineHeight: 23,
     fontVariant: ['tabular-nums'],
   },
-  speedUnit: { fontSize: 10, fontWeight: '500', color: '#6A6A6A', marginTop: 1 },
-  recenter: {
-    position: 'absolute',
-    right: 14,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
+  speedUnit: { fontSize: 10.5, fontWeight: '500', color: '#6A6A6A', marginTop: 1 },
+  ctlSep: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(60,60,67,0.22)', marginHorizontal: 10 },
+  locBtn: {
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
   },
 
   panel: {
