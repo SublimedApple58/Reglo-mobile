@@ -5,7 +5,7 @@ import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 import { UserPhotoCircle } from './UserPhotoCircle';
 
 const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
-const ROAD_ICON = require('../../assets/road/fluent-road.png');
+const ROAD_ICON = require('../../assets/road/road-3d.png');
 
 type Props = {
   lesson: AutoscuolaAppointmentWithRelations;

@@ -106,7 +106,7 @@ import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 import { car34Art } from '../road/markerArt';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
-const ROAD_ENTRY_ICON = require('../../assets/road/fluent-road.png');
+const ROAD_ENTRY_ICON = require('../../assets/road/road-3d.png');
 
 type InstructorActionStatus = 'checked_in' | 'no_show';
 type DrawerAction = InstructorActionStatus | 'save_details';

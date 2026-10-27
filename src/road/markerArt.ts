@@ -29,7 +29,7 @@ export const ROAD_ASSETS = {
   pin: require('../../assets/road/f-loc.png') as ImageSourcePropType,
   stop: ART.stop,
   memo: ART.altro,
-  road: require('../../assets/road/fluent-road.png') as ImageSourcePropType,
+  road: require('../../assets/road/road-3d.png') as ImageSourcePropType,
 };
 
 /**

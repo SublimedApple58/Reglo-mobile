@@ -12,8 +12,9 @@ import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
 import { ROAD_FREE_SHEET_ROUTE, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadState } from '../../../src/road/roadStore';
 import { formatHm } from '../../../src/road/format';
+import { TAB_BAR_CONTENT_H } from '../../../src/components/GlassTabBar';
 
-const ROAD_ICON = require('../../../assets/road/fluent-road.png');
+const ROAD_ICON = require('../../../assets/road/road-3d.png');
 
 const PITCH = 40;
 const ALTITUDE = 900; // iOS (metri)
@@ -35,6 +36,8 @@ export default function RoadTab() {
   const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
   const [error, setError] = useState<string | null>(null);
   const [panelH, setPanelH] = useState(260);
+  // La barra delle tab qui è di vetro sopra la mappa: il pannello sta sopra di lei.
+  const barH = TAB_BAR_CONTENT_H + Math.max(insets.bottom, 8);
 
   const load = useCallback(async () => {
     try {
@@ -107,8 +110,8 @@ export default function RoadTab() {
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialCamera={{ center: pos ?? FALLBACK, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }}
-        mapPadding={{ top: insets.top + 60, right: 0, bottom: panelH + 12, left: 0 }}
-        legalLabelInsets={{ top: 0, right: 0, bottom: panelH + 26, left: 18 }}
+        mapPadding={{ top: insets.top + 60, right: 0, bottom: barH + panelH + 12, left: 0 }}
+        legalLabelInsets={{ top: 0, right: 0, bottom: barH + panelH + 26, left: 18 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
         showsCompass={false}
@@ -128,7 +131,7 @@ export default function RoadTab() {
         <Text style={s.brandTx}>Road</Text>
       </View>
 
-      <View style={s.panelWrap} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
+      <View style={[s.panelWrap, { bottom: barH + 10 }]} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
         <View style={s.panel} testID="road-tab-panel">
           <Text style={s.title}>{inRoad ? 'Guida in corso' : 'Pronto a partire?'}</Text>
           <Text style={s.sub} numberOfLines={2}>
@@ -188,7 +191,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  brandImg: { width: 26, height: 26 },
+  brandImg: { width: 28, height: 28 },
   brandTx: { fontSize: 16.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   panelWrap: { position: 'absolute', left: 10, right: 10, bottom: 10 },
   panel: {

@@ -32,7 +32,7 @@ import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const FLUENT_ROAD = require('../../../assets/road/fluent-road.png');
+const FLUENT_ROAD = require('../../../assets/road/road-3d.png');
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una

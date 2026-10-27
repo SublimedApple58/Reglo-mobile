@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
@@ -21,7 +22,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   notes: 'people-outline',
   swaps: 'repeat-outline',
   inbox: 'file-tray-outline',
-  drive: 'navigate-outline',
+  drive: 'map-outline',
   more: 'ellipsis-horizontal',
   settings: 'options-outline',
   quiz: 'school-outline',
@@ -33,6 +34,12 @@ const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
     home: 'Quiz',
   },
 };
+
+const ACTIVE = '#111111';
+const INACTIVE = '#8E8E93';
+
+/** Altezza del contenuto della barra (senza safe area): serve a chi ci sta sotto (tab Road). */
+export const TAB_BAR_CONTENT_H = 53;
 
 /* ── Tab Item ── */
 
@@ -59,7 +66,10 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
     transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.08]) }],
   }));
 
-  const iconName = iconOverride ?? ICON_MAP[routeName] ?? 'ellipse-outline';
+  const outline = iconOverride ?? ICON_MAP[routeName] ?? 'ellipse-outline';
+  // Come le tab bar native: contorno a riposo, pieno quando è attiva.
+  const filled = outline.replace(/-outline$/, '') as keyof typeof Ionicons.glyphMap;
+  const iconName = isFocused && filled in Ionicons.glyphMap ? filled : outline;
 
   return (
     <Pressable
@@ -72,8 +82,8 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
       <Animated.View style={iconStyle}>
         <Ionicons
           name={iconName}
-          size={22}
-          color={isFocused ? colors.primary : colors.textMuted}
+          size={25}
+          color={isFocused ? ACTIVE : INACTIVE}
         />
         {badgeCount > 0 ? (
           <View style={st.badge}>
@@ -121,9 +131,16 @@ export const GlassTabBar = ({
   const unreadCount = useUnreadNotifications();
 
   const visibleRoutes = state.routes.filter((route) => !hiddenTabs.has(route.name));
+  // Tab Road: la mappa continua sotto la barra di vetro (barra sovrapposta).
+  const floating = state.routes[state.index]?.name === 'drive';
 
   return (
-    <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[st.bar, floating && st.barFloating, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      {Platform.OS === 'ios' ? (
+        <BlurView tint="systemChromeMaterialLight" intensity={100} style={StyleSheet.absoluteFill} />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, st.barSolid]} />
+      )}
       <View style={st.row}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
@@ -189,12 +206,16 @@ export const GlassTabBar = ({
 /* ── Styles ── */
 
 const st = StyleSheet.create({
+  // Barra nativa: vetro di sistema su iOS, filo sottile in alto, niente ombre.
   bar: {
-    backgroundColor: colors.background,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(250,250,250,0.6)' : colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    paddingTop: 8,
+    borderTopColor: 'rgba(0,0,0,0.16)',
+    paddingTop: 7,
+    overflow: 'hidden',
   },
+  barFloating: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  barSolid: { backgroundColor: 'rgba(250,250,250,0.97)' },
   row: {
     flexDirection: 'row',
   },
@@ -206,14 +227,14 @@ const st = StyleSheet.create({
     paddingVertical: 2,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontSize: 10.5,
+    fontWeight: '500',
+    color: INACTIVE,
     letterSpacing: 0.1,
   },
   tabLabelActive: {
-    color: colors.primary,
-    fontWeight: '700',
+    color: ACTIVE,
+    fontWeight: '600',
   },
   badge: {
     position: 'absolute',
