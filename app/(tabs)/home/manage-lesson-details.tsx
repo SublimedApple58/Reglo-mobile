@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -31,8 +31,6 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-
-const FLUENT_ROAD = require('../../../assets/road/road-3d.png');
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
@@ -259,13 +257,13 @@ export default function ManageLessonDetailsScreen() {
       </View>
   );
   const saveFooter = (
-          <View style={{ paddingBottom: road ? 18 : Math.max(insets.bottom, 12) }}>
+          <View style={{ paddingBottom: Math.max(insets.bottom, road ? 18 : 12) }}>
             <Pressable
               onPress={handleSave}
               disabled={!editable}
               style={({ pressed }) => [
                 s.saveBtn,
-                s.saveFooter,
+                road ? null : s.saveFooter,
                 road && s.saveBtnRoad,
                 pressed && { opacity: 0.9 },
                 !editable && { opacity: 0.4 },
@@ -283,16 +281,9 @@ export default function ManageLessonDetailsScreen() {
   const content = (
     <>
       {road ? (
-        <View style={[s.headerBlock, s.headerBlockRoad]}>
-          <Text style={s.title}>Pagellino</Text>
-          <Text style={s.subtitle}>{road.subtitle}</Text>
-          {road.showStayChip ? (
-            <View style={s.roadChip}>
-              <Image source={FLUENT_ROAD} style={s.roadChipImg} />
-              <Text style={s.roadChipText}>Resti in Road: il percorso continua</Text>
-            </View>
-          ) : null}
-        </View>
+        // Titolo e allievo stanno nella barra del foglio: qui al massimo la
+        // riga discreta «resti in Road».
+        road.showStayChip ? <Text style={s.roadStay}>Resti in Road: il percorso continua.</Text> : null
       ) : (
         <View style={s.headerBlock}>
           <Text style={s.title}>Dettagli guida</Text>
@@ -374,8 +365,8 @@ export default function ManageLessonDetailsScreen() {
           entering={FadeIn.duration(260)}
           style={[s.section, { marginBottom: 20 }]}
         >
-          <View style={s.pagellinoHead}>
-            <Text style={s.sectionLabel}>Pagellino</Text>
+          <View style={[s.pagellinoHead, road && s.pagellinoHeadRoad]}>
+            {road ? null : <Text style={s.sectionLabel}>Pagellino</Text>}
             {evalRows.length > 0 ? (
               <Animated.Text
                 key={ratedCount}
@@ -419,32 +410,19 @@ export default function ManageLessonDetailsScreen() {
                         {item.label}
                         {item.archived ? ' (non più in uso)' : ''}
                       </Text>
-                      {/* Il punteggio è il DATO della riga, non una didascalia:
-                          pillola oro (scala gialla del tema) accanto al nome. */}
-                      {isNa ? null : (
-                        <Animated.View
-                          layout={LAYOUT}
-                          style={[s.scorePill, !scores[item.id] && s.scorePillEmpty]}
+                      {/* Punteggio come testo semplice accanto al nome (niente
+                          pillole): senza voto bastano le stelline vuote.
+                          UN SOLO Text con figlio annidato, così "4" e "/5"
+                          restano sulla stessa linea di base. */}
+                      {isNa || !scores[item.id] ? null : (
+                        <Animated.Text
+                          key={scores[item.id]}
+                          entering={FadeIn.duration(150)}
+                          style={s.scoreNum}
                         >
-                          {scores[item.id] ? (
-                            // UN SOLO Text con figlio annidato: due Text affiancati
-                            // in un row si allineano per box, non per baseline, e
-                            // "2" e "/5" finivano sfalsati. Annidati condividono
-                            // la stessa riga di testo per costruzione.
-                            <Animated.Text
-                              key={scores[item.id]}
-                              entering={FadeIn.duration(150)}
-                              style={s.scoreNum}
-                            >
-                              {scores[item.id]}
-                              <Text style={s.scoreMax}>/{item.scaleMax}</Text>
-                            </Animated.Text>
-                          ) : (
-                            <Animated.Text entering={FadeIn.duration(150)} style={s.scoreEmptyText}>
-                              non valutata
-                            </Animated.Text>
-                          )}
-                        </Animated.View>
+                          {scores[item.id]}
+                          <Text style={s.scoreMax}>/{item.scaleMax}</Text>
+                        </Animated.Text>
                       )}
                     </View>
                     {isNa ? (
@@ -523,21 +501,33 @@ export default function ManageLessonDetailsScreen() {
   );
 
   if (road) {
-    // Da Road: form sheet `fitToContents`. La radice È lo scroll del foglio
-    // (nessuna View contenitore): il foglio abbraccia il contenuto e, se supera
-    // lo schermo, iOS lo porta al detent massimo e scorre nativamente.
+    // Da Road (feedback Tiziano 27/10): foglio nativo vero. Barra in alto con
+    // titolo «Pagellino» + allievo e la X, corpo che scorre, «Salva» fisso in
+    // fondo. Detent fisso (ROAD_PAGELLINO_SHEET) perché il footer sia ancorato.
     return (
-      <ScrollView
-        style={{ backgroundColor: colors.background }}
-        contentContainerStyle={[s.root, s.rootRoad, s.scaffoldBody]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        alwaysBounceVertical={false}
-      >
-        {topBar}
-        {content}
-        {saveFooter}
-      </ScrollView>
+      <View style={s.roadRoot}>
+        <View style={s.navBar}>
+          <View style={s.navSide} />
+          <View style={s.navTitles}>
+            <Text style={s.navTitle} numberOfLines={1}>Pagellino</Text>
+            <Text style={s.navSub} numberOfLines={1}>{road.subtitle}</Text>
+          </View>
+          <View style={[s.navSide, { alignItems: 'flex-end' }]}>
+            <GlassCloseButton onPress={() => router.back()}>
+              <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
+                <Ionicons name="close" size={20} color="#3A3A3C" />
+              </Pressable>
+            </GlassCloseButton>
+          </View>
+        </View>
+        <SheetScaffold
+          fill
+          contentContainerStyle={[s.scaffoldBody, s.roadBody]}
+          footer={<View style={s.roadFooter}>{saveFooter}</View>}
+        >
+          {content}
+        </SheetScaffold>
+      </View>
     );
   }
 
@@ -566,13 +556,10 @@ export default function ManageLessonDetailsScreen() {
 const s = StyleSheet.create({
   root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 0, gap: 20 },
   scaffoldBody: { gap: 20 },
-  // form sheet da Road: padding fisso, niente safe area (§13.2.1)
-  rootRoad: { paddingTop: 22 },
   saveFooter: { marginTop: 24 },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
   headerBlock: { gap: 4, marginBottom: 20 },
-  headerBlockRoad: { marginBottom: 2 },
   title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
@@ -605,16 +592,8 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04,
     shadowRadius: 5, elevation: 1,
   },
-  scorePill: {
-    justifyContent: 'center', minHeight: 26, paddingHorizontal: 10, paddingVertical: 3,
-    borderRadius: 13, backgroundColor: '#FEF9C3',
-  },
-  scorePillEmpty: { backgroundColor: '#F2F2F4' },
-  // lineHeight esplicito: senza, il box del testo cambia con la dimensione del
-  // font e la pillola "balla" fra una voce e l'altra.
-  scoreNum: { fontSize: 14, fontWeight: '700', color: '#A16207', lineHeight: 20 },
-  scoreMax: { fontSize: 11, fontWeight: '600', color: '#CA8A04', lineHeight: 20 },
-  scoreEmptyText: { fontSize: 12, fontWeight: '600', color: '#A3A3A3', lineHeight: 20 },
+  scoreNum: { fontSize: 14, fontWeight: '600', color: '#111111', lineHeight: 20, fontVariant: ['tabular-nums'] },
+  scoreMax: { fontSize: 12, fontWeight: '500', color: '#8E8E93', lineHeight: 20 },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', textAlign: 'center' },
   pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
@@ -633,10 +612,21 @@ const s = StyleSheet.create({
   saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
   // REG-638: in Road niente navy, CTA nera piena.
   saveBtnRoad: { backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.18 },
-  roadChip: {
-    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, height: 26,
-    paddingHorizontal: 10, borderRadius: 13, backgroundColor: '#F2F2F0', marginTop: 8,
+  // Road: foglio con barra nativa, corpo che scorre, «Salva» fisso.
+  roadRoot: { flex: 1, backgroundColor: '#FFFFFF' },
+  navBar: {
+    flexDirection: 'row', alignItems: 'center', minHeight: 64, paddingHorizontal: 14, paddingTop: 8,
+    paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E2E2',
   },
-  roadChipImg: { width: 16, height: 16 },
-  roadChipText: { fontSize: 12.5, fontWeight: '500', color: '#3A3A3C' },
+  navSide: { width: 48 },
+  navTitles: { flex: 1, alignItems: 'center' },
+  navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
+  navSub: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
+  roadBody: { paddingHorizontal: spacing.lg, paddingTop: 18, paddingBottom: 24 },
+  roadFooter: {
+    paddingHorizontal: spacing.lg, paddingTop: 12, backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2E2E2',
+  },
+  roadStay: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginBottom: -6 },
+  pagellinoHeadRoad: { justifyContent: 'flex-start' },
 });
