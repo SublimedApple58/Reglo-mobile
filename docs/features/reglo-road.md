@@ -114,6 +114,20 @@ percorso» fra orario e righe istruttore/veicolo: minimappa non interattiva con 
   Android resta grigia.
 
 ## Gotcha
+- **Task GPS ripristinato da iOS dopo un kill**: `EXTaskService` riregistra da solo
+  `reglo-road-location` al lancio. Se nel frattempo la sessione è stata chiusa/cancellata
+  altrove, `RoadController` lo spegne (`/road/state` senza `activeSession` + task attivo), e
+  l'uploader scollega la coda alla prima risposta `NOT_FOUND`/`SESSION_CLOSED`.
+- Alert «Terminare la guida?»: niente `isPreferred` (su iOS 26 colora di blu il bottone; in
+  Road niente blu). Il nativo non può fare il bottone nero dell'anteprima: restano due bottoni
+  neutri.
+- Toast: animazione esplicita (shared value), non `entering` di Reanimated: lo schermo è ancora
+  coperto dal form sheet che si chiude e l'animazione di ingresso non partiva.
+- La posizione di una segnalazione non aspetta mai il GPS: ultimo fix fino a 5 min (auto ferma
+  = nessun punto nuovo), poi last-known, poi lettura fresca con timeout 5 s.
+- Scritta «Legal» di Apple: `legalLabelInsets` la mette fra pannello e cerchio velocità.
+- Edifici 3D (`showsBuildings`) con pitch 40°: in curva possono coprire tratti del percorso
+  (gli overlay di react-native-maps stanno sotto gli edifici).
 - **Mai** `useReducedMotion` / `reducedMotion`: le animazioni restano sempre.
 - In Road nessun navy: CTA nere `#111111` (anche il «Salva» del pagellino in variante road).
 - Immagini 3D delle segnalazioni: niente `tintColor`.
