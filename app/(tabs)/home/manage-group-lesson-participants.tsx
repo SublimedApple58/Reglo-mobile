@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,19 @@ import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
 import { LICENSE_CATEGORY_LABELS } from '../../../src/utils/license';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import {
+  describeMotoSwap,
+  firstStudentName,
+  motoChoicesForSeat,
+  MOTO_CHANGE_MESSAGES,
+  planMotoChange,
+  shortStudentName,
+  type MotoFleetVehicle,
+  type MotoSeat,
+} from '../../../src/utils/groupMoto';
+
+// REG-636 — valore del picker per «A rotazione» (nessuna moto fissa).
+const ROTATION = '__rotation__';
 
 // Patente che l'allievo sta facendo (categoria del veicolo assegnato) + — per i
 // gruppi moto — la moto assegnata. Riga meta sotto il nome nel roster.
@@ -65,8 +78,11 @@ export default function ManageGroupLessonParticipantsScreen() {
   // `${appointmentId}:${outcome}` of the seat whose presence is being saved.
   const [outcomeBusy, setOutcomeBusy] = useState<string | null>(null);
   const [allPresentBusy, setAllPresentBusy] = useState(false);
+  // REG-636 — appointmentId of the seat whose moto is being saved.
+  const [motoBusyId, setMotoBusyId] = useState<string | null>(null);
   const groupLessonId = seed?.groupLessonId ?? null;
-  const busy = !!removingId || adding || inviting || !!outcomeBusy || allPresentBusy;
+  const motoOnly = seed?.motoOnly === true;
+  const busy = !!removingId || adding || inviting || !!outcomeBusy || allPresentBusy || !!motoBusyId;
 
   useEffect(() => {
     const next = seed?.lesson;
@@ -142,6 +158,23 @@ export default function ManageGroupLessonParticipantsScreen() {
       .finally(() => setAllPresentBusy(false));
   }, [groupLessonId, busy, seed, refreshLocal]);
 
+  // REG-636 — save a participant's moto (spinner on the chip, then refetch).
+  const saveMoto = useCallback(
+    (appointmentId: string, vehicleId: string | null, swapWithAppointmentId: string | null) => {
+      if (!groupLessonId) return;
+      setMotoBusyId(appointmentId);
+      regloApi
+        .setGroupLessonParticipantMoto(groupLessonId, { appointmentId, vehicleId, swapWithAppointmentId })
+        .then(() => {
+          seed?.onChanged?.();
+          return refreshLocal();
+        })
+        .catch((e) => Alert.alert('Errore', e instanceof Error ? e.message : 'Impossibile cambiare la moto.'))
+        .finally(() => setMotoBusyId(null));
+    },
+    [groupLessonId, seed, refreshLocal],
+  );
+
   if (!seed || !groupLessonId || !lesson) {
     return <View style={s.root} />;
   }
@@ -153,6 +186,105 @@ export default function ManageGroupLessonParticipantsScreen() {
   // Presence accent follows the group type: teal (auto) / orange (moto).
   const presentBg = isMoto ? '#C2410C' : '#0F766E';
   const hasPending = lesson.participants.some((p) => p.attendance === 'pending');
+
+  // REG-636 — fleet + seats as the shared planner sees them.
+  const motoFleet: MotoFleetVehicle[] = lesson.fleet ?? [];
+  const motoSeats: MotoSeat[] = lesson.participants.map((p) => ({
+    appointmentId: p.appointmentId,
+    vehicleId: p.vehicleId ?? null,
+    license: { licenseCategory: p.studentLicenseCategory ?? null, transmission: p.studentTransmission ?? null },
+  }));
+  const nameOf = (appointmentId: string | null) =>
+    lesson.participants.find((p) => p.appointmentId === appointmentId)?.studentName ?? 'Allievo';
+
+  const openMotoPicker = (p: GroupLesson['participants'][number]) => {
+    if (busy) return;
+    const seat = motoSeats.find((x) => x.appointmentId === p.appointmentId);
+    const { choices, incompatibleVehicleIds } = motoChoicesForSeat({
+      fleet: motoFleet,
+      seats: motoSeats,
+      appointmentId: p.appointmentId,
+    });
+    const studentFirst = firstStudentName(p.studentName);
+    const motoLabel = (m: MotoFleetVehicle) => `${m.name}${m.licenseCategory ? ` · ${m.licenseCategory}` : ''}`;
+    const incompatible = incompatibleVehicleIds
+      .map((id) => motoFleet.find((m) => m.id === id))
+      .filter((m): m is MotoFleetVehicle => Boolean(m));
+    const footnote = !incompatible.length
+      ? null
+      : incompatible.length === 1
+        ? `La ${incompatible[0].name}${incompatible[0].licenseCategory ? ` (${incompatible[0].licenseCategory})` : ''} non compare: ${studentFirst} non può guidarla.`
+        : `${incompatible.length} moto della guida non compaiono: ${studentFirst} non può guidarle.`;
+
+    optionsPickerStore.set({
+      title: `Moto di ${studentFirst}`,
+      hint: seat?.license.licenseCategory
+        ? `Solo le moto di questa guida adatte alla patente ${seat.license.licenseCategory}.`
+        : 'Solo le moto di questa guida.',
+      multi: false,
+      selected: [p.vehicleId ?? ROTATION],
+      options: [
+        ...choices.map((c) => {
+          const moto = motoFleet.find((m) => m.id === c.vehicleId)!;
+          const holder = nameOf(c.holderAppointmentId);
+          return {
+            value: c.vehicleId,
+            label: motoLabel(moto),
+            subtitle:
+              c.state === 'current'
+                ? `Assegnata a ${studentFirst}`
+                : c.state === 'free'
+                  ? 'Libera'
+                  : `Con ${shortStudentName(holder)} · scambio`,
+            subtitleTone: c.state === 'free' ? ('success' as const) : c.state === 'taken' ? ('accent' as const) : null,
+            trailingInitials: c.state === 'taken' ? initialsOf(holder) : null,
+          };
+        }),
+        { value: ROTATION, label: 'A rotazione', subtitle: 'Nessuna moto fissa, si alterna' },
+      ],
+      footnote,
+      onConfirm: (values) => {
+        const picked = values[0];
+        if (!picked) return;
+        const vehicleId = picked === ROTATION ? null : picked;
+        const plan = planMotoChange({ fleet: motoFleet, seats: motoSeats, appointmentId: p.appointmentId, vehicleId });
+        if (!plan.ok) {
+          Alert.alert('Errore', MOTO_CHANGE_MESSAGES[plan.reason]);
+          return;
+        }
+        if (plan.kind === 'noop') return;
+        if (plan.kind !== 'swap' || !vehicleId) {
+          saveMoto(p.appointmentId, vehicleId, null);
+          return;
+        }
+        const other = lesson.participants.find((o) => o.appointmentId === plan.otherAppointmentId);
+        const pickedMoto = motoFleet.find((m) => m.id === vehicleId);
+        if (!other || !pickedMoto) return;
+        const copy = describeMotoSwap({
+          plan,
+          moverName: studentFirst,
+          otherName: firstStudentName(other.studentName),
+          pickedMoto,
+          fleet: motoFleet,
+          otherLicenseCategory: other.studentLicenseCategory ?? null,
+        });
+        // The picker form sheet is still dismissing: present the native Alert
+        // once it's gone, else iOS attaches it to a disappearing controller.
+        setTimeout(() => {
+          Alert.alert(copy.title, copy.message, [
+            { text: 'Annulla', style: 'cancel' },
+            {
+              text: copy.confirmLabel,
+              style: 'default',
+              isPreferred: true,
+              onPress: () => saveMoto(p.appointmentId, vehicleId, plan.otherAppointmentId),
+            },
+          ]);
+        }, 450);
+      },
+    });
+    router.push(optionsPickerPath());
+  };
 
   const handleRemove = (studentId: string, name: string | null) => {
     Alert.alert(
@@ -277,6 +409,7 @@ export default function ManageGroupLessonParticipantsScreen() {
       <SheetScaffold
         contentContainerStyle={s.scaffoldBody}
         footer={
+          motoOnly ? null :
           /* Invita allievi idonei — CTA a parte, card "easy" (non primary) */
           <View style={[s.footerWrap, { paddingBottom: insets.bottom + 16 }]}>
             {openSeats > 0 ? (
@@ -304,7 +437,7 @@ export default function ManageGroupLessonParticipantsScreen() {
       >
         <View style={s.subRow}>
           <Text style={s.subtitle}>{filled} su {capacity} posti occupati</Text>
-          {lesson.participants.length > 1 && hasPending ? (
+          {!motoOnly && lesson.participants.length > 1 && hasPending ? (
             <Pressable onPress={markAllPresent} disabled={busy} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.5 }}>
               {allPresentBusy ? (
                 <ActivityIndicator size="small" color={presentBg} />
@@ -323,7 +456,7 @@ export default function ManageGroupLessonParticipantsScreen() {
           lesson.participants.map((p, idx) => (
             <View key={p.appointmentId} style={removingId === p.studentId ? { opacity: 0.4 } : undefined}>
               {idx > 0 ? <View style={s.divider} /> : null}
-              <View style={s.row}>
+              <View style={[s.row, isMoto && s.rowMoto]}>
                 <UserPhotoCircle userId={p.studentId} size={34}>
                   <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
                 </UserPhotoCircle>
@@ -332,15 +465,55 @@ export default function ManageGroupLessonParticipantsScreen() {
                       same as a single lesson). The meta/note area still opens the note editor. */}
                   <Pressable
                     onPress={() => openStudentDetail(p)}
-                    disabled={busy}
+                    disabled={busy || motoOnly}
                     style={({ pressed }) => [s.nameRow, pressed && { opacity: 0.5 }]}
                     accessibilityRole="button"
                     accessibilityLabel={`Apri la scheda di ${p.studentName ?? 'allievo'}`}
                   >
                     <Text style={[s.name, { flex: 0, flexShrink: 1 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
-                    <Ionicons name="chevron-forward" size={15} color="#C7CBD1" />
+                    {motoOnly ? null : <Ionicons name="chevron-forward" size={15} color="#C7CBD1" />}
                   </Pressable>
-                  {participantMeta(isMoto, p.licenseCategory, p.vehicleName) || p.notes?.trim() ? (
+                  {isMoto ? (
+                    <>
+                      {/* REG-636 — la moto è un chip suo (pull-down): apre il
+                          picker. La nota resta sulla matita / sull'anteprima. */}
+                      <Pressable
+                        onPress={() => openMotoPicker(p)}
+                        disabled={busy}
+                        testID={`moto-chip-${p.appointmentId}`}
+                        style={({ pressed }) => [
+                          s.motoChip,
+                          !p.vehicleId && s.motoChipRot,
+                          pressed && (p.vehicleId ? s.motoChipPressed : s.motoChipRotPressed),
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Moto di ${p.studentName ?? 'allievo'}: ${p.vehicleName ?? 'a rotazione'}. Cambia moto`}
+                      >
+                        {motoBusyId === p.appointmentId ? (
+                          <ActivityIndicator size="small" color={p.vehicleId ? '#C2410C' : '#6B7280'} style={{ transform: [{ scale: 0.75 }] }} />
+                        ) : p.vehicleId ? (
+                          <MaterialCommunityIcons name="motorbike" size={16} color="#C2410C" />
+                        ) : (
+                          <Ionicons name="refresh" size={14} color="#6B7280" />
+                        )}
+                        <Text style={[s.motoChipText, !p.vehicleId && s.motoChipTextRot]} numberOfLines={1}>
+                          {p.vehicleId ? p.vehicleName ?? 'Moto' : 'A rotazione'}
+                          {p.vehicleId && p.licenseCategory ? <Text style={s.motoChipCat}> {p.licenseCategory}</Text> : null}
+                        </Text>
+                        <Ionicons name="chevron-down" size={12} color={p.vehicleId ? '#C2410C' : '#6B7280'} style={{ opacity: 0.8 }} />
+                      </Pressable>
+                      {!motoOnly && p.notes?.trim() ? (
+                        <Pressable
+                          onPress={() => openNote(p)}
+                          disabled={busy}
+                          style={({ pressed }) => pressed && { opacity: 0.5 }}
+                          accessibilityLabel="Modifica nota allievo"
+                        >
+                          <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
+                        </Pressable>
+                      ) : null}
+                    </>
+                  ) : participantMeta(isMoto, p.licenseCategory, p.vehicleName) || p.notes?.trim() ? (
                     <Pressable
                       onPress={() => openNote(p)}
                       disabled={busy}
@@ -358,6 +531,8 @@ export default function ManageGroupLessonParticipantsScreen() {
                     </Pressable>
                   ) : null}
                 </View>
+                {motoOnly ? null : (
+                <>
                 <Pressable
                   onPress={() => openNote(p)}
                   disabled={busy}
@@ -376,9 +551,12 @@ export default function ManageGroupLessonParticipantsScreen() {
                 >
                   <Ionicons name="close" size={18} color="#B0B4BD" />
                 </Pressable>
+                </>
+                )}
               </View>
               {/* Presenza: tint (teal auto / arancio moto) = presente, grigio =
                   assente, nessuno selezionato = da confermare. Correggibile sempre. */}
+              {motoOnly ? null : (
               <View style={s.attWrap}>
                 <Pressable
                   onPress={() => setOutcome(p.appointmentId, 'present')}
@@ -405,6 +583,7 @@ export default function ManageGroupLessonParticipantsScreen() {
                   )}
                 </Pressable>
               </View>
+              )}
             </View>
           ))
         )}
@@ -421,7 +600,7 @@ export default function ManageGroupLessonParticipantsScreen() {
         ) : null}
 
         {/* Aggiungi allievo — flat row */}
-        {openSeats > 0 && !adding ? (
+        {!motoOnly && openSeats > 0 && !adding ? (
           <>
             {lesson.participants.length > 0 ? <View style={s.divider} /> : null}
             <Pressable onPress={openAddPicker} disabled={busy} style={({ pressed }) => [s.row, pressed && { opacity: 0.5 }]}>
@@ -468,6 +647,19 @@ const s = StyleSheet.create({
   rowSub: { fontSize: 13, fontWeight: '400', color: '#94A3B8' },
   metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
   metaLineMoto: { color: '#C2410C' },
+  // REG-636 — chip moto (pull-down nativo): arancio = moto fissa, grigio = rotazione.
+  rowMoto: { alignItems: 'flex-start' },
+  motoChip: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    height: 28, paddingLeft: 9, paddingRight: 10, borderRadius: 14, marginTop: 3,
+    backgroundColor: '#FFF4EA', maxWidth: '100%',
+  },
+  motoChipRot: { backgroundColor: '#F1F2F6' },
+  motoChipPressed: { backgroundColor: '#FDE6D0' },
+  motoChipRotPressed: { backgroundColor: '#E6E8EE' },
+  motoChipText: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#C2410C', letterSpacing: -0.1 },
+  motoChipTextRot: { color: '#6B7280' },
+  motoChipCat: { fontWeight: '500', color: '#D9864F' },
   notePreview: { fontSize: 13, fontWeight: '400', color: '#6B7280' },
   actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E9EBF2', marginLeft: 47 },
