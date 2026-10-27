@@ -6,6 +6,10 @@ import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
  * Il foglio «Avvia guida» è un form sheet alto quanto il contenuto che scorre
  * da sé (design-system §13.2.1); informativa come in home.
  */
+// Deep link a un foglio della tab Road: sotto c'è sempre la tab (il foglio si
+// presenta sopra, non al posto della schermata).
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function DriveLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
