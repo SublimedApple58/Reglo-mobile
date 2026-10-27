@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { RoadPressable } from '../../../src/components/road/RoadPressable';
+import { ROAD_EXIT, ROAD_LAYOUT, ROAD_SPRING, ROAD_TEXT_IN, roadEnter, roadStagger } from '../../../src/road/motion';
 import { regloApi } from '../../../src/services/regloApi';
 import type { AutoscuolaStudent, RoadBriefing, RoadFreeOptions, RoadFreeVehicle } from '../../../src/types/regloApi';
 import { vehicleServesStudent } from '../../../src/utils/license';
@@ -212,6 +217,8 @@ export default function AvviaGuidaSheet() {
     let lastLetter = '';
     return (
       <ScrollView
+        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+        contentInsetAdjustmentBehavior="never"
         style={{ backgroundColor: '#FFFFFF' }}
         contentContainerStyle={s.listRoot}
         stickyHeaderIndices={[0]}
@@ -248,8 +255,10 @@ export default function AvviaGuidaSheet() {
         {shownSuggested.length ? (
           <View>
             <Text style={s.section}>Le tue ultime guide</Text>
-            {shownSuggested.map((p) => (
-              <PersonRow key={`s-${p.id}`} person={p} dark onPress={() => pick(p.id)} />
+            {shownSuggested.map((p, i) => (
+              <Animated.View key={`s-${p.id}`} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+                <PersonRow person={p} dark onPress={() => pick(p.id)} />
+              </Animated.View>
             ))}
           </View>
         ) : null}
@@ -260,15 +269,16 @@ export default function AvviaGuidaSheet() {
         {!students ? (
           <ActivityIndicator color="#6A6A6A" style={{ marginTop: 18 }} />
         ) : shownAll.length ? (
-          shownAll.map((p) => {
+          shownAll.map((p, i) => {
             const letter = p.sortKey[0]?.toUpperCase() ?? '';
             const header = !q && letter !== lastLetter ? letter : null;
             lastLetter = letter;
             return (
-              <View key={p.id}>
+              // Le prime righe entrano a cascata; filtrando, le righe escono e le altre scivolano.
+              <Animated.View key={p.id} entering={roadStagger(Math.min(i, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
                 {header ? <Text style={s.letter}>{header}</Text> : null}
                 <PersonRow person={p} onPress={() => pick(p.id)} />
-              </View>
+              </Animated.View>
             );
           })
         ) : (
@@ -296,8 +306,10 @@ export default function AvviaGuidaSheet() {
       items.length ? (
         <View>
           <Text style={s.section}>{title}</Text>
-          {items.map((v) => (
-            <VehicleRow key={v.id} vehicle={v} selected={v.id === vehicleId} onPress={v.busy ? undefined : () => choose(v)} />
+          {items.map((v, i) => (
+            <Animated.View key={v.id} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+              <VehicleRow vehicle={v} selected={v.id === vehicleId} onPress={v.busy ? undefined : () => choose(v)} />
+            </Animated.View>
           ))}
         </View>
       ) : null;
@@ -305,6 +317,8 @@ export default function AvviaGuidaSheet() {
     const lic = selectedStudent?.licenseCategory ? `patente ${selectedStudent.licenseCategory}` : null;
     return (
       <ScrollView
+        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+        contentInsetAdjustmentBehavior="never"
         style={{ backgroundColor: '#FFFFFF' }}
         contentContainerStyle={s.listRoot}
         stickyHeaderIndices={[0]}
@@ -314,12 +328,14 @@ export default function AvviaGuidaSheet() {
         testID="road-free-vehicles"
       >
         <View style={s.stickyHead}>
-          <View style={s.top}>
+          {/* Indietro a sinistra, la X (unica chiusura del foglio) in alto a destra. */}
+          <View style={[s.top, { alignItems: 'center' }]}>
+            {back('summary')}
             <View style={{ flex: 1 }}>
               <Text style={s.title}>Che auto usi?</Text>
               <Text style={s.sub}>{[who ? `Per ${who}` : null, lic].filter(Boolean).join(' · ') || nowLabel}</Text>
             </View>
-            {back('summary')}
+            {close}
           </View>
           <View style={s.search}>
             <Ionicons name="search" size={18} color="#8E8E93" />
@@ -357,12 +373,15 @@ export default function AvviaGuidaSheet() {
     .join(' · ');
   return (
     <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
       style={{ backgroundColor: '#FFFFFF' }}
       contentContainerStyle={s.root}
       showsVerticalScrollIndicator={false}
       alwaysBounceVertical={false}
       testID="road-free-sheet"
     >
+      <Animated.View entering={roadEnter()} layout={ROAD_LAYOUT}>
       <View style={[s.top, { alignItems: 'center' }]}>
         <Pressable
           onPress={() => setStep('student')}
@@ -414,31 +433,24 @@ export default function AvviaGuidaSheet() {
         <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
       </Pressable>
 
-      <View style={[s.segment, { marginTop: 18 }]}>
-        {options.durations.map((d) => {
-          const on = d === duration;
-          return (
-            <Pressable
-              key={d}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => undefined);
-                setDuration(d);
-              }}
-              style={[s.segItem, on && s.segItemOn]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[s.segTx, on && s.segTxOn]}>{d} min</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={[s.endLine, clash && { color: '#B42318' }]}>{endLine}</Text>
+      <DurationSegment
+        durations={options.durations}
+        value={duration}
+        onChange={(d) => {
+          Haptics.selectionAsync().catch(() => undefined);
+          setDuration(d);
+        }}
+      />
+      <Animated.Text key={endLine} entering={ROAD_TEXT_IN} style={[s.endLine, clash && { color: '#B42318' }]}>
+        {endLine}
+      </Animated.Text>
+      <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
 
-      <Pressable
+      <RoadPressable
+        kind="cta"
         onPress={() => void onStart()}
         disabled={!canStart}
-        style={({ pressed }) => [s.cta, !canStart && !starting && s.ctaOff, pressed && { opacity: 0.88 }]}
+        style={[s.cta, !canStart && !starting && s.ctaOff]}
         accessibilityRole="button"
         testID="road-free-go"
       >
@@ -452,9 +464,43 @@ export default function AvviaGuidaSheet() {
             </Text>
           </>
         )}
-      </Pressable>
-      <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
+      </RoadPressable>
+      </Animated.View>
     </ScrollView>
+  );
+}
+
+/**
+ * Durate come controllo segmentato nativo: la parte bianca scivola sulla
+ * durata scelta, morbida e senza rimbalzo, invece di saltarci.
+ */
+function DurationSegment({ durations, value, onChange }: { durations: number[]; value: number; onChange: (d: number) => void }) {
+  const [w, setW] = useState(0);
+  const idx = Math.max(0, durations.indexOf(value));
+  const segW = durations.length ? (w - 8) / durations.length : 0;
+  const x = useSharedValue(0);
+  useEffect(() => {
+    x.value = withSpring(idx * segW, ROAD_SPRING);
+  }, [idx, segW, x]);
+  const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  return (
+    <View style={[s.segment, { marginTop: 18 }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      {segW > 0 ? <Animated.View style={[s.segThumb, { width: segW }, thumb]} /> : null}
+      {durations.map((d) => {
+        const on = d === value;
+        return (
+          <Pressable
+            key={d}
+            onPress={() => onChange(d)}
+            style={s.segItem}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+          >
+            <Text style={[s.segTx, on && s.segTxOn]}>{d} min</Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -512,8 +558,9 @@ function PersonRow({ person, dark, onPress }: { person: Person; dark?: boolean; 
 
 const s = StyleSheet.create({
   // form sheet: padding fisso, niente safe area (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: 22 },
-  listRoot: { backgroundColor: '#FFFFFF', paddingBottom: 30 },
+  // form sheet: respiro in fondo = SHEET_BOTTOM, mai insets.bottom (§13.2.1)
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
+  listRoot: { backgroundColor: '#FFFFFF', paddingBottom: SHEET_BOTTOM },
   stickyHead: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: 8 },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.7 },
@@ -591,6 +638,19 @@ const s = StyleSheet.create({
   car: { width: 58, height: 42 },
   segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 18, backgroundColor: '#F2F2F0' },
   segItem: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  segThumb: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   segItemOn: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
@@ -601,10 +661,10 @@ const s = StyleSheet.create({
   },
   segTx: { fontSize: 15, fontWeight: '500', color: '#6A6A6A', letterSpacing: -0.2 },
   segTxOn: { color: '#111111', fontWeight: '600' },
-  note: { fontSize: 12.5, fontWeight: '400', color: '#8E8E93', lineHeight: 17, marginTop: 12, textAlign: 'center' },
+  note: { fontSize: 13, fontWeight: '400', color: '#8E8E93', lineHeight: 18, marginTop: 4 },
   cta: {
-    height: 54,
-    borderRadius: 16,
+    height: CTA_HEIGHT,
+    borderRadius: CTA_RADIUS,
     backgroundColor: '#111111',
     flexDirection: 'row',
     gap: 9,

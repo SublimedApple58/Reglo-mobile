@@ -13,6 +13,7 @@ import * as Haptics from '../../src/utils/haptics';
 import { lessonStudentName, roadStore, useRoadState } from '../../src/road/roadStore';
 import { endRoad, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
+import { ROAD_EXIT } from '../../src/road/motion';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange, initialsOf } from '../../src/road/format';
@@ -58,7 +59,8 @@ function RoadToastFrame({ children, style }: { children: React.ReactNode; style:
     opacity: p.value,
     transform: [{ translateY: (1 - p.value) * -14 }],
   }));
-  return <Animated.View style={[style, anim]}>{children}</Animated.View>;
+  // In uscita si dissolve (niente sparizioni di botto, §8).
+  return <Animated.View exiting={ROAD_EXIT} style={[style, anim]}>{children}</Animated.View>;
 }
 
 export default function RoadScreen() {

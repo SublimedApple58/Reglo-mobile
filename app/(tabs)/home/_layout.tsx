@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET, PAGE_SHEET, SCROLL_SHEET } from '../../../src/utils/sheetPresentation';
+import { TALL_SHEET, HUG_SHEET, PAGE_SHEET, SCROLL_SHEET, ROAD_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function HomeLayout() {
   return (
@@ -79,12 +79,12 @@ export default function HomeLayout() {
       <Stack.Screen name="swap-detail" options={TALL_SHEET} />
       {/* REG-638 Reglo Road: invito e informativa = form sheet con CTA in fondo;
           percorso dell'allievo a tutto schermo. */}
-      <Stack.Screen name="road-invite" options={TALL_SHEET} />
-      <Stack.Screen name="road-privacy" options={TALL_SHEET} />
+      <Stack.Screen name="road-invite" options={ROAD_SHEET} />
+      <Stack.Screen name="road-privacy" options={ROAD_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       {/* REG-638: «Percorso Road» di una guida (dettaglio guida, storico allievo):
           form sheet che abbraccia il contenuto, niente vuoto sotto (§13.2.1). */}
-      <Stack.Screen name="road-percorso" options={TALL_SHEET} />
+      <Stack.Screen name="road-percorso" options={ROAD_SHEET} />
     </Stack>
   );
 }

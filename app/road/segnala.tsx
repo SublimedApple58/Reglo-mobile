@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as Haptics from '../../src/utils/haptics';
 import { GlassCloseButton } from '../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../src/components/SheetScaffold';
 import { roadStore, useRoadState, type RoadSentiment } from '../../src/road/roadStore';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from '../../src/components/road/RoadSentiment';
 import { recordRoadMarker } from '../../src/road/roadActions';
@@ -18,13 +17,11 @@ type Item = { kind: string; label: string; short: string };
 /**
  * REG-638 — «Cosa è da migliorare?» / «Cosa è andato bene?». In testa il segno
  * (fatto bene / da migliorare), che resta per la sessione. Form sheet nativo che abbraccia il contenuto
- * (niente ScrollView: su iOS `fitToContents`, su Android detent alto +
- * SheetScaffold). Tocco = segnala subito sul punto in cui sei e chiude;
+ * (ROAD_SHEET, §13.2.1: la radice è lo scroll del foglio). Tocco = segnala subito sul punto in cui sei e chiude;
  * pressione lunga = prima una nota (Alert.prompt su iOS, campo qui su Android).
  */
 export default function SegnalaSheet() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { catalog, street, sentimentMode } = useRoadState();
   const good = sentimentMode === 'good';
   const setMode = (m: RoadSentiment) => {
@@ -95,7 +92,15 @@ export default function SegnalaSheet() {
   );
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
+      style={{ backgroundColor: '#FFFFFF' }}
+      contentContainerStyle={s.root}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+    >
       <View style={s.top}>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>{good ? 'Cosa è andato bene?' : 'Cosa è da migliorare?'}</Text>
@@ -134,10 +139,7 @@ export default function SegnalaSheet() {
         })}
       </View>
 
-      <SheetScaffold
-        keyboardAware
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom - 14, 18) }}
-      >
+      <View>
         {renderGrid(base)}
         {custom.length ? (
           <>
@@ -171,13 +173,14 @@ export default function SegnalaSheet() {
         ) : (
           <Text style={s.hint}>Tocca per segnare dove sei · tieni premuto per aggiungere una nota</Text>
         )}
-      </SheetScaffold>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingHorizontal: 22 },
+  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   lead: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, letterSpacing: -0.1 },

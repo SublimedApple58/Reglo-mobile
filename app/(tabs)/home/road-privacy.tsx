@@ -1,11 +1,10 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { enterRoad, markRoadPrivacySeen } from '../../../src/road/roadActions';
 import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore, roadPendingStart } from '../../../src/road/entryFlow';
 
@@ -34,7 +33,6 @@ const ROWS: Array<{ icon: keyof typeof Ionicons.glyphMap; title: string; body: s
  */
 export default function RoadPrivacySheet() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const live = useSyncExternalStore(roadEntryStore.subscribe, roadEntryStore.get);
   const [seed] = useState(() => live);
   // Road libero: arrivo da «Avvia guida», l'avvio è già pronto.
@@ -51,7 +49,15 @@ export default function RoadPrivacySheet() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
+      style={{ backgroundColor: '#FFFFFF' }}
+      contentContainerStyle={s.root}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+    >
       <View style={s.top}>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>Prima di partire</Text>
@@ -64,42 +70,37 @@ export default function RoadPrivacySheet() {
         </GlassCloseButton>
       </View>
 
-      <SheetScaffold
-        footer={
-          <View style={{ paddingBottom: Math.max(insets.bottom - 16, 18) }}>
-            <Pressable
-              onPress={onContinue}
-              style={({ pressed }) => [s.btn, pressed && { opacity: 0.88 }]}
-              testID="road-privacy-continue"
-            >
-              <Text style={s.btnTx}>Continua</Text>
-            </Pressable>
-            <Text style={s.fine}>
-              {Platform.OS === 'ios'
-                ? "Al passo successivo iPhone ti chiede il permesso. Scegli «Consenti mentre usi l'app»."
-                : "Al passo successivo il telefono ti chiede il permesso. Scegli «Mentre usi l'app»."}
-            </Text>
-          </View>
-        }
-      >
-        <View style={s.card}>
-          {ROWS.map((r, i) => (
-            <View key={r.title} style={[s.row, i > 0 && s.rowSep]}>
-              <Ionicons name={r.icon} size={24} color="#111111" style={{ marginTop: 1 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowTitle}>{r.title}</Text>
-                <Text style={s.rowBody}>{r.body}</Text>
-              </View>
+      <View style={s.card}>
+        {ROWS.map((r, i) => (
+          <View key={r.title} style={[s.row, i > 0 && s.rowSep]}>
+            <Ionicons name={r.icon} size={24} color="#111111" style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.rowTitle}>{r.title}</Text>
+              <Text style={s.rowBody}>{r.body}</Text>
             </View>
-          ))}
-        </View>
-      </SheetScaffold>
-    </View>
+          </View>
+        ))}
+      </View>
+      {/* Spiegazione prima della CTA: il bottone resta l'ultima cosa del foglio. */}
+      <Text style={s.fine}>
+        {Platform.OS === 'ios'
+          ? "Al passo successivo iPhone ti chiede il permesso. Scegli «Consenti mentre usi l'app»."
+          : "Al passo successivo il telefono ti chiede il permesso. Scegli «Mentre usi l'app»."}
+      </Text>
+      <Pressable
+        onPress={onContinue}
+        style={({ pressed }) => [s.btn, pressed && { opacity: 0.88 }]}
+        testID="road-privacy-continue"
+      >
+        <Text style={s.btnTx}>Continua</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingHorizontal: 22 },
+  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   lead: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 6, lineHeight: 21, letterSpacing: -0.1 },

@@ -28,6 +28,10 @@ import { dayLabel, formatHm, formatKm, formatMinutes, formatRange } from '../../
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
+import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
+import Animated from 'react-native-reanimated';
+import { RoadPressable } from '../../../src/components/road/RoadPressable';
+import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, ROAD_TEXT_OUT, roadEnter, roadStagger } from '../../../src/road/motion';
 
 const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
@@ -184,25 +188,27 @@ export default function RoadTab() {
           <InboxBellButton style={[s.bell, { top: insets.top + 10 }]} />
         </View>
 
-        <View style={s.panel} testID="road-tab-panel">
+        <Animated.View style={s.panel} layout={ROAD_LAYOUT} testID="road-tab-panel">
           {!options && !inRoad ? (
             error ? (
-              <Text style={s.sub}>{error}</Text>
+              <Animated.Text key="err" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} style={s.sub}>{error}</Animated.Text>
             ) : (
-              <ActivityIndicator color="#111111" style={{ marginVertical: 30 }} />
+              <Animated.View key="load" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT}>
+                <ActivityIndicator color="#111111" style={{ marginVertical: 30 }} />
+              </Animated.View>
             )
           ) : inRoad ? (
             // ── Road in corso ────────────────────────────────────────────
-            <View>
+            <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
               <Text style={s.kicker}>Guida in corso</Text>
               <Text style={s.name}>{lessonStudentName(road.session?.lesson)}</Text>
-              <Pressable onPress={() => router.push(ROAD_ROUTE)} style={({ pressed }) => [s.cta, pressed && s.pressed]}>
+              <RoadPressable kind="cta" onPress={() => router.push(ROAD_ROUTE)} style={s.cta}>
                 <Text style={s.ctaTx}>Torna in Road</Text>
-              </Pressable>
-            </View>
+              </RoadPressable>
+            </Animated.View>
           ) : showAgenda && current ? (
             // ── Guida in agenda tra poco ─────────────────────────────────
-            <View testID="road-tab-agenda">
+            <Animated.View key="agenda" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} testID="road-tab-agenda">
               <Text style={s.kicker}>
                 {['In agenda', formatHm(current.startsAt), current.vehicle ? [current.vehicle.name, current.vehicle.plate].filter(Boolean).join(' ') : null]
                   .filter(Boolean)
@@ -214,53 +220,84 @@ export default function RoadTab() {
               ) : (
                 <Text style={[s.sub, { marginTop: 6 }]}>Prima guida in Road con questo allievo.</Text>
               )}
-              <Pressable
+              <RoadPressable
+                kind="cta"
                 onPress={() => void beginRoadEntry(router, current)}
-                style={({ pressed }) => [s.cta, pressed && s.pressed]}
+                style={s.cta}
                 testID="road-tab-enter"
               >
                 <Ionicons name="play" size={17} color="#FFFFFF" />
                 <Text style={s.ctaTx}>Entra in Road</Text>
-              </Pressable>
-              <Pressable onPress={() => setOtherMode(true)} hitSlop={8} style={s.secondary}>
+              </RoadPressable>
+              <RoadPressable kind="small" onPress={() => setOtherMode(true)} hitSlop={8} style={s.secondary}>
                 <Text style={s.secondaryTx}>Parti con un altro allievo</Text>
-              </Pressable>
-            </View>
+              </RoadPressable>
+            </Animated.View>
           ) : (
-            <View>
+            <Animated.View key="free" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
               {toClose && toCloseSession ? (
                 // ── Guida appena finita, pagellino da compilare ──────────
-                <View style={s.closeBlock} testID="road-tab-toclose">
+                <Animated.View
+                  key={`close-${toClose.sessionId}`}
+                  entering={roadEnter()}
+                  exiting={ROAD_EXIT}
+                  layout={ROAD_LAYOUT}
+                  style={s.closeBlock}
+                  testID="road-tab-toclose"
+                >
                   <Text style={s.kicker}>
                     Appena finita · {formatRange(toCloseSession.lesson.startsAt, toCloseSession.endedAt ?? toCloseSession.lesson.endsAt)}
                   </Text>
                   <Text style={s.name}>{lessonStudentName(toCloseSession.lesson)}</Text>
                   <SessionNumbers session={toCloseSession} style={{ marginTop: 3 }} />
-                  <Pressable
+                  <RoadPressable
+                    kind="cta"
                     onPress={() =>
-                      openRoadPagellino(router, toCloseSession.lesson, { showStayChip: false, onSaved: () => void load() })
+                      openRoadPagellino(
+                        router,
+                        toCloseSession.lesson,
+                        { showStayChip: false, onSaved: () => void load() },
+                        '/(tabs)/drive/pagellino',
+                      )
                     }
-                    style={({ pressed }) => [s.cta, pressed && s.pressed]}
+                    style={s.cta}
                     testID="road-tab-pagellino"
                   >
                     <Ionicons name="star" size={16} color="#FACC15" />
                     <Text style={s.ctaTx}>Compila il pagellino</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setLaterIds((l) => [...l, toClose.sessionId])} hitSlop={8} style={s.secondary}>
+                  </RoadPressable>
+                  <RoadPressable
+                    kind="small"
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => undefined);
+                      setLaterIds((l) => [...l, toClose.sessionId]);
+                    }}
+                    hitSlop={8}
+                    style={s.secondary}
+                  >
                     <Text style={s.secondaryTx}>Più tardi</Text>
-                  </Pressable>
-                </View>
+                  </RoadPressable>
+                </Animated.View>
               ) : null}
 
               {/* ── Libero: con chi guidi? ─────────────────────────────── */}
-              <View style={toClose && toCloseSession ? s.afterClose : null} testID="road-tab-free">
+              <Animated.View
+                layout={ROAD_LAYOUT}
+                style={toClose && toCloseSession ? s.afterClose : null}
+                testID="road-tab-free"
+              >
                 <Text style={s.title}>Con chi guidi?</Text>
-                {freeLine ? <Text style={s.sub}>{freeLine}</Text> : null}
+                {freeLine ? (
+                  <Animated.Text key={freeLine} entering={ROAD_TEXT_IN} style={s.sub}>
+                    {freeLine}
+                  </Animated.Text>
+                ) : null}
 
                 <View style={s.faces}>
-                  {faces.map((f) => (
-                    <Pressable
-                      key={f.id}
+                  {faces.map((f, i) => (
+                    <Animated.View key={f.id} entering={roadStagger(i)}>
+                    <RoadPressable
+                      kind="small"
                       onPress={() => {
                         Haptics.selectionAsync().catch(() => undefined);
                         setSelectedId(f.id);
@@ -274,18 +311,23 @@ export default function RoadTab() {
                       <Text style={[s.faceName, selected?.id === f.id && s.faceNameOn]} numberOfLines={1}>
                         {firstName(f.name)}
                       </Text>
-                    </Pressable>
+                    </RoadPressable>
+                    </Animated.View>
                   ))}
-                  <Pressable onPress={() => openStart(null)} style={s.face} accessibilityRole="button" testID="road-tab-all">
-                    <View style={s.allCircle}>
-                      <Ionicons name="search" size={21} color="#111111" />
-                    </View>
-                    <Text style={s.faceName}>Tutti</Text>
-                  </Pressable>
+                  <Animated.View entering={roadStagger(faces.length)}>
+                    <RoadPressable kind="small" onPress={() => openStart(null)} style={s.face} accessibilityRole="button" testID="road-tab-all">
+                      <View style={s.allCircle}>
+                        <Ionicons name="search" size={21} color="#111111" />
+                      </View>
+                      <Text style={s.faceName}>Tutti</Text>
+                    </RoadPressable>
+                  </Animated.View>
                 </View>
 
                 {selected ? (
-                  <View style={s.brief}>
+                  <Animated.View style={s.brief} layout={ROAD_LAYOUT}>
+                    {/* Il briefing cambia col volto: dissolvenza incrociata, l'altezza scivola. */}
+                    <Animated.View key={selected.id} entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} layout={ROAD_LAYOUT}>
                     <Text style={s.briefHead}>
                       {firstName(selected.name)} · {selected.reason}
                     </Text>
@@ -299,44 +341,47 @@ export default function RoadTab() {
                     ) : (
                       <Text style={s.briefTitle}>Nessuna segnalazione Road finora.</Text>
                     )}
-                    <Pressable
-                      onPress={() => openStart(selected.id)}
-                      style={({ pressed }) => [s.cta, pressed && s.pressed]}
-                      testID="road-tab-start"
-                    >
-                      <Ionicons name="play" size={17} color="#FFFFFF" />
-                      <Text style={s.ctaTx}>
-                        Parti con {firstName(selected.name)} · {options?.defaultDuration ?? 60} min
-                      </Text>
-                    </Pressable>
-                  </View>
+                    </Animated.View>
+                    <Animated.View layout={ROAD_LAYOUT}>
+                      <RoadPressable
+                        kind="cta"
+                        onPress={() => openStart(selected.id)}
+                        style={s.cta}
+                        testID="road-tab-start"
+                      >
+                        <Ionicons name="play" size={17} color="#FFFFFF" />
+                        <Animated.Text key={selected.id} entering={ROAD_TEXT_IN} style={s.ctaTx}>
+                          Parti con {firstName(selected.name)} · {options?.defaultDuration ?? 60} min
+                        </Animated.Text>
+                      </RoadPressable>
+                    </Animated.View>
+                  </Animated.View>
                 ) : (
-                  <Pressable
-                    onPress={() => openStart(null)}
-                    style={({ pressed }) => [s.cta, pressed && s.pressed]}
-                    testID="road-tab-start"
-                  >
+                  <RoadPressable kind="cta" onPress={() => openStart(null)} style={s.cta} testID="road-tab-start">
                     <Text style={s.ctaTx}>Scegli l'allievo</Text>
-                  </Pressable>
+                  </RoadPressable>
                 )}
                 {otherMode && current ? (
-                  <Pressable onPress={() => setOtherMode(false)} hitSlop={8} style={s.secondary}>
-                    <Text style={s.secondaryTx}>Torna alla guida delle {formatHm(current.startsAt)}</Text>
-                  </Pressable>
+                  <Animated.View entering={roadEnter()} exiting={ROAD_EXIT}>
+                    <RoadPressable kind="small" onPress={() => setOtherMode(false)} hitSlop={8} style={s.secondary}>
+                      <Text style={s.secondaryTx}>Torna alla guida delle {formatHm(current.startsAt)}</Text>
+                    </RoadPressable>
+                  </Animated.View>
                 ) : null}
-              </View>
-            </View>
+              </Animated.View>
+            </Animated.View>
           )}
-        </View>
+        </Animated.View>
 
         {recent.length && !inRoad ? (
-          <View style={s.recent}>
+          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
             <Text style={s.section}>Ultime guide</Text>
             {recent.map((r, i) => (
-              <Pressable
-                key={r.id}
+              <Animated.View key={r.id} entering={roadStagger(i + 2)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+              <RoadPressable
+                kind="card"
                 onPress={() => void openRoadPercorso(router, 'drive', r.appointmentId)}
-                style={({ pressed }) => [s.recentRow, pressed && { backgroundColor: '#F7F7F5' }]}
+                style={s.recentRow}
                 testID="road-tab-recent"
               >
                 <RouteThumb thumb={r.thumb} />
@@ -345,9 +390,10 @@ export default function RoadTab() {
                   <SessionNumbers session={r} withDay />
                 </View>
                 <Ionicons name="chevron-forward" size={17} color="#C7C7CC" style={{ marginRight: 20 }} />
-              </Pressable>
+              </RoadPressable>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
         ) : null}
       </ScrollView>
     </View>
@@ -441,8 +487,8 @@ const s = StyleSheet.create({
   briefHead: { fontSize: 15, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
   briefTitle: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 2, marginBottom: 10 },
   cta: {
-    height: 54,
-    borderRadius: 16,
+    height: CTA_HEIGHT,
+    borderRadius: CTA_RADIUS,
     backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Polyline } from 'react-native-svg';
+import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import { ROAD_EXIT, ROAD_LAYOUT, ROAD_SPRING, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing } from '../../types/regloApi';
 import { initialsOf } from '../../road/format';
@@ -25,14 +27,20 @@ function lineGlyph(tone: Line['tone'], size: number) {
 export function BriefingLines({ lines, style }: { lines: Line[]; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[{ gap: 9 }, style]}>
-      {lines.map((l) => (
-        <View key={`${l.kind}-${l.label}`} style={s.line}>
+      {lines.map((l, i) => (
+        <Animated.View
+          key={`${l.kind}-${l.label}`}
+          entering={roadStagger(i)}
+          exiting={ROAD_EXIT}
+          layout={ROAD_LAYOUT}
+          style={s.line}
+        >
           <View style={s.lineIc}>{lineGlyph(l.tone, 17)}</View>
           <Text style={s.lineTx} numberOfLines={1}>
             {l.label}
             {l.detail ? <Text style={s.lineDetail}> · {l.detail}</Text> : null}
           </Text>
-        </View>
+        </Animated.View>
       ))}
     </View>
   );
@@ -43,7 +51,13 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
   return (
     <View>
       {lines.map((l, i) => (
-        <View key={`${l.kind}-${l.label}`} style={[s.row, i < lines.length - 1 && s.rowSep]}>
+        <Animated.View
+          key={`${l.kind}-${l.label}`}
+          entering={roadStagger(i)}
+          exiting={ROAD_EXIT}
+          layout={ROAD_LAYOUT}
+          style={[s.row, i < lines.length - 1 && s.rowSep]}
+        >
           <View
             style={[
               s.ring,
@@ -56,7 +70,7 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
             <Text style={s.rowTitle} numberOfLines={1}>{l.label}</Text>
             {l.detail ? <Text style={s.rowDetail} numberOfLines={1}>{capitalize(l.detail)}</Text> : null}
           </View>
-        </View>
+        </Animated.View>
       ))}
     </View>
   );
@@ -66,12 +80,23 @@ const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
 /** Volto con le iniziali; `selected` = anello nero (scelta corrente). */
 export function RoadAvatar({ name, size = 64, selected }: { name: string; size?: number; selected?: boolean }) {
-  const inner = selected ? size - 8 : size;
+  // L'anello della scelta compare e il volto si stringe dentro, a molla (§8.4).
+  const ring = useAnimatedStyle(() => ({
+    opacity: withTiming(selected ? 1 : 0, { duration: 180 }),
+    transform: [{ scale: withSpring(selected ? 1 : 0.9, ROAD_SPRING) }],
+  }));
+  const face = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(selected ? (size - 8) / size : 1, ROAD_SPRING) }],
+  }));
   return (
-    <View style={[s.avatarWrap, { width: size, height: size, borderRadius: size / 2 }, selected && s.avatarRing]}>
-      <View style={[s.avatar, { width: inner, height: inner, borderRadius: inner / 2 }]}>
+    <View style={[s.avatarWrap, { width: size, height: size }]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, s.avatarRing, { borderRadius: size / 2 }, ring]}
+      />
+      <Animated.View style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }, face]}>
         <Text style={[s.avatarTx, { fontSize: Math.round(size * 0.3) }]}>{initialsOf(name)}</Text>
-      </View>
+      </Animated.View>
     </View>
   );
 }

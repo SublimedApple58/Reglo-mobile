@@ -15,6 +15,8 @@ export function openRoadPagellino(
   router: Router,
   lesson: RoadLesson,
   opts: { showStayChip: boolean; onSaved?: () => void },
+  /** Fuori da Road (tab Road) il foglio vive nello stack della tab. */
+  route: '/road/pagellino' | '/(tabs)/drive/pagellino' = '/road/pagellino',
 ) {
   // Il foglio legge id/tipo/stato; tipo/note/esito sono nascosti in Road.
   const appt = {
@@ -50,5 +52,5 @@ export function openRoadPagellino(
       }
     },
   });
-  router.push('/road/pagellino');
+  router.push(route);
 }

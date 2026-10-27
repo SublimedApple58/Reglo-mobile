@@ -59,3 +59,31 @@ export const SCROLL_SHEET = {
   headerShown: false,
   sheetAllowedDetents: [0.92] as number[],
 } as const;
+
+/**
+ * Fogli di Reglo Road (regola §13.2 / §13.2.1, Tiziano 27/10): form sheet
+ * nativo alto quanto il contenuto, SENZA grabber e senza swipe per chiudere:
+ * si chiude solo con la X in alto a destra. Fondo bianco dichiarato
+ * (sotto il foglio non deve mai spuntare il colore dello stack). La radice
+ * della schermata è la ScrollView: se il contenuto supera lo schermo scorre il
+ * foglio stesso. CTA ultima cosa, `paddingBottom` fisso 18, mai `insets.bottom`.
+ * Android (non ancora rilasciato): detent alto, la radice scrolla lo stesso.
+ */
+export const ROAD_SHEET = {
+  presentation: 'formSheet',
+  sheetGrabberVisible: false,
+  gestureEnabled: false,
+  headerShown: false,
+  sheetAllowedDetents: (Platform.OS === 'android' ? [0.92] : 'fitToContents') as number[] | 'fitToContents',
+  contentStyle: { backgroundColor: '#FFFFFF' },
+} as const;
+
+const IOS_MAJOR = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0;
+
+/**
+ * Respiro sotto l'ultima cosa (la CTA) di un form sheet. Da iOS 26 il form sheet
+ * è «flottante» e aggiunge da sé ~33pt sotto il contenuto (misurato sul
+ * simulatore iPhone 17 Pro, 27/10/2026): sommarci i nostri 18 dava ~50pt di
+ * vuoto. Lì 0; prima di iOS 26 il respiro fisso di 18 (§13.2.1).
+ */
+export const SHEET_BOTTOM = IOS_MAJOR >= 26 ? 0 : 18;

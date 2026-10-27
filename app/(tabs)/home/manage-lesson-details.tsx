@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
   FadeOut,
   LinearTransition,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -37,7 +39,7 @@ import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
  * voce entra o esce, le altre card (e il bottone sotto) scivolano al loro posto
  * di molla invece di saltarci.
  */
-const LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
+const LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6).overshootClamping(1).reduceMotion(ReduceMotion.Never);
 
 /** Firma stabile di un pagellino, per confrontare "prima" e "dopo". */
 const evalKeyOf = (
@@ -257,7 +259,7 @@ export default function ManageLessonDetailsScreen() {
       </View>
   );
   const saveFooter = (
-          <View style={{ paddingBottom: Math.max(insets.bottom, road ? 18 : 12) }}>
+          <View style={road ? null : { paddingBottom: Math.max(insets.bottom, 12) }}>
             <Pressable
               onPress={handleSave}
               disabled={!editable}
@@ -362,15 +364,15 @@ export default function ManageLessonDetailsScreen() {
       {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
         <Animated.View
           layout={LAYOUT}
-          entering={FadeIn.duration(260)}
-          style={[s.section, { marginBottom: 20 }]}
+          entering={FadeIn.duration(260).reduceMotion(ReduceMotion.Never)}
+          style={[s.section, { marginBottom: road ? 2 : 20 }]}
         >
           <View style={[s.pagellinoHead, road && s.pagellinoHeadRoad]}>
             {road ? null : <Text style={s.sectionLabel}>Pagellino</Text>}
             {evalRows.length > 0 ? (
               <Animated.Text
                 key={ratedCount}
-                entering={FadeIn.duration(180)}
+                entering={FadeIn.duration(180).reduceMotion(ReduceMotion.Never)}
                 style={s.pagellinoHint}
               >
                 {ratedCount === 0
@@ -398,8 +400,8 @@ export default function ManageLessonDetailsScreen() {
                   <Animated.View
                     key={item.id}
                     layout={LAYOUT}
-                    entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic))}
-                    exiting={FadeOut.duration(160)}
+                    entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never)}
+                    exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.Never)}
                     style={s.voiceCard}
                   >
                     <View style={s.pagellinoItemTop}>
@@ -417,7 +419,7 @@ export default function ManageLessonDetailsScreen() {
                       {isNa || !scores[item.id] ? null : (
                         <Animated.Text
                           key={scores[item.id]}
-                          entering={FadeIn.duration(150)}
+                          entering={FadeIn.duration(150).reduceMotion(ReduceMotion.Never)}
                           style={s.scoreNum}
                         >
                           {scores[item.id]}
@@ -469,8 +471,8 @@ export default function ManageLessonDetailsScreen() {
           {evalRows.length === 0 ? (
             <Animated.Text
               layout={LAYOUT}
-              entering={FadeIn.duration(200)}
-              exiting={FadeOut.duration(120)}
+              entering={FadeIn.duration(200).reduceMotion(ReduceMotion.Never)}
+              exiting={FadeOut.duration(120).reduceMotion(ReduceMotion.Never)}
               style={s.pagellinoEmpty}
             >
               Nessuna voce: questa guida non ha ancora un pagellino.
@@ -501,33 +503,40 @@ export default function ManageLessonDetailsScreen() {
   );
 
   if (road) {
-    // Da Road (feedback Tiziano 27/10): foglio nativo vero. Barra in alto con
-    // titolo «Pagellino» + allievo e la X, corpo che scorre, «Salva» fisso in
-    // fondo. Detent fisso (ROAD_PAGELLINO_SHEET) perché il footer sia ancorato.
+    // Da Road: form sheet nativo (ROAD_SHEET, §13.2.1). La radice È lo scroll
+    // del foglio: testata con «Pagellino» + allievo e la X, poi le voci,
+    // «Salva» è l'ultima cosa. (Niente testata sticky: il wrapper sticky di RN
+    // rompeva la riga e mandava la X sotto il titolo.) Niente
+    // insets.bottom: il form sheet è già staccato dal bordo.
     return (
-      <View style={s.roadRoot}>
+      <ScrollView
+        // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+        contentInsetAdjustmentBehavior="never"
+        style={{ backgroundColor: '#FFFFFF' }}
+        contentContainerStyle={s.roadRoot}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        alwaysBounceVertical={false}
+        testID="road-pagellino-sheet"
+      >
+        {/* Testata come gli altri fogli di Road: titolo a sinistra, la X (unica
+            chiusura) in alto a destra. */}
         <View style={s.navBar}>
-          <View style={s.navSide} />
-          <View style={s.navTitles}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.navTitle} numberOfLines={1}>Pagellino</Text>
             <Text style={s.navSub} numberOfLines={1}>{road.subtitle}</Text>
           </View>
-          <View style={[s.navSide, { alignItems: 'flex-end' }]}>
-            <GlassCloseButton onPress={() => router.back()}>
-              <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-                <Ionicons name="close" size={20} color="#3A3A3C" />
-              </Pressable>
-            </GlassCloseButton>
-          </View>
+          <GlassCloseButton onPress={() => router.back()}>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={s.roadX}>
+              <Ionicons name="close" size={20} color="#3A3A3C" />
+            </Pressable>
+          </GlassCloseButton>
         </View>
-        <SheetScaffold
-          fill
-          contentContainerStyle={[s.scaffoldBody, s.roadBody]}
-          footer={<View style={s.roadFooter}>{saveFooter}</View>}
-        >
+        <View style={[s.scaffoldBody, s.roadBody]}>
           {content}
-        </SheetScaffold>
-      </View>
+          {saveFooter}
+        </View>
+      </ScrollView>
     );
   }
 
@@ -613,20 +622,19 @@ const s = StyleSheet.create({
   // REG-638: in Road niente navy, CTA nera piena.
   saveBtnRoad: { backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.18 },
   // Road: foglio con barra nativa, corpo che scorre, «Salva» fisso.
-  roadRoot: { flex: 1, backgroundColor: '#FFFFFF' },
+  // form sheet: respiro fisso in fondo, mai insets.bottom (§13.2.1)
+  roadRoot: { backgroundColor: '#FFFFFF', paddingBottom: SHEET_BOTTOM },
   navBar: {
-    flexDirection: 'row', alignItems: 'center', minHeight: 64, paddingHorizontal: 14, paddingTop: 8,
-    paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E2E2',
+    backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    paddingTop: 26, paddingHorizontal: spacing.lg, paddingBottom: 14,
   },
-  navSide: { width: 48 },
-  navTitles: { flex: 1, alignItems: 'center' },
-  navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  navSub: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
-  roadBody: { paddingHorizontal: spacing.lg, paddingTop: 18, paddingBottom: 24 },
-  roadFooter: {
-    paddingHorizontal: spacing.lg, paddingTop: 12, backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2E2E2',
+  navTitle: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
+  navSub: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
+  roadX: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(120,120,128,0.14)',
+    alignItems: 'center', justifyContent: 'center',
   },
+  roadBody: { paddingHorizontal: spacing.lg, paddingTop: 4 },
   roadStay: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginBottom: -6 },
   pagellinoHeadRoad: { justifyContent: 'flex-start' },
 });

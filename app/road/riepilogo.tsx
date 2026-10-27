@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { GlassCloseButton } from '../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../src/components/SheetScaffold';
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
 import { countSentiments, SentimentCounts } from '../../src/components/road/RoadSentiment';
@@ -15,6 +15,10 @@ import { openRoadPagellino } from '../../src/road/pagellino';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
 import { regloApi } from '../../src/services/regloApi';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
+import { CTA_HEIGHT, CTA_RADIUS } from '../../src/theme';
+import Animated from 'react-native-reanimated';
+import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
+import { RoadPressable } from '../../src/components/road/RoadPressable';
 
 type EvalState = { enabled: boolean; total: number; done: number } | null;
 
@@ -84,7 +88,15 @@ export default function RiepilogoScreen() {
   const more = summary.markers.length - shown.length;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
+      style={{ backgroundColor: '#FFFFFF' }}
+      contentContainerStyle={s.root}
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+      testID="road-summary"
+    >
       <View style={s.top}>
         <View style={{ flex: 1 }}>
           <View style={s.doneK}>
@@ -103,100 +115,96 @@ export default function RiepilogoScreen() {
         </GlassCloseButton>
       </View>
 
-      <SheetScaffold
-        footer={
-          <View style={s.foot}>
-            {showPagellino ? (
-              <View style={[s.pg, pgComplete && s.pgDone]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.pgTitle}>Pagellino</Text>
-                  <Text style={[s.pgSub, pgComplete && s.pgSubDone]}>
-                    {pgEmpty
-                      ? 'Ancora da compilare'
-                      : pgComplete
-                        ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
-                        : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() =>
-                    openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
-                  }
-                  style={({ pressed }) => [s.pgBtn, pressed && { opacity: 0.85 }]}
-                  testID="road-summary-pagellino"
-                >
-                  <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
-                </Pressable>
-              </View>
-            ) : null}
+      <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
 
-            <Pressable onPress={close} style={({ pressed }) => [s.closeBtn, pressed && { opacity: 0.6 }]} testID="road-summary-close">
-              <Text style={s.closeTx}>Chiudi</Text>
-            </Pressable>
-          </View>
-        }
-      >
-        <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
-
-        <View style={s.sum}>
-          <View style={s.sumCol}>
-            <Text style={s.sumNum}>
-              {formatKm(summary.distanceMeters)} <Text style={s.sumUnit}>km</Text>
-            </Text>
-            <Text style={s.sumLabel}>Percorsi</Text>
-          </View>
-          <View style={[s.sumCol, s.sumSep]}>
-            <Text style={s.sumNum}>
-              {formatMinutes(summary.durationSec)} <Text style={s.sumUnit}>min</Text>
-            </Text>
-            <Text style={s.sumLabel}>Di guida</Text>
-          </View>
-          <View style={[s.sumCol, s.sumSep]}>
-            <Text style={s.sumNum}>{summary.markers.length}</Text>
-            <Text style={s.sumLabel}>Segnalazioni</Text>
-          </View>
+      <View style={s.sum}>
+        <View style={s.sumCol}>
+          <Text style={s.sumNum}>
+            {formatKm(summary.distanceMeters)} <Text style={s.sumUnit}>km</Text>
+          </Text>
+          <Text style={s.sumLabel}>Percorsi</Text>
         </View>
+        <View style={[s.sumCol, s.sumSep]}>
+          <Text style={s.sumNum}>
+            {formatMinutes(summary.durationSec)} <Text style={s.sumUnit}>min</Text>
+          </Text>
+          <Text style={s.sumLabel}>Di guida</Text>
+        </View>
+        <View style={[s.sumCol, s.sumSep]}>
+          <Text style={s.sumNum}>{summary.markers.length}</Text>
+          <Text style={s.sumLabel}>Segnalazioni</Text>
+        </View>
+      </View>
 
-        <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
+      <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
-        {freeStarted && freeStarted.sessionId === summary.id ? (
-          <View style={s.agendaLine}>
-            <Ionicons name="calendar-outline" size={15} color="#6A6A6A" style={{ marginTop: 1 }} />
-            <Text style={s.agendaTx}>
-              In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
-              dei {freeStarted.bookedMinutes} minuti scelti.
+      {freeStarted && freeStarted.sessionId === summary.id ? (
+        <Animated.View entering={roadEnter(120)} layout={ROAD_LAYOUT} style={s.agendaLine}>
+          <Ionicons name="calendar-outline" size={15} color="#6A6A6A" style={{ marginTop: 1 }} />
+          <Text style={s.agendaTx}>
+            In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
+            dei {freeStarted.bookedMinutes} minuti scelti.
+          </Text>
+        </Animated.View>
+      ) : null}
+
+      {shown.length ? (
+        <View style={{ marginTop: 6 }}>
+          <RoadMarkerList
+            items={shown.map((m) => ({
+              key: m.id,
+              kind: m.kind,
+              label: m.label,
+              street: m.street,
+              note: m.note,
+              sentiment: m.sentiment ?? null,
+              recordedAt: m.recordedAt,
+            }))}
+          />
+          {more > 0 ? (
+            <Text style={s.more}>
+              + {more} {more === 1 ? 'altra segnalazione' : 'altre segnalazioni'} sulla mappa
             </Text>
-          </View>
+          ) : null}
+        </View>
+      ) : null}
+      <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
+        {showPagellino ? (
+          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} style={[s.pg, pgComplete && s.pgDone]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pgTitle}>Pagellino</Text>
+              <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={[s.pgSub, pgComplete && s.pgSubDone]}>
+                {pgEmpty
+                  ? 'Ancora da compilare'
+                  : pgComplete
+                    ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
+                    : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
+              </Animated.Text>
+            </View>
+            <RoadPressable
+              kind="small"
+              onPress={() =>
+                openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
+              }
+              style={s.pgBtn}
+              testID="road-summary-pagellino"
+            >
+              <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
+            </RoadPressable>
+          </Animated.View>
         ) : null}
 
-        {shown.length ? (
-          <View style={{ marginTop: 6 }}>
-            <RoadMarkerList
-              items={shown.map((m) => ({
-                key: m.id,
-                kind: m.kind,
-                label: m.label,
-                street: m.street,
-                note: m.note,
-                sentiment: m.sentiment ?? null,
-                recordedAt: m.recordedAt,
-              }))}
-            />
-            {more > 0 ? (
-              <Text style={s.more}>
-                + {more} {more === 1 ? 'altra segnalazione' : 'altre segnalazioni'} sulla mappa
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-      </SheetScaffold>
-    </View>
+        <RoadPressable kind="cta" onPress={close} style={s.closeBtn} testID="road-summary-close">
+          <Text style={s.closeTx}>Chiudi</Text>
+        </RoadPressable>
+      </Animated.View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
   // form sheet: padding fisso, niente safe area (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingHorizontal: 22, paddingBottom: 18 },
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   doneK: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   doneIc: {
@@ -254,6 +262,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   pgBtnTx: { fontSize: 14.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  closeBtn: { height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  // CTA secondaria a capsula (token CTA_RADIUS): ultima cosa del foglio.
+  closeBtn: { height: CTA_HEIGHT, borderRadius: CTA_RADIUS, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   closeTx: { fontSize: 17, fontWeight: '500', color: '#111111', letterSpacing: -0.3 },
 });

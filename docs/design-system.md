@@ -168,6 +168,16 @@ Definiti in `src/theme/spacing.ts` → `radii`:
 |---|---|---|
 | `radii.sm` | 20 | Bottoni, input, chip, toast, suggerimenti SearchableSelect, CTA footer drawer |
 | `radii.lg` | 35 | Card primary, SkeletonCard |
+| **`CTA_RADIUS`** | **27** (= `CTA_HEIGHT` 54 / 2) | **Tutte le CTA, primarie e secondarie: capsula** (regola Tiziano 27/10/2026) |
+
+> **CTA a capsula (Tiziano, 27/10/2026).** Si usa sempre la CTA più tonda che
+> l'app aveva già: raggio = metà altezza. `CTA_HEIGHT`/`CTA_RADIUS` in
+> `src/theme/spacing.ts`; per bottoni più bassi vale lo stesso principio
+> (40 → 20, 50 → 25). Censimento del 27/10: 31 CTA erano già 54/27; Road è
+> allineata. Restano da allineare (r < h/2), da fare col via di Tiziano:
+> Login, Signup, PasswordReset (54/15), AuthWelcome (56/16), PhoneGate e
+> LicensePathGate (58/18), InstructorLink e InstructorQrScanner (52/16),
+> NotificationOverlay e AllievoHome (54/20).
 
 ### Radii Inline (Non Tokenizzati)
 
@@ -186,7 +196,7 @@ Definiti in `src/theme/spacing.ts` → `radii`:
 | `10` | SkeletonBlock default |
 | `CELL_SIZE/2` | Day cell calendario (cerchio perfetto) |
 
-**Regola**: CTA card → `26`. Info card → `20`. Tile griglia → `18`. Bottoni inline → `16`. Pill/chip → `999`. Cerchi → dimensione/2.
+**Regola**: CTA (bottoni d'azione) → capsula `CTA_RADIUS`. CTA card → `26`. Info card → `20`. Tile griglia → `18`. Bottoni VERO/FALSO quiz → `16`. Pill/chip → `999`. Cerchi → dimensione/2.
 
 ---
 
@@ -918,6 +928,16 @@ Ogni foglio, anche con liste lunghe, è un **form sheet alto quanto il contenuto
 > L'assenza di animazione e un bug visivo.
 > L'obiettivo e un'app che respira — fluida, reattiva, con personalita.
 
+> **Carattere (Tiziano, 27/10/2026): sobrio e morbido, NIENTE rimbalzi.**
+> Nulla compare o sparisce di botto (entering/exiting + layout transition su
+> stati, card, righe, banner), ma senza overshoot visibile: timing con easing
+> che decelera, oppure spring molto smorzate con `overshootClamping`. Le curve
+> «Bouncy» ed «Elastic» qui sotto non si usano nel codice nuovo. Preset pronti:
+> `src/road/motion.ts` (`ROAD_LAYOUT`, `roadEnter`, `roadStagger`, `ROAD_EXIT`,
+> `ROAD_TEXT_IN/OUT`, `ROAD_SPRING`) e `RoadPressable` per la scala al tocco.
+> Sempre `.reduceMotion(ReduceMotion.Never)`: il default di Reanimated spegne le
+> layout animation con «Riduci movimento», e da noi non deve succedere.
+
 ### 8.1 Libreria e Gerarchia
 
 | Libreria | Quando usarla | Note |
@@ -1490,7 +1510,15 @@ Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
 
 ### 13.2 Native FormSheet (Expo Router)
 
-Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'` + `sheetGrabberVisible: true`. Lo sheet si adatta all'altezza del contenuto e mostra il grabber nativo iOS.
+Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSheet'` + `sheetAllowedDetents: 'fitToContents'`. Lo sheet si adatta all'altezza del contenuto.
+
+> **Regola Reglo (Tiziano, 27/10/2026): niente grabber, si chiude con la X.**
+> `sheetGrabberVisible: false` e `gestureEnabled: false`: il foglio si chiude
+> **solo** con la X tonda in alto a destra, nell'angolo (`GlassCloseButton`).
+> Dentro un foglio a più passi l'«indietro» è un chevron a sinistra; la X resta
+> sempre a destra. Fondo bianco dichiarato in `contentStyle`, così sotto il
+> foglio non spunta mai il colore dello stack (era la «fascia crema/grigia»).
+> Preset pronto: `ROAD_SHEET` in `src/utils/sheetPresentation.ts`.
 
 ```tsx
 // app/(tabs)/home/_layout.tsx
@@ -1499,8 +1527,10 @@ Per modali con contenuto adattivo: Expo Router screen con `presentation: 'formSh
   options={{
     presentation: 'formSheet',
     sheetAllowedDetents: 'fitToContents',
-    sheetGrabberVisible: true,
+    sheetGrabberVisible: false,
+    gestureEnabled: false,
     headerShown: false,
+    contentStyle: { backgroundColor: '#FFFFFF' },
   }}
 />
 ```
@@ -1534,6 +1564,17 @@ Per passare dati tra screen e sheet: usare uno store reattivo in `src/stores/` c
 Misure verificate su simulatore (iPhone 17 Pro, set. 2026) sul picker
 `OptionsPickerSheet`, valide per ogni form sheet con CTA in fondo.
 
+**Radice `ScrollView`: `contentInsetAdjustmentBehavior="never"`.** Con la
+`ScrollView` come radice del foglio, iOS aggiunge da sé la safe area in fondo al
+contenuto (comportamento `automatic`): sotto la CTA restavano ~50pt invece di 18
+(«Parti con» di Road, 27/10/2026). Va spento su ogni radice di form sheet. La CTA
+è l'**ultima cosa** del foglio: note e spiegazioni vanno sopra, mai sotto.
+
+**iOS 26: il form sheet flottante ha già il suo respiro.** Da iOS 26 il foglio
+aggiunge da sé ~33pt sotto il contenuto (misurato 27/10/2026, sia con radice
+`View` sia `ScrollView`): sommarci il respiro fisso dava ~50pt sotto la CTA. Si usa
+`SHEET_BOTTOM` (`src/utils/sheetPresentation.ts`): **0 da iOS 26, 18 prima**.
+
 **La regola che costa più tempo: dentro un form sheet NON sommare `insets.bottom`.**
 `useSafeAreaInsets()` restituisce la safe area della **finestra** (34pt, l'home
 indicator), ma un `formSheet` hug-to-content **non arriva al bordo dello schermo**:
@@ -1557,7 +1598,7 @@ caso reale erano **52pt** di vuoto sotto il bottone. La safe area serve solo al
 | Spazio tra righe | `gap: 10` | **niente divisori**: le righe sono superfici, non celle |
 | Riga a riposo / selezionata | `#F7F7F8` / `navy[50]` + `borderWidth 1.5` `borderColor` navy | la selezione tinge **tutta la riga**, non una spunta in fondo |
 | Marker selezione | cerchio `24` — a riposo bordo `navy[200]`, attivo pieno navy con check bianco | |
-| CTA | `marginTop 22`, `height 54`, `borderRadius 27`, gradient + `primaryCtaShadow` | spenta = `#ECECEF`, testo `#A3A3AD`, **senza ombra** (non è tappabile) |
+| CTA | `marginTop 22`, `height 54` (`CTA_HEIGHT`), `borderRadius 27` (`CTA_RADIUS`) | spenta = `#ECECEF`, testo `#A3A3AD`, **senza ombra** (non è tappabile) |
 | Contatore nella CTA | pill `rgba(255,255,255,0.18)`, testo `13/700` bianco | il bottone diventa il riepilogo della scelta ("2 · Aggiungi al pagellino") |
 
 **Due tarature della testata, non una.** `OptionsPickerSheet` è una lista di scelte:

@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as Haptics from '../../../src/utils/haptics';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { car34Art, ROAD_ASSETS } from '../../../src/road/markerArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
@@ -24,7 +23,6 @@ import {
  */
 export default function RoadInviteSheet() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const live = useSyncExternalStore(roadEntryStore.subscribe, roadEntryStore.get);
   // Snapshot al mount: il seed può essere riscritto mentre il foglio si chiude.
   const [seed] = useState(() => live);
@@ -52,14 +50,19 @@ export default function RoadInviteSheet() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
+      style={{ backgroundColor: '#FFFFFF' }}
+      contentContainerStyle={s.root}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+    >
       <View style={s.top}>
         <View style={{ flex: 1 }}>
-          <View style={s.kickRow}>
-            <View style={s.liveDot} />
-            <Text style={s.kick}>È l&apos;ora della guida</Text>
-          </View>
           <Text style={s.title}>Entri in modalità Road?</Text>
+          <Text style={s.kick}>È l&apos;ora della guida.</Text>
         </View>
         <GlassCloseButton onPress={() => router.back()}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
@@ -68,54 +71,50 @@ export default function RoadInviteSheet() {
         </GlassCloseButton>
       </View>
 
-      <SheetScaffold
-        footer={
-          <View style={[s.stack, { paddingBottom: Math.max(insets.bottom - 16, 18) }]}>
-            <Pressable
-              onPress={onEnter}
-              style={({ pressed }) => [s.btn, s.btnDark, pressed && { opacity: 0.88 }]}
-              testID="road-invite-enter"
-            >
-              <Text style={s.btnDarkTx}>Entra in Road</Text>
-            </Pressable>
-            <Pressable onPress={onLater} style={({ pressed }) => [s.btn, pressed && { opacity: 0.6 }]} testID="road-invite-later">
-              <Text style={s.btnGhostTx}>Non ora</Text>
-            </Pressable>
-          </View>
-        }
-      >
-        <View style={s.hero}>
-          <Image source={car34Art(lesson.carColor)} style={s.heroImg} resizeMode="contain" />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.heroName} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
-            <Text style={s.heroMeta} numberOfLines={1}>{meta}</Text>
-            {locationName ? (
-              <Text style={s.heroMeta} numberOfLines={1}>Partenza da {locationName}</Text>
-            ) : null}
-          </View>
+      <View style={s.hero}>
+        <Image source={car34Art(lesson.carColor)} style={s.heroImg} resizeMode="contain" />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.heroName} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
+          <Text style={s.heroMeta} numberOfLines={1}>{meta}</Text>
+          {locationName ? (
+            <Text style={s.heroMeta} numberOfLines={1}>Partenza da {locationName}</Text>
+          ) : null}
         </View>
+      </View>
 
-        <View style={s.features}>
-          <View style={s.feature}>
-            <Image source={ROAD_ASSETS.pin} style={s.featureImg} resizeMode="contain" />
-            <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
-          </View>
-          <View style={s.feature}>
-            <Image source={ROAD_ASSETS.stop} style={s.featureImg} resizeMode="contain" />
-            <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
-          </View>
-          <View style={s.feature}>
-            <Image source={ROAD_ASSETS.memo} style={s.featureImg} resizeMode="contain" />
-            <Text style={s.featureTx}>Pagellino a portata di mano</Text>
-          </View>
+      <View style={s.features}>
+        <View style={s.feature}>
+          <Image source={ROAD_ASSETS.pin} style={s.featureImg} resizeMode="contain" />
+          <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
         </View>
-      </SheetScaffold>
-    </View>
+        <View style={s.feature}>
+          <Image source={ROAD_ASSETS.stop} style={s.featureImg} resizeMode="contain" />
+          <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
+        </View>
+        <View style={s.feature}>
+          <Image source={ROAD_ASSETS.memo} style={s.featureImg} resizeMode="contain" />
+          <Text style={s.featureTx}>Pagellino a portata di mano</Text>
+        </View>
+      </View>
+      <View style={s.stack}>
+        <Pressable
+          onPress={onEnter}
+          style={({ pressed }) => [s.btn, s.btnDark, pressed && { opacity: 0.88 }]}
+          testID="road-invite-enter"
+        >
+          <Text style={s.btnDarkTx}>Entra in Road</Text>
+        </Pressable>
+        <Pressable onPress={onLater} style={({ pressed }) => [s.btn, pressed && { opacity: 0.6 }]} testID="road-invite-later">
+          <Text style={s.btnGhostTx}>Non ora</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingHorizontal: 22 },
+  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   kickRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   liveDot: {
@@ -129,7 +128,7 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 0 },
   },
-  kick: { fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
+  kick: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 4 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   x: {
     width: 40,

@@ -1,15 +1,14 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
 import { countSentiments, SentimentCounts } from '../../../src/components/road/RoadSentiment';
 import { roadRouteMapStore } from '../../../src/road/routeMapStore';
-import { ROAD_ASSETS } from '../../../src/road/markerArt';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../../src/road/format';
 
 /** Oltre, «+N altre»: il foglio abbraccia il contenuto e non deve superare lo schermo. */
@@ -17,8 +16,9 @@ const MAX_MARKERS = 5;
 
 /**
  * REG-638 — «Percorso Road» di una guida nell'app istruttore (dettaglio guida e
- * storico allievo). Form sheet nativo che abbraccia il contenuto (§13.2.1):
- * mappa, numeri, segnalazioni. Tocco sulla mappa = mappa a tutto schermo.
+ * storico allievo). Form sheet nativo alto quanto il contenuto (ROAD_SHEET,
+ * §13.2.1): la radice è lo scroll del foglio. Titolo = giorno e orario (niente
+ * eyebrow). Tocco sulla mappa = mappa a tutto schermo.
  */
 export default function RoadPercorsoSheet() {
   const router = useRouter();
@@ -37,13 +37,17 @@ export default function RoadPercorsoSheet() {
   const more = detail.markers.length - shown.length;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
+    <ScrollView
+      // Form sheet: niente safe area aggiunta da iOS sotto la CTA (§13.2.1).
+      contentInsetAdjustmentBehavior="never"
+      style={{ backgroundColor: '#FFFFFF' }}
+      contentContainerStyle={s.root}
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={false}
+      testID="road-percorso"
+    >
       <View style={s.top}>
         <View style={{ flex: 1 }}>
-          <View style={s.kickRow}>
-            <Image source={ROAD_ASSETS.road} style={s.kickImg} resizeMode="contain" />
-            <Text style={s.kick}>Percorso Road</Text>
-          </View>
           <Text style={s.title} numberOfLines={1}>
             {dayLabel(detail.startedAt)} · {formatHm(detail.startedAt)} – {formatHm(detail.endedAt ?? lesson.endsAt)}
           </Text>
@@ -56,7 +60,7 @@ export default function RoadPercorsoSheet() {
         </GlassCloseButton>
       </View>
 
-      <SheetScaffold>
+      <View>
         <Pressable
           onPress={() => router.push(`/(tabs)/${stack}/road-map`)}
           accessibilityRole="button"
@@ -109,19 +113,17 @@ export default function RoadPercorsoSheet() {
         ) : (
           <Text style={s.more}>Nessuna segnalazione in questa guida.</Text>
         )}
-      </SheetScaffold>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
   // form sheet: padding fisso, niente safe area (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingHorizontal: 22, paddingBottom: 22 },
+  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
+  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  kickRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  kickImg: { width: 18, height: 18 },
-  kick: { fontSize: 12, fontWeight: '500', color: '#6A6A6A', letterSpacing: 0.7, textTransform: 'uppercase' },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.5, marginTop: 8 },
+  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
   sub: { fontSize: 14.5, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
   x: {
     width: 40,
