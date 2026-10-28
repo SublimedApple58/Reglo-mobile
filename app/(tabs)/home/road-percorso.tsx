@@ -56,9 +56,9 @@ export default function RoadPercorsoSheet() {
         </Pressable>
 
         <View style={s.sum}>
-          <ClayStat icon="road" value={formatKm(detail.distanceMeters)} unit="km" label="Percorsi" />
-          <ClayStat icon="clock" value={formatMinutes(detail.durationSec)} unit="min" label="Di guida" />
-          <ClayStat icon="memo" value={detail.markers.length} label="Segnalazioni" />
+          <ClayStat value={formatKm(detail.distanceMeters)} unit="km" label="Percorsi" />
+          <ClayStat value={formatMinutes(detail.durationSec)} unit="min" label="Di guida" />
+          <ClayStat value={detail.markers.length} label="Segnalazioni" />
         </View>
 
         <SentimentCounts {...countSentiments(detail.markers)} style={{ marginTop: 14 }} />

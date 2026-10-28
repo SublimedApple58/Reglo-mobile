@@ -7,7 +7,7 @@ Branch `feat/reg-639-clay-ds` sopra `feat/reg-638-reglo-road`, worktree
 OTA. Solo mobile: il web (nota §10 compresa) si fa dopo.
 
 1. Token `src/theme/clay.ts` (`CLAY`, `CLAY_SHADOW` con `boxShadow` esterno + interno),
-   `CLAY_RADIUS`/`FIELD_HEIGHT` in `spacing.ts`, registro `ICONS_3D` + `<Icon3D>`,
+   `CLAY_RADIUS`/`FIELD_HEIGHT` in `spacing.ts`, registro `ICONS_3D` (poi eliminato: icone AI, vedi `reg-639-icone-3d.md`) + `<Icon3D>`,
    design-system §0.
 2. Componenti `src/components/clay/` (riusando `RoadPressable` → `ClayPressable`,
    `RoadAvatar` → `Avatar` su `UserPhotoCircle`); X di tutti i fogli = cerchio bianco clay.

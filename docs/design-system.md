@@ -20,12 +20,11 @@ applica a Road per prima, poi a tutta l'app.
   ombra esterna morbida + bordo di luce (1px appena scuro che stacca il bianco
   dal bianco) + ombra interna in basso. Gli incavi (ricerca, binario del
   segmentato) hanno solo ombra interna.
-- **Il colore arriva solo dalle icone 3D e dalle foto** (righe di
-  lista, voci del briefing, auto, statistiche). Icone monocromatiche solo
-  dove sono strumenti: X, cerca, chevron, indietro, «+», «centra».
+- **Il colore arriva solo dalle (poche) icone 3D e dalle foto**: segnalazioni
+  Road, auto, emblema (§0.4). Icone monocromatiche solo dove sono strumenti:
+  X, cerca, chevron, indietro, «+», «centra».
 - Regole fisse che restano: niente pillole/tag/badge/eyebrow decorativi,
-  niente blu/navy nella UI (le icone 3D colorate approvate restano come
-  sono, anche se blu: rotatoria, parcheggio), animazioni sobrie senza
+  niente blu/navy nella UI né nelle icone (§0.4), animazioni sobrie senza
   rimbalzi (§8), sensazione nativa iOS/Airbnb.
 - **La tab bar NON è clay**: resta la «T1 piatta» di REG-638 (§6.19). La
   capsula clay con bolla in rilievo è stata provata e bocciata da Tiziano il
@@ -91,15 +90,76 @@ non si anima, si anima solo la scala di `ClayPressable`.
 - L'ombra **interna** di un nodo si disegna **sotto i suoi figli**: su una
   foto (avatar) va in un velo assoluto sopra il contenuto (vedi `Avatar`).
 
-### 0.4 Icone 3D — `src/theme/icons3d.ts` + `<Icon3D>`
+### 0.4 Icone 3D — meno icone, generate con l'AI, stile unico
 
-- Registro `ICONS_3D` (Fluent 3D, MIT, già de-rosate): `agenda`, `calendar`,
-  `people`, `profile`, `exam`, `clock`, `headquarters`, `check`, `memo`, `road`.
-  Segnalazioni Road: `markerArt(kind)`; auto: `car34Art(color)`.
-- `<Icon3D name="exam" size={17} />` oppure `<Icon3D source={markerArt('stop')} />`.
-- Sempre su bianco, mai in un riquadro colorato, mai `tintColor`.
-- Dove (mai nella tab bar, che resta a glifi monocromatici): voci del briefing/pagellino (30–36), motivo nelle righe
-  di lista (17, prima del testo), card (44), statistiche (30), auto (70×56).
+**Regola (Tiziano, 28/10/2026 — vince su §10.2 e sulle note «Fluent» in fondo):**
+
+1. **Meno icone possibili.** Un'icona c'è solo se porta informazione che il
+   testo non dà, o dove il testo non ci sta (la mappa). Dove bastano testo e
+   gerarchia (CTA, titoli di card, statistiche, righe informative, banner,
+   elenchi di vantaggi) l'icona NON si mette. Una CTA nera non ha disegnino.
+2. **Le icone che restano sono 3D di alta qualità, generate con l'AI in uno
+   stile unico** (prompt qui sotto). Mai icone di pacchetti pronti.
+3. **Microsoft Fluent 3D Emoji bandite.** Sono ancora in ~25 schermate fuori
+   da Road (agenda, esami, note, home allievo, `lessonArt`): si sostituiscono
+   o si tolgono al prossimo giro, MAI se ne aggiungono di nuove.
+4. **Niente blu** nelle icone (anche i cartelli che in Italia sono blu:
+   rotonda, parcheggio, pedoni sono resi in bianco/nero/grigio o con un
+   oggetto). Eccezione: le auto nel colore vero del veicolo (`azzurro`, `blu`).
+5. Icone monocromatiche (SF Symbols / Ionicons) solo per i comandi: X, cerca,
+   chevron, indietro, «+», «centra». La tab bar resta a glifi (§6.19).
+
+**Le icone in uso oggi (15 soggetti, `src/road/markerArt.ts`):**
+
+| Soggetto | File (`assets/road/`) | Dove |
+|---|---|---|
+| 12 segnalazioni: stop, precedenza, distanza, velocità, semaforo, rotonda, svolta, corsia, pedoni, specchietti, parcheggio, altro | `s-stop`, `s-prec`, `s-dist`, `f-vel`, `f-sem`, `f-rot`, `f-svo`, `f-cor`, `f-ped`, `f-spe`, `f-par`, `f-alt` — `markerArt(kind)` | puntine sulla mappa, griglia «Cosa è successo?», righe del briefing, elenco segnalazioni, toast in guida (su cerchio bianco) |
+| Voci dell'autoscuola (`custom:*`) | stessa icona di «altro» (puntina nera) | come sopra |
+| Auto della guida, 3/4 | `cars/auto-34-<colore>` — `car34Art(color)` | «Parti con», invito Road |
+| Auto sulla mappa, dall'alto | `cars/auto-su-<colore>` — `carTopArt(color)` | posizione in guida |
+| Emblema Road | `road-3d` — `ROAD_ASSETS.road` | card Road in agenda |
+
+`<Icon3D source={markerArt('stop')} size={30} />` (solo `source`: il vecchio
+registro `ICONS_3D` è stato eliminato). Sempre su bianco, mai `tintColor`.
+
+**Formato:** PNG RGBA con `@2x`/`@3x` (RN sceglie da sé). Segnalazioni 48 pt
+(48/96/144 px), emblema 36 pt, auto 3/4 80×65 pt, auto dall'alto 30×46 pt.
+~2–15 KB a file.
+
+**Come se ne fa una nuova (metodo approvato):**
+
+1. Generare su **Gemini** (account Reglo) incollando il blocco STILE + il
+   soggetto, una chat nuova per immagine. Si generano su bianco puro.
+2. Scontornare (flood fill dagli angoli → alfa), ritagliare stretto con ~4%
+   di margine, esportare 1x/2x/3x. Le auto si generano UNA volta (rossa) e le
+   altre tinte si ottengono ricolorando la carrozzeria (maschera sui rossi,
+   esclusi vetri e gomme), così restano identiche.
+3. Anteprima su tavola (grande · 50 · 30 · fondo scuro) e ok di Tiziano
+   prima di metterla nell'app.
+
+**Blocco STILE (da riusare identico):**
+
+```
+Premium 3D icon in the spirit of Airbnb's 2025 app icons: a real-world
+object, softly simplified, friendly but adult, few clean shapes, readable at
+small size. Material: matte satin soft-touch plastic, slightly puffy edges,
+generous rounded bevels. Light: one large soft key light from the top-left,
+faint warm fill from the right, thin rim light on top edges, soft ambient
+occlusion; gentle highlights only. Camera: three-quarter view from slightly
+above (about 25 degrees elevation, object turned about 30 degrees to the
+left), long lens, object centered and filling about 78% of a square frame.
+Background: plain pure white #FFFFFF, perfectly flat and uniform, no floor,
+no cast shadow, no vignette. Palette: off-white #F4F2EE, warm light greys,
+near-black #1A1A1A details, one accent only where stated (signal red
+#E5484D, amber #F5A524, leaf green #2FA36B). No blue anywhere, no pink, no
+purple. No emoji style, no cartoon faces, not photorealistic, no logos, no
+watermark. Square 1:1.
+```
+
+Poi `Subject: …` (oggetto, materiali e colori dei dettagli). Per una vista
+diversa (es. dall'alto per la mappa) dirlo nel soggetto e chiedere di
+ignorare la camera di 3/4. I prompt di tutte le 15 icone sono nel piano
+`plans/design-system/reg-639-icone-3d.md`.
 
 ### 0.5 Componenti — `src/components/clay/` (import da `src/components/clay`)
 
@@ -109,13 +169,13 @@ non si anima, si anima solo la scala di `ClayPressable`.
 | `ClayButton` | CTA a capsula `primary` (nero gonfio `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
 | `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
 | `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
-| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto), titolo, sottotitolo con `subtitleIcon` 3D (17), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
+| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto o auto), titolo, sottotitolo (solo testo), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
 | `ClaySearchField` | capsula incavata 46, lente monocromatica | props di `TextInput` |
 | `ClaySegmented` | binario incavato + cursore clay nero che scivola (`SOFT_SPRING`), testo bianco sulla voce scelta | haptic di selezione |
 | `Avatar` | foto (`UserPhotoCircle`) o iniziali su `avatarColors`, volume clay, anello nero se `selected` | ex `RoadAvatar` (alias) |
 | `ClayMapControls` | colonna bianca 56 in rilievo: velocità + «centra» (SF Symbol `location(.fill)`, ripiego `near-me`) | `bottom` lo decide la schermata |
 | `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
-| `Icon3D` | icona 3D colorata (§0.4) | |
+| `Icon3D` | icona 3D colorata, solo `source` (§0.4) | |
 | `FormSheet` | resta IL foglio (§13.2); X = `ClayIconButton` | `src/components/SheetScaffold.tsx` |
 | Tab bar | NON clay: resta la «T1 piatta» (§6.19), glifi monocromatici | bocciata la versione clay (28/10) |
 
@@ -1470,6 +1530,8 @@ Uso: navigazione, bottoni, badge di stato, indicatori. Sempre monocromatiche.
 
 ### 10.2 Icone 3D (elementi decorativi e identita visiva)
 
+> **SUPERATA (REG-639, 28/10/2026):** le Fluent 3D Emoji sono bandite e le icone vanno ridotte al minimo; vale §0.4. Il testo sotto descrive le schermate non ancora convertite.
+
 Libreria: **Microsoft Fluent Emoji 3D** (`assets/icons/`)
 
 Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA, statistiche e sezioni tematiche. **Mai** per navigazione o bottoni funzionali piccoli.
@@ -1800,7 +1862,7 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - Touch target minimo: **44x44px** (rispettato da day cell calendario, bottoni freccia, chip)
 - Animazioni: usare `useNativeDriver: true` dove possibile
 - Ombre: specificare sempre **sia** `shadowColor/Opacity/Radius/Offset` (iOS) **sia** `elevation` (Android)
-- **Icone 3D Fluent** per elementi decorativi: CTA card, stat, sezioni tematiche, topic list
+- **Icone 3D**: poche, generate con l'AI in stile unico, mai Fluent (§0.4)
 - **Icone Ionicons** per UI funzionale: navigazione, bottoni, badge stato
 - **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
 - **Ombre esterne** per CTA e card tappabili
@@ -1827,8 +1889,8 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Non** approssimare i valori Figma — riproduci esattamente dimensioni, colori, spacing
 - **Non** usare class component — solo functional component con hooks
 - **Non** animare `width`/`height` — usare `transform` e `opacity` per performance
-- **Non** usare Ionicons dove serve personalita visiva — usa icone 3D Fluent
-- **Non** usare icone 3D Fluent per bottoni funzionali piccoli (nav, close, chevron)
+- **Non** aggiungere icone Fluent 3D (bandite, §0.4) né icone decorative dove bastano testo e gerarchia
+- **Non** usare icone 3D per bottoni funzionali piccoli (nav, close, chevron)
 - **Non** dare ombre esterne a card informative — usare inset shadow
 - **Non** dare inset shadow a CTA — usare ombre esterne
 - **Non** usare colore navy per sfondi grandi, card informative, o elementi non interattivi

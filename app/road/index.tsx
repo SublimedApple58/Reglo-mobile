@@ -17,7 +17,7 @@ import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
 import { SentimentBadge } from '../../src/components/road/RoadSentiment';
-import { Avatar, ClayButton, ClayMapControls, Icon3D } from '../../src/components/clay';
+import { Avatar, ClayButton, ClayMapControls } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
 
@@ -288,7 +288,6 @@ export default function RoadScreen() {
             accessibilityRole="button"
             testID="road-pagellino"
           >
-            <Icon3D name="memo" size={20} />
             <Text style={s.pgTx}>Pagellino</Text>
           </Pressable>
         ) : null}
@@ -318,7 +317,6 @@ export default function RoadScreen() {
       {/* Guida appena avviata da Road: è in agenda, e per 10 secondi si annulla */}
       {freeOpen && freeStarted && !st.toast ? (
         <RoadToastFrame key={freeStarted.sessionId} style={[s.toast, s.freeBanner, { top: headerTop + 70 + 10 }]}>
-          <Icon3D name="calendar" size={24} style={{ marginLeft: 4 }} />
           <Text style={[s.toastT1, { flex: 1 }]} numberOfLines={1}>
             In agenda: {freeStarted.label}
           </Text>
@@ -423,10 +421,8 @@ const s = StyleSheet.create({
   pgBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     height: 40,
-    paddingLeft: 10,
-    paddingRight: 14,
+    paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: CLAY.surface,
   },
@@ -448,7 +444,8 @@ const s = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    // Bianco pieno: molte icone 3D sono scure e sul toast nero sparirebbero.
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -465,7 +462,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   undoTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  freeBanner: { paddingVertical: 8, paddingLeft: 12 },
+  freeBanner: { paddingVertical: 8, paddingLeft: 18 },
 
   panel: {
     position: 'absolute',

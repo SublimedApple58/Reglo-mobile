@@ -1,27 +1,20 @@
 import React from 'react';
-import { ImageSourcePropType, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { CLAY } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
-import type { Icon3DName } from '../../theme/icons3d';
 import { ClaySurface } from './ClaySurface';
-import { Icon3D } from './Icon3D';
-
-type Icon = Icon3DName | ImageSourcePropType;
-const renderIcon = (icon: Icon | undefined, size: number) =>
-  icon == null ? null : typeof icon === 'string' ? <Icon3D name={icon as Icon3DName} size={size} /> : <Icon3D source={icon} size={size} />;
 
 /**
- * Tessera numero clay (§0): icona 3D, numero grande con unità più piccola,
- * etichetta. In fila da tre con `flex: 1`. Cifre tabellari.
+ * Tessera numero clay (§0): numero grande con unità più piccola, etichetta.
+ * Niente icona: il numero È il contenuto (§0.4). In fila da tre con `flex: 1`.
+ * Cifre tabellari.
  */
 export function ClayStat({
-  icon,
   value,
   unit,
   label,
   style,
 }: {
-  icon?: Icon;
   value: string | number;
   unit?: string;
   label: string;
@@ -29,8 +22,7 @@ export function ClayStat({
 }) {
   return (
     <ClaySurface radius={CLAY_RADIUS.tile} padded={false} style={[s.tile, style]}>
-      {renderIcon(icon, 30)}
-      <Text style={[s.value, icon != null && { marginTop: 6 }]}>
+      <Text style={s.value}>
         {value}
         {unit ? <Text style={s.unit}> {unit}</Text> : null}
       </Text>

@@ -180,7 +180,7 @@ Sostituisce la scelta B (Road al centro in rilievo, rimossa con il suo codice). 
 
 Tutte le schermate Road usano il design system clay v2 (design-system §0):
 tab Road (pannello bianco, briefing in card con l'icona 3D di ogni voce e il
-glifo del segno in fondo, sede 3D sulla mappa, «Ultime guide» come
+glifo del segno in fondo, sede = punto nero sulla mappa, «Ultime guide» come
 `ClayList`), «Con chi guidi?»/«Parti con» (ricerca incavata, liste per gruppo
 e per lettera, durata `ClaySegmented`, auto 3D in card), guida in corso
 (testata bianca col volto vero, `ClayMapControls`, Segnala/Termina clay alti
@@ -188,4 +188,12 @@ e per lettera, durata `ClaySegmented`, auto 3D in card), guida in corso
 successo?» (tessere bianche che sprofondano), pagellino da Road, informativa,
 invito. Ordine del foglio «Parti con» come l'anteprima approvata: durata →
 briefing → auto. Resta fuori `RoadLessonCard` (card in agenda, fuori da Road).
+
+**Icone (28/10, design-system §0.4):** le 15 icone Road (12 segnalazioni,
+auto 3/4 e dall'alto, emblema) sono 3D generate con l'AI in stile unico,
+niente blu, al posto delle Fluent; stessi nomi in `assets/road/` con
+`@2x`/`@3x`. Tolte dove bastava il testo: CTA «Compila il pagellino», tasto
+«Pagellino» in guida, motivo del briefing, banner «In agenda», card
+pagellino e riga agenda nel riepilogo, statistiche, informativa, invito,
+sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
 

@@ -14,7 +14,7 @@ import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/form
 import { regloApi } from '../../src/services/regloApi';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
-import { ClayButton, ClayStat, ClaySurface, Icon3D } from '../../src/components/clay';
+import { ClayButton, ClayStat, ClaySurface } from '../../src/components/clay';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
 
@@ -101,7 +101,6 @@ export default function RiepilogoScreen() {
         {showPagellino ? (
           <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
             <ClaySurface radius={24} style={s.pg}>
-              <Icon3D name={pgComplete ? 'check' : 'memo'} size={36} />
               <View style={{ flex: 1 }}>
                 <Text style={s.pgTitle}>Pagellino</Text>
                 <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={s.pgSub}>
@@ -138,16 +137,15 @@ export default function RiepilogoScreen() {
       </View>
 
       <View style={s.sum}>
-        <ClayStat icon="road" value={formatKm(summary.distanceMeters)} unit="km" label="Percorsi" />
-        <ClayStat icon="clock" value={formatMinutes(summary.durationSec)} unit="min" label="Di guida" />
-        <ClayStat icon="memo" value={summary.markers.length} label="Segnalazioni" />
+        <ClayStat value={formatKm(summary.distanceMeters)} unit="km" label="Percorsi" />
+        <ClayStat value={formatMinutes(summary.durationSec)} unit="min" label="Di guida" />
+        <ClayStat value={summary.markers.length} label="Segnalazioni" />
       </View>
 
       <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
       {freeStarted && freeStarted.sessionId === summary.id ? (
         <Animated.View entering={roadEnter(120)} layout={ROAD_LAYOUT} style={s.agendaLine}>
-          <Icon3D name="calendar" size={18} />
           <Text style={s.agendaTx}>
             In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
             dei {freeStarted.bookedMinutes} minuti scelti.
@@ -183,12 +181,12 @@ const s = StyleSheet.create({
   root: { backgroundColor: CLAY.bg },
   miniWrap: { borderRadius: 24, backgroundColor: CLAY.surface },
   mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
-  agendaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 14 },
-  agendaTx: { flex: 1, fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
+  agendaLine: { marginTop: 14 },
+  agendaTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
   foot: {},
   sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  pg: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 14, paddingRight: 12 },
+  pg: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 18, paddingRight: 12 },
   pgTitle: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   pgSub: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 2 },
   pgBtn: { alignSelf: 'center', paddingHorizontal: 18, height: 40, borderRadius: 20 },

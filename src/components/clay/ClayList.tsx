@@ -1,10 +1,8 @@
 import React from 'react';
-import { ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CLAY } from '../../theme/clay';
-import type { Icon3DName } from '../../theme/icons3d';
 import { ClaySurface } from './ClaySurface';
-import { Icon3D } from './Icon3D';
 
 /**
  * Lista clay (§0): UNA superficie in rilievo che contiene le righe (l'ombra
@@ -22,14 +20,13 @@ export function ClayList({ children, style }: { children: React.ReactNode; style
 }
 
 /**
- * Riga di lista: volto/icona a sinistra, titolo, sottotitolo con eventuale
- * icona 3D del motivo (agenda, esame, fermo…), chevron se premibile.
+ * Riga di lista: volto/icona a sinistra, titolo, sottotitolo (solo testo, §0.4),
+ * chevron se premibile.
  */
 export function ClayListRow({
   leading,
   title,
   subtitle,
-  subtitleIcon,
   trailing,
   onPress,
   chevron,
@@ -41,7 +38,6 @@ export function ClayListRow({
   title: string;
   /** Testo, oppure un nodo proprio (es. numeri con glifi). */
   subtitle?: React.ReactNode;
-  subtitleIcon?: Icon3DName | ImageSourcePropType;
   trailing?: React.ReactNode;
   onPress?: () => void;
   /** Di default c'è se la riga è premibile. */
@@ -65,13 +61,6 @@ export function ClayListRow({
           <View style={s.subRow}>{subtitle}</View>
         ) : subtitle ? (
           <View style={s.subRow}>
-            {subtitleIcon ? (
-              typeof subtitleIcon === 'string' ? (
-                <Icon3D name={subtitleIcon as Icon3DName} size={17} />
-              ) : (
-                <Icon3D source={subtitleIcon} size={17} />
-              )
-            ) : null}
             <Text style={s.sub} numberOfLines={1}>
               {subtitle}
             </Text>

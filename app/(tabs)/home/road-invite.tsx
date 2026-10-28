@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClaySurface, Icon3D } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../../src/utils/haptics';
-import { car34Art, ROAD_ASSETS } from '../../../src/road/markerArt';
+import { car34Art } from '../../../src/road/markerArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { dismissInvite } from '../../../src/road/roadActions';
@@ -75,19 +75,11 @@ export default function RoadInviteSheet() {
         </View>
       </ClaySurface>
 
+      {/* Solo testo: le tre cose che fa Road (icone tolte, design-system §0.4). */}
       <View style={s.features}>
-        <View style={s.feature}>
-          <Image source={ROAD_ASSETS.pin} style={s.featureImg} resizeMode="contain" />
-          <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
-        </View>
-        <View style={s.feature}>
-          <Image source={ROAD_ASSETS.stop} style={s.featureImg} resizeMode="contain" />
-          <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
-        </View>
-        <View style={s.feature}>
-          <Image source={ROAD_ASSETS.memo} style={s.featureImg} resizeMode="contain" />
-          <Text style={s.featureTx}>Pagellino a portata di mano</Text>
-        </View>
+        <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
+        <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
+        <Text style={s.featureTx}>Pagellino a portata di mano</Text>
       </View>
     </FormSheet>
   );
@@ -98,9 +90,7 @@ const s = StyleSheet.create({
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4, padding: 14 },
   heroName: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   heroMeta: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, marginTop: 3 },
-  features: { marginTop: 20, marginHorizontal: 2, gap: 14, marginBottom: 4 },
-  feature: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureImg: { width: 32, height: 32 },
+  features: { marginTop: 20, marginHorizontal: 4, gap: 10, marginBottom: 4 },
   featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
   stack: { gap: 12 },
 });

@@ -26,8 +26,8 @@ import { dayLabel, formatHm, formatKm, formatMinutes, formatRange } from '../../
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
-import { CLAY, CLAY_SHADOW, type Icon3DName } from '../../../src/theme';
-import { ClayButton, ClayList, ClayListRow, ClaySurface, Icon3D, PlayGlyph } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme';
+import { ClayButton, ClayList, ClayListRow, ClaySurface, PlayGlyph } from '../../../src/components/clay';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -279,7 +279,6 @@ export default function RoadTab() {
                   <SessionNumbers session={toCloseSession} style={{ marginTop: 3 }} />
                   <ClayButton
                     title="Compila il pagellino"
-                    leading={<Icon3D name="memo" size={22} />}
                     onPress={() =>
                       openRoadPagellino(
                         router,
@@ -356,19 +355,16 @@ export default function RoadTab() {
                     <Animated.View layout={ROAD_LAYOUT}>
                       <ClaySurface style={s.brief}>
                         <Animated.View key={selected.id} entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} layout={ROAD_LAYOUT}>
-                          <View style={s.briefHeadRow}>
-                            <Icon3D name={REASON_ICON[selected.kind]} size={22} />
-                            <Text style={s.briefHead} numberOfLines={1}>
-                              {firstName(selected.name)} · {selected.reason}
-                            </Text>
-                          </View>
+                          <Text style={s.briefHead} numberOfLines={1}>
+                            {firstName(selected.name)} · {selected.reason}
+                          </Text>
                           {briefingOf(selected.id)?.lines.length ? (
                             <>
-                              <Text style={[s.briefTitle, s.briefTitleIndent]}>{briefingOf(selected.id)!.title}</Text>
+                              <Text style={s.briefTitle}>{briefingOf(selected.id)!.title}</Text>
                               <BriefingLines lines={briefingOf(selected.id)!.lines} />
                             </>
                           ) : (
-                            <Text style={[s.briefTitle, s.briefTitleIndent, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
+                            <Text style={[s.briefTitle, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
                           )}
                         </Animated.View>
                       </ClaySurface>
@@ -435,26 +431,18 @@ export default function RoadTab() {
   );
 }
 
-/** Icona 3D del motivo del volto suggerito (ordine del server). */
-const REASON_ICON: Record<RoadSuggestion['kind'], Icon3DName> = {
-  agenda: 'calendar',
-  exam: 'exam',
-  idle: 'clock',
-  frequent: 'road',
-};
-
 /**
- * Sede sulla mappa: palazzo 3D in un cerchio bianco in rilievo + «Sede».
- * `tracksViewChanges` resta acceso finché l'icona non è caricata, altrimenti
- * iOS fotografa il marker vuoto.
+ * Sede sulla mappa: punto nero in un cerchio bianco in rilievo + «Sede»
+ * (niente icona, design-system §0.4). `tracksViewChanges` resta acceso fino
+ * al primo layout, altrimenti iOS fotografa il marker vuoto.
  */
 function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: number } }) {
   const [ready, setReady] = useState(false);
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready}>
-      <View style={s.hq}>
+      <View style={s.hq} onLayout={() => setReady(true)}>
         <View style={[s.hqIc, CLAY_SHADOW.raiseSm]}>
-          <Icon3D name="headquarters" size={26} onLoad={() => setReady(true)} />
+          <View style={s.hqDot} />
         </View>
         <Text style={s.hqTx}>Sede</Text>
       </View>
@@ -504,13 +492,14 @@ const s = StyleSheet.create({
   navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   hq: { alignItems: 'center', gap: 4 },
   hqIc: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: CLAY.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  hqDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CLAY.ink },
   hqTx: {
     fontSize: 12.5,
     fontWeight: '600',
@@ -550,10 +539,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   brief: { marginTop: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6, borderRadius: 26 },
-  briefHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  briefHead: { flex: 1, fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  briefHead: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   briefTitle: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2, marginBottom: 4 },
-  briefTitleIndent: { marginLeft: 29 },
   cta: { marginTop: 18 },
   ctaTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
   secondary: { alignItems: 'center', paddingVertical: 14 },

@@ -5,8 +5,9 @@ import type { ImageSourcePropType } from 'react-native';
  *
  * Le chiavi base sono contratto col backend (`ROAD_BASE_MARKERS` in
  * reglo/lib/autoscuole/road/catalog.ts); le voci dell'autoscuola arrivano come
- * `custom:<id>` e usano tutte la puntina (già ricolorata: niente rosa).
- * Immagini 3D: MAI `tintColor` (le appiattisce in una sagoma).
+ * `custom:<id>` e usano la stessa icona di «altro» (puntina nera).
+ * Icone 3D generate con l'AI in stile unico (REG-639, design-system §0.4),
+ * PNG @1x/@2x/@3x a 48 pt. MAI `tintColor` (le appiattisce in una sagoma).
  */
 const ART: Record<string, ImageSourcePropType> = {
   stop: require('../../assets/road/s-stop.png'),
@@ -23,12 +24,10 @@ const ART: Record<string, ImageSourcePropType> = {
   altro: require('../../assets/road/f-alt.png'),
 };
 
-const CUSTOM_ART: ImageSourcePropType = require('../../assets/road/f-cus.png');
+const CUSTOM_ART: ImageSourcePropType = ART.altro;
 
+/** Emblema Road (card Road in agenda). */
 export const ROAD_ASSETS = {
-  pin: require('../../assets/road/f-loc.png') as ImageSourcePropType,
-  stop: ART.stop,
-  memo: ART.altro,
   road: require('../../assets/road/road-3d.png') as ImageSourcePropType,
 };
 

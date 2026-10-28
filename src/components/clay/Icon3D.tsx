@@ -1,22 +1,19 @@
 import React from 'react';
 import { Image, ImageSourcePropType, ImageStyle, StyleProp } from 'react-native';
-import { ICONS_3D, type Icon3DName } from '../../theme/icons3d';
 
 /**
- * Icona 3D colorata del clay v2. `name` dal registro `ICONS_3D`, oppure
- * `source` per le immagini Road (segnalazioni, auto). Sempre su bianco,
- * mai dentro un riquadro colorato, mai `tintColor`.
+ * Icona 3D colorata (design-system §0.4): solo le icone generate con l'AI in
+ * stile unico — segnalazioni Road (`markerArt`), auto (`car34Art`), emblema
+ * Road. Sempre su bianco, mai dentro un riquadro colorato, mai `tintColor`.
  */
 export function Icon3D({
-  name,
   source,
   size = 28,
   width,
   style,
   onLoad,
 }: {
-  name?: Icon3DName;
-  source?: ImageSourcePropType;
+  source: ImageSourcePropType;
   size?: number;
   /** Per le immagini non quadrate (auto di 3/4). */
   width?: number;
@@ -24,11 +21,9 @@ export function Icon3D({
   /** Es. marker di mappa: fotografare la vista solo a immagine caricata. */
   onLoad?: () => void;
 }) {
-  const src = source ?? (name ? ICONS_3D[name] : undefined);
-  if (!src) return null;
   return (
     <Image
-      source={src}
+      source={source}
       style={[{ width: width ?? size, height: size }, style]}
       resizeMode="contain"
       onLoad={onLoad}
