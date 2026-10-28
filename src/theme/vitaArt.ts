@@ -22,8 +22,9 @@ export const VITA_ART = {
 };
 
 /**
- * Copertina di Disponibilità quando l'autoscuola non ha caricato la foto della
- * sede. Tiziano 28/10: una FOTO realistica, non la cartina illustrata.
+ * Copertina di Disponibilità quando la sede non ha una foto caricata dal
+ * titolare (o non si carica). Tiziano 28/10: una FOTO realistica, non la
+ * cartina illustrata.
  */
 export const SEDE_COVER_FALLBACK: ImageSourcePropType = VITA_ART.sedeFoto;
 

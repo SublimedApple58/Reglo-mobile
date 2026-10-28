@@ -118,6 +118,8 @@ export type CompanySummary = {
   name: string;
   logoKey: string | null;
   logoUrl?: string | null;
+  /** Copertina di Disponibilità (REG-639): foto della sede caricata dal titolare; null = segnaposto. */
+  coverPhotoUrl?: string | null;
   role: "admin" | "member" | string;
   autoscuolaRole: AutoscuolaRole | null;
   services: CompanyService[];

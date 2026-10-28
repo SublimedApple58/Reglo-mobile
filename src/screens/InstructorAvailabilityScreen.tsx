@@ -21,14 +21,19 @@ const H_PAD = 20;
 
 /**
  * Disponibilità dell'istruttore — REG-639 clay, direzione «D · Mix». Si apre
- * dall'orologio nella testata dell'Agenda: copertina della sede in alto (oggi
- * sempre la foto segnaposto `sedeFoto`, finché il titolare non carica la foto
- * dalla web app), indietro clay sopra la copertina, poi una card in rilievo
+ * dall'orologio nella testata dell'Agenda: copertina della sede in alto (la
+ * foto caricata dal titolare da web, `coverPhotoUrl` della sessione; senza foto
+ * o se non si carica, il segnaposto `sedeFoto`), indietro clay sopra la copertina, poi una card in rilievo
  * che sale sulla copertina con titolo, riga e la settimana a colpo d'occhio;
  * sotto le righe dei giorni e le eccezioni (ClaySection/ClayList).
  */
 export const InstructorAvailabilityScreen = () => {
-  const { instructorId } = useSession();
+  const { instructorId, companies, activeCompanyId, refreshMe } = useSession();
+  // Copertina: foto della sede caricata dal titolare (REG-639), altrimenti il
+  // segnaposto. Se l'URL non si carica si torna al segnaposto, mai vuoto.
+  const coverUrl = companies.find((c) => c.id === activeCompanyId)?.coverPhotoUrl ?? null;
+  const [coverFailed, setCoverFailed] = useState(false);
+  const coverSource = coverUrl && !coverFailed ? { uri: coverUrl } : SEDE_COVER_FALLBACK;
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const router = useRouter();
@@ -44,9 +49,11 @@ export const InstructorAvailabilityScreen = () => {
   const modeLoading = instrSettings.isLoading && !instrSettings.data;
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([autoSettings.refetch(), instrSettings.refetch()]);
+    setCoverFailed(false);
+    // refreshMe rilegge anche la copertina, se il titolare l'ha appena cambiata.
+    await Promise.all([autoSettings.refetch(), instrSettings.refetch(), refreshMe().catch(() => undefined)]);
     setEditorKey((k) => k + 1); // force the active editor to remount + refetch
-  }, [autoSettings, instrSettings]);
+  }, [autoSettings, instrSettings, refreshMe]);
 
   const onToast = useCallback((text: string, tone: ToastTone = 'success') => {
     setToast({ text, tone });
@@ -80,7 +87,12 @@ export const InstructorAvailabilityScreen = () => {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       >
         <View style={[styles.cover, { width: winW, height: insets.top + 150 }]}>
-          <Image source={SEDE_COVER_FALLBACK} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image
+            source={coverSource}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            onError={() => setCoverFailed(true)}
+          />
           {/* Velo per la foto: chiaro in alto (orologio e indietro leggibili), nessuno al centro. */}
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.coverVeil]} />
         </View>
