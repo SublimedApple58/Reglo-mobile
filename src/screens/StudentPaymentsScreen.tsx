@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 
 import { impactAsync, ImpactFeedbackStyle, notificationAsync, NotificationFeedbackType } from '../utils/haptics';
-import { FormSheet } from '../components/SheetScaffold';
+import { FormSheet, useSheetAnticipate } from '../components/SheetScaffold';
 import { PaymentsFilterSegmented } from '../components/PaymentsFilter';
 import {
   CLAY_ROW_PRESSED,
@@ -157,6 +157,7 @@ function Collapse({
   children: React.ReactNode;
 }) {
   const measured = useRef(0);
+  const anticipate = useSheetAnticipate();
   const height = useSharedValue(-1);
   const opacity = useSharedValue(1);
   const done = useRef(onCollapsed);
@@ -165,6 +166,8 @@ function Collapse({
 
   useEffect(() => {
     if (!collapsing) return;
+    // Il foglio si accorcia insieme alla riga, non a collapse finito.
+    anticipate(measured.current);
     opacity.value = withTiming(0, { duration: COLLAPSE_MS * 0.55, easing: EASE, reduceMotion: NEVER });
     height.value = withSequence(
       withTiming(measured.current, { duration: 0, reduceMotion: NEVER }),
@@ -172,7 +175,7 @@ function Collapse({
         if (ok) runOnJS(finish)();
       }),
     );
-  }, [collapsing, finish, height, opacity]);
+  }, [collapsing, finish, height, opacity, anticipate]);
 
   const style = useAnimatedStyle(() =>
     height.value < 0 ? { opacity: opacity.value } : { height: height.value, opacity: opacity.value, overflow: 'hidden' },

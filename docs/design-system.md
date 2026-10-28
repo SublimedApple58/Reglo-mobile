@@ -738,6 +738,9 @@ un collapse), gli errori li dice un `Alert` nativo. Stile: bianco, glifo
 monocromatico nero (rosso solo per l'errore), **nessuna barretta di
 avanzamento**. Pattern di riferimento: feedback della casella in Pagamenti
 (`docs/features/lesson-payments.md`).
+Contenuto che si chiude in altezza dentro un `FormSheet`: chiamare
+`useSheetAnticipate()(px)` all'inizio dell'animazione, così il foglio si
+accorcia nello stesso movimento e non dopo.
 
 ```ts
 shadowColor: /* varia per tone (vedi sezione ToastNotice) */,

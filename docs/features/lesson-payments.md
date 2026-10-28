@@ -100,8 +100,10 @@ tutto in `StudentPaymentsScreen`, durate in testa al file):
   dicono sempre la stessa cosa;
 - **annullare**: ritoccare la casella finché la riga è lì, o da «Pagate»;
 - **errore**: `Alert` nativo, la casella resta com'era. Nessun toast nel foglio.
-- Il foglio nativo (`fitToContents`) si riadatta da sé all'altezza nuova con la
-  sua animazione, un attimo dopo il collapse.
+- **il foglio si accorcia INSIEME alla riga**: all'inizio del collapse
+  `Collapse` chiama `useSheetAnticipate()(altezza)` (da `SheetScaffold`), il
+  `FormSheet` prende subito l'altezza finale e il resize nativo del form sheet
+  parte con la chiusura (prima arrivava ~0,3 s dopo, a misura finita).
 
 **Dettaglio allievo** (`StudentNotesDetailScreen`): la riga «Pagamenti» ha
 «N guide da pagare» in nero 600 (in pari: «In pari, niente da riscuotere» in

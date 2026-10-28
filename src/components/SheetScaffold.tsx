@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   NativeScrollEvent,
@@ -21,6 +21,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
 import { ClayIconButton } from './clay/ClayIconButton';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
+
+/**
+ * Accorciamento annunciato (Tiziano 28/10: il foglio deve accorciarsi INSIEME
+ * alla riga che si chiude, non 0,3 s dopo). Chi sta per chiudere un pezzo di
+ * contenuto in altezza chiama `anticipate(px)` all'INIZIO dell'animazione: il
+ * foglio prende subito l'altezza finale, così il resize nativo del form sheet
+ * parte con il collapse invece di aspettare la misura a collapse finito.
+ */
+const SheetAnticipateContext = createContext<(px: number) => void>(() => {});
+export const useSheetAnticipate = () => useContext(SheetAnticipateContext);
 
 /**
  * ─── FormSheet: IL form sheet di Reglo (design-system §13.2) ────────────────
@@ -111,8 +121,25 @@ export function FormSheet({
   // dopo l'apertura (es. «Prenotazione multipla») e il contenuto finiva sotto
   // la CTA. Prima della misura: altezza naturale.
   const [innerH, setInnerH] = useState(0);
+  const innerRef = useRef(0);
+  innerRef.current = innerH;
+  // Altezza annunciata (vedi `useSheetAnticipate`): vale finché la misura vera
+  // non la raggiunge; rete di sicurezza a 700 ms.
+  const [target, setTarget] = useState<number | null>(null);
+  const targetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const anticipate = useCallback((px: number) => {
+    if (!(px > 0) || innerRef.current <= 0) return;
+    setTarget((prev) => Math.max(0, (prev ?? innerRef.current) - px));
+    clearTimeout(targetTimer.current);
+    targetTimer.current = setTimeout(() => setTarget(null), 700);
+  }, []);
+  useEffect(() => {
+    if (target !== null && innerH <= target + 1) setTarget(null);
+  }, [innerH, target]);
+  useEffect(() => () => clearTimeout(targetTimer.current), []);
+  const shownInner = target !== null ? Math.min(innerH, target) : innerH;
   const bodyPad = BODY_PAD_TOP + (cta ? BODY_PAD_BOTTOM : BODY_PAD_BOTTOM_LAST);
-  const scrollH = innerH > 0 ? Math.min(innerH + bodyPad, scrollMaxH) : undefined;
+  const scrollH = innerH > 0 ? Math.min(shownInner + bodyPad, scrollMaxH) : undefined;
 
   // Linea sotto la testata solo a contenuto scorso; linea sopra il footer solo
   // se sotto c'è ancora contenuto (come le barre native di iOS).
@@ -220,7 +247,7 @@ export function FormSheet({
             setInnerH((prev) => (prev === h ? prev : h));
           }}
         >
-          {children}
+          <SheetAnticipateContext.Provider value={anticipate}>{children}</SheetAnticipateContext.Provider>
         </Animated.View>
       </ScrollView>
       </View>
