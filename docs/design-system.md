@@ -94,18 +94,28 @@ non si anima, si anima solo la scala di `ClayPressable`.
      altezza) taglia l'ombra delle card dentro: dare all'antenato un margine
      interno compensato da uno negativo (`paddingBottom: 28, marginBottom: -28`
      e lo stesso in orizzontale) così l'ombra ha spazio per sfumare;
-  2. un **fratello/testata bianca** disegnata sopra copre l'alone: la testata
-     fissa di `FormSheet` è trasparente a riposo; l'alone esterno resta entro
-     lo spazio fra i blocchi (~20 pt);
+  2. un **fratello bianco** disegnato sopra copre l'alone: l'alone esterno
+     resta entro lo spazio fra i blocchi (~20 pt); dentro `FormSheet` il centro
+     che scorre ha 4 pt sopra, 22 di lato e ~18–22 sotto apposta (lo scroll
+     ritaglia ai suoi bordi);
   3. le vecchie `shadow*` (iOS, fuori schermo e senza tracciato) vanno portate
      a `boxShadow`: oltre al taglio, costano a ogni fotogramma (marker della
      mappa, anello `ProgressRing`). Eccezione: ombra che segue la sagoma di un
      PNG (auto sulla mappa) → resta `shadow*` con `shouldRasterizeIOS`.
-- **Pressione = mai un rettangolo**: in una `ClayList` la prima e l'ultima riga
-  prendono gli angoli della card (`clayRowPressShape({ first, last })` +
-  `CLAY_ROW_PRESSED`, `first`/`last` li passa la lista come `divider`); una riga
-  personalizzata dentro `ClayList` li legge e li usa. Altrove: scala
-  (`ClayPressable`) o opacità.
+- **Pressione = la riga intera, angoli della card compresi** (Tiziano 28/10,
+  seconda segnalazione: l'evidenziazione era un rettangolo che lasciava una
+  striscia bianca e non seguiva gli angoli). `ClayList` mette le righe in un
+  figlio che **ritaglia col raggio della card** (l'ombra resta sul genitore,
+  fuori dal ritaglio); la riga premuta si colora a tutta larghezza
+  (`CLAY_ROW_PRESSED`) e gli angoli li dà il ritaglio. Il respiro di 4 pt
+  sopra la prima riga e sotto l'ultima sta DENTRO la riga
+  (`clayRowPadding({ first, last }, base)`), così anche quello si evidenzia.
+  Una riga personalizzata (o un wrapper di `ClayListRow`) riceve
+  `divider`/`first`/`last` dalla lista: li passa a `clayRowPadding` / alla
+  `ClayListRow` interna e si dichiara con `markClayRow(Componente)`; le righe
+  non dichiarate ricevono il respiro dalla lista FUORI dalla riga (premute
+  lascerebbero una striscia bianca). Bottoni e CTA: scala + «sprofonda»
+  (`ClayButton`, `ClayPressable`), mai un fondo rettangolare.
 
 ### 0.4 Icone 3D — meno icone, generate con l'AI, stile unico
 
@@ -1860,15 +1870,30 @@ stack). **Si chiude con la X, trascinando giù o toccando fuori** (Tiziano,
 ```
 
 Cosa fa da solo, sempre uguale:
-- **radice = scroll del foglio** (`contentInsetAdjustmentBehavior="never"`): se il
-  contenuto supera lo schermo scorre il foglio stesso, mai una scroll interna;
+- **tre parti, come i fogli nativi di iOS** (Tiziano 28/10, seconda
+  segnalazione: scorrendo il contenuto passava sopra il titolo e la CTA stava
+  in fondo al contenuto, attaccata al bordo):
+  - **testata FISSA e opaca** (bianca), con una linea sottile sotto che compare
+    solo quando il contenuto le scorre sotto;
+  - **centro che scorre** (`ScrollView`, `contentInsetAdjustmentBehavior="never"`);
+  - **footer FISSO con la CTA** (bianco, niente fascia grigia), linea sopra solo
+    se sotto c'è ancora contenuto.
+  **Altezza adattiva**: se tutto ci sta, niente scroll (il form sheet abbraccia
+  il contenuto); se sfora, scorre solo il centro. Il centro ha un'altezza
+  ESPLICITA = min(contenuto misurato, tetto − testata − footer), tetto =
+  schermo − safe area alta − `SHEET_SYSTEM_BOTTOM` (34 da iOS 26: lo spazio
+  che il foglio flottante aggiunge da sé). Trappole risolte, da non
+  reintrodurre: (1) niente `flexShrink` sul centro (dentro un form sheet
+  fitToContents collassava a pochi punti); (2) la radice e il guscio dello
+  scroll hanno `collapsable={false}` e la testata è la PRIMA vista **senza
+  `zIndex`**: react-native-screens cerca uno ScrollView fra i figli diretti
+  del foglio o lungo la catena delle prime viste e gli forza il frame nativo a
+  tutto il foglio (con `zIndex` Fabric monta la testata dopo e lo scroll
+  finiva sotto la CTA). testID: `sheet-body`, `sheet-scroll`, `sheet-foot`;
 - **intestazione**: `leading` + titolo `24/600` + sottotitolo `15/400`, e la **X
   in alto a destra, nell'angolo** (`SheetCloseButton` = `ClayIconButton`
   «close»: cerchio bianco in rilievo del clay v2, §0 — identico anche nei fogli
-  ancora fatti a mano, via `GlassCloseButton`). Niente eyebrow sopra il titolo.
-  La testata è fissa ma **trasparente a riposo**: il fondo bianco compare solo
-  quando il contenuto le scorre sotto, così non copre l'alone delle ombre clay
-  del primo blocco;
+  ancora fatti a mano, via `GlassCloseButton`). Niente eyebrow sopra il titolo;
 - **chiusura col gesto** (`useSheetDismissGuard`, anche esportato per i fogli
   fuori da `FormSheet`): trascinare giù / toccare fuori chiude; con `busy` il
   gesto è spento (le chiusure via codice passano); con `dirty` ogni chiusura
@@ -1876,14 +1901,16 @@ Cosa fa da solo, sempre uguale:
   un salvataggio riuscito `dirty` deve essere già false (legarlo a `!saving`);
   con `closeOnGesture` il gesto esegue `onClose` (uscite con effetti). I fogli
   più alti dello schermo scorrono e UIKit non passa il trascinamento al
-  foglio: tirati giù oltre l'inizio (64 pt) e rilasciati si chiudono, a
-  rimbalzo finito (chiudere durante il rimbalzo lasciava il velo scuro piantato);
+  foglio dal centro: trascinando dalla testata chiudono nativamente; tirati
+  giù dal centro oltre l'inizio (64 pt) e rilasciati si chiudono, a rimbalzo
+  finito (chiudere durante il rimbalzo lasciava il velo scuro piantato);
 - **contenuto** che entra ed esce con dissolvenza morbida, l'altezza scivola
   (`utils/motion.ts`, niente rimbalzi, `ReduceMotion.Never`);
-- **CTA in fondo come ultima cosa**, poi solo `SHEET_BOTTOM` (0 da iOS 26, 18
-  prima — vedi §13.2.1). **Mai `insets.bottom`.** Note e spiegazioni stanno
-  sopra la CTA;
-- fondo bianco, padding laterale 22, testata 26 sopra.
+- **CTA (`cta`) nel footer fisso**: 10 sopra, poi solo `SHEET_BOTTOM` (0 da
+  iOS 26, 18 prima — vedi §13.2.1). **Mai `insets.bottom`.** Note e
+  spiegazioni stanno nel contenuto, sopra; bottoni messi nei `children` invece
+  che in `cta` scorrono col contenuto;
+- fondo bianco, padding laterale 22, testata 26 sopra e 14 sotto.
 
 Liste a tutta larghezza dentro il foglio (righe native con divisori): un
 contenitore con `marginHorizontal: -22` (vedi `drive/avvia.tsx`, `s.bleed`). La

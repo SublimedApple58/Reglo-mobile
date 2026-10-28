@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useStackBase } from '../hooks/useStackBase';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClaySection, clayRowPressShape } from '../components/clay';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClaySection, markClayRow } from '../components/clay';
 import { CLAY } from '../theme/clay';
 import { SOFT_SPRING, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
 import { ToastTone } from '../components/ToastNotice';
@@ -128,8 +128,7 @@ const SwipeRow = ({
   const state = day.available ? rangesText(day.ranges) : 'Riposo';
 
   return (
-    // Prima/ultima riga: ritaglio con gli angoli della card (niente spigoli bianchi).
-    <View style={[styles.dayRow, clayRowPressShape({ first, last })]}>
+    <View style={styles.dayRow}>
       {divider ? <View style={styles.divider} /> : null}
       {/* Azione rivelata trascinando a sinistra: solo testo, niente pillola colorata. */}
       <Animated.View style={[styles.swipeAction, actionStyle]} pointerEvents="none">
@@ -152,6 +151,8 @@ const SwipeRow = ({
     </View>
   );
 };
+// Il respiro di prima/ultima riga lo prende la ClayListRow interna.
+markClayRow(SwipeRow);
 
 // ── Main Component ─────────────────────────────────────────────
 

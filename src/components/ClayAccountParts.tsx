@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { Avatar, CLAY_ROW_PRESSED, ClaySurface, clayRowPressShape } from './clay';
+import { Avatar, CLAY_ROW_PRESSED, ClaySurface, clayRowPadding, markClayRow } from './clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { currentAppVersion } from '../config/forceUpdate';
 import type { UserPublic } from '../types/regloApi';
@@ -81,7 +81,7 @@ export function ClayTextRow({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [s.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })], disabled && s.off]}
+      style={({ pressed }) => [s.row, clayRowPadding({ first, last }, 15), pressed && CLAY_ROW_PRESSED, disabled && s.off]}
       accessibilityRole="button"
       accessibilityLabel={title}
       testID={testID}
@@ -93,6 +93,8 @@ export function ClayTextRow({
     </Pressable>
   );
 }
+
+markClayRow(ClayTextRow);
 
 /** «Reglo 2.3.0» piccolo e grigio in fondo alle schermate account. */
 export function AppVersionFooter() {
@@ -108,7 +110,7 @@ const s = StyleSheet.create({
   name: { fontSize: 19, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.4 },
   detail: { fontSize: 14, lineHeight: 19, color: CLAY.ink3, marginTop: 2 },
 
-  row: { paddingVertical: 15, paddingHorizontal: 18, minHeight: 52, justifyContent: 'center' },
+  row: { paddingHorizontal: 18, minHeight: 52, justifyContent: 'center' },
   off: { opacity: 0.45 },
   divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   rowTitle: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },

@@ -5,43 +5,63 @@ import { CLAY } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
 import { ClaySurface } from './ClaySurface';
 
-/** Margine verticale interno della lista (le righe partono 4 pt sotto il bordo). */
+/** Respiro in più sopra la prima riga e sotto l'ultima (dentro la riga, così
+ *  anche l'evidenziazione al tocco arriva fino al bordo della card). */
 const LIST_INSET = 4;
 
 /** Posizione della riga nella lista: la passa `ClayList` a ogni figlio. */
 export type ClayRowPosition = { divider?: boolean; first?: boolean; last?: boolean };
 
 /**
- * Forma dell'evidenziazione al tocco di una riga di `ClayList`: la prima e
- * l'ultima riga seguono gli angoli della card (raggio concentrico, 28 − 4),
- * così la pressione non disegna mai un rettangolo dentro una card tonda.
+ * Padding verticale di una riga di `ClayList` (`base` = quello normale): la
+ * prima e l'ultima riga prendono il respiro della lista al loro interno, così
+ * premute si evidenziano fino al bordo della card. Gli angoli tondi li dà il
+ * ritaglio della lista (REG-639: prima l'evidenziazione era un rettangolo).
  */
-export function clayRowPressShape({ first, last }: ClayRowPosition): ViewStyle {
-  const r = CLAY_RADIUS.card - LIST_INSET;
-  return {
-    borderTopLeftRadius: first ? r : 0,
-    borderTopRightRadius: first ? r : 0,
-    borderBottomLeftRadius: last ? r : 0,
-    borderBottomRightRadius: last ? r : 0,
-  };
+export function clayRowPadding({ first, last }: ClayRowPosition, base: number): ViewStyle {
+  return { paddingTop: base + (first ? LIST_INSET : 0), paddingBottom: base + (last ? LIST_INSET : 0) };
 }
 
-/** Fondo della riga premuta (sempre con `clayRowPressShape`). */
-export const CLAY_ROW_PRESSED: ViewStyle = { backgroundColor: 'rgba(17,17,17,0.035)' };
+/**
+ * Le righe che applicano `clayRowPadding` lo dichiarano con
+ * `markClayRow(Componente)`: la lista non aggiunge loro altro respiro.
+ */
+const ROW_AWARE = new WeakSet<object>();
+export function markClayRow<T extends object>(component: T): T {
+  ROW_AWARE.add(component);
+  return component;
+}
+const isRowAware = (type: unknown) => typeof type !== 'string' && !!type && ROW_AWARE.has(type as object);
+
+/** Fondo della riga premuta: a tutta larghezza, la lista lo ritaglia tondo. */
+export const CLAY_ROW_PRESSED: ViewStyle = { backgroundColor: 'rgba(17,17,17,0.045)' };
 
 /**
  * Lista clay (§0): UNA superficie in rilievo che contiene le righe (l'ombra
  * sta sul contenitore, mai sulle righe). I separatori li mette la lista.
+ * Le righe stanno in un figlio che ritaglia con il raggio della card: la
+ * pressione di una riga combacia con la card, angoli compresi; l'ombra resta
+ * fuori dal ritaglio (§0.3).
  */
 export function ClayList({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const rows = React.Children.toArray(children).filter(Boolean);
   return (
-    <ClaySurface padded={false} style={[s.list, style]}>
-      {rows.map((row, i) =>
-        React.isValidElement<ClayRowPosition>(row)
-          ? React.cloneElement(row, { divider: i > 0, first: i === 0, last: i === rows.length - 1 })
-          : row,
-      )}
+    <ClaySurface padded={false} style={style}>
+      <View style={s.clip}>
+        {rows.map((row, i) => {
+          if (!React.isValidElement<ClayRowPosition>(row)) return row;
+          const first = i === 0;
+          const last = i === rows.length - 1;
+          const el = React.cloneElement(row, { divider: i > 0, first, last });
+          // Righe che non usano `clayRowPadding`: il respiro glielo dà la lista.
+          if (isRowAware(row.type) || (!first && !last)) return el;
+          return (
+            <View key={row.key} style={{ paddingTop: first ? LIST_INSET : 0, paddingBottom: last ? LIST_INSET : 0 }}>
+              {el}
+            </View>
+          );
+        })}
+      </View>
     </ClaySurface>
   );
 }
@@ -104,7 +124,7 @@ export function ClayListRow({
   );
   if (!onPress) {
     return (
-      <View style={s.row} testID={testID}>
+      <View style={[s.row, clayRowPadding({ first, last }, ROW_PAD)]} testID={testID}>
         {body}
       </View>
     );
@@ -113,7 +133,7 @@ export function ClayListRow({
     <Pressable
       onPress={onPress}
       disabled={dimmed}
-      style={({ pressed }) => [s.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })]]}
+      style={({ pressed }) => [s.row, clayRowPadding({ first, last }, ROW_PAD), pressed && CLAY_ROW_PRESSED]}
       accessibilityRole="button"
       accessibilityLabel={typeof subtitle === 'string' ? `${title}, ${subtitle}` : title}
       testID={testID}
@@ -123,9 +143,11 @@ export function ClayListRow({
   );
 }
 
+const ROW_PAD = 12;
+
 const s = StyleSheet.create({
-  list: { paddingVertical: LIST_INSET },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 18 },
+  clip: { borderRadius: CLAY_RADIUS.card, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18 },
   divider: { position: 'absolute', top: 0, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   main: { flex: 1, minWidth: 0 },
   dim: { opacity: 0.45 },
@@ -133,3 +155,5 @@ const s = StyleSheet.create({
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   sub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },
 });
+
+markClayRow(ClayListRow);

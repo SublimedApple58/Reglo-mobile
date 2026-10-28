@@ -19,7 +19,7 @@ import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { FormSheet } from '../SheetScaffold';
-import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle } from '../clay';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle, markClayRow } from '../clay';
 import { CLAY } from '../../theme/clay';
 import { SOFT_EXIT, SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../../utils/motion';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
@@ -885,6 +885,7 @@ function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
     </Animated.View>
   );
 }
+markClayRow(SoftRow);
 
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },
