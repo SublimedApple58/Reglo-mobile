@@ -30,8 +30,8 @@ Dettagli: [docs/git-flow.md](docs/git-flow.md) · staging operativo: `../reglo/d
 - Screens in `src/screens/`, components in `src/components/`, API in `src/services/`
 - `react-native-reanimated` for animations (shared values, useAnimatedStyle, FadeIn/FadeOut, withSpring)
 - `Screen` component wraps all screens (SafeArea)
-- `BottomSheet` with handle (never X close button). iOS and Android have separate implementations.
-- Centered `Modal` for quick actions; `BottomSheet` for complex scrollable content
+- Sheets: ONE form sheet for everything — route preset `FORM_SHEET` + `<FormSheet>` component (`src/components/SheetScaffold.tsx`). No handle/grabber, no swipe to dismiss: it closes ONLY with the clay X (white raised circle, `ClayIconButton`) top-right. Never build a sheet by hand. See `docs/design-system.md` §13.2 (and §0 for the clay style). The old rule «`BottomSheet` with handle, never X» is superseded (REG-639, 28/10/2026).
+- Centered `Modal` for quick actions
 - Theme tokens in `src/theme/`: colors (pink #EC4899, yellow #FACC15), spacing, typography
 - Design system reference: `docs/design-system.md` — read before UI work (also kept at `plans/design-system/DESIGN_SYSTEM.md`)
 - All API responses use `ApiResponse<T> = ApiSuccess<T> | ApiError` — always check `response.success`
