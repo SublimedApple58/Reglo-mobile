@@ -1,13 +1,11 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow } from '../../../src/components/clay';
 import { hoursPeriodStore } from '../../../src/stores/hoursPeriodStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (y: number, m0: number, d: number) => `${y}-${pad(m0 + 1)}-${pad(d)}`;
@@ -18,7 +16,7 @@ const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
 const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.getDate() + n); return c; };
 const fmtShort = (isoStr: string) => {
-  const [y, m, d] = isoStr.split('-').map(Number);
+  const [, m, d] = isoStr.split('-').map(Number);
   return `${d} ${MONTHS_SHORT[m - 1]}`;
 };
 
@@ -36,6 +34,11 @@ function computePresets() {
   };
 }
 
+/**
+ * Periodo delle «Ore di guida» — REG-639 clay: il form sheet unico. I periodi
+ * pronti sono righe con la spunta, poi il mese (frecce clay) con gli estremi
+ * in nero; il riepilogo è il sottotitolo, «Applica» la CTA in fondo.
+ */
 export default function HoursPeriodScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(hoursPeriodStore.subscribe, hoursPeriodStore.get);
@@ -49,7 +52,7 @@ export default function HoursPeriodScreen() {
   const [viewYear, setViewYear] = useState(initMonth.getFullYear());
   const [viewMonth, setViewMonth] = useState(initMonth.getMonth());
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const applyPreset = (p: { from: string; to: string }) => {
     setStart(p.from);
@@ -113,61 +116,43 @@ export default function HoursPeriodScreen() {
     ? (end && end !== start ? `${fmtShort(start)} – ${fmtShort(end)}` : fmtShort(start))
     : 'Seleziona un periodo';
 
+  const presetOptions = [
+    { key: 'week', label: 'Questa settimana', p: presets.week },
+    { key: 'month', label: 'Questo mese', p: presets.month },
+    { key: 'last30', label: 'Ultimi 30 giorni', p: presets.last30 },
+  ] as const;
+
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold
-        footer={
-          <View style={s.footer}>
-            <Text style={s.summary}>{summary}</Text>
-            <Pressable
-              onPress={canApply ? handleApply : undefined}
-              disabled={!canApply}
-              style={({ pressed }) => [s.cta, !canApply && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
-            >
-              <GradientCTABackground radius={26} />
-              <Text style={s.ctaText}>Applica</Text>
-            </Pressable>
-          </View>
-        }
-      >
-        <Text style={s.title}>Periodo</Text>
+    <FormSheet
+      title="Periodo"
+      subtitle={summary}
+      testID="hours-period-sheet"
+      cta={<ClayButton title="Applica" onPress={handleApply} disabled={!canApply} testID="hours-period-apply" />}
+    >
+      {/* Periodi pronti: scelta singola = righe con la spunta. */}
+      <ClayList>
+        {presetOptions.map((opt) => (
+          <ClayListRow
+            key={opt.key}
+            title={opt.label}
+            chevron={false}
+            trailing={activePreset === opt.key ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : undefined}
+            onPress={() => applyPreset(opt.p)}
+            testID={`hours-period-${opt.key}`}
+          />
+        ))}
+      </ClayList>
 
-        {/* Presets */}
-        <View style={s.presetRow}>
-        {[
-          { key: 'week', label: 'Questa settimana', p: presets.week },
-          { key: 'month', label: 'Questo mese', p: presets.month },
-          { key: 'last30', label: 'Ultimi 30 giorni', p: presets.last30 },
-        ].map((opt) => {
-          const active = activePreset === opt.key;
-          return (
-            <Pressable
-              key={opt.key}
-              onPress={() => applyPreset(opt.p)}
-              style={[s.chip, active && s.chipActive]}
-            >
-              <Text style={[s.chipText, active && s.chipTextActive]}>{opt.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Calendar */}
+      {/* Calendario: estremi = cerchio nero clay, i giorni in mezzo su una banda tenue. */}
       <View style={s.calHeader}>
-        <Pressable onPress={() => goMonth(-1)} hitSlop={12} style={s.calArrow}>
-          <Ionicons name="chevron-back" size={18} color="#111111" />
-        </Pressable>
+        <ClayIconButton icon="back" onPress={() => goMonth(-1)} accessibilityLabel="Mese precedente" />
         <Text style={s.calMonth}>{MONTHS[viewMonth]} {viewYear}</Text>
-        <Pressable onPress={() => canGoNext && goMonth(1)} hitSlop={12} style={s.calArrow} disabled={!canGoNext}>
-          <Ionicons name="chevron-forward" size={18} color={canGoNext ? '#111111' : '#D4D4D4'} />
-        </Pressable>
+        <ClayIconButton
+          icon={<Ionicons name="chevron-forward" size={20} color={CLAY.ink} />}
+          onPress={() => { if (canGoNext) goMonth(1); }}
+          accessibilityLabel="Mese successivo"
+          style={!canGoNext && s.arrowOff}
+        />
       </View>
 
       <View style={s.weekRow}>
@@ -200,55 +185,31 @@ export default function HoursPeriodScreen() {
             </Pressable>
           );
         })}
-        </View>
-      </SheetScaffold>
-    </View>
+      </View>
+    </FormSheet>
   );
 }
 
-const NAVY = '#111111';
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3, marginBottom: 16 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
 
-  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    borderWidth: 1.5, borderColor: '#E5E5E5', backgroundColor: '#F8F8F8',
-  },
-  chipActive: { borderColor: NAVY, backgroundColor: '#FFFFFF' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
-  chipTextActive: { color: NAVY, fontWeight: '700' },
-
-  calHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  calArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
-  calMonth: { fontSize: 16, fontWeight: '700', color: NAVY, letterSpacing: -0.2 },
+  calHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 14 },
+  arrowOff: { opacity: 0.35 },
+  calMonth: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
 
   weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#9A9A9A' },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: CLAY.ink3 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, height: 44, alignItems: 'center', justifyContent: 'center' },
-  // Continuous in-range band (behind the day circle). Half-bands on the edges
-  // connect to the full bands of the in-between days.
-  band: { position: 'absolute', top: 3, height: 38, backgroundColor: '#F2F2F2' },
+  // Banda del periodo: velo d'inchiostro tenue (non un fondo grigio di superficie).
+  band: { position: 'absolute', top: 3, height: 38, backgroundColor: 'rgba(17,17,17,0.06)' },
   bandFull: { left: 0, right: 0 },
   bandLeft: { left: 0, right: '50%' },
   bandRight: { left: '50%', right: 0 },
   day: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  dayEdge: { backgroundColor: NAVY },
-  dayText: { fontSize: 14, fontWeight: '600', color: NAVY },
-  dayTextEdge: { color: '#FFFFFF', fontWeight: '700' },
+  dayEdge: { backgroundColor: CLAY.ink, ...CLAY_SHADOW.ink },
+  dayText: { fontSize: 15, fontWeight: '400', color: CLAY.ink },
+  dayTextEdge: { color: '#FFFFFF', fontWeight: '600' },
   dayTextDisabled: { color: '#D4D4D4' },
-
-  footer: { marginTop: 20, gap: 12 },
-  summary: { fontSize: 14, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
-  cta: {
-    height: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

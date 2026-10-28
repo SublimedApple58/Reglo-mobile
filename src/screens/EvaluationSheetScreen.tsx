@@ -1,13 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,10 +7,6 @@ import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeOut,
-  LinearTransition,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -28,11 +16,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Screen } from '../components/Screen';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ToggleSwitch } from '../components/ToggleSwitch';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
-import { colors, navy, spacing } from '../theme';
+import { ClayButton, ClayList, ClaySection, ClaySurface, ClayToggle } from '../components/clay';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import { SOFT_CARD_EXIT, SOFT_LAYOUT, SOFT_SPRING, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
 import { regloApi } from '../services/regloApi';
 import { useSession } from '../context/SessionContext';
 import { useEvaluationSheet } from '../hooks/queries/useEvaluationSheet';
@@ -40,16 +28,12 @@ import { queryKeys } from '../hooks/queries/queryKeys';
 import { evaluationItemStore } from '../stores/evaluationItemStore';
 import {
   BASE_EVALUATION_TEMPLATE,
-  DEFAULT_EVALUATION_SCALE,
   MAX_EVALUATION_ITEMS,
   asEvaluationScale,
 } from '../utils/evaluationSheet';
 import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
 
-const FLUENT_MEMO = require('../../assets/icons/fluent-memo.png');
-
-const NAVY = '#111111';
-const MUTED = '#929292';
+/** Le stelline del pagellino restano gialle (deroga voluta, CLAUDE.md). */
 const GOLD = '#FACC15';
 
 /** Altezza fissa della card voce + distanza fra una e l'altra: il riordino
@@ -58,9 +42,6 @@ const GOLD = '#FACC15';
 const ROW_H = 74;
 const GAP = 10;
 const STEP = ROW_H + GAP;
-
-const SPRING = { damping: 20, stiffness: 260, mass: 0.6 } as const;
-const LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
 
 /** Riga in editing: `id` assente = voce non ancora salvata a DB. */
 type Draft = {
@@ -115,7 +96,7 @@ const SortableRow = ({
     () => positions.value[item.key],
     (next, prev) => {
       if (next == null || next === prev) return;
-      if (!active.value) top.value = withSpring(next * STEP, SPRING);
+      if (!active.value) top.value = withSpring(next * STEP, SOFT_SPRING);
     },
   );
 
@@ -149,25 +130,25 @@ const SortableRow = ({
     })
     .onFinalize(() => {
       const landed = positions.value[item.key] ?? 0;
-      top.value = withSpring(landed * STEP, SPRING);
+      top.value = withSpring(landed * STEP, SOFT_SPRING);
       active.value = false;
       runOnJS(onDragEnd)();
       runOnJS(onCommit)();
     });
 
+  // L'ombra clay è fissa (non si anima mai): la voce presa si stacca solo
+  // con la scala.
   const style = useAnimatedStyle(() => ({
     top: top.value,
     zIndex: active.value ? 20 : 1,
     transform: [{ scale: withTiming(active.value ? 1.03 : 1, { duration: 140 }) }],
-    shadowOpacity: withTiming(active.value ? 0.14 : 0.04, { duration: 140 }),
-    shadowRadius: withTiming(active.value ? 16 : 5, { duration: 140 }),
   }));
 
   return (
     <Animated.View
-      style={[s.row, style]}
-      entering={FadeIn.duration(200)}
-      exiting={FadeOut.duration(160)}
+      style={[s.row, CLAY_SHADOW.raiseSm, style]}
+      entering={SOFT_SWAP_IN}
+      exiting={SOFT_SWAP_OUT}
     >
       {/* Niente View con flex:1 qui dentro: riempiva tutta l'altezza e
           mandava a vuoto il justifyContent, così nome e stelline restavano
@@ -180,7 +161,7 @@ const SortableRow = ({
       </Pressable>
       <GestureDetector gesture={pan}>
         <View style={s.handle} accessibilityLabel={`Sposta ${item.label}`}>
-          <Ionicons name="reorder-two" size={22} color="#C7C7C7" />
+          <Ionicons name="reorder-two" size={22} color={CLAY.chevron} />
         </View>
       </GestureDetector>
     </Animated.View>
@@ -189,6 +170,12 @@ const SortableRow = ({
 
 /* ── Schermata ───────────────────────────────────────────────────────────── */
 
+/**
+ * Pagellino — REG-639 clay: testata grande con l'indietro clay, interruttore
+ * su una superficie clay, voci come card clay trascinabili (ombra fissa, si
+ * stacca solo con la scala), CTA clay. Prima apertura: il modello base in una
+ * lista clay, «Usa il modello base» / «Parti da zero». Stelline gialle.
+ */
 export const EvaluationSheetScreen = () => {
   const router = useRouter();
   const navigation = useNavigation();
@@ -329,33 +316,28 @@ export const EvaluationSheetScreen = () => {
   const full = items.length >= MAX_EVALUATION_ITEMS;
 
   return (
-    <Screen>
+    <View style={s.root}>
       <StatusBar style="dark" />
-
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </Pressable>
-        <Text style={[s.headerTitle, { flex: 1 }]}>Pagellino</Text>
-      </View>
 
       <ScrollView
         scrollEnabled={!dragging}
-        contentContainerStyle={[s.scroll, { paddingBottom: 40 + insets.bottom + (dirty ? 90 : 0) }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top, paddingBottom: 40 + insets.bottom + (dirty ? 96 : 0) }]}
         showsVerticalScrollIndicator={false}
       >
+        <ClayPageHeader title="Pagellino" onBack={() => router.back()} />
+
         {isLoading && !data ? (
-          <View style={{ gap: 12 }}>
-            <SkeletonBlock height={104} radius={22} />
-            <SkeletonBlock height={74} radius={20} />
-            <SkeletonBlock height={74} radius={20} />
-            <SkeletonBlock height={74} radius={20} />
+          <View style={s.skel}>
+            <SkeletonBlock height={96} radius={28} />
+            <SkeletonBlock height={ROW_H} radius={22} />
+            <SkeletonBlock height={ROW_H} radius={22} />
+            <SkeletonBlock height={ROW_H} radius={22} />
           </View>
         ) : (
           <>
             {/* Interruttore: è la domanda prima di tutte le altre. */}
-            <View style={s.toggleCard}>
-              <View style={{ flex: 1, minWidth: 0 }}>
+            <ClaySurface style={s.toggleCard}>
+              <View style={s.toggleText}>
                 <Text style={s.toggleTitle}>Pagellino attivo</Text>
                 <Text style={s.toggleSub}>
                   {enabled
@@ -363,113 +345,98 @@ export const EvaluationSheetScreen = () => {
                     : 'Spento: nessuna valutazione nel foglio della guida. Quelle già date restano.'}
                 </Text>
               </View>
-              <ToggleSwitch
+              <ClayToggle
                 value={enabled}
                 onValueChange={(v) => {
                   void impactAsync(ImpactFeedbackStyle.Light).catch(() => {});
                   setEnabled(v);
                 }}
+                accessibilityLabel="Pagellino attivo"
+                testID="evaluation-enabled"
               />
-            </View>
+            </ClaySurface>
 
             {pristine && items.length === 0 ? (
               /* Prima apertura: il modello base pronto da adottare, invece di
                  una lista vuota da riempire a mano. */
-              <Animated.View entering={FadeIn.duration(260)} style={s.empty}>
-                <Image source={FLUENT_MEMO} style={s.emptyIcon} />
-                <Text style={s.emptyTitle}>Modello base</Text>
-                <Text style={s.emptySub}>
-                  Le cinque voci più usate dalle autoscuole, tutte a 5 stelline. Puoi
-                  rinominarle, cambiarne la scala o toglierle quando vuoi.
-                </Text>
-                <View style={s.emptyList}>
-                  {BASE_EVALUATION_TEMPLATE.map((t, i) => (
-                    <View key={t.label} style={[s.emptyRow, i > 0 && s.emptyRowBorder]}>
-                      <Text style={s.emptyRowText} numberOfLines={1}>
-                        {t.label}
-                      </Text>
-                      <StarRow total={t.scaleMax} size={14} />
-                    </View>
-                  ))}
+              <Animated.View entering={SOFT_SWAP_IN}>
+                <ClaySection
+                  title="Modello base"
+                  footnote="Le cinque voci più usate dalle autoscuole, tutte a 5 stelline. Puoi rinominarle, cambiarne la scala o toglierle quando vuoi."
+                >
+                  <ClayList>
+                    {BASE_EVALUATION_TEMPLATE.map((t) => (
+                      <TemplateRow key={t.label} label={t.label} total={t.scaleMax} />
+                    ))}
+                  </ClayList>
+                </ClaySection>
+                <View style={s.templateCtas}>
+                  <ClayButton title="Usa il modello base" onPress={useTemplate} testID="evaluation-use-template" />
+                  <ClayButton
+                    title="Parti da zero"
+                    variant="secondary"
+                    onPress={() => {
+                      setPristine(false);
+                      openItemSheet(null);
+                    }}
+                    testID="evaluation-from-scratch"
+                  />
                 </View>
-                <Pressable
-                  onPress={useTemplate}
-                  style={({ pressed }) => [s.emptyCta, pressed && { opacity: 0.9 }]}
-                >
-                  <GradientCTABackground radius={26} />
-                  <Text style={s.emptyCtaText}>Usa il modello base</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setPristine(false);
-                    openItemSheet(null);
-                  }}
-                  style={({ pressed }) => [s.emptyGhost, pressed && { opacity: 0.6 }]}
-                >
-                  <Text style={s.emptyGhostText}>Parti da zero</Text>
-                </Pressable>
               </Animated.View>
             ) : (
-              <Animated.View layout={LAYOUT} style={{ marginTop: 26 }}>
-                <View style={s.listHead}>
-                  <Text style={s.listLabel}>VOCI</Text>
-                  {items.length ? (
-                    <Animated.Text
-                      key={items.length}
-                      entering={FadeIn.duration(180)}
-                      style={s.listCount}
-                    >
-                      {items.length === 1 ? '1 voce' : `${items.length} voci`}
+              <Animated.View layout={SOFT_LAYOUT}>
+                <ClaySection
+                  title="Voci"
+                  action={
+                    items.length ? (
+                      <Animated.Text key={items.length} entering={SOFT_SWAP_IN} style={s.listCount}>
+                        {items.length === 1 ? '1 voce' : `${items.length} voci`}
+                      </Animated.Text>
+                    ) : null
+                  }
+                >
+                  <Animated.View layout={SOFT_LAYOUT} style={{ height: listHeight }}>
+                    {items.map((item) => (
+                      <SortableRow
+                        key={item.key}
+                        item={item}
+                        count={items.length}
+                        positions={positions}
+                        onPress={() => openItemSheet(item)}
+                        onDragStart={() => setDragging(true)}
+                        onDragEnd={() => setDragging(false)}
+                        onCommit={commitOrder}
+                      />
+                    ))}
+                  </Animated.View>
+
+                  {full ? (
+                    <Animated.Text entering={SOFT_SWAP_IN} style={s.note}>
+                      Massimo {MAX_EVALUATION_ITEMS} voci raggiunto.
+                    </Animated.Text>
+                  ) : (
+                    <Animated.View layout={SOFT_LAYOUT} entering={SOFT_SWAP_IN} style={s.add}>
+                      <ClayButton
+                        title="Aggiungi voce"
+                        variant="secondary"
+                        compact
+                        onPress={() => openItemSheet(null)}
+                        testID="evaluation-add-item"
+                      />
+                    </Animated.View>
+                  )}
+
+                  {items.length === 0 ? (
+                    <Animated.Text layout={SOFT_LAYOUT} entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={s.note}>
+                      Nessuna voce: gli istruttori non hanno niente da valutare.
                     </Animated.Text>
                   ) : null}
-                </View>
 
-                <Animated.View layout={LAYOUT} style={{ height: listHeight }}>
-                  {items.map((item) => (
-                    <SortableRow
-                      key={item.key}
-                      item={item}
-                      count={items.length}
-                      positions={positions}
-                      onPress={() => openItemSheet(item)}
-                      onDragStart={() => setDragging(true)}
-                      onDragEnd={() => setDragging(false)}
-                      onCommit={commitOrder}
-                    />
-                  ))}
-                </Animated.View>
-
-                {full ? (
-                  <Animated.Text entering={FadeIn.duration(200)} style={s.limit}>
-                    Massimo {MAX_EVALUATION_ITEMS} voci raggiunto.
-                  </Animated.Text>
-                ) : (
-                  <Animated.View layout={LAYOUT} entering={FadeIn.duration(200)}>
-                    <Pressable
-                      onPress={() => openItemSheet(null)}
-                      style={({ pressed }) => [s.add, pressed && { opacity: 0.6 }]}
-                    >
-                      <Ionicons name="add" size={17} color="#6A6A6A" />
-                      <Text style={s.addText}>Aggiungi voce</Text>
-                    </Pressable>
-                  </Animated.View>
-                )}
-
-                {items.length === 0 ? (
-                  <Animated.Text
-                    layout={LAYOUT}
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(120)}
-                    style={s.none}
-                  >
-                    Nessuna voce: gli istruttori non hanno niente da valutare.
-                  </Animated.Text>
-                ) : null}
-
-                <Text style={s.footNote}>
-                  Le voci tolte non si cancellano: le valutazioni già date restano
-                  leggibili nello storico dell&apos;allievo.
-                </Text>
+                  <Text style={s.footNote}>
+                    Le voci tolte non si cancellano: le valutazioni già date restano
+                    leggibili nello storico dell&apos;allievo.
+                  </Text>
+                </ClaySection>
               </Animated.View>
             )}
           </>
@@ -479,57 +446,42 @@ export const EvaluationSheetScreen = () => {
       {/* La CTA entra solo quando c'è davvero qualcosa da salvare. */}
       {dirty ? (
         <Animated.View
-          entering={FadeInDown.duration(240)}
-          exiting={FadeOut.duration(160)}
+          entering={softEnter()}
+          exiting={SOFT_CARD_EXIT}
           style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}
+          pointerEvents="box-none"
         >
-          <Pressable
-            onPress={save}
-            disabled={saving}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
-          >
-            <GradientCTABackground radius={27} />
-            <Text style={s.ctaText}>{saving ? 'Salvataggio…' : 'Salva pagellino'}</Text>
-          </Pressable>
+          <ClayButton title="Salva pagellino" onPress={save} loading={saving} testID="evaluation-save" />
         </Animated.View>
       ) : null}
-    </Screen>
+    </View>
   );
 };
 
+/** Riga del modello base: nome + stelline, non premibile. */
+function TemplateRow({ label, total, divider }: { label: string; total: number; divider?: boolean }) {
+  return (
+    <View style={s.templateRow}>
+      {divider ? <View style={s.templateDivider} /> : null}
+      <Text style={s.templateLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <StarRow total={total} size={14} />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 6,
-    paddingBottom: 10,
-  },
-  backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  scroll: { paddingHorizontal: spacing.lg, paddingTop: 6 },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  scroll: { paddingHorizontal: 20 },
+  skel: { gap: 12, marginTop: 20 },
 
-  toggleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    shadowColor: '#111111',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  toggleTitle: { fontSize: 16, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
-  toggleSub: { fontSize: 12.5, fontWeight: '500', color: MUTED, marginTop: 4, lineHeight: 17 },
+  toggleCard: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 20 },
+  toggleText: { flex: 1, minWidth: 0 },
+  toggleTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
+  toggleSub: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3, lineHeight: 18 },
 
-  listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  listLabel: { fontSize: 11.5, fontWeight: '700', color: '#A3A3A3', letterSpacing: 0.8 },
-  listCount: { fontSize: 12.5, fontWeight: '600', color: MUTED },
+  listCount: { fontSize: 14, color: CLAY.ink3 },
 
   row: {
     position: 'absolute',
@@ -538,76 +490,35 @@ const s = StyleSheet.create({
     height: ROW_H,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#EFEFF2',
-    paddingLeft: 16,
+    borderRadius: 22,
+    backgroundColor: CLAY.surface,
+    paddingLeft: 18,
     paddingRight: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   rowBody: { flex: 1, minWidth: 0, height: '100%', justifyContent: 'center', alignItems: 'flex-start' },
   // lineHeight esplicito: senza, la scatola del testo cambia col font e le due
   // righe della card non tengono la stessa distanza fra una voce e l'altra.
-  rowLabel: { fontSize: 15.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2, lineHeight: 20 },
+  rowLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2, lineHeight: 20 },
   // marginLeft -1.5: il glifo stella ha un margine interno, senza compensarlo
   // la fila parte più a destra del nome e le due righe non sono a filo.
   stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, marginLeft: -1.5 },
   handle: { width: 46, height: ROW_H, alignItems: 'center', justifyContent: 'center' },
 
-  add: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    height: 48,
-    borderRadius: 18,
-    backgroundColor: '#F7F7F7',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#EBEBEB',
-    marginTop: 10,
-  },
-  addText: { fontSize: 14.5, fontWeight: '600', color: '#6A6A6A' },
-  limit: { fontSize: 12.5, fontWeight: '500', color: MUTED, textAlign: 'center', marginTop: 14, lineHeight: 17 },
-  none: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', textAlign: 'center', marginTop: 14 },
-  footNote: { fontSize: 12, fontWeight: '500', color: '#A3A3A3', lineHeight: 17, marginTop: 18 },
+  add: { marginTop: 16 },
+  note: { fontSize: 13.5, color: CLAY.ink3, textAlign: 'center', marginTop: 14, lineHeight: 18 },
+  footNote: { fontSize: 13, color: CLAY.ink3, lineHeight: 18, marginTop: 18, paddingHorizontal: 4 },
 
-  empty: { alignItems: 'center', marginTop: 30 },
-  emptyIcon: { width: 62, height: 62, marginBottom: 14 },
-  emptyTitle: { fontSize: 19, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  emptySub: {
-    fontSize: 13.5, fontWeight: '500', color: MUTED, textAlign: 'center',
-    lineHeight: 19, marginTop: 7, paddingHorizontal: 6,
-  },
-  emptyList: {
-    alignSelf: 'stretch', backgroundColor: '#FFFFFF', borderRadius: 20,
-    paddingHorizontal: 16, marginTop: 20,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#EFEFF2',
-  },
-  emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 13 },
-  emptyRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F2F2F5' },
-  emptyRowText: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600', color: NAVY },
-  emptyCta: {
-    alignSelf: 'stretch', height: 52, borderRadius: 26, marginTop: 22,
-    alignItems: 'center', justifyContent: 'center', ...primaryCtaShadow,
-  },
-  emptyCtaText: { fontSize: 15.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  emptyGhost: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  emptyGhostText: { fontSize: 14.5, fontWeight: '600', color: MUTED },
+  templateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 14, paddingHorizontal: 18 },
+  templateDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  templateLabel: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '500', color: CLAY.ink },
+  templateCtas: { gap: 10, marginTop: 22 },
 
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: navy[100],
   },
-  cta: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', ...primaryCtaShadow },
-  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
 });

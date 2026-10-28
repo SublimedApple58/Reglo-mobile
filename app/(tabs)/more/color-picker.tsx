@@ -1,20 +1,26 @@
 import React, { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayList, ClayListRow } from '../../../src/components/clay';
 import { colorPickerStore } from '../../../src/stores/colorPickerStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
+import { NEUTRAL_BLUE } from '../../../src/utils/agendaColors';
 
+/**
+ * Scelta del colore di una voce agenda — REG-639 clay: il form sheet unico.
+ * Il «colore standard» è una riga di lista clay con la spunta; i colori sono
+ * dati di prodotto e restano pallini colorati (scelto = anello nero). Tocca →
+ * applica e chiude.
+ */
 export default function ColorPickerScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(colorPickerStore.subscribe, colorPickerStore.get);
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
-  const { title, currentHex, swatches, onSelect, resetLabel, resetHex } = data;
+  const { title, subtitle, currentHex, swatches, onSelect, resetLabel, resetHex } = data;
   const norm = (h: string | null) => (h ?? '').toUpperCase();
   const pick = (hex: string | null) => {
     onSelect(hex);
@@ -22,74 +28,62 @@ export default function ColorPickerScreen() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>{title}</Text>
-      </View>
-
-      <SheetScaffold>
-        {/* Colore standard (reset override) */}
-        <Pressable
-          onPress={() => pick(null)}
-          style={({ pressed }) => [s.stdRow, pressed && { opacity: 0.6 }]}
-        >
-          {resetHex ? (
-            <View style={[s.stdDot, { backgroundColor: resetHex, borderWidth: 0 }]} />
-          ) : (
-            <View style={s.stdDot}>
-              <Ionicons name="ban-outline" size={18} color="#9A9A9A" />
+    <FormSheet title={title} subtitle={subtitle} testID="color-picker-sheet">
+      <ClayList>
+        <ClayListRow
+          title={resetLabel ?? 'Colore standard'}
+          chevron={false}
+          trailing={
+            <View style={s.resetTrailing}>
+              {resetHex ? <View style={[s.resetDot, { backgroundColor: resetHex }]} /> : null}
+              {currentHex == null ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null}
             </View>
-          )}
-          <Text style={s.stdLabel}>{resetLabel ?? 'Colore standard'}</Text>
-          {currentHex == null ? <Ionicons name="checkmark-circle" size={22} color="#111111" /> : null}
-        </Pressable>
+          }
+          onPress={() => pick(null)}
+          testID="color-picker-reset"
+        />
+      </ClayList>
 
-        <View style={s.divider} />
+      <View style={s.grid}>
+        {swatches.map((sw) => {
+          const selected = norm(sw.hex) === norm(currentHex);
+          return (
+            <Pressable
+              key={sw.hex}
+              onPress={() => pick(sw.hex)}
+              style={({ pressed }) => [s.swatchCell, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={sw.name}
+            >
+              <View style={[s.ring, selected && s.ringOn]}>
+                <View style={[s.swatch, { backgroundColor: sw.hex }]} />
+              </View>
+              <Text style={[s.swatchName, selected && s.swatchNameOn]} numberOfLines={1}>
+                {sw.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-        <View style={s.grid}>
-          {swatches.map((sw) => {
-            const selected = norm(sw.hex) === norm(currentHex);
-            return (
-              <Pressable
-                key={sw.hex}
-                onPress={() => pick(sw.hex)}
-                style={({ pressed }) => [s.swatchCell, pressed && { opacity: 0.7 }]}
-                accessibilityLabel={sw.name}
-              >
-                <View style={[s.swatch, { backgroundColor: sw.hex }, selected && s.swatchSelected]}>
-                  {selected ? <Ionicons name="checkmark" size={20} color="#FFFFFF" /> : null}
-                </View>
-                <Text style={s.swatchName} numberOfLines={1}>{sw.name}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </SheetScaffold>
-    </View>
+      {/* Solo per i colori dei blocchi: il bordo delle automatiche non viene neutralizzato. */}
+      {NEUTRAL_BLUE && !resetHex ? <Text style={s.note}>Sul telefono i colori blu e azzurri compaiono in nero.</Text> : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-  stdRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, minHeight: 52 },
-  stdDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F3F7', alignItems: 'center', justifyContent: 'center' },
-  stdLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginVertical: 4 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  resetTrailing: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  resetDot: { width: 22, height: 22, borderRadius: 11 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16, marginTop: 22 },
   swatchCell: { width: '25%', alignItems: 'center', gap: 6 },
-  swatch: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  swatchSelected: { borderWidth: 3, borderColor: '#111111' },
-  swatchName: { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
+  // Anello di selezione: nero, staccato dal pallino da 3pt di bianco.
+  ring: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'transparent' },
+  ringOn: { borderColor: CLAY.ink },
+  swatch: { width: 42, height: 42, borderRadius: 21 },
+  swatchName: { fontSize: 12, color: CLAY.ink3 },
+  swatchNameOn: { color: CLAY.ink, fontWeight: '600' },
+  note: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 20, paddingHorizontal: 4 },
 });

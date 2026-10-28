@@ -1,78 +1,35 @@
 import React, { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Screen } from '../components/Screen';
-import { spacing } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import { AppVersionFooter, ClayTextRow, ProfileSummaryCard } from '../components/ClayAccountParts';
+import { CLAY } from '../theme/clay';
 import { useSession } from '../context/SessionContext';
 import { useVehiclesEnabled } from '../hooks/useVehiclesEnabled';
 import { isInstructor, isOwner } from '../utils/roles';
 
-type MenuItem = {
-  route: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-};
+type MenuItem = { route: string; label: string };
 
-const VEHICLES_ITEM: MenuItem = {
-  route: 'vehicles',
-  label: 'Veicoli',
-  icon: 'car-outline',
-};
+const VEHICLES_ITEM: MenuItem = { route: 'vehicles', label: 'Veicoli' };
+const SETTINGS_ITEM: MenuItem = { route: 'settings', label: 'Impostazioni' };
+const INSTRUCTOR_HOURS_ITEM: MenuItem = { route: 'instructor-hours', label: 'Ore di guida' };
+const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = { route: 'instructors-overview', label: 'Panoramica Istruttori' };
+const LOCATIONS_ITEM: MenuItem = { route: 'locations', label: 'Luoghi guida' };
+const EVALUATION_SHEET_ITEM: MenuItem = { route: 'evaluation-sheet', label: 'Pagellino' };
+const APPEARANCE_ITEM: MenuItem = { route: 'appearance', label: 'Aspetto agenda' };
 
-const SETTINGS_ITEM: MenuItem = {
-  route: 'settings',
-  label: 'Impostazioni',
-  icon: 'settings-outline',
-};
-
-const INSTRUCTOR_HOURS_ITEM: MenuItem = {
-  route: 'instructor-hours',
-  label: 'Ore di guida',
-  icon: 'time-outline',
-};
-
-const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = {
-  route: 'instructors-overview',
-  label: 'Panoramica Istruttori',
-  icon: 'people-outline',
-};
-
-const LOCATIONS_ITEM: MenuItem = {
-  route: 'locations',
-  label: 'Luoghi guida',
-  icon: 'location-outline',
-};
-
-const EVALUATION_SHEET_ITEM: MenuItem = {
-  route: 'evaluation-sheet',
-  label: 'Pagellino',
-  icon: 'star-outline',
-};
-
-const APPEARANCE_ITEM: MenuItem = {
-  route: 'appearance',
-  label: 'Aspetto agenda',
-  icon: 'color-palette-outline',
-};
-
-const initialsFrom = (name: string | null, email: string): string => {
-  const src = (name ?? '').trim();
-  if (src) {
-    const parts = src.split(/\s+/).filter(Boolean);
-    const a = parts[0]?.[0] ?? '';
-    const b = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return (a + b).toUpperCase() || '·';
-  }
-  return (email[0] ?? '·').toUpperCase();
-};
-
-type Section = { key: string; title: string; items: MenuItem[] };
-
+/**
+ * Tab «Tu» (istruttore / titolare) — REG-639 clay: titolo grande, card
+ * profilo in rilievo (volto + nome + ruolo · autoscuola), poi le liste clay
+ * «Gestione» e «Account» senza icone, «Esci» in rosso, versione in fondo.
+ */
 export const MoreScreen = () => {
   const router = useRouter();
-  const { user, autoscuolaRole, companies, activeCompanyId } = useSession();
+  const insets = useSafeAreaInsets();
+  const { user, autoscuolaRole, companies, activeCompanyId, signOut } = useSession();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const companyName = companies.find((c) => c.id === activeCompanyId)?.name ?? null;
   const roleText =
@@ -82,151 +39,65 @@ export const MoreScreen = () => {
     : autoscuolaRole === 'STUDENT' ? 'Allievo'
     : null;
 
-  const sections = useMemo(() => {
-    const management: MenuItem[] = [];
-    if (autoscuolaRole === 'INSTRUCTOR_OWNER') management.push(INSTRUCTORS_OVERVIEW_ITEM);
-    if (isInstructor(autoscuolaRole)) management.push(INSTRUCTOR_HOURS_ITEM);
-    if (vehiclesEnabled) management.push(VEHICLES_ITEM);
-    if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') management.push(LOCATIONS_ITEM);
+  const management = useMemo(() => {
+    const out: MenuItem[] = [];
+    if (autoscuolaRole === 'INSTRUCTOR_OWNER') out.push(INSTRUCTORS_OVERVIEW_ITEM);
+    if (isInstructor(autoscuolaRole)) out.push(INSTRUCTOR_HOURS_ITEM);
+    if (vehiclesEnabled) out.push(VEHICLES_ITEM);
+    if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') out.push(LOCATIONS_ITEM);
     // Voci del pagellino: le configurano titolari E istruttori — sono loro a
     // compilarlo tutti i giorni (stesso gate lato server).
-    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) management.push(EVALUATION_SHEET_ITEM);
+    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) out.push(EVALUATION_SHEET_ITEM);
     // Colori agenda (Aspetto): gestibili dallo staff — titolari E istruttori.
-    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) management.push(APPEARANCE_ITEM);
-
-    const out: Section[] = [];
-    if (management.length) out.push({ key: 'gestione', title: 'Gestione', items: management });
-    out.push({ key: 'account', title: 'Account', items: [SETTINGS_ITEM] });
+    if (isInstructor(autoscuolaRole) || isOwner(autoscuolaRole)) out.push(APPEARANCE_ITEM);
     return out;
   }, [autoscuolaRole, vehiclesEnabled]);
 
-  const name = user?.name?.trim() || user?.email?.split('@')[0] || 'Account';
+  const go = (route: string) => router.push(`/(tabs)/more/${route}` as never);
 
   return (
-    <Screen>
+    <View style={s.root}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'}</Text>
+      <ScrollView
+        contentContainerStyle={[s.content, { paddingTop: insets.top }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <ClayPageHeader title={isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'} />
 
-        {/* Profile card — big, centered (avatar on top). Opens profile-edit. */}
-        <Pressable
-          onPress={() => router.push('/(tabs)/more/profile-edit' as never)}
-          style={({ pressed }) => [styles.hero, pressed && { opacity: 0.95 }]}
-        >
-          <View style={styles.editBadge}>
-            <Ionicons name="create-outline" size={17} color="#929292" />
-          </View>
-          <View style={[styles.avatar, { overflow: 'hidden' }]}>
-            {user?.photoUrl ? (
-              <Image source={{ uri: user.photoUrl }} style={{ width: 84, height: 84, borderRadius: 42 }} />
-            ) : (
-              <Text style={styles.avatarText}>{initialsFrom(user?.name ?? null, user?.email ?? '')}</Text>
-            )}
-          </View>
-          <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
-          {user?.email ? <Text style={styles.heroEmail} numberOfLines={1}>{user.email}</Text> : null}
-          {roleText ? <Text style={styles.heroSub} numberOfLines={1}>{roleText}</Text> : null}
-          {companyName ? (
-            <View style={styles.companyPill}>
-              <Ionicons name="business-outline" size={12} color="#929292" />
-              <Text style={styles.companyText} numberOfLines={1}>{companyName}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+        <View style={s.profile}>
+          <ProfileSummaryCard
+            user={user}
+            detail={[roleText, companyName].filter(Boolean).join(' · ') || user?.email}
+            onPress={() => go('profile-edit')}
+            testID="more-profile-card"
+          />
+        </View>
 
-        {sections.map((section, si) => (
-          <React.Fragment key={section.key}>
-            {si > 0 ? <View style={styles.divider} /> : null}
-            {section.items.map((item) => (
-              <Pressable
-                key={item.route}
-                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                onPress={() => router.push(`/(tabs)/more/${item.route}` as never)}
-              >
-                <View style={styles.iconWrap}>
-                  <Ionicons name={item.icon} size={23} color="#111111" />
-                </View>
-                <Text style={[styles.rowTitle, { flex: 1 }]}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
-              </Pressable>
-            ))}
-          </React.Fragment>
-        ))}
+        {management.length ? (
+          <ClaySection title="Gestione">
+            <ClayList>
+              {management.map((item) => (
+                <ClayListRow key={item.route} title={item.label} onPress={() => go(item.route)} testID={`more-${item.route}`} />
+              ))}
+            </ClayList>
+          </ClaySection>
+        ) : null}
+
+        <ClaySection title="Account">
+          <ClayList>
+            <ClayListRow title={SETTINGS_ITEM.label} onPress={() => go(SETTINGS_ITEM.route)} testID="more-settings" />
+            <ClayTextRow title="Esci" danger onPress={() => { void signOut(); }} testID="more-sign-out" />
+          </ClayList>
+        </ClaySection>
+
+        <AppVersionFooter />
       </ScrollView>
-    </Screen>
+    </View>
   );
 };
 
-const SHADOW = {
-  shadowColor: '#111111',
-  shadowOpacity: 0.05,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 4 },
-  elevation: 2,
-};
-
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    paddingBottom: 140,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '600',
-    color: '#111111',
-    letterSpacing: -0.4,
-    marginBottom: 20,
-  },
-
-  hero: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    marginBottom: 30,
-    ...SHADOW,
-  },
-  editBadge: { position: 'absolute', top: 14, right: 14 },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontSize: 30, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.4 },
-  heroName: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.3, marginTop: 16 },
-  heroEmail: { fontSize: 14, fontWeight: '400', color: '#929292', marginTop: 4 },
-  heroSub: { fontSize: 13, fontWeight: '400', color: '#B0B0B0', marginTop: 2 },
-  companyPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F2F2F2',
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    marginTop: 12,
-  },
-  companyText: { fontSize: 12, fontWeight: '600', color: '#6A6A6A' },
-
-  // Menu = FLAT list on the page background (NOT wrapped in a card). Cards are
-  // only for standalone items like the profile hero above.
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 0,
-  },
-  rowPressed: { backgroundColor: '#F4F4F4' },
-  iconWrap: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowTitle: { fontSize: 15.5, fontWeight: '500', color: '#111111' },
-  divider: { height: 1, backgroundColor: '#F0F1F5', marginVertical: 14 },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  content: { paddingHorizontal: 20, paddingBottom: 140 },
+  profile: { marginTop: 20 },
 });

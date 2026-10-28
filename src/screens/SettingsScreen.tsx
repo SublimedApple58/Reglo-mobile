@@ -2,33 +2,28 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   AppState,
-  Image,
   Linking,
-  Modal,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Screen } from '../components/Screen';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { Input } from '../components/Input';
-import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { colors, radii, spacing, typography } from '../theme';
+import { ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import { AppVersionFooter, CLAY_DANGER, ClayTextRow, ProfileSummaryCard } from '../components/ClayAccountParts';
+import { CLAY } from '../theme/clay';
+import { softStagger } from '../utils/motion';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent } from '../types/regloApi';
-import { TimePickerDrawer } from '../components/TimePickerDrawer';
 import { settingsStore, SlotTarget } from '../stores/settingsStore';
 import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
@@ -37,25 +32,6 @@ import { isInstructor, isOwner, isStudent } from '../utils/roles';
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
 
-const roleLabelMap: Record<string, string> = {
-  STUDENT: 'Allievo',
-  INSTRUCTOR: 'Istruttore',
-  OWNER: 'Titolare',
-  INSTRUCTOR_OWNER: 'Istruttore e Titolare',
-};
-
-const bookingActorLabelMap = {
-  students: 'Solo allievi',
-  instructors: 'Solo istruttori',
-  both: 'Allievi e istruttori',
-} as const;
-
-const instructorModeLabelMap = {
-  manual_full: 'Manuale totale',
-  manual_engine: 'Manuale + motore annullamenti',
-} as const;
-
-const dayLabels = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const dayLetters = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 const pad = (value: number) => value.toString().padStart(2, '0');
 const toDateString = (value: Date) => {
@@ -94,75 +70,11 @@ const findLinkedStudent = (
   return byName ?? null;
 };
 
-type PickerFieldProps = {
-  label: string;
-  value: Date;
-  mode: 'date' | 'time';
-  onChange: (date: Date) => void;
-};
 
-const PickerField = ({ label, value, mode, onChange }: PickerFieldProps) => {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-
-  return (
-    <View style={styles.timePickerFieldWrap}>
-      <Pressable
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.timePickerField, pressed && styles.timePickerFieldPressed]}
-      >
-        <View pointerEvents="none">
-          <Input
-            editable={false}
-            placeholder={label}
-            value={
-              mode === 'date'
-                ? value.toLocaleDateString('it-IT', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                  })
-                : value.toTimeString().slice(0, 5)
-            }
-          />
-        </View>
-      </Pressable>
-      {open ? (
-        Platform.OS === 'ios' ? (
-          <Modal transparent animationType="fade" onRequestClose={close}>
-            <View style={styles.pickerBackdrop}>
-              <View style={styles.pickerCard}>
-                <Text style={styles.pickerTitle}>{label}</Text>
-                <DateTimePicker
-                  value={value}
-                  mode={mode}
-                  display="spinner"
-                  onChange={(_, selected) => {
-                    if (selected) onChange(selected);
-                  }}
-                />
-                <Button label="Fatto" onPress={close} />
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={value}
-            mode={mode}
-            display="default"
-            onChange={(_, selected) => {
-              setOpen(false);
-              if (selected) onChange(selected);
-            }}
-          />
-        )
-      ) : null}
-    </View>
-  );
-};
 
 export const SettingsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
 
   const [name, setName] = useState(user?.name ?? '');
@@ -175,8 +87,8 @@ export const SettingsScreen = () => {
   const [studentReminderMinutes, setStudentReminderMinutes] = useState('60');
   const [instructorReminderMinutes, setInstructorReminderMinutes] = useState('60');
   const [instrAvailabilityMode, setInstrAvailabilityMode] = useState<'default' | 'publication'>('default');
-  const [appBookingActors, setAppBookingActors] = useState<'students' | 'instructors' | 'both'>('students');
-  const [instructorBookingMode, setInstructorBookingMode] =
+  const [, setAppBookingActors] = useState<'students' | 'instructors' | 'both'>('students');
+  const [, setInstructorBookingMode] =
     useState<'manual_full' | 'manual_engine'>('manual_engine');
   const [refreshing, setRefreshing] = useState(false);
   const [studentProfile, setStudentProfile] = useState<AutoscuolaStudent | null>(null);
@@ -198,31 +110,12 @@ export const SettingsScreen = () => {
   const [morningEnd, setMorningEnd] = useState(buildTime(12, 0));
   const [afternoonStart, setAfternoonStart] = useState(buildTime(14, 0));
   const [afternoonEnd, setAfternoonEnd] = useState(buildTime(18, 0));
-  const [slotTimePickerTarget, setSlotTimePickerTarget] = useState<
-    'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd' | null
-  >(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const activeCompany = useMemo(
     () => companies.find((item) => item.id === activeCompanyId) ?? null,
     [companies, activeCompanyId],
   );
-
-  const roleLabel = autoscuolaRole ? roleLabelMap[autoscuolaRole] : 'Utente';
-
-  const logoLabel = useMemo(
-    () => (activeCompany?.name ?? '?').slice(0, 1).toUpperCase(),
-    [activeCompany?.name],
-  );
-
-  const userInitials = useMemo(() => {
-    const source = (user?.name ?? user?.email ?? 'U').trim();
-    const parts = source.split(' ').filter(Boolean);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return source.slice(0, 2).toUpperCase();
-  }, [user?.email, user?.name]);
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -548,16 +441,6 @@ export const SettingsScreen = () => {
     computeTimeFromSlots();
   }, [computeTimeFromSlots]);
 
-  const toTimeStr = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
-  const handleSlotTimePicked = (date: Date) => {
-    if (slotTimePickerTarget === 'morningStart') setMorningStart(date);
-    else if (slotTimePickerTarget === 'morningEnd') setMorningEnd(date);
-    else if (slotTimePickerTarget === 'afternoonStart') setAfternoonStart(date);
-    else if (slotTimePickerTarget === 'afternoonEnd') setAfternoonEnd(date);
-    setSlotTimePickerTarget(null);
-  };
-
   const handleSaveStudentAvailability = async () => {
     if (!studentProfile?.id) {
       setError('Profilo allievo non collegato alla company attiva.');
@@ -695,579 +578,160 @@ export const SettingsScreen = () => {
     });
   });
 
+  /* ─── Student render ─────────────────────────────────────────────── */
   const renderStudentContent = () => (
     <>
-      <Animated.Text entering={FadeInUp.duration(400).springify()} style={studentStyles.pageTitle}>Profilo</Animated.Text>
+      <Animated.View entering={softStagger(0)}>
+        <ClayPageHeader title="Profilo" />
+      </Animated.View>
 
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={18} color={colors.destructive} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {/* Profile card -> opens profile-edit page. Name/email/company come from
           the session, so they render instantly with no skeleton. */}
-      <Animated.View entering={FadeInUp.delay(70).duration(420).springify()}>
-        <Pressable
+      <Animated.View entering={softStagger(1)} style={styles.profile}>
+        <ProfileSummaryCard
+          user={user}
+          detail={[user?.email, activeCompany?.name ?? 'Autoscuola'].filter(Boolean).join(' · ')}
           onPress={() => router.push('/(tabs)/settings/profile-edit')}
-          style={({ pressed }) => [studentStyles.profileCard, pressed && { opacity: 0.95 }]}
-        >
-          <View style={studentStyles.profileAvatar}>
-            {user?.photoUrl ? (
-              <Image
-                source={{ uri: user.photoUrl }}
-                style={{ width: '100%', height: '100%' }}
-              />
-            ) : (
-              <Text style={studentStyles.profileAvatarText}>{userInitials}</Text>
-            )}
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={studentStyles.profileName} numberOfLines={1}>{user?.name ?? 'Utente'}</Text>
-            <Text style={studentStyles.profileEmail} numberOfLines={1}>{user?.email ?? ''}</Text>
-            <View style={studentStyles.profileCompanyPill}>
-              <Ionicons name="business-outline" size={12} color={colors.textMuted} />
-              <Text style={studentStyles.profileCompanyText} numberOfLines={1}>{activeCompany?.name ?? 'Autoscuola'}</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        </Pressable>
+          testID="profile-card"
+        />
       </Animated.View>
 
-      {/* Menu group: preferences */}
-      <Animated.View entering={FadeInUp.delay(140).duration(420).springify()} style={studentStyles.menuGroup}>
-        <Pressable onPress={() => router.push('/(tabs)/settings/le-tue-guide')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="car-sport-outline" size={23} color="#111111" />
-          <Text style={studentStyles.rowLabelFlex}>Le tue guide</Text>
-          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-        </Pressable>
-
-        <View style={studentStyles.rowDivider} />
-        <Pressable onPress={() => router.push('/(tabs)/settings/availability')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="calendar-outline" size={23} color="#111111" />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={studentStyles.rowLabel}>Disponibilità</Text>
-            {availabilityLoading ? (
-              <SkeletonBlock width={130} height={11} radius={6} style={{ marginTop: 5 }} />
-            ) : (
-              <Text style={studentStyles.rowHint} numberOfLines={1}>{availabilitySummary}</Text>
-            )}
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-        </Pressable>
-
-        {/* REG-451: "Scansiona QR" — associazione all'istruttore dalla sua card (la card stampata dice "tab Profilo → Scansiona QR") */}
-        <View style={studentStyles.rowDivider} />
-        <Pressable
-          testID="profile-scan-qr"
-          onPress={() => router.push('/(tabs)/settings/associa-istruttore')}
-          style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}
-        >
-          <Ionicons name="qr-code-outline" size={23} color="#111111" />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={studentStyles.rowLabel}>Scansiona QR</Text>
-            <Text style={studentStyles.rowHint} numberOfLines={1}>Associati al tuo istruttore</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-        </Pressable>
-
-        <View style={studentStyles.rowDivider} />
-        <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'} size={23} color="#111111" />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={studentStyles.rowLabel}>Notifiche</Text>
-            <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
-              {notificationsEnabled ? 'Attive' : 'Disattivate'}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-        </Pressable>
+      <Animated.View entering={softStagger(2)}>
+        <ClaySection title="Preferenze">
+          <ClayList>
+            <ClayListRow title="Le tue guide" onPress={() => router.push('/(tabs)/settings/le-tue-guide')} />
+            <ClayListRow
+              title="Disponibilità"
+              subtitle={
+                availabilityLoading ? <SkeletonBlock width={130} height={11} radius={6} /> : availabilitySummary
+              }
+              onPress={() => router.push('/(tabs)/settings/availability')}
+            />
+            {/* REG-451: "Scansiona QR" — associazione all'istruttore dalla sua card (la card stampata dice "tab Profilo → Scansiona QR") */}
+            <ClayListRow
+              title="Scansiona QR"
+              subtitle="Associati al tuo istruttore"
+              onPress={() => router.push('/(tabs)/settings/associa-istruttore')}
+              testID="profile-scan-qr"
+            />
+            <ClayListRow
+              title="Notifiche"
+              subtitle={notificationsEnabled ? 'Attive' : 'Disattivate'}
+              onPress={handleNotificationsTap}
+            />
+          </ClayList>
+        </ClaySection>
       </Animated.View>
 
-      {/* Menu group: account */}
-      <Animated.View entering={FadeInUp.delay(210).duration(420).springify()} style={studentStyles.menuGroup}>
-        <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="log-out-outline" size={23} color="#111111" />
-          <Text style={studentStyles.rowLabelFlex}>Esci</Text>
-        </Pressable>
-        <View style={studentStyles.rowDivider} />
-        <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-          <Ionicons name="trash-outline" size={23} color="#DC2626" />
-          <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
-        </Pressable>
+      <Animated.View entering={softStagger(3)}>
+        <ClaySection title="Account">
+          <ClayList>
+            <ClayTextRow title="Esci" onPress={handleSignOut} />
+            <ClayTextRow title="Elimina account" danger disabled={deletingAccount} onPress={handleDeleteAccount} />
+          </ClayList>
+        </ClaySection>
+        <AppVersionFooter />
       </Animated.View>
-
-      <Animated.Text entering={FadeInUp.delay(280).duration(420).springify()} style={studentStyles.footer}>Reglo v1.0.0</Animated.Text>
     </>
   );
 
-  /* \u2500\u2500\u2500 Owner / Instructor render \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  /* ─── Owner / Instructor render ──────────────────────────────────── */
+  // «Esci» sta nella tab «Tu» (MoreScreen): qui restano le preferenze e
+  // l'eliminazione dell'account.
   const renderNonStudentContent = () => (
     <>
-      {/* 1. Title */}
-      {router.canGoBack() ? (
-        <Pressable onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="arrow-back" size={22} color="#111111" />
-          <Text style={studentStyles.title}>Impostazioni</Text>
-        </Pressable>
-      ) : (
-        <Text style={studentStyles.title}>Impostazioni</Text>
-      )}
+      <ClayPageHeader
+        title="Impostazioni"
+        onBack={router.canGoBack() ? () => router.back() : undefined}
+      />
 
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={18} color={colors.destructive} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {initialLoading ? (
-        <>
-          <SkeletonCard>
-            <SkeletonBlock width="72%" />
-            <SkeletonBlock width="100%" height={40} radius={12} style={styles.skeletonButton} />
-          </SkeletonCard>
-        </>
+        <ClaySection>
+          <ClayList>
+            <ClayListRow title="Caricamento" subtitle={<SkeletonBlock width={120} height={11} radius={6} />} />
+          </ClayList>
+        </ClaySection>
       ) : (
         <>
-          {/* Preferences — normal rows that open formSheet sub-pages (like student).
-              Profile card moved to the "Altro" (More) screen to avoid duplication. */}
-          <View style={studentStyles.menuGroup}>
-            {isInstructor(autoscuolaRole) ? (
-              <>
-                <Pressable onPress={() => router.push('/(tabs)/more/availability-mode')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                  <Ionicons name="calendar-outline" size={23} color="#111111" />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={studentStyles.rowLabel}>Disponibilità</Text>
-                    {settingsLoading ? (
-                      <SkeletonBlock width={90} height={11} radius={6} style={{ marginTop: 5 }} />
-                    ) : (
-                      <Text style={studentStyles.rowHint} numberOfLines={1}>
-                        {instrAvailabilityMode === 'publication' ? 'Pubblicazione' : 'Predefinita'}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-                </Pressable>
-              </>
-            ) : null}
-
-            {isOwner(autoscuolaRole) ? (
-              <>
-                {isInstructor(autoscuolaRole) ? <View style={studentStyles.rowDivider} /> : null}
-                <Pressable onPress={() => router.push('/(tabs)/more/agenda-settings')} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-                  <Ionicons name="time-outline" size={23} color="#111111" />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={studentStyles.rowLabel}>Agenda</Text>
-                    {settingsLoading ? (
-                      <SkeletonBlock width={120} height={11} radius={6} style={{ marginTop: 5 }} />
-                    ) : (
-                      <Text style={studentStyles.rowHint} numberOfLines={1}>
-                        {availabilityWeeks} settimane prenotabili
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-                </Pressable>
-              </>
-            ) : null}
-
-            {isInstructor(autoscuolaRole) || isOwner(autoscuolaRole) ? <View style={studentStyles.rowDivider} /> : null}
-            <Pressable onPress={handleNotificationsTap} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons
-                name={notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline'}
-                size={23}
-                color="#111111"
+          {/* Preferences — rows that open formSheet sub-pages. Profile card
+              lives on the «Tu» (More) screen to avoid duplication. */}
+          <ClaySection title="Preferenze">
+            <ClayList>
+              {isInstructor(autoscuolaRole) ? (
+                <ClayListRow
+                  title="Disponibilità"
+                  subtitle={
+                    settingsLoading ? (
+                      <SkeletonBlock width={90} height={11} radius={6} />
+                    ) : instrAvailabilityMode === 'publication' ? 'Pubblicazione' : 'Predefinita'
+                  }
+                  onPress={() => router.push('/(tabs)/more/availability-mode')}
+                  testID="settings-availability-mode"
+                />
+              ) : null}
+              {isOwner(autoscuolaRole) ? (
+                <ClayListRow
+                  title="Agenda"
+                  subtitle={
+                    settingsLoading ? (
+                      <SkeletonBlock width={120} height={11} radius={6} />
+                    ) : `${availabilityWeeks} settimane prenotabili`
+                  }
+                  onPress={() => router.push('/(tabs)/more/agenda-settings')}
+                  testID="settings-agenda"
+                />
+              ) : null}
+              <ClayListRow
+                title="Notifiche"
+                subtitle={notificationsEnabled ? 'Attive' : 'Disattivate'}
+                onPress={handleNotificationsTap}
+                testID="settings-notifications"
               />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={studentStyles.rowLabel}>Notifiche</Text>
-                <Text style={[studentStyles.rowHint, !notificationsEnabled && { color: '#DC2626' }]} numberOfLines={1}>
-                  {notificationsEnabled ? 'Attive' : 'Disattivate'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-            </Pressable>
-          </View>
+            </ClayList>
+          </ClaySection>
 
-          {/* Account (flat menu group, like student) */}
-          <View style={studentStyles.menuGroup}>
-            <Pressable onPress={handleSignOut} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="log-out-outline" size={23} color="#111111" />
-              <Text style={studentStyles.rowLabelFlex}>Esci</Text>
-            </Pressable>
-            <View style={studentStyles.rowDivider} />
-            <Pressable onPress={handleDeleteAccount} style={({ pressed }) => [studentStyles.row, pressed && studentStyles.rowPressed]}>
-              <Ionicons name="trash-outline" size={23} color="#DC2626" />
-              <Text style={[studentStyles.rowLabelFlex, { color: '#DC2626' }]}>Elimina account</Text>
-            </Pressable>
-          </View>
+          <ClaySection title="Account">
+            <ClayList>
+              <ClayTextRow title="Elimina account" danger disabled={deletingAccount} onPress={handleDeleteAccount} />
+            </ClayList>
+          </ClaySection>
 
-          {/* Footer */}
-          <Text style={studentStyles.footer}>Reglo v1.0.0</Text>
+          <AppVersionFooter />
         </>
       )}
     </>
   );
 
-
   return (
-    <Screen>
+    <View style={styles.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={CLAY.ink3}
+            colors={[CLAY.ink]}
           />
         }
       >
         {isStudent(autoscuolaRole) ? renderStudentContent() : renderNonStudentContent()}
       </ScrollView>
-      <TimePickerDrawer
-        visible={slotTimePickerTarget !== null}
-        onClose={() => setSlotTimePickerTarget(null)}
-        onSelectTime={handleSlotTimePicked}
-        selectedTime={
-          slotTimePickerTarget === 'morningStart' ? morningStart
-            : slotTimePickerTarget === 'morningEnd' ? morningEnd
-            : slotTimePickerTarget === 'afternoonStart' ? afternoonStart
-            : slotTimePickerTarget === 'afternoonEnd' ? afternoonEnd
-            : buildTime(9, 0)
-        }
-      />
-    </Screen>
+    </View>
   );
 };
 
-/* \u2500\u2500\u2500 Student-specific styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-const studentStyles = StyleSheet.create({
-  title: {
-    fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111',
-  },
-
-  pageTitle: {
-    fontSize: 30, fontWeight: '600', letterSpacing: -0.5, color: '#111111',
-    marginBottom: 4,
-  },
-
-  /* Profile card (Airbnb-style: avatar + info + chevron) */
-  profileCard: {
-    backgroundColor: colors.surface, borderRadius: 22,
-    padding: 18, flexDirection: 'row', alignItems: 'center', gap: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.10, shadowRadius: 10, elevation: 4,
-  },
-  profileAvatar: {
-    width: 60, height: 60, borderRadius: 30, overflow: 'hidden',
-    backgroundColor: '#EBEBEB',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  profileAvatarText: {
-    fontSize: 22, fontWeight: '800', color: colors.primary,
-  },
-  profileName: {
-    fontSize: 18, fontWeight: '800', color: '#111111', letterSpacing: -0.2,
-  },
-  profileEmail: {
-    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1,
-  },
-  profileCompanyPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: '#F2F2F2', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8,
-  },
-  profileCompanyText: {
-    fontSize: 12, fontWeight: '600', color: colors.textSecondary,
-  },
-
-  /* Menu group: flat rows grouped, hairline dividers */
-  menuGroup: {
-    gap: 0,
-    paddingHorizontal: 14,
-  },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    paddingVertical: 16, minHeight: 60,
-  },
-  rowPressed: {
-    opacity: 0.55,
-  },
-  rowLabel: {
-    fontSize: 16, fontWeight: '500', color: '#111111',
-  },
-  rowLabelFlex: {
-    fontSize: 16, fontWeight: '500', color: '#111111', flex: 1,
-  },
-  rowHint: {
-    fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2,
-  },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 39,
-  },
-
-  /* ── Payment ── */
-  warningText: { fontSize: 12, fontWeight: '500', color: '#F59E0B', marginBottom: 12 },
-
-  /* ── CTA Buttons ── */
-  pinkCta: {
-    backgroundColor: colors.primary, minHeight: 50, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
-  },
-  pinkCtaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  dangerCta: {
-    backgroundColor: '#FEE2E2', minHeight: 50, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center', marginTop: 10,
-  },
-  dangerCtaText: { fontSize: 16, fontWeight: '600', color: '#DC2626' },
-
-  /* ── Field group ── */
-  fieldGroup: { gap: 8, marginBottom: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-
-  /* ── Footer ── */
-  footer: {
-    textAlign: 'center', fontSize: 11, fontWeight: '500',
-    color: colors.textMuted, marginTop: 12,
-  },
-
-});
-
-/* \u2500\u2500\u2500 Shared / non-student styles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    gap: 24,
-    paddingBottom: spacing.xxl * 2 + spacing.md,
-  },
-  headerBlock: {
-    gap: spacing.xs,
-  },
-  rolePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    backgroundColor: colors.navy[50],
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-  },
-  rolePillText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  title: {
-    ...typography.title,
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.36)',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.destructive,
-    flex: 1,
-  },
-  profileHeroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  userAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.navy[50],
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  userAvatarText: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  profileHeroMeta: {
-    flex: 1,
-  },
-  profileName: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  profileHint: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  fieldGroup: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  fieldLabel: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  skeletonButton: {
-    marginTop: spacing.xs,
-  },
-  inlineHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  sessionDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.sm,
-  },
-  companyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  logoWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  logo: {
-    width: 56,
-    height: 56,
-    resizeMode: 'cover',
-  },
-  logoFallback: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  companyInfo: {
-    flex: 1,
-  },
-  companyName: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  companyMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  studentAvailabilityBlock: {
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  studentAvailabilityDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginBottom: spacing.xs,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  statusDotOk: {
-    backgroundColor: colors.positive,
-  },
-  statusDotNeutral: {
-    backgroundColor: colors.textMuted,
-  },
-  statusText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  paymentMethodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  paymentMethodText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  warningText: {
-    ...typography.caption,
-    color: colors.accent,
-    marginBottom: spacing.sm,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  timePickerFieldWrap: {
-    flex: 1,
-  },
-  timePickerField: {
-    borderRadius: 14,
-  },
-  timePickerFieldPressed: {
-    opacity: 0.86,
-  },
-  pickerBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(26, 18, 10, 0.72)',
-    padding: spacing.lg,
-  },
-  pickerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radii.sm,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pickerTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  content: { paddingHorizontal: 20, paddingBottom: 140 },
+  profile: { marginTop: 20 },
+  error: { fontSize: 14, lineHeight: 20, color: CLAY_DANGER, marginTop: 14, paddingHorizontal: 4 },
 });

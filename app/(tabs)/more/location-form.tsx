@@ -1,22 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClayToggle } from '../../../src/components/clay';
+import { CLAY_DANGER } from '../../../src/components/ClayAccountParts';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 
 const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -28,6 +17,11 @@ type Suggestion = {
 
 const uuid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
+/**
+ * Aggiungi / modifica luogo (tab «Tu» → Luoghi guida) — REG-639 clay: il form
+ * sheet unico (FORM_SHEET + FormSheet). Campi clay, interruttore clay, i
+ * suggerimenti di Places come lista clay; «Salva luogo» è la CTA in fondo.
+ */
 export default function LocationFormScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(locationFormStore.subscribe, locationFormStore.get);
@@ -151,137 +145,100 @@ export default function LocationFormScreen() {
     }
   };
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold
-        keyboardAware
-        footer={
-          <Pressable
-            onPress={canSubmit && !saving ? handleSubmit : undefined}
-            disabled={!canSubmit || saving}
-            style={({ pressed }) => [s.cta, (!canSubmit || saving) && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
-          >
-            <GradientCTABackground radius={28} />
-            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva luogo</Text>}
-          </Pressable>
-        }
-      >
-        <Text style={s.title}>{initialValue ? 'Modifica luogo' : 'Aggiungi luogo'}</Text>
-
-        <Text style={s.label}>Nome del luogo</Text>
-        <TextInput
-          style={s.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Es. Piazzale del Comune"
-          placeholderTextColor="#9C9C9C"
-          maxLength={80}
-          returnKeyType="done"
+    <FormSheet
+      title={initialValue ? 'Modifica luogo' : 'Aggiungi luogo'}
+      subtitle={initialValue ? initialValue.name : 'Un punto di ritrovo per le guide.'}
+      testID="location-form-sheet"
+      cta={
+        <ClayButton
+          title="Salva luogo"
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          loading={saving}
+          testID="location-form-save"
         />
+      }
+    >
+      <ClayField
+        label="Nome del luogo"
+        value={name}
+        onChangeText={setName}
+        placeholder="Es. Piazzale del Comune"
+        maxLength={80}
+        returnKeyType="done"
+        testID="location-form-name"
+      />
 
-        <View style={s.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.toggleTitle}>Posizione precisa</Text>
-            <Text style={s.toggleSub}>Permette agli allievi di aprire Google Maps direttamente.</Text>
-          </View>
-          <ToggleSwitch value={isPrecise} onValueChange={setIsPrecise} />
+      <View style={s.toggleRow}>
+        <View style={s.toggleText}>
+          <Text style={s.toggleTitle}>Posizione precisa</Text>
+          <Text style={s.toggleSub}>Permette agli allievi di aprire Google Maps direttamente.</Text>
         </View>
+        <ClayToggle
+          value={isPrecise}
+          onValueChange={setIsPrecise}
+          accessibilityLabel="Posizione precisa"
+          testID="location-form-precise"
+        />
+      </View>
 
-        {isPrecise ? (
-          <>
-            <Text style={s.label}>Indirizzo</Text>
-            {!PLACES_API_KEY ? (
-              <Text style={s.helper}>Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).</Text>
-            ) : null}
-            <View>
-              <TextInput
-                style={[s.input, !PLACES_API_KEY && s.inputDisabled]}
-                value={address}
-                onChangeText={(t) => { setAddress(t); setPlaceId(null); setLatitude(null); setLongitude(null); }}
-                placeholder="Es. Via Roma 14, Milano"
-                placeholderTextColor="#9C9C9C"
-                editable={Boolean(PLACES_API_KEY)}
-                returnKeyType="search"
-              />
-              {searching ? <ActivityIndicator style={s.spinner} color="#9C9C9C" size="small" /> : null}
-            </View>
+      {isPrecise ? (
+        <>
+          <View>
+            <ClayField
+              label="Indirizzo"
+              hint={
+                PLACES_API_KEY
+                  ? undefined
+                  : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).'
+              }
+              value={address}
+              onChangeText={(t) => { setAddress(t); setPlaceId(null); setLatitude(null); setLongitude(null); }}
+              placeholder="Es. Via Roma 14, Milano"
+              editable={Boolean(PLACES_API_KEY)}
+              returnKeyType="search"
+              testID="location-form-address"
+            />
+            {searching ? <ActivityIndicator style={s.spinner} color={CLAY.ink3} size="small" /> : null}
+          </View>
 
-            {suggestions.length > 0 ? (
-              <View style={s.suggestionsBox}>
-                {suggestions.map((sug) => (
-                  <Pressable key={sug.placeId} style={s.suggestionRow} onPress={() => selectSuggestion(sug)}>
-                    <Ionicons name="location-outline" size={16} color="#9C9C9C" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.suggestionPrimary}>{sug.primaryText}</Text>
-                      <Text style={s.suggestionSecondary} numberOfLines={1}>{sug.secondaryText}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
+          {suggestions.length > 0 ? (
+            <ClayList style={s.suggestions}>
+              {suggestions.map((sug) => (
+                <ClayListRow
+                  key={sug.placeId}
+                  title={sug.primaryText}
+                  subtitle={sug.secondaryText || undefined}
+                  chevron={false}
+                  onPress={() => selectSuggestion(sug)}
+                />
+              ))}
+            </ClayList>
+          ) : null}
 
-            {latitude != null && longitude != null ? (
-              <View style={s.coordsRow}>
-                <Ionicons name="checkmark-circle" size={15} color="#6A6A6A" />
-                <Text style={s.coords}>Coordinate agganciate · {latitude.toFixed(5)}, {longitude.toFixed(5)}</Text>
-              </View>
-            ) : null}
-          </>
-        ) : null}
+          {latitude != null && longitude != null ? (
+            <Text style={s.coords}>Coordinate agganciate · {latitude.toFixed(5)}, {longitude.toFixed(5)}</Text>
+          ) : null}
+        </>
+      ) : null}
 
-        {error ? <Text style={s.error}>{error}</Text> : null}
-      </SheetScaffold>
-    </View>
+      {error ? <Text style={s.error}>{error}</Text> : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginBottom: 18 },
-  label: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 22, marginBottom: 10 },
-  helper: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginBottom: 10, lineHeight: 18 },
-  input: {
-    borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#111111',
-    backgroundColor: '#FFFFFF',
-  },
-  inputDisabled: { backgroundColor: '#F8F8F8', color: '#9C9C9C' },
-  spinner: { position: 'absolute', right: 16, top: 16 },
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingVertical: 4, marginTop: 26,
-  },
-  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
-  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 3, lineHeight: 18 },
-  suggestionsBox: {
-    marginTop: 8, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
-    backgroundColor: '#FFFFFF', overflow: 'hidden',
-  },
-  suggestionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F2F2F2',
-  },
-  suggestionPrimary: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  suggestionSecondary: { fontSize: 13, fontWeight: '400', color: '#9C9C9C' },
-  coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
-  coords: { fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
-  error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
-  cta: {
-    height: 56, borderRadius: 28, marginTop: 30,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 18 },
+  toggleText: { flex: 1, minWidth: 0 },
+  toggleTitle: { fontSize: 16, fontWeight: '500', color: CLAY.ink },
+  toggleSub: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 2 },
+  // Allineato al campo (etichetta 15 + gap 8 + metà campo 50).
+  spinner: { position: 'absolute', right: 16, top: 41 },
+  suggestions: { marginTop: 12 },
+  coords: { fontSize: 13, color: CLAY.ink3, marginTop: 10, paddingHorizontal: 4 },
+  error: { fontSize: 14, color: CLAY_DANGER, marginTop: 14, paddingHorizontal: 4 },
 });

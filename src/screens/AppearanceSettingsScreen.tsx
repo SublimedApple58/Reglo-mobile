@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Screen } from '../components/Screen';
-import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
+import { ClayEmpty, ClayList, ClayListRow, ClaySection, ClaySegmented, ClayToggle } from '../components/clay';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import { CLAY } from '../theme/clay';
 import { useSession } from '../context/SessionContext';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { queryKeys } from '../hooks/queries/queryKeys';
 import { regloApi } from '../services/regloApi';
 import { isInstructor, isOwner } from '../utils/roles';
-import { colors, spacing } from '../theme';
 import type {
   AgendaColorCriterion,
   AgendaColorExceptions,
@@ -24,6 +25,7 @@ import {
   AUTOMATIC_MARKER_WIDTH,
   DEFAULT_AUTOMATIC_MARKER_COLOR,
   DURATION_COLOR_ENTRIES,
+  NEUTRAL_BLUE,
   previewColor,
   entriesForCriterion,
   resolveColorOverride,
@@ -39,8 +41,18 @@ const CRITERIA_LABEL: Record<AgendaColorCriterion, string> = {
   patente: 'Patente',
 };
 
+/** Sul telefono i blu/azzurri dell'agenda diventano neutri (NEUTRAL_BLUE). */
+const BLUE_NOTE = 'Sul telefono i colori blu e azzurri compaiono in nero.';
+
+/**
+ * Aspetto agenda — REG-639 clay: testata grande con l'indietro clay, criterio
+ * come segmentato clay, colori ed eccezioni come liste clay (il pallino del
+ * colore è un dato di prodotto: resta, a destra), interruttori clay, note
+ * sotto le sezioni. Auto-save con rollback, come prima.
+ */
 export const AppearanceSettingsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { activeCompanyId, autoscuolaRole } = useSession();
   const queryClient = useQueryClient();
   const settingsQ = useAutoscuolaSettings();
@@ -206,189 +218,179 @@ export const AppearanceSettingsScreen = () => {
   const ns = overrideNamespaceForCriterion(criterion);
 
   const canEdit = isOwner(autoscuolaRole) || isInstructor(autoscuolaRole);
-  if (!canEdit) {
-    return (
-      <Screen>
-        <Header onBack={() => router.back()} saving={false} />
-        <View style={s.center}>
-          <Text style={s.muted}>Riservato allo staff dell&apos;autoscuola.</Text>
-        </View>
-      </Screen>
-    );
-  }
-
   const loading = settingsQ.isLoading && !settingsQ.data;
+  const markerName = marker.color
+    ? (AGENDA_SWATCHES.find((sw) => sw.hex === marker.color)?.name ?? 'Personalizzato')
+    : 'Nero';
 
   return (
-    <Screen>
-      <Header onBack={() => router.back()} saving={saving} />
-      {loading ? (
-        <View style={s.center}><ActivityIndicator color="#111111" /></View>
-      ) : (
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {/* ── Criterio: segmented ─────────────── */}
-          <Text style={s.sectionLabel}>CRITERIO</Text>
-          <View style={s.segment}>
-            {AGENDA_COLOR_CRITERIA.map((c) => {
-              const active = criterion === c;
-              return (
-                <Pressable
-                  key={c}
-                  onPress={() => { if (!active) apply({ criterion: c }); }}
-                  style={[s.segmentItem, active && s.segmentItemActive]}
-                >
-                  <Text style={[s.segmentText, active && s.segmentTextActive]}>{CRITERIA_LABEL[c]}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+    <View style={s.root}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={[s.scroll, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
+        <ClayPageHeader
+          title="Aspetto agenda"
+          onBack={() => router.back()}
+          actions={saving ? <ActivityIndicator size="small" color={CLAY.ink3} /> : null}
+        />
 
-          {/* ── Colori (lista piatta) ───────────── */}
-          <Text style={s.sectionLabel}>COLORI</Text>
-          <View style={s.list}>
-            {entries.map((e, i) => (
-              <View key={e.key}>
-                {i > 0 ? <View style={s.divider} /> : null}
-                <Pressable onPress={() => openEntryPicker(e.label, e.key)} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
-                  <View style={[s.dot, { backgroundColor: vividHex(e, resolveColorOverride(e, overrides[ns])) }]} />
-                  <Text style={s.rowLabel} numberOfLines={1}>{e.label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              </View>
-            ))}
-          </View>
+        {!canEdit ? (
+          <ClayEmpty title="Riservato allo staff dell'autoscuola." />
+        ) : loading ? (
+          <View style={s.center}><ActivityIndicator color={CLAY.ink} /></View>
+        ) : (
+          <>
+            <ClaySection title="Criterio">
+              <ClaySegmented
+                options={AGENDA_COLOR_CRITERIA.map((c) => ({ value: c, label: CRITERIA_LABEL[c] }))}
+                value={criterion}
+                onChange={(c) => { if (c !== criterion) apply({ criterion: c }); }}
+                testID="appearance-criterion"
+              />
+            </ClaySection>
 
-          {/* ── Eccezioni (lista piatta) ────────── */}
-          {activeExceptions.length > 0 ? (
-            <>
-              <View style={s.sectionHeaderRow}>
-                <Text style={s.sectionLabel}>ECCEZIONI</Text>
-                {activeExcCount > 0 ? (
-                  <View style={s.countBadge}><Text style={s.countBadgeText}>{activeExcCount}</Text></View>
-                ) : null}
-              </View>
-              <View style={s.list}>
-                {activeExceptions.map((exc, i) => {
-                  const on = exceptions[exc.key] ?? exc.defaultEnabled;
-                  return (
-                    <View key={exc.key}>
-                      {i > 0 ? <View style={s.divider} /> : null}
-                      <View style={s.row}>
-                        {on ? (
-                          <Pressable onPress={() => openExceptionPicker(exc.label, exc.key)} hitSlop={8}>
-                            <View style={[s.dot, { backgroundColor: vividHex(exc.entry, overrides.eccezioni?.[exc.key]) }]} />
-                          </Pressable>
-                        ) : (
-                          <View style={[s.dot, s.dotOff]} />
-                        )}
-                        <Text style={s.rowLabel} numberOfLines={1}>{exc.label}</Text>
-                        <ToggleSwitch value={on} onValueChange={(v) => apply({ exceptions: { ...exceptions, [exc.key]: v } })} />
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          ) : null}
-
-          {/* ── Guide automatiche (REG-622): bordo, non colore ── */}
-          <Text style={s.sectionLabel}>GUIDE AUTOMATICHE</Text>
-          <View style={s.list}>
-            <View style={s.markerRow}>
-              <Text style={s.markerLabel}>Contrassegna le guide con mezzi automatici</Text>
-              <ToggleSwitch value={marker.enabled} onValueChange={(v) => applyMarker({ ...marker, enabled: v })} />
-            </View>
-            <Text style={s.markerHint}>
-              Le guide con veicolo o percorso a cambio automatico tengono il loro colore e hanno in più un bordo.
-            </Text>
-            {marker.enabled ? (
-              <>
-                <View style={[s.divider, s.dividerFull]} />
-                <Pressable onPress={openMarkerPicker} style={({ pressed }) => [s.row, pressed && s.rowPressed]}>
-                  <View
-                    style={[
-                      s.markerPreview,
-                      {
-                        backgroundColor: previewColor(DURATION_COLOR_ENTRIES[2], overrides.durata?.[DURATION_COLOR_ENTRIES[2].key]),
-                        borderColor: marker.color ?? DEFAULT_AUTOMATIC_MARKER_COLOR,
-                      },
-                    ]}
+            <ClaySection title="Colori" footnote={NEUTRAL_BLUE ? BLUE_NOTE : undefined}>
+              <ClayList>
+                {entries.map((e) => (
+                  <ClayListRow
+                    key={e.key}
+                    title={e.label}
+                    trailing={<Swatch color={vividHex(e, resolveColorOverride(e, overrides[ns]))} />}
+                    onPress={() => openEntryPicker(e.label, e.key)}
                   />
-                  <Text style={s.rowLabel} numberOfLines={1}>Colore del bordo</Text>
-                  <Text style={s.rowValue}>{marker.color ? (AGENDA_SWATCHES.find((sw) => sw.hex === marker.color)?.name ?? 'Personalizzato') : 'Nero'}</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              </>
-            ) : null}
-          </View>
+                ))}
+              </ClayList>
+            </ClaySection>
 
-          {/* ── Veicolo nei blocchi (REG-633), solo col modulo veicoli ── */}
-          {settingsQ.data?.vehiclesEnabled !== false ? (
-            <>
-              <Text style={s.sectionLabel}>VEICOLO</Text>
-              <View style={s.list}>
-                <View style={s.markerRow}>
-                  <Text style={s.markerLabel}>Mostra il veicolo nei blocchi delle guide</Text>
-                  <ToggleSwitch value={showVehicle} onValueChange={applyShowVehicle} />
-                </View>
-                <Text style={s.markerHint}>
-                  Sotto il nome dell&apos;allievo compare il mezzo della guida, nel calendario e sul web. Per le guide moto anche l&apos;auto al seguito.
-                </Text>
-              </View>
-            </>
-          ) : null}
-        </ScrollView>
-      )}
+            {activeExceptions.length > 0 ? (
+              <ClaySection
+                title="Eccezioni"
+                action={activeExcCount > 0 ? <Text style={s.count}>{activeExcCount === 1 ? '1 attiva' : `${activeExcCount} attive`}</Text> : null}
+              >
+                <ClayList>
+                  {activeExceptions.map((exc) => {
+                    const on = exceptions[exc.key] ?? exc.defaultEnabled;
+                    return (
+                      <ToggleRow
+                        key={exc.key}
+                        title={exc.label}
+                        value={on}
+                        onValueChange={(v) => apply({ exceptions: { ...exceptions, [exc.key]: v } })}
+                        accessory={
+                          on ? (
+                            <Pressable
+                              onPress={() => openExceptionPicker(exc.label, exc.key)}
+                              hitSlop={8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Colore di ${exc.label}`}
+                            >
+                              <Swatch color={vividHex(exc.entry, overrides.eccezioni?.[exc.key])} />
+                            </Pressable>
+                          ) : null
+                        }
+                      />
+                    );
+                  })}
+                </ClayList>
+              </ClaySection>
+            ) : null}
+
+            {/* ── Guide automatiche (REG-622): bordo, non colore ── */}
+            <ClaySection
+              title="Guide automatiche"
+              footnote="Le guide con veicolo o percorso a cambio automatico tengono il loro colore e hanno in più un bordo."
+            >
+              <ClayList>
+                <ToggleRow
+                  title="Contrassegna le guide con mezzi automatici"
+                  value={marker.enabled}
+                  onValueChange={(v) => applyMarker({ ...marker, enabled: v })}
+                />
+                {marker.enabled ? (
+                  <ClayListRow
+                    title="Colore del bordo"
+                    subtitle={markerName}
+                    trailing={
+                      <View
+                        style={[
+                          s.markerPreview,
+                          {
+                            backgroundColor: previewColor(DURATION_COLOR_ENTRIES[2], overrides.durata?.[DURATION_COLOR_ENTRIES[2].key]),
+                            borderColor: marker.color ?? DEFAULT_AUTOMATIC_MARKER_COLOR,
+                          },
+                        ]}
+                      />
+                    }
+                    onPress={openMarkerPicker}
+                  />
+                ) : null}
+              </ClayList>
+            </ClaySection>
+
+            {/* ── Veicolo nei blocchi (REG-633), solo col modulo veicoli ── */}
+            {settingsQ.data?.vehiclesEnabled !== false ? (
+              <ClaySection
+                title="Veicolo"
+                footnote="Sotto il nome dell'allievo compare il mezzo della guida, nel calendario e sul web. Per le guide moto anche l'auto al seguito."
+              >
+                <ClayList>
+                  <ToggleRow
+                    title="Mostra il veicolo nei blocchi delle guide"
+                    value={showVehicle}
+                    onValueChange={applyShowVehicle}
+                  />
+                </ClayList>
+              </ClaySection>
+            ) : null}
+          </>
+        )}
+      </ScrollView>
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-    </Screen>
+    </View>
   );
 };
 
-const Header = ({ onBack, saving }: { onBack: () => void; saving: boolean }) => (
-  <View style={s.header}>
-    <Pressable onPress={onBack} hitSlop={8} style={s.backBtn}>
-      <Ionicons name="chevron-back" size={24} color="#111111" />
-    </Pressable>
-    <Text style={s.headerTitle}>Aspetto agenda</Text>
-    <View style={s.headerRight}>{saving ? <ActivityIndicator size="small" color="#9A9A9A" /> : null}</View>
-  </View>
-);
+/** Pallino del colore di una voce (dato di prodotto, non decorazione). */
+const Swatch = ({ color }: { color: string }) => <View style={[s.dot, { backgroundColor: color }]} />;
+
+/**
+ * Riga con interruttore dentro una `ClayList`: il titolo va a capo (non
+ * tronca), `accessory` sta prima dell'interruttore. Il separatore lo passa
+ * la lista (`divider`).
+ */
+function ToggleRow({
+  title,
+  value,
+  onValueChange,
+  accessory,
+  divider,
+}: {
+  title: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  accessory?: React.ReactNode;
+  divider?: boolean;
+}) {
+  return (
+    <View style={s.toggleRow}>
+      {divider ? <View style={s.divider} /> : null}
+      <Text style={s.toggleTitle}>{title}</Text>
+      {accessory}
+      <ClayToggle value={value} onValueChange={onValueChange} accessibilityLabel={title} />
+    </View>
+  );
+}
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, gap: 8 },
-  backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.4 },
-  headerRight: { width: 34, alignItems: 'flex-end' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 48 },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  scroll: { paddingHorizontal: 20, paddingBottom: 140 },
+  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  count: { fontSize: 14, color: CLAY.ink3 },
 
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#9A9A9A', letterSpacing: 0.6, marginTop: 26, marginBottom: 10 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  countBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#EEF0F3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginTop: 16 },
-  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
-
-  // Segmented control: capsula (pillola) — stesso riferimento delle tab
-  // "Una volta/Ricorrente" (availability-exception): track grigio, pillola bianca.
-  segment: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: 4, gap: 4 },
-  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
-  segmentItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#111111', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  segmentText: { fontSize: 15, fontWeight: '600', color: '#6B6B6B' },
-  segmentTextActive: { color: '#111111', fontWeight: '700' },
-
-  // Liste piatte su sfondo pagina (no card-in-card), divisori inset.
-  list: {},
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 56 },
-  rowPressed: { opacity: 0.55 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 38 },
-  dot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#00000012' },
-  dotOff: { backgroundColor: '#E5E5E5' },
-  rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#111111' },
-  rowValue: { fontSize: 15, fontWeight: '500', color: '#909090' },
-  dividerFull: { marginLeft: 0 },
-  markerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 15, minHeight: 56 },
-  markerLabel: { flex: 1, fontSize: 15.5, fontWeight: '600', color: '#111111', lineHeight: 21 },
-  markerHint: { fontSize: 13.5, fontWeight: '500', color: '#909090', lineHeight: 19, marginTop: 4, marginBottom: 15, paddingRight: 64 },
+  dot: { width: 24, height: 24, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.12)' },
   // Mini blocco guida col bordo: anteprima a colpo d'occhio di come appare in agenda.
   markerPreview: { width: 34, height: 24, borderRadius: 7, borderWidth: AUTOMATIC_MARKER_WIDTH },
+
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18, minHeight: 56 },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  toggleTitle: { flex: 1, minWidth: 0, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25, lineHeight: 21 },
 });

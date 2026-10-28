@@ -1,22 +1,20 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Screen } from '../components/Screen';
+import { ClayEmpty } from '../components/clay';
+import { CLAY } from '../theme/clay';
 import { VehiclesScreen } from './VehiclesScreen';
 import { useSession } from '../context/SessionContext';
-import { colors } from '../theme';
 
 export const InstructorVehiclesScreen = () => {
   const { instructorId } = useSession();
 
   if (!instructorId) {
     return (
-      <Screen>
+      <View style={styles.root}>
         <StatusBar style="dark" />
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>Profilo istruttore mancante</Text>
-        </View>
-      </Screen>
+        <ClayEmpty title="Profilo istruttore mancante" />
+      </View>
     );
   }
 
@@ -24,6 +22,5 @@ export const InstructorVehiclesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
+  root: { flex: 1, backgroundColor: CLAY.bg, justifyContent: 'center' },
 });

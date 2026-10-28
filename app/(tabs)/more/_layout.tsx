@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET } from '../../../src/utils/sheetPresentation';
+import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function MoreLayout() {
   return (
-    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+    // REG-639 clay: fondo bianco puro sotto le schermate della tab «Tu».
+    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="appearance" />
@@ -14,24 +14,17 @@ export default function MoreLayout() {
       <Stack.Screen name="locations" />
       <Stack.Screen name="vehicles" />
       <Stack.Screen name="evaluation-sheet" />
-      <Stack.Screen name="profile-edit" options={TALL_SHEET} />
-      <Stack.Screen name="availability-mode" options={TALL_SHEET} />
-      <Stack.Screen name="agenda-settings" options={TALL_SHEET} />
-      <Stack.Screen name="location-form" options={TALL_SHEET} />
-      <Stack.Screen
-        name="vehicle-form"
-        options={{
-          // Full page sheet (not formSheet/fitToContents): the form is long and
-          // variable-length (license + assignment + availability), so it must
-          // scroll. Page sheet gives a tall sheet with a scrollable body.
-          presentation: 'modal',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen name="evaluation-item" options={HUG_SHEET} />
-      <Stack.Screen name="time-picker" options={HUG_SHEET} />
-      <Stack.Screen name="color-picker" options={TALL_SHEET} />
-      <Stack.Screen name="hours-period" options={TALL_SHEET} />
+      {/* Fogli: IL form sheet (FORM_SHEET + <FormSheet>, design-system §13.2). */}
+      <Stack.Screen name="profile-edit" options={FORM_SHEET} />
+      <Stack.Screen name="availability-mode" options={FORM_SHEET} />
+      <Stack.Screen name="agenda-settings" options={FORM_SHEET} />
+      <Stack.Screen name="location-form" options={FORM_SHEET} />
+      {/* Era un modal a tutta pagina con footer pinnato: ora form sheet che scorre da sé. */}
+      <Stack.Screen name="vehicle-form" options={FORM_SHEET} />
+      <Stack.Screen name="evaluation-item" options={FORM_SHEET} />
+      <Stack.Screen name="time-picker" options={FORM_SHEET} />
+      <Stack.Screen name="color-picker" options={FORM_SHEET} />
+      <Stack.Screen name="hours-period" options={FORM_SHEET} />
     </Stack>
   );
 }

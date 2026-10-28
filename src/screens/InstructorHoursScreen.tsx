@@ -1,29 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Screen } from '../components/Screen';
-import { SkeletonBlock, SkeletonCard } from '../components/Skeleton';
-import { colors, spacing } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SkeletonBlock } from '../components/Skeleton';
+import {
+  ClayEmpty,
+  ClayHeroNumber,
+  ClayList,
+  ClayListRow,
+  ClaySection,
+  ClayStat,
+  ClaySurface,
+  Icon3D,
+} from '../components/clay';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import { CLAY } from '../theme/clay';
+import { MORALE_ART } from '../theme/moraleArt';
 import { useInstructorHours } from '../hooks/queries/useInstructorHours';
 import { hoursPeriodStore } from '../stores/hoursPeriodStore';
 import type { InstructorHoursBucket } from '../types/regloApi';
-
-const FLUENT_CLOCK = require('../../assets/icons/fluent-clock.png');
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoOfDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -76,6 +73,15 @@ function formatMinutes(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
+/** Numero protagonista: «11 h 30», «45 min», «6 h». */
+function heroParts(minutes: number): { value: string; unit: string } {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return { value: String(m), unit: 'min' };
+  if (m === 0) return { value: String(h), unit: 'h' };
+  return { value: String(h), unit: `h ${pad(m)}` };
+}
+
 const COLUMN_HEIGHT = 132;
 
 function BucketColumn({
@@ -93,7 +99,7 @@ function BucketColumn({
 
   return (
     <View style={s.column}>
-      {showValue && !isEmpty ? <Text style={s.colValue}>{formatMinutes(bucket.totalMinutes)}</Text> : <View style={{ height: 14 }} />}
+      {showValue && !isEmpty ? <Text style={s.colValue}>{formatMinutes(bucket.totalMinutes)}</Text> : <View style={s.colValueSlot} />}
       <View style={s.colTrack}>
         {isEmpty ? (
           <View style={s.colEmpty} />
@@ -109,8 +115,16 @@ function BucketColumn({
   );
 }
 
+/**
+ * «Ore di guida» — REG-639 clay: testata grande con l'indietro clay, il
+ * periodo come riga di lista, il totale come numero protagonista (con il
+ * trofeo, unica icona di morale della schermata), due tessere numero e il
+ * grafico su una superficie clay. Barre nere = in orario, grigie = fuori
+ * orario (detto nella nota sotto, niente pallini colorati).
+ */
 export const InstructorHoursScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState(() => currentWeek());
 
   const { data, isLoading, isError, refetch, isRefetching } = useInstructorHours(period.from, period.to);
@@ -134,192 +148,121 @@ export const InstructorHoursScreen = () => {
   );
   const showBarValues = !!data && data.buckets.length <= 8;
 
+  const chartNote = data
+    ? [
+        data.workingHoursStart && data.workingHoursEnd
+          ? `Orario di lavoro ${data.workingHoursStart}–${data.workingHoursEnd}.`
+          : null,
+        data.total.outsideWorkingHoursMinutes > 0 ? 'In grigio le ore fuori orario.' : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+
   return (
-    <Screen>
+    <View style={s.root}>
       <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111111" />
-        </Pressable>
-        <Text style={s.title}>Ore di guida</Text>
-      </View>
-
-      {/* Period selector */}
-      <Pressable onPress={openPicker} style={({ pressed }) => [s.periodPill, pressed && { opacity: 0.9 }]}>
-        <Ionicons name="calendar-outline" size={16} color="#111111" />
-        <Text style={s.periodLabel}>{periodLabel}</Text>
-        <Ionicons name="chevron-down" size={16} color="#6A6A6A" />
-      </Pressable>
-
       <ScrollView
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={CLAY.ink3} />}
       >
+        <ClayPageHeader title="Ore di guida" onBack={() => router.back()} />
+
+        <ClayList style={s.period}>
+          <ClayListRow
+            title="Periodo"
+            trailing={<Text style={s.periodValue} numberOfLines={1}>{periodLabel}</Text>}
+            onPress={openPicker}
+            testID="hours-period-row"
+          />
+        </ClayList>
+
         {isLoading ? (
-          <View style={{ gap: 16 }}>
-            <SkeletonCard style={s.skelHero}>
-              <SkeletonBlock height={34} width="45%" radius={8} />
-              <SkeletonBlock height={14} width="35%" radius={6} style={{ marginTop: 10 }} />
-            </SkeletonCard>
-            <SkeletonCard style={s.skelChart}><SkeletonBlock height={120} radius={10} /></SkeletonCard>
+          <View style={s.skel}>
+            <SkeletonBlock height={46} width="45%" radius={10} />
+            <SkeletonBlock height={14} width="35%" radius={6} style={{ marginTop: 12 }} />
+            <SkeletonBlock height={150} radius={22} style={{ marginTop: 28 }} />
           </View>
         ) : isError ? (
-          <View style={s.empty}>
-            <View style={s.emptyIconCircle}><Image source={FLUENT_CLOCK} style={s.emptyIcon} /></View>
-            <Text style={s.emptyTitle}>Errore nel caricamento</Text>
-            <Text style={s.emptySub}>Trascina verso il basso per riprovare.</Text>
-          </View>
+          <ClayEmpty title="Errore nel caricamento" text="Trascina verso il basso per riprovare." />
         ) : !data || data.total.totalMinutes === 0 ? (
-          <View style={s.empty}>
-            <View style={s.emptyIconCircle}><Image source={FLUENT_CLOCK} style={s.emptyIcon} /></View>
-            <Text style={s.emptyTitle}>Nessuna guida nel periodo</Text>
-            <Text style={s.emptySub}>Le ore di guida compariranno qui dopo le lezioni completate.</Text>
-          </View>
+          <ClayEmpty
+            title="Nessuna guida nel periodo"
+            text="Le ore di guida compariranno qui dopo le lezioni completate."
+          />
         ) : (
           <>
-            {/* Hero — numero grande + sub + pill teoria (borderless, stile Airbnb/web) */}
-            <View style={s.heroTop}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.heroValue}>{formatMinutes(data.total.totalMinutes)}</Text>
-                <Text style={s.heroSub}>
-                  {data.total.appointmentCount} {data.total.appointmentCount === 1 ? 'guida' : 'guide'} · {periodLabel.toLowerCase()}
-                </Text>
-                {data.total.theoryMinutes > 0 && (
-                  <View style={s.theoryPill}>
-                    <Ionicons name="book" size={12} color="#111111" />
-                    <Text style={s.theoryPillText}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
-                  </View>
-                )}
+            <View style={s.hero}>
+              <View style={s.heroMain}>
+                <ClayHeroNumber
+                  {...heroParts(data.total.totalMinutes)}
+                  caption={`${data.total.appointmentCount} ${data.total.appointmentCount === 1 ? 'guida' : 'guide'} · ${periodLabel.toLowerCase()}`}
+                />
+                {data.total.theoryMinutes > 0 ? (
+                  <Text style={s.theory}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
+                ) : null}
               </View>
-              <Image source={FLUENT_CLOCK} style={s.heroIcon} />
+              <Icon3D source={MORALE_ART.trofeo} size={72} />
             </View>
 
-            <View style={s.divider} />
-
-            {/* Statistiche — pallini coordinati con le barre del grafico */}
             <View style={s.stats}>
-              <View style={s.stat}>
-                <View style={s.statLabelRow}>
-                  <View style={[s.statDot, { backgroundColor: '#111111' }]} />
-                  <Text style={s.statLabel}>In orario</Text>
-                </View>
-                <Text style={s.statValue}>
-                  {formatMinutes(Math.max(data.total.totalMinutes - data.total.outsideWorkingHoursMinutes, 0))}
-                </Text>
-              </View>
-              <View style={s.statDiv} />
-              <View style={s.stat}>
-                <View style={s.statLabelRow}>
-                  <View style={[s.statDot, { backgroundColor: '#CECECE' }]} />
-                  <Text style={s.statLabel}>Fuori orario</Text>
-                </View>
-                <Text style={s.statValue}>{formatMinutes(data.total.outsideWorkingHoursMinutes)}</Text>
-              </View>
+              <ClayStat
+                value={formatMinutes(Math.max(data.total.totalMinutes - data.total.outsideWorkingHoursMinutes, 0))}
+                label="In orario"
+              />
+              <ClayStat value={formatMinutes(data.total.outsideWorkingHoursMinutes)} label="Fuori orario" />
             </View>
 
-            {/* Breakdown */}
-            <Text style={s.sectionLabel}>
-              {data.granularity === 'day' ? 'Dettaglio giornaliero' : 'Dettaglio settimanale'}
-            </Text>
-            <View style={s.chartRow}>
-              {data.buckets.map((b) => {
-                const isToday = data.granularity === 'day'
-                  ? b.startDate === todayISO
-                  : b.startDate === currentWeekMonday;
-                return (
-                  <BucketColumn key={b.key} bucket={b} maxMinutes={maxBucketMinutes} isToday={isToday} showValue={showBarValues} />
-                );
-              })}
-            </View>
-
-            {/* Working hours */}
-            {data.workingHoursStart && data.workingHoursEnd ? (
-              <View style={s.infoRow}>
-                <Ionicons name="time-outline" size={14} color="#929292" />
-                <Text style={s.infoText}>Orario di lavoro {data.workingHoursStart}–{data.workingHoursEnd}</Text>
-              </View>
-            ) : null}
+            <ClaySection
+              title={data.granularity === 'day' ? 'Dettaglio giornaliero' : 'Dettaglio settimanale'}
+              footnote={chartNote || undefined}
+            >
+              <ClaySurface style={s.chartCard}>
+                <View style={s.chartRow}>
+                  {data.buckets.map((b) => {
+                    const isToday = data.granularity === 'day'
+                      ? b.startDate === todayISO
+                      : b.startDate === currentWeekMonday;
+                    return (
+                      <BucketColumn key={b.key} bucket={b} maxMinutes={maxBucketMinutes} isToday={isToday} showValue={showBarValues} />
+                    );
+                  })}
+                </View>
+              </ClaySurface>
+            </ClaySection>
           </>
         )}
       </ScrollView>
-    </Screen>
+    </View>
   );
 };
 
-const CARD_SHADOW = {
-  shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
-} as const;
-
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm,
-  },
-  backBtn: { padding: 2 },
-  title: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  scroll: { paddingHorizontal: 20, paddingBottom: 140 },
 
-  periodPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center',
-    marginBottom: 12, backgroundColor: '#FFFFFF', borderRadius: 999,
-    paddingVertical: 9, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: '#DDDDDD',
-  },
-  periodLabel: { fontSize: 15, fontWeight: '600', color: '#222222', letterSpacing: -0.2 },
+  period: { marginTop: 20 },
+  periodValue: { fontSize: 15.5, color: CLAY.ink3, maxWidth: 200 },
 
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 8 },
+  skel: { marginTop: 28 },
 
-  // Airbnb puro: sezioni borderless su pagina bianca, separate da linee sottili.
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: '#929292', marginTop: 26, marginBottom: 16 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28 },
+  heroMain: { flex: 1, minWidth: 0 },
+  theory: { fontSize: 14.5, color: CLAY.ink3, marginTop: 4 },
 
-  heroTop: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 },
-  heroValue: { fontSize: 44, fontWeight: '800', color: '#222222', letterSpacing: -2, lineHeight: 46 },
-  heroSub: { fontSize: 14, fontWeight: '500', color: '#929292', marginTop: 8 },
-  heroIcon: { width: 54, height: 54, marginLeft: 12, marginTop: 2 },
+  stats: { flexDirection: 'row', gap: 12, marginTop: 22 },
 
-  divider: { height: 1, backgroundColor: '#EBEBEB', marginVertical: 22 },
-
-  stats: { flexDirection: 'row', alignItems: 'flex-start' },
-  stat: { flex: 1 },
-  statDiv: { width: 1, backgroundColor: '#EBEBEB', alignSelf: 'stretch', marginHorizontal: 20 },
-  statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statDot: { width: 8, height: 8, borderRadius: 3 },
-  statLabel: { fontSize: 13, fontWeight: '500', color: '#929292' },
-  statValue: { fontSize: 22, fontWeight: '800', color: '#222222', letterSpacing: -0.6, marginTop: 6 },
-
-  // Lezione teorica — pill indaco (uguale alla web app).
-  theoryPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
-    marginTop: 10, backgroundColor: '#EFEDE8', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  theoryPillText: { fontSize: 12.5, fontWeight: '600', color: '#3A3A3C', letterSpacing: -0.1 },
-
+  chartCard: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 14 },
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, height: COLUMN_HEIGHT + 36 },
   column: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   colTrack: { width: '100%', height: COLUMN_HEIGHT, justifyContent: 'flex-end', alignItems: 'center' },
   bar: { width: '58%', borderTopLeftRadius: 4, borderTopRightRadius: 4, minHeight: 4, overflow: 'hidden', flexDirection: 'column' },
-  barInside: { width: '100%', backgroundColor: '#111111' },
+  barInside: { width: '100%', backgroundColor: CLAY.ink },
   barOutside: { width: '100%', backgroundColor: '#CECECE' },
-  colEmpty: { width: '58%', height: 4, borderRadius: 2, backgroundColor: '#F2F2F4' },
-  colValue: { fontSize: 10, fontWeight: '700', color: '#929292', fontVariant: ['tabular-nums'] },
-  colLabel: { fontSize: 11, fontWeight: '500', color: '#C1C1C1' },
-  colLabelToday: { color: '#222222', fontWeight: '700' },
-
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingHorizontal: 4 },
-  infoText: { fontSize: 12, color: '#929292' },
-
-  skelHero: { borderRadius: 22, padding: 22, height: 108 },
-  skelChart: { borderRadius: 20, padding: 16 },
-
-  empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 },
-  emptyIconCircle: {
-    width: 88, height: 88, borderRadius: 44, backgroundColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16, ...CARD_SHADOW,
-  },
-  emptyIcon: { width: 48, height: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
-  emptySub: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+  colEmpty: { width: '58%', height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.08)' },
+  colValueSlot: { height: 14 },
+  colValue: { fontSize: 10, fontWeight: '600', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
+  colLabel: { fontSize: 11, fontWeight: '500', color: CLAY.ink4 },
+  colLabelToday: { color: CLAY.ink, fontWeight: '600' },
 });

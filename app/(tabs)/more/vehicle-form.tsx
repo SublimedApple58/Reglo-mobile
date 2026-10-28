@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import {
-  ActionSheetIOS,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActionSheetIOS, ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import {
+  ClayButton,
+  ClayField,
+  ClayList,
+  ClayListRow,
+  ClaySection,
+  ClaySegmented,
+  ClayToggle,
+} from '../../../src/components/clay';
+import { CLAY_DANGER } from '../../../src/components/ClayAccountParts';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
+import { SOFT_SWAP_IN } from '../../../src/utils/motion';
 import { vehicleFormStore } from '../../../src/stores/vehicleFormStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
@@ -28,9 +28,6 @@ import {
   TRANSMISSION_LABELS,
 } from '../../../src/utils/license';
 import type { LicenseCategory, Transmission } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const dayLetters = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 
@@ -40,9 +37,15 @@ const toTimeString = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const toDateString = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.getDate() + n); return c; };
 
+/**
+ * Nuovo / modifica veicolo — REG-639 clay: il form sheet unico (FORM_SHEET +
+ * FormSheet, scorre da sé; prima era un modal a tutta pagina con footer
+ * pinnato). Campi clay, cambio e modalità di utilizzo come segmentati clay,
+ * interruttori clay, scelte multiple (pool) come righe con la spunta,
+ * disponibilità con i giorni in cerchi clay e gli orari come righe di lista.
+ */
 export default function VehicleFormScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(vehicleFormStore.subscribe, vehicleFormStore.get);
   const initial = data?.initial ?? null;
   const isEdit = Boolean(initial);
@@ -167,28 +170,6 @@ export default function VehicleFormScreen() {
     }
   }, [licenseCategory]);
 
-  const openTransmissionPicker = useCallback(() => {
-    const labels = TRANSMISSIONS.map((t) =>
-      t === transmission ? `✓ ${TRANSMISSION_LABELS[t]}` : TRANSMISSION_LABELS[t],
-    );
-    if (Platform.OS === 'ios') {
-      const options = [...labels, 'Annulla'];
-      const cancelButtonIndex = options.length - 1;
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: 'Cambio', options, cancelButtonIndex },
-        (i) => {
-          if (i === cancelButtonIndex) return;
-          const t = TRANSMISSIONS[i];
-          if (t) setTransmission(t);
-        },
-      );
-    } else {
-      Alert.alert('Cambio', undefined, [
-        ...TRANSMISSIONS.map((t, i) => ({ text: labels[i], onPress: () => setTransmission(t) })),
-        { text: 'Annulla', style: 'cancel' as const },
-      ]);
-    }
-  }, [transmission]);
 
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [start, setStart] = useState(buildTime(9, 0));
@@ -336,318 +317,269 @@ export default function VehicleFormScreen() {
     }
   };
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
+
+  const busy = saving || (isEdit && availabilityLoading);
 
   return (
-    <View style={s.root}>
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
+    <FormSheet
+      title={isEdit ? 'Modifica veicolo' : 'Nuovo veicolo'}
+      subtitle={isEdit ? [initial?.name, initial?.plate].filter(Boolean).join(' · ') || undefined : 'Un mezzo dell\'autoscuola per le guide.'}
+      testID="vehicle-form-sheet"
+      cta={
+        <ClayButton
+          title={isEdit ? 'Salva' : 'Crea veicolo'}
+          onPress={isEdit ? handleSaveEdit : handleCreate}
+          loading={saving}
+          disabled={busy}
+          testID="vehicle-form-save"
+        />
+      }
+    >
+      <View style={s.fields}>
+        <ClayField
+          label="Nome del veicolo"
+          value={name}
+          onChangeText={setName}
+          placeholder="Es. Fiat Panda"
+          maxLength={60}
+          returnKeyType="next"
+          testID="vehicle-form-name"
+        />
+        <ClayField
+          label="Targa"
+          value={plate}
+          onChangeText={setPlate}
+          placeholder="Es. GA 472 KP"
+          autoCapitalize="characters"
+          maxLength={16}
+          returnKeyType="done"
+          testID="vehicle-form-plate"
+        />
       </View>
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-      <Text style={s.title}>{isEdit ? 'Modifica veicolo' : 'Nuovo veicolo'}</Text>
 
-      <Text style={s.label}>Nome del veicolo</Text>
-      <TextInput
-        style={s.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="Es. Fiat Panda"
-        placeholderTextColor="#9C9C9C"
-        maxLength={60}
-        returnKeyType="next"
-      />
-
-      <Text style={s.label}>Targa</Text>
-      <TextInput
-        style={s.input}
-        value={plate}
-        onChangeText={setPlate}
-        placeholder="Es. GA 472 KP"
-        placeholderTextColor="#9C9C9C"
-        autoCapitalize="characters"
-        maxLength={16}
-        returnKeyType="done"
-      />
-
-      <View style={s.licenseRow}>
-        <Pressable
+      <ClayList style={s.block}>
+        <ClayListRow
+          title="Categoria patente"
+          trailing={<Text style={s.value}>{licenseCategory}</Text>}
           onPress={openCategoryPicker}
-          style={({ pressed }) => [s.licenseCard, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={s.timeLabel}>Categoria patente</Text>
-          <View style={s.timeValRow}>
-            <Ionicons name="card-outline" size={17} color="#111111" />
-            <Text style={s.timeVal}>{licenseCategory}</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          onPress={openTransmissionPicker}
-          style={({ pressed }) => [s.licenseCard, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={s.timeLabel}>Cambio</Text>
-          <View style={s.timeValRow}>
-            <Ionicons name="settings-outline" size={17} color="#111111" />
-            <Text style={s.timeVal}>{TRANSMISSION_LABELS[transmission]}</Text>
-          </View>
-        </Pressable>
-      </View>
+          testID="vehicle-form-category"
+        />
+      </ClayList>
+
+      <Text style={s.label}>Cambio</Text>
+      <ClaySegmented
+        options={TRANSMISSIONS.map((t) => ({ value: t, label: TRANSMISSION_LABELS[t] }))}
+        value={transmission}
+        onChange={setTransmission}
+        testID="vehicle-form-transmission"
+      />
 
       {isEdit ? (
         <>
-          <View style={s.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.toggleTitle}>Veicolo attivo</Text>
-              <Text style={s.toggleSub}>Se disattivato, non è prenotabile per le guide.</Text>
-            </View>
-            <ToggleSwitch value={active} onValueChange={setActive} />
+          <View style={s.toggles}>
+            <ToggleRow
+              title="Veicolo attivo"
+              subtitle="Se disattivato, non è prenotabile per le guide."
+              value={active}
+              onValueChange={setActive}
+            />
+            {isOwnerActor && active ? (
+              <ToggleRow
+                title="In manutenzione"
+                subtitle="Escluso dalle nuove prenotazioni; gli appuntamenti già fissati restano."
+                value={maintenance}
+                onValueChange={setMaintenance}
+              />
+            ) : null}
+            {!isOwnerActor && canSelfAssign ? (
+              <ToggleRow
+                title="Assegna a me questo veicolo"
+                subtitle="Le tue guide useranno automaticamente questo veicolo."
+                value={assignedInstructorId === sessionInstructorId}
+                onValueChange={(v) => setAssignedInstructorId(v ? (sessionInstructorId ?? '') : '')}
+              />
+            ) : null}
+            {!isOwnerActor && !canSelfAssign && assignedToOther ? (
+              <View style={s.toggleRow}>
+                <View style={s.toggleText}>
+                  <Text style={s.toggleTitle}>Veicolo assegnato</Text>
+                  <Text style={s.toggleSub}>Assegnato a un altro istruttore.</Text>
+                </View>
+              </View>
+            ) : null}
           </View>
 
-          {isOwnerActor && active ? (
-            <View style={s.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.toggleTitle}>In manutenzione</Text>
-                <Text style={s.toggleSub}>
-                  Escluso dalle nuove prenotazioni; gli appuntamenti già fissati restano.
-                </Text>
-              </View>
-              <ToggleSwitch value={maintenance} onValueChange={setMaintenance} />
-            </View>
-          ) : null}
-
           {isOwnerActor ? (
-            <View style={s.subSec}>
-              <Text style={s.subLabel}>Modalità di utilizzo</Text>
-              <View style={s.modeSeg}>
-                {([['open', 'Aperto'], ['pool', 'Pool'], ['exclusive', 'Esclusivo']] as const).map(
-                  ([m, label]) => (
-                    <Pressable
-                      key={m}
-                      onPress={() => setMode(m)}
-                      style={[s.modeBtn, mode === m && s.modeBtnOn]}
-                    >
-                      <Text style={[s.modeBtnText, mode === m && s.modeBtnTextOn]}>{label}</Text>
-                    </Pressable>
-                  ),
-                )}
-              </View>
-
-              {mode === 'open' ? (
-                <Text style={s.modeHelp}>Tutti gli istruttori possono usare questo veicolo.</Text>
-              ) : mode === 'pool' ? (
-                <>
-                  <Text style={s.modeHelp}>Solo gli istruttori selezionati possono usarlo.</Text>
-                  <View style={s.chipWrap}>
-                    {instructors.map((ins) => {
-                      const on = poolInstructorIds.includes(ins.id);
-                      return (
-                        <Pressable
-                          key={ins.id}
-                          onPress={() =>
-                            setPoolInstructorIds((prev) =>
-                              on ? prev.filter((id) => id !== ins.id) : [...prev, ins.id],
-                            )
-                          }
-                          style={[s.chip, on && s.chipOn]}
-                        >
-                          <Text style={[s.chipText, on && s.chipTextOn]}>{ins.name}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Pressable
-                    onPress={openInstructorPicker}
-                    style={({ pressed }) => [s.pickerRowTight, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={s.timeVal}>
-                      {assignedInstructorName ?? (assignedInstructorId ? 'Assegnato' : 'Scegli istruttore')}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={18} color="#9C9C9C" />
-                  </Pressable>
-                  <Text style={s.modeHelp}>
-                    Riservato a un istruttore, nascosto agli altri. Un istruttore può avere più mezzi esclusivi.
-                  </Text>
-                </>
-              )}
-            </View>
-          ) : canSelfAssign ? (
-            <View style={s.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.toggleTitle}>Assegna a me questo veicolo</Text>
-                <Text style={s.toggleSub}>
-                  Le tue guide useranno automaticamente questo veicolo.
-                </Text>
-              </View>
-              <ToggleSwitch
-                value={assignedInstructorId === sessionInstructorId}
-                onValueChange={(v) =>
-                  setAssignedInstructorId(v ? (sessionInstructorId ?? '') : '')
-                }
+            <ClaySection title="Modalità di utilizzo" style={s.sectionTight}>
+              <ClaySegmented
+                options={[
+                  { value: 'open', label: 'Aperto' },
+                  { value: 'pool', label: 'Pool' },
+                  { value: 'exclusive', label: 'Esclusivo' },
+                ]}
+                value={mode}
+                onChange={setMode}
+                testID="vehicle-form-mode"
               />
-            </View>
-          ) : assignedToOther ? (
-            <View style={s.pickerRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.toggleTitle}>Veicolo assegnato</Text>
-                <Text style={s.toggleSub}>Assegnato a un altro istruttore.</Text>
-              </View>
-            </View>
+              <Animated.View key={mode} entering={SOFT_SWAP_IN}>
+                {mode === 'open' ? (
+                  <Text style={s.help}>Tutti gli istruttori possono usare questo veicolo.</Text>
+                ) : mode === 'pool' ? (
+                  <>
+                    <Text style={s.help}>Solo gli istruttori selezionati possono usarlo.</Text>
+                    {instructors.length ? (
+                      <ClayList style={s.block}>
+                        {instructors.map((ins) => {
+                          const on = poolInstructorIds.includes(ins.id);
+                          return (
+                            <ClayListRow
+                              key={ins.id}
+                              title={ins.name}
+                              chevron={false}
+                              trailing={on ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : undefined}
+                              onPress={() =>
+                                setPoolInstructorIds((prev) =>
+                                  on ? prev.filter((id) => id !== ins.id) : [...prev, ins.id],
+                                )
+                              }
+                            />
+                          );
+                        })}
+                      </ClayList>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <ClayList style={s.block}>
+                      <ClayListRow
+                        title="Istruttore"
+                        trailing={
+                          <Text style={s.value} numberOfLines={1}>
+                            {assignedInstructorName ?? (assignedInstructorId ? 'Assegnato' : 'Scegli')}
+                          </Text>
+                        }
+                        onPress={openInstructorPicker}
+                        testID="vehicle-form-instructor"
+                      />
+                    </ClayList>
+                    <Text style={s.help}>
+                      Riservato a un istruttore, nascosto agli altri. Un istruttore può avere più mezzi esclusivi.
+                    </Text>
+                  </>
+                )}
+              </Animated.View>
+            </ClaySection>
           ) : null}
 
           {isAssigned ? (
-            <View style={s.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.toggleTitle}>Segue la disponibilità dell&apos;istruttore</Text>
-                <Text style={s.toggleSub}>
-                  {followsAvail
+            <View style={s.toggles}>
+              <ToggleRow
+                title="Segue la disponibilità dell'istruttore"
+                subtitle={
+                  followsAvail
                     ? 'Disponibile quando lo è l\'istruttore assegnato.'
-                    : 'Usa gli orari propri impostati qui sotto.'}
-                </Text>
-              </View>
-              <ToggleSwitch value={followsAvail} onValueChange={setFollowsAvail} />
+                    : 'Usa gli orari propri impostati qui sotto.'
+                }
+                value={followsAvail}
+                onValueChange={setFollowsAvail}
+              />
             </View>
           ) : null}
 
           {showOwnAvailability ? (
-          <View style={s.subSec}>
-            <Text style={s.subLabel}>Disponibilità</Text>
-            {availabilityLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
-            ) : (
-              <>
-                <View style={s.days}>
-                  {dayLetters.map((letter, index) => {
-                    const on = days.includes(index);
-                    return (
-                      <Pressable
-                        key={`vd-${index}`}
-                        onPress={() => toggleDay(index)}
-                        style={[s.day, on ? s.dayOn : s.dayOff]}
-                      >
-                        <Text style={[s.dayText, on ? s.dayTextOn : s.dayTextOff]}>{letter}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <View style={s.times}>
-                  <Pressable
-                    onPress={() => openTimePicker(start, setStart)}
-                    style={({ pressed }) => [s.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={s.timeLabel}>Inizio</Text>
-                    <View style={s.timeValRow}>
-                      <Ionicons name="time-outline" size={17} color="#111111" />
-                      <Text style={s.timeVal}>{toTimeString(start)}</Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openTimePicker(end, setEnd)}
-                    style={({ pressed }) => [s.timeCard, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={s.timeLabel}>Fine</Text>
-                    <View style={s.timeValRow}>
-                      <Ionicons name="time-outline" size={17} color="#111111" />
-                      <Text style={s.timeVal}>{toTimeString(end)}</Text>
-                    </View>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </View>
+            <ClaySection title="Disponibilità" style={s.sectionTight}>
+              {availabilityLoading ? (
+                <ActivityIndicator size="small" color={CLAY.ink3} style={s.loader} />
+              ) : (
+                <Animated.View entering={SOFT_SWAP_IN}>
+                  <View style={s.days}>
+                    {dayLetters.map((letter, index) => {
+                      const on = days.includes(index);
+                      return (
+                        <Pressable
+                          key={`vd-${index}`}
+                          onPress={() => toggleDay(index)}
+                          style={[s.day, on ? s.dayOn : s.dayOff]}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                        >
+                          <Text style={[s.dayText, on && s.dayTextOn]}>{letter}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <ClayList style={s.block}>
+                    <ClayListRow
+                      title="Inizio"
+                      trailing={<Text style={s.value}>{toTimeString(start)}</Text>}
+                      onPress={() => openTimePicker(start, setStart)}
+                      testID="vehicle-form-start"
+                    />
+                    <ClayListRow
+                      title="Fine"
+                      trailing={<Text style={s.value}>{toTimeString(end)}</Text>}
+                      onPress={() => openTimePicker(end, setEnd)}
+                      testID="vehicle-form-end"
+                    />
+                  </ClayList>
+                </Animated.View>
+              )}
+            </ClaySection>
           ) : null}
         </>
       ) : null}
 
       {error ? <Text style={s.error}>{error}</Text> : null}
-      </ScrollView>
+    </FormSheet>
+  );
+}
 
-      <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable
-          onPress={saving ? undefined : (isEdit ? handleSaveEdit : handleCreate)}
-          disabled={saving || (isEdit && availabilityLoading)}
-          style={({ pressed }) => [
-            s.cta,
-            (saving || (isEdit && availabilityLoading)) && { opacity: 0.5 },
-            pressed && { opacity: 0.9 },
-          ]}
-        >
-          <GradientCTABackground radius={27} />
-          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>{isEdit ? 'Salva' : 'Crea veicolo'}</Text>}
-        </Pressable>
+/** Interruttore con titolo e spiegazione su più righe (non tronca). */
+function ToggleRow({
+  title,
+  subtitle,
+  value,
+  onValueChange,
+}: {
+  title: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  return (
+    <View style={s.toggleRow}>
+      <View style={s.toggleText}>
+        <Text style={s.toggleTitle}>{title}</Text>
+        <Text style={s.toggleSub}>{subtitle}</Text>
       </View>
+      <ClayToggle value={value} onValueChange={onValueChange} accessibilityLabel={title} />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 16 },
-  footer: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F0', backgroundColor: colors.background },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginBottom: 6 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  fields: { gap: 18 },
+  block: { marginTop: 14 },
+  label: { fontSize: 15, fontWeight: '500', color: CLAY.ink, marginTop: 22, marginBottom: 8, paddingHorizontal: 2 },
+  value: { fontSize: 15.5, color: CLAY.ink3, maxWidth: 180 },
+  help: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4 },
+  sectionTight: { marginTop: 22 },
 
-  label: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 22, marginBottom: 10 },
-  input: {
-    borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 15, fontSize: 16, fontWeight: '400', color: '#111111',
-    backgroundColor: '#FFFFFF',
-  },
+  toggles: { marginTop: 10 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
+  toggleText: { flex: 1, minWidth: 0 },
+  toggleTitle: { fontSize: 16, fontWeight: '500', color: CLAY.ink },
+  toggleSub: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 2 },
 
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 4, marginTop: 26 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4, marginTop: 26 },
-  toggleTitle: { fontSize: 16, fontWeight: '600', color: '#111111' },
-  toggleSub: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 3, lineHeight: 18 },
+  loader: { alignSelf: 'flex-start', marginTop: 4 },
+  days: { flexDirection: 'row', justifyContent: 'space-between' },
+  day: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  dayOn: { backgroundColor: CLAY.ink, ...CLAY_SHADOW.ink },
+  dayOff: { backgroundColor: CLAY.surface, ...CLAY_SHADOW.raiseSm },
+  dayText: { fontSize: 15, fontWeight: '500', color: CLAY.ink3 },
+  dayTextOn: { color: '#FFFFFF', fontWeight: '600' },
 
-  subSec: { marginTop: 26, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5E5' },
-  subLabel: { fontSize: 12, fontWeight: '600', color: '#9C9C9C', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14 },
-
-  modeSeg: { flexDirection: 'row', backgroundColor: '#EBEBED', borderRadius: 24, padding: 5, gap: 3 },
-  modeBtn: { flex: 1, height: 42, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  modeBtnOn: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 2 },
-  modeBtnText: { fontSize: 14, fontWeight: '500', color: '#6A6A6A' },
-  modeBtnTextOn: { color: '#111111', fontWeight: '600' },
-  modeHelp: { fontSize: 13, fontWeight: '400', color: '#9C9C9C', marginTop: 12, lineHeight: 18 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 14 },
-  chip: { borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 9999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF' },
-  chipOn: { backgroundColor: '#111111', borderColor: '#111111' },
-  chipText: { fontSize: 14, fontWeight: '500', color: '#111111' },
-  chipTextOn: { color: '#FFFFFF', fontWeight: '600' },
-  pickerRowTight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 15, backgroundColor: '#FFFFFF', marginTop: 14 },
-
-  days: { flexDirection: 'row', gap: 8 },
-  day: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  dayOn: { backgroundColor: '#111111' },
-  dayOff: { backgroundColor: '#F4F4F4' },
-  dayText: { fontSize: 14, fontWeight: '600' },
-  dayTextOn: { color: '#FFFFFF' },
-  dayTextOff: { color: '#6A6A6A' },
-
-  times: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  licenseRow: { flexDirection: 'row', gap: 12, marginTop: 22 },
-  licenseCard: { flex: 1, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
-  timeCard: { flex: 1, borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, backgroundColor: '#FFFFFF' },
-  timeLabel: { fontSize: 11, fontWeight: '600', color: '#9C9C9C', letterSpacing: 0.5, textTransform: 'uppercase' },
-  timeValRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  timeVal: { fontSize: 16, fontWeight: '600', color: '#111111' },
-
-  error: { fontSize: 13, fontWeight: '400', color: '#DC2626', marginTop: 16 },
-  cta: {
-    height: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  error: { fontSize: 14, color: CLAY_DANGER, marginTop: 16, paddingHorizontal: 4 },
 });
