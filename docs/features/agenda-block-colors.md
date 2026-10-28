@@ -8,14 +8,15 @@ si imposta dal pannello **Aspetto** — sul web **e ora anche da mobile** (owner
 `reglo/docs/features/appearance-settings.md`. Esami, guide di gruppo,
 blocchi istruttore e stati **annullata/assente** restano col loro colore.
 
-> **REG-639 clay (notte 28/10/2026) — come si disegna oggi.** Il colore non è
-> più il fondo pastello del blocco: è una **barretta piena a sinistra** + una
-> **tinta leggerissima** dello stesso colore come fondo (12% di colore), testo
-> sempre nero. Un solo punto per vista Giorno e vista Settimana:
-> `src/utils/agendaLook.ts` (`guideLook`). Sul mobile i colori **blu/azzurri**
-> diventano neutri (`NEUTRAL_BLUE`). Dettagli nella sezione «Barretta + tinta»
-> in fondo. `DayItinerary` e la timeline `itinCard` citate sotto non esistono
-> più (REG-638): le superfici sono `AgendaDayView` e `WeeklyAgendaView`.
+> **REG-639 clay (29/10/2026) — come si disegna oggi.** Il blocco della guida
+> è a **fondo pieno in tinta pastello** (`softenTint`, come prima), **senza
+> bordo e senza barretta**, con un'**ombra morbida nella stessa tinta** e testo
+> scuro. Un solo punto: `src/utils/agendaLook.ts` (`guideLook`), usato dalla
+> griglia settimanale `WeeklyAgendaView`, l'unica vista dell'Agenda. Sul mobile
+> i colori **blu/azzurri/indaco** diventano neutri (`NEUTRAL_BLUE`, **decisione
+> in sospeso con Tiziano**). Dettagli nella sezione in fondo. `DayItinerary`, la
+> timeline `itinCard` e la vista Giorno `AgendaDayView` (provata il 28/10 con la
+> barretta, bocciata il 29/10) non esistono più.
 
 ## Origine dati (nessuna modifica backend)
 
@@ -33,9 +34,8 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 |------|------|
 | `src/types/regloApi.ts` | Campi `agendaColorCriterion?/Overrides?/Exceptions?` su `AutoscuolaSettings` + tipi `AgendaColorCriterion`, `AgendaColorOverrides`, `AgendaColorExceptions` |
 | `src/utils/agendaColors.ts` | Porta 1:1 di `reglo/lib/autoscuole/agenda-color-criterion.ts`: entries durata/patente (stessi hex/soglie), eccezioni (`exam_ready`/`moto`), contrassegno guide automatiche (REG-622), normalizzatori, `resolveAgendaColorConfig(settings)`, `resolveGuideBlockStyle(ctx, config)` (output stile RN: `{ backgroundColor, shadowColor }`) |
-| `src/utils/agendaLook.ts` | **REG-639**: `guideLook(appt, config)` → `{ bar, wash, text, sub, ring, muted }`, unico punto dell'aspetto di una guida per le due viste; `EXAM_LOOK` (barretta nera su bianco), `GROUP_LOOK` (verde foglia `#2FA36B`), `GROUP_MOTO_LOOK` (ambra `#F5A524`); `blockLabel` («Pausa» per `lesson_buffer`) |
-| `src/components/agenda/AgendaDayView.tsx` | **Vista Giorno** (REG-639): card guida = `EventCard` con barretta `look.bar` e fondo `look.wash`; config via `useAutoscuolaSettings` |
-| `src/components/WeeklyAgendaView.tsx` | **Vista Settimana** (griglia oraria, la più simile al web): `getLessonLook` ora è un adattatore di `guideLook` (fondo = `wash`, barretta `eventBar` 3pt a sinistra). Config via `useAutoscuolaSettings` in `WeekPage` |
+| `src/utils/agendaLook.ts` | **REG-639**: `guideLook(appt, config)` → `{ bar, wash, text, sub, ring, muted, glow }`, unico punto dell'aspetto di una guida; con `AGENDA_BLOCK_BAR = false` `bar` è `null` e `wash` è il pastello pieno; `glow` = ombra in tinta. `EXAM_LOOK` (bianco, ombra neutra), `GROUP_LOOK` (verde foglia pastello), `GROUP_MOTO_LOOK` (ambra pastello); `blockLabel` («Pausa» per `lesson_buffer`) |
+| `src/components/WeeklyAgendaView.tsx` | **Vista Settimana** (griglia oraria, l'unica vista dell'Agenda): `getLessonLook` è un adattatore di `guideLook` (fondo = `wash`, ombra `tintShadow(glow)`, niente bordo; la barretta `eventBar` compare solo se `AGENDA_BLOCK_BAR` torna `true`). Config via `useAutoscuolaSettings` in `WeekPage` |
 | ~~`DayItinerary.tsx`~~ / ~~timeline `itinCard` di `IstruttoreHomeScreen`~~ | Eliminati con REG-638 (28/10): storico |
 | `src/screens/AppearanceSettingsScreen.tsx` + `app/(tabs)/more/appearance.tsx` | **Pannello "Aspetto agenda"** (staff, scrittura): design editoriale/flat (no card-in-card) — criterio come **segmented control**, liste piatte con divisori inset, **pallini colore VIVI** (`vividHex`, non la tinta soft del blocco), eccezioni con **`ToggleSwitch`** custom (no Switch RN) + badge conteggio attive. Testo minimo (niente caption/descrizioni). Auto-save via `regloApi.updateAgendaColorSettings` + `setQueryData` + `ToastNotice`/rollback |
 | `src/stores/colorPickerStore.ts` + `app/(tabs)/more/color-picker.tsx` | Swatch picker formSheet (palette curata `AGENDA_SWATCHES` = 16 swatch del web) + "Colore standard" (reset override), seed-and-callback |
@@ -43,7 +43,7 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 | `src/services/regloApi.ts` | `updateAgendaColorSettings(input)` → `PATCH /api/autoscuole/agenda-colors` (solo i 3 campi `agendaColor*`) |
 | `reglo/lib/actions/autoscuole-settings.actions.ts` + `reglo/app/api/autoscuole/agenda-colors/route.ts` | **Backend scoped** `updateAgendaColorSettings` + route `PATCH`: staff-gated (`canManageAgendaColors`), valida/normalizza i 3 campi, scrive `limits`, invalida cache Redis (AGENDA+SETTINGS), ritorna i settings risolti |
 
-**Due superfici agenda coperte** (tutte e due anche in `ownerMode`, `TitolareHome` = wrapper): vista Giorno (`AgendaDayView`) e vista Settimana (`WeeklyAgendaView`), entrambe via `agendaLook.guideLook`. (Fino al 28/10 erano tre: timeline `itinCard`, `DayItinerary`, griglia.)
+**Una superficie agenda** (anche in `ownerMode`, `TitolareHome` = wrapper): la griglia settimanale (`WeeklyAgendaView`) via `agendaLook.guideLook`. (Fino al 28/10 c'erano anche la timeline `itinCard` e `DayItinerary`; la vista Giorno `AgendaDayView` è durata una notte.)
 
 ## Comportamento
 
@@ -131,43 +131,44 @@ La timeline giornaliera della home (`itinCard`) mostrava già il veicolo sempre
 e resta così. Allievo escluso. Esami (raggruppati) e guide di gruppo (card con
 i posti) non mostrano il veicolo.
 
-## Barretta + tinta e `NEUTRAL_BLUE` (REG-639 clay, notte 28/10/2026)
+## Fondo pastello, ombra in tinta e `NEUTRAL_BLUE` (REG-639 clay)
 
-**Resa.** `agendaBlockStyle(entry, override)` restituisce, oltre al vecchio
-`backgroundColor` pastello (`softenTint`, usato ancora dai pallini/anteprime
-del pannello Aspetto via `previewColor`), due campi nuovi:
-- `barColor` = il colore **vivo** della voce (`vividHex`: override del
-  titolare, altrimenti la hue satura dietro l'hex di default);
-- `washColor` = `mixWithWhite(barColor, 0.88)` → 12% di colore sul bianco.
+**Resa (dal 29/10/2026).** `agendaBlockStyle(entry, override)` restituisce
+`backgroundColor` = il pastello (`softenTint` dell'override del titolare o
+dell'hex di default) e, in più, `barColor` = il colore **vivo** della voce
+(`vividHex`) e `washColor` = `mixWithWhite(barColor, 0.88)`.
 
-`guideLook` li usa così: barretta piena `bar` a sinistra, fondo `wash`, testo
-nero `#111111`, secondario `rgba(17,17,17,0.58)`. Il bordo delle guide
-automatiche (REG-622) resta (`ring`).
+`guideLook` con `AGENDA_BLOCK_BAR = false` (oggi) usa: fondo pieno
+`backgroundColor`, nessuna barretta (`bar: null`), testo `#111111`, secondario
+`rgba(17,17,17,0.58)`, e `glow` = il colore vivo al 38% per l'ombra morbida in
+tinta (`tintShadow` nella griglia: y 4, blur 10, spread −3). Nessun bordo, salvo
+quello delle guide automatiche (REG-622, `ring`).
 
-**Priorità (in `guideLook`, invariata nella sostanza):**
-1. `cancelled` / `no_show` → aspetto tenue (`MUTED_LOOK`: barretta `#CFCFCF`,
-   fondo bianco, testo grigio);
-2. `examNextDay` → rosso `#C13515` (barretta) + tinta rossa al 10%, con il
+**Priorità (in `guideLook`):**
+1. `cancelled` / `no_show` → aspetto tenue (`MUTED_LOOK`: fondo `#F3F3F3`, testo
+   grigio, ombra neutra leggera);
+2. `examNextDay` → rosso `#C13515` pastello (80% bianco) con ombra rossa, più il
    bordo automatiche se serve;
 3. eccezioni attive (`exam_ready`, `moto`) → poi criterio `durata`|`patente`
    (`resolveGuideBlockStyle`);
-4. nessuno stile risolto → barretta nera su bianco.
+4. nessuno stile risolto → bianco con ombra neutra.
 
-Esami, guide di gruppo e blocchi istruttore NON passano dal criterio: esami
-= barretta nera su bianco (niente più viola), gruppi = verde foglia, gruppi
-moto = ambra (gli stessi accenti delle icone 3D, §0.4), blocchi/pause = righe
-quiete grigie (Giorno) o blocchi bianchi tratteggiati grigi (Settimana).
+Esami, guide di gruppo e blocchi istruttore NON passano dal criterio: esami =
+bianco con ombra neutra (niente più viola), gruppi = verde foglia pastello,
+gruppi moto = ambra pastello (gli accenti delle icone 3D, §0.4), con ombra in
+tinta; blocchi/pause = bianchi tratteggiati grigi.
 
-**Interruttore `AGENDA_BLOCK_BAR`** (`src/utils/agendaColors.ts`, `true`):
-`false` → `guideLook` torna al fondo pastello pieno (`backgroundColor`) senza
-barretta. Punto unico.
+**Interruttore `AGENDA_BLOCK_BAR`** (`src/utils/agendaColors.ts`, oggi
+`false`): `true` → barretta piena a sinistra + tinta leggerissima (12%) su
+fondo quasi bianco, la resa provata la notte del 28/10 e **bocciata da
+Tiziano** il 29/10. Punto unico.
 
-**`NEUTRAL_BLUE`** (`src/utils/agendaColors.ts`, `true`) — **decisione della
-notte, da confermare con Tiziano**: sul mobile niente blu/azzurro in agenda.
+**`NEUTRAL_BLUE`** (`src/utils/agendaColors.ts`, `true`) — **decisione IN
+SOSPESO, aspetta la risposta di Tiziano**: sul mobile niente blu/azzurro in agenda.
 Se il colore vivo della voce (default o scelto dall'autoscuola) ha tinta fra
 180° e 245° (saturazione ≥ 0.35) (`isBlueHue`: dall'azzurro/ciano al blu, escluso il viola; i grigi
-con saturazione < 12% non contano), il blocco diventa **neutro**: barretta nera
-`#111111` + scheda bianca senza tinta. Colpisce di default (verificato sugli
+con saturazione < 12% non contano), il blocco diventa **neutro**: scheda bianca
+senza tinta, ombra neutra (con la barretta accesa sarebbe nera). Colpisce di default (verificato sugli
 hex vivi, 28/10): il bucket `d30` («Fino a 30 minuti», 217°), le patenti B
 (217°) e BE (239°), **ADR e «Patente non impostata»** (grigio-ardesia 215°,
 saturazione sopra la soglia), e gli swatch Azzurro, Ciano, Blu, Indaco,

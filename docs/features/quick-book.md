@@ -2,12 +2,10 @@
 
 Prenotazione/blocco rapido dall'Agenda istruttore con l'orario già messo.
 
-> **Stato al 28/10/2026 (REG-639 clay, notte).** Si apre da due punti:
-> - **vista Giorno** (`AgendaDayView`, predefinita): tocco su una riga
->   tratteggiata **«Libero · 10:00–11:30 · 1 h 30»** (buco libero ≥ 30 min
->   dentro la disponibilità, solo nel futuro);
-> - **vista Settimana** (`WeeklyAgendaView`): il **blocco fantasma** (vedi
->   Flusso).
+> **Stato al 29/10/2026 (REG-639 clay).** Si apre dal **blocco fantasma**
+> della griglia settimanale (`WeeklyAgendaView`, unica vista dell'Agenda; vedi
+> Flusso). La vista Giorno con i buchi «Libero» provata la notte del 28/10 è
+> stata eliminata.
 >
 > Il foglio è **IL form sheet unico** (`FORM_SHEET` + `<FormSheet>`,
 > design-system §13.2): il **titolo è un `ClaySegmented`** «Prenota guida» |
@@ -38,9 +36,6 @@ i form quick sono identici a quelli pieni per costruzione.
 ## Flusso
 
 1. **Origine** in `IstruttoreHomeScreen` (vedi [agenda-istruttore.md](agenda-istruttore.md)):
-   - **Vista Giorno** (`AgendaDayView`): riga «Libero» → `onBookAt(date, start, start, end)`.
-     Niente buchi liberi per il titolare puro (`ownerMode`), senza permesso di
-     prenotare (`canInstructorBook`) o con «Tutti gli istruttori».
    - **Vista Settimana** (`WeeklyAgendaView`): **blocco fantasma** (2026-06-12) — hold (220ms) su spazio libero genera un blocco draft da 1h che si trascina live (15' step verticali, cross-colonna orizzontale); release lo piazza → knob alto/basso per la durata (30'–4h) + CTA bottom "Scegli i dettagli". Tap su spazio libero = piazza il blocco lì (o dismisses quello esistente). Il blocco piazzato si ri-trascina con hold (160ms). Posizione/size su shared values (UI thread, zero re-render); label via mini pub/sub `ghostTimeLabel`/`ghostDurLabel`; bolla finger = `ScrubBubble`. CTA conferma → `onBookAt(date, start, start, start+dur, dur)`. `onGhostActiveChange` nasconde il FAB mentre la CTA è visibile. Dismiss: ✕, conferma, swipe settimana, tap fuori, unmount.
 2. `openQuickBookSheet(date, startMinutes, windowStart, windowEnd, durationMinutes?)` calcola il preset
    clampato; la durata del blocco fantasma (step liberi da 15') viene **snappata alla
@@ -55,9 +50,8 @@ i form quick sono identici a quelli pieni per costruzione.
 ## Timeline giorno (rail itinerario) — STORICO (fino al 28/10/2026)
 
 > Descrive la vista giorno precedente a REG-638/639 (`seq`, `ItinRow`,
-> `BookableBand`, hold-to-scrub). Sostituita dalla vista Giorno a lista
-> (`AgendaDayView`), dove i buchi liberi si calcolano in `buildItems` e si
-> prenotano con un tocco.
+> `BookableBand`, hold-to-scrub). Eliminata con REG-638: oggi si prenota
+> solo dal blocco fantasma della griglia settimanale.
 
 La day view di `IstruttoreHomeScreen` costruisce **una sola sequenza ordinata**
 (`seq`) che mischia: marker disponibilità, righe prenotate (`ItinRow`) e fasce

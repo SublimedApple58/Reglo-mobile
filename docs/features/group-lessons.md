@@ -5,14 +5,13 @@ Mobile side of the **Guide di gruppo** module (1 istruttore + 1 veicolo + fino a
 
 ## Accent / design
 
-> **REG-639 clay (notte 28/10/2026) — agenda istruttore oggi.** Nelle due viste
-> (`AgendaDayView` Giorno, `WeeklyAgendaView` Settimana) la guida di gruppo è
-> **una sola card bianca clay** con **barretta verde foglia `#2FA36B`** a
-> sinistra e tinta leggerissima dello stesso verde (`GROUP_LOOK` in
-> `src/utils/agendaLook.ts`); i gruppi **moto** hanno barretta **ambra
-> `#F5A524`** (`GROUP_MOTO_LOOK`). Testo nero: «Guida di gruppo» / «Guida di
-> gruppo moto» + «N su capienza · nomi» (Giorno) o «Gruppo»/«Gruppo moto»
-> (griglia). **Niente icona** (le Fluent sono state eliminate), niente teal
+> **REG-639 clay (29/10/2026) — agenda istruttore oggi.** Nella griglia
+> settimanale (`WeeklyAgendaView`, unica vista dell'Agenda) la guida di gruppo è
+> **un solo blocco a fondo pastello pieno verde foglia** (`#2FA36B` ammorbidito,
+> `GROUP_LOOK` in `src/utils/agendaLook.ts`), senza bordo né barretta, con
+> ombra morbida nella stessa tinta; i gruppi **moto** sono **ambra pastello**
+> (`#F5A524`, `GROUP_MOTO_LOOK`). Testo scuro: posti «N/capienza», orario e nomi
+> quando c'è spazio. **Niente icona** (le Fluent sono state eliminate), niente teal
 > saturo, niente pallini posti in agenda. Tap → `manage-group-lesson`, ora
 > `FORM_SHEET` + `<FormSheet>` come `manage-group-lesson-participants` e
 > `create-group-lesson`. Lato allievo l'icona «persone» è la nuova AI
@@ -54,7 +53,7 @@ La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "d
 **Ritiro / rimozione (decisione A, 2026-06-10)**: si riusa la logica delle guide normali (lato backend). Ritiro/rimozione **prima del cutoff** = posto liberato senza addebito; **dopo il cutoff o a guida avvenuta** = resta "da pagare" e finisce nelle *cancellazioni tardive* (il titolare addebita/archivia). Il posto liberato fa **re-broadcast** dell'invito; il ritiro dell'allievo notifica l'istruttore. Dettagli backend: `reglo/docs/features/group-lessons.md`.
 
 ## Note / limiti noti
-- *(Storico pre-REG-638/639; oggi vedi «Accent / design» sopra: una card per gruppo anche in `AgendaDayView`, raggruppata per `groupLessonId` in `buildItems`.)* Sia la vista **giornaliera** (hour-grid, `IstruttoreHomeScreen` `timelineItems`/`renderRow` kind `groupLesson`) sia la **settimanale** (day-detail sheet) collassano i partecipanti in **una sola card** per guida (teal, icona 3D Fluent people, **niente nome allievo**, pallini posti `count/capacity`, card più grande di una guida normale). Tap → "Gestisci guida di gruppo" page sheet.
+- *(Storico pre-REG-638/639; oggi vedi «Accent / design» sopra: un blocco per gruppo nella griglia settimanale, raggruppato per `groupLessonId`.)* Sia la vista **giornaliera** (hour-grid, `IstruttoreHomeScreen` `timelineItems`/`renderRow` kind `groupLesson`) sia la **settimanale** (day-detail sheet) collassano i partecipanti in **una sola card** per guida (teal, icona 3D Fluent people, **niente nome allievo**, pallini posti `count/capacity`, card più grande di una guida normale). Tap → "Gestisci guida di gruppo" page sheet.
 - Le guide di gruppo **vuote** (0 partecipanti) ora compaiono anche in agenda: il bootstrap backend (`getAutoscuolaAgendaBootstrapAction`) sintetizza una riga `gl-empty:<glId>` (fonte unica web+mobile); `weeklyAgenda.ts` e `IstruttoreHomeScreen.timelineItems` escludono le righe `gl-empty:` dal conteggio (mostrano `0/3`). Così sono gestibili/annullabili anche senza iscritti.
 - **Capienza configurabile 3 o 4** (2026-06-12): riga "Capienza" nel form di creazione e nella sheet di gestione (auto-save, il BE rifiuta sotto gli iscritti attuali). Le card agenda (giorno/settimana/griglia) leggono la capienza reale dall'annotazione BE `groupLessonCapacity` sulle righe (fallback 3); le UI allievo (inviti, card home, detail sheet) erano già dinamiche su `capacity` dal payload.
 
