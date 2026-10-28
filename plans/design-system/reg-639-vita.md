@@ -123,3 +123,20 @@ foto veicolo e sede con upload web (full-stack, branch anche su `reglo/`).
 
 - Nessuna di prodotto. Da confermare solo all'implementazione le fasce orarie
   del saluto (13:00 / 18:00).
+
+## Passo 3 — «vita» su tutte le schermate istruttore (28/10, branch `feat/reg-639-vita-tutto`, solo commit locali)
+
+Anteprime approvate (`/tmp/hiro-anteprime/vita/tutto/1-allievi|2-tu|3-agenda.png`) con due regole di Tiziano:
+il dettaglio allievo è un **form sheet**, e **tutti i fogli sono ad altezza adattiva** (scorrono da sé solo se sforano).
+
+- **Allievi** (`InstructorNotesScreen`): titolo + riga umana, `ClaySearchField`, `ClaySegmented` I miei/Tutti, card dell'esame più vicino (esame 3D), una `ClayList` con i volti. Via pallino viola e pillole.
+- **Dettaglio allievo** (`StudentNotesDetailScreen`, route `FORM_SHEET` in notes e home): volto 88, tre numeri con oggetti 3D (volante, stella, orologio), barra dell'obbligo con «Ancora N e X è pronto», esame, Pagamenti/Impostazioni in una lista, pagellino, storico in una card senza chip (tipi, gruppo, moto ed esito come testo), contatti in fondo, CTA chiama + WhatsApp. Via la card che si girava.
+- **Notifiche**: volto della persona dove c'è (sostituto, assente), riga «N novità da leggere».
+- **Veicoli**: auto 3D nel colore vero (`car34Art`), moto 3D per le moto, riga «N mezzi · la X è la tua».
+- **Luoghi**: card della sede con la foto (`coverPhotoUrl` della location, segnaposto `sede-foto`).
+- **Ore di guida**: numero in card con l'orologio 3D. **Pagellino**: card con l'icona dell'esame (Tiziano: niente icona nuova). **I tuoi istruttori**: card della giornata dell'autoscuola (persone 3D), anche a zero.
+- **Fogli Agenda**: «Nuova guida» con cartina e mezzo nel suo colore; esame «In bocca al lupo»; malattia col termometro.
+- **Fogli adattivi**: `FORM_SHEET` + `FormSheet` anche per Pagamenti, picker di opzioni (anche lungo, ora clay e senza blu), Allievi del gruppo, Prenotazione guide. Restano `modal` solo `booking-slots` e `quiz-hint` (allievo).
+- **Icone nuove** (Gemini, approvate): `assets/vita/stella`, `assets/vita/orologio` (opache su bianco, 1x/@2x/@3x). `VITA_ART.pagellino` = icona dell'esame.
+- Catture dal simulatore (staging, demo «Autoscuola Reglo»): `/tmp/hiro-anteprime/vita/tutto/sim-*.png`.
+- Prima del merge: `git merge origin/master` (il terminale fluidità rifà `FormSheet` con header e CTA fissi e la pressione di `ClayPressable`/`ClayList`: qui non toccati).
