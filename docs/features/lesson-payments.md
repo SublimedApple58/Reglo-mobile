@@ -13,7 +13,8 @@ la sua vista pagamenti è un'altra feature (`payments` tab, Stripe).
 
 | File | Ruolo |
 |---|---|
-| `src/screens/StudentPaymentsScreen.tsx` | La schermata: hero riepilogo, filtri, righe guida, menu azioni |
+| `src/screens/StudentPaymentsScreen.tsx` | La schermata: hero riepilogo, riga «Mostra», righe guida in card clay per mese, casella pagata |
+| `src/components/PaymentHistorySheet.tsx` + `src/stores/paymentHistoryStore.ts` | Foglio «Guida»: stato, storico pagamento, CTA «Segna pagata / da pagare» |
 | `src/stores/studentPaymentsStore.ts` | Seed-and-callback (lezioni + settings + ruolo + `onChanged`) |
 | `src/utils/lessonPayments.ts` | **Gemello** della regola backend (vedi sotto) |
 | `app/(tabs)/home/student-payments.tsx` | Route stack home |
@@ -69,81 +70,46 @@ Stessi identici predicati del web (`LessonFilter`):
 | Completate | `status ∈ {completed, checked_in}` |
 | Annullate | `status ∈ {cancelled, no_show}` |
 
-Ogni pill porta il conteggio. **Differenza voluta rispetto al web**: il web
+Il filtro è **una riga «Mostra · Tutte · 55»** che apre il picker condiviso a
+spunta (`optionsPickerStore`, come «Chi prenota»): niente tab a pillola che
+escono dallo schermo (REG-639 giro pagamenti, 28/10). Ogni voce porta il
+conteggio come sottotitolo. **Differenza voluta rispetto al web**: il web
 ordina le non pagate in cima a tutto; qui le righe sono raggruppate per mese in
 ordine cronologico inverso (ordine di lettura naturale su mobile). Il segnale
-"quante da pagare" resta nell'hero in testa e nel contatore della pill.
+"quante da pagare" resta nell'hero in testa e nel contatore della voce.
 
-## Badge della riga
+## La riga (REG-639, giro pagamenti 28/10/2026)
 
-| Badge | Quando |
-|---|---|
-| Completata / Annullata / Assente / Programmata / Esame | stato della guida |
-| **Da pagare** (ambra) | `isLessonUnpaid` |
-| **Pagata** (verde) | `manualPaymentStatus === 'paid'`, non coperta da credito |
-| **Coperta da credito** (viola) | `creditApplied` |
-| **Tardiva · €X** (ambra) | penale addebitata non saldata (`penaltyAmount` se presente) |
-
-## Azioni
-
-La **pressione lunga È la conferma**: non apre più nessun foglio. L'anello a
-destra si riempie mentre tieni premuto e al 100% l'azione parte; mollare prima
-annulla e l'anello torna indietro. Niente action sheet che spunta di scatto.
-
-### La riga (`LessonRow`)
-
-Lista flat sullo sfondo, divisori rientrati sotto il glifo — vocabolario delle
-liste iOS (Impostazioni / Wallet):
+Righe in **card clay** (`ClayList`), una card per mese con titolo di sezione
+normale (`ClaySection`, mai MAIUSCOLETTO). Solo testo, bianco/nero: via glifi
+tondi colorati, pallino «Pagata · data · persona» e chip «⏱ 2 ›».
 
 | Zona | Contenuto |
 |---|---|
-| Glifo tondo 36px | Lo **stato a colpo d'occhio**: € ambra da pagare · ✓ verde pagata · portafoglio viola a credito · ✕ grigia annullata · orologio grigia programmata · tocco viola esame |
-| Titolo | `Mer 17 · 15:00` |
-| Sottotitolo | tipo guida (o "Guida di gruppo" / "Annullata tardi") · istruttore |
-| Valore a destra | `Da pagare` · `Pagata` · `A credito` · `€25` — in tinta col glifo |
-| Anello 26px | Solo se azionabile. Verde per "segna pagata", **ambra** per il verso opposto |
+| Titolo | `Mer 17 · 15:00` (grigio se annullata senza penale) |
+| Sottotitolo | tipo guida (o "Guida di gruppo" / "Annullata tardi") · `Penale €X` se addebitata · istruttore |
+| Destra | **UN solo segnale**: la casella se la guida si può segnare, altrimenti lo stato a parole |
 
-Il glifo fa il lavoro che facevano tre badge in fila: la lista si legge
-scorrendo la colonna di sinistra. Spariti con il redesign: colonna data, fila di
-badge e i **tre puntini**, che dopo il passaggio alla pressione lunga non
-facevano più niente.
+**La casella** (guide con `canToggleLessonPayment` e `canManagePayments`):
+vuota = da pagare, nera piena con la spunta = pagata. **Tocco = scrittura**
+(spinner nella casella, poi toast e haptic di successo sulla risposta del BE);
+si torna indietro toccandola di nuovo. Prima era un anello da tenere premuto
+900 ms (REG-450): «cosa fa il cerchio» non era chiaro, ora è una casella come
+in Promemoria. Sotto la lista una nota grigia lo dice.
 
-### Gestualità
+**Stato a parole** (righe senza casella): `Da pagare` (nero 600: è quella che
+conta), `A credito`, `Pagata`, `Annullata`/`Assente`, `Esame`, `Completata`,
+`Programmata` (grigio).
 
-| Gesto | Cosa fa |
-|---|---|
-| Dito giù | `selectionAsync()`, la riga si accende (`#F7F8FA`) e l'anello parte |
-| Tenuta 900 ms | Al cerchio chiuso: `notificationAsync(Success)` e scrittura |
-| Rilascio prima | `cancelAnimation` + l'anello rientra di molla. Niente scrittura |
-| Tocco breve | **Non** resta muto: l'anello fa un lampo e il suggerimento torna per 2,6 s |
+**Tocco sulla riga** → foglio «Guida» (`payment-history`, `FORM_SHEET` in
+entrambi gli stack): titolo data e ora, sottotitolo come la riga, «Stato»,
+sezione «Storico pagamento» (eventi dal più recente, etichetta estesa + data ·
+ora · persona) e, se la guida si può segnare, la CTA «Segna pagata / Segna da
+pagare» (scrive, poi chiude il foglio).
 
-**Scopribilità.** Tre livelli, nessuno invasivo:
-1. L'**anello vuoto** è il segno permanente che su quella riga c'è qualcosa da tenere premuto — ha preso il posto dei puntini, e a differenza loro *fa* qualcosa.
-2. Alla **prima apertura** una riga di suggerimento entra sotto i filtri ("Tieni premuta una guida finché il cerchio si chiude") e sparisce da sola dopo 5,2 s.
-3. Il **tocco breve** la richiama, sempre.
-
-Alla prima conferma completata si scrive `reg450.paymentsLongPressLearned` in
-AsyncStorage e il suggerimento non parte più da solo.
-
-**VoiceOver**: uno screen reader non sa tenere premuto. Con
-`AccessibilityInfo.isScreenReaderEnabled()` attivo il doppio tocco apre il menu
-nativo di ripiego (`ActionSheetIOS` / `Alert`), che resta in piedi solo per
-questo.
-
-### Anello (`src/components/HoldRing.tsx`)
-
-Due semidischi che ruotano dentro due maschere, **niente SVG** — stessa tecnica
-di `ProgressRing`, così viaggia via OTA senza toccare il binario. A differenza
-di `ProgressRing`, che anima da sé un valore fisso al mount, `HoldRing` segue
-uno `SharedValue`: il riempimento è il tempo di pressione.
-
-### Filtri animati
-
-La pastiglia navy **scivola** da un filtro all'altro (`withSpring` su
-`translateX` + `width`, misurati con `onLayout`), le righe entrano e escono in
-dissolvenza (`FadeIn`/`FadeOut` + `LinearTransition`), i contatori fanno
-cross-fade cambiando `key`. Al primo montaggio la pastiglia si posiziona senza
-scivolare (`ready`).
+VoiceOver: la casella è un `checkbox` con etichetta d'azione, la riga un
+bottone che apre il dettaglio. Niente più menu di ripiego né suggerimento
+«tieni premuto» (`HoldRing` non è più usato qui).
 
 Nessun optimistic update (convenzione del repo): si scrive solo ciò che il BE ha
 risposto (`res.manualPaymentStatus`), poi `onChanged` fa ricaricare la scheda
@@ -177,21 +143,12 @@ Ogni guida della lista porta `paymentHistory` (dal più recente), che il BE mand
 `cleared` (gesti manuali) e `credit_applied` / `credit_refunded` (dal ledger
 crediti). Guide segnate prima di REG-637: storico vuoto → nessuna riga.
 
-- **Riga sotto la guida, a tutta larghezza** (`LessonRow`, allineata al testo,
-  non accanto a valore e anello: lì data e nome si troncavano): punto colorato
-  + etichetta CORTA «Pagata · 27 ott, 11:17 · Mario Rossi»
-  (`PAYMENT_EVENT_SHORT_LABEL`; il foglio usa quella estesa), solo se l'ultimo
-  evento racconta ancora lo stato (`lastEventMatchesState`). Con ≥ 2 eventi
-  compare il chip orologio + numero + chevron.
-- **Tocco breve** su una riga con ≥ 2 eventi → apre lo storico; senza storico
-  resta il suggerimento «tieni premuto». La **pressione lunga resta la
-  conferma** del pagamento. Con VoiceOver lo storico è una voce del menu di
-  ripiego («Storico pagamento»).
-- **Foglio storico**: rotta `payment-history` in ENTRAMBI gli stack (home +
-  notes), `HUG_SHEET` (form sheet nativo che abbraccia il contenuto, root `View`
-  semplice, niente ScrollView). Seed via `paymentHistoryStore`, catturato al
-  mount. Componente `src/components/PaymentHistorySheet.tsx`: timeline
-  verticale, ultimo evento a punto pieno colorato.
+- **Non sta più sotto la riga** (REG-639 giro pagamenti): chi/quando e lo
+  storico vivono nel foglio «Guida», aperto dal tocco su qualsiasi riga.
+- **Foglio «Guida»**: rotta `payment-history` in ENTRAMBI gli stack (home +
+  notes), `FORM_SHEET` + `<FormSheet>`. Seed via `paymentHistoryStore`
+  (`lessonLabel`, `lessonSubtitle`, `stateLabel`, `events`, `action`),
+  catturato al mount.
 - Dopo «Segna pagata» il BE restituisce `paymentEvent`: si mette in testa allo
   storico locale (`patched`) senza rileggere.
 

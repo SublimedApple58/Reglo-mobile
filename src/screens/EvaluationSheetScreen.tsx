@@ -513,7 +513,7 @@ const s = StyleSheet.create({
   footNote: { fontSize: 13, color: CLAY.ink3, lineHeight: 18, marginTop: 18, paddingHorizontal: 4 },
 
   templateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 14, paddingHorizontal: 18 },
-  templateDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  templateDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   templateLabel: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '500', color: CLAY.ink },
   templateCtas: { gap: 10, marginTop: 22 },
 

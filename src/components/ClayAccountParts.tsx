@@ -112,7 +112,7 @@ const s = StyleSheet.create({
 
   row: { paddingHorizontal: 18, minHeight: 52, justifyContent: 'center' },
   off: { opacity: 0.45 },
-  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   rowTitle: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
 
   version: { fontSize: 13, color: CLAY.ink4, textAlign: 'center', marginTop: 28 },

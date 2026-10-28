@@ -148,7 +148,9 @@ const ROW_PAD = 12;
 const s = StyleSheet.create({
   clip: { borderRadius: CLAY_RADIUS.card, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18 },
-  divider: { position: 'absolute', top: 0, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  // 0.5 e non hairlineWidth (1/3 pt): un filo da 1 px fisico in posizione
+  // assoluta a y frazionaria spariva (giro pagamenti 28/10, picker e storico).
+  divider: { position: 'absolute', top: 0, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   main: { flex: 1, minWidth: 0 },
   dim: { opacity: 0.45 },
   title: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },

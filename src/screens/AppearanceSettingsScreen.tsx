@@ -388,6 +388,6 @@ const s = StyleSheet.create({
   markerPreview: { width: 34, height: 24, borderRadius: 7, borderWidth: AUTOMATIC_MARKER_WIDTH },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18, minHeight: 56 },
-  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   toggleTitle: { flex: 1, minWidth: 0, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25, lineHeight: 21 },
 });

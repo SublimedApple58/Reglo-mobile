@@ -116,7 +116,7 @@ function TimeValue({ value, label, onPress, disabled }: { value: string; label: 
 const styles = StyleSheet.create({
   container: { gap: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 18 },
-  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   label: { flex: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   time: { height: 40, minWidth: 74, borderRadius: 20, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: CLAY.surface },
   timePressed: { opacity: 0.6 },

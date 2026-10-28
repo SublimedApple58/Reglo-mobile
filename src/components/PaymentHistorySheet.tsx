@@ -81,13 +81,15 @@ const InfoRow = markClayRow(function InfoRow({
   ...pos
 }: ClayRowPosition & { title: string; subtitle?: string; value?: string }) {
   return (
-    <View style={[s.row, clayRowPadding(pos, 14)]} accessible accessibilityLabel={[title, value, subtitle].filter(Boolean).join(', ')}>
+    <View>
       {divider ? <View style={s.divider} /> : null}
-      <View style={s.main}>
-        <Text style={s.title}>{title}</Text>
-        {subtitle ? <Text style={s.sub}>{subtitle}</Text> : null}
+      <View style={[s.row, clayRowPadding(pos, 14)]} accessible accessibilityLabel={[title, value, subtitle].filter(Boolean).join(', ')}>
+        <View style={s.main}>
+          <Text style={s.title}>{title}</Text>
+          {subtitle ? <Text style={s.sub}>{subtitle}</Text> : null}
+        </View>
+        {value ? <Text style={s.value}>{value}</Text> : null}
       </View>
-      {value ? <Text style={s.value}>{value}</Text> : null}
     </View>
   );
 });
@@ -95,7 +97,7 @@ const InfoRow = markClayRow(function InfoRow({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, minHeight: 56 },
-  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  divider: { position: 'absolute', zIndex: 1, top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   main: { flex: 1, minWidth: 0 },
   title: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   sub: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 2 },

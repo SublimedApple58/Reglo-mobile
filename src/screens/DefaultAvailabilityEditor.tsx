@@ -351,7 +351,7 @@ const st = StyleSheet.create({
   save: { marginTop: 18 },
   add: { marginTop: 16 },
   skRow: { paddingVertical: 14, paddingHorizontal: 18, minHeight: 62, justifyContent: 'center' },
-  skDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: CLAY.hairline },
+  skDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: CLAY.hairline },
   skSub: { marginTop: 7 },
 });
 
