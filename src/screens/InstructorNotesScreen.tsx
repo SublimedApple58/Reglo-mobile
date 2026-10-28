@@ -28,6 +28,11 @@ import { selectionAsync } from '../utils/haptics';
 
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const H_PAD = 20;
+/**
+ * «N da pagare» in nero 600 solo da qui in su (Tiziano, 28/10): sotto è grigio
+ * normale come il resto della riga, così la lista non è tutta nera.
+ */
+const DUE_STRONG_FROM = 3;
 const dayMonth = (iso: string) => `${new Date(iso).getDate()} ${monthsShort[new Date(iso).getMonth()]}`;
 
 /** Lunedì 00:00 → lunedì successivo, ora locale. */
@@ -222,8 +227,8 @@ export const InstructorNotesScreen = () => {
     const done = Math.min(info.completed, REQUIRED_LESSONS);
     const exam = studentExam.get(st.id);
     const step = studentNext.get(st.id);
-    // Il prossimo passo prima del contatore: la prossima guida e, in nero, il
-    // da riscuotere. Il contatore delle guide resta solo se non c'è altro.
+    // Il prossimo passo prima del contatore: la prossima guida e il da
+    // riscuotere (in nero solo da DUE_STRONG_FROM in su). Il contatore delle guide resta solo se non c'è altro.
     const when = exam
       ? `Esame il ${dayMonth(exam)}`
       : step?.next
@@ -235,7 +240,7 @@ export const InstructorNotesScreen = () => {
         <Text style={s.rowSub} numberOfLines={1}>
           {when}
           {when && due ? ' · ' : null}
-          {due ? <Text style={s.rowDue}>{due}</Text> : null}
+          {due ? <Text style={(step?.unpaid ?? 0) >= DUE_STRONG_FROM ? s.rowDue : null}>{due}</Text> : null}
         </Text>
       );
     }

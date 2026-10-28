@@ -12,8 +12,6 @@ import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
-import { ProgressRing } from '../../../src/components/ProgressRing';
-import { SkeletonRing } from '../../../src/components/Skeleton';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClayPressable, Icon3D } from '../../../src/components/clay';
 import { VITA_ART } from '../../../src/theme/vitaArt';
@@ -199,7 +197,7 @@ export default function ManageLessonScreen() {
   }
 
   const {
-    studentProgress, stateMeta, stateLabel, durationText, durationMin, vehiclesEnabled, vehicleText,
+    stateMeta, stateLabel, durationText, durationMin, vehiclesEnabled, vehicleText,
     vehicles, defaultLocation, showStatusActions, correctionMode, allowPresente, readOnly,
     pendingAction, menuOptions, onChangeInstructor, onStatus, onMenu, onChangeLocation, onChangeVehicle,
     onChangeDuration, studentLicense, followCarRules,
@@ -391,7 +389,7 @@ export default function ManageLessonScreen() {
     <FormSheet
       testID="manage-lesson-sheet"
       title={
-        // Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami)
+        // Nome tappabile → modal dettaglio allievo (storico, pagamenti, esami)
         <Pressable
           onPress={openStudentDetail}
           hitSlop={6}
@@ -445,38 +443,6 @@ export default function ManageLessonScreen() {
               accessibilityLabel="Scrivi su WhatsApp"
               testID="manage-lesson-whatsapp"
             />
-          </View>
-        ) : null}
-
-        {/* Progresso guide (fatte / obbligatorie): anello nero su bianco */}
-        {lesson.type !== 'esame' ? (
-          <View style={s.progressBlock}>
-            {studentProgress ? (
-              <ProgressRing
-                size={112}
-                stroke={9}
-                progress={studentProgress.completed / Math.max(1, studentProgress.required)}
-                color={CLAY.ink}
-                trackColor="#EFEFEF"
-                innerColor="#FFFFFF"
-              >
-                <Text
-                  style={s.ringCount}
-                  accessibilityLabel={`${studentProgress.completed} guide su ${studentProgress.required}`}
-                >
-                  {studentProgress.completed}
-                  <Text style={s.ringTotal}>/{studentProgress.required}</Text>
-                </Text>
-              </ProgressRing>
-            ) : (
-              <SkeletonRing size={112} stroke={9} />
-            )}
-            {/* L'anello da solo non diceva cosa conta. */}
-            {studentProgress ? (
-              <Text style={s.ringLabel}>
-                guide obbligatorie
-              </Text>
-            ) : null}
           </View>
         ) : null}
 
@@ -589,11 +555,6 @@ const s = StyleSheet.create({
   body: { gap: 22 },
   contacts: { flexDirection: 'row', gap: 12 },
 
-  // Anello progresso
-  progressBlock: { alignItems: 'center', paddingVertical: 2 },
-  ringCount: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8 },
-  ringTotal: { fontSize: 17, fontWeight: '500', color: CLAY.ink3 },
-  ringLabel: { fontSize: 14, color: CLAY.ink3, marginTop: 10 },
 
   rowSub: { flexShrink: 1, fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
 

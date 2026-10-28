@@ -13,7 +13,8 @@ la sua vista pagamenti è un'altra feature (`payments` tab, Stripe).
 
 | File | Ruolo |
 |---|---|
-| `src/screens/StudentPaymentsScreen.tsx` | La schermata: numero grande, segmentato nativo, righe guida in card clay per mese, casella pagata |
+| `src/screens/StudentPaymentsScreen.tsx` | La schermata: hero col salvadanaio, segmentato nativo, righe guida in card clay per mese, casella pagata |
+| `assets/vita/salvadanaio*.png` (`VITA_ART.salvadanaio` / `salvadanaioPieno`) | Icone 3D dell'hero e della riga del dettaglio allievo |
 | `src/components/PaymentsFilter.tsx` | Segmentato nativo iOS (`@expo/ui`) con ripiego clay |
 | `src/components/PaymentHistorySheet.tsx` + `src/stores/paymentHistoryStore.ts` | Foglio «Guida»: stato, storico pagamento, CTA «Segna pagata / da pagare» |
 | `src/stores/studentPaymentsStore.ts` | Seed-and-callback (lezioni + settings + ruolo + `onChanged`) |
@@ -58,6 +59,36 @@ Cioè: **solo guide effettuate** non saldate, oppure **penali tardive addebitate
 Mai le future programmate (anche se marcate `unpaid`), mai quelle coperte da credito,
 mai quelle **rimosse dallo storico** dal titolare (`record_cleanup`, REG-634: anche
 se conservano una penale addebitata). Gemello di `reglo/lib/autoscuole/lesson-unpaid.ts`.
+
+## Testata «memorabile» (REG-639, 28/10/2026)
+
+In modalità manuale la testata dice subito cosa fare:
+- **hero**: numero grande + «guide da pagare», sotto in grigio la più vecchia
+  («La più vecchia è di mer 23 settembre»), a destra il **salvadanaio** 3D 76 pt;
+- **frase che guida** sopra la lista: «Spunta la casella quando Serena ti
+  paga» (solo se c'è da pagare, la guida si può segnare e il filtro non è
+  «Pagate»); in fondo resta «Tocca una guida per vedere chi l'ha segnata e quando»;
+- **tutto saldato**: spuntata l'ultima, l'hero passa in dissolvenza (320 ms,
+  niente rimbalzo; l'haptic `success` lo dà già la scrittura) a «Tutto saldato
+  · Serena è in pari, niente da riscuotere» col **salvadanaio pieno**;
+- **apertura**: se ci sono guide da pagare il filtro parte da «Da pagare»
+  (calcolato dal seed dello store al montaggio), altrimenti da «Tutte»;
+  «Da pagare» vuoto = «Niente da riscuotere» senza icona (il salvadanaio pieno
+  è già nell'hero);
+- **mesi vecchi piegati**: in «Tutte», i mesi prima del mese scorso senza
+  nessuna guida da pagare finiscono sotto «Mostra agosto e prima» (si apre al
+  tocco, per la sessione del foglio).
+
+In sola lettura resta la nota «L'autoscuola incassa dalla sezione Pagamenti…»,
+senza hero né salvadanaio.
+
+**Dettaglio allievo** (`StudentNotesDetailScreen`): la riga «Pagamenti» ha
+«N guide da pagare» in nero 600 (in pari: «In pari, niente da riscuotere» in
+grigio) e il salvadanaio 46 pt (pieno se in pari). **Lista Allievi**
+(`InstructorNotesScreen`): «N da pagare» nella seconda riga, in nero 600 solo
+da `DUE_STRONG_FROM` (3) in su, sotto in grigio; il conteggio usa la stessa
+`isLessonUnpaid` ma sulle guide caricate dalla lista (`getAppointments` limit
+500, annullate comprese).
 
 ## Filtri
 

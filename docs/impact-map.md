@@ -21,6 +21,10 @@ When modifying a feature, read its connected features to verify nothing breaks.
 | `ClayAccountParts` (`ProfileSummaryCard`, `ClayTextRow`, `AppVersionFooter`, `CLAY_DANGER`) | `MoreScreen`, `SettingsScreen` (2) | Card profilo, righe di solo testo (rosso solo per azioni distruttive), piè di pagina versione. |
 | `MORALE_ART` (`src/theme/moraleArt.ts`, `assets/morale/`) | (espresso oggi non usato), `NotificationInboxScreen` (aeroplanino), `LocationsScreen` / `VehiclesScreen` / `OwnerInstructorScreen` (piantina), `InstructorHoursScreen` (trofeo), `home/exam-manage` (esame) | Icone 3D AI «di morale», solo stati vuoti / traguardi / testata esame (design-system §0.9). |
 | `assets/icons3d-ai/*` (REG-639, sostituti delle Fluent eliminate) | `lessonArt.ts` (auto/moto), `AllievoHomeScreen`, `StudentNotesDetailScreen`, `StudentSettingsSheet`, `GroupLessonInvitesScreen`, `SwapOffersScreen`, `StudentMyNotesScreen`, `home/booking-flow`, `home/exam-detail` | `require` diretto, mai `tintColor`. Tabella in design-system §0.9. |
+| `AgendaTodayCard` (`src/components/agenda/AgendaTodayCard.tsx`) | `IstruttoreHomeScreen` (1) | Card «Oggi» dell'Agenda (giro «memorabile»): la riga segue la giornata (prima/in corso/prossima/domani) e a giornata finita mostra l'espresso (`MORALE_ART`). Legge SOLO gli appuntamenti già caricati dall'agenda: «domani» compare solo se è nel range caricato. |
+| `MonthHoursCard` (`src/components/MonthHoursCard.tsx`) | `MoreScreen` («Tu») (1) | Ore del mese + barre delle settimane + frase di confronto col mese prima allo stesso giorno (solo se positiva). Fa **tre** chiamate `useInstructorHours` (mese, mese fino a oggi, mese prima fino allo stesso giorno). Lo stesso confronto per settimana vive in `InstructorHoursScreen`. |
+| `RouteThumb`, `SessionNumbers`, `BriefingLines` (`src/components/road/RoadTabParts.tsx`) | `drive/index` (Ultime guide), `drive/appena-finita` (`SessionNumbers`) (2) | `RouteThumb` con `carColor` = auto 3D (`car34Art`) quando la guida non ha un percorso disegnabile, altrimenti la mappa. `SessionNumbers` dice le segnalazioni a parole («1 fatta bene · **1 da ripassare**»): cambiarlo cambia anche il foglio «Appena finita». |
+| `VITA_ART.salvadanaio` / `salvadanaioPieno` | `StudentPaymentsScreen` (hero 76 pt), `StudentNotesDetailScreen` (riga Pagamenti 46 pt) | Coppia: stessa forma (pieno generato con il normale come terza reference, design-system §0.9). Normale = da riscuotere, pieno = tutto saldato. |
 | `BookingCelebration` | AllievoHome, NotificationOverlay, SwapOffers (3) | 2 variants: 'booking' and 'swap' |
 | `StarRating` | IstruttoreHome (input), StudentMyNotes (display), StudentNotesDetail (display) (3) | |
 | `RescheduleAppointmentSheet` | IstruttoreHome (1) | Complex: BottomSheet + CalendarDrawer + TimePickerDrawer |
@@ -163,6 +167,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: nessuna modifica; passa dai check di disponibilità esistenti
 
 ### Pagamenti guide (REG-450)
+- → **Lista Allievi (`InstructorNotesScreen`)**: seconda riga con «N da pagare» (`isLessonUnpaid` sulle guide della lista, manuale da `getAutoscuolaSettings`); nero 600 solo da 3 in su.
 - → **Dettaglio allievo (`StudentNotesDetailScreen`)**: ci vive il blocco "Pagamenti" (visibile SOLO in modalità manuale) e da lì si apre `student-payments`. Chi tocca `loadData` deve continuare a riempire **`allAppointments`** (storico GREZZO, annullate comprese) e **`paymentSettings`**: la schermata pagamenti non fa fetch propri, legge solo il seed dello store. Se qualcuno rifiltra le annullate a monte, i filtri "Annullate" e le penali tardive spariscono in silenzio.
 - → **Due stack**: `student-payments` è registrata in `home/_layout` E `notes/_layout` (la scheda allievo si apre da entrambi). Aggiungerne un terzo significa registrarla anche lì.
 - **Regola gemella** `src/utils/lessonPayments.ts` ↔ `reglo/lib/autoscuole/unpaid-auto-block.ts` (`isCompanyManualMode`, `isLessonUnpaid`): stessa definizione di "guida da pagare" che alimenta badge web, contatore lista allievi e **blocco automatico prenotazioni per debito**. Vanno cambiate INSIEME.
@@ -269,7 +274,8 @@ When `../reglo/` backend changes:
 - Category `B` (auto) students: **unchanged** (default car branch everywhere).
 
 ### Guide obbligatorie (contatore x/6)
-- Regola in `src/utils/mandatoryLessons.ts` (`REQUIRED_LESSONS`, `isMandatoryLessonDuration`): contano **solo le guide da esattamente 60 minuti**, `endsAt` nullo escluso. Usata da `StudentNotesDetailScreen` (obbligo dell'allievo) e `InstructorNotesScreen` (riga "obbligo x/6" della lista allievi).
+- Regola in `src/utils/mandatoryLessons.ts` (`REQUIRED_LESSONS`, `isMandatoryLessonDuration`): contano **solo le guide da esattamente 60 minuti**, `endsAt` nullo escluso. Usata da `StudentNotesDetailScreen` (solo per la statistica «guide fatte») e `InstructorNotesScreen` (riga "x di 6 guide" della lista allievi, solo quando non c'è prossima guida né da pagare).
+- **Giro «memorabile» (28/10/2026, scelta di Tiziano)**: il blocco «Guide obbligatorie» (barra, contatore «6 di 6») è stato TOLTO dal dettaglio allievo e l'anello «4/6» dal foglio «Gestisci guida» (`home/manage-lesson`). `studentProgress` resta nel `manageLessonStore` ma il foglio non lo disegna più.
 - **Gemella** di `reglo/lib/autoscuole/mandatory-lessons.ts`, che alimenta il `summary` del dettaglio allievo web e il flag `mandatoryLesson` dei colori agenda: le due copie vanno cambiate insieme.
 - Prima del 2026-09-18 entrambe le schermate contavano tutte le guide completate/checked_in, comprese quelle da 30 minuti.
 

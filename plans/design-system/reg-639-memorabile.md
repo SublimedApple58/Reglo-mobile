@@ -12,6 +12,10 @@ mio gruppo · 13 Pagellino. Originali Gemini e prompt in
 blocco guide obbligatorie dal dettaglio allievo (né trofeo, né barra, né «6 di
 6»); (2) salvadanaio sulla riga Pagamenti a 46 pt.
 
+**Approvato da Tiziano (28/10 notte)** con due ritocchi: via anche l'anello
+«4/6» dal dettaglio guida; «N da pagare» negli Allievi grigio, nero 600 solo da
+3 in su (`DUE_STRONG_FROM`). Rilasciato: vedi handoff.
+
 **Scostamenti dal piano**: niente mazzo di chiavi 3D (Road non ha uno stato vuoto
 che lo giustifichi: meno icone); Road tiene la miniatura di mappa quando la
 guida ha un percorso vero, l'auto 3D solo senza percorso; Allievi senza guide

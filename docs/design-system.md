@@ -98,10 +98,12 @@ piccolo momento di gioia dove c'è un traguardo vero.
   Nello storico, senza note resta solo la matita.
 - **Agenda**: la card «Oggi» segue la giornata (la prima con chi, quella in
   corso e quando finisce, la prossima, domani); a giornata finita l'espresso.
-- **Allievi**: seconda riga = prossima guida / esame e «N da pagare» in nero;
+- **Allievi**: seconda riga = prossima guida / esame e «N da pagare» (grigio,
+  nero 600 solo da 3 in su);
   in cima i volti di chi guida con te questa settimana.
 - **Dettaglio guida**: guida fatta e non valutata → «Com'è andata Marco?» con la
-  stella 3D al posto di «Dettagli guida»; l'anello ha l'etichetta.
+  stella 3D al posto di «Dettagli guida». **Niente anello «4/6»** delle guide
+  obbligatorie (tolto come nel dettaglio allievo).
 - **Road**: «Ultime guide» senza percorso = auto 3D nel colore del veicolo;
   segnalazioni a parole («1 da ripassare» in nero, «1 fatta bene»).
 - **Disponibilità** «55 h a settimana · 5 giorni»; **Tu** e **Ore di guida**: una
