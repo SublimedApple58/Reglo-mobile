@@ -23,7 +23,8 @@ function loadSwiftUI(): SwiftUI | null {
     return null;
   }
 }
-const SWIFT_UI = loadSwiftUI();
+/** SwiftUI di `@expo/ui` se il modulo nativo disegna qui, altrimenti `null`. */
+export const SWIFT_UI = loadSwiftUI();
 
 export function SFSymbol({
   name,

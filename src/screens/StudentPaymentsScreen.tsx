@@ -7,12 +7,13 @@ import { useRouter, useSegments } from 'expo-router';
 import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { FormSheet } from '../components/SheetScaffold';
-import { SettingValueRow } from '../components/SettingsRows';
+import { PaymentsFilterMenu, PaymentsFilterSegmented } from '../components/PaymentsFilter';
 import {
   CLAY_ROW_PRESSED,
   ClayEmpty,
   ClayList,
   ClaySection,
+  ClaySegmented,
   clayRowPadding,
   markClayRow,
 } from '../components/clay';
@@ -35,7 +36,14 @@ import { formatEuro } from '../components/ledger/LedgerUI';
 import type { AutoscuolaAppointmentWithRelations, PaymentHistoryEvent } from '../types/regloApi';
 
 /** Filtri del registro guide — stessi identici del dettaglio allievo web. */
-type LessonFilter = 'all' | 'upcoming' | 'unpaid' | 'completed' | 'cancelled';
+type LessonFilter = 'all' | 'upcoming' | 'unpaid' | 'paid' | 'completed' | 'cancelled';
+
+/**
+ * ANTEPRIMA (giro pagamenti): due alternative al filtro, Tiziano sceglie.
+ * (A) bottone tondo in testata con menu nativo; (B) segmentato nativo sotto il
+ * numero. Dopo la scelta resta solo quella approvata.
+ */
+const FILTER_UI = 'B' as 'A' | 'B';
 
 const normalize = (value: string | null | undefined) => (value ?? '').trim().toLowerCase();
 
@@ -176,6 +184,7 @@ const FILTER_LABEL: Record<LessonFilter, string> = {
   all: 'Tutte',
   upcoming: 'Future',
   unpaid: 'Da pagare',
+  paid: 'Pagate',
   completed: 'Completate',
   cancelled: 'Annullate',
 };
@@ -238,19 +247,25 @@ export const StudentPaymentsScreen = () => {
         all: () => true,
         upcoming: (l) => FUTURE.includes(normalize(l.status)) && new Date(l.startsAt).getTime() > now,
         unpaid: (l) => isLessonUnpaid(l, manualMode),
+        paid: (l) => !l.creditApplied && l.manualPaymentStatus === 'paid',
         completed: (l) => DONE.includes(normalize(l.status)),
         cancelled: (l) => MISSED.includes(normalize(l.status)),
       };
     }, [manualMode]);
 
   // "Da pagare" ha senso solo in modalità manuale, come sul web.
-  const filterDefs = useMemo(
-    () =>
-      (['all', 'upcoming', ...(manualMode ? (['unpaid'] as const) : []), 'completed', 'cancelled'] as LessonFilter[]).map(
-        (value) => ({ value, label: FILTER_LABEL[value], count: lessons.filter(predicates[value]).length }),
-      ),
-    [manualMode, lessons, predicates],
-  );
+  // (B) tre voci al massimo: in modalità manuale Tutte · Da pagare · Pagate
+  // (future e annullate restano in «Tutte», una grigia e una «Programmata»);
+  // in sola lettura non si paga niente, quindi Tutte · Future · Annullate.
+  const filterDefs = useMemo(() => {
+    const values: LessonFilter[] =
+      FILTER_UI === 'B'
+        ? manualMode
+          ? ['all', 'unpaid', 'paid']
+          : ['all', 'upcoming', 'cancelled']
+        : ['all', 'upcoming', ...(manualMode ? (['unpaid'] as const) : []), 'completed', 'cancelled'];
+    return values.map((value) => ({ value, label: FILTER_LABEL[value], count: lessons.filter(predicates[value]).length }));
+  }, [manualMode, lessons, predicates]);
 
   const activeFilter = filterDefs.some((f) => f.value === filter) ? filter : 'all';
   const activeCount = filterDefs.find((f) => f.value === activeFilter)?.count ?? 0;
@@ -401,7 +416,16 @@ export const StudentPaymentsScreen = () => {
   // Form sheet nativo alto quanto il contenuto (FORM_SHEET + FormSheet): testata
   // fissa e opaca con la X, scorre solo il centro.
   return (
-    <FormSheet title="Pagamenti" subtitle={data.studentName || undefined} testID="student-payments-sheet">
+    <FormSheet
+      title="Pagamenti"
+      subtitle={data.studentName || undefined}
+      testID="student-payments-sheet"
+      actions={
+        FILTER_UI === 'A' ? (
+          <PaymentsFilterMenu options={filterDefs} value={activeFilter} onChange={setFilter} onFallback={openFilter} />
+        ) : undefined
+      }
+    >
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       {manualMode ? (
@@ -421,14 +445,35 @@ export const StudentPaymentsScreen = () => {
         </Text>
       )}
 
-      <ClayList style={s.filter}>
-        <SettingValueRow
-          title="Mostra"
-          value={`${FILTER_LABEL[activeFilter]} · ${activeCount}`}
-          onPress={openFilter}
-          testID="payments-filter"
-        />
-      </ClayList>
+      {FILTER_UI === 'A' ? (
+        // Il filtro attivo si legge solo qui, discreto; «Tutte» non dice niente.
+        activeFilter !== 'all' ? (
+          <Animated.View entering={FadeIn.duration(160)} style={s.filterLine}>
+            <Text style={s.filterLineText}>
+              {/* «Da pagare» ripeterebbe il numero grande sopra. */}
+              {activeFilter === 'unpaid' ? 'Solo queste' : `Solo ${FILTER_LABEL[activeFilter].toLowerCase()} · ${activeCount}`}
+            </Text>
+            <Pressable onPress={() => setFilter('all')} hitSlop={10} testID="payments-filter-reset">
+              {({ pressed }) => <Text style={[s.filterLineLink, pressed && { opacity: 0.5 }]}>Vedi tutte</Text>}
+            </Pressable>
+          </Animated.View>
+        ) : null
+      ) : (
+        <View style={s.segment}>
+          <PaymentsFilterSegmented
+            options={filterDefs}
+            value={activeFilter}
+            onChange={setFilter}
+            fallback={
+              <ClaySegmented
+                options={filterDefs.map((f) => ({ value: f.value, label: f.label }))}
+                value={activeFilter}
+                onChange={setFilter}
+              />
+            }
+          />
+        </View>
+      )}
 
       <Animated.View key={activeFilter} entering={FadeIn.duration(180)}>
         {sections.length === 0 ? (
@@ -475,7 +520,10 @@ const s = StyleSheet.create({
   heroLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
   heroOk: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
 
-  filter: { marginTop: 18 },
+  filterLine: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 6 },
+  filterLineText: { fontSize: 15, color: CLAY.ink3, letterSpacing: -0.2 },
+  filterLineLink: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  segment: { marginTop: 18 },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, minHeight: 60 },
   divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
