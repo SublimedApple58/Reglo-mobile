@@ -594,6 +594,7 @@ export const StudentNotesDetailScreen = () => {
   return (
     <FormSheet
       testID="student-detail-sheet"
+      headerStyle={s.sheetHead}
       cta={
         phone && !loading ? (
           <View style={s.ctaRow}>
@@ -947,7 +948,10 @@ export const StudentNotesDetailScreen = () => {
 };
 
 const s = StyleSheet.create({
-  hero: { alignItems: 'center', marginTop: -8 },
+  // Niente margine negativo: lo scroll del foglio ritaglia al bordo alto e il
+  // volto usciva tagliato piatto. Lo stesso posto lo dà la testata più bassa.
+  hero: { alignItems: 'center' },
+  sheetHead: { paddingBottom: 6 },
   heroName: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 12 },
   heroSub: { fontSize: 15, color: CLAY.ink3, marginTop: 3, textAlign: 'center' },
   pathCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18, paddingVertical: 14, paddingHorizontal: 18 },
