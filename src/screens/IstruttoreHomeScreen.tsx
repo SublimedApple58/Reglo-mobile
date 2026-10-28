@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +35,8 @@ import { ScrubBubble } from '../components/BookableBand';
 import { requestRoadCheck } from '../road/entryFlow';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
 import { ClaySurface } from '../components/clay';
+import { AgendaTodayCard } from '../components/agenda/AgendaTodayCard';
+import { VITA_ART, greetingFor } from '../theme/vitaArt';
 import { CLAY, CLAY_CTA } from '../theme/clay';
 import { primaryCtaShadow } from '../components/GradientCTA';
 import { blockKindOf } from '../utils/weeklyAgenda';
@@ -309,7 +312,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // REG-638 «T1 piatta»: Disponibilità e Notifiche non sono più tab per l'istruttore,
   // si aprono da orologio e campanella in testa all'Agenda.
   const headerActions = useInstructorTabs().instructorApp && !ownerMode;
-  const { instructorId, autoscuolaRole, activeCompanyId } = useSession();
+  const { instructorId, autoscuolaRole, activeCompanyId, user } = useSession();
   const { width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
   // Owner (titolare puro, senza instructorId) vede la stessa home dell'istruttore
@@ -323,7 +326,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     AutoscuolaAppointmentWithRelations[]
   >([]);
   const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; studentPhase?: AutoscuolaStudentPhase; defaultLocationId?: string | null; defaultLocationName?: string | null }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; color?: string | null; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
   // Fetch window, DECOUPLED from the displayed day. loadData fetches this whole
@@ -821,6 +824,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
 
   // Out-of-availability banner count: a group lesson's participants are ONE guida.
+  // Veicolo esclusivo dell'istruttore: nome e colore nella card «Guida» del «+».
+  const myVehicle = useMemo(() => {
+    const v = instructorId ? vehicles.find((x) => x.assignedInstructorId === instructorId) : undefined;
+    return v ? { name: v.name, color: v.color ?? null } : null;
+  }, [vehicles, instructorId]);
+
   const outOfAvailCount = useMemo(
     () => groupOutOfAvailability(outOfAvailAppointments).length,
     [outOfAvailAppointments],
@@ -1902,9 +1911,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     </View>
   ) : null;
 
-  // La riga sotto il titolo è sempre la data di oggi (la settimana mostrata
-  // ha la sua intestazione e il suo «Oggi» nella griglia).
-  const longDate = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Direzione «D · Mix» (REG-639): sopra il titolo il saluto che cambia con
+  // l'ora; la data di oggi la dice la card «Oggi» e la griglia.
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const greeting = `${greetingFor(now)}${firstName ? `, ${firstName}` : ''}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -1915,10 +1925,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         <View style={hd.wrap}>
           <View style={hd.top}>
             <View style={hd.titles}>
-              <Text style={hd.title} accessibilityRole="header">Agenda</Text>
-              <Text style={hd.date} numberOfLines={1}>
-                {longDate}
+              <Text style={hd.greet} numberOfLines={1}>
+                {greeting}
               </Text>
+              <Text style={hd.title} accessibilityRole="header">Agenda</Text>
             </View>
             {headerActions ? (
               <View style={styles.headerActions}>
@@ -1929,6 +1939,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           </View>
           {scopeTabs}
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
+          {effectiveInstructorId && !initialLoading ? (
+            <AgendaTodayCard
+              appointments={appointments}
+              instructorBlocks={instructorBlocks}
+              instructorId={effectiveInstructorId}
+              now={now}
+            />
+          ) : null}
           {outOfAvailAppointments.length > 0 && (
             <ClaySurface
               size="sm"
@@ -1945,6 +1963,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               }}
               accessibilityLabel={`${outOfAvailCount} guide fuori disponibilità, gestisci`}
             >
+              <Image source={VITA_ART.campanella} style={hd.oobArt} />
               <Text style={hd.oobTx} numberOfLines={1}>
                 {outOfAvailCount} guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
               </Text>
@@ -1995,6 +2014,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         <FabMenu
           canBook={canInstructorBook}
           canGroupLesson={settings?.groupLessonsEnabled === true}
+          myVehicle={myVehicle}
           disabled={isPending}
           onBookLesson={openNewBooking}
           onBlockSlot={openBlockDrawer}
@@ -2105,9 +2125,11 @@ const FabMenu = ({
   onCreateExam,
   onCreateGroupLesson,
   onSickLeave,
+  myVehicle,
 }: {
   canBook: boolean;
   canGroupLesson: boolean;
+  myVehicle: { name: string; color: string | null } | null;
   disabled: boolean;
   onBookLesson: () => void;
   onBlockSlot: () => void;
@@ -2131,9 +2153,10 @@ const FabMenu = ({
       onExam: onCreateExam,
       onGroupLesson: onCreateGroupLesson,
       onSick: onSickLeave,
+      myVehicle,
     });
     router.push('/(tabs)/home/add-action');
-  }, [canBook, canGroupLesson, onBookLesson, onBlockSlot, onTheoryLesson, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
+  }, [myVehicle, canBook, canGroupLesson, onBookLesson, onBlockSlot, onTheoryLesson, onCreateExam, onCreateGroupLesson, onSickLeave, router]);
 
   return (
     <AnimatedPressable
@@ -3678,11 +3701,12 @@ const hd = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   titles: { flex: 1, minWidth: 0 },
   title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
-  date: { fontSize: 15, color: CLAY.ink3, marginTop: 1 },
+  greet: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, marginBottom: 1 },
   scope: { flexDirection: 'row', gap: 20, marginTop: 14 },
   scopeTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink4 },
   scopeOn: { color: CLAY.ink, fontWeight: '600' },
-  oob: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  oob: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  oobArt: { width: 30, height: 30 },
   oobTx: { flex: 1, fontSize: 15, fontWeight: '500', color: CLAY.ink },
   oobAction: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
 });

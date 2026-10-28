@@ -2,6 +2,14 @@
 
 ## Stato
 
+- **28/10 — parte mobile IMPLEMENTATA** (solo commit locali, niente push/OTA):
+  - immagini in `assets/vita/` (@2x/@3x; icone OPACHE su bianco puro, cartine JPG) e registro `src/theme/vitaArt.ts`;
+  - Agenda: saluto con l'ora, `AgendaTodayCard`, campanella 3D sull'avviso;
+  - «Nuovo»: card «Guida» con `cartina-road` e auto `car34Art(colore veicolo)`, nome del veicolo esclusivo (senza colore: rossa);
+  - Disponibilità: copertina `sede-cartina` + card con la striscia della settimana (`WeekStrip`), sabato e domenica restano righe separate (servono per modificarli);
+  - «Tu»: `MonthHoursCard` su `getInstructorHoursRange` (leggibile dall'istruttore; passato `instructorId`, così il titolare-istruttore vede solo sé), lista unica.
+  - Non fatto: nome del veicolo sulla riga «Veicoli» di «Tu» (servirebbe una chiamata in più); backend foto veicolo/sede.
+
 - **Approvata da Tiziano il 28/10** la tavola `D-mix` (`/tmp/hiro-anteprime/vita/D-mix.png`,
   sorgente `gen.py` nella stessa cartella). Il codice dell'app NON è ancora toccato.
 - Nata dal feedback: le schermate clay (ombre, radius, struttura giusti) erano

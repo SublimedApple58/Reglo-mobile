@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayButton, ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface } from '../components/clay';
 import { ToastTone } from '../components/ToastNotice';
 import { DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
@@ -57,9 +57,11 @@ type Props = {
   instructorId: string;
   weeks: number;
   onToast: (text: string, tone?: ToastTone) => void;
+  /** Testata della card in rilievo (titolo + riga), sopra la striscia della settimana. */
+  intro?: React.ReactNode;
 };
 
-export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Props) => {
+export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro }: Props) => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
@@ -201,9 +203,14 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
 
   return (
     <View>
+      {/* ── Card in rilievo: titolo + la settimana a colpo d'occhio (D · Mix) ── */}
+      <ClaySurface style={st.card} radius={26}>
+        {intro}
+        <WeekStrip schedule={loading ? null : schedule} onPressDay={openDaySheet} />
+      </ClaySurface>
+
       {/* ── Orari settimanali ─────────────────────────── */}
       <ClaySection
-        title="Orari settimanali"
         style={st.firstSection}
         footnote="Valgono ogni settimana. Tocca un giorno per cambiarne gli orari."
       >
@@ -288,8 +295,55 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
   );
 };
 
+/**
+ * La settimana a colpo d'occhio (direzione «D · Mix», REG-639): una colonna
+ * per giorno, le fasce in nero sulla stessa scala oraria. Tocco = orari del giorno.
+ */
+const WeekStrip = ({ schedule, onPressDay }: { schedule: Schedule | null; onPressDay: (day: number) => void }) => {
+  const all = schedule ? ORDER.flatMap((d) => schedule[d] ?? []) : [];
+  const from = all.length ? Math.floor(Math.min(...all.map((r) => r.startMinutes)) / 60) * 60 : 8 * 60;
+  const to = all.length ? Math.ceil(Math.max(...all.map((r) => r.endMinutes)) / 60) * 60 : 20 * 60;
+  const span = Math.max(to - from, 60);
+  return (
+    <View style={st.strip}>
+      {ORDER.map((day) => (
+        <Pressable
+          key={day}
+          style={st.stripCol}
+          onPress={() => onPressDay(day)}
+          disabled={!schedule}
+          accessibilityRole="button"
+          accessibilityLabel={`${DAY_FULL[day]}, cambia orari`}
+        >
+          <Text style={st.stripDay}>{SHORT_DAYS[day].toLowerCase()}</Text>
+          <View style={st.stripTrack}>
+            {(schedule?.[day] ?? []).map((r, i) => (
+              <View
+                key={i}
+                style={[
+                  st.stripFill,
+                  {
+                    top: `${((r.startMinutes - from) / span) * 100}%`,
+                    height: `${((r.endMinutes - r.startMinutes) / span) * 100}%`,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+};
+
 const st = StyleSheet.create({
-  firstSection: { marginTop: 26 },
+  card: { paddingTop: 18, paddingHorizontal: 18, paddingBottom: 18 },
+  strip: { flexDirection: 'row', marginTop: 16 },
+  stripCol: { flex: 1, alignItems: 'center' },
+  stripDay: { fontSize: 12.5, fontWeight: '500', color: CLAY.ink3 },
+  stripTrack: { marginTop: 8, width: 30, height: 112, borderRadius: 11, backgroundColor: 'rgba(17,17,17,0.045)', overflow: 'hidden' },
+  stripFill: { position: 'absolute', left: 0, right: 0, borderRadius: 8, backgroundColor: CLAY.ink },
+  firstSection: { marginTop: 18 },
   section: { marginTop: 34 },
   save: { marginTop: 18 },
   add: { marginTop: 16 },

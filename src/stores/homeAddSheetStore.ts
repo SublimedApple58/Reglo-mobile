@@ -15,6 +15,8 @@ export type HomeAddSheetData = {
   onExam: () => void;
   onGroupLesson: () => void;
   onSick: () => void;
+  /** Veicolo dell'istruttore (esclusivo) per la card «Guida»: nome + colore dell'auto 3D. */
+  myVehicle?: { name: string; color: string | null } | null;
 };
 
 let _data: HomeAddSheetData | null = null;

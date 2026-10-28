@@ -264,6 +264,8 @@ export type AutoscuolaVehicle = {
   // this vehicle serves. Drives category-aware matching (Vehicles module).
   licenseCategory: string;
   transmission: string;
+  /** Colore dell'auto 3D (chiave di `CAR_COLOR_KEYS`, REG-638); null = tinta dell'istruttore. */
+  color?: string | null;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };

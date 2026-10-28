@@ -961,8 +961,10 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/instructor-hours?${qs.toString()}`
       );
     },
-    getInstructorHoursRange: async (params: { from: string; to: string }) => {
+    getInstructorHoursRange: async (params: { from: string; to: string; instructorId?: string }) => {
       const qs = new URLSearchParams({ from: params.from, to: params.to });
+      // Facoltativo: il titolare-istruttore senza id riceve TUTTI gli istruttori.
+      if (params.instructorId) qs.set('instructorId', params.instructorId);
       return client.request<InstructorHoursRangeResponse>(
         `/api/autoscuole/instructor-hours?${qs.toString()}`
       );
