@@ -13,9 +13,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
+import { useStackBase } from '../hooks/useStackBase';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClaySection, clayRowPressShape } from '../components/clay';
 import { CLAY } from '../theme/clay';
 import { SOFT_SPRING, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
 import { ToastTone } from '../components/ToastNotice';
@@ -88,14 +89,18 @@ const SwipeRow = ({
   onToggle,
   onEdit,
   divider,
+  first,
+  last,
 }: {
   day: DayState;
   index: number;
   isToday: boolean;
   onToggle: () => void;
   onEdit: () => void;
-  /** Lo imposta `ClayList`. */
+  /** Li imposta `ClayList`. */
   divider?: boolean;
+  first?: boolean;
+  last?: boolean;
 }) => {
   const tx = useSharedValue(0);
 
@@ -123,7 +128,8 @@ const SwipeRow = ({
   const state = day.available ? rangesText(day.ranges) : 'Riposo';
 
   return (
-    <View style={styles.dayRow}>
+    // Prima/ultima riga: ritaglio con gli angoli della card (niente spigoli bianchi).
+    <View style={[styles.dayRow, clayRowPressShape({ first, last })]}>
       {divider ? <View style={styles.divider} /> : null}
       {/* Azione rivelata trascinando a sinistra: solo testo, niente pillola colorata. */}
       <Animated.View style={[styles.swipeAction, actionStyle]} pointerEvents="none">
@@ -137,6 +143,8 @@ const SwipeRow = ({
             title={title}
             subtitle={isToday ? `Oggi · ${state}` : state}
             onPress={onEdit}
+            first={first}
+            last={last}
             testID={`publication-day-${index}`}
           />
         </Animated.View>
@@ -149,6 +157,8 @@ const SwipeRow = ({
 
 export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
   const router = useRouter();
+  // I fogli si aprono nello stack corrente (`home/` o `role/`).
+  const stackBase = useStackBase();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
   const [selectedOffset, setSelectedOffset] = useState(0);
@@ -182,7 +192,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
   const openTimePicker = useCallback(
     (current: Date, onPick: (d: Date) => void) => {
       timePickerStore.set({ selectedTime: current, onConfirm: onPick });
-      router.push('/(tabs)/role/time-picker' as never);
+      router.push(`/(tabs)/${stackBase}/time-picker` as never);
     },
     [router],
   );
@@ -207,7 +217,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
         }
       },
     });
-    router.push('/(tabs)/role/publish-day' as never);
+    router.push(`/(tabs)/${stackBase}/publish-day` as never);
   };
 
   // ── Inline day on/off (no sheet) ──

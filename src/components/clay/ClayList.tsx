@@ -2,7 +2,32 @@ import React from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CLAY } from '../../theme/clay';
+import { CLAY_RADIUS } from '../../theme/spacing';
 import { ClaySurface } from './ClaySurface';
+
+/** Margine verticale interno della lista (le righe partono 4 pt sotto il bordo). */
+const LIST_INSET = 4;
+
+/** Posizione della riga nella lista: la passa `ClayList` a ogni figlio. */
+export type ClayRowPosition = { divider?: boolean; first?: boolean; last?: boolean };
+
+/**
+ * Forma dell'evidenziazione al tocco di una riga di `ClayList`: la prima e
+ * l'ultima riga seguono gli angoli della card (raggio concentrico, 28 − 4),
+ * così la pressione non disegna mai un rettangolo dentro una card tonda.
+ */
+export function clayRowPressShape({ first, last }: ClayRowPosition): ViewStyle {
+  const r = CLAY_RADIUS.card - LIST_INSET;
+  return {
+    borderTopLeftRadius: first ? r : 0,
+    borderTopRightRadius: first ? r : 0,
+    borderBottomLeftRadius: last ? r : 0,
+    borderBottomRightRadius: last ? r : 0,
+  };
+}
+
+/** Fondo della riga premuta (sempre con `clayRowPressShape`). */
+export const CLAY_ROW_PRESSED: ViewStyle = { backgroundColor: 'rgba(17,17,17,0.035)' };
 
 /**
  * Lista clay (§0): UNA superficie in rilievo che contiene le righe (l'ombra
@@ -13,7 +38,9 @@ export function ClayList({ children, style }: { children: React.ReactNode; style
   return (
     <ClaySurface padded={false} style={[s.list, style]}>
       {rows.map((row, i) =>
-        React.isValidElement<{ divider?: boolean }>(row) ? React.cloneElement(row, { divider: i > 0 }) : row,
+        React.isValidElement<ClayRowPosition>(row)
+          ? React.cloneElement(row, { divider: i > 0, first: i === 0, last: i === rows.length - 1 })
+          : row,
       )}
     </ClaySurface>
   );
@@ -32,6 +59,8 @@ export function ClayListRow({
   chevron,
   dimmed,
   divider,
+  first,
+  last,
   testID,
 }: {
   leading?: React.ReactNode;
@@ -44,8 +73,10 @@ export function ClayListRow({
   chevron?: boolean;
   /** Riga non disponibile (es. auto occupata): tutto più tenue. */
   dimmed?: boolean;
-  /** Lo imposta `ClayList`. */
+  /** Li imposta `ClayList`. */
   divider?: boolean;
+  first?: boolean;
+  last?: boolean;
   testID?: string;
 }) {
   const showChevron = chevron ?? !!onPress;
@@ -82,7 +113,7 @@ export function ClayListRow({
     <Pressable
       onPress={onPress}
       disabled={dimmed}
-      style={({ pressed }) => [s.row, pressed && s.pressed]}
+      style={({ pressed }) => [s.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })]]}
       accessibilityRole="button"
       accessibilityLabel={typeof subtitle === 'string' ? `${title}, ${subtitle}` : title}
       testID={testID}
@@ -93,9 +124,8 @@ export function ClayListRow({
 }
 
 const s = StyleSheet.create({
-  list: { paddingVertical: 4 },
+  list: { paddingVertical: LIST_INSET },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 18 },
-  pressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
   divider: { position: 'absolute', top: 0, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   main: { flex: 1, minWidth: 0 },
   dim: { opacity: 0.45 },

@@ -18,7 +18,7 @@ import {
 import { NotificationItem, PersistedNotification } from '../types/notifications';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
-import { ClayEmpty, ClayIconButton, ClayList, ClaySection } from '../components/clay';
+import { CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPressShape } from '../components/clay';
 import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
 
@@ -203,8 +203,10 @@ type CardProps = {
   item: PersistedNotification;
   onTap: () => void;
   onDismiss: () => void;
-  /** Lo imposta `ClayList`. */
+  /** Li imposta `ClayList`. */
   divider?: boolean;
+  first?: boolean;
+  last?: boolean;
 };
 
 const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: () => void }) => {
@@ -226,7 +228,7 @@ const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: ()
  * titolo nero 600; letta = titolo 500 grigio. Ora a destra (il giorno è
  * nel titolo della sezione). Scorri verso sinistra per eliminarla.
  */
-const NotificationCard = React.memo(({ item, onTap, onDismiss, divider }: CardProps) => {
+const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, last }: CardProps) => {
   const swipeableRef = useRef<any>(null);
 
   const handleDelete = useCallback(() => {
@@ -252,7 +254,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider }: CardPr
       >
         <Pressable
           onPress={onTap}
-          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          style={({ pressed }) => [styles.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })]]}
           accessibilityRole="button"
           accessibilityLabel={`${item.read ? '' : 'Da leggere. '}${title}${subtitle ? `, ${subtitle}` : ''}`}
         >
@@ -461,7 +463,6 @@ const styles = StyleSheet.create({
   firstSection: { marginTop: 18 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)', marginHorizontal: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18 },
-  rowPressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
   rowMain: { flex: 1, minWidth: 0 },
   rowTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
   rowTitleRead: { fontWeight: '500', color: CLAY.ink3 },

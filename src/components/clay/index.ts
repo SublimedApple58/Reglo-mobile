@@ -2,7 +2,8 @@
 export { Avatar } from './Avatar';
 export { ClayButton, PlayGlyph } from './ClayButton';
 export { ClayIconButton } from './ClayIconButton';
-export { ClayList, ClayListRow } from './ClayList';
+export { ClayList, ClayListRow, clayRowPressShape, CLAY_ROW_PRESSED } from './ClayList';
+export type { ClayRowPosition } from './ClayList';
 export { ClayMapControls } from './ClayMapControls';
 export { ClayPressable } from './ClayPressable';
 export { ClaySearchField } from './ClaySearchField';

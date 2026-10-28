@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { Avatar, ClaySurface } from './clay';
+import { Avatar, CLAY_ROW_PRESSED, ClaySurface, clayRowPressShape } from './clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { currentAppVersion } from '../config/forceUpdate';
 import type { UserPublic } from '../types/regloApi';
@@ -64,6 +64,8 @@ export function ClayTextRow({
   danger,
   disabled,
   divider,
+  first,
+  last,
   testID,
 }: {
   title: string;
@@ -71,13 +73,15 @@ export function ClayTextRow({
   danger?: boolean;
   disabled?: boolean;
   divider?: boolean;
+  first?: boolean;
+  last?: boolean;
   testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [s.row, pressed && s.pressed, disabled && s.off]}
+      style={({ pressed }) => [s.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })], disabled && s.off]}
       accessibilityRole="button"
       accessibilityLabel={title}
       testID={testID}
@@ -105,7 +109,6 @@ const s = StyleSheet.create({
   detail: { fontSize: 14, lineHeight: 19, color: CLAY.ink3, marginTop: 2 },
 
   row: { paddingVertical: 15, paddingHorizontal: 18, minHeight: 52, justifyContent: 'center' },
-  pressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
   off: { opacity: 0.45 },
   divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   rowTitle: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },

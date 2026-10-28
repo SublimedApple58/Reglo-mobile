@@ -31,7 +31,7 @@ type Props = {
  * gradient (no SVG, so it ships over-the-air). Two clipped half-disks pivot
  * around the center to sweep the filled arc clockwise from the top; rounded caps
  * are raised dots at the arc's start and (rotating) end. A soft drop shadow
- * floats the whole ring for depth. Animates from 0 → progress on mount.
+ * floats the whole ring for depth (`boxShadow`, REG-639). Animates from 0 → progress on mount.
  */
 export function ProgressRing({
   size = 130,
@@ -105,11 +105,10 @@ export function ProgressRing({
           height: size,
           borderRadius: half,
           backgroundColor: trackColor,
-          shadowColor: '#111111',
-          shadowOpacity: 0.22,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 10 },
-          elevation: 9,
+          // `boxShadow` nativo (clay §0.3): niente rendering fuori schermo come
+          // le vecchie `shadow*`, e l'alone resta entro ~20 pt sotto l'anello,
+          // dentro lo spazio fra i blocchi (prima la card successiva lo copriva).
+          boxShadow: '0px 8px 18px -6px rgba(17,17,17,0.24)',
         }}
       />
 
@@ -135,13 +134,7 @@ export function ProgressRing({
             <View
               style={[
                 cap,
-                {
-                  shadowColor: '#111111',
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                  shadowOffset: { width: 0, height: 2 },
-                  elevation: 4,
-                },
+                { boxShadow: '0px 2px 4px rgba(17,17,17,0.2)' },
               ]}
             />
           </Animated.View>
@@ -158,10 +151,7 @@ export function ProgressRing({
           backgroundColor: innerColor,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#111111',
-          shadowOpacity: 0.12,
-          shadowRadius: 5,
-          shadowOffset: { width: 0, height: 1 },
+          boxShadow: '0px 1px 5px rgba(17,17,17,0.12)',
         }}
       >
         {children}
