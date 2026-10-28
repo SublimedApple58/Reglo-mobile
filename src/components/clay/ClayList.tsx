@@ -33,6 +33,7 @@ export function ClayListRow({
   trailing,
   onPress,
   chevron,
+  dimmed,
   divider,
   testID,
 }: {
@@ -45,6 +46,8 @@ export function ClayListRow({
   onPress?: () => void;
   /** Di default c'è se la riga è premibile. */
   chevron?: boolean;
+  /** Riga non disponibile (es. auto occupata): tutto più tenue. */
+  dimmed?: boolean;
   /** Lo imposta `ClayList`. */
   divider?: boolean;
   testID?: string;
@@ -53,8 +56,8 @@ export function ClayListRow({
   const body = (
     <>
       {divider ? <View style={[s.divider, { left: leading ? 78 : 18 }]} /> : null}
-      {leading}
-      <View style={s.main}>
+      {leading ? <View style={dimmed && s.dim}>{leading}</View> : null}
+      <View style={[s.main, dimmed && s.dim]}>
         <Text style={s.title} numberOfLines={1}>
           {title}
         </Text>
@@ -89,6 +92,7 @@ export function ClayListRow({
   return (
     <Pressable
       onPress={onPress}
+      disabled={dimmed}
       style={({ pressed }) => [s.row, pressed && s.pressed]}
       accessibilityRole="button"
       accessibilityLabel={typeof subtitle === 'string' ? `${title}, ${subtitle}` : title}
@@ -105,6 +109,7 @@ const s = StyleSheet.create({
   pressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
   divider: { position: 'absolute', top: 0, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   main: { flex: 1, minWidth: 0 },
+  dim: { opacity: 0.45 },
   title: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   sub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },

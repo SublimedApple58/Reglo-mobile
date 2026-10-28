@@ -1,20 +1,29 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRouter } from 'expo-router';
 
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { RoadPressable } from '../../../src/components/road/RoadPressable';
-import { ROAD_EXIT, ROAD_LAYOUT, ROAD_SPRING, ROAD_TEXT_IN, roadEnter, roadStagger } from '../../../src/road/motion';
+import { CLAY } from '../../../src/theme';
+import Animated from 'react-native-reanimated';
+import {
+  ClayButton,
+  ClayIconButton,
+  ClayList,
+  ClayListRow,
+  ClaySearchField,
+  ClaySegmented,
+  ClaySurface,
+  Icon3D,
+  PlayGlyph,
+} from '../../../src/components/clay';
+import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadStagger } from '../../../src/road/motion';
 import { regloApi } from '../../../src/services/regloApi';
 import type { AutoscuolaStudent, RoadBriefing, RoadFreeOptions, RoadFreeVehicle } from '../../../src/types/regloApi';
 import { vehicleServesStudent } from '../../../src/utils/license';
 import { matchesPersonSearch } from '../../../src/utils/peopleSearch';
-import { beginRoadEntry, ROAD_ROUTE, roadPendingStart, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
+import { beginRoadEntry, roadPendingStart, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
 import { ROAD_FREE_PRIVACY_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { BriefingRows, RoadAvatar } from '../../../src/components/road/RoadTabParts';
 import { enterRoadFree, hasSeenRoadPrivacy } from '../../../src/road/roadActions';
@@ -23,8 +32,6 @@ import { formatHm } from '../../../src/road/format';
 
 type Person = { id: string; name: string; detail: string; sortKey: string };
 
-const initialsOf = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 /** «9 h di guida» · «4,5 h» · «nessuna guida» dai minuti completati. */
@@ -158,8 +165,6 @@ export default function AvviaGuidaSheet() {
     setStep('summary');
   };
 
-  const canStart = !!studentId && !!vehicleId && !starting;
-
   const onStart = async () => {
     if (!studentId || !vehicleId || starting) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
@@ -197,9 +202,7 @@ export default function AvviaGuidaSheet() {
   };
 
   const back = (to: 'student' | 'summary') => (
-    <RoadPressable kind="small" onPress={() => setStep(to)} hitSlop={10} style={s.x} accessibilityLabel="Indietro">
-      <Ionicons name="chevron-back" size={20} color="#3A3A3C" />
-    </RoadPressable>
+    <ClayIconButton icon="back" onPress={() => setStep(to)} accessibilityLabel="Indietro" />
   );
   const nowLabel = `Da adesso, ${formatHm(new Date().toISOString())}`;
 
@@ -212,64 +215,52 @@ export default function AvviaGuidaSheet() {
   }
 
   const searchField = (value: string, onChange: (v: string) => void, placeholder: string, testID?: string) => (
-    <View style={s.search}>
-      <Ionicons name="search" size={18} color="#8E8E93" />
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#8E8E93"
-        style={s.searchInput}
-        autoCorrect={false}
-        autoCapitalize="words"
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-        testID={testID}
-      />
-    </View>
+    <ClaySearchField value={value} onChangeText={onChange} placeholder={placeholder} autoCapitalize="words" testID={testID} />
   );
 
   // ── Passo 1: con chi guidi? ────────────────────────────────────────────
   if (step === 'student') {
-    let lastLetter = '';
     return (
       <FormSheet title="Con chi guidi?" subtitle={nowLabel} contentKey="student" testID="road-free-pick">
         {searchField(query, setQuery, 'Cerca allievo', 'road-free-search')}
-        {/* Righe a tutta larghezza come le liste native: escono dal margine del foglio. */}
-        <View style={s.bleed}>
-          {shownSuggested.length ? (
-            <View>
-              <Text style={s.section}>Le tue ultime guide</Text>
+        {/* Liste clay: una superficie per gruppo (ultime guide, poi una per
+            lettera), l'ombra sul gruppo e non sulle righe. */}
+        {shownSuggested.length ? (
+          <Animated.View layout={ROAD_LAYOUT}>
+            <Text style={s.section}>Le tue ultime guide</Text>
+            <ClayList>
               {shownSuggested.map((p, i) => (
-                <Animated.View key={`s-${p.id}`} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-                  <PersonRow person={p} onPress={() => pick(p.id)} />
-                </Animated.View>
+                <PersonRow key={`s-${p.id}`} index={i} person={p} onPress={() => pick(p.id)} />
               ))}
-            </View>
-          ) : null}
+            </ClayList>
+          </Animated.View>
+        ) : null}
 
-          <Text style={s.section}>
-            {q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`}
-          </Text>
-          {!students ? (
-            <ActivityIndicator color="#6A6A6A" style={{ marginTop: 18 }} />
-          ) : shownAll.length ? (
-            shownAll.map((p, i) => {
-              const letter = p.sortKey[0]?.toUpperCase() ?? '';
-              const header = !q && letter !== lastLetter ? letter : null;
-              lastLetter = letter;
-              return (
-                // Le prime righe entrano a cascata; filtrando, le righe escono e le altre scivolano.
-                <Animated.View key={p.id} entering={roadStagger(Math.min(i, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-                  {header ? <Text style={s.letter}>{header}</Text> : null}
-                  <PersonRow person={p} onPress={() => pick(p.id)} />
-                </Animated.View>
-              );
-            })
-          ) : (
-            <Text style={s.empty}>Nessun allievo trovato.</Text>
-          )}
-        </View>
+        <Text style={s.section}>
+          {q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`}
+        </Text>
+        {!students ? (
+          <ActivityIndicator color={CLAY.ink3} style={{ marginTop: 18 }} />
+        ) : !shownAll.length ? (
+          <Text style={s.empty}>Nessun allievo trovato.</Text>
+        ) : q ? (
+          <ClayList>
+            {shownAll.map((p, i) => (
+              <PersonRow key={p.id} index={i} person={p} onPress={() => pick(p.id)} />
+            ))}
+          </ClayList>
+        ) : (
+          byLetter(shownAll).map(([letter, people], g) => (
+            <Animated.View key={letter} entering={roadStagger(Math.min(g, 8))} layout={ROAD_LAYOUT}>
+              <Text style={s.letter}>{letter}</Text>
+              <ClayList>
+                {people.map((p, i) => (
+                  <PersonRow key={p.id} index={i} person={p} onPress={() => pick(p.id)} />
+                ))}
+              </ClayList>
+            </Animated.View>
+          ))
+        )}
       </FormSheet>
     );
   }
@@ -290,14 +281,14 @@ export default function AvviaGuidaSheet() {
     };
     const section = (title: string, items: RoadFreeVehicle[]) =>
       items.length ? (
-        <View>
+        <Animated.View layout={ROAD_LAYOUT}>
           <Text style={s.section}>{title}</Text>
-          {items.map((v, i) => (
-            <Animated.View key={v.id} entering={roadStagger(i)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-              <VehicleRow vehicle={v} selected={v.id === vehicleId} onPress={v.busy ? undefined : () => choose(v)} />
-            </Animated.View>
-          ))}
-        </View>
+          <ClayList>
+            {items.map((v) => (
+              <VehicleRow key={v.id} vehicle={v} selected={v.id === vehicleId} onPress={v.busy ? undefined : () => choose(v)} />
+            ))}
+          </ClayList>
+        </Animated.View>
       ) : null;
     const who = selected ? firstName(selected.name) : null;
     const lic = selectedStudent?.licenseCategory ? `patente ${selectedStudent.licenseCategory}` : null;
@@ -311,14 +302,12 @@ export default function AvviaGuidaSheet() {
         testID="road-free-vehicles"
       >
         {searchField(vehicleQuery, setVehicleQuery, 'Cerca per nome o targa')}
-        <View style={s.bleed}>
-          {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
-          {section(mine.length ? `Altre auto · ${free.length}` : `Libere adesso · ${free.length}`, free)}
-          {section('Occupate adesso', busy)}
-          {!list.length ? (
-            <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text>
-          ) : null}
-        </View>
+        {section(mine.length === 1 ? 'La tua' : 'Le tue', mine)}
+        {section(mine.length ? `Altre auto · ${free.length}` : `Libere adesso · ${free.length}`, free)}
+        {section('Occupate adesso', busy)}
+        {!list.length ? (
+          <Text style={s.empty}>{vq ? 'Nessuna auto trovata.' : 'Nessuna auto adatta a questo allievo.'}</Text>
+        ) : null}
       </FormSheet>
     );
   }
@@ -339,7 +328,7 @@ export default function AvviaGuidaSheet() {
     <FormSheet
       leading={
         <Pressable onPress={toStudents} accessibilityRole="button" accessibilityLabel="Cambia allievo">
-          <RoadAvatar userId={studentId} name={selected?.name ?? '?'} size={48} />
+          <RoadAvatar userId={studentId} name={selected?.name ?? '?'} size={52} />
         </Pressable>
       }
       title={
@@ -351,44 +340,42 @@ export default function AvviaGuidaSheet() {
       contentKey="summary"
       testID="road-free-sheet"
       cta={
-        <RoadPressable
-          kind="cta"
+        <ClayButton
           onPress={() => void onStart()}
-          disabled={!canStart}
-          style={[s.cta, !canStart && !starting && s.ctaOff]}
-          accessibilityRole="button"
+          disabled={!studentId || !vehicleId}
+          loading={starting}
+          leading={studentId && vehicleId ? <PlayGlyph /> : null}
+          title={selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
           testID="road-free-go"
-        >
-          {starting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              {canStart ? <Ionicons name="play" size={17} color="#FFFFFF" /> : null}
-              <Text style={[s.ctaTx, !canStart && s.ctaTxOff]}>
-                {selected ? `Parti con ${firstName(selected.name)}` : 'Scegli l\'allievo'}
-              </Text>
-            </>
-          )}
-        </RoadPressable>
+        />
       }
     >
+      {/* Ordine dell'anteprima clay v2 approvata: durata, briefing, auto. */}
+      <Text style={[s.label, { marginTop: 4 }]}>Durata</Text>
+      <ClaySegmented
+        options={options.durations.map((d) => ({ value: d, label: `${d} min` }))}
+        value={duration}
+        onChange={setDuration}
+      />
+
       {briefing?.lines.length ? (
         <>
-          <Text style={[s.label, { marginTop: 4 }]}>{briefing.title}</Text>
+          <Text style={s.label}>{briefing.title}</Text>
           <BriefingRows lines={briefing.lines} />
         </>
       ) : null}
 
-      <Text style={[s.label, !briefing?.lines.length && { marginTop: 4 }]}>Guida</Text>
-      <Pressable
+      <Text style={s.label}>Guida</Text>
+      <ClaySurface
         onPress={() => setStep('vehicle')}
-        style={({ pressed }) => [s.autoRow, pressed && { opacity: 0.7 }]}
-        accessibilityRole="button"
-        accessibilityLabel="Cambia auto"
+        padded={false}
+        radius={24}
+        style={s.autoRow}
         testID="road-free-vehicle"
+        accessibilityLabel="Cambia auto"
       >
         {/* L'auto 3D scelta, la stessa immagine del selettore («Cambia»). */}
-        {selectedVehicle ? <Image source={car34Art(selectedVehicle.carColor)} style={s.car} resizeMode="contain" /> : null}
+        {selectedVehicle ? <Icon3D source={car34Art(selectedVehicle.carColor)} size={56} width={70} /> : null}
         {selectedVehicle ? (
           <View style={{ flex: 1 }}>
             <Text style={s.name} numberOfLines={1}>{selectedVehicle.name}</Text>
@@ -400,61 +387,18 @@ export default function AvviaGuidaSheet() {
             </Text>
           </View>
         ) : (
-          <Text style={[s.name, { flex: 1, color: '#6A6A6A' }]}>
+          <Text style={[s.name, { flex: 1, color: CLAY.ink3, paddingVertical: 14 }]}>
             {vehicles.length ? 'Scegli l\'auto' : 'Nessuna auto adatta a questo allievo'}
           </Text>
         )}
         <Text style={s.changeTx}>Cambia</Text>
-        <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
-      </Pressable>
+      </ClaySurface>
 
-      <DurationSegment
-        durations={options.durations}
-        value={duration}
-        onChange={(d) => {
-          Haptics.selectionAsync().catch(() => undefined);
-          setDuration(d);
-        }}
-      />
       <Animated.Text key={endLine} entering={ROAD_TEXT_IN} style={[s.endLine, clash && { color: '#B42318' }]}>
         {endLine}
       </Animated.Text>
       <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
     </FormSheet>
-  );
-}
-
-/**
- * Durate come controllo segmentato nativo: la parte bianca scivola sulla
- * durata scelta, morbida e senza rimbalzo, invece di saltarci.
- */
-function DurationSegment({ durations, value, onChange }: { durations: number[]; value: number; onChange: (d: number) => void }) {
-  const [w, setW] = useState(0);
-  const idx = Math.max(0, durations.indexOf(value));
-  const segW = durations.length ? (w - 8) / durations.length : 0;
-  const x = useSharedValue(0);
-  useEffect(() => {
-    x.value = withSpring(idx * segW, ROAD_SPRING);
-  }, [idx, segW, x]);
-  const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-  return (
-    <View style={[s.segment, { marginTop: 18 }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-      {segW > 0 ? <Animated.View style={[s.segThumb, { width: segW }, thumb]} /> : null}
-      {durations.map((d) => {
-        const on = d === value;
-        return (
-          <Pressable
-            key={d}
-            onPress={() => onChange(d)}
-            style={s.segItem}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-          >
-            <Text style={[s.segTx, on && s.segTxOn]}>{d} min</Text>
-          </Pressable>
-        );
-      })}
-    </View>
   );
 }
 
@@ -471,165 +415,69 @@ function vehicleDetail(v: RoadFreeVehicle) {
   );
 }
 
-function VehicleRow({ vehicle, selected, onPress }: { vehicle: RoadFreeVehicle; selected: boolean; onPress?: () => void }) {
+function VehicleRow({
+  vehicle,
+  selected,
+  onPress,
+  divider,
+}: {
+  vehicle: RoadFreeVehicle;
+  selected: boolean;
+  onPress?: () => void;
+  divider?: boolean;
+}) {
   return (
-    <Pressable
+    <ClayListRow
+      divider={divider}
+      dimmed={vehicle.busy}
+      leading={<Icon3D source={car34Art(vehicle.carColor)} size={42} width={58} />}
+      title={vehicle.name}
+      subtitle={vehicleDetail(vehicle)}
       onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [s.row, pressed && !!onPress && { backgroundColor: '#F7F7F5' }]}
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled: !onPress }}
-    >
-      <Image source={car34Art(vehicle.carColor)} style={[s.car, vehicle.busy && { opacity: 0.4 }]} resizeMode="contain" />
-      <View style={s.rowBody}>
-        <Text style={[s.name, vehicle.busy && s.muted]} numberOfLines={1}>{vehicle.name}</Text>
-        <Text style={[s.detail, vehicle.busy && s.muted]} numberOfLines={1}>{vehicleDetail(vehicle)}</Text>
-      </View>
-      {selected ? <Ionicons name="checkmark" size={21} color="#111111" style={{ marginRight: 22 }} /> : <View style={{ width: 43 }} />}
-    </Pressable>
+      chevron={false}
+      trailing={selected ? <Ionicons name="checkmark" size={21} color={CLAY.ink} /> : null}
+    />
   );
 }
 
-function PersonRow({ person, onPress }: { person: Person; onPress: () => void }) {
+/** Raggruppa per iniziale (liste «Tutti gli allievi» alla iOS). */
+function byLetter(people: Person[]): Array<[string, Person[]]> {
+  const groups = new Map<string, Person[]>();
+  for (const p of people) {
+    const letter = p.sortKey[0]?.toUpperCase() ?? '#';
+    groups.set(letter, [...(groups.get(letter) ?? []), p]);
+  }
+  return [...groups.entries()];
+}
+
+/** Riga allievo: entra a cascata, filtrando esce e le altre scivolano. */
+function PersonRow({ person, onPress, index, divider }: { person: Person; onPress: () => void; index: number; divider?: boolean }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.row, pressed && { backgroundColor: '#F7F7F5' }]}
-      accessibilityRole="button"
-      testID="road-free-student"
-    >
-      {/* Stesso volto della tab Allievi e del resto di Road (foto o iniziali). */}
-      <RoadAvatar userId={person.id} name={person.name} size={44} />
-      <View style={s.rowBody}>
-        <Text style={s.name} numberOfLines={1}>{person.name}</Text>
-        <Text style={s.detail} numberOfLines={1}>{person.detail}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={17} color="#C7C7CC" style={{ marginRight: 22 }} />
-    </Pressable>
+    <Animated.View entering={roadStagger(Math.min(index, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+      <ClayListRow
+        divider={divider}
+        // Stesso volto della tab Allievi e del resto di Road (foto o iniziali).
+        leading={<RoadAvatar userId={person.id} name={person.name} size={44} />}
+        title={person.name}
+        subtitle={person.detail}
+        onPress={onPress}
+        testID="road-free-student"
+      />
+    </Animated.View>
   );
 }
 
 const s = StyleSheet.create({
-  // form sheet: padding fisso, niente safe area (§13.2.1)
-  // form sheet: respiro in fondo = SHEET_BOTTOM, mai insets.bottom (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  // Le liste vanno a tutta larghezza (righe native), oltre il margine del foglio.
-  bleed: { marginHorizontal: -22, marginTop: 6 },
-  stickyHead: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: 8 },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.7 },
-  sub: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 4 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  search: {
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#F2F2F0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-  },
-  searchInput: { flex: 1, height: 44, fontSize: 16.5, color: '#111111' },
   // Intestazioni di sezione native in frase normale (niente maiuscoletto da eyebrow).
-  section: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6A6A6A',
-    paddingHorizontal: 22,
-    paddingTop: 18,
-    paddingBottom: 4,
-  },
-  letter: { fontSize: 13, fontWeight: '600', color: '#8E8E93', paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingLeft: 22, minHeight: 64 },
-  rowBody: {
-    flex: 1,
-    marginLeft: 13,
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(60,60,67,0.18)',
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ECECEA', alignItems: 'center', justifyContent: 'center' },
-  avatarDark: { backgroundColor: '#111111' },
-  avatarTx: { fontSize: 15, fontWeight: '600', color: '#3A3A3C' },
-  name: { fontSize: 16.5, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
-  detail: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
-  muted: { color: '#B0B0B0' },
-  empty: { fontSize: 14.5, color: '#6A6A6A', paddingHorizontal: 22, paddingTop: 14 },
-  studentCard: {
-    marginTop: 18,
-    borderRadius: 22,
-    backgroundColor: '#F7F7F5',
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  change: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  who: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  whoName: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
-  changeTx: { fontSize: 15, fontWeight: '400', color: '#6A6A6A' },
-  endLine: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 10 },
-  label: { fontSize: 14, fontWeight: '500', color: '#6A6A6A', marginTop: 22, marginBottom: 2 },
-  autoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    minHeight: 60,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(60,60,67,0.18)',
-  },
-  car: { width: 58, height: 42 },
-  segment: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 18, backgroundColor: '#F2F2F0' },
-  segItem: { flex: 1, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  segThumb: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  segItemOn: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  segTx: { fontSize: 15, fontWeight: '500', color: '#6A6A6A', letterSpacing: -0.2 },
-  segTxOn: { color: '#111111', fontWeight: '600' },
-  note: { fontSize: 13, fontWeight: '400', color: '#8E8E93', lineHeight: 18, marginTop: 4 },
-  cta: {
-    height: CTA_HEIGHT,
-    borderRadius: CTA_RADIUS,
-    backgroundColor: '#111111',
-    flexDirection: 'row',
-    gap: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
-  },
-  ctaOff: { backgroundColor: '#ECECEC', shadowOpacity: 0, elevation: 0 },
-  ctaTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
-  ctaTxOff: { color: '#A3A3A3' },
+  section: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, paddingHorizontal: 4, paddingTop: 22, paddingBottom: 8 },
+  letter: { fontSize: 13, fontWeight: '600', color: CLAY.ink4, paddingHorizontal: 4, paddingTop: 16, paddingBottom: 6 },
+  name: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  detail: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 1 },
+  empty: { fontSize: 14.5, color: CLAY.ink3, paddingHorizontal: 4, paddingTop: 14 },
+  whoName: { fontSize: 21, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
+  changeTx: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
+  endLine: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, marginTop: 16, textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, marginTop: 22, marginBottom: 8 },
+  autoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 8, paddingRight: 18, paddingVertical: 8 },
+  note: { fontSize: 13, fontWeight: '400', color: CLAY.ink4, lineHeight: 18, marginTop: 4, textAlign: 'center' },
 });
