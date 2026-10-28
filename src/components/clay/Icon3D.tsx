@@ -13,6 +13,7 @@ export function Icon3D({
   size = 28,
   width,
   style,
+  onLoad,
 }: {
   name?: Icon3DName;
   source?: ImageSourcePropType;
@@ -20,6 +21,8 @@ export function Icon3D({
   /** Per le immagini non quadrate (auto di 3/4). */
   width?: number;
   style?: StyleProp<ImageStyle>;
+  /** Es. marker di mappa: fotografare la vista solo a immagine caricata. */
+  onLoad?: () => void;
 }) {
   const src = source ?? (name ? ICONS_3D[name] : undefined);
   if (!src) return null;
@@ -28,6 +31,7 @@ export function Icon3D({
       source={src}
       style={[{ width: width ?? size, height: size }, style]}
       resizeMode="contain"
+      onLoad={onLoad}
       accessibilityIgnoresInvertColors
     />
   );

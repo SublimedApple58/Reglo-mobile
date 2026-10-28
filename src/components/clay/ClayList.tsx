@@ -38,7 +38,8 @@ export function ClayListRow({
 }: {
   leading?: React.ReactNode;
   title: string;
-  subtitle?: string | null;
+  /** Testo, oppure un nodo proprio (es. numeri con glifi). */
+  subtitle?: React.ReactNode;
   subtitleIcon?: Icon3DName | ImageSourcePropType;
   trailing?: React.ReactNode;
   onPress?: () => void;
@@ -57,7 +58,9 @@ export function ClayListRow({
         <Text style={s.title} numberOfLines={1}>
           {title}
         </Text>
-        {subtitle ? (
+        {subtitle && typeof subtitle !== 'string' ? (
+          <View style={s.subRow}>{subtitle}</View>
+        ) : subtitle ? (
           <View style={s.subRow}>
             {subtitleIcon ? (
               typeof subtitleIcon === 'string' ? (
@@ -88,7 +91,7 @@ export function ClayListRow({
       onPress={onPress}
       style={({ pressed }) => [s.row, pressed && s.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={[title, subtitle].filter(Boolean).join(', ')}
+      accessibilityLabel={typeof subtitle === 'string' ? `${title}, ${subtitle}` : title}
       testID={testID}
     >
       {body}

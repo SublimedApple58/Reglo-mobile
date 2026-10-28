@@ -6,46 +6,52 @@ import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing } from '../../types/regloApi';
+import { markerArt } from '../../road/markerArt';
+import { CLAY, CLAY_SHADOW } from '../../theme/clay';
+import { Icon3D } from '../clay/Icon3D';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
 
 /**
  * REG-638 Road «mappa corta» — pezzi condivisi da tab Road e foglio «Parti
- * con»: righe del briefing, miniatura del percorso, volto con le iniziali.
- * Glifi monocromatici (freccia rossa / spunta verde), niente pillole.
+ * con»: righe del briefing, miniatura del percorso, volto.
+ * Clay v2 (REG-639): ogni voce ha la sua icona 3D colorata (la stessa delle
+ * segnalazioni sulla mappa); il segno è un glifo monocromatico in fondo alla
+ * riga (freccia rossa = da migliorare, spunta verde = fatta bene). Niente pillole.
  */
 
 type Line = RoadBriefing['lines'][number];
 
-function lineGlyph(tone: Line['tone'], size: number) {
-  if (tone === 'bad') return <Ionicons name="arrow-up" size={size} color={SENTIMENT_BAD} />;
-  if (tone === 'good') return <Ionicons name="checkmark" size={size} color={SENTIMENT_GOOD} />;
-  return <Ionicons name="ellipse-outline" size={size - 6} color="#8E8E93" />;
+function toneGlyph(tone: Line['tone']) {
+  if (tone === 'bad') return <Ionicons name="arrow-up" size={17} color={SENTIMENT_BAD} accessibilityLabel="da migliorare" />;
+  if (tone === 'good') return <Ionicons name="checkmark" size={18} color={SENTIMENT_GOOD} accessibilityLabel="fatta bene" />;
+  return null;
 }
 
-/** Tab: una riga per voce, «Stop · da migliorare 4 volte nelle ultime 5». */
+/** Tab: icona 3D, «Stop · 4 volte su 5», glifo in fondo. */
 export function BriefingLines({ lines, style }: { lines: Line[]; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[{ gap: 9 }, style]}>
+    <View style={style}>
       {lines.map((l, i) => (
         <Animated.View
           key={`${l.kind}-${l.label}`}
           entering={roadStagger(i)}
           exiting={ROAD_EXIT}
           layout={ROAD_LAYOUT}
-          style={s.line}
+          style={[s.line, i > 0 && s.sep]}
         >
-          <View style={s.lineIc}>{lineGlyph(l.tone, 17)}</View>
+          <Icon3D source={markerArt(l.kind)} size={30} />
           <Text style={s.lineTx} numberOfLines={1}>
             {l.label}
             {l.detail ? <Text style={s.lineDetail}> · {l.detail}</Text> : null}
           </Text>
+          {toneGlyph(l.tone)}
         </Animated.View>
       ))}
     </View>
   );
 }
 
-/** Foglio «Parti con»: glifo nel cerchio, voce e dettaglio su due righe. */
+/** Foglio «Parti con»: icona 3D, voce e dettaglio su due righe, glifo in fondo. */
 export function BriefingRows({ lines }: { lines: Line[] }) {
   return (
     <View>
@@ -55,20 +61,14 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
           entering={roadStagger(i)}
           exiting={ROAD_EXIT}
           layout={ROAD_LAYOUT}
-          style={[s.row, i < lines.length - 1 && s.rowSep]}
+          style={[s.row, i > 0 && s.sep]}
         >
-          <View
-            style={[
-              s.ring,
-              { borderColor: l.tone === 'bad' ? SENTIMENT_BAD : l.tone === 'good' ? SENTIMENT_GOOD : '#C7C7CC' },
-            ]}
-          >
-            {lineGlyph(l.tone, 16)}
-          </View>
+          <Icon3D source={markerArt(l.kind)} size={36} />
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle} numberOfLines={1}>{l.label}</Text>
             {l.detail ? <Text style={s.rowDetail} numberOfLines={1}>{capitalize(l.detail)}</Text> : null}
           </View>
+          {toneGlyph(l.tone)}
         </Animated.View>
       ))}
     </View>
@@ -103,7 +103,7 @@ export function RouteThumb({ thumb, size = 56 }: { thumb: Array<[number, number]
     end = xy[xy.length - 1];
   }
   return (
-    <View style={[s.thumb, { width: size, height: size }]}>
+    <View style={[s.thumb, CLAY_SHADOW.sink, { width: size, height: size }]}>
       <Svg width={size} height={size}>
         {pts ? (
           <Polyline points={pts} fill="none" stroke="#111111" strokeWidth={2.6} strokeLinejoin="round" strokeLinecap="round" />
@@ -115,14 +115,13 @@ export function RouteThumb({ thumb, size = 56 }: { thumb: Array<[number, number]
 }
 
 const s = StyleSheet.create({
-  line: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lineIc: { width: 20, alignItems: 'center' },
-  lineTx: { flex: 1, fontSize: 15.5, fontWeight: '400', color: '#111111', letterSpacing: -0.2 },
-  lineDetail: { color: '#3A3A3C' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 11 },
-  rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(60,60,67,0.18)' },
-  ring: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { fontSize: 16, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
-  rowDetail: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
-  thumb: { borderRadius: 14, backgroundColor: '#F2F0EB', overflow: 'hidden' },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
+  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
+  lineTx: { flex: 1, fontSize: 15.5, fontWeight: '400', color: CLAY.ink, letterSpacing: -0.2 },
+  lineDetail: { color: CLAY.ink3 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 9 },
+  rowTitle: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  rowDetail: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 1 },
+  // Miniatura incavata sul bianco (niente fondo crema).
+  thumb: { borderRadius: 16, backgroundColor: CLAY.surface, overflow: 'hidden' },
 });

@@ -872,6 +872,8 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ### 6.19 AppTabBar (era GlassTabBar)
 
+> **Clay v2 (REG-639, 28/10/2026) — vale questo:** capsula bianca in rilievo (`raise`, alta 66, raggio 33) staccata 16 dai bordi su fondo bianco pieno; ogni voce ha la sua **icona 3D colorata** (`ICONS_3D`: istruttore `agenda` · `road` · `people` · `profile`; allievo `car`/`motorcycle`/`book`, `clock`, `swap`, `bell`, `exam`); la voce attiva è una **bolla bianca in rilievo** (`raiseSm`) che compare in dissolvenza (si animano solo opacità e scala) con etichetta nera 600, le altre hanno icona appena più tenue ed etichetta `CLAY.ink3`. Il contenuto non passa sotto la barra. Il paragrafo «T1 piatta» qui sotto è storico.
+>
 > **28/10/2026 (REG-638, «T1 piatta» scelta da Tiziano):** `src/components/AppTabBar.tsx`, un solo file. Barra **bianca piatta** con filo sottile in alto, niente vetro, niente ombre, niente cerchio in rilievo, niente pillole. Glifi monocromatici in stile SF Symbols: contorno grigio `#8E8E93` a riposo, pieno nero `#111111` sulla voce attiva, etichetta 10.5 sotto. **Istruttore e titolare-istruttore** (`useInstructorTabs`): **Agenda · Road · Allievi · Tu** (`calendar`, `map`, `people`, `person-circle`); Road solo con Road acceso. Disponibilità e Notifiche escono dalla barra: orologio e campanella (cerchi bianchi con ombra morbida, `InboxBellButton.tsx`) nell'intestazione dell'Agenda; la campanella anche nella tab Road. Il testo sotto è storico.
 
 **File:** `GlassTabBar.tsx` (Android) + `GlassTabBar.ios.tsx` (iOS)

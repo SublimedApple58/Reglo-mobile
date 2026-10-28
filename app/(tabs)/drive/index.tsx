@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -28,7 +26,8 @@ import { dayLabel, formatHm, formatKm, formatMinutes, formatRange } from '../../
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
-import { CTA_HEIGHT, CTA_RADIUS } from '../../../src/theme';
+import { CLAY, CLAY_SHADOW, type Icon3DName } from '../../../src/theme';
+import { ClayButton, ClayList, ClayListRow, ClaySurface, Icon3D, PlayGlyph } from '../../../src/components/clay';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -211,14 +210,7 @@ export default function RoadTab() {
           >
             {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={defaultVehicle?.carColor ?? null} /> : null}
             {hq ? (
-              <Marker coordinate={{ latitude: hq.lat, longitude: hq.lng }} anchor={{ x: 0.2, y: 0.5 }} tracksViewChanges={false}>
-                <View style={s.hq}>
-                  <View style={s.hqIc}>
-                    <Ionicons name="home" size={13} color="#FFFFFF" />
-                  </View>
-                  <Text style={s.hqTx}>Sede</Text>
-                </View>
-              </Marker>
+              <HqMarker coordinate={{ latitude: hq.lat, longitude: hq.lng }} />
             ) : null}
           </MapView>
           <InboxBellButton style={[s.bell, { top: insets.top + 10 }]} />
@@ -238,9 +230,7 @@ export default function RoadTab() {
             <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
               <Text style={s.kicker}>Guida in corso</Text>
               <Text style={s.name}>{lessonStudentName(road.session?.lesson)}</Text>
-              <RoadPressable kind="cta" onPress={() => router.push(ROAD_ROUTE)} style={s.cta}>
-                <Text style={s.ctaTx}>Torna in Road</Text>
-              </RoadPressable>
+              <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.cta} />
             </Animated.View>
           ) : showAgenda && current ? (
             // ── Guida in agenda tra poco ─────────────────────────────────
@@ -252,19 +242,20 @@ export default function RoadTab() {
               </Text>
               <Text style={s.name}>{lessonStudentName(current)}</Text>
               {briefingOf(current.student?.id)?.lines.length ? (
-                <BriefingLines lines={briefingOf(current.student?.id)!.lines} style={{ marginTop: 14 }} />
+                <ClaySurface style={s.brief}>
+                  <Text style={s.briefTitle}>{briefingOf(current.student?.id)!.title}</Text>
+                  <BriefingLines lines={briefingOf(current.student?.id)!.lines} />
+                </ClaySurface>
               ) : (
                 <Text style={[s.sub, { marginTop: 6 }]}>Prima guida in Road con questo allievo.</Text>
               )}
-              <RoadPressable
-                kind="cta"
+              <ClayButton
+                title="Entra in Road"
+                leading={<PlayGlyph />}
                 onPress={() => void beginRoadEntry(router, current)}
                 style={s.cta}
                 testID="road-tab-enter"
-              >
-                <Ionicons name="play" size={17} color="#FFFFFF" />
-                <Text style={s.ctaTx}>Entra in Road</Text>
-              </RoadPressable>
+              />
               <RoadPressable kind="small" onPress={() => setOtherMode(true)} hitSlop={8} style={s.secondary}>
                 <Text style={s.secondaryTx}>Parti con un altro allievo</Text>
               </RoadPressable>
@@ -286,8 +277,9 @@ export default function RoadTab() {
                   </Text>
                   <Text style={s.name}>{lessonStudentName(toCloseSession.lesson)}</Text>
                   <SessionNumbers session={toCloseSession} style={{ marginTop: 3 }} />
-                  <RoadPressable
-                    kind="cta"
+                  <ClayButton
+                    title="Compila il pagellino"
+                    leading={<Icon3D name="memo" size={22} />}
                     onPress={() =>
                       openRoadPagellino(
                         router,
@@ -298,10 +290,7 @@ export default function RoadTab() {
                     }
                     style={s.cta}
                     testID="road-tab-pagellino"
-                  >
-                    <Ionicons name="star" size={16} color="#FACC15" />
-                    <Text style={s.ctaTx}>Compila il pagellino</Text>
-                  </RoadPressable>
+                  />
                   <RoadPressable
                     kind="small"
                     onPress={() => {
@@ -353,8 +342,8 @@ export default function RoadTab() {
                   ))}
                   <Animated.View entering={roadStagger(faces.length)}>
                     <RoadPressable kind="small" onPress={() => openStart(null)} style={s.face} accessibilityRole="button" testID="road-tab-all">
-                      <View style={s.allCircle}>
-                        <Ionicons name="search" size={21} color="#111111" />
+                      <View style={[s.allCircle, CLAY_SHADOW.raiseSm]}>
+                        <Ionicons name="search" size={21} color={CLAY.ink} />
                       </View>
                       <Text style={s.faceName}>Tutti</Text>
                     </RoadPressable>
@@ -362,41 +351,38 @@ export default function RoadTab() {
                 </View>
 
                 {selected ? (
-                  <Animated.View style={s.brief} layout={ROAD_LAYOUT}>
+                  <Animated.View layout={ROAD_LAYOUT}>
                     {/* Il briefing cambia col volto: dissolvenza incrociata, l'altezza scivola. */}
-                    <Animated.View key={selected.id} entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} layout={ROAD_LAYOUT}>
-                    <Text style={s.briefHead}>
-                      {firstName(selected.name)} · {selected.reason}
-                    </Text>
-                    {briefingOf(selected.id)?.lines.length ? (
-                      <>
-                        <Text style={s.briefTitle}>
-                          {briefingOf(selected.id)!.title}
-                        </Text>
-                        <BriefingLines lines={briefingOf(selected.id)!.lines} />
-                      </>
-                    ) : (
-                      <Text style={s.briefTitle}>Nessuna segnalazione Road finora.</Text>
-                    )}
+                    <Animated.View layout={ROAD_LAYOUT}>
+                      <ClaySurface style={s.brief}>
+                        <Animated.View key={selected.id} entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} layout={ROAD_LAYOUT}>
+                          <View style={s.briefHeadRow}>
+                            <Icon3D name={REASON_ICON[selected.kind]} size={22} />
+                            <Text style={s.briefHead} numberOfLines={1}>
+                              {firstName(selected.name)} · {selected.reason}
+                            </Text>
+                          </View>
+                          {briefingOf(selected.id)?.lines.length ? (
+                            <>
+                              <Text style={[s.briefTitle, s.briefTitleIndent]}>{briefingOf(selected.id)!.title}</Text>
+                              <BriefingLines lines={briefingOf(selected.id)!.lines} />
+                            </>
+                          ) : (
+                            <Text style={[s.briefTitle, s.briefTitleIndent, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
+                          )}
+                        </Animated.View>
+                      </ClaySurface>
                     </Animated.View>
                     <Animated.View layout={ROAD_LAYOUT}>
-                      <RoadPressable
-                        kind="cta"
-                        onPress={() => openStart(selected.id)}
-                        style={s.cta}
-                        testID="road-tab-start"
-                      >
-                        <Ionicons name="play" size={17} color="#FFFFFF" />
-                        <Animated.Text key={selected.id} entering={ROAD_TEXT_IN} style={s.ctaTx}>
+                      <ClayButton leading={<PlayGlyph />} onPress={() => openStart(selected.id)} style={s.cta} testID="road-tab-start">
+                        <Animated.Text key={selected.id} entering={ROAD_TEXT_IN} style={s.ctaTx} numberOfLines={1}>
                           Parti con {firstName(selected.name)} · {options?.defaultDuration ?? 60} min
                         </Animated.Text>
-                      </RoadPressable>
+                      </ClayButton>
                     </Animated.View>
                   </Animated.View>
                 ) : (
-                  <RoadPressable kind="cta" onPress={() => openStart(null)} style={s.cta} testID="road-tab-start">
-                    <Text style={s.ctaTx}>Scegli l'allievo</Text>
-                  </RoadPressable>
+                  <ClayButton title="Scegli l'allievo" onPress={() => openStart(null)} style={s.cta} testID="road-tab-start" />
                 )}
                 {otherMode && current ? (
                   <Animated.View entering={roadEnter()} exiting={ROAD_EXIT}>
@@ -413,23 +399,19 @@ export default function RoadTab() {
         {recent.length && !inRoad ? (
           <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT_AFTER_EXIT}>
             <Text style={s.section}>Ultime guide</Text>
-            {recent.map((r, i) => (
-              <Animated.View key={r.id} entering={roadStagger(i + 2)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-              <RoadPressable
-                kind="card"
-                onPress={() => void openRoadPercorso(router, 'drive', r.appointmentId)}
-                style={s.recentRow}
-                testID="road-tab-recent"
-              >
-                <RouteThumb thumb={r.thumb} />
-                <View style={[s.recentBody, i < recent.length - 1 && s.recentSep]}>
-                  <Text style={s.recentName} numberOfLines={1}>{lessonStudentName(r.lesson)}</Text>
-                  <SessionNumbers session={r} withDay />
-                </View>
-                <Ionicons name="chevron-forward" size={17} color="#C7C7CC" style={{ marginRight: 20 }} />
-              </RoadPressable>
-              </Animated.View>
-            ))}
+            {/* Una superficie con le righe: l'ombra sta sulla lista, non sulle righe. */}
+            <ClayList style={s.recentList}>
+              {recent.map((r) => (
+                <ClayListRow
+                  key={r.id}
+                  leading={<RouteThumb thumb={r.thumb} size={52} />}
+                  title={lessonStudentName(r.lesson)}
+                  subtitle={<SessionNumbers session={r} withDay />}
+                  onPress={() => void openRoadPercorso(router, 'drive', r.appointmentId)}
+                  testID="road-tab-recent"
+                />
+              ))}
+            </ClayList>
           </Animated.View>
         ) : null}
       </Animated.ScrollView>
@@ -450,6 +432,33 @@ export default function RoadTab() {
         </View>
       </View>
     </View>
+  );
+}
+
+/** Icona 3D del motivo del volto suggerito (ordine del server). */
+const REASON_ICON: Record<RoadSuggestion['kind'], Icon3DName> = {
+  agenda: 'calendar',
+  exam: 'exam',
+  idle: 'clock',
+  frequent: 'road',
+};
+
+/**
+ * Sede sulla mappa: palazzo 3D in un cerchio bianco in rilievo + «Sede».
+ * `tracksViewChanges` resta acceso finché l'icona non è caricata, altrimenti
+ * iOS fotografa il marker vuoto.
+ */
+function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: number } }) {
+  const [ready, setReady] = useState(false);
+  return (
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready}>
+      <View style={s.hq}>
+        <View style={[s.hqIc, CLAY_SHADOW.raiseSm]}>
+          <Icon3D name="headquarters" size={26} onLoad={() => setReady(true)} />
+        </View>
+        <Text style={s.hqTx}>Sede</Text>
+      </View>
+    </Marker>
   );
 }
 
@@ -480,7 +489,7 @@ function SessionNumbers({ session, withDay, style }: { session: RoadRecentSessio
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  root: { flex: 1, backgroundColor: CLAY.bg },
   bell: { position: 'absolute', right: 20 },
   navWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   navBorder: {
@@ -493,90 +502,72 @@ const s = StyleSheet.create({
   },
   navRow: { height: NAV_H, alignItems: 'center', justifyContent: 'center' },
   navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  hq: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+  hq: { alignItems: 'center', gap: 4 },
   hqIc: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: '#111111',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: CLAY.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   hqTx: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: '#111111',
+    color: CLAY.ink,
     textShadowColor: 'rgba(255,255,255,0.95)',
     textShadowRadius: 3,
     textShadowOffset: { width: 0, height: 0 },
   },
+  // Clay v2: pannello bianco che sale sulla mappa con un'ombra morbida in alto.
   panel: {
-    marginTop: -26,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: '#FFFFFF',
+    marginTop: -28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: CLAY.bg,
     paddingTop: 26,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingBottom: 8,
+    boxShadow: [
+      { offsetX: 0, offsetY: 0, blurRadius: 0, spreadDistance: 1, color: 'rgba(17,17,17,0.04)' },
+      { offsetX: 0, offsetY: -10, blurRadius: 28, spreadDistance: -14, color: 'rgba(17,17,17,0.22)' },
+    ],
   },
-  title: { fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.7 },
-  kicker: { fontSize: 14, fontWeight: '400', color: '#6A6A6A' },
-  name: { fontSize: 26, fontWeight: '600', color: '#111111', letterSpacing: -0.7, marginTop: 3 },
-  sub: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 4, lineHeight: 20 },
-  faces: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  face: { alignItems: 'center', width: 72, gap: 7 },
-  faceName: { fontSize: 14, fontWeight: '400', color: '#6A6A6A' },
-  faceNameOn: { color: '#111111', fontWeight: '600' },
+  title: { fontSize: 28, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.7 },
+  kicker: { fontSize: 14, fontWeight: '400', color: CLAY.ink3 },
+  name: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.7, marginTop: 3 },
+  sub: { fontSize: 15, fontWeight: '400', color: CLAY.ink3, marginTop: 4, lineHeight: 20 },
+  faces: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22 },
+  face: { alignItems: 'center', width: 72, gap: 9 },
+  faceName: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3 },
+  faceNameOn: { color: CLAY.ink, fontWeight: '600' },
   allCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D1D1D6',
+    backgroundColor: CLAY.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brief: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(60,60,67,0.18)',
-  },
-  briefHead: { fontSize: 15, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
-  briefTitle: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 2, marginBottom: 10 },
-  cta: {
-    height: CTA_HEIGHT,
-    borderRadius: CTA_RADIUS,
-    backgroundColor: '#111111',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    marginTop: 20,
-  },
-  pressed: { opacity: 0.88 },
+  brief: { marginTop: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6, borderRadius: 26 },
+  briefHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  briefHead: { flex: 1, fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  briefTitle: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2, marginBottom: 4 },
+  briefTitleIndent: { marginLeft: 29 },
+  cta: { marginTop: 18 },
   ctaTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
   secondary: { alignItems: 'center', paddingVertical: 14 },
-  secondaryTx: { fontSize: 15.5, fontWeight: '500', color: '#3A3A3C' },
+  secondaryTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink2 },
   closeBlock: { paddingBottom: 6 },
   afterClose: {
     marginTop: 8,
     paddingTop: 20,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(60,60,67,0.18)',
+    borderTopColor: CLAY.hairline,
   },
-  nums: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  numsTx: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', fontVariant: ['tabular-nums'] },
-  recent: { marginTop: 18 },
-  section: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2, paddingHorizontal: 22, marginBottom: 6 },
-  recentRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 22, gap: 14 },
-  recentBody: { flex: 1, paddingVertical: 14 },
-  recentSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(60,60,67,0.18)' },
-  recentName: { fontSize: 16.5, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
+  nums: { flexDirection: 'row', alignItems: 'center' },
+  numsTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
+  recent: { marginTop: 22 },
+  section: { fontSize: 20, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.4, paddingHorizontal: 24, marginBottom: 12 },
+  recentList: { marginHorizontal: 20 },
 });

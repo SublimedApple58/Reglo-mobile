@@ -1,5 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
-import { ROAD_ASSETS } from '../road/markerArt';
+import { ROAD_ASSETS, car34Art } from '../road/markerArt';
 
 /**
  * REG-639 Clay v2 — icone 3D colorate (Microsoft Fluent 3D, MIT; già de-rosate)
@@ -19,6 +19,11 @@ export const ICONS_3D = {
   check: require('../../assets/icons/fluent-check.png'),
   memo: require('../../assets/icons/fluent-memo.png'),
   road: ROAD_ASSETS.road,
+  car: car34Art('rosso'),
+  motorcycle: require('../../assets/icons/fluent-motorcycle.png'),
+  book: require('../../assets/icons/tag-theory.png'),
+  swap: require('../../assets/icons/fluent-swap.png'),
+  bell: require('../../assets/icons/fluent-bell.png'),
 } satisfies Record<string, ImageSourcePropType>;
 
 export type Icon3DName = keyof typeof ICONS_3D;

@@ -1,29 +1,30 @@
 import React, { useEffect } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import type { Icon3DName } from '../theme/icons3d';
+import { Icon3D } from './clay/Icon3D';
 
-/* ── Icon map: outline (inactive) → filled (active) ── */
+/* ── Icone 3D colorate per voce (clay v2, REG-639) ── */
 
-const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'car-sport-outline',
-  role: 'time-outline',
-  notes: 'people-outline',
-  swaps: 'repeat-outline',
-  inbox: 'file-tray-outline',
-  drive: 'map-outline',
-  more: 'ellipsis-horizontal',
-  settings: 'options-outline',
-  quiz: 'school-outline',
+const ICON_MAP: Record<string, Icon3DName> = {
+  home: 'car',
+  role: 'clock',
+  notes: 'people',
+  swaps: 'swap',
+  inbox: 'bell',
+  drive: 'road',
+  more: 'profile',
+  settings: 'profile',
+  quiz: 'exam',
 };
 
 /* Label overrides based on student phase context */
@@ -33,18 +34,12 @@ const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
   },
 };
 
-const ACTIVE = '#111111';
-const INACTIVE = '#8E8E93';
-
-/**
- * Istruttore (REG-638, «T1 piatta»): Agenda · Road · Allievi · Tu, glifi in
- * stile SF Symbols — contorno grigio a riposo, pieni neri sulla voce attiva.
- */
-const INSTRUCTOR_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'calendar-outline',
-  drive: 'map-outline',
-  notes: 'people-outline',
-  more: 'person-circle-outline',
+/** Istruttore e titolare-istruttore: Agenda · Road · Allievi · Tu. */
+const INSTRUCTOR_ICONS: Record<string, Icon3DName> = {
+  home: 'agenda',
+  drive: 'road',
+  notes: 'people',
+  more: 'profile',
 };
 
 /* ── Tab Item ── */
@@ -54,28 +49,30 @@ type TabItemProps = {
   label: string;
   isFocused: boolean;
   onPress: () => void;
-  iconOverride?: keyof typeof Ionicons.glyphMap;
+  iconOverride?: Icon3DName;
   badgeCount?: number;
 };
 
+const FADE = { duration: 200, easing: Easing.out(Easing.cubic) };
+
+/**
+ * Voce della tab bar clay: icona 3D colorata + etichetta. La voce attiva è una
+ * bolla bianca in rilievo (`raiseSm`) che compare morbida; le altre hanno
+ * l'icona appena più tenue e l'etichetta grigia. Si anima solo opacità/scala,
+ * mai l'ombra.
+ */
 const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCount = 0 }: TabItemProps) => {
   const progress = useSharedValue(isFocused ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withTiming(isFocused ? 1 : 0, {
-      duration: 200,
-      easing: Easing.out(Easing.cubic),
-    });
+    progress.value = withTiming(isFocused ? 1 : 0, FADE);
   }, [isFocused, progress]);
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.08]) }],
+  const bubble = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: 0.92 + progress.value * 0.08 }],
   }));
-
-  const outline = iconOverride ?? ICON_MAP[routeName] ?? 'ellipse-outline';
-  // Come le tab bar native: contorno a riposo, pieno quando è attiva.
-  const filled = outline.replace(/-outline$/, '') as keyof typeof Ionicons.glyphMap;
-  const iconName = isFocused && filled in Ionicons.glyphMap ? filled : outline;
+  const icon = useAnimatedStyle(() => ({ opacity: 0.78 + progress.value * 0.22 }));
 
   return (
     <Pressable
@@ -85,25 +82,16 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
       onPress={onPress}
       style={st.tabItem}
     >
-      <Animated.View style={iconStyle}>
-        <Ionicons
-          name={iconName}
-          size={25}
-          color={isFocused ? ACTIVE : INACTIVE}
-        />
+      <Animated.View pointerEvents="none" style={[st.bubble, CLAY_SHADOW.raiseSm, bubble]} />
+      <Animated.View style={icon}>
+        <Icon3D name={iconOverride ?? ICON_MAP[routeName] ?? 'memo'} size={28} />
         {badgeCount > 0 ? (
           <View style={st.badge}>
             <Text style={st.badgeText}>{badgeCount > 9 ? '9+' : String(badgeCount)}</Text>
           </View>
         ) : null}
       </Animated.View>
-      <Text
-        style={[
-          st.tabLabel,
-          isFocused && st.tabLabelActive,
-        ]}
-        numberOfLines={1}
-      >
+      <Text style={[st.tabLabel, isFocused && st.tabLabelActive]} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -142,8 +130,8 @@ export const AppTabBar = ({
   const visibleRoutes = state.routes.filter((route) => !hiddenTabs.has(route.name));
 
   return (
-    <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <View style={st.row}>
+    <View style={[st.bar, { paddingBottom: Math.max(insets.bottom - 6, 10) }]}>
+      <View style={[st.row, CLAY_SHADOW.raise]}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
@@ -179,14 +167,12 @@ export const AppTabBar = ({
           };
 
           // Context-aware icon overrides. Teoria wins (Home = quiz); otherwise a
-          // moto student gets a moto-flavoured Home icon. Ionicons has no
-          // "motorcycle", so we reuse the instructor-side moto proxy.
-          let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined =
-            instructorApp ? INSTRUCTOR_ICONS[route.name] : undefined;
+          // moto student gets the 3D motorcycle on Home.
+          let tabIconOverride: Icon3DName | undefined = instructorApp ? INSTRUCTOR_ICONS[route.name] : undefined;
           if (isStudentTeoria && route.name === 'home') {
-            tabIconOverride = 'book-outline';
+            tabIconOverride = 'book';
           } else if (isStudentMoto && route.name === 'home') {
-            tabIconOverride = 'bicycle-outline';
+            tabIconOverride = 'motorcycle';
           }
 
           return (
@@ -209,37 +195,47 @@ export const AppTabBar = ({
 /* ── Styles ── */
 
 const st = StyleSheet.create({
-  // «T1 piatta»: barra bianca piatta con un filo sottile in alto; niente vetro, niente ombre.
+  // Clay v2: capsula bianca in rilievo, staccata dai bordi, sopra un fondo
+  // bianco pieno (il contenuto non ci passa sotto: niente vetro, niente blur).
   bar: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.14)',
-    paddingTop: 7,
+    backgroundColor: CLAY.bg,
+    paddingTop: 8,
+    paddingHorizontal: 16,
   },
   row: {
     flexDirection: 'row',
+    height: 66,
+    borderRadius: 33,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    backgroundColor: CLAY.surface,
   },
   tabItem: {
     flex: 1,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 2,
+    gap: 2,
+  },
+  bubble: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 28,
+    backgroundColor: CLAY.surface,
   },
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '500',
-    color: INACTIVE,
+    color: CLAY.ink3,
     letterSpacing: 0.1,
   },
   tabLabelActive: {
-    color: ACTIVE,
+    color: CLAY.ink,
     fontWeight: '600',
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -10,
+    top: -4,
+    right: -9,
     minWidth: 17,
     height: 17,
     borderRadius: 9,
