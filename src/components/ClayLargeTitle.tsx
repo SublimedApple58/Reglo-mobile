@@ -144,8 +144,9 @@ const s = StyleSheet.create({
   overlayFill: { backgroundColor: CLAY.bg },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 12 },
   side: { minWidth: 40, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sideRight: { justifyContent: 'flex-end' },
-  inlineTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  sideRight: { flex: 1, justifyContent: 'flex-end' },
+  // Centrato su tutta la barra (non fra i lati, che possono avere 0 o 2 bottoni).
+  inlineTitle: { position: 'absolute', left: 116, right: 116, textAlign: 'center', fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   field: { flex: 1 },
   cancel: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   hairline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.14)' },

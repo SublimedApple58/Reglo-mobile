@@ -35,7 +35,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { ClayNavBar, NAV_BAR_H } from '../../../src/components/ClayLargeTitle';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
 import {
   ROAD_EXIT,
@@ -52,7 +52,6 @@ const ALTITUDE = 1100; // iOS (metri)
 const ZOOM = 15.6; // Android
 const FALLBACK = { latitude: 45.0703, longitude: 7.6869 };
 /** Altezza della barra compatta sotto la status bar. */
-const NAV_H = 44;
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
@@ -182,14 +181,7 @@ export default function RoadTab() {
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
-  const panelTopAt = mapH - 26 - (insets.top + NAV_H); // offset a cui il pannello tocca la barra
-  const navBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [panelTopAt - 40, panelTopAt], [0, 1], Extrapolation.CLAMP),
-  }));
-  const navTitleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [panelTopAt, panelTopAt + 30], [0, 1], Extrapolation.CLAMP),
-    transform: [{ translateY: interpolate(scrollY.value, [panelTopAt, panelTopAt + 30], [6, 0], Extrapolation.CLAMP) }],
-  }));
+  const panelTopAt = mapH - 26 - (insets.top + NAV_BAR_H); // offset a cui il pannello tocca la barra
   const briefingOf = (id: string | null | undefined) => (id ? options?.briefings?.[id] ?? null : null);
 
   return (
@@ -228,7 +220,6 @@ export default function RoadTab() {
               <HqMarker coordinate={{ latitude: hq.lat, longitude: hq.lng }} />
             ) : null}
           </MapView>
-          <InboxBellButton style={[s.bell, { top: insets.top + 10 }]} />
         </View>
 
         <Animated.View style={s.panel} layout={ROAD_LAYOUT} testID="road-tab-panel">
@@ -388,21 +379,10 @@ export default function RoadTab() {
         ) : null}
       </Animated.ScrollView>
 
-      {/* Barra iOS che compare scorrendo: il pannello non passa mai «nudo»
-          sotto orario e isola dinamica (blur + fondo bianco, titolo compatto). */}
-      <View style={[s.navWrap, { height: insets.top + NAV_H, paddingTop: insets.top }]} pointerEvents="box-none">
-        <Animated.View style={[StyleSheet.absoluteFill, navBgStyle]} pointerEvents="none">
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.97)' }]} />
-          )}
-          <View style={s.navBorder} />
-        </Animated.View>
-        <View style={s.navRow} pointerEvents="none">
-          <Animated.Text style={[s.navTitle, navTitleStyle]}>Road</Animated.Text>
-        </View>
-      </View>
+      {/* Barra a titolo grande (REG-639, componente unico): trasparente sulla
+          mappa, bianca opaca col titolo quando il pannello ci arriva sotto. La
+          campanella sta nella barra, così resta sempre a portata. */}
+      <ClayNavBar title="Road" scrollY={scrollY} overlay={panelTopAt + 30} actions={<InboxBellButton />} />
     </View>
   );
 }
@@ -428,18 +408,6 @@ function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: n
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
-  bell: { position: 'absolute', right: 20 },
-  navWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  navBorder: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(60,60,67,0.2)',
-  },
-  navRow: { height: NAV_H, alignItems: 'center', justifyContent: 'center' },
-  navTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   hq: { alignItems: 'center', gap: 4 },
   hqIc: {
     width: 26,
