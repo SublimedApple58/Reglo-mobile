@@ -13,7 +13,8 @@ la sua vista pagamenti è un'altra feature (`payments` tab, Stripe).
 
 | File | Ruolo |
 |---|---|
-| `src/screens/StudentPaymentsScreen.tsx` | La schermata: hero riepilogo, riga «Mostra», righe guida in card clay per mese, casella pagata |
+| `src/screens/StudentPaymentsScreen.tsx` | La schermata: numero grande, segmentato nativo, righe guida in card clay per mese, casella pagata |
+| `src/components/PaymentsFilter.tsx` | Segmentato nativo iOS (`@expo/ui`) con ripiego clay |
 | `src/components/PaymentHistorySheet.tsx` + `src/stores/paymentHistoryStore.ts` | Foglio «Guida»: stato, storico pagamento, CTA «Segna pagata / da pagare» |
 | `src/stores/studentPaymentsStore.ts` | Seed-and-callback (lezioni + settings + ruolo + `onChanged`) |
 | `src/utils/lessonPayments.ts` | **Gemello** della regola backend (vedi sotto) |
@@ -60,23 +61,22 @@ se conservano una penale addebitata). Gemello di `reglo/lib/autoscuole/lesson-un
 
 ## Filtri
 
-Stessi identici predicati del web (`LessonFilter`):
+Controllo **segmentato nativo iOS** sotto il numero grande (`PaymentsFilterSegmented`,
+`src/components/PaymentsFilter.tsx`, `@expo/ui` SwiftUI — già nel binario 2.4.0;
+ripiego `ClaySegmented` su Android / iOS < 17). Scelto da Tiziano il 28/10/2026
+fra due alternative (l'altra era un menu nativo in testata). **Tre voci al
+massimo**, così stanno in larghezza:
 
-| Filtro | Predicato |
-|---|---|
-| Tutte | — |
-| Future | `status ∈ {scheduled, confirmed}` **e** `startsAt > now` |
-| Da pagare | `isLessonUnpaid(l, manualMode)` — **presente solo in modalità manuale** |
-| Completate | `status ∈ {completed, checked_in}` |
-| Annullate | `status ∈ {cancelled, no_show}` |
+| Modalità | Voci | Predicati |
+|---|---|---|
+| Manuale | Tutte · Da pagare · Pagate | — · `isLessonUnpaid(l, manualMode)` · `!creditApplied && manualPaymentStatus === 'paid'` |
+| Sola lettura | Tutte · Future · Annullate | — · `status ∈ {scheduled, confirmed}` e `startsAt > now` · `status ∈ {cancelled, no_show}` |
 
-Il filtro è **una riga «Mostra · Tutte · 55»** che apre il picker condiviso a
-spunta (`optionsPickerStore`, come «Chi prenota»): niente tab a pillola che
-escono dallo schermo (REG-639 giro pagamenti, 28/10). Ogni voce porta il
-conteggio come sottotitolo. **Differenza voluta rispetto al web**: il web
-ordina le non pagate in cima a tutto; qui le righe sono raggruppate per mese in
-ordine cronologico inverso (ordine di lettura naturale su mobile). Il segnale
-"quante da pagare" resta nell'hero in testa e nel contatore della voce.
+In modalità manuale «Future» e «Annullate» non sono più filtri: restano in
+«Tutte» («Programmata», e in grigio). «Completate» è sparito. **Differenza
+voluta rispetto al web**: il web ordina le non pagate in cima; qui le righe sono
+raggruppate per mese in ordine cronologico inverso. Il «quante da pagare» resta
+nel numero grande in testa.
 
 ## La riga (REG-639, giro pagamenti 28/10/2026)
 

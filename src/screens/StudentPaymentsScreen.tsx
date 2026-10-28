@@ -7,7 +7,7 @@ import { useRouter, useSegments } from 'expo-router';
 import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { FormSheet } from '../components/SheetScaffold';
-import { PaymentsFilterMenu, PaymentsFilterSegmented } from '../components/PaymentsFilter';
+import { PaymentsFilterSegmented } from '../components/PaymentsFilter';
 import {
   CLAY_ROW_PRESSED,
   ClayEmpty,
@@ -20,7 +20,6 @@ import {
 import type { ClayRowPosition } from '../components/clay';
 import { studentPaymentsStore } from '../stores/studentPaymentsStore';
 import { paymentHistoryStore } from '../stores/paymentHistoryStore';
-import { optionsPickerStore } from '../stores/optionsPickerStore';
 import { regloApi } from '../services/regloApi';
 import { CLAY } from '../theme/clay';
 import { formatTime } from '../utils/date';
@@ -35,15 +34,11 @@ import {
 import { formatEuro } from '../components/ledger/LedgerUI';
 import type { AutoscuolaAppointmentWithRelations, PaymentHistoryEvent } from '../types/regloApi';
 
-/** Filtri del registro guide — stessi identici del dettaglio allievo web. */
-type LessonFilter = 'all' | 'upcoming' | 'unpaid' | 'paid' | 'completed' | 'cancelled';
-
 /**
- * ANTEPRIMA (giro pagamenti): due alternative al filtro, Tiziano sceglie.
- * (A) bottone tondo in testata con menu nativo; (B) segmentato nativo sotto il
- * numero. Dopo la scelta resta solo quella approvata.
+ * Filtri di Pagamenti (REG-639, scelto da Tiziano il 28/10: segmentato nativo
+ * a tre voci). Predicati gemelli del dettaglio allievo web.
  */
-const FILTER_UI = 'B' as 'A' | 'B';
+type LessonFilter = 'all' | 'upcoming' | 'unpaid' | 'paid' | 'cancelled';
 
 const normalize = (value: string | null | undefined) => (value ?? '').trim().toLowerCase();
 
@@ -185,7 +180,6 @@ const FILTER_LABEL: Record<LessonFilter, string> = {
   upcoming: 'Future',
   unpaid: 'Da pagare',
   paid: 'Pagate',
-  completed: 'Completate',
   cancelled: 'Annullate',
 };
 
@@ -248,27 +242,20 @@ export const StudentPaymentsScreen = () => {
         upcoming: (l) => FUTURE.includes(normalize(l.status)) && new Date(l.startsAt).getTime() > now,
         unpaid: (l) => isLessonUnpaid(l, manualMode),
         paid: (l) => !l.creditApplied && l.manualPaymentStatus === 'paid',
-        completed: (l) => DONE.includes(normalize(l.status)),
         cancelled: (l) => MISSED.includes(normalize(l.status)),
       };
     }, [manualMode]);
 
-  // "Da pagare" ha senso solo in modalità manuale, come sul web.
-  // (B) tre voci al massimo: in modalità manuale Tutte · Da pagare · Pagate
-  // (future e annullate restano in «Tutte», una grigia e una «Programmata»);
-  // in sola lettura non si paga niente, quindi Tutte · Future · Annullate.
+  // Tre voci al massimo, così il segmentato sta in larghezza. In modalità
+  // manuale Tutte · Da pagare · Pagate (future e annullate restano in «Tutte»,
+  // una «Programmata» e una grigia); in sola lettura non si paga niente, quindi
+  // Tutte · Future · Annullate.
   const filterDefs = useMemo(() => {
-    const values: LessonFilter[] =
-      FILTER_UI === 'B'
-        ? manualMode
-          ? ['all', 'unpaid', 'paid']
-          : ['all', 'upcoming', 'cancelled']
-        : ['all', 'upcoming', ...(manualMode ? (['unpaid'] as const) : []), 'completed', 'cancelled'];
+    const values: LessonFilter[] = manualMode ? ['all', 'unpaid', 'paid'] : ['all', 'upcoming', 'cancelled'];
     return values.map((value) => ({ value, label: FILTER_LABEL[value], count: lessons.filter(predicates[value]).length }));
   }, [manualMode, lessons, predicates]);
 
   const activeFilter = filterDefs.some((f) => f.value === filter) ? filter : 'all';
-  const activeCount = filterDefs.find((f) => f.value === activeFilter)?.count ?? 0;
   const unpaidCount = lessons.filter(predicates.unpaid).length;
 
   const rowModel = useCallback(
@@ -394,38 +381,12 @@ export const StudentPaymentsScreen = () => {
     [applyStatus, router, stack],
   );
 
-  /** Filtro: una riga che apre la scelta a spunta (come «Chi prenota»). */
-  const openFilter = useCallback(() => {
-    optionsPickerStore.set({
-      title: 'Mostra',
-      tone: 'mono',
-      multi: false,
-      options: filterDefs.map((f) => ({
-        value: f.value,
-        label: f.label,
-        subtitle: f.count === 1 ? '1 guida' : `${f.count} guide`,
-      })),
-      selected: [activeFilter],
-      onConfirm: ([v]) => v && setFilter(v as LessonFilter),
-    });
-    router.push(`/(tabs)/${stack}/select-options`);
-  }, [activeFilter, filterDefs, router, stack]);
-
   if (!data) return <View style={s.sheet} />;
 
   // Form sheet nativo alto quanto il contenuto (FORM_SHEET + FormSheet): testata
   // fissa e opaca con la X, scorre solo il centro.
   return (
-    <FormSheet
-      title="Pagamenti"
-      subtitle={data.studentName || undefined}
-      testID="student-payments-sheet"
-      actions={
-        FILTER_UI === 'A' ? (
-          <PaymentsFilterMenu options={filterDefs} value={activeFilter} onChange={setFilter} onFallback={openFilter} />
-        ) : undefined
-      }
-    >
+    <FormSheet title="Pagamenti" subtitle={data.studentName || undefined} testID="student-payments-sheet">
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       {manualMode ? (
@@ -445,35 +406,20 @@ export const StudentPaymentsScreen = () => {
         </Text>
       )}
 
-      {FILTER_UI === 'A' ? (
-        // Il filtro attivo si legge solo qui, discreto; «Tutte» non dice niente.
-        activeFilter !== 'all' ? (
-          <Animated.View entering={FadeIn.duration(160)} style={s.filterLine}>
-            <Text style={s.filterLineText}>
-              {/* «Da pagare» ripeterebbe il numero grande sopra. */}
-              {activeFilter === 'unpaid' ? 'Solo queste' : `Solo ${FILTER_LABEL[activeFilter].toLowerCase()} · ${activeCount}`}
-            </Text>
-            <Pressable onPress={() => setFilter('all')} hitSlop={10} testID="payments-filter-reset">
-              {({ pressed }) => <Text style={[s.filterLineLink, pressed && { opacity: 0.5 }]}>Vedi tutte</Text>}
-            </Pressable>
-          </Animated.View>
-        ) : null
-      ) : (
-        <View style={s.segment}>
-          <PaymentsFilterSegmented
-            options={filterDefs}
-            value={activeFilter}
-            onChange={setFilter}
-            fallback={
-              <ClaySegmented
-                options={filterDefs.map((f) => ({ value: f.value, label: f.label }))}
-                value={activeFilter}
-                onChange={setFilter}
-              />
-            }
-          />
-        </View>
-      )}
+      <View style={s.segment}>
+        <PaymentsFilterSegmented
+          options={filterDefs}
+          value={activeFilter}
+          onChange={setFilter}
+          fallback={
+            <ClaySegmented
+              options={filterDefs.map((f) => ({ value: f.value, label: f.label }))}
+              value={activeFilter}
+              onChange={setFilter}
+            />
+          }
+        />
+      </View>
 
       <Animated.View key={activeFilter} entering={FadeIn.duration(180)}>
         {sections.length === 0 ? (
@@ -520,9 +466,6 @@ const s = StyleSheet.create({
   heroLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
   heroOk: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
 
-  filterLine: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 6 },
-  filterLineText: { fontSize: 15, color: CLAY.ink3, letterSpacing: -0.2 },
-  filterLineLink: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   segment: { marginTop: 18 },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, minHeight: 60 },

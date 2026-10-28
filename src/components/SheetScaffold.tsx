@@ -53,7 +53,6 @@ export function FormSheet({
   title,
   subtitle,
   leading,
-  actions,
   onClose,
   cta,
   children,
@@ -69,8 +68,6 @@ export function FormSheet({
   subtitle?: React.ReactNode;
   /** A sinistra del titolo: avatar, chevron «indietro». */
   leading?: React.ReactNode;
-  /** Bottoni tondi a sinistra della X (es. filtro di Pagamenti). */
-  actions?: React.ReactNode;
   /** Default: `router.back()`. */
   onClose?: () => void;
   /** CTA (una o una colonna di bottoni): ultima cosa del foglio. */
@@ -182,14 +179,7 @@ export function FormSheet({
             subtitle
           )}
         </View>
-        {actions ? (
-          <View style={fs.actions}>
-            {actions}
-            <SheetCloseButton onPress={close} />
-          </View>
-        ) : (
-          <SheetCloseButton onPress={close} />
-        )}
+        <SheetCloseButton onPress={close} />
         <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />
       </View>
 
@@ -323,7 +313,6 @@ const fs = StyleSheet.create({
     // troverebbe lo ScrollView e gli forzerebbe il frame a tutto il foglio.
     backgroundColor: '#FFFFFF',
   },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
