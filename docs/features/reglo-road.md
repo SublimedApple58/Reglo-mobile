@@ -172,7 +172,7 @@ Sostituisce la scelta B (Road al centro in rilievo, rimossa con il suo codice). 
 ## Tab Road «mappa corta» (27/10, variante 2)
 
 - `app/(tabs)/drive/index.tsx`: mappa bassa (36% dello schermo, non interattiva) con auto e pin «Sede» (solo se il server manda `headquarters`), pannello bianco a tre stati: guida in agenda tra poco (briefing + «Entra in Road» + «Parti con un altro allievo»), guida appena finita col pagellino da compilare («Compila il pagellino» / «Più tardi», solo locale), libero («Con chi guidi?», 3 volti suggeriti + «Tutti», briefing del volto scelto, «Parti con X · N min»). Sotto, «Ultime guide» → `road-percorso` registrato anche nello stack `drive`.
-- `src/components/road/RoadTabParts.tsx`: `BriefingLines` (tab), `BriefingRows` (foglio), `RoadAvatar`, `RouteThumb` (SVG). Glifi monocromatici, niente pillole.
+- `src/components/road/RoadTabParts.tsx`: `BriefingLines` (tab), `BriefingRows` (foglio), `RoadAvatar`, `RouteThumb` (mappa vera senza gesti: tracciato se il percorso supera ~50 m, altrimenti zona del punto di partenza o della sede con un puntino; mai riquadro vuoto). Glifi monocromatici, niente pillole.
 - `app/(tabs)/drive/avvia.tsx`: con un volto scelto si apre su «Parti con» (`roadFreePreselect`): allievo con riga del server, briefing, «Guida» con l'auto e «Cambia», durate, «Fino alle … · alle … hai …» (rosso se si sovrappone), «Parti con X». Intestazioni di sezione in frase normale (niente maiuscoletto).
 - «Annulla» 10 s: `roadFreeStarted` (memoria) → banner nero in `app/road/index.tsx` → `undoRoadFree()` → `POST /road/free/undo`, GPS spento, si torna alle tab. Il riepilogo aggiunge «In agenda diventa …; prezzo e crediti restano quelli dei N minuti scelti».
 

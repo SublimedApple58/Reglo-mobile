@@ -400,7 +400,7 @@ export default function RoadTab() {
               {recent.map((r) => (
                 <ClayListRow
                   key={r.id}
-                  leading={<RouteThumb thumb={r.thumb} size={52} />}
+                  leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} />}
                   title={lessonStudentName(r.lesson)}
                   subtitle={<SessionNumbers session={r} withDay />}
                   onPress={() => void openRoadPercorso(router, 'drive', r.appointmentId)}

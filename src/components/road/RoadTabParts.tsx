@@ -1,15 +1,17 @@
-import React from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import React, { useMemo } from 'react';
+import { Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Polyline } from 'react-native-svg';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing } from '../../types/regloApi';
 import { markerArt } from '../../road/markerArt';
-import { CLAY, CLAY_SHADOW } from '../../theme/clay';
+import { CLAY } from '../../theme/clay';
 import { Icon3D } from '../clay/Icon3D';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
+import { RoadTrack } from './RoadMapParts';
+import { regionFor } from './RoadMiniMap';
 
 /**
  * REG-638 Road «mappa corta» — pezzi condivisi da tab Road e foglio «Parti
@@ -80,36 +82,69 @@ const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 /** Volto di Road = il volto clay dell'app (REG-639). */
 export { Avatar as RoadAvatar } from '../clay/Avatar';
 
-/** Miniatura del percorso: polilinea nera su fondo mappa, niente MapView. */
-export function RouteThumb({ thumb, size = 56 }: { thumb: Array<[number, number]>; size?: number }) {
-  const pad = 8;
-  let pts = '';
-  let end: { x: number; y: number } | null = null;
-  if (thumb.length >= 2) {
-    const lats = thumb.map((p) => p[0]);
-    const lngs = thumb.map((p) => p[1]);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    const k = Math.cos(((minLat + maxLat) / 2) * (Math.PI / 180));
-    const w = Math.max((maxLng - minLng) * k, 1e-9);
-    const h = Math.max(maxLat - minLat, 1e-9);
-    const scale = (size - pad * 2) / Math.max(w, h);
-    const ox = (size - w * scale) / 2;
-    const oy = (size - h * scale) / 2;
-    const xy = thumb.map(([lat, lng]) => ({ x: ox + (lng - minLng) * k * scale, y: oy + (maxLat - lat) * scale }));
-    pts = xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-    end = xy[xy.length - 1];
-  }
+/** Sotto ~50 m di estensione il percorso è «un punto» (es. guide di prova). */
+const MIN_SPAN_DEG = 0.0005;
+
+/**
+ * Miniatura del percorso: mappa vera (Apple Maps / Google lite), senza gesti.
+ * - Percorso: la zona inquadrata sul tracciato nero.
+ * - Percorso vuoto o troppo corto: la zona del punto di partenza (o della
+ *   sede, se non c'è nessun punto) con un puntino nero al centro.
+ * Mai un riquadro bianco vuoto (Tiziano 28/10/2026).
+ */
+export function RouteThumb({
+  thumb,
+  size = 56,
+  fallback,
+}: {
+  thumb: Array<[number, number]>;
+  size?: number;
+  /** Dove centrare se la guida non ha punti (la sede). */
+  fallback?: { lat: number; lng: number } | null;
+}) {
+  const coords = useMemo(() => thumb.map(([lat, lng]) => ({ latitude: lat, longitude: lng })), [thumb]);
+  const view = useMemo(() => {
+    if (coords.length >= 2) {
+      const lats = coords.map((c) => c.latitude);
+      const lngs = coords.map((c) => c.longitude);
+      const spanLat = Math.max(...lats) - Math.min(...lats);
+      const spanLng = Math.max(...lngs) - Math.min(...lngs);
+      if (Math.max(spanLat, spanLng) >= MIN_SPAN_DEG) {
+        const r = regionFor(coords);
+        // Quadrato: lo stesso margine su entrambi gli assi.
+        const d = Math.max(r.latitudeDelta, r.longitudeDelta) * 1.1;
+        return { region: { ...r, latitudeDelta: d, longitudeDelta: d }, track: true };
+      }
+    }
+    const c = coords[0] ?? (fallback ? { latitude: fallback.lat, longitude: fallback.lng } : null);
+    if (!c) return { region: regionFor([]), track: false, dot: false };
+    return { region: { ...c, latitudeDelta: 0.006, longitudeDelta: 0.006 }, track: false, dot: true };
+  }, [coords, fallback]);
+
   return (
-    <View style={[s.thumb, CLAY_SHADOW.sink, { width: size, height: size }]}>
-      <Svg width={size} height={size}>
-        {pts ? (
-          <Polyline points={pts} fill="none" stroke="#111111" strokeWidth={2.6} strokeLinejoin="round" strokeLinecap="round" />
-        ) : null}
-        {end ? <Circle cx={end.x} cy={end.y} r={3.2} fill="#111111" /> : null}
-      </Svg>
+    <View style={[s.thumb, { width: size, height: size }]} pointerEvents="none">
+      <View style={[StyleSheet.absoluteFill, s.thumbClip]}>
+        <MapView
+          style={StyleSheet.absoluteFill}
+          region={view.region}
+          mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+          showsPointsOfInterest={false}
+          showsBuildings={false}
+          showsCompass={false}
+          showsScale={false}
+          toolbarEnabled={false}
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          liteMode={Platform.OS === 'android'}
+          userInterfaceStyle="light"
+        >
+          {view.track ? <RoadTrack coordinates={coords} width={2.5} /> : null}
+        </MapView>
+        {/* Puntino al centro (la mappa è centrata sul punto): una View, niente Marker. */}
+        {view.dot ? <View style={s.thumbDot} /> : null}
+      </View>
     </View>
   );
 }
@@ -122,6 +157,15 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 9 },
   rowTitle: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   rowDetail: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 1 },
-  // Miniatura incavata sul bianco (niente fondo crema).
-  thumb: { borderRadius: 16, backgroundColor: CLAY.surface, overflow: 'hidden' },
+  // Miniatura: il ritaglio sta sul figlio, il bordo sottile sul contenitore.
+  thumb: { borderRadius: 16, backgroundColor: '#F2F2F0', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.12)' },
+  thumbClip: { borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  thumbDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: CLAY.ink,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
 });
