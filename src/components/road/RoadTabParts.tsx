@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image, Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
@@ -7,7 +7,7 @@ import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing, RoadRecentSession } from '../../types/regloApi';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../road/format';
-import { markerArt } from '../../road/markerArt';
+import { car34Art, markerArt } from '../../road/markerArt';
 import { CLAY } from '../../theme/clay';
 import { Icon3D } from '../clay/Icon3D';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
@@ -97,11 +97,18 @@ export function RouteThumb({
   thumb,
   size = 56,
   fallback,
+  carColor,
 }: {
   thumb: Array<[number, number]>;
   size?: number;
   /** Dove centrare se la guida non ha punti (la sede). */
   fallback?: { lat: number; lng: number } | null;
+  /**
+   * Giro «memorabile»: se la guida non ha un percorso da disegnare, al posto
+   * di un francobollo di mappa tutto uguale c'è l'auto 3D nel colore del
+   * veicolo. `undefined` = sempre la mappa (comportamento di prima).
+   */
+  carColor?: string | null;
 }) {
   const coords = useMemo(() => thumb.map(([lat, lng]) => ({ latitude: lat, longitude: lng })), [thumb]);
   const view = useMemo(() => {
@@ -121,6 +128,14 @@ export function RouteThumb({
     if (!c) return { region: regionFor([]), track: false, dot: false };
     return { region: { ...c, latitudeDelta: 0.006, longitudeDelta: 0.006 }, track: false, dot: true };
   }, [coords, fallback]);
+
+  if (carColor !== undefined && !view.track) {
+    return (
+      <View style={[s.carThumb, { width: size, height: size }]} pointerEvents="none">
+        <Image source={car34Art(carColor)} style={{ width: size, height: Math.round((size * 65) / 80) }} resizeMode="contain" />
+      </View>
+    );
+  }
 
   return (
     <View style={[s.thumb, { width: size, height: size }]} pointerEvents="none">
@@ -155,30 +170,29 @@ export function SessionNumbers({ session, withDay, style }: { session: RoadRecen
   const head = withDay
     ? `${dayLabel(session.startedAt)} ${formatHm(session.lesson.startsAt)} · ${formatKm(session.distanceMeters)} km`
     : `${formatKm(session.distanceMeters)} km · ${formatMinutes(session.durationSec)} min`;
+  // Giro «memorabile»: a parole, non con frecce colorate. «Da ripassare» è
+  // quella che conta, in nero.
   return (
     <View style={[s.nums, style]}>
-      <Text style={s.numsTx}>{head}</Text>
-      {session.markerGood ? (
-        <>
-          <Text style={s.numsTx}> · </Text>
-          <Ionicons name="checkmark" size={14} color={SENTIMENT_GOOD} />
-          <Text style={s.numsTx}> {session.markerGood}</Text>
-        </>
-      ) : null}
-      {session.markerBad ? (
-        <>
-          <Text style={s.numsTx}>{session.markerGood ? '   ' : ' · '}</Text>
-          <Ionicons name="arrow-up" size={14} color={SENTIMENT_BAD} />
-          <Text style={s.numsTx}> {session.markerBad}</Text>
-        </>
-      ) : null}
+      <Text style={s.numsTx} numberOfLines={1}>
+        {head}
+        {session.markerGood ? ` · ${session.markerGood} ${session.markerGood === 1 ? 'fatta bene' : 'fatte bene'}` : ''}
+        {session.markerBad ? (
+          <>
+            {' · '}
+            <Text style={s.numsStrong}>{session.markerBad} da ripassare</Text>
+          </>
+        ) : null}
+      </Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   nums: { flexDirection: 'row', alignItems: 'center' },
-  numsTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
+  numsTx: { flexShrink: 1, fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
+  numsStrong: { color: CLAY.ink, fontWeight: '500' },
+  carThumb: { alignItems: 'center', justifyContent: 'center' },
   line: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
   lineTx: { flex: 1, fontSize: 15.5, fontWeight: '400', color: CLAY.ink, letterSpacing: -0.2 },

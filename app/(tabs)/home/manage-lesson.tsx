@@ -15,7 +15,8 @@ import { regloApi } from '../../../src/services/regloApi';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClayPressable } from '../../../src/components/clay';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClayPressable, Icon3D } from '../../../src/components/clay';
+import { VITA_ART } from '../../../src/theme/vitaArt';
 import { evaluationSummary, evaluationSummaryLabel } from '../../../src/utils/evaluationSheet';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
 import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
@@ -370,6 +371,13 @@ export default function ManageLessonScreen() {
   }
   if (lesson.notes && lesson.notes.trim()) summaryParts.push('note');
   const detailsSummary = summaryParts.join(' · ') || 'Tipo, pagellino e note';
+  // Giro «memorabile»: guida fatta e ancora da valutare = il prossimo passo.
+  // La riga «Dettagli guida» diventa una domanda calda con la stella 3D, in
+  // cima, finché non c'è il pagellino o una nota.
+  const lessonDone = ['completed', 'checked_in'].includes((lesson.status ?? '').trim().toLowerCase());
+  const askHowItWent =
+    !readOnly && lesson.type !== 'esame' && lessonDone && !evalRecap && !(lesson.notes && lesson.notes.trim());
+  const firstName = lesson.student?.firstName?.trim() || null;
 
   const showBottom = showStatusActions || hasMenu;
   const statusText = stateMeta ? stateMeta.label : stateLabel;
@@ -463,7 +471,25 @@ export default function ManageLessonScreen() {
             ) : (
               <SkeletonRing size={112} stroke={9} />
             )}
+            {/* L'anello da solo non diceva cosa conta. */}
+            {studentProgress ? (
+              <Text style={s.ringLabel}>
+                guide obbligatorie
+              </Text>
+            ) : null}
           </View>
+        ) : null}
+
+        {askHowItWent ? (
+          <ClayList>
+            <ClayListRow
+              leading={<Icon3D source={VITA_ART.stella} size={40} />}
+              title={firstName ? `Com’è andata ${firstName}?` : 'Com’è andata?'}
+              subtitle="Dai il pagellino e lascia una nota"
+              onPress={openDetails}
+              testID="manage-lesson-how"
+            />
+          </ClayList>
         ) : null}
 
         {/* Istruttore, Luogo, Durata, Veicolo/i. Read-only (titolare) = righe
@@ -536,7 +562,7 @@ export default function ManageLessonScreen() {
 
         {/* Dettagli guida → sub-sheet. Nascosta in read-only (il titolare non
             modifica tipo/voto/note). */}
-        {!readOnly && lesson.type !== 'esame' ? (
+        {!readOnly && lesson.type !== 'esame' && !askHowItWent ? (
           <ClayList>
             <ClayListRow
               title="Dettagli guida"
@@ -567,6 +593,7 @@ const s = StyleSheet.create({
   progressBlock: { alignItems: 'center', paddingVertical: 2 },
   ringCount: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8 },
   ringTotal: { fontSize: 17, fontWeight: '500', color: CLAY.ink3 },
+  ringLabel: { fontSize: 14, color: CLAY.ink3, marginTop: 10 },
 
   rowSub: { flexShrink: 1, fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
 

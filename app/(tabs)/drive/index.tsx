@@ -359,7 +359,7 @@ export default function RoadTab() {
               {recent.map((r) => (
                 <ClayListRow
                   key={r.id}
-                  leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} />}
+                  leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} carColor={r.lesson.carColor ?? null} />}
                   title={lessonStudentName(r.lesson)}
                   subtitle={
                     r.id === toCloseId

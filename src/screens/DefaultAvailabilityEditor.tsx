@@ -202,6 +202,20 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
     router.push(`/(tabs)/${stackBase}/availability-exception` as never);
   };
 
+  const weekly = useMemo(() => {
+    let mins = 0;
+    let days = 0;
+    for (const d of ORDER) {
+      const ranges = schedule[d] ?? [];
+      const m = ranges.reduce((acc, r) => acc + Math.max(0, r.endMinutes - r.startMinutes), 0);
+      if (m > 0) days += 1;
+      mins += m;
+    }
+    const h = Math.floor(mins / 60);
+    const rest = mins % 60;
+    return { days, label: rest ? `${h} h ${rest} min` : `${h} h` };
+  }, [schedule]);
+
   const isDirty = !loading && savedRef.current !== '' && savedRef.current !== keyOf(schedule);
 
   return (
@@ -209,6 +223,13 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
       {/* ── Card in rilievo: titolo + la settimana a colpo d'occhio (D · Mix) ── */}
       <ClaySurface style={st.card} radius={26}>
         {intro}
+        {/* Giro «memorabile»: un numero che conta, le ore aperte agli allievi. */}
+        {!loading && weekly.days > 0 ? (
+          <Text style={st.total} testID="availability-weekly-total">
+            <Text style={st.totalNum}>{weekly.label}</Text>
+            {` a settimana · ${weekly.days === 1 ? '1 giorno' : `${weekly.days} giorni`}`}
+          </Text>
+        ) : null}
         <WeekStrip schedule={loading ? null : schedule} onPressDay={openDaySheet} />
       </ClaySurface>
 
@@ -232,7 +253,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
                   <ClayListRow
                     key={day}
                     title={DAY_FULL[day]}
-                    subtitle={ranges.length ? rangesText(ranges) : 'Non disponibile'}
+                    subtitle={ranges.length ? rangesText(ranges) : 'Giorno libero'}
                     onPress={() => openDaySheet(day)}
                     testID={`availability-day-${day}`}
                   />
@@ -341,6 +362,8 @@ const WeekStrip = ({ schedule, onPressDay }: { schedule: Schedule | null; onPres
 
 const st = StyleSheet.create({
   card: { paddingTop: 18, paddingHorizontal: 18, paddingBottom: 18 },
+  total: { fontSize: 15, color: CLAY.ink3, marginTop: 10, letterSpacing: -0.2 },
+  totalNum: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
   strip: { flexDirection: 'row', marginTop: 16 },
   stripCol: { flex: 1, alignItems: 'center' },
   stripDay: { fontSize: 12.5, fontWeight: '500', color: CLAY.ink3 },

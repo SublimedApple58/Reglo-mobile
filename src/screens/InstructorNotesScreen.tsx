@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +22,9 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
+import { isCompanyManualMode, isLessonUnpaid } from '../utils/lessonPayments';
+import { formatDay, formatTime } from '../utils/date';
+import { selectionAsync } from '../utils/haptics';
 
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const H_PAD = 20;
@@ -62,12 +65,15 @@ export const InstructorNotesScreen = () => {
   const [autonomousMode, setAutonomousMode] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [segment, setSegment] = useState<'mine' | 'all'>('mine');
+  /** Tutte le guide, annullate comprese: le penali tardive sono da pagare. */
+  const [rawAppointments, setRawAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
+  const [manualPayments, setManualPayments] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [bootstrap, appts, instrSettings, allCases] = await Promise.all([
+      const [bootstrap, appts, instrSettings, allCases, companySettings] = await Promise.all([
         regloApi.getAgendaBootstrap({
           ...(instructorId ? { instructorId } : {}),
           from: new Date(0).toISOString(),
@@ -77,9 +83,20 @@ export const InstructorNotesScreen = () => {
         regloApi.getAppointments({ limit: 500 }),
         instructorId ? regloApi.getInstructorSettings().catch(() => null) : Promise.resolve(null),
         regloApi.getCases().catch(() => [] as AutoscuolaCase[]),
+        regloApi.getAutoscuolaSettings().catch(() => null),
       ]);
       setStudents(bootstrap.students);
       setAllAppointments(appts.filter((a) => (a.status ?? '').trim().toLowerCase() !== 'cancelled'));
+      setRawAppointments(appts);
+      setManualPayments(
+        companySettings
+          ? isCompanyManualMode({
+              autoPaymentsEnabled: companySettings.autoPaymentsEnabled,
+              lessonCreditFlowEnabled: companySettings.lessonCreditFlowEnabled,
+              lessonCreditsRequired: companySettings.lessonCreditsRequired,
+            })
+          : false,
+      );
       setCases(allCases);
       if (instrSettings) setAutonomousMode(instrSettings.autonomousMode);
     } catch {
@@ -112,6 +129,26 @@ export const InstructorNotesScreen = () => {
     }
     return map;
   }, [allAppointments]);
+
+  /**
+   * Il prossimo passo per ogni allievo (giro «memorabile»): la prossima guida
+   * in programma e quante guide ha da pagare.
+   */
+  const studentNext = useMemo(() => {
+    const map = new Map<string, { next: string | null; unpaid: number }>();
+    const now = Date.now();
+    for (const a of rawAppointments) {
+      const cur = map.get(a.studentId) ?? { next: null, unpaid: 0 };
+      const st = (a.status ?? '').trim().toLowerCase();
+      const t = new Date(a.startsAt).getTime();
+      if ((st === 'scheduled' || st === 'confirmed') && t > now && (!cur.next || t < new Date(cur.next).getTime())) {
+        cur.next = a.startsAt;
+      }
+      if (manualPayments && isLessonUnpaid(a, true)) cur.unpaid += 1;
+      map.set(a.studentId, cur);
+    }
+    return map;
+  }, [rawAppointments, manualPayments]);
 
   const studentExam = useMemo(() => {
     const map = new Map<string, string>();
@@ -184,14 +221,67 @@ export const InstructorNotesScreen = () => {
     const info = studentInfo.get(st.id) ?? { total: 0, completed: 0 };
     const done = Math.min(info.completed, REQUIRED_LESSONS);
     const exam = studentExam.get(st.id);
-    const base =
-      info.total === 0
-        ? 'Nessuna guida ancora'
-        : done >= REQUIRED_LESSONS
-          ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
-          : `${done} di ${REQUIRED_LESSONS} guide`;
-    return exam ? `${base} · esame il ${dayMonth(exam)}` : base;
+    const step = studentNext.get(st.id);
+    // Il prossimo passo prima del contatore: la prossima guida e, in nero, il
+    // da riscuotere. Il contatore delle guide resta solo se non c'è altro.
+    const when = exam
+      ? `Esame il ${dayMonth(exam)}`
+      : step?.next
+        ? `Prossima ${formatDay(step.next)} · ${formatTime(step.next)}`
+        : null;
+    const due = step?.unpaid ? (step.unpaid === 1 ? '1 da pagare' : `${step.unpaid} da pagare`) : null;
+    if (when || due) {
+      return (
+        <Text style={s.rowSub} numberOfLines={1}>
+          {when}
+          {when && due ? ' · ' : null}
+          {due ? <Text style={s.rowDue}>{due}</Text> : null}
+        </Text>
+      );
+    }
+    return info.total === 0
+      ? 'Nessuna guida ancora'
+      : done >= REQUIRED_LESSONS
+        ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
+        : `${done} di ${REQUIRED_LESSONS} guide`;
   };
+
+  /** Chi guida con me questa settimana (fra gli allievi in lista): i volti in cima. */
+  const weekFaces = useMemo(() => {
+    if (!instructorId) return [] as StudentEntry[];
+    const { start, end } = weekBounds();
+    const ids = new Set<string>();
+    for (const a of allAppointments) {
+      const t = new Date(a.startsAt).getTime();
+      if (a.instructorId === instructorId && t >= start && t < end) ids.add(a.studentId);
+    }
+    return visibleStudents.filter((st) => ids.has(st.id));
+  }, [allAppointments, instructorId, visibleStudents]);
+
+  const facesStrip =
+    weekFaces.length > 0 && !query && !searching && !loading ? (
+      <Animated.View entering={FadeIn.duration(260)} style={s.faces}>
+        <Text style={s.facesTitle}>Guidano con te questa settimana</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.facesRow} style={s.facesScroll}>
+          {weekFaces.map((st) => (
+            <Pressable
+              key={st.id}
+              onPress={() => {
+                void selectionAsync().catch(() => {});
+                navigateToStudent(st);
+              }}
+              style={({ pressed }) => [s.face, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${st.firstName} ${st.lastName}`}
+              testID={`students-face-${st.id}`}
+            >
+              <Avatar userId={st.id} name={`${st.firstName} ${st.lastName}`} size={58} />
+              <Text style={s.faceName} numberOfLines={1}>{st.firstName}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </Animated.View>
+    ) : null;
 
   const examCard = (() => {
     if (!nextExam || query || searching) return null;
@@ -271,6 +361,8 @@ export const InstructorNotesScreen = () => {
           />
         ) : null}
 
+        {facesStrip}
+
         {examCard}
 
         {loading ? (
@@ -322,5 +414,14 @@ const s = StyleSheet.create({
   examTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   examSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
   list: { marginTop: 16 },
+  rowSub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },
+  rowDue: { color: CLAY.ink, fontWeight: '600' },
+  faces: { marginTop: 20 },
+  facesTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, paddingHorizontal: 2 },
+  // Le ombre dei volti escono dallo scroll orizzontale: margine compensato (§0.4).
+  facesScroll: { marginHorizontal: -H_PAD },
+  facesRow: { gap: 16, paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 6 },
+  face: { alignItems: 'center', width: 64 },
+  faceName: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink, marginTop: 7 },
   skRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 18 },
 });
