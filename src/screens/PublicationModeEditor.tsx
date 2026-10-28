@@ -1,15 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeIn,
   Extrapolation,
   interpolate,
   runOnJS,
@@ -24,7 +15,9 @@ import * as Haptics from '../utils/haptics';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { CLAY } from '../theme/clay';
+import { SOFT_SPRING, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
 import { ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { TimeRange } from '../types/regloApi';
@@ -35,8 +28,6 @@ import { usePublishedWeeks } from '../hooks/queries/usePublishedWeeks';
 import { usePublicationWeek, DayState } from '../hooks/queries/usePublicationWeek';
 import { queryKeys } from '../hooks/queries/queryKeys';
 
-const FLUENT_CHECK = require('../../assets/icons/fluent-check.png');
-
 // ── Types ──────────────────────────────────────────────────────
 
 type Props = {
@@ -46,8 +37,7 @@ type Props = {
 
 // ── Constants ──────────────────────────────────────────────────
 
-const WEEK_COUNT = 8; // weeks shown in the horizontal rail
-const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const WEEK_COUNT = 8; // weeks reachable with the arrows (this + 7 ahead)
 const DAY_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
 
@@ -55,6 +45,9 @@ const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+/** Fasce come testo: «08:00–13:00 · 14:00–19:00». */
+const rangesText = (ranges: TimeRange[]) =>
+  ranges.map((r) => `${fmtMin(r.startMinutes)}–${fmtMin(r.endMinutes)}`).join(' · ');
 
 const getMonday = (offset: number = 0): string => {
   const d = new Date();
@@ -94,12 +87,15 @@ const SwipeRow = ({
   isToday,
   onToggle,
   onEdit,
+  divider,
 }: {
   day: DayState;
   index: number;
   isToday: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  /** Lo imposta `ClayList`. */
+  divider?: boolean;
 }) => {
   const tx = useSharedValue(0);
 
@@ -114,7 +110,7 @@ const SwipeRow = ({
         runOnJS(onToggle)();
         tx.value = withTiming(0, { duration: 200 });
       } else {
-        tx.value = withSpring(0, { damping: 20, stiffness: 220 });
+        tx.value = withSpring(0, SOFT_SPRING);
       }
     });
 
@@ -123,37 +119,26 @@ const SwipeRow = ({
     opacity: interpolate(-tx.value, [8, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const dateNum = new Date(day.date + 'T00:00:00Z').getUTCDate();
+  const title = dayLongLabel(day.date, index);
+  const state = day.available ? rangesText(day.ranges) : 'Riposo';
 
   return (
     <View style={styles.dayRow}>
-      {/* Action revealed behind on left-swipe — floating rounded pill */}
-      <Animated.View style={[styles.swipeActionWrap, actionStyle]} pointerEvents="none">
-        <View style={[styles.swipePill, day.available ? styles.swipePillDisable : styles.swipePillEnable]}>
-          <Ionicons name={day.available ? 'moon' : 'checkmark'} size={15} color="#FFFFFF" />
-          <Text style={styles.swipeActionText}>{day.available ? 'Riposo' : 'Attiva'}</Text>
-        </View>
+      {divider ? <View style={styles.divider} /> : null}
+      {/* Azione rivelata trascinando a sinistra: solo testo, niente pillola colorata. */}
+      <Animated.View style={[styles.swipeAction, actionStyle]} pointerEvents="none">
+        <Text style={styles.swipeActionText}>{day.available ? 'Riposo' : 'Attiva'}</Text>
       </Animated.View>
 
       {/* Foreground (opaque, slides) */}
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.dayFg, fgStyle]}>
-          <Pressable onPress={onEdit} style={({ pressed }) => [styles.dayRowTap, pressed && styles.rowPressed]}>
-            <Text style={styles.dayName}>{DAY_SHORT[index]} {dateNum}</Text>
-            {isToday && <Text style={styles.todayLabel}>Oggi</Text>}
-            <View style={styles.chipsArea}>
-              {day.available ? (
-                day.ranges.map((r, ri) => (
-                  <View key={ri} style={styles.timeChip}>
-                    <Text style={styles.timeChipText}>{fmtMin(r.startMinutes)}–{fmtMin(r.endMinutes)}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.restText}>Riposo</Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#C7C7CC" style={{ marginLeft: 8 }} />
-          </Pressable>
+          <ClayListRow
+            title={title}
+            subtitle={isToday ? `Oggi · ${state}` : state}
+            onPress={onEdit}
+            testID={`publication-day-${index}`}
+          />
         </Animated.View>
       </GestureDetector>
     </View>
@@ -168,10 +153,6 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
   const { activeCompanyId } = useSession();
   const [selectedOffset, setSelectedOffset] = useState(0);
   const weekStart = useMemo(() => getMonday(selectedOffset), [selectedOffset]);
-  const weeksList = useMemo(
-    () => Array.from({ length: WEEK_COUNT }, (_, i) => ({ offset: i, start: getMonday(i) })),
-    [],
-  );
   const railFrom = useMemo(() => getMonday(0), []);
   const railTo = useMemo(() => getMonday(WEEK_COUNT - 1), []);
 
@@ -276,170 +257,111 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
 
   // ── Render ─────────────────────────────────────────────────
 
+  const canPrev = selectedOffset > 0;
+  const canNext = selectedOffset < WEEK_COUNT - 1;
+  const status = railLoading ? ' ' : published ? 'Pubblicata' : 'Da pubblicare';
+
   return (
-    <View style={styles.container}>
-      {/* ── Week pills (chunky, rounded, greyscale state) ─── */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-        {weeksList.map((w) => {
-          const isSel = w.offset === selectedOffset;
-          const isPub = !railLoading && publishedWeeks.has(w.start);
-          return (
-            <Pressable
-              key={w.start}
-              onPress={() => setSelectedOffset(w.offset)}
-              style={[styles.weekPill, isSel ? styles.weekPillSel : isPub ? styles.weekPillPub : styles.weekPillOff]}
-            >
-              {isPub && (
-                <Ionicons name="checkmark-circle" size={14} color={isSel ? '#FFFFFF' : PUB_FG} style={{ marginRight: 5 }} />
-              )}
-              <Text style={[styles.weekPillText, isSel ? styles.weekPillTextSel : isPub && styles.weekPillTextPub]}>
-                {railLabel(w.start)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+    <View>
+      {/* ── Settimana: frecce + intervallo, stato in testo, Pubblica/Ritira ── */}
+      <ClaySection title="Settimana" style={styles.firstSection}>
+        <ClayList>
+          <ClayListRow
+            title={railLabel(weekStart)}
+            subtitle={status}
+            trailing={
+              <View style={styles.weekNav}>
+                <ClayIconButton
+                  icon="back"
+                  onPress={canPrev ? () => setSelectedOffset((o) => o - 1) : undefined}
+                  style={!canPrev && styles.navOff}
+                  accessibilityLabel="Settimana precedente"
+                  testID="publication-week-prev"
+                />
+                <ClayIconButton
+                  icon={<Ionicons name="chevron-forward" size={20} color={CLAY.ink} />}
+                  onPress={canNext ? () => setSelectedOffset((o) => o + 1) : undefined}
+                  style={!canNext && styles.navOff}
+                  accessibilityLabel="Settimana successiva"
+                  testID="publication-week-next"
+                />
+              </View>
+            }
+          />
+        </ClayList>
+        <ClayButton
+          title={published ? 'Ritira pubblicazione' : 'Pubblica settimana'}
+          variant={published ? 'secondary' : 'primary'}
+          onPress={published ? handleUnpublish : handlePublish}
+          loading={publishing}
+          style={styles.publish}
+          testID="publication-publish"
+        />
+      </ClaySection>
 
-      {/* ── Action bar: status + publish (high & visible) ─── */}
-      <View style={styles.actionBar}>
-        <View style={styles.actionInfo}>
-          <View style={styles.actionStatusRow}>
-            {published ? (
-              <Image source={FLUENT_CHECK} style={styles.statusIcon} />
-            ) : (
-              <Ionicons name="ellipse-outline" size={17} color="#C5C5C5" />
-            )}
-            <Text style={styles.actionTitle}>{published ? 'Pubblicata' : 'Da pubblicare'}</Text>
-          </View>
-        </View>
-        <Pressable
-          onPress={publishing ? undefined : published ? handleUnpublish : handlePublish}
-          disabled={publishing}
-          style={({ pressed }) => [
-            published ? styles.btnGhost : styles.btnPublish,
-            pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
-            publishing && { opacity: 0.6 },
-          ]}
-        >
-          {!published && <GradientCTABackground radius={999} />}
-          {publishing ? (
-            <ActivityIndicator color={published ? '#6A6A6A' : '#FFFFFF'} />
-          ) : (
-            <Text style={published ? styles.btnGhostText : styles.btnPublishText}>
-              {published ? 'Ritira' : 'Pubblica'}
-            </Text>
-          )}
-        </Pressable>
-      </View>
-
-      {/* ── Swipe hint ────────────────────────────────────── */}
-      {!loading && (
-        <View style={styles.swipeHint}>
-          <Ionicons name="arrow-back" size={13} color="#B6B6B6" />
-          <Text style={styles.swipeHintText}>Trascina un giorno verso sinistra per attivarlo o disattivarlo</Text>
-        </View>
-      )}
-
-      {/* ── Day list — flat rows, hairline dividers ───────── */}
-      {loading ? (
-        <View style={styles.list}>
-          {Array.from({ length: 7 }).map((_, i) => (
-            <View key={i} style={[styles.dayRow, styles.daySkeletonRow]}>
-              <SkeletonBlock width={70} height={15} radius={7} />
-              <View style={{ flex: 1 }} />
-              <SkeletonBlock width={96} height={13} radius={7} />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <Animated.View key={weekStart} entering={FadeIn.duration(220)} style={styles.list}>
-          {days.map((day, i) => (
-            <SwipeRow
-              key={day.date}
-              day={day}
-              index={i}
-              isToday={day.date === todayStr}
-              onToggle={() => toggleDayInline(i)}
-              onEdit={() => openDaySheet(i)}
-            />
-          ))}
-        </Animated.View>
-      )}
-
+      {/* ── Giorni della settimana scelta ── */}
+      <ClaySection
+        title="Giorni"
+        style={styles.section}
+        footnote={loading ? undefined : 'Tocca un giorno per gli orari. Trascinalo verso sinistra per attivarlo o metterlo a riposo.'}
+      >
+        {loading ? (
+          <ClayList>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </ClayList>
+        ) : (
+          <Animated.View key={weekStart} entering={softEnter()} exiting={SOFT_SWAP_OUT}>
+            <ClayList>
+              {days.map((day, i) => (
+                <SwipeRow
+                  key={day.date}
+                  day={day}
+                  index={i}
+                  isToday={day.date === todayStr}
+                  onToggle={() => toggleDayInline(i)}
+                  onEdit={() => openDaySheet(i)}
+                />
+              ))}
+            </ClayList>
+          </Animated.View>
+        )}
+      </ClaySection>
     </View>
   );
 };
 
+/** Riga scheletro dentro una `ClayList` (stesse misure di `ClayListRow`). */
+const SkeletonRow = ({ divider }: { divider?: boolean }) => (
+  <View style={styles.skRow}>
+    {divider ? <View style={styles.divider} /> : null}
+    <SkeletonBlock width={150} height={15} radius={7} />
+    <SkeletonBlock width={100} height={12} radius={6} style={styles.skSub} />
+  </View>
+);
+
 // ── Styles ─────────────────────────────────────────────────────
 
-const HAIRLINE = '#ECECEC';
-const PUB_BG = '#E9F9F0';   // chiarissimo menta (pill pubblicata)
-const PUB_FG = '#34C759';   // verde fresco iOS (check)
-
 const styles = StyleSheet.create({
-  container: {},
+  firstSection: { marginTop: 8 },
+  section: { marginTop: 34 },
+  weekNav: { flexDirection: 'row', gap: 10 },
+  navOff: { opacity: 0.35 },
+  publish: { marginTop: 14 },
 
-  /* ── Week pills ──────────────────────────────────────── */
-  rail: { gap: 8, paddingRight: 8, paddingVertical: 2 },
-  weekPill: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  weekPillOff: { backgroundColor: '#F2F2F2' },
-  weekPillPub: { backgroundColor: PUB_BG },
-  weekPillSel: { backgroundColor: '#111111' },
-  weekPillText: { fontSize: 14, fontWeight: '600', color: '#929292', letterSpacing: -0.2 },
-  weekPillTextPub: { color: '#444444', fontWeight: '700' },
-  weekPillTextSel: { color: '#FFFFFF', fontWeight: '700' },
-
-  /* ── Swipe hint ──────────────────────────────────────── */
-  swipeHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 },
-  swipeHintText: { fontSize: 12, fontWeight: '500', color: '#B6B6B6', letterSpacing: -0.1 },
-
-  /* ── Day list (flat) ─────────────────────────────────── */
-  list: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HAIRLINE },
-  dayRow: {
-    minHeight: 60, overflow: 'hidden', position: 'relative',
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: HAIRLINE,
+  dayRow: { overflow: 'hidden' },
+  divider: {
+    position: 'absolute', top: 0, left: 18, right: 18, zIndex: 1,
+    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)',
   },
-  dayFg: { backgroundColor: '#FDFDFD' },
-  daySkeletonRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18 },
-  dayRowTap: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, minHeight: 60 },
-  rowPressed: { opacity: 0.5 },
-  swipeActionWrap: {
+  dayFg: { backgroundColor: CLAY.surface },
+  swipeAction: {
     position: 'absolute', right: 0, top: 0, bottom: 0, width: MAX_SWIPE,
     alignItems: 'center', justifyContent: 'center',
   },
-  swipePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999,
-  },
-  swipePillDisable: { backgroundColor: '#6A6A6A' },
-  swipePillEnable: { backgroundColor: '#34C759' },
-  swipeActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
-  dayName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  todayLabel: { fontSize: 13, fontWeight: '500', color: '#929292', marginLeft: 1 },
+  swipeActionText: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
 
-  chipsArea: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
-  timeChip: {
-    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13,
-    shadowColor: '#111111', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
-  },
-  timeChipText: { fontSize: 13.5, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
-  restText: { fontSize: 15, fontWeight: '400', color: '#C5C5C5' },
-
-  /* ── Action bar (Airbnb footer-style, placed up top) ─── */
-  actionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 },
-  actionInfo: { flex: 1, gap: 3 },
-  actionStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusIcon: { width: 20, height: 20, resizeMode: 'contain' },
-  actionTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
-  btnPublish: {
-    borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26, minWidth: 112,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  btnPublishText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  btnGhost: {
-    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 22, minWidth: 100,
-    borderWidth: 1, borderColor: '#DDDDDD', alignItems: 'center', justifyContent: 'center',
-  },
-  btnGhostText: { fontSize: 15, fontWeight: '600', color: '#6A6A6A' },
+  skRow: { paddingVertical: 14, paddingHorizontal: 18, minHeight: 62, justifyContent: 'center' },
+  skSub: { marginTop: 7 },
 });

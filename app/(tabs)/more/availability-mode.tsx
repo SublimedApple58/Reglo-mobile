@@ -1,101 +1,66 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayList, ClayListRow } from '../../../src/components/clay';
 import { instructorSettingsStore, type InstrAvailabilityMode } from '../../../src/stores/instructorSettingsStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 
 const OPTIONS: { value: InstrAvailabilityMode; label: string; desc: string }[] = [
   { value: 'default', label: 'Predefinita', desc: 'La tua disponibilità abituale, valida ogni settimana.' },
   { value: 'publication', label: 'Pubblicazione', desc: 'Compili e pubblichi la disponibilità settimana per settimana.' },
 ];
 
+/**
+ * Modalità della disponibilità — REG-639 clay: form sheet unico, due righe
+ * con la spunta nera sulla scelta, «Salva» in fondo.
+ */
 export default function AvailabilityModeScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(instructorSettingsStore.subscribe, instructorSettingsStore.get);
   const [selected, setSelected] = useState<InstrAvailabilityMode>(data?.availabilityMode ?? 'default');
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const { onPickAvailabilityMode } = data;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold
-        footer={
-          <Pressable
-            onPress={() => { onPickAvailabilityMode(selected); router.back(); }}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.85 }]}
-          >
-            <GradientCTABackground radius={26} />
-            <Text style={s.ctaText}>Salva</Text>
-          </Pressable>
-        }
-      >
-        <Text style={s.title}>Disponibilità</Text>
-        <Text style={s.subtitle}>Come gestisci gli orari in cui sei prenotabile.</Text>
-
-        <View style={s.list}>
-          {OPTIONS.map((opt) => {
-            const active = selected === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                onPress={() => setSelected(opt.value)}
-                style={({ pressed }) => [s.optRow, active && s.optRowActive, pressed && { opacity: 0.9 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.optLabel}>{opt.label}</Text>
-                  <Text style={s.optDesc}>{opt.desc}</Text>
-                </View>
-                {active ? (
-                  <View style={s.check}><Ionicons name="checkmark" size={15} color="#FFFFFF" /></View>
-                ) : (
-                  <View style={s.radio} />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </SheetScaffold>
-    </View>
+    <FormSheet
+      title="Disponibilità"
+      subtitle="Come gestisci gli orari in cui sei prenotabile."
+      testID="availability-mode-sheet"
+      cta={
+        <ClayButton
+          title="Salva"
+          onPress={() => { onPickAvailabilityMode(selected); router.back(); }}
+          testID="availability-mode-save"
+        />
+      }
+    >
+      <ClayList>
+        {OPTIONS.map((opt) => {
+          const active = selected === opt.value;
+          return (
+            <ClayListRow
+              key={opt.value}
+              title={opt.label}
+              // Nodo (non stringa) per lasciar andare a capo la descrizione.
+              subtitle={<Text style={s.desc}>{opt.desc}</Text>}
+              onPress={() => setSelected(opt.value)}
+              chevron={false}
+              trailing={active ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : <View style={s.checkSlot} />}
+              testID={`availability-mode-${opt.value}`}
+            />
+          );
+        })}
+      </ClayList>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4, marginBottom: 16 },
-  list: { gap: 10, marginBottom: 20 },
-  optRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16,
-    borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E5E5', backgroundColor: colors.surface,
-  },
-  optRowActive: { borderColor: '#111111' },
-  optLabel: { fontSize: 16, fontWeight: '700', color: '#111111' },
-  optDesc: { fontSize: 13, color: colors.textMuted, marginTop: 3, lineHeight: 18 },
-  check: {
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#111111',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#D4D4D4' },
-  cta: {
-    minHeight: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  desc: { flex: 1, fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
+  checkSlot: { width: 20 },
 });

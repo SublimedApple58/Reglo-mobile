@@ -1,7 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { ClayButton, ClayList } from './clay';
+import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import { SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 
 export type TimeRange = { startMinutes: number; endMinutes: number };
 
@@ -16,96 +19,108 @@ export type RangesEditorProps = {
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
 
+/**
+ * Fasce orarie — REG-639 clay: una `ClayList` con una riga per fascia
+ * («Fascia 1», inizio – fine come due orari incavati premibili, X per
+ * toglierla) e «Aggiungi fascia» come CTA secondaria compatta sotto.
+ * Usato da Disponibilità istruttore (fogli publish-day, availability-exception)
+ * e da OwnerInstructorScreen / InstructorManageScreen.
+ */
 export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange, disabled = false }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
 
   return (
-    <View style={styles.container}>
-      {ranges.map((range, index) => (
-        <Animated.View key={index} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.row}>
-          {/* Inizio */}
-          <Pressable
-            style={({ pressed }) => [styles.field, pressed && styles.fieldPressed]}
-            onPress={() => onPickTime(index, 'start')}
+    <Animated.View layout={SOFT_LAYOUT} style={styles.container}>
+      <ClayList>
+        {ranges.map((range, index) => (
+          <RangeRow
+            key={index}
+            index={index}
+            range={range}
             disabled={disabled}
-          >
-            <Text style={styles.fieldLabel}>Inizio</Text>
-            <Text style={styles.fieldValue}>{fmtMin(range.startMinutes)}</Text>
-          </Pressable>
+            onPickTime={onPickTime}
+            onRemove={canRemove ? () => onChange(ranges.filter((_, i) => i !== index)) : undefined}
+          />
+        ))}
+      </ClayList>
 
-          <Ionicons name="arrow-forward" size={15} color="#C5C5C5" style={styles.arrow} />
+      <ClayButton title="Aggiungi fascia" variant="secondary" compact onPress={onAddRange} disabled={disabled} />
+    </Animated.View>
+  );
+}
 
-          {/* Fine */}
-          <Pressable
-            style={({ pressed }) => [styles.field, pressed && styles.fieldPressed]}
-            onPress={() => onPickTime(index, 'end')}
-            disabled={disabled}
-          >
-            <Text style={styles.fieldLabel}>Fine</Text>
-            <Text style={styles.fieldValue}>{fmtMin(range.endMinutes)}</Text>
-          </Pressable>
-
-          {canRemove ? (
-            <Pressable
-              onPress={() => onChange(ranges.filter((_, i) => i !== index))}
-              disabled={disabled}
-              hitSlop={8}
-              style={styles.removeBtn}
-            >
-              <Ionicons name="close" size={16} color="#929292" />
-            </Pressable>
-          ) : null}
-        </Animated.View>
-      ))}
-
-      {/* Aggiungi fascia — filled light button (no dashed border) */}
-      <Pressable
-        style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
-        onPress={onAddRange}
+/** Una fascia. `divider` lo imposta `ClayList` (linea sottile sopra, non sulla prima). */
+function RangeRow({
+  index,
+  range,
+  disabled,
+  onPickTime,
+  onRemove,
+  divider,
+}: {
+  index: number;
+  range: TimeRange;
+  disabled: boolean;
+  onPickTime: (index: number, field: 'start' | 'end') => void;
+  onRemove?: () => void;
+  divider?: boolean;
+}) {
+  return (
+    <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={styles.row}>
+      {divider ? <View style={styles.divider} /> : null}
+      <Text style={styles.label}>Fascia {index + 1}</Text>
+      <TimeValue
+        value={fmtMin(range.startMinutes)}
+        label={`Inizio fascia ${index + 1}`}
+        onPress={() => onPickTime(index, 'start')}
         disabled={disabled}
-      >
-        <Ionicons name="add" size={18} color="#111111" />
-        <Text style={styles.addText}>Aggiungi fascia</Text>
-      </Pressable>
-    </View>
+      />
+      <Text style={styles.dash}>–</Text>
+      <TimeValue
+        value={fmtMin(range.endMinutes)}
+        label={`Fine fascia ${index + 1}`}
+        onPress={() => onPickTime(index, 'end')}
+        disabled={disabled}
+      />
+      {onRemove ? (
+        <Pressable
+          onPress={onRemove}
+          disabled={disabled}
+          hitSlop={8}
+          style={styles.removeBtn}
+          accessibilityRole="button"
+          accessibilityLabel={`Rimuovi fascia ${index + 1}`}
+        >
+          <Ionicons name="close" size={18} color={CLAY.ink3} />
+        </Pressable>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+/** Orario premibile: capsula incavata (`sink`), come un campo clay. */
+function TimeValue({ value, label, onPress, disabled }: { value: string; label: string; onPress: () => void; disabled: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [styles.time, CLAY_SHADOW.sink, pressed && styles.timePressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${value}`}
+    >
+      <Text style={styles.timeText}>{value}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-
-  field: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 2,
-    shadowColor: '#111111',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  fieldPressed: { transform: [{ scale: 0.98 }], shadowOpacity: 0.05 },
-  fieldLabel: { fontSize: 11.5, fontWeight: '700', color: '#9E9E9E', letterSpacing: 0.4, textTransform: 'uppercase' },
-  fieldValue: { fontSize: 17, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
-
-  arrow: { width: 16, textAlign: 'center' },
-
-  removeBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 15,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  addText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+  container: { gap: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 18 },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  label: { flex: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  time: { height: 40, minWidth: 74, borderRadius: 20, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: CLAY.surface },
+  timePressed: { opacity: 0.6 },
+  timeText: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
+  dash: { fontSize: 16, color: CLAY.ink3 },
+  removeBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
 });

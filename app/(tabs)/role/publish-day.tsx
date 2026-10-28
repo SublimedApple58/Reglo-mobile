@@ -1,18 +1,13 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import RangesEditor from '../../../src/components/RangesEditor';
-import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle } from '../../../src/components/clay';
 import { publishDayStore } from '../../../src/stores/publishDayStore';
 import { TimeRange } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-
-const FLUENT_CLOCK = require('../../../assets/icons/fluent-clock.png');
+import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
 
 const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
 
@@ -22,6 +17,11 @@ const minutesToDate = (m: number): Date => {
   return d;
 };
 
+/**
+ * Orari di un giorno (settimana tipo o giorno della settimana pubblicata) —
+ * REG-639 clay: form sheet unico; «Disponibile» è una riga con interruttore,
+ * le fasce compaiono sotto in dissolvenza, «Salva» è la CTA in fondo.
+ */
 export default function PublishDayScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(publishDayStore.subscribe, publishDayStore.get);
@@ -31,7 +31,7 @@ export default function PublishDayScreen() {
     data?.ranges && data.ranges.length ? data.ranges : [...DEFAULT_RANGES],
   );
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const handlePickTime = (index: number, field: 'start' | 'end') => {
     const range = ranges[index];
@@ -50,79 +50,36 @@ export default function PublishDayScreen() {
   };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
+    <FormSheet
+      title={data.dayLabel}
+      subtitle="Scegli i tuoi orari per questo giorno."
+      testID="publish-day-sheet"
+      cta={<ClayButton title="Salva" onPress={handleSave} testID="publish-day-save" />}
+    >
+      <ClayList>
+        <ClayListRow
+          title="Disponibile"
+          subtitle={available ? 'Gli allievi possono prenotare' : 'Giorno di riposo'}
+          trailing={<ClayToggle value={available} onValueChange={setAvailable} accessibilityLabel="Disponibile" testID="publish-day-available" />}
+        />
+      </ClayList>
 
-      <SheetScaffold
-        contentContainerStyle={{ gap: 18, paddingBottom: 18 }}
-        footer={
-          <Pressable
-            onPress={handleSave}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
-          >
-            <GradientCTABackground radius={27} />
-            <Text style={s.ctaText}>Salva</Text>
-          </Pressable>
-        }
-      >
-        <View style={s.headerBlock}>
-          <Image source={FLUENT_CLOCK} style={s.headerIcon} />
-          <Text style={s.title}>{data.dayLabel}</Text>
-          <Text style={s.subtitle}>Scegli i tuoi orari per questo giorno.</Text>
-        </View>
-
-        <View style={s.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.toggleLabel}>Disponibile</Text>
-            <Text style={s.toggleDesc}>{available ? 'Gli allievi possono prenotare' : 'Giorno di riposo'}</Text>
-          </View>
-          <ToggleSwitch value={available} onValueChange={setAvailable} />
-        </View>
-
-        {available && (
-          <View>
-            <Text style={s.label}>FASCE ORARIE</Text>
+      {available ? (
+        <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+          <ClaySection title="Fasce orarie">
             <RangesEditor
               ranges={ranges}
               onChange={setRanges}
               onPickTime={handlePickTime}
               onAddRange={() => setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }])}
             />
-          </View>
-        )}
-      </SheetScaffold>
-    </View>
+          </ClaySection>
+        </Animated.View>
+      ) : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 18 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  headerIcon: { width: 46, height: 46, resizeMode: 'contain', marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, textTransform: 'capitalize' },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ECECEC',
-  },
-  toggleLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  toggleDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-
-  label: { fontSize: 11.5, fontWeight: '700', color: '#9E9E9E', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 12 },
-
-  cta: {
-    minHeight: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
 });

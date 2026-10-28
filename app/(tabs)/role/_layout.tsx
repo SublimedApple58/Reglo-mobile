@@ -1,26 +1,17 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET } from '../../../src/utils/sheetPresentation';
+import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
 export default function RoleLayout() {
   return (
-    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
       <Stack.Screen name="index" />
-      <Stack.Screen
-        name="availability-exception"
-        options={{ presentation: 'modal', headerShown: false }}
-      />
-      <Stack.Screen name="publish-day" options={TALL_SHEET} />
-      <Stack.Screen
-        name="time-picker"
-        options={{
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: false,
-          headerShown: false,
-        }}
-      />
+      {/* REG-639 clay: i fogli della Disponibilità sono tutti form sheet (§13.2). */}
+      <Stack.Screen name="availability-exception" options={FORM_SHEET} />
+      <Stack.Screen name="publish-day" options={FORM_SHEET} />
+      <Stack.Screen name="time-picker" options={FORM_SHEET} />
+      <Stack.Screen name="instructor-invite" options={FORM_SHEET} />
+      <Stack.Screen name="instructor-availability" options={FORM_SHEET} />
     </Stack>
   );
 }

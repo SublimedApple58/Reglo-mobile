@@ -1,18 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
+import { ClayButton, ClayList, ClayListRow, ClaySection } from '../components/clay';
 import { ToastTone } from '../components/ToastNotice';
 import { DailyAvailabilityOverride, TimeRange } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
@@ -23,12 +15,8 @@ import { useDefaultAvailability } from '../hooks/queries/useDefaultAvailability'
 import { useDailyOverrides } from '../hooks/queries/useDailyOverrides';
 import { useSaveAvailability } from '../hooks/mutations/useSaveAvailability';
 import { queryKeys } from '../hooks/queries/queryKeys';
-import { colors } from '../theme';
-
-// The one Fluent 3D accent on this screen (decision: keep a single one in the header).
-const FLUENT_CALENDAR = require('../../assets/icons/fluent-calendar.png');
-
-const HAIRLINE = '#ECECEC';
+import { CLAY } from '../theme/clay';
+import { softEnter, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 
 // Render order Lun→Dom; values follow the backend convention 0=Sun..6=Sat.
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -42,11 +30,9 @@ type Schedule = Record<number, TimeRange[]>;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-const minutesToDate = (m: number): Date => {
-  const d = new Date();
-  d.setHours(Math.floor(m / 60), m % 60, 0, 0);
-  return d;
-};
+/** Fasce come testo: «08:00–13:00 · 14:00–19:00». */
+const rangesText = (ranges: TimeRange[]) =>
+  ranges.map((r) => `${fmtMin(r.startMinutes)}–${fmtMin(r.endMinutes)}`).join(' · ');
 const todayStr = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -216,183 +202,107 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast }: Prop
   return (
     <View>
       {/* ── Orari settimanali ─────────────────────────── */}
-      <View style={styles.head}>
-        <Image source={FLUENT_CALENDAR} style={styles.headIcon} />
-        <Text style={styles.headTitle}>Orari settimanali</Text>
-      </View>
+      <ClaySection
+        title="Orari settimanali"
+        style={st.firstSection}
+        footnote="Valgono ogni settimana. Tocca un giorno per cambiarne gli orari."
+      >
+        {loading ? (
+          <ClayList>
+            {ORDER.map((d) => (
+              <SkeletonRow key={d} width={140} />
+            ))}
+          </ClayList>
+        ) : (
+          <Animated.View entering={softEnter()}>
+            <ClayList>
+              {ORDER.map((day) => {
+                const ranges = schedule[day] ?? [];
+                return (
+                  <ClayListRow
+                    key={day}
+                    title={DAY_FULL[day]}
+                    subtitle={ranges.length ? rangesText(ranges) : 'Non disponibile'}
+                    onPress={() => openDaySheet(day)}
+                    testID={`availability-day-${day}`}
+                  />
+                );
+              })}
+            </ClayList>
+          </Animated.View>
+        )}
+      </ClaySection>
 
-      {loading ? (
-        <View style={styles.list}>
-          {ORDER.map((d, i) => (
-            <View key={d} style={[styles.row, i > 0 && styles.rowBorder]}>
-              <SkeletonBlock width={90} height={16} radius={8} />
-              <SkeletonBlock width={84} height={26} radius={999} />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <Animated.View entering={FadeIn.duration(400)}>
-          <View style={styles.list}>
-            {ORDER.map((day, i) => {
-              const ranges = schedule[day] ?? [];
-              const off = ranges.length === 0;
-              return (
-                <Pressable
-                  key={day}
-                  onPress={() => openDaySheet(day)}
-                  style={({ pressed }) => [styles.row, i > 0 && styles.rowBorder, pressed && { opacity: 0.55 }]}
-                >
-                  <Text style={[styles.dayName, off && styles.dayNameOff]}>{DAY_FULL[day]}</Text>
-                  <View style={styles.rowRight}>
-                    {off ? (
-                      <Text style={styles.offText}>Non disponibile</Text>
-                    ) : (
-                      <View style={styles.chips}>
-                        {ranges.map((r, idx) => (
-                          <View key={idx} style={styles.timeChip}>
-                            <Text style={styles.timeChipText}>
-                              {fmtMin(r.startMinutes)}–{fmtMin(r.endMinutes)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {isDirty && (
-            <Animated.View entering={FadeIn.duration(220)}>
-              <Pressable
-                onPress={saving ? undefined : handleSave}
-                disabled={saving}
-                style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed, saving && styles.ctaDisabled]}
-              >
-                <GradientCTABackground radius={26} />
-                {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.ctaText}>Salva orari</Text>}
-              </Pressable>
-            </Animated.View>
-          )}
+      {isDirty ? (
+        <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={st.save}>
+          <ClayButton title="Salva orari" onPress={handleSave} loading={saving} testID="availability-save" />
         </Animated.View>
-      )}
+      ) : null}
 
       {/* ── Eccezioni ─────────────────────────────────── */}
-      <View style={styles.exHead}>
-        <Text style={styles.exTitle}>Eccezioni</Text>
-      </View>
-
-      {overridesLoading ? (
-        <View style={styles.list}>
-          {[0, 1].map((i) => (
-            <View key={i} style={[styles.row, i > 0 && styles.rowBorder]}>
-              <SkeletonBlock width={110} height={15} radius={8} />
-              <SkeletonBlock width={84} height={24} radius={999} />
-            </View>
-          ))}
-        </View>
-      ) : upcomingOverrides.length > 0 ? (
-        <Animated.View entering={FadeIn.duration(400)} style={styles.list}>
-          {upcomingOverrides.map((o, i) => {
-            // Unavailable day = no positive-length range. The web saves a "giorno
-            // non disponibile" as a sentinel [{0,0}] range, so length===0 isn't
-            // enough — treat any all-zero-duration override as absent.
-            const absent = !o.ranges.some((r) => r.endMinutes > r.startMinutes);
-            return (
-              <Pressable
-                key={o.id}
-                onPress={() => openExceptionSheet(o)}
-                style={({ pressed }) => [styles.row, i > 0 && styles.rowBorder, pressed && { opacity: 0.55 }]}
-              >
-                <Text style={styles.exDate} numberOfLines={1}>{formatExceptionDate(o.date)}</Text>
-                <View style={styles.rowRight}>
-                  {absent ? (
-                    <Text style={styles.offText}>Assente</Text>
-                  ) : (
-                    <View style={styles.chips}>
-                      {o.ranges.map((r, idx) => (
-                        <View key={idx} style={styles.timeChip}>
-                          <Text style={styles.timeChipText}>
-                            {fmtMin(r.startMinutes)}–{fmtMin(r.endMinutes)}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  <Ionicons name="chevron-forward" size={17} color="#C7C7CC" />
-                </View>
-              </Pressable>
-            );
-          })}
-        </Animated.View>
-      ) : (
-        <Animated.View entering={FadeIn.duration(400)} style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Nessuna eccezione in programma.</Text>
-        </Animated.View>
-      )}
-
-      <Pressable
-        onPress={() => openExceptionSheet()}
-        style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
+      <ClaySection
+        title="Eccezioni"
+        style={st.section}
+        footnote={
+          !overridesLoading && upcomingOverrides.length === 0
+            ? 'Nessuna eccezione in programma. Aggiungi un giorno libero o con orari diversi.'
+            : undefined
+        }
       >
-        <Ionicons name="add" size={18} color="#111111" />
-        <Text style={styles.addText}>Aggiungi eccezione</Text>
-      </Pressable>
+        {overridesLoading ? (
+          <ClayList>
+            {[0, 1].map((i) => (
+              <SkeletonRow key={i} width={110} />
+            ))}
+          </ClayList>
+        ) : upcomingOverrides.length > 0 ? (
+          <Animated.View entering={softEnter()}>
+            <ClayList>
+              {upcomingOverrides.map((o) => {
+                // Unavailable day = no positive-length range. The web saves a "giorno
+                // non disponibile" as a sentinel [{0,0}] range, so length===0 isn't
+                // enough — treat any all-zero-duration override as absent.
+                const absent = !o.ranges.some((r) => r.endMinutes > r.startMinutes);
+                return (
+                  <ClayListRow
+                    key={o.id}
+                    title={formatExceptionDate(o.date)}
+                    subtitle={absent ? 'Assente' : rangesText(o.ranges)}
+                    onPress={() => openExceptionSheet(o)}
+                  />
+                );
+              })}
+            </ClayList>
+          </Animated.View>
+        ) : null}
+      </ClaySection>
+
+      <ClayButton
+        title="Aggiungi eccezione"
+        variant="secondary"
+        onPress={() => openExceptionSheet()}
+        style={st.add}
+        testID="availability-add-exception"
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  /* Header — single Fluent accent + confident title */
-  head: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 6 },
-  headIcon: { width: 26, height: 26, resizeMode: 'contain' },
-  headTitle: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-
-  /* Flat list — full-bleed hairline dividers, lots of air */
-  list: { marginTop: 4 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 12, paddingVertical: 17, minHeight: 56,
-  },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: HAIRLINE },
-  dayName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  dayNameOff: { color: '#9E9E9E' },
-
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, justifyContent: 'flex-end' },
-  offText: { fontSize: 14, fontWeight: '500', color: '#9E9E9E' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' },
-  timeChip: {
-    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11,
-    shadowColor: '#111111', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 1,
-  },
-  timeChipText: { fontSize: 13, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
-
-  /* Save CTA */
-  cta: {
-    minHeight: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center', marginTop: 20,
-    ...primaryCtaShadow,
-  },
-  ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  ctaDisabled: { opacity: 0.6 },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-
-  /* Eccezioni */
-  exHead: { marginTop: 38, marginBottom: 2 },
-  exTitle: { fontSize: 21, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  exDate: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-
-  /* Empty — flat */
-  emptyWrap: { paddingVertical: 26 },
-  emptyText: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  /* Add exception — Airbnb outline button (white + thin border, pill) */
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 26,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0', marginTop: 14,
-  },
-  addText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+const st = StyleSheet.create({
+  firstSection: { marginTop: 26 },
+  section: { marginTop: 34 },
+  save: { marginTop: 18 },
+  add: { marginTop: 16 },
+  skRow: { paddingVertical: 14, paddingHorizontal: 18, minHeight: 62, justifyContent: 'center' },
+  skDivider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: CLAY.hairline },
+  skSub: { marginTop: 7 },
 });
+
+/** Riga scheletro dentro una `ClayList` (stesse misure di `ClayListRow`). */
+const SkeletonRow = ({ width, divider }: { width: number; divider?: boolean }) => (
+  <View style={st.skRow}>
+    {divider ? <View style={st.skDivider} /> : null}
+    <SkeletonBlock width={96} height={15} radius={7} />
+    <SkeletonBlock width={width} height={12} radius={6} style={st.skSub} />
+  </View>
+);
