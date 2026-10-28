@@ -1039,9 +1039,7 @@ da Tiziano il 29/10 ed eliminata.
   dopo: rosso pastello. Blocchi istruttore (pausa, blocco, malattia, ferie):
   bianchi tratteggiati in grigio, senza icona; la pausa tra guide si legge
   «Pausa». Dettagli in [features/agenda-block-colors.md](features/agenda-block-colors.md).
-- **Blu (in sospeso)**: con `NEUTRAL_BLUE = true` (stesso file) le voci
-  blu/azzurre/indaco diventano blocchi bianchi con ombra neutra; palette e dati
-  condivisi col web non cambiano. **Decisione aperta con Tiziano.**
+- **Colori = «Aspetto agenda»**: i blocchi usano **esattamente il colore scelto in «Aspetto agenda»** dall'autoscuola (anche blu/azzurro), a fondo pastello pieno — decisione di Tiziano del 29/10 («i colori devono rispettare i setting Aspetto agenda»). La regola `NEUTRAL_BLUE` provata la notte del 28/10 è stata eliminata.
 - **FAB «+»**: cerchio nero 56 col volume della CTA primaria
   (`CLAY_CTA.primary`). Apre il foglio **«Nuovo»** (`home/add-action`,
   FORM_SHEET + `<FormSheet>`): `ClayList` di solo testo (Guida, Guida di

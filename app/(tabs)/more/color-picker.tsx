@@ -7,7 +7,6 @@ import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayList, ClayListRow } from '../../../src/components/clay';
 import { colorPickerStore } from '../../../src/stores/colorPickerStore';
 import { CLAY } from '../../../src/theme/clay';
-import { NEUTRAL_BLUE } from '../../../src/utils/agendaColors';
 
 /**
  * Scelta del colore di una voce agenda — REG-639 clay: il form sheet unico.
@@ -66,9 +65,6 @@ export default function ColorPickerScreen() {
           );
         })}
       </View>
-
-      {/* Solo per i colori dei blocchi: il bordo delle automatiche non viene neutralizzato. */}
-      {NEUTRAL_BLUE && !resetHex ? <Text style={s.note}>Sul telefono i colori blu e azzurri compaiono in nero.</Text> : null}
     </FormSheet>
   );
 }
@@ -85,5 +81,4 @@ const s = StyleSheet.create({
   swatch: { width: 42, height: 42, borderRadius: 21 },
   swatchName: { fontSize: 12, color: CLAY.ink3 },
   swatchNameOn: { color: CLAY.ink, fontWeight: '600' },
-  note: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 20, paddingHorizontal: 4 },
 });

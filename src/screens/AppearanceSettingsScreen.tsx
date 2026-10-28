@@ -25,7 +25,6 @@ import {
   AUTOMATIC_MARKER_WIDTH,
   DEFAULT_AUTOMATIC_MARKER_COLOR,
   DURATION_COLOR_ENTRIES,
-  NEUTRAL_BLUE,
   previewColor,
   entriesForCriterion,
   resolveColorOverride,
@@ -41,8 +40,6 @@ const CRITERIA_LABEL: Record<AgendaColorCriterion, string> = {
   patente: 'Patente',
 };
 
-/** Sul telefono i blu/azzurri dell'agenda diventano neutri (NEUTRAL_BLUE). */
-const BLUE_NOTE = 'Sul telefono i colori blu e azzurri compaiono in nero.';
 
 /**
  * Aspetto agenda — REG-639 clay: testata grande con l'indietro clay, criterio
@@ -248,7 +245,7 @@ export const AppearanceSettingsScreen = () => {
               />
             </ClaySection>
 
-            <ClaySection title="Colori" footnote={NEUTRAL_BLUE ? BLUE_NOTE : undefined}>
+            <ClaySection title="Colori">
               <ClayList>
                 {entries.map((e) => (
                   <ClayListRow

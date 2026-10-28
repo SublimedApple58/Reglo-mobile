@@ -12,9 +12,9 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
 > è a **fondo pieno in tinta pastello** (`softenTint`, come prima), **senza
 > bordo e senza barretta**, con un'**ombra morbida nella stessa tinta** e testo
 > scuro. Un solo punto: `src/utils/agendaLook.ts` (`guideLook`), usato dalla
-> griglia settimanale `WeeklyAgendaView`, l'unica vista dell'Agenda. Sul mobile
-> i colori **blu/azzurri/indaco** diventano neutri (`NEUTRAL_BLUE`, **decisione
-> in sospeso con Tiziano**). Dettagli nella sezione in fondo. `DayItinerary`, la
+> griglia settimanale `WeeklyAgendaView`, l'unica vista dell'Agenda. Il colore è
+> **esattamente quello di «Aspetto agenda»**, blu e azzurri compresi (Tiziano
+> 29/10). Dettagli nella sezione in fondo. `DayItinerary`, la
 > timeline `itinCard` e la vista Giorno `AgendaDayView` (provata il 28/10 con la
 > barretta, bocciata il 29/10) non esistono più.
 
@@ -131,7 +131,7 @@ La timeline giornaliera della home (`itinCard`) mostrava già il veicolo sempre
 e resta così. Allievo escluso. Esami (raggruppati) e guide di gruppo (card con
 i posti) non mostrano il veicolo.
 
-## Fondo pastello, ombra in tinta e `NEUTRAL_BLUE` (REG-639 clay)
+## Fondo pastello e ombra in tinta (REG-639 clay)
 
 **Resa (dal 29/10/2026).** `agendaBlockStyle(entry, override)` restituisce
 `backgroundColor` = il pastello (`softenTint` dell'override del titolare o
@@ -163,16 +163,8 @@ tinta; blocchi/pause = bianchi tratteggiati grigi.
 fondo quasi bianco, la resa provata la notte del 28/10 e **bocciata da
 Tiziano** il 29/10. Punto unico.
 
-**`NEUTRAL_BLUE`** (`src/utils/agendaColors.ts`, `true`) — **decisione IN
-SOSPESO, aspetta la risposta di Tiziano**: sul mobile niente blu/azzurro in agenda.
-Se il colore vivo della voce (default o scelto dall'autoscuola) ha tinta fra
-180° e 245° (saturazione ≥ 0.35) (`isBlueHue`: dall'azzurro/ciano al blu, escluso il viola; i grigi
-con saturazione < 12% non contano), il blocco diventa **neutro**: scheda bianca
-senza tinta, ombra neutra (con la barretta accesa sarebbe nera). Colpisce di default (verificato sugli
-hex vivi, 28/10): il bucket `d30` («Fino a 30 minuti», 217°), le patenti B
-(217°) e BE (239°), **ADR e «Patente non impostata»** (grigio-ardesia 215°,
-saturazione sopra la soglia), e gli swatch Azzurro, Ciano, Blu, Indaco,
-**Grigio** scelti dal titolare.
-
-Soglia corretta la notte stessa (180°–245°, saturazione ≥ 0.35): il viola (`#8B5CF6`, 258°), i grigi e i grigio-ardesia (ADR, «Patente non impostata», «Grigio») restano col loro colore; l'indaco (`#6366F1`, 239°) conta come blu.
+**Colori = «Aspetto agenda» (decisione di Tiziano, 29/10/2026).** I blocchi
+usano esattamente il colore scelto dall'autoscuola, anche blu o azzurro. La
+regola `NEUTRAL_BLUE` (blu/azzurri resi neutri solo sul mobile), provata la
+notte del 28/10, è stata eliminata insieme alla nota in «Aspetto agenda».
 

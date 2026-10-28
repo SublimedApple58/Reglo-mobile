@@ -58,7 +58,7 @@ export function guideLook(appt: AutoscuolaAppointmentWithRelations, config: Agen
   const ring = style?.borderColor ?? null;
   if (!style) return { bar: INK, wash: '#FFFFFF', text: INK, sub: SUB, ring, muted: false, glow: rgba(INK, 0.16) };
   const vivid = style.barColor ?? INK;
-  // Blu neutralizzato (NEUTRAL_BLUE): scheda bianca, ombra neutra.
+  // Colore esattamente da «Aspetto agenda» (anche blu/azzurro: Tiziano 29/10).
   const glow = vivid === INK ? rgba(INK, 0.16) : rgba(vivid, 0.38);
   if (!AGENDA_BLOCK_BAR) return { bar: null, wash: style.backgroundColor, text: INK, sub: SUB, ring, muted: false, glow };
   return { bar: vivid, wash: style.washColor ?? '#FFFFFF', text: INK, sub: SUB, ring, muted: false, glow };

@@ -21,7 +21,7 @@ lun–sab), come dopo REG-638. REG-639 ne ha rifatto lo stile (clay v2:
 | `src/screens/TitolareHomeScreen.tsx` | Wrapper: `<IstruttoreHomeScreen ownerMode />`. |
 | `src/components/WeeklyAgendaView.tsx` | La griglia settimanale: settimane affiancate a scorrimento, colonne bianche col filetto, giorni in minuscolo, disponibilità come tinta appena accennata, blocchi istruttore neutri, linea dell'ora nera, link «Oggi» testuale, blocco fantasma per prenotare. L'intestazione dei giorni NON è tappabile (come prima). |
 | `src/utils/agendaLook.ts` | Aspetto di un evento (un solo punto): `guideLook`, `EXAM_LOOK`, `GROUP_LOOK`, `GROUP_MOTO_LOOK`, `blockLabel`. Vedi [agenda-block-colors.md](agenda-block-colors.md). |
-| `src/utils/agendaColors.ts` | Criterio colore + interruttori `AGENDA_BLOCK_BAR` (oggi `false`) e `NEUTRAL_BLUE` (oggi `true`, in sospeso), `mixWithWhite`. |
+| `src/utils/agendaColors.ts` | Criterio colore (da «Aspetto agenda») + interruttore `AGENDA_BLOCK_BAR` (oggi `false`), `mixWithWhite`. |
 | `app/(tabs)/home/add-action.tsx` | Foglio «Nuovo» del «+» (`FORM_SHEET` + `<FormSheet>`): `ClayList` di solo testo — Guida, Guida di gruppo (se `groupLessonsEnabled`), Esame, Lezione teorica, Blocca un orario, Malattia. Al tocco chiude e lancia l'azione a foglio chiuso (iOS +380 ms). Dati da `homeAddSheetStore`. |
 | `app/(tabs)/home/quick-book.tsx` | Prenotazione veloce dal blocco fantasma della griglia: [quick-book.md](quick-book.md). |
 | `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`), cerchi bianchi clay `raiseSm`. |
@@ -92,10 +92,7 @@ IstruttoreHomeScreen
   fantasma, blocchi non tappabili, fogli in `readOnly`.
 - Il colore dei blocchi passa SOLO da `agendaLook` (non duplicare la logica
   nella griglia).
-- **Blu in sospeso**: con `NEUTRAL_BLUE = true` le voci blu/azzurre/indaco
-  (tinta 180°–245°, saturazione ≥ 0.35) diventano blocchi bianchi con ombra
-  neutra; palette e dati condivisi col web invariati. **Decisione aperta con
-  Tiziano**: tenere, togliere (`false` = pastello blu) o cambiare i default.
+- **Colori = «Aspetto agenda»**: i blocchi usano **esattamente il colore scelto in «Aspetto agenda»** dall'autoscuola (anche blu/azzurro), a fondo pastello pieno — decisione di Tiziano del 29/10 («i colori devono rispettare i setting Aspetto agenda»). La regola `NEUTRAL_BLUE` provata la notte del 28/10 è stata eliminata.
 
 ## Connessioni
 
