@@ -35,7 +35,6 @@ import {
 import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
 
 /** Le stelline del pagellino restano gialle (deroga voluta, CLAUDE.md). */
-const GOLD = '#FACC15';
 
 /** Altezza fissa della card voce + distanza fra una e l'altra: il riordino
  *  lavora su un passo costante, quindi il nome sta su una riga sola (per
@@ -57,14 +56,6 @@ const newKey = () => `tmp-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 /** Firma del draft: serve solo a capire se c'è qualcosa da salvare. */
 const signature = (enabled: boolean, items: Draft[]) =>
   `${enabled ? '1' : '0'}|${items.map((i) => `${i.id ?? 'new'}:${i.label}:${i.scaleMax}`).join('|')}`;
-
-const StarRow = ({ total, size = 15 }: { total: number; size?: number }) => (
-  <View style={s.stars}>
-    {Array.from({ length: total }, (_, i) => (
-      <Ionicons key={i} name="star" size={size} color={GOLD} />
-    ))}
-  </View>
-);
 
 /* ── Riga trascinabile ───────────────────────────────────────────────────── */
 
@@ -158,7 +149,9 @@ const SortableRow = ({
         <Text style={s.rowLabel} numberOfLines={1}>
           {item.label}
         </Text>
-        <StarRow total={item.scaleMax} />
+        {/* Giro «memorabile»: la scala a parole; cinque stelle gialle su ogni
+            voce erano rumore (pagina secondaria, peso basso). */}
+        <Text style={s.rowScale}>da 1 a {item.scaleMax} stelle</Text>
       </Pressable>
       <GestureDetector gesture={pan}>
         <View style={s.handle} accessibilityLabel={`Sposta ${item.label}`}>
@@ -469,7 +462,7 @@ function TemplateRow({ label, total, divider }: { label: string; total: number; 
       <Text style={s.templateLabel} numberOfLines={1}>
         {label}
       </Text>
-      <StarRow total={total} size={14} />
+      <Text style={s.rowScale}>da 1 a {total} stelle</Text>
     </View>
   );
 }
@@ -502,10 +495,10 @@ const s = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0, height: '100%', justifyContent: 'center', alignItems: 'flex-start' },
   // lineHeight esplicito: senza, la scatola del testo cambia col font e le due
   // righe della card non tengono la stessa distanza fra una voce e l'altra.
+  rowScale: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3 },
   rowLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2, lineHeight: 20 },
   // marginLeft -1.5: il glifo stella ha un margine interno, senza compensarlo
   // la fila parte più a destra del nome e le due righe non sono a filo.
-  stars: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, marginLeft: -1.5 },
   handle: { width: 46, height: ROW_H, alignItems: 'center', justifyContent: 'center' },
 
   add: { marginTop: 16 },

@@ -133,6 +133,24 @@ export const InstructorHoursScreen = () => {
   const todayISO = useMemo(() => isoOfDate(new Date()), []);
   const currentWeekMonday = useMemo(() => currentWeek().from, []);
 
+  // Giro «memorabile»: sulla settimana in corso, una frase di confronto con la
+  // settimana prima fino allo stesso giorno (mai «meno di…»).
+  const isThisWeek = period.from === currentWeekMonday;
+  const cmp = useMemo(() => {
+    const today = new Date();
+    const monday = new Date(`${currentWeekMonday}T00:00:00`);
+    return { prevFrom: isoOfDate(addDays(monday, -7)), prevTo: isoOfDate(addDays(today, -7)) };
+  }, [currentWeekMonday]);
+  const soFar = useInstructorHours(isThisWeek ? currentWeekMonday : '', isThisWeek ? todayISO : '');
+  const prevWeek = useInstructorHours(isThisWeek ? cmp.prevFrom : '', isThisWeek ? cmp.prevTo : '');
+  const compare = (() => {
+    if (!isThisWeek || !soFar.data || !prevWeek.data) return null;
+    const diff = soFar.data.total.totalMinutes - prevWeek.data.total.totalMinutes;
+    if (diff >= 30) return `${formatMinutes(diff)} in più della settimana scorsa a questo punto`;
+    if (Math.abs(diff) < 30 && soFar.data.total.totalMinutes > 0) return 'Come la settimana scorsa a questo punto';
+    return null;
+  })();
+
   const openPicker = () => {
     hoursPeriodStore.set({
       from: period.from,
@@ -201,6 +219,7 @@ export const InstructorHoursScreen = () => {
                   {...heroParts(data.total.totalMinutes)}
                   caption={`${data.total.appointmentCount} ${data.total.appointmentCount === 1 ? 'guida' : 'guide'} · ${periodLabel.toLowerCase()}`}
                 />
+                {compare ? <Text style={s.compare}>{compare}</Text> : null}
                 {data.total.theoryMinutes > 0 ? (
                   <Text style={s.theory}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
                 ) : null}
@@ -251,6 +270,7 @@ const s = StyleSheet.create({
 
   heroCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, paddingVertical: 18, paddingHorizontal: 20 },
   heroMain: { flex: 1, minWidth: 0 },
+  compare: { fontSize: 14, color: CLAY.ink2, marginTop: 6 },
   theory: { fontSize: 14.5, color: CLAY.ink3, marginTop: 4 },
 
   stats: { flexDirection: 'row', gap: 12, marginTop: 12 },

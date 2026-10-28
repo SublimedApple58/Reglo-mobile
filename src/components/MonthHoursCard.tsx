@@ -18,16 +18,23 @@ const hoursText = (min: number) => `${String(Math.round((min / 60) * 2) / 2).rep
  * settimana in corso è nera, le altre grigie. Tocco = «Ore di guida».
  */
 export function MonthHoursCard({ instructorId, onPress }: { instructorId: string; onPress: () => void }) {
-  const { from, to, month, todayKey } = useMemo(() => {
+  const { from, to, month, todayKey, prevFrom, prevTo, prevMonth } = useMemo(() => {
     const now = new Date();
+    // Il mese prima fino allo stesso giorno: il confronto è alla pari.
+    const prevLast = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
     return {
       from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
       to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
       month: MONTHS[now.getMonth()],
       todayKey: ymd(now),
+      prevFrom: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+      prevTo: ymd(new Date(now.getFullYear(), now.getMonth() - 1, Math.min(now.getDate(), prevLast))),
+      prevMonth: MONTHS[(now.getMonth() + 11) % 12].toLowerCase(),
     };
   }, []);
   const { data, isLoading } = useInstructorHours(from, to, instructorId);
+  const prev = useInstructorHours(prevFrom, prevTo, instructorId);
+  const soFar = useInstructorHours(from, todayKey, instructorId);
 
   if (!isLoading && !data) return null;
 
@@ -36,6 +43,16 @@ export function MonthHoursCard({ instructorId, onPress }: { instructorId: string
   // Bucket in corso = l'ultimo iniziato entro oggi.
   const currentIdx = buckets.reduce((acc, b, i) => (b.startDate <= todayKey ? i : acc), -1);
   const count = data?.total.appointmentCount ?? 0;
+  // Giro «memorabile»: una frase di confronto, solo se fa piacere leggerla
+  // (mai «meno di…»). Si conta fino a oggi, contro lo stesso tratto del mese prima.
+  const compare = (() => {
+    if (!soFar.data || !prev.data) return null;
+    const doneMin = soFar.data.total.totalMinutes;
+    const diff = doneMin - prev.data.total.totalMinutes;
+    if (diff >= 60) return `${hoursText(diff)} in più di ${prevMonth} a questo punto`;
+    if (Math.abs(diff) < 60 && doneMin > 0) return `Come ${prevMonth} a questo punto`;
+    return null;
+  })();
 
   return (
     <ClaySurface onPress={onPress} radius={26} style={s.card} testID="more-month-hours" accessibilityLabel={`${month}, ore di guida`}>
@@ -50,6 +67,7 @@ export function MonthHoursCard({ instructorId, onPress }: { instructorId: string
       ) : (
         <SkeletonBlock width={150} height={34} radius={10} style={s.sk} />
       )}
+      {compare ? <Text style={s.compare}>{compare}</Text> : null}
       <View style={s.chart}>
         {(data ? buckets : Array.from({ length: 5 }, () => null)).map((b, i) => (
           <View key={b?.key ?? i} style={s.col}>
@@ -80,6 +98,7 @@ const s = StyleSheet.create({
   numRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 2 },
   num: { fontSize: 40, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.2 },
   numSub: { fontSize: 15, color: CLAY.ink3 },
+  compare: { fontSize: 14, color: CLAY.ink2, marginTop: 2 },
   sk: { marginTop: 8 },
   chart: { flexDirection: 'row', gap: 6, marginTop: 14 },
   col: { flex: 1, alignItems: 'center' },

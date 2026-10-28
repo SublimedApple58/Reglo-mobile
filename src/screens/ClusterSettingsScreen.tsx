@@ -6,6 +6,7 @@ import {
   ImageSourcePropType,
   Platform,
   RefreshControl,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -152,6 +153,15 @@ export const ClusterSettingsScreen = () => {
     Clipboard.setString(inviteCode);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setToast({ text: 'Codice copiato', tone: 'success' });
+  };
+
+  /** Giro «memorabile»: il codice si manda, non solo si copia (share sheet nativo). */
+  const shareInviteCode = () => {
+    if (!inviteCode) return;
+    Haptics.selectionAsync().catch(() => {});
+    void Share.share({
+      message: `Per prenotare le guide con me su Reglo, registrati con il codice ${inviteCode}.`,
+    }).catch(() => {});
   };
 
   const openTimePicker = (current: string, onPick: (hhmm: string) => void) => {
@@ -305,15 +315,23 @@ export const ClusterSettingsScreen = () => {
         {autonomousMode && inviteCode ? (
           <ClaySection
             title="Codice di invito"
-            footnote="Chi si registra con questo codice entra in autoscuola già nel tuo gruppo."
+            footnote="Dallo ai nuovi allievi: registrandosi con questo codice entrano già nel tuo gruppo."
           >
             <ClaySurface onPress={copyInviteCode} style={styles.codeCard} testID="cluster-invite-code" accessibilityLabel={`Codice di invito ${inviteCode}, copia`}>
               <Text style={styles.codeValue} selectable>{inviteCode}</Text>
-              <ClayIconButton
-                icon={<Ionicons name="copy-outline" size={18} color={CLAY.ink} />}
-                onPress={copyInviteCode}
-                accessibilityLabel="Copia il codice"
-              />
+              <View style={styles.codeActions}>
+                <ClayIconButton
+                  icon={<Ionicons name="copy-outline" size={18} color={CLAY.ink} />}
+                  onPress={copyInviteCode}
+                  accessibilityLabel="Copia il codice"
+                />
+                <ClayIconButton
+                  icon={<Ionicons name="share-outline" size={19} color={CLAY.ink} />}
+                  onPress={shareInviteCode}
+                  accessibilityLabel="Condividi il codice"
+                  testID="cluster-invite-share"
+                />
+              </View>
             </ClaySurface>
           </ClaySection>
         ) : null}
@@ -326,6 +344,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: H_PAD, paddingBottom: 120 },
   list: { marginTop: 22 },
+  codeActions: { flexDirection: 'row', gap: 10 },
   codeCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 18, paddingHorizontal: 20 },
   codeValue: {
     fontSize: 28,
