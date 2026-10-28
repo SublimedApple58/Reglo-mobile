@@ -27,7 +27,7 @@ export default function NotesLayout() {
           irraggiungibile — stesso muro di REG-426 (booking-rules). Qui resta
           PAGE_SHEET (storico); la variante Road del pagellino segue già la
           regola §13.2.1: form sheet la cui radice è lo scroll. */}
-      <Stack.Screen name="manage-lesson-details" options={PAGE_SHEET} />
+      <Stack.Screen name="manage-lesson-details" options={FORM_SHEET} />
       {/* REG-426: il pannello "per percorso" espande il form oltre l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) ha un pan nativo
           che confligge con lo scroll interno (il contenuto "risale su da solo").

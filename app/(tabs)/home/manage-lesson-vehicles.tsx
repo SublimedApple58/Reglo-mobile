@@ -1,17 +1,30 @@
 import React, { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { manageLessonStore } from '../../../src/stores/manageLessonStore';
 import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayList, ClayListRow, ClaySection } from '../../../src/components/clay';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../../src/utils/license';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
+
+/** «Togli» di una riga: X monocromatica piccola (comando, non decorazione). */
+function RemoveButton({ onPress, label }: { onPress: () => void; label: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => [s.remove, pressed && { opacity: 0.5 }]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name="close" size={18} color={CLAY.ink3} />
+    </Pressable>
+  );
+}
 
 /**
  * "Veicoli" management sheet for a moto guide — opened from the manage-lesson
@@ -19,6 +32,8 @@ import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
  * motos and the follow car (auto al seguito). Every change auto-saves through
  * the manageLessonStore callbacks (no local Salva); the store refetches and this
  * sheet re-renders. Read-only for the titolare (it just shows the set).
+ * Form sheet unico (FORM_SHEET + FormSheet, REG-639 clay): righe di liste clay,
+ * niente chip né tag; «principale» e «consigliata» sono testo.
  */
 export default function ManageLessonVehiclesScreen() {
   const router = useRouter();
@@ -26,7 +41,7 @@ export default function ManageLessonVehiclesScreen() {
   const lesson = data?.lesson ?? null;
 
   if (!data || !lesson) {
-    return <View style={s.root} />;
+    return <View style={s.empty} />;
   }
 
   const {
@@ -102,145 +117,92 @@ export default function ManageLessonVehiclesScreen() {
     router.push(optionsPickerPath());
   };
 
+  const canPickPrimary = !readOnly && primaryMotoCandidates.length > 0;
+  const canAddExtra = !readOnly && availableExtraCount > 0;
+  const hasMotoRows = !!primaryVehicle || extraMotos.length > 0 || canAddExtra;
+
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <SheetScaffold
-        contentContainerStyle={s.scaffoldBody}
-        footer={
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [s.doneBtn, pressed && { opacity: 0.9 }]}>
-            <GradientCTABackground radius={27} />
-            <Text style={s.doneText}>Fatto</Text>
-          </Pressable>
-        }
-      >
-        <View style={s.headerBlock}>
-          <Text style={s.title}>Veicoli</Text>
-          <Text style={s.subtitle}>Moto e auto al seguito di questa guida.</Text>
-        </View>
-
-        {/* ── MOTO ── */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Moto</Text>
-          <View style={s.chipWrap}>
+    <FormSheet
+      title="Veicoli"
+      subtitle="Moto e auto al seguito di questa guida."
+      testID="manage-lesson-vehicles-sheet"
+      cta={<ClayButton title="Fatto" onPress={() => router.back()} testID="manage-lesson-vehicles-done" />}
+    >
+      <ClaySection title="Moto" style={s.firstSection}>
+        {hasMotoRows ? (
+          <ClayList>
             {primaryVehicle ? (
-              <Pressable
-                onPress={readOnly || !primaryMotoCandidates.length ? undefined : openPrimaryMotoPicker}
-                disabled={readOnly || !primaryMotoCandidates.length}
-                style={({ pressed }) => [s.mChip, pressed && !readOnly && { opacity: 0.55 }]}
-              >
-                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#111111" /></View>
-                <Text style={s.mChipName} numberOfLines={1}>{primaryVehicle.name}</Text>
-                <View style={s.princTag}><Text style={s.princTagTxt}>PRINC.</Text></View>
-              </Pressable>
+              <ClayListRow
+                title={primaryVehicle.name}
+                subtitle="Moto principale"
+                onPress={canPickPrimary ? openPrimaryMotoPicker : undefined}
+                testID="vehicles-primary"
+              />
             ) : null}
-
             {extraMotos.map((v) => (
-              <View key={v.id} style={s.mChip}>
-                <View style={s.mChipIc}><MaterialCommunityIcons name="motorbike" size={19} color="#111111" /></View>
-                <Text style={s.mChipName} numberOfLines={1}>{v.name}</Text>
-                {!readOnly ? (
-                  <Pressable onPress={() => onChangeExtraMotos(extraMotoIds.filter((x) => x !== v.id))} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
-                    <Ionicons name="close" size={15} color="#959595" />
-                  </Pressable>
-                ) : null}
-              </View>
+              <ClayListRow
+                key={v.id}
+                title={v.name}
+                subtitle="Moto aggiuntiva"
+                trailing={
+                  !readOnly ? (
+                    <RemoveButton
+                      label={`Togli ${v.name}`}
+                      onPress={() => onChangeExtraMotos(extraMotoIds.filter((x) => x !== v.id))}
+                    />
+                  ) : null
+                }
+                testID={`vehicles-extra-${v.id}`}
+              />
             ))}
-
-            {!readOnly && availableExtraCount > 0 ? (
-              <Pressable onPress={openExtraMotosPicker} style={({ pressed }) => [s.chipAdd, pressed && { opacity: 0.5 }]}>
-                <Ionicons name="add" size={18} color="#565656" />
-                <Text style={s.chipAddTxt}>Aggiungi</Text>
-              </Pressable>
+            {canAddExtra ? (
+              <ClayListRow title="Aggiungi moto" onPress={openExtraMotosPicker} testID="vehicles-add-moto" />
             ) : null}
-          </View>
-        </View>
+          </ClayList>
+        ) : (
+          <Text style={s.none}>Nessuna</Text>
+        )}
+      </ClaySection>
 
-        {/* ── AUTO AL SEGUITO ── */}
-        <View style={s.section}>
-          <View style={s.sectionLabelRow}>
-            <Text style={s.sectionLabel}>Auto al seguito</Text>
-            {followRequired ? <Text style={s.reqTag}>consigliata</Text> : null}
-          </View>
-          {followVehicle ? (
-            <View style={s.followRow}>
-              <View style={s.vIc}><Ionicons name="car-outline" size={20} color="#111111" /></View>
-              <Pressable
-                onPress={readOnly || !followCandidates.length ? undefined : openFollowCarPicker}
-                disabled={readOnly || !followCandidates.length}
-                style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && !readOnly && { opacity: 0.55 }]}
-              >
-                <Text style={s.vName} numberOfLines={1}>{followVehicle.name}</Text>
-                <Text style={s.vKind}>{readOnly ? 'Auto al seguito' : 'Tocca per cambiare'}</Text>
-              </Pressable>
-              {!readOnly ? (
-                <Pressable onPress={() => onChangeFollowVehicle(null)} hitSlop={8} style={({ pressed }) => [s.chipX, pressed && { opacity: 0.5 }]}>
-                  <Ionicons name="close" size={16} color="#959595" />
-                </Pressable>
-              ) : null}
-            </View>
-          ) : !readOnly ? (
-            <Pressable onPress={openFollowCarPicker} disabled={!followCandidates.length} style={({ pressed }) => [s.addFollow, pressed && { opacity: 0.5 }]}>
-              <View style={s.addFollowIc}><Ionicons name="add" size={18} color="#6B6B6B" /></View>
-              <Text style={s.addFollowTxt}>Aggiungi auto al seguito</Text>
-            </Pressable>
-          ) : (
-            <Text style={s.followEmpty}>Nessuna</Text>
-          )}
-        </View>
-      </SheetScaffold>
-    </View>
+      <ClaySection
+        title="Auto al seguito"
+        footnote={followRequired ? 'Consigliata per questa moto.' : undefined}
+      >
+        {followVehicle ? (
+          <ClayList>
+            <ClayListRow
+              title={followVehicle.name}
+              subtitle={readOnly ? 'Auto al seguito' : 'Tocca per cambiare'}
+              onPress={readOnly || !followCandidates.length ? undefined : openFollowCarPicker}
+              chevron={false}
+              trailing={
+                !readOnly ? (
+                  <RemoveButton label="Togli l'auto al seguito" onPress={() => onChangeFollowVehicle(null)} />
+                ) : null
+              }
+              testID="vehicles-follow"
+            />
+          </ClayList>
+        ) : !readOnly ? (
+          <ClayList>
+            <ClayListRow
+              title="Aggiungi auto al seguito"
+              onPress={openFollowCarPicker}
+              dimmed={!followCandidates.length}
+              testID="vehicles-add-follow"
+            />
+          </ClayList>
+        ) : (
+          <Text style={s.none}>Nessuna</Text>
+        )}
+      </ClaySection>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
-  scaffoldBody: { gap: 24 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4, marginBottom: 0 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  section: { gap: 12 },
-  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-
-  // bigger tags
-  reqTag: { fontSize: 12, fontWeight: '600', color: '#6A6A6A', backgroundColor: '#F0F0F0', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
-  princTag: { backgroundColor: '#111111', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 },
-  princTagTxt: { fontSize: 11, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
-
-  // moto chips
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9 },
-  mChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F4F5F7', borderRadius: 14, paddingVertical: 7, paddingLeft: 7, paddingRight: 12, maxWidth: '100%' },
-  mChipIc: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  mChipName: { fontSize: 14.5, fontWeight: '600', color: '#1F1F1F', flexShrink: 1 },
-  chipX: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center', marginLeft: 1 },
-  chipAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#CDCDCD', borderStyle: 'dashed', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 13 },
-  chipAddTxt: { fontSize: 14, fontWeight: '600', color: '#565656' },
-
-  // follow car
-  followRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F4F5F7', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
-  vIc: { width: 36, height: 36, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  vName: { fontSize: 15, fontWeight: '600', color: '#1F1F1F' },
-  vKind: { fontSize: 12.5, color: '#9A9A9A', marginTop: 1 },
-  addFollow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  addFollowIc: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: '#CACACA', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  addFollowTxt: { fontSize: 15, fontWeight: '600', color: '#2A2A2A' },
-  followEmpty: { fontSize: 14.5, color: '#9A9A9A' },
-
-  doneBtn: {
-    minHeight: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center', marginTop: 24,
-    ...primaryCtaShadow,
-  },
-  doneText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  firstSection: { marginTop: 4 },
+  none: { fontSize: 15, color: CLAY.ink3, paddingHorizontal: 2 },
+  remove: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 });

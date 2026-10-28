@@ -8,31 +8,24 @@ export default function HomeLayout() {
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="add-action" options={FORM_SHEET} />
-      <Stack.Screen name="select-date" options={{ presentation: 'modal', headerShown: false }} />
-      {/* Quick-book hosts the full BookingForm: in moto mode it grows taller
-          than the screen, so it needs the scrollable full-height page sheet
-          (a fitToContents form sheet clips the overflow on iOS). */}
-      <Stack.Screen name="quick-book" options={PAGE_SHEET} />
-      <Stack.Screen name="manage-lesson" options={{ presentation: 'modal', headerShown: false }} />
-      {/* Gestione esame: form sheet ADATTIVO. iOS abbraccia il contenuto
-          (`fitToContents`), Android prende il detent alto e scrolla col footer
-          inchiodato — l'esame ha una CTA in fondo ("Annulla esame") e una lista
-          allievi che cresce, i due casi per cui esiste TALL_SHEET. */}
-      <Stack.Screen name="exam-manage" options={TALL_SHEET} />
-      <Stack.Screen name="manage-group-lesson" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="select-date" options={FORM_SHEET} />
+      <Stack.Screen name="quick-book" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson" options={FORM_SHEET} />
+      <Stack.Screen name="exam-manage" options={FORM_SHEET} />
+      <Stack.Screen name="manage-group-lesson" options={FORM_SHEET} />
       <Stack.Screen name="group-lesson-detail" options={TALL_SHEET} />
-      <Stack.Screen name="manage-group-lesson-participants" options={TALL_SHEET} />
+      <Stack.Screen name="manage-group-lesson-participants" options={FORM_SHEET} />
       <Stack.Screen name="student-detail" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="new-booking" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="block-slot" options={TALL_SHEET} />
-      <Stack.Screen name="theory-lesson" options={TALL_SHEET} />
-      <Stack.Screen name="sick-leave" options={TALL_SHEET} />
-      <Stack.Screen name="select-date-range" options={TALL_SHEET} />
-      <Stack.Screen name="create-exam" options={TALL_SHEET} />
-      <Stack.Screen name="create-group-lesson" options={PAGE_SHEET} />
-      <Stack.Screen name="select-student" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="select-exam-students" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="out-of-availability" options={TALL_SHEET} />
+      <Stack.Screen name="new-booking" options={FORM_SHEET} />
+      <Stack.Screen name="block-slot" options={FORM_SHEET} />
+      <Stack.Screen name="theory-lesson" options={FORM_SHEET} />
+      <Stack.Screen name="sick-leave" options={FORM_SHEET} />
+      <Stack.Screen name="select-date-range" options={FORM_SHEET} />
+      <Stack.Screen name="create-exam" options={FORM_SHEET} />
+      <Stack.Screen name="create-group-lesson" options={FORM_SHEET} />
+      <Stack.Screen name="select-student" options={FORM_SHEET} />
+      <Stack.Screen name="select-exam-students" options={FORM_SHEET} />
+      <Stack.Screen name="out-of-availability" options={FORM_SHEET} />
       <Stack.Screen name="select-options" options={HUG_SHEET} />
       {/* Impostazioni allievo: lista corta e statica → hug del contenuto. */}
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
@@ -42,32 +35,22 @@ export default function HomeLayout() {
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
-      {/* «Auto al seguito occupata» (REG-608): 1-3 date in conflitto stanno in
-          un foglio che abbraccia il contenuto; da 4 in su serve un corpo che
-          scorre, e una ScrollView dentro un fitToContents non si misura →
-          page sheet (vedi followCarConflictPath). */}
-      <Stack.Screen name="follow-car-conflict" options={HUG_SHEET} />
-      <Stack.Screen name="follow-car-conflict-long" options={PAGE_SHEET} />
-      <Stack.Screen name="time-picker" options={HUG_SHEET} />
-      {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello
-          schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) NON basta: il
-          pan nativo della sheet ruba il gesto allo scroll e il "Salva" resta
-          irraggiungibile — stesso muro di REG-426 (booking-rules). PAGE_SHEET
-          (presentation:'modal') è il pattern delle form lunghe dell'app:
-          scroll nativo pulito + footer agganciato via SheetScaffold fill. */}
-      <Stack.Screen name="manage-lesson-details" options={PAGE_SHEET} />
-      <Stack.Screen name="manage-lesson-correct" options={HUG_SHEET} />
+      <Stack.Screen name="follow-car-conflict" options={FORM_SHEET} />
+      <Stack.Screen name="follow-car-conflict-long" options={FORM_SHEET} />
+      <Stack.Screen name="time-picker" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-details" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-correct" options={FORM_SHEET} />
       {/* REG-587: "Di chi e' l'imprevisto?" sull'annullamento tardivo. */}
-      <Stack.Screen name="cancel-fault" options={HUG_SHEET} />
-      <Stack.Screen name="edit-notes" options={TALL_SHEET} />
-      <Stack.Screen name="swap-lesson" options={TALL_SHEET} />
-      <Stack.Screen name="reschedule-lesson" options={TALL_SHEET} />
-      <Stack.Screen name="manage-lesson-instructor" options={TALL_SHEET} />
+      <Stack.Screen name="cancel-fault" options={FORM_SHEET} />
+      <Stack.Screen name="edit-notes" options={FORM_SHEET} />
+      <Stack.Screen name="swap-lesson" options={FORM_SHEET} />
+      <Stack.Screen name="reschedule-lesson" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-instructor" options={FORM_SHEET} />
       {/* REG-585: i colleghi che portano la guida insieme al principale. */}
-      <Stack.Screen name="manage-co-instructors" options={TALL_SHEET} />
-      <Stack.Screen name="manage-lesson-vehicles" options={TALL_SHEET} />
-      <Stack.Screen name="manage-lesson-location" options={TALL_SHEET} />
-      <Stack.Screen name="manage-lesson-location-form" options={TALL_SHEET} />
+      <Stack.Screen name="manage-co-instructors" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-vehicles" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-location" options={FORM_SHEET} />
+      <Stack.Screen name="manage-lesson-location-form" options={FORM_SHEET} />
       <Stack.Screen name="lesson-detail" options={TALL_SHEET} />
       <Stack.Screen name="booking-flow" options={TALL_SHEET} />
       <Stack.Screen name="booking-slots" options={{ presentation: 'modal', headerShown: false }} />

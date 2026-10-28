@@ -1,8 +1,6 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   followCarConflictStore,
@@ -11,16 +9,12 @@ import {
 } from '../../stores/followCarConflictStore';
 import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
 import { transmissionLabel } from '../../utils/license';
-import { GradientCTABackground, primaryCtaShadow } from '../GradientCTA';
-import { GlassCloseButton } from '../GlassCloseButton';
-import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
+import { FormSheet } from '../SheetScaffold';
+import { ClayButton, ClayList, ClayListRow, ClaySection } from '../clay';
+import { CLAY } from '../../theme/clay';
 
-const NAVY = '#111111';
-const GREY = '#717171';
-const MUTED = '#929292';
+/** Rosso solo per il problema ancora aperto e per «Togli la guida». */
 const RED = '#C13515';
-const RED_TINT = '#FFF8F7';
 
 /** Sentinella del picker: "nessuna auto al seguito" e' una risposta valida. */
 const NO_FOLLOW_CAR = '__none__';
@@ -81,19 +75,16 @@ const prefillChoices = (data: FollowCarConflictData | null): Record<number, Conf
  * «Auto al seguito occupata» — il secondo passo della prenotazione multipla
  * dell'app istruttore (REG-615, gemello nativo di REG-613).
  *
- * Due presentazioni, stessa sostanza (vedi `followCarConflictPath`):
- * - `scrollable={false}` → form sheet che abbraccia il contenuto (1-3 date):
- *   radice `<View>` semplice, **nessuna ScrollView** — `fitToContents` non la
- *   sa misurare e il foglio si rompe.
- * - `scrollable` → page sheet nativo (4+ date): header fisso, corpo che
- *   scorre, CTA ancorata in fondo.
+ * Il form sheet unico (FORM_SHEET + FormSheet, REG-639 clay): alto quanto il
+ * contenuto, con molte date scorre il foglio stesso. Le date da sistemare sono
+ * righe di una lista clay; il problema aperto si scrive in rosso nel
+ * sottotitolo, le decisioni sono azioni di testo (niente chip).
  *
  * Le date libere non si elencano: sono gia' riassunte in cima. A schermo c'e'
  * solo quello su cui bisogna decidere.
  */
-export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) {
+export function FollowCarConflictSheet() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(followCarConflictStore.subscribe, followCarConflictStore.get);
 
   // Catturato al mount: le risposte sono di questo foglio, non dello store
@@ -102,7 +93,7 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
     prefillChoices(followCarConflictStore.get()),
   );
 
-  if (!data) return <View style={scrollable ? s.rootTall : s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const total = data.entries.length;
   const conflicts = orderConflicts(data.entries);
@@ -185,293 +176,182 @@ export function FollowCarConflictSheet({ scrollable }: { scrollable: boolean }) 
     data.onConfirm(payload);
   };
 
-  const rows = conflicts.map((entry, position) => {
+  const rows = conflicts.map((entry) => {
     const answer = choice[entry.index];
     const answered = answer !== undefined;
     const removed = answer === 'remove';
     const freeCars = entry.freeFollowCars ?? [];
     const canSwap = entry.conflict?.role === 'follow' && freeCars.length > 0;
-    // Tinta rossa solo dove non c'e' ancora una risposta: con tutte le righe
-    // colorate il rosso smette di voler dire qualcosa.
-    const alarming = !answered && !canSwap;
     const chosenCar =
       answer && answer !== 'remove' ? freeCars.find((car) => car.id === answer) : undefined;
+    const title = capitalize(formatSlot(entry.startsAt, entry.endsAt));
+    // Il motivo si legge finche' e' un problema (in rosso): risolto, sparisce.
+    const reason = canSwap
+      ? `${entry.conflict?.vehicleName ?? "L'auto al seguito"} è già impegnata`
+      : entry.conflict?.role === 'follow'
+        ? "Nessuna auto libera a quest'ora"
+        : `${capitalize(entry.conflict?.label ?? '')} — cambiare auto non risolve`;
 
-    return (
-      <View
-        key={entry.index}
-        style={[s.card, alarming ? s.cardAlarm : null, removed ? { opacity: 0.6 } : null]}
-      >
-        <View style={s.cardHead}>
-          <View style={[s.num, removed && s.numOff]}>
-            {answered ? (
-              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-            ) : (
-              <Text style={s.numTxt}>{position + 1}</Text>
-            )}
-          </View>
-          <Text style={s.slot} numberOfLines={1}>
-            {formatSlot(entry.startsAt, entry.endsAt)}
-          </Text>
-        </View>
-
-        {/* Il motivo si legge finche' e' un problema: risolto, sparisce. */}
-        {!answered ? (
-          <View style={s.reason}>
-            <Ionicons name="alert-circle" size={13} color={RED} style={{ marginTop: 1 }} />
-            <Text style={s.reasonTxt}>
-              {canSwap
-                ? `${entry.conflict?.vehicleName ?? "L'auto al seguito"} è già impegnata`
-                : entry.conflict?.role === 'follow'
-                  ? "Nessuna auto libera a quest'ora"
-                  : `${capitalize(entry.conflict?.label ?? '')} — cambiare auto non risolve`}
-            </Text>
-          </View>
-        ) : null}
-
-        {removed ? (
-          <View style={s.quietRow}>
-            <Text style={s.quietTxt}>Guida tolta dal gruppo</Text>
+    if (removed) {
+      return (
+        <ClayListRow
+          key={entry.index}
+          title={title}
+          subtitle="Guida tolta dal gruppo"
+          dimmed
+          trailing={
             <Pressable
               hitSlop={8}
               onPress={() => pick(entry.index, undefined)}
-              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              style={({ pressed }) => pressed && s.pressed}
             >
-              <Text style={s.restore}>Ripristina</Text>
+              <Text style={s.action}>Ripristina</Text>
             </Pressable>
-          </View>
-        ) : canSwap ? (
-          <Pressable
-            onPress={() => openCarPicker(entry)}
-            style={({ pressed }) => [s.select, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="car-sport-outline" size={17} color={NAVY} />
-            <Text style={[s.selectTxt, !answered && s.selectPlaceholder]} numberOfLines={1}>
-              {answer === null
-                ? 'Nessuna auto al seguito'
-                : (chosenCar?.name ?? "Scegli un'auto libera")}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#C9C9C9" />
-          </Pressable>
-        ) : answered ? (
-          <View style={s.quietRow}>
-            <Text style={s.quietTxt}>Senza auto al seguito</Text>
-          </View>
-        ) : (
-          <View style={s.chips}>
-            {entry.conflict?.role === 'follow' ? (
+          }
+        />
+      );
+    }
+    if (canSwap) {
+      return (
+        <ClayListRow
+          key={entry.index}
+          title={title}
+          subtitle={
+            answered ? (
+              <Text style={s.sub} numberOfLines={1}>
+                {answer === null ? 'Nessuna auto al seguito' : (chosenCar?.name ?? '')}
+              </Text>
+            ) : (
+              <Text style={s.alarm} numberOfLines={2}>
+                {`${reason} · scegli un'auto libera`}
+              </Text>
+            )
+          }
+          onPress={() => openCarPicker(entry)}
+        />
+      );
+    }
+    if (answered) {
+      return <ClayListRow key={entry.index} title={title} subtitle="Senza auto al seguito" />;
+    }
+    return (
+      <ClayListRow
+        key={entry.index}
+        title={title}
+        subtitle={
+          <View style={s.decide}>
+            <Text style={s.alarm}>{reason}</Text>
+            <View style={s.actions}>
+              {entry.conflict?.role === 'follow' ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => pick(entry.index, null)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => pressed && s.pressed}
+                >
+                  <Text style={s.action}>Senza auto al seguito</Text>
+                </Pressable>
+              ) : null}
               <Pressable
-                onPress={() => pick(entry.index, null)}
-                style={({ pressed }) => [s.chip, pressed && { opacity: 0.7 }]}
+                hitSlop={8}
+                onPress={() => pick(entry.index, 'remove')}
+                accessibilityRole="button"
+                style={({ pressed }) => pressed && s.pressed}
               >
-                <Text style={s.chipTxt}>Senza auto al seguito</Text>
+                <Text style={[s.action, s.danger]}>Togli la guida</Text>
               </Pressable>
-            ) : null}
-            <Pressable
-              onPress={() => pick(entry.index, 'remove')}
-              style={({ pressed }) => [s.chip, s.chipDanger, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={[s.chipTxt, s.chipDangerTxt]}>Togli la guida</Text>
-            </Pressable>
+            </View>
           </View>
-        )}
-      </View>
+        }
+      />
     );
   });
 
-  const body = (
-    <>
-      <View style={s.strip}>
-        <Ionicons name="alert-circle-outline" size={16} color="#767676" />
-        <Text style={s.stripTxt}>
-          <Text style={s.stripStrong}>
-            {data.freeCount === 0
-              ? `Nessuna delle ${total} date è libera.`
-              : `${data.freeCount} guid${data.freeCount === 1 ? 'a' : 'e'} su ${total} ${
-                  data.freeCount === 1 ? 'è libera' : 'sono libere'
-                }.`}
-          </Text>{' '}
-          {busyName
-            ? `In ${conflicts.length} dat${conflicts.length === 1 ? 'a' : 'e'} la ${busyName} è già impegnata.`
-            : `In ${conflicts.length} dat${conflicts.length === 1 ? 'a serve' : 'e serve'} una decisione.`}
-        </Text>
-      </View>
-
-      {showSuggestion && data.suggestedForAll ? (
-        <View style={s.suggest}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.suggestTitle} numberOfLines={2}>
-              Usa la {data.suggestedForAll.name} per tutte e {pendingFollow.length}
-            </Text>
-            <Text style={s.suggestSub}>È libera in tutte le date in conflitto</Text>
-          </View>
-          <Pressable onPress={applyToAll} style={({ pressed }) => [s.applyAll, pressed && { opacity: 0.8 }]}>
-            <Text style={s.applyAllTxt}>Applica a tutte</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={s.captionRow}>
-        <Text style={s.caption}>Da sistemare · {conflicts.length}</Text>
-        <Text style={s.captionHint}>
-          {anyChoosable
-            ? showSuggestion
-              ? 'oppure scegli data per data'
-              : "Scegli un'altra auto"
-            : 'Serve una decisione'}
-        </Text>
-      </View>
-
-      <View style={{ gap: 10 }}>{rows}</View>
-    </>
-  );
+  const ctaDisabled = pendingCount > 0 || keptCount === 0;
 
   return (
-    <View
-      style={[
-        scrollable ? s.rootTall : s.root,
-        // Il form sheet (hug) non arriva all'home indicator: gli basta un
-        // respiro fisso. `insets.bottom` serve solo al page sheet, che invece
-        // e' a tutta altezza (vedi OptionsPickerSheet).
-        { paddingTop: 22, paddingBottom: scrollable ? Math.max(insets.bottom, 16) : 18 },
-      ]}
-    >
-      <View style={s.topbar}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.title}>Auto al seguito occupata</Text>
-          <Text style={s.hint}>Cambia solo la macchina: le date restano quelle che hai scelto</Text>
+    <FormSheet
+      title="Auto al seguito occupata"
+      subtitle="Cambia solo la macchina: le date restano quelle che hai scelto"
+      testID="follow-car-conflict-sheet"
+      cta={
+        <View style={s.ctas}>
+          <ClayButton
+            title={`Prenota ${creatableCount} guid${creatableCount === 1 ? 'a' : 'e'}`}
+            onPress={() => confirm(false)}
+            disabled={ctaDisabled}
+            testID="follow-car-conflict-confirm"
+          />
+          {/* Senza nemmeno una data libera la scorciatoia non ha senso:
+              "Prenota solo le 0 libere" e' un bottone che non fa niente. */}
+          {data.freeCount > 0 ? (
+            <ClayButton
+              variant="secondary"
+              title={`Prenota solo le ${data.freeCount} liber${data.freeCount === 1 ? 'a' : 'e'}`}
+              onPress={() => confirm(true)}
+              testID="follow-car-conflict-only-free"
+            />
+          ) : null}
         </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}
-          >
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
+      }
+    >
+      <Text style={s.lead}>
+        <Text style={s.leadStrong}>
+          {data.freeCount === 0
+            ? `Nessuna delle ${total} date è libera.`
+            : `${data.freeCount} guid${data.freeCount === 1 ? 'a' : 'e'} su ${total} ${
+                data.freeCount === 1 ? 'è libera' : 'sono libere'
+              }.`}
+        </Text>{' '}
+        {busyName
+          ? `In ${conflicts.length} dat${conflicts.length === 1 ? 'a' : 'e'} la ${busyName} è già impegnata.`
+          : `In ${conflicts.length} dat${conflicts.length === 1 ? 'a serve' : 'e serve'} una decisione.`}
+      </Text>
 
-      {scrollable ? (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 8 }}
-          showsVerticalScrollIndicator={false}
-          // Android: senza questo il pan verticale resta al foglio nativo, che
-          // si trascina invece di far scorrere il contenuto.
-          nestedScrollEnabled
-        >
-          {body}
-        </ScrollView>
-      ) : (
-        body
-      )}
-
-      <Pressable
-        onPress={() => confirm(false)}
-        disabled={pendingCount > 0 || keptCount === 0}
-        style={({ pressed }) => [
-          s.cta,
-          (pendingCount > 0 || keptCount === 0) && s.ctaOff,
-          pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
-        ]}
-      >
-        {pendingCount === 0 && keptCount > 0 ? <GradientCTABackground radius={27} /> : null}
-        <Text style={[s.ctaTxt, (pendingCount > 0 || keptCount === 0) && s.ctaTxtOff]}>
-          {`Prenota ${creatableCount} guid${creatableCount === 1 ? 'a' : 'e'}`}
-        </Text>
-      </Pressable>
-
-      {/* Senza nemmeno una data libera la scorciatoia non ha senso:
-          "Prenota solo le 0 libere" e' un bottone che non fa niente. */}
-      {data.freeCount > 0 ? (
-        <Pressable
-          onPress={() => confirm(true)}
-          style={({ pressed }) => [s.onlyFree, pressed && { opacity: 0.6 }]}
-        >
-          <Text style={s.onlyFreeTxt}>
-            {`Prenota solo le ${data.freeCount} liber${data.freeCount === 1 ? 'a' : 'e'}`}
-          </Text>
-        </Pressable>
+      {showSuggestion && data.suggestedForAll ? (
+        <ClayList style={s.suggest}>
+          <ClayListRow
+            title={`Usa la ${data.suggestedForAll.name} per tutte e ${pendingFollow.length}`}
+            subtitle="È libera in tutte le date in conflitto"
+            onPress={applyToAll}
+            chevron={false}
+            trailing={<Text style={s.action}>Applica a tutte</Text>}
+            testID="follow-car-conflict-apply-all"
+          />
+        </ClayList>
       ) : null}
-    </View>
+
+      <ClaySection
+        title={`Da sistemare · ${conflicts.length}`}
+        action={
+          <Text style={s.hint}>
+            {anyChoosable
+              ? showSuggestion
+                ? 'oppure scegli data per data'
+                : "Scegli un'altra auto"
+              : 'Serve una decisione'}
+          </Text>
+        }
+      >
+        <ClayList>{rows}</ClayList>
+      </ClaySection>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg },
-  rootTall: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg },
-
-  topbar: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 16, gap: 12 },
-  title: { fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  hint: { fontSize: 13, fontWeight: '500', color: MUTED, marginTop: 5, lineHeight: 18 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
-
-  /* riepilogo: quante sono libere, e perche' le altre no */
-  strip: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 9,
-    backgroundColor: '#F6F6F8', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11,
-  },
-  stripTxt: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '500', color: GREY },
-  stripStrong: { fontWeight: '700', color: '#222222' },
-
-  /* scorciatoia: un'auto libera in tutte le date in conflitto */
-  suggest: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12,
-    borderWidth: 1.5, borderColor: NAVY, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13,
-  },
-  suggestTitle: { fontSize: 14.5, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
-  suggestSub: { fontSize: 12, fontWeight: '500', color: '#767676', marginTop: 3 },
-  applyAll: { flexShrink: 0, backgroundColor: NAVY, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  applyAllTxt: { fontSize: 12.5, fontWeight: '600', color: '#FFFFFF' },
-
-  captionRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 18, marginBottom: 10 },
-  caption: { fontSize: 11.5, fontWeight: '700', color: '#555555', letterSpacing: 0.4, textTransform: 'uppercase' },
-  captionHint: { fontSize: 11.5, fontWeight: '500', color: MUTED },
-
-  /* una riga per ogni data da sistemare */
-  card: { borderWidth: 1, borderColor: '#E6E7EC', borderRadius: 16, backgroundColor: '#FFFFFF', padding: 13 },
-  cardAlarm: { borderColor: RED, backgroundColor: RED_TINT },
-  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  num: { width: 21, height: 21, borderRadius: 11, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },
-  numOff: { backgroundColor: MUTED },
-  numTxt: { fontSize: 10.5, fontWeight: '700', color: '#FFFFFF' },
-  slot: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600', color: '#222222', letterSpacing: -0.2 },
-
-  reason: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 7, marginLeft: 30 },
-  reasonTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', color: RED, lineHeight: 17 },
-
-  /* la scelta: una riga che apre il foglio delle auto libere */
-  select: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, marginLeft: 30,
-    minHeight: 46, borderRadius: 14, paddingHorizontal: 13,
-    backgroundColor: '#F7F7F7', borderWidth: 1, borderColor: '#EDEEF2',
-  },
-  selectTxt: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600', color: NAVY, letterSpacing: -0.2 },
-  selectPlaceholder: { fontWeight: '500', color: GREY },
-
-  quietRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginLeft: 30 },
-  quietTxt: { fontSize: 12.5, fontWeight: '500', color: '#767676' },
-  restore: { fontSize: 12.5, fontWeight: '600', color: NAVY, textDecorationLine: 'underline' },
-
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 11, marginLeft: 30 },
-  chip: {
-    borderRadius: 999, borderWidth: 1, borderColor: '#DDDDDD', backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14, minHeight: 36, justifyContent: 'center',
-  },
-  chipTxt: { fontSize: 12.5, fontWeight: '600', color: '#555555' },
-  chipDanger: { borderColor: '#F0C9BF' },
-  chipDangerTxt: { color: RED },
-
-  /* azioni */
-  cta: {
-    marginTop: 20, height: 54, borderRadius: 27, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaOff: { backgroundColor: '#ECECEF', shadowOpacity: 0, elevation: 0 },
-  ctaTxt: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  ctaTxtOff: { color: '#A3A3A3' },
-  onlyFree: { alignItems: 'center', paddingTop: 14, paddingBottom: 2 },
-  onlyFreeTxt: { fontSize: 14, fontWeight: '600', color: NAVY, textDecorationLine: 'underline' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  lead: { fontSize: 15, lineHeight: 21, color: CLAY.ink2 },
+  leadStrong: { fontWeight: '600', color: CLAY.ink },
+  suggest: { marginTop: 18 },
+  hint: { fontSize: 13, color: CLAY.ink3 },
+  sub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },
+  alarm: { flexShrink: 1, fontSize: 13.5, lineHeight: 18, color: RED },
+  decide: { flex: 1, minWidth: 0 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 8 },
+  action: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink },
+  danger: { color: RED },
+  pressed: { opacity: 0.55 },
+  ctas: { gap: 10 },
 });

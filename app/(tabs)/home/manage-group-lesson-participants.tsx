@@ -1,19 +1,19 @@
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
 import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { notesEditorStore } from '../../../src/stores/notesEditorStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { GroupLesson } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
+import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
 import { LICENSE_CATEGORY_LABELS } from '../../../src/utils/license';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 import {
   describeMotoSwap,
   firstStudentName,
@@ -66,7 +66,6 @@ function keepOrder(
 
 export default function ManageGroupLessonParticipantsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const seed = useSyncExternalStore(groupLessonParticipantsStore.subscribe, groupLessonParticipantsStore.get);
 
   // Local copy so this sheet can re-render after a mutation without depending on
@@ -176,15 +175,13 @@ export default function ManageGroupLessonParticipantsScreen() {
   );
 
   if (!seed || !groupLessonId || !lesson) {
-    return <View style={s.root} />;
+    return <View style={s.empty} />;
   }
 
   const filled = lesson.filledSeats;
   const capacity = lesson.capacity;
   const openSeats = lesson.openSeats;
   const isMoto = lesson.kind === 'moto';
-  // Presence accent follows the group type: teal (auto) / orange (moto).
-  const presentBg = isMoto ? '#C2410C' : '#0F766E';
   const hasPending = lesson.participants.some((p) => p.attendance === 'pending');
 
   // REG-636 — fleet + seats as the shared planner sees them.
@@ -394,289 +391,328 @@ export default function ManageGroupLessonParticipantsScreen() {
     } as never);
   };
 
-  return (
-    <View style={[s.root, Platform.OS === 'android' ? { flex: 1 } : { paddingBottom: insets.bottom + 16 }]}>
-      {/* Top bar — title + X */}
-      <View style={s.topBar}>
-        <Text style={s.title}>Partecipanti</Text>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
+  const showMarkAll = !motoOnly && lesson.participants.length > 1 && hasPending;
+  const showAddRow = !motoOnly && openSeats > 0 && !adding;
+  const hasRows = lesson.participants.length > 0 || adding || showAddRow;
 
-      <SheetScaffold
-        contentContainerStyle={s.scaffoldBody}
-        footer={
-          motoOnly ? null :
-          /* Invita allievi idonei — CTA a parte, card "easy" (non primary) */
-          <View style={[s.footerWrap, { paddingBottom: insets.bottom + 16 }]}>
-            {openSeats > 0 ? (
-              <Pressable onPress={handleInvite} disabled={busy} style={({ pressed }) => [s.inviteCard, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-                <View style={s.inviteIcon}>
-                  {inviting ? <ActivityIndicator size="small" color="#111111" /> : <Ionicons name="paper-plane-outline" size={20} color="#111111" />}
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={s.inviteTitle}>Invita allievi idonei</Text>
-                  {/* L'articolo cambia col numero: "Apri 1 posto libero",
-                      "Apri i 2 posti liberi". Prima diceva "Apri i 1 posto". */}
-                  <Text style={s.inviteSub}>
-                    {openSeats === 1
-                      ? 'Apri 1 posto libero agli allievi idonei'
-                      : `Apri i ${openSeats} posti liberi agli allievi idonei`}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
-              </Pressable>
-            ) : (
-              <Text style={s.fullText}>Posti esauriti.</Text>
-            )}
-          </View>
-        }
-      >
-        <View style={s.subRow}>
-          <Text style={s.subtitle}>{filled} su {capacity} posti occupati</Text>
-          {!motoOnly && lesson.participants.length > 1 && hasPending ? (
-            <Pressable onPress={markAllPresent} disabled={busy} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.5 }}>
+  return (
+    // IL form sheet (FORM_SHEET + FormSheet, REG-639 clay): il roster è una
+    // lista clay; presenza = segmentato nero, moto e note in testo semplice.
+    <FormSheet
+      title="Partecipanti"
+      subtitle={`${filled} su ${capacity} posti occupati`}
+      testID="group-participants-sheet"
+      cta={
+        !motoOnly && openSeats > 0 ? (
+          <ClayButton
+            title="Invita allievi idonei"
+            variant="secondary"
+            onPress={handleInvite}
+            disabled={busy}
+            loading={inviting}
+            testID="group-participants-invite"
+          />
+        ) : undefined
+      }
+    >
+      <ClaySection
+        title="Iscritti"
+        style={s.sec}
+        action={
+          showMarkAll ? (
+            <Pressable
+              onPress={markAllPresent}
+              disabled={busy}
+              hitSlop={8}
+              accessibilityRole="button"
+              testID="group-participants-all-present"
+              style={({ pressed }) => pressed && { opacity: 0.5 }}
+            >
               {allPresentBusy ? (
-                <ActivityIndicator size="small" color={presentBg} />
+                <ActivityIndicator size="small" color={CLAY.ink} />
               ) : (
-                <Text style={[s.allPresent, { color: presentBg }]}>Segna tutti presenti</Text>
+                <Text style={s.textAction}>Segna tutti presenti</Text>
               )}
             </Pressable>
-          ) : null}
-        </View>
-
-        {/* Roster — FLAT rows on the background (no card) */}
-        <View style={s.list}>
+          ) : undefined
+        }
+      >
         {lesson.participants.length === 0 && !adding ? (
           <Text style={s.emptyText}>Nessun iscritto. Aggiungi un allievo o invia gli inviti.</Text>
-        ) : (
-          lesson.participants.map((p, idx) => (
-            <View key={p.appointmentId} style={removingId === p.studentId ? { opacity: 0.4 } : undefined}>
-              {idx > 0 ? <View style={s.divider} /> : null}
-              <View style={[s.row, isMoto && s.rowMoto]}>
-                <UserPhotoCircle userId={p.studentId} size={34}>
-                  <View style={s.avatar}><Text style={s.avatarText}>{initialsOf(p.studentName)}</Text></View>
-                </UserPhotoCircle>
-                <View style={{ flex: 1, gap: 2 }}>
-                  {/* REG-423 — the NAME opens the student's card (chevron affordance,
-                      same as a single lesson). The meta/note area still opens the note editor. */}
-                  <Pressable
-                    onPress={() => openStudentDetail(p)}
-                    disabled={busy || motoOnly}
-                    style={({ pressed }) => [s.nameRow, pressed && { opacity: 0.5 }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Apri la scheda di ${p.studentName ?? 'allievo'}`}
-                  >
-                    <Text style={[s.name, { flex: 0, flexShrink: 1 }]} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
-                    {motoOnly ? null : <Ionicons name="chevron-forward" size={15} color="#C9C9C9" />}
-                  </Pressable>
-                  {isMoto ? (
-                    <>
-                      {/* REG-636 — la moto è un chip suo (pull-down): apre il
-                          picker. La nota resta sulla matita / sull'anteprima. */}
+        ) : null}
+
+        {hasRows ? (
+          <ClayList>
+            {lesson.participants.map((p) => {
+              const meta = participantMeta(isMoto, p.licenseCategory, p.vehicleName);
+              const note = p.notes?.trim() || null;
+              return (
+                <ParticipantRow
+                  key={p.appointmentId}
+                  dimmed={removingId === p.studentId}
+                  avatar={<Avatar userId={p.studentId} name={p.studentName ?? 'Allievo'} size={40} />}
+                  name={
+                    /* REG-423 — il NOME apre la scheda dell'allievo (chevron, come
+                       la guida singola). La riga sotto apre la nota. */
+                    <Pressable
+                      onPress={() => openStudentDetail(p)}
+                      disabled={busy || motoOnly}
+                      style={({ pressed }) => [s.nameRow, pressed && { opacity: 0.5 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Apri la scheda di ${p.studentName ?? 'allievo'}`}
+                    >
+                      <Text style={s.name} numberOfLines={1}>{p.studentName ?? 'Allievo'}</Text>
+                      {motoOnly ? null : <Ionicons name="chevron-forward" size={15} color={CLAY.chevron} />}
+                    </Pressable>
+                  }
+                  details={
+                    isMoto ? (
+                      <>
+                        {/* REG-636 — la moto si cambia toccandola (apre il picker):
+                            testo semplice con la freccina, niente chip. */}
+                        <Pressable
+                          onPress={() => openMotoPicker(p)}
+                          disabled={busy}
+                          testID={`moto-chip-${p.appointmentId}`}
+                          hitSlop={6}
+                          style={({ pressed }) => [s.motoLine, pressed && { opacity: 0.5 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Moto di ${p.studentName ?? 'allievo'}: ${p.vehicleName ?? 'a rotazione'}. Cambia moto`}
+                        >
+                          <Text style={s.motoText} numberOfLines={1}>
+                            {p.vehicleId ? p.vehicleName ?? 'Moto' : 'A rotazione'}
+                            {p.vehicleId && p.licenseCategory ? <Text style={s.motoCat}> · {p.licenseCategory}</Text> : null}
+                          </Text>
+                          {motoBusyId === p.appointmentId ? (
+                            <ActivityIndicator size="small" color={CLAY.ink} style={s.motoSpin} />
+                          ) : (
+                            <Ionicons name="chevron-down" size={13} color={CLAY.ink3} />
+                          )}
+                        </Pressable>
+                        {!motoOnly && note ? (
+                          <Pressable
+                            onPress={() => openNote(p)}
+                            disabled={busy}
+                            style={({ pressed }) => pressed && { opacity: 0.5 }}
+                            accessibilityLabel="Modifica nota allievo"
+                          >
+                            <Text style={s.notePreview} numberOfLines={1}>{note}</Text>
+                          </Pressable>
+                        ) : null}
+                      </>
+                    ) : meta || note ? (
                       <Pressable
-                        onPress={() => openMotoPicker(p)}
+                        onPress={() => openNote(p)}
                         disabled={busy}
-                        testID={`moto-chip-${p.appointmentId}`}
-                        style={({ pressed }) => [
-                          s.motoChip,
-                          !p.vehicleId && s.motoChipRot,
-                          pressed && (p.vehicleId ? s.motoChipPressed : s.motoChipRotPressed),
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Moto di ${p.studentName ?? 'allievo'}: ${p.vehicleName ?? 'a rotazione'}. Cambia moto`}
+                        style={({ pressed }) => [s.detailsCol, pressed && { opacity: 0.5 }]}
+                        accessibilityLabel={note ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
                       >
-                        {motoBusyId === p.appointmentId ? (
-                          <ActivityIndicator size="small" color={p.vehicleId ? '#C2410C' : '#6B6B6B'} style={{ transform: [{ scale: 0.75 }] }} />
-                        ) : p.vehicleId ? (
-                          <MaterialCommunityIcons name="motorbike" size={16} color="#C2410C" />
-                        ) : (
-                          <Ionicons name="refresh" size={14} color="#6B6B6B" />
-                        )}
-                        <Text style={[s.motoChipText, !p.vehicleId && s.motoChipTextRot]} numberOfLines={1}>
-                          {p.vehicleId ? p.vehicleName ?? 'Moto' : 'A rotazione'}
-                          {p.vehicleId && p.licenseCategory ? <Text style={s.motoChipCat}> {p.licenseCategory}</Text> : null}
-                        </Text>
-                        <Ionicons name="chevron-down" size={12} color={p.vehicleId ? '#C2410C' : '#6B6B6B'} style={{ opacity: 0.8 }} />
+                        {meta ? <Text style={s.metaLine} numberOfLines={1}>{meta}</Text> : null}
+                        {note ? <Text style={s.notePreview} numberOfLines={1}>{note}</Text> : null}
                       </Pressable>
-                      {!motoOnly && p.notes?.trim() ? (
+                    ) : null
+                  }
+                  actions={
+                    motoOnly ? null : (
+                      <>
                         <Pressable
                           onPress={() => openNote(p)}
                           disabled={busy}
-                          style={({ pressed }) => pressed && { opacity: 0.5 }}
-                          accessibilityLabel="Modifica nota allievo"
+                          hitSlop={6}
+                          style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
+                          accessibilityLabel={note ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
                         >
-                          <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
+                          <Ionicons name={note ? 'create' : 'create-outline'} size={19} color={CLAY.ink3} />
                         </Pressable>
-                      ) : null}
-                    </>
-                  ) : participantMeta(isMoto, p.licenseCategory, p.vehicleName) || p.notes?.trim() ? (
-                    <Pressable
-                      onPress={() => openNote(p)}
-                      disabled={busy}
-                      style={({ pressed }) => [{ gap: 2 }, pressed && { opacity: 0.5 }]}
-                      accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
-                    >
-                      {participantMeta(isMoto, p.licenseCategory, p.vehicleName) ? (
-                        <Text style={[s.metaLine, isMoto && s.metaLineMoto]} numberOfLines={1}>
-                          {participantMeta(isMoto, p.licenseCategory, p.vehicleName)}
-                        </Text>
-                      ) : null}
-                      {p.notes?.trim() ? (
-                        <Text style={s.notePreview} numberOfLines={1}>{p.notes.trim()}</Text>
-                      ) : null}
-                    </Pressable>
-                  ) : null}
-                </View>
-                {motoOnly ? null : (
-                <>
-                <Pressable
-                  onPress={() => openNote(p)}
-                  disabled={busy}
-                  hitSlop={6}
-                  style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
-                  accessibilityLabel={p.notes?.trim() ? 'Modifica nota allievo' : 'Aggiungi nota allievo'}
-                >
-                  <Ionicons name={p.notes?.trim() ? 'create' : 'create-outline'} size={19} color={p.notes?.trim() ? '#6B6B6B' : '#B6B6B6'} />
-                </Pressable>
-                <Pressable
-                  onPress={() => handleRemove(p.studentId, p.studentName)}
-                  disabled={busy}
-                  hitSlop={6}
-                  style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
-                  accessibilityLabel="Rimuovi allievo"
-                >
-                  <Ionicons name="close" size={18} color="#B6B6B6" />
-                </Pressable>
-                </>
-                )}
-              </View>
-              {/* Presenza: tint (teal auto / arancio moto) = presente, grigio =
-                  assente, nessuno selezionato = da confermare. Correggibile sempre. */}
-              {motoOnly ? null : (
-              <View style={s.attWrap}>
-                <Pressable
-                  onPress={() => setOutcome(p.appointmentId, 'present')}
-                  disabled={busy}
-                  style={({ pressed }) => [s.attBtn, p.attendance === 'present' && { backgroundColor: presentBg }, pressed && { opacity: 0.7 }]}
-                  accessibilityLabel="Segna presente"
-                >
-                  {outcomeBusy === `${p.appointmentId}:present` ? (
-                    <ActivityIndicator size="small" color={p.attendance === 'present' ? '#fff' : '#6B6B6B'} />
-                  ) : (
-                    <Text style={[s.attTxt, p.attendance === 'present' && s.attTxtOn]}>Presente</Text>
-                  )}
-                </Pressable>
-                <Pressable
-                  onPress={() => setOutcome(p.appointmentId, 'absent')}
-                  disabled={busy}
-                  style={({ pressed }) => [s.attBtn, p.attendance === 'absent' && { backgroundColor: '#555555' }, pressed && { opacity: 0.7 }]}
-                  accessibilityLabel="Segna assente"
-                >
-                  {outcomeBusy === `${p.appointmentId}:absent` ? (
-                    <ActivityIndicator size="small" color={p.attendance === 'absent' ? '#fff' : '#6B6B6B'} />
-                  ) : (
-                    <Text style={[s.attTxt, p.attendance === 'absent' && s.attTxtOn]}>Assente</Text>
-                  )}
-                </Pressable>
-              </View>
-              )}
-            </View>
-          ))
-        )}
+                        <Pressable
+                          onPress={() => handleRemove(p.studentId, p.studentName)}
+                          disabled={busy}
+                          hitSlop={6}
+                          style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.4 }]}
+                          accessibilityLabel="Rimuovi allievo"
+                        >
+                          <Ionicons name="close" size={18} color={CLAY.ink3} />
+                        </Pressable>
+                      </>
+                    )
+                  }
+                  attendance={
+                    /* Presenza: nero = scelta, nessuna voce scelta = da confermare.
+                       Correggibile sempre. */
+                    motoOnly ? null : (
+                      <AttendanceSwitch
+                        value={p.attendance === 'pending' ? null : p.attendance}
+                        busy={outcomeBusy?.startsWith(`${p.appointmentId}:`) ? (outcomeBusy.split(':')[1] as 'present' | 'absent') : null}
+                        disabled={busy}
+                        onPick={(o) => setOutcome(p.appointmentId, o)}
+                      />
+                    )
+                  }
+                />
+              );
+            })}
 
-        {/* Pending add — placeholder row with spinner */}
-        {adding ? (
-          <>
-            {lesson.participants.length > 0 ? <View style={s.divider} /> : null}
-            <View style={s.row}>
-              <View style={s.avatar}><ActivityIndicator size="small" color="#9A9A9A" /></View>
-              <Text style={[s.name, { color: '#9A9A9A' }]}>Aggiunta in corso…</Text>
-            </View>
-          </>
-        ) : null}
+            {/* Pending add — riga segnaposto con spinner */}
+            {adding ? (
+              <ClayListRow
+                title="Aggiunta in corso…"
+                dimmed
+                trailing={<ActivityIndicator size="small" color={CLAY.ink} />}
+              />
+            ) : null}
 
-        {/* Aggiungi allievo — flat row */}
-        {!motoOnly && openSeats > 0 && !adding ? (
-          <>
-            {lesson.participants.length > 0 ? <View style={s.divider} /> : null}
-            <Pressable onPress={openAddPicker} disabled={busy} style={({ pressed }) => [s.row, pressed && { opacity: 0.5 }]}>
-              <View style={s.addIcon}><Ionicons name="add" size={20} color="#717171" /></View>
-              <View style={{ flex: 1, gap: 1 }}>
-                <Text style={s.name}>Aggiungi allievo</Text>
-                <Text style={s.rowSub}>Seleziona un allievo idoneo</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
-          </>
+            {showAddRow ? (
+              <ClayListRow
+                title="Aggiungi allievo"
+                subtitle="Seleziona un allievo idoneo"
+                onPress={() => void openAddPicker()}
+                testID="group-participants-add"
+              />
+            ) : null}
+          </ClayList>
         ) : null}
+      </ClaySection>
+
+      {!motoOnly ? (
+        openSeats > 0 ? (
+          // L'articolo cambia col numero: "Apri 1 posto libero", "Apri i 2 posti liberi".
+          <Text style={s.inviteNote}>
+            {openSeats === 1
+              ? 'Apri 1 posto libero agli allievi idonei'
+              : `Apri i ${openSeats} posti liberi agli allievi idonei`}
+          </Text>
+        ) : (
+          <Text style={s.inviteNote}>Posti esauriti.</Text>
+        )
+      ) : null}
+    </FormSheet>
+  );
+}
+
+/**
+ * Riga del roster dentro una `ClayList` (che le passa `divider`): volto, nome
+ * (apre la scheda), dettagli (moto/patente/nota), comandi e, sotto, la presenza.
+ */
+function ParticipantRow({
+  avatar,
+  name,
+  details,
+  actions,
+  attendance,
+  dimmed,
+  divider,
+}: {
+  avatar: React.ReactNode;
+  name: React.ReactNode;
+  details?: React.ReactNode;
+  actions?: React.ReactNode;
+  attendance?: React.ReactNode;
+  dimmed?: boolean;
+  divider?: boolean;
+}) {
+  return (
+    <View style={[s.pRow, dimmed && { opacity: 0.4 }]}>
+      {divider ? <View style={s.pDivider} /> : null}
+      <View style={s.pTop}>
+        {avatar}
+        <View style={s.pMain}>
+          {name}
+          {details}
         </View>
-      </SheetScaffold>
+        {actions}
+      </View>
+      {attendance ? <View style={s.pAttendance}>{attendance}</View> : null}
     </View>
   );
 }
 
+/**
+ * Presente/Assente: binario incavato come `ClaySegmented`, ma con lo stato
+ * «da confermare» (nessuna voce scelta) e la scelta che arriva solo dalla
+ * risposta del BE (spinner sulla voce toccata, niente optimistic update).
+ */
+function AttendanceSwitch({
+  value,
+  busy,
+  disabled,
+  onPick,
+}: {
+  value: 'present' | 'absent' | null;
+  busy: 'present' | 'absent' | null;
+  disabled: boolean;
+  onPick: (o: 'present' | 'absent') => void;
+}) {
+  const opts = [
+    { v: 'present' as const, label: 'Presente', a11y: 'Segna presente' },
+    { v: 'absent' as const, label: 'Assente', a11y: 'Segna assente' },
+  ];
+  return (
+    <View style={[s.attTrack, CLAY_SHADOW.sink]}>
+      {opts.map((o) => {
+        const on = value === o.v;
+        return (
+          <Pressable
+            key={o.v}
+            onPress={() => onPick(o.v)}
+            disabled={disabled}
+            style={({ pressed }) => [s.attItem, pressed && !on && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on, disabled }}
+            accessibilityLabel={o.a11y}
+          >
+            {on ? (
+              <Animated.View
+                entering={SOFT_SWAP_IN}
+                exiting={SOFT_SWAP_OUT}
+                style={[StyleSheet.absoluteFill, s.attThumb, CLAY_SHADOW.ink]}
+              />
+            ) : null}
+            {busy === o.v ? (
+              <ActivityIndicator size="small" color={on ? '#FFFFFF' : CLAY.ink3} />
+            ) : (
+              <Text style={[s.attTxt, on && s.attTxtOn]}>{o.label}</Text>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const ATT_H = 36;
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: 20, paddingTop: 16, gap: 14 },
-  scaffoldBody: { gap: 14 },
-  footerWrap: { marginTop: 14 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFEFF1', alignItems: 'center', justifyContent: 'center' },
-  subRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: -8 },
-  subtitle: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
-  allPresent: { fontSize: 12.5, fontWeight: '600' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  sec: { marginTop: 0 },
+  textAction: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
+  emptyText: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, paddingHorizontal: 2, marginBottom: 14 },
 
-  // Attendance segmented pill (second line, indented under the name)
-  attWrap: { flexDirection: 'row', alignSelf: 'flex-start', marginLeft: 47, marginTop: -1, marginBottom: 8, backgroundColor: '#F1F2F6', borderRadius: 999, padding: 2 },
-  attBtn: { minWidth: 92, paddingVertical: 6, paddingHorizontal: 15, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  attTxt: { fontSize: 12.5, fontWeight: '600', color: '#6B6B6B' },
-  attTxtOn: { color: '#FFFFFF' },
-
-  // Flat list (no card)
-  list: { marginTop: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13 },
-  avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F1F2F6', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '600', color: '#111111' },
-  addIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
-  name: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111111' },
+  // Riga partecipante
+  pRow: { paddingHorizontal: 18, paddingVertical: 12 },
+  pDivider: { position: 'absolute', top: 0, left: 72, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+  pTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  pMain: { flex: 1, minWidth: 0, gap: 3, paddingTop: 1 },
+  pAttendance: { marginLeft: 54, marginTop: 10 },
+  name: { flexShrink: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', maxWidth: '100%' },
-  rowSub: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
-  metaLine: { fontSize: 12.5, fontWeight: '500', color: '#0F766E' },
-  metaLineMoto: { color: '#C2410C' },
-  // REG-636 — chip moto (pull-down nativo): arancio = moto fissa, grigio = rotazione.
-  rowMoto: { alignItems: 'flex-start' },
-  motoChip: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
-    height: 28, paddingLeft: 9, paddingRight: 10, borderRadius: 14, marginTop: 3,
-    backgroundColor: '#FFF4EA', maxWidth: '100%',
-  },
-  motoChipRot: { backgroundColor: '#F1F2F6' },
-  motoChipPressed: { backgroundColor: '#FDE6D0' },
-  motoChipRotPressed: { backgroundColor: '#E9E9E9' },
-  motoChipText: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#C2410C', letterSpacing: -0.1 },
-  motoChipTextRot: { color: '#6B6B6B' },
-  motoChipCat: { fontWeight: '500', color: '#D9864F' },
-  notePreview: { fontSize: 13, fontWeight: '400', color: '#6B6B6B' },
+  detailsCol: { gap: 2 },
+  metaLine: { fontSize: 13.5, color: CLAY.ink3 },
+  // REG-636 — moto in testo semplice con freccina (apre il picker).
+  motoLine: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, maxWidth: '100%' },
+  motoText: { flexShrink: 1, fontSize: 13.5, fontWeight: '500', color: CLAY.ink2 },
+  motoCat: { fontWeight: '400', color: CLAY.ink3 },
+  motoSpin: { transform: [{ scale: 0.7 }] },
+  notePreview: { fontSize: 13.5, color: CLAY.ink3 },
   actionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 47 },
 
-  emptyText: { fontSize: 13, fontWeight: '400', color: '#9A9A9A', paddingVertical: 8 },
-
-  // Separate CTA — easy white card (not primary)
-  inviteCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#111111', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
-    marginTop: 6,
+  // Presenza
+  attTrack: {
+    flexDirection: 'row', alignSelf: 'flex-start', height: ATT_H, borderRadius: ATT_H / 2,
+    backgroundColor: CLAY.surface, padding: 3,
   },
-  inviteIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
-  inviteTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  inviteSub: { fontSize: 13, fontWeight: '400', color: '#9A9A9A' },
+  attItem: { minWidth: 96, paddingHorizontal: 14, borderRadius: (ATT_H - 6) / 2, alignItems: 'center', justifyContent: 'center' },
+  attThumb: { borderRadius: (ATT_H - 6) / 2, backgroundColor: CLAY.ink },
+  attTxt: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.1 },
+  attTxtOn: { color: '#FFFFFF', fontWeight: '600' },
 
-  fullText: { fontSize: 13, fontWeight: '400', color: '#9A9A9A', textAlign: 'center', paddingVertical: 4 },
+  inviteNote: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 14, paddingHorizontal: 4 },
 });

@@ -1,25 +1,14 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
-const FLUENT_PEOPLE = require('../../../assets/icons/fluent-people.png');
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { outOfAvailStore } from '../../../src/stores/outOfAvailStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { OutOfAvailabilityAppointment } from '../../../src/types/regloApi';
 import { groupOutOfAvailability, type OobGroup } from '../../../src/utils/outOfAvailability';
-import { Button } from '../../../src/components/Button';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-
-const NAVY = '#111111';
-const GREY = '#717171';
-const MUTED = '#9A9A9A';
-const N100 = '#EBEBEB';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClaySurface } from '../../../src/components/clay';
+import { CLAY } from '../../../src/theme/clay';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
@@ -28,10 +17,13 @@ const fmtTime = (iso: string) => { const d = new Date(iso); return `${pad2(d.get
 const scopeLabel = (scope: ('instructor' | 'vehicle')[]) =>
   scope.length > 1 ? 'Entrambi' : scope.includes('instructor') ? 'Istruttore' : 'Veicolo';
 
-/* Native content-hugging formSheet — header + list of out-of-availability cards. */
+/**
+ * Guide fuori disponibilità — REG-639 clay: il form sheet unico. Una card clay
+ * per guida (o guida di gruppo), il motivo in testo semplice (niente chip),
+ * «Cancella» secondaria e «Mantieni» nera.
+ */
 export default function OutOfAvailabilityScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(outOfAvailStore.subscribe, outOfAvailStore.get);
 
   const [items, setItems] = useState<OutOfAvailabilityAppointment[]>(data?.appointments ?? []);
@@ -45,7 +37,7 @@ export default function OutOfAvailabilityScreen() {
     if (data) setItems(data.appointments);
   }, [data]);
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const runAction = async (group: OobGroup, action: 'cancel' | 'approve') => {
     if (pending) return;
@@ -74,109 +66,67 @@ export default function OutOfAvailabilityScreen() {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.header}>
-        <Text style={s.title} numberOfLines={1}>Guide fuori disponibilità</Text>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <SheetScaffold>
+    <FormSheet title="Guide fuori disponibilità" testID="out-of-availability-sheet">
       {groups.length === 0 ? (
-        <Text style={s.empty}>Nessuna guida fuori disponibilità.</Text>
+        <Text style={s.none}>Nessuna guida fuori disponibilità.</Text>
       ) : (
-        <View style={{ gap: 12 }}>
+        <View style={s.cards}>
           {groups.map((group) => {
             const apt = group.rep;
             const rowPending = pending?.key === group.key;
             const anyPending = pending !== null;
             const isGroup = group.isGroupLesson;
             const canOpen = isGroup && !!group.groupLessonId && !!data.onOpenGroupLesson;
-            const actions = (
-              <View style={s.actions}>
-                <View style={{ flex: 1 }}>
-                  <Button label="Cancella" tone="danger" fullWidth loading={rowPending && pending?.action === 'cancel'} disabled={anyPending} onPress={() => runAction(group, 'cancel')} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button label="Mantieni" tone="primary" fullWidth loading={rowPending && pending?.action === 'approve'} disabled={anyPending} onPress={() => runAction(group, 'approve')} />
-                </View>
-              </View>
-            );
-            const inner = isGroup ? (
-              <>
-                <View style={s.glHead}>
-                  <Image source={FLUENT_PEOPLE} style={s.glPeople} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.glLabel}>Guida di gruppo</Text>
-                    <Text style={s.glCount}>{group.count} alliev{group.count === 1 ? 'o' : 'i'}</Text>
-                  </View>
-                  <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
-                </View>
-                <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
-                {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
-                {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
-                {actions}
-              </>
-            ) : (
-              <>
-                <View style={s.cardHead}>
-                  <Text style={s.studentName} numberOfLines={1}>{apt.studentName}</Text>
-                  <View style={s.chip}><Text style={s.chipTxt}>{scopeLabel(apt.outOfAvailabilityFor)}</Text></View>
-                </View>
-                <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
-                {apt.instructorName ? <Text style={s.meta}>{apt.instructorName}</Text> : null}
-                {apt.vehicleName ? <Text style={s.meta}>{apt.vehicleName}</Text> : null}
-                {actions}
-              </>
-            );
-            return canOpen ? (
-              <Pressable
+            const meta = [apt.instructorName, apt.vehicleName].filter(Boolean).join(' · ');
+            return (
+              <ClaySurface
                 key={group.key}
-                onPress={() => { if (!anyPending && group.groupLessonId) data.onOpenGroupLesson?.(group.groupLessonId); }}
-                style={({ pressed }) => [s.card, s.groupCard, rowPending && { opacity: 0.6 }, pressed && { opacity: 0.97 }]}
+                onPress={canOpen ? () => { if (!anyPending && group.groupLessonId) data.onOpenGroupLesson?.(group.groupLessonId); } : undefined}
+                accessibilityLabel={canOpen ? 'Apri guida di gruppo' : undefined}
+                style={rowPending ? s.dim : undefined}
               >
-                {inner}
-              </Pressable>
-            ) : (
-              <View key={group.key} style={[s.card, isGroup && s.groupCard, rowPending && { opacity: 0.6 }]}>
-                {inner}
-              </View>
+                <Text style={s.name} numberOfLines={1}>
+                  {isGroup ? `Guida di gruppo · ${group.count} alliev${group.count === 1 ? 'o' : 'i'}` : apt.studentName}
+                </Text>
+                <Text style={s.time}>{fmtDay(apt.startsAt)} {'·'} {fmtTime(apt.startsAt)} – {fmtTime(apt.endsAt)}</Text>
+                {meta ? <Text style={s.meta} numberOfLines={1}>{meta}</Text> : null}
+                <Text style={s.meta}>Fuori disponibilità: {scopeLabel(apt.outOfAvailabilityFor).toLowerCase()}</Text>
+                <View style={s.actions}>
+                  <ClayButton
+                    title="Cancella"
+                    variant="secondary"
+                    compact
+                    style={s.action}
+                    loading={rowPending && pending?.action === 'cancel'}
+                    disabled={anyPending}
+                    onPress={() => runAction(group, 'cancel')}
+                  />
+                  <ClayButton
+                    title="Mantieni"
+                    compact
+                    style={s.action}
+                    loading={rowPending && pending?.action === 'approve'}
+                    disabled={anyPending}
+                    onPress={() => runAction(group, 'approve')}
+                  />
+                </View>
+              </ClaySurface>
             );
           })}
         </View>
       )}
-      </SheetScaffold>
-    </View>
+    </FormSheet>
   );
 }
 
-const ELEV = {
-  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
-} as const;
-
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
-  title: { flex: 1, fontSize: 22, fontWeight: '600', color: NAVY, letterSpacing: -0.4 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-
-  empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 40 },
-
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, gap: 4, ...ELEV },
-  // Group lesson cards take the app's teal group-lesson style (mint card).
-  groupCard: { backgroundColor: '#ECFDF5', shadowColor: '#10B981', shadowOpacity: 0.18 },
-  glHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
-  glPeople: { width: 40, height: 40 },
-  glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E' },
-  glCount: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
-  studentName: { flex: 1, fontSize: 16, fontWeight: '600', color: NAVY },
-  chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: N100 },
-  chipTxt: { fontSize: 11.5, fontWeight: '600', color: NAVY },
-  time: { fontSize: 13.5, color: GREY, fontWeight: '500' },
-  meta: { fontSize: 13, color: MUTED },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  none: { fontSize: 15, color: CLAY.ink3, textAlign: 'center', paddingVertical: 40 },
+  cards: { gap: 14 },
+  dim: { opacity: 0.6 },
+  name: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  time: { fontSize: 15, color: CLAY.ink2, marginTop: 4 },
+  meta: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  action: { flex: 1, alignSelf: 'auto' },
 });

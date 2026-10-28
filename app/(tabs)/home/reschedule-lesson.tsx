@@ -1,16 +1,15 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayList, ClayListRow } from '../../../src/components/clay';
 import { rescheduleStore } from '../../../src/stores/rescheduleStore';
 import { regloApi } from '../../../src/services/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
+import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
 
 const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const WD = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
@@ -61,7 +60,7 @@ export default function RescheduleLessonScreen() {
   }, [originalStart]);
 
   if (!data || !lesson || !originalStart) {
-    return <View style={s.root} />;
+    return <View style={s.empty} />;
   }
 
   const newStart = (() => {
@@ -103,49 +102,48 @@ export default function RescheduleLessonScreen() {
     }
   };
 
-  return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()} disabled={pending}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn} disabled={pending}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold
-        contentContainerStyle={{ gap: 14 }}
-        footer={
-          <Pressable
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.9 }, !canSubmit && { opacity: 0.4 }]}
-          >
-            <GradientCTABackground radius={27} />
-            {pending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={s.confirmText}>Conferma spostamento</Text>
-            )}
-          </Pressable>
-        }
-      >
-      <View style={s.headerBlock}>
-        <Text style={s.title} numberOfLines={1}>Sposta guida di {studentName}</Text>
-        <Text style={s.subtitle}>Oggi: {slotLabel(originalStart)}</Text>
-      </View>
+  const editAction = (which: 'date' | 'time') => (
+    <Pressable
+      onPress={() => toggle(which)}
+      disabled={pending}
+      hitSlop={10}
+      accessibilityRole="button"
+      accessibilityLabel={editing === which ? 'Fatto' : which === 'date' ? 'Modifica data' : 'Modifica orario'}
+      style={({ pressed }) => pressed && { opacity: 0.55 }}
+    >
+      <Text style={s.edit}>{editing === which ? 'Fatto' : 'Modifica'}</Text>
+    </Pressable>
+  );
 
-      {/* Data — Airbnb style: label + valore + Modifica */}
-      <View style={s.field}>
-        <View style={s.fieldHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.fieldLabel}>Data</Text>
-            <Text style={s.fieldValue}>{newDate ? dateOnly(newDate) : '—'}</Text>
-          </View>
-          <Pressable onPress={() => toggle('date')} disabled={pending} style={({ pressed }) => [s.editBtn, editing === 'date' && s.editBtnActive, pressed && { opacity: 0.7 }]}>
-            <Text style={[s.editBtnText, editing === 'date' && s.editBtnTextActive]}>{editing === 'date' ? 'Fatto' : 'Modifica'}</Text>
-          </Pressable>
-        </View>
-        {editing === 'date' ? (
+  // REG-639 clay: il form sheet unico. Data e orario sono righe clay con
+  // «Modifica» testuale; la rotella si apre sotto la riga con una dissolvenza.
+  // Nuovo orario e differenza in testo semplice (niente pillole), errori in
+  // rosso senza riquadri colorati.
+  return (
+    <FormSheet
+      title={`Sposta guida di ${studentName}`}
+      subtitle={`Oggi: ${slotLabel(originalStart)}`}
+      onClose={() => { if (!pending) router.back(); }}
+      testID="reschedule-lesson-sheet"
+      cta={
+        <ClayButton
+          title="Conferma spostamento"
+          onPress={handleSubmit}
+          loading={pending}
+          disabled={!canSubmit}
+          testID="reschedule-lesson-confirm"
+        />
+      }
+    >
+      <ClayList>
+        <ClayListRow
+          title="Data"
+          subtitle={newDate ? dateOnly(newDate) : '—'}
+          trailing={editAction('date')}
+        />
+      </ClayList>
+      {editing === 'date' ? (
+        <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
           <DateTimePicker
             mode="date"
             display="spinner"
@@ -153,23 +151,18 @@ export default function RescheduleLessonScreen() {
             onChange={(_e, d) => { if (d) { setNewDate(d); setServerError(null); } }}
             style={s.spinner}
           />
-        ) : null}
-      </View>
+        </Animated.View>
+      ) : null}
 
-      <View style={s.divider} />
-
-      {/* Orario */}
-      <View style={s.field}>
-        <View style={s.fieldHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.fieldLabel}>Orario</Text>
-            <Text style={s.fieldValue}>{newTime ? timeOnly(newTime) : '—'}</Text>
-          </View>
-          <Pressable onPress={() => toggle('time')} disabled={pending} style={({ pressed }) => [s.editBtn, editing === 'time' && s.editBtnActive, pressed && { opacity: 0.7 }]}>
-            <Text style={[s.editBtnText, editing === 'time' && s.editBtnTextActive]}>{editing === 'time' ? 'Fatto' : 'Modifica'}</Text>
-          </Pressable>
-        </View>
-        {editing === 'time' ? (
+      <ClayList style={s.gap}>
+        <ClayListRow
+          title="Orario"
+          subtitle={newTime ? timeOnly(newTime) : '—'}
+          trailing={editAction('time')}
+        />
+      </ClayList>
+      {editing === 'time' ? (
+        <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
           <DateTimePicker
             mode="time"
             display="spinner"
@@ -177,67 +170,29 @@ export default function RescheduleLessonScreen() {
             onChange={(_e, d) => { if (d) { setNewTime(d); setServerError(null); } }}
             style={s.spinner}
           />
-        ) : null}
-      </View>
+        </Animated.View>
+      ) : null}
 
       {newStart && !isSame ? (
-        <View style={s.preview}>
-          <View style={s.previewBadge}><Text style={s.previewBadgeText}>NUOVA</Text></View>
-          <Text style={s.previewSlot} numberOfLines={1}>{slotLabel(newStart)}</Text>
-          {diff ? <View style={s.diffPill}><Text style={s.diffPillText}>{diff}</Text></View> : null}
-        </View>
+        <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={s.preview}>
+          <Text style={s.previewSlot} numberOfLines={1}>Nuovo orario: {slotLabel(newStart)}</Text>
+          {diff ? <Text style={s.diff}>{diff}</Text> : null}
+        </Animated.View>
       ) : null}
 
-      {isPast ? (
-        <View style={s.warnBanner}>
-          <Ionicons name="alert-circle" size={16} color="#B45309" />
-          <Text style={s.warnText}>Non puoi spostare la guida a un orario passato.</Text>
-        </View>
-      ) : null}
-
-      {serverError ? (
-        <View style={s.errorBanner}>
-          <Ionicons name="alert-circle" size={16} color={colors.destructive} />
-          <Text style={s.errorText}>{serverError}</Text>
-        </View>
-      ) : null}
-      </SheetScaffold>
-    </View>
+      {isPast ? <Text style={s.error}>Non puoi spostare la guida a un orario passato.</Text> : null}
+      {serverError ? <Text style={s.error}>{serverError}</Text> : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 14 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  field: { gap: 6 },
-  fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  fieldLabel: { fontSize: 14, fontWeight: '700', color: '#111111', letterSpacing: -0.1 },
-  fieldValue: { fontSize: 17, fontWeight: '500', color: '#111111', letterSpacing: -0.3, marginTop: 1 },
-  editBtn: { backgroundColor: '#F0F0F1', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  editBtnActive: { backgroundColor: '#111111' },
-  editBtnText: { fontSize: 14, fontWeight: '600', color: '#111111' },
-  editBtnTextActive: { color: '#FFFFFF' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  gap: { marginTop: 14 },
+  edit: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
   spinner: { alignSelf: 'stretch', ...(Platform.OS === 'ios' ? { height: 180 } : {}) },
-
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB' },
-
-  preview: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, backgroundColor: '#F1F0ED', padding: 14 },
-  previewBadge: { backgroundColor: '#111111', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 4 },
-  previewBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  previewSlot: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
-  diffPill: { backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 3, paddingHorizontal: 10 },
-  diffPillText: { color: '#6B6B6B', fontSize: 12, fontWeight: '600' },
-
-  warnBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A', backgroundColor: '#FFFBEB' },
-  warnText: { flex: 1, fontSize: 13, color: '#92400E', fontWeight: '500' },
-  errorBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-  errorText: { flex: 1, fontSize: 13, color: '#991B1B', fontWeight: '500' },
-
-  confirmBtn: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginTop: 4, ...primaryCtaShadow },
-  confirmText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  preview: { marginTop: 22, paddingHorizontal: 2 },
+  previewSlot: { fontSize: 16, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  diff: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
+  error: { fontSize: 14, lineHeight: 20, color: '#C13515', marginTop: 14, paddingHorizontal: 2 },
 });

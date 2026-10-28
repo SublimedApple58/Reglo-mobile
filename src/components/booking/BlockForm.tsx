@@ -1,33 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated from 'react-native-reanimated';
 
-import { SheetScaffold } from '../SheetScaffold';
+import { FormSheet } from '../SheetScaffold';
 import { useDoneAccessory } from '../KeyboardDoneAccessory';
 import { blockSheetStore } from '../../stores/blockSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
 import { regloApi } from '../../services/regloApi';
-import { ToggleSwitch } from '../ToggleSwitch';
-import { Button } from '../Button';
-import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
-import { GlassCloseButton } from '../GlassCloseButton';
-
-const NAVY = '#111111';
-const GREY = '#717171';
-const MUTED = '#929292';
-const N50 = '#F4F4F4';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection, ClaySegmented, ClayToggle } from '../clay';
+import { CLAY } from '../../theme/clay';
+import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../utils/motion';
 
 const WEEK_OPTIONS = [2, 4, 8, 12];
 
@@ -54,28 +38,14 @@ const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); ret
 const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
-/* ───────── Flat row inside an elevated card (icon · label · value · chevron) ───────── */
-const Row = ({ icon, label, value, onPress, disabled }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string;
-  value?: string | null; onPress: () => void; disabled?: boolean;
-}) => (
-  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-    <View style={s.rowIcon}><Ionicons name={icon} size={22} color={NAVY} /></View>
-    <View style={s.rowBody}>
-      <Text style={s.rowLabel}>{label}</Text>
-      {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
-    </View>
-    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-  </Pressable>
-);
-
-/* ───────── Shared block-slot form (used by the block-slot route + quick-book) ─────────
- * `embedded` hides the route header (title + X) so the parent — the quick-book
- * sheet — can render its own header (Airbnb segmented). `presetStartMinutes`
- * seeds the start time (end = +60') from the released-scrub position. */
+/* ───────── Shared block-slot form (block-slot, theory-lesson, quick-book) ─────────
+ * REG-639 clay: da solo è un `FormSheet` (titolo, riepilogo come sottotitolo,
+ * CTA in fondo). `embedded` = dentro il FormSheet di quick-book: solo contenuto
+ * e, in coda, riepilogo + CTA (l'ultima cosa del foglio ospite).
+ * `presetStartMinutes` seeds the start time (end = +60') from the
+ * released-scrub position. */
 export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(blockSheetStore.subscribe, blockSheetStore.get);
 
   const [date, setDate] = useState<Date>(() => new Date());
@@ -113,7 +83,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     return e2 <= s2;
   }, [startTime, endTime]);
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   // 'theory' = Lezione teorica: reason forzato, niente campo motivo, avviso bloccante.
   const isTheory = data.kind === 'theory';
@@ -208,178 +178,147 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
 
   const canConfirm = !pending && !invalidRange;
 
-  return (
-    <View style={[s.root, (embedded || Platform.OS === 'android') && { flex: 1 }, { paddingBottom: insets.bottom + 14 }]}>
-      {!embedded && (
-        <View style={s.header}>
-          <Text style={s.title}>{isEditing ? (isTheory ? 'Modifica lezione' : 'Modifica evento') : (isTheory ? 'Lezione teorica' : 'Blocca slot')}</Text>
-          <GlassCloseButton onPress={() => !pending && router.back()} disabled={pending}>
-            <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-              <Ionicons name="close" size={20} color={NAVY} />
-            </Pressable>
-          </GlassCloseButton>
-        </View>
-      )}
+  const title = isEditing ? (isTheory ? 'Modifica lezione' : 'Modifica evento') : (isTheory ? 'Lezione teorica' : 'Blocca slot');
+  const summary = `${fmtDay(date)} · ${fmtTime(startTime)}–${fmtTime(endTime)}${recurring ? ` · ${recurringWeeks} sett.` : ''}`;
+  // Mentre salva il modulo è fermo: le righe non aprono nulla.
+  const guard = (fn: () => void) => () => { if (!pending) fn(); };
 
-      <SheetScaffold
-        keyboardAware
-        // Embedded host (quick-book) is a full-height PAGE_SHEET → the body must
-        // scroll + footer pin on iOS too. Standalone (block-slot) stays TALL_SHEET.
-        fill={embedded}
-        footer={
-          <View style={s.footer}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-              <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{fmtDay(date)}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtTime(startTime)}–{fmtTime(endTime)}{recurring ? ` · ${recurringWeeks} sett.` : ''}</Text>
-            </View>
-            <View style={{ flexShrink: 0 }}>
-              <Button label={isEditing ? 'Salva' : (isTheory ? 'Crea lezione' : 'Blocca slot')} tone="primary" loading={pending} disabled={!canConfirm} onPress={confirm} />
-            </View>
-          </View>
-        }
-      >
+  const body = (
+    <>
       {/* Giorno + orari */}
-      <View style={s.group}>
-        <Row icon="calendar-outline" label="Giorno" value={fmtDay(date)} onPress={openDatePicker} disabled={pending} />
-        <View style={s.divider} />
-        <Row icon="time-outline" label="Ora inizio" value={fmtTime(startTime)} onPress={() => openTimePicker(startTime, setStartTime)} disabled={pending} />
-        <View style={s.divider} />
-        <Row icon="time-outline" label="Ora fine" value={fmtTime(endTime)} onPress={() => openTimePicker(endTime, setEndTime)} disabled={pending} />
-      </View>
-      {invalidRange ? <Text style={s.warn}>L'ora di fine deve essere dopo l'inizio.</Text> : null}
+      <ClayList>
+        <ClayListRow title="Giorno" subtitle={fmtDay(date)} onPress={guard(openDatePicker)} />
+        <ClayListRow title="Ora inizio" subtitle={fmtTime(startTime)} onPress={guard(() => openTimePicker(startTime, setStartTime))} />
+        <ClayListRow title="Ora fine" subtitle={fmtTime(endTime)} onPress={guard(() => openTimePicker(endTime, setEndTime))} />
+      </ClayList>
+      {invalidRange ? (
+        <Animated.Text entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={s.warn}>
+          L&apos;ora di fine deve essere dopo l&apos;inizio.
+        </Animated.Text>
+      ) : null}
 
       {isTheory ? (
         /* Avviso bloccante — la teorica occupa la fascia in modo duro */
-        <View style={s.theoryNotice}>
-          <View style={s.theoryNoticeIcon}><Ionicons name="lock-closed" size={16} color="#111111" /></View>
-          <Text style={s.theoryNoticeTxt}>
-            In questa fascia risulti occupato: gli allievi non vedranno slot prenotabili e non sarà possibile inserire guide, esami o guide di gruppo sovrapposte.
-          </Text>
-        </View>
+        <Text style={s.notice}>
+          In questa fascia risulti occupato: gli allievi non vedranno slot prenotabili e non sarà possibile inserire guide, esami o guide di gruppo sovrapposte.
+        </Text>
       ) : (
-        <>
-          {/* Motivo — opzionale */}
-          <Text style={s.fieldLabel}>Motivo <Text style={s.fieldOptional}>· facoltativo</Text></Text>
-          <TextInput
-            ref={reasonRef}
-            style={s.textArea}
-            value={reason}
-            onChangeText={setReason}
-            placeholder="Es. Visita medica, pausa…"
-            placeholderTextColor={MUTED}
-            editable={!pending}
-            multiline
-            textAlignVertical="top"
-            inputAccessoryViewID={accessoryID}
-          />
-        </>
+        /* Motivo — opzionale */
+        <ClayField
+          ref={reasonRef}
+          label="Motivo · facoltativo"
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Es. Visita medica, pausa…"
+          editable={!pending}
+          multiline
+          inputAccessoryViewID={accessoryID}
+          style={s.field}
+          testID="block-reason"
+        />
       )}
 
       {/* Descrizione — opzionale (anche per la lezione teorica) */}
-      <Text style={s.fieldLabel}>Descrizione <Text style={s.fieldOptional}>· facoltativa</Text></Text>
-      <TextInput
+      <ClayField
         ref={descriptionRef}
-        style={s.textArea}
+        label="Descrizione · facoltativa"
         value={description}
         onChangeText={setDescription}
         placeholder={isTheory ? 'Es. argomento della lezione, aula, materiale…' : 'Note aggiuntive…'}
-        placeholderTextColor={MUTED}
         editable={!pending}
         multiline
-        textAlignVertical="top"
         maxLength={500}
         inputAccessoryViewID={accessoryID}
+        style={s.field}
+        testID="block-description"
       />
       {accessory}
 
       {/* Ricorrenza solo in creazione: in modifica si edita il singolo blocco. */}
       {!isEditing ? (
         <>
-          <View style={s.optBanner}>
-            <View style={s.optIcon}><Ionicons name="repeat-outline" size={18} color={NAVY} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.optTitle}>Ripeti ogni settimana</Text>
-              <Text style={s.optSub}>Stesso giorno e orario</Text>
-            </View>
-            <ToggleSwitch value={recurring} onValueChange={setRecurring} disabled={pending} />
-          </View>
-
+          <ClayList style={s.gap}>
+            <ClayListRow
+              title="Ripeti ogni settimana"
+              subtitle="Stesso giorno e orario"
+              trailing={
+                <ClayToggle value={recurring} onValueChange={setRecurring} disabled={pending} accessibilityLabel="Ripeti ogni settimana" testID="block-recurring-toggle" />
+              }
+            />
+          </ClayList>
           {recurring ? (
-            <>
-              <Text style={s.listCaption}>Per quante settimane</Text>
-              <View style={s.weeksRow}>
-                {WEEK_OPTIONS.map((w) => { const active = recurringWeeks === w; return (
-                  <Pressable key={w} onPress={() => setRecurringWeeks(w)} style={[s.weekPill, active && s.weekPillOn]} disabled={pending}>
-                    <Text style={[s.weekPillTxt, active && s.weekPillTxtOn]}>{w} sett.</Text>
-                  </Pressable>
-                ); })}
-              </View>
-            </>
+            <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+              <ClaySection title="Per quante settimane">
+                <ClaySegmented
+                  options={WEEK_OPTIONS.map((w) => ({ value: w, label: `${w} sett.` }))}
+                  value={recurringWeeks}
+                  onChange={(w) => { if (!pending) setRecurringWeeks(w); }}
+                />
+              </ClaySection>
+            </Animated.View>
           ) : null}
         </>
       ) : (
-        <Pressable onPress={handleDelete} disabled={pending} style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.6 }]}>
-          <Ionicons name="trash-outline" size={18} color="#C13515" />
+        <Pressable
+          onPress={handleDelete}
+          disabled={pending}
+          accessibilityRole="button"
+          style={({ pressed }) => [s.delete, pressed && s.pressed]}
+          testID="block-delete"
+        >
           <Text style={s.deleteTxt}>{isTheory ? 'Elimina lezione teorica' : 'Elimina evento'}</Text>
         </Pressable>
       )}
-      </SheetScaffold>
-    </View>
+    </>
+  );
+
+  const cta = (
+    <ClayButton
+      title={isEditing ? 'Salva' : (isTheory ? 'Crea lezione' : 'Blocca slot')}
+      loading={pending}
+      disabled={!canConfirm}
+      onPress={confirm}
+      testID="block-submit"
+    />
+  );
+
+  // Dentro quick-book: il foglio (testata col segmentato, X) è dell'ospite;
+  // qui solo contenuto + riepilogo + CTA, che restano l'ultima cosa del foglio.
+  if (embedded) {
+    return (
+      <>
+        {body}
+        <View style={s.embeddedCta}>
+          <Text style={s.summary} numberOfLines={1}>{summary}</Text>
+          {cta}
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <FormSheet
+      title={title}
+      subtitle={summary}
+      onClose={() => { if (!pending) router.back(); }}
+      cta={cta}
+      testID="block-sheet"
+    >
+      {body}
+    </FormSheet>
   );
 }
 
-const ELEV = {
-  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
-} as const;
-
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
-  title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-
-  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
-  warn: { fontSize: 12.5, color: '#C13515', fontWeight: '500', marginTop: -8, marginBottom: 12, marginLeft: 6 },
-
-  /* avviso bloccante lezione teorica (indaco) */
-  theoryNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#EFEDE8', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
-  theoryNoticeIcon: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  theoryNoticeTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18, color: '#3A3A3C' },
-
-  /* motivo text area — looks like an editable field, not a tappable card */
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },
-  fieldOptional: { fontSize: 13, fontWeight: '500', color: MUTED },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
-
-  /* optional banner */
-  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
-  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
-  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
-
-  listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 2, marginBottom: 8, marginLeft: 6 },
-  weeksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  weekPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F2F2F2' },
-  weekPillOn: { backgroundColor: NAVY },
-  weekPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
-  weekPillTxtOn: { color: '#FFFFFF' },
-
-  /* row */
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
-  rowIcon: { width: 26, alignItems: 'center' },
-  rowBody: { flex: 1, minWidth: 0, gap: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
-  rowValue: { fontSize: 14, color: GREY },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
-
-  /* elimina (solo in modifica) */
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: '#FDECEC', marginTop: 2, marginBottom: 4 },
-  deleteTxt: { fontSize: 14.5, fontWeight: '600', color: '#C13515' },
-
-  /* footer */
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
-  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
-  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  gap: { marginTop: 22 },
+  field: { marginTop: 22 },
+  warn: { fontSize: 13, color: '#C13515', marginTop: 10, paddingHorizontal: 4 },
+  notice: { fontSize: 15, lineHeight: 21, color: CLAY.ink2, marginTop: 22, paddingHorizontal: 2 },
+  delete: { alignItems: 'center', paddingVertical: 14, marginTop: 14 },
+  deleteTxt: { fontSize: 16, fontWeight: '500', color: '#C13515' },
+  pressed: { opacity: 0.55 },
+  // Stessa distanza che `FormSheet` mette sopra la sua CTA.
+  embeddedCta: { marginTop: 22 },
+  summary: { fontSize: 14, color: CLAY.ink3, marginBottom: 10, paddingHorizontal: 4 },
 });

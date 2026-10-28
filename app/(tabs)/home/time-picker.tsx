@@ -1,22 +1,23 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClaySegmented } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 15, 30, 45];
-const ITEM_HEIGHT = 46;
-const COLUMN_HEIGHT = 218;
 
 const padTwo = (n: number) => String(n).padStart(2, '0');
 const closestMinute = (m: number) =>
   MINUTES.reduce((prev, curr) => (Math.abs(curr - m) < Math.abs(prev - m) ? curr : prev));
 
+/**
+ * Scelta dell'orario — REG-639 clay: il form sheet unico, senza colonne che
+ * scorrono dentro il foglio. Le 24 ore sono una griglia (ora scelta = cerchio
+ * nero in clay), i minuti un segmentato clay (4 opzioni), conferma in fondo.
+ */
 export default function HomeTimePickerScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(timePickerStore.subscribe, timePickerStore.get);
@@ -24,29 +25,11 @@ export default function HomeTimePickerScreen() {
   const [hour, setHour] = useState(() => data?.selectedTime.getHours() ?? 9);
   const [minute, setMinute] = useState(() => closestMinute(data?.selectedTime.getMinutes() ?? 0));
 
-  const hourScrollRef = useRef<ScrollView | null>(null);
-  const minuteScrollRef = useRef<ScrollView | null>(null);
-
   useEffect(() => {
     return () => { timePickerStore.clear(); };
   }, []);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      hourScrollRef.current?.scrollTo({
-        y: Math.max(0, HOURS.indexOf(hour) * ITEM_HEIGHT - COLUMN_HEIGHT / 2 + ITEM_HEIGHT / 2),
-        animated: false,
-      });
-      minuteScrollRef.current?.scrollTo({
-        y: Math.max(0, MINUTES.indexOf(minute) * ITEM_HEIGHT - COLUMN_HEIGHT / 2 + ITEM_HEIGHT / 2),
-        animated: false,
-      });
-    }, 60);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const confirm = () => {
     const result = new Date(data.selectedTime);
@@ -57,81 +40,51 @@ export default function HomeTimePickerScreen() {
   };
 
   return (
-    <View style={s.root}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <Text style={s.title}>Seleziona orario</Text>
-
-      <View style={s.columnsRow}>
-        <View style={s.column}>
-          <Text style={s.columnLabel}>Ore</Text>
-          <View style={s.scrollContainer}>
-            <ScrollView nestedScrollEnabled ref={hourScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
-              {HOURS.map((h) => {
-                const selected = h === hour;
-                return (
-                  <Pressable key={h} onPress={() => setHour(h)} style={[s.item, selected && s.itemSelected]}>
-                    <Text style={[s.itemText, selected && s.itemTextSelected]}>{padTwo(h)}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-
-        <View style={s.column}>
-          <Text style={s.columnLabel}>Minuti</Text>
-          <View style={s.scrollContainer}>
-            <ScrollView nestedScrollEnabled ref={minuteScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
-              {MINUTES.map((m) => {
-                const selected = m === minute;
-                return (
-                  <Pressable key={m} onPress={() => setMinute(m)} style={[s.item, selected && s.itemSelected]}>
-                    <Text style={[s.itemText, selected && s.itemTextSelected]}>{padTwo(m)}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
+    <FormSheet
+      title="Seleziona orario"
+      testID="time-picker-sheet"
+      cta={<ClayButton title={`Conferma ${padTwo(hour)}:${padTwo(minute)}`} onPress={confirm} testID="time-picker-confirm" />}
+    >
+      <Text style={s.label}>Ore</Text>
+      <View style={s.grid}>
+        {HOURS.map((h) => {
+          const selected = h === hour;
+          return (
+            <Pressable
+              key={h}
+              onPress={() => setHour(h)}
+              style={s.cell}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Ore ${padTwo(h)}`}
+            >
+              <View style={[s.hour, selected && s.hourOn]}>
+                <Text style={[s.hourTx, selected && s.hourTxOn]}>{padTwo(h)}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <Pressable
-        onPress={confirm}
-        style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
-      >
-        <GradientCTABackground radius={27} />
-        <Text style={s.ctaText}>Conferma {padTwo(hour)}:{padTwo(minute)}</Text>
-      </Pressable>
-    </View>
+      <Text style={[s.label, s.labelGap]}>Minuti</Text>
+      <ClaySegmented
+        options={MINUTES.map((m) => ({ value: m, label: padTwo(m) }))}
+        value={minute}
+        onChange={setMinute}
+        testID="time-picker-minutes"
+      />
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: spacing.lg, paddingBottom: 28, gap: 18 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-
-  columnsRow: { flexDirection: 'row', gap: spacing.md, justifyContent: 'center' },
-  column: { flex: 1, alignItems: 'center', gap: 8 },
-  columnLabel: { fontSize: 12, fontWeight: '600', color: '#9A9A9A', letterSpacing: 0.5, textTransform: 'uppercase' },
-  scrollContainer: { height: COLUMN_HEIGHT, width: '100%', borderRadius: 18, backgroundColor: '#F8F8F8', overflow: 'hidden' },
-  scrollContent: { paddingVertical: 8, alignItems: 'center' },
-  item: { height: ITEM_HEIGHT, width: '82%', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  itemSelected: { backgroundColor: '#F0F0F0' },
-  itemText: { fontSize: 18, fontWeight: '500', color: '#6A6A6A' },
-  itemTextSelected: { fontWeight: '600', color: '#111111' },
-
-  cta: {
-    height: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  label: { fontSize: 15, fontWeight: '500', color: CLAY.ink, marginBottom: 8, paddingHorizontal: 2 },
+  labelGap: { marginTop: 18 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: `${100 / 6}%`, height: 50, alignItems: 'center', justifyContent: 'center' },
+  hour: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  hourOn: { backgroundColor: CLAY.ink, ...CLAY_SHADOW.ink },
+  hourTx: { fontSize: 17, fontWeight: '400', color: CLAY.ink2 },
+  hourTxOn: { color: '#FFFFFF', fontWeight: '600' },
 });

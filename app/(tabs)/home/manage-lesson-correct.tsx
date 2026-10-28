@@ -1,30 +1,26 @@
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { correctOutcomeStore } from '../../../src/stores/correctOutcomeStore';
-import { colors } from '../../../src/theme/colors';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-
-const NAVY = '#111111';
-const INK = '#222222';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayList, ClayListRow } from '../../../src/components/clay';
+import { CLAY } from '../../../src/theme/clay';
 
 /**
- * Form sheet content-hugging (HUG_SHEET) per correggere l'esito di una guida
- * passata — stessa riga-picker di Istruttore/Veicolo (checkmark navy sull'esito
- * attuale). Nessuna ScrollView (romperebbe il fitToContents). Tap su un'opzione →
- * chiude questo foglio + "Gestisci guida" (dismiss(2)) e applica.
+ * «Correggi l'esito» di una guida passata — form sheet unico (FORM_SHEET +
+ * FormSheet, REG-639 clay): le due risposte sono righe di una lista clay, la
+ * spunta nera marca l'esito attuale. Tap su un'opzione → chiude questo foglio +
+ * "Gestisci guida" (dismiss(2)) e applica.
  */
 export default function ManageLessonCorrectScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(correctOutcomeStore.subscribe, correctOutcomeStore.get);
 
   React.useEffect(() => () => correctOutcomeStore.clear(), []);
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const pick = (action: 'checked_in' | 'no_show') => {
     const cb = data.onPick;
@@ -33,42 +29,33 @@ export default function ManageLessonCorrectScreen() {
   };
 
   const current = data.currentOutcome;
-
-  const Row = ({ action, label }: { action: 'checked_in' | 'no_show'; label: string }) => {
-    const on = current === action;
-    return (
-      <Pressable onPress={() => pick(action)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-        <Text style={[s.label, on && { fontWeight: '600' }]}>{label}</Text>
-        {on ? <Ionicons name="checkmark-circle" size={23} color={NAVY} /> : <View style={s.dot} />}
-      </Pressable>
-    );
-  };
+  const check = (action: 'checked_in' | 'no_show') =>
+    current === action ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null;
 
   return (
-    <View style={[s.root, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}>
-      <View style={s.topbar}>
-        <Text style={s.title} numberOfLines={1}>Correggi l&apos;esito</Text>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <Row action="checked_in" label="Presente" />
-      <View style={s.divider} />
-      <Row action="no_show" label="Assente" />
-    </View>
+    <FormSheet title="Correggi l'esito" testID="manage-lesson-correct-sheet">
+      <ClayList>
+        <ClayListRow
+          title="Presente"
+          subtitle={current === 'checked_in' ? 'Esito attuale' : undefined}
+          trailing={check('checked_in')}
+          chevron={false}
+          onPress={() => pick('checked_in')}
+          testID="correct-outcome-presente"
+        />
+        <ClayListRow
+          title="Assente"
+          subtitle={current === 'no_show' ? 'Esito attuale' : undefined}
+          trailing={check('no_show')}
+          chevron={false}
+          onPress={() => pick('no_show')}
+          testID="correct-outcome-assente"
+        />
+      </ClayList>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: 20 },
-  topbar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, gap: 12 },
-  title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, minHeight: 58 },
-  label: { fontSize: 16, fontWeight: '500', color: INK },
-  dot: { width: 23, height: 23 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
 });

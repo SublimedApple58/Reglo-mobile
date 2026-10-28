@@ -1,53 +1,40 @@
 import React, { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { InlineLocationForm } from '../../../src/components/InlineLocationForm';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
+/**
+ * «Aggiungi luogo» — form sheet unico (FORM_SHEET + FormSheet, REG-639 clay):
+ * campi clay nel corpo, «Salva luogo» nella CTA in fondo.
+ */
 export default function ManageLessonLocationFormScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(locationFormStore.subscribe, locationFormStore.get);
 
+  if (!data) {
+    return <FormSheet title="Aggiungi luogo" subtitle="Crea un nuovo punto di ritrovo." />;
+  }
+
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold keyboardAware>
-        <View style={s.headerBlock}>
-          <Text style={s.title}>Aggiungi luogo</Text>
-          <Text style={s.subtitle}>Crea un nuovo punto di ritrovo.</Text>
-        </View>
-        {data ? (
-          <InlineLocationForm
-            initialValue={data.initial}
-            onCancel={() => router.back()}
-            onSubmit={async (values) => {
-              await data.onSubmit(values);
-              router.back();
-            }}
-          />
-        ) : null}
-      </SheetScaffold>
-    </View>
+    <InlineLocationForm
+      initialValue={data.initial}
+      onCancel={() => router.back()}
+      onSubmit={async (values) => {
+        await data.onSubmit(values);
+        router.back();
+      }}
+      renderLayout={({ body, cta }) => (
+        <FormSheet
+          title="Aggiungi luogo"
+          subtitle="Crea un nuovo punto di ritrovo."
+          cta={cta}
+          testID="manage-lesson-location-form-sheet"
+        >
+          {body}
+        </FormSheet>
+      )}
+    />
   );
 }
-
-const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-});

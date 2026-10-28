@@ -1,17 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonSheetStore } from '../stores/groupLessonSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
@@ -19,25 +8,13 @@ import { optionsPickerPath, optionsPickerStore } from '../stores/optionsPickerSt
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
 import { regloApi } from '../services/regloApi';
-import { Button } from '../components/Button';
-import { ToggleSwitch } from '../components/ToggleSwitch';
-import { UserPhotoCircle } from '../components/UserPhotoCircle';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
+import { FormSheet } from '../components/SheetScaffold';
+import { ClayButton, ClayList, ClayListRow, ClaySegmented, ClayToggle } from '../components/clay';
+import { CLAY } from '../theme/clay';
 import { vehicleServesStudent as vehicleServesStudentShared, MOTO_LICENSE_CATEGORIES } from '../utils/license';
 import { instructorCanUseVehicle } from '../utils/vehicles';
 import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, type MotoLessonType } from '../utils/motoLessonType';
 import type { AutoscuolaStudent, AutoscuolaVehicle } from '../types/regloApi';
-import { GlassCloseButton } from '../components/GlassCloseButton';
-
-const NAVY = '#111111';
-const GREY = '#717171';
-const MUTED = '#929292';
-const TEAL = '#0F766E';
-const N50 = '#F4F4F4';
-const N100 = '#EBEBEB';
-
-const SEG_PAD = 5;
 
 // Capienza libera (1–12): la decidono titolare/istruttore. Per le guide moto i
 // partecipanti possono superare le moto in flotta (si va a rotazione).
@@ -57,11 +34,6 @@ const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
 const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-const initialsOf = (first: string, last: string) => {
-  const f = (first ?? '').trim(); const l = (last ?? '').trim();
-  if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
-  return (f || l || '?').slice(0, 2).toUpperCase();
-};
 
 // License eligibility with the moto hierarchy (shared helper), null vehicle = permissive.
 const vehicleServesStudent = (
@@ -69,23 +41,8 @@ const vehicleServesStudent = (
   st: { licenseCategory?: string | null; transmission?: string | null },
 ) => (v ? vehicleServesStudentShared(v, st) : true);
 
-const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string;
-  value?: string | null; placeholder?: string; onPress: () => void; disabled?: boolean;
-}) => (
-  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-    <View style={s.rowIcon}><Ionicons name={icon} size={22} color={NAVY} /></View>
-    <View style={s.rowBody}>
-      <Text style={s.rowLabel}>{label}</Text>
-      {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>}
-    </View>
-    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-  </Pressable>
-);
-
 export const CreateGroupLessonScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(groupLessonSheetStore.subscribe, groupLessonSheetStore.get);
 
   const [loading, setLoading] = useState(true);
@@ -164,16 +121,6 @@ export const CreateGroupLessonScreen = () => {
   // flotta, i ragazzi si alternano sulle moto disponibili).
   const effectiveCapacity = capacity;
 
-  // Airbnb segmented — sliding white pill (same logic as quick-book.tsx).
-  const [segW, setSegW] = useState(0);
-  const pillW = segW ? (segW - SEG_PAD * 2) / 2 : 0;
-  const pillX = useSharedValue(0);
-  useEffect(() => {
-    if (!pillW) return;
-    pillX.value = withTiming((isMoto ? 1 : 0) * pillW, { duration: 220 });
-  }, [isMoto, pillW, pillX]);
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }] }));
-
   // Eligible to PRE-ADD: opted-in + license-compatible. Standard = the single
   // vehicle; moto = any moto still in the chosen fleet.
   const eligibleStudents = useMemo(
@@ -190,7 +137,7 @@ export const CreateGroupLessonScreen = () => {
     [eligibleStudents, selectedIds],
   );
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const openDatePicker = () => {
     dayPickerStore.set({
@@ -301,6 +248,7 @@ export const CreateGroupLessonScreen = () => {
   // L'auto al seguito è sempre facoltativa alla creazione: se le regole la
   // richiedono, il BE ne assegna una libera alla prima iscrizione.
   const canCreate = isMoto ? fleetIds.length > 0 : !!vehicleId;
+  const guard = (fn: () => void) => () => { if (!saving) fn(); };
 
   const handleCreate = async (opts?: { confirmedPast?: boolean }) => {
     // Una guida di gruppo senza istruttore non deve esistere (regola BE).
@@ -350,165 +298,115 @@ export const CreateGroupLessonScreen = () => {
     }
   };
 
+  const studentsLocked = isMoto ? fleetIds.length === 0 : !vehicleId;
+
+  // REG-639 clay: il form sheet unico. Tipo = segmentato clay, righe di solo
+  // testo in liste clay (niente icone), inviti come interruttore, CTA nera in
+  // fondo. La riga di contesto (istruttore · veicolo · posti) è il sottotitolo.
   return (
-    <View style={[s.root, { flex: 1 }]}>
-      <View style={s.header}>
-        <Text style={s.title}>Guida di gruppo</Text>
-        <GlassCloseButton onPress={() => !saving && router.back()} disabled={saving}>
-          <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 14 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-      <Text style={s.lede}>1 istruttore · {isMoto ? `${effectiveCapacity || '—'} moto + auto al seguito` : '1 veicolo'} · fino a {effectiveCapacity || '—'} allievi</Text>
-
+    <FormSheet
+      title="Guida di gruppo"
+      subtitle={`1 istruttore · ${isMoto ? `${effectiveCapacity || '—'} moto + auto al seguito` : '1 veicolo'} · fino a ${effectiveCapacity || '—'} allievi`}
+      onClose={() => { if (!saving) router.back(); }}
+      testID="create-group-lesson-sheet"
+      cta={loading ? null : (
+        <ClayButton
+          title="Crea"
+          loading={saving}
+          disabled={!canCreate}
+          onPress={() => handleCreate()}
+          testID="create-group-lesson-submit"
+        />
+      )}
+    >
       {loading ? (
-        <View style={s.loadingBox}><ActivityIndicator color={colors.primary} /></View>
+        <View style={s.loadingBox}><ActivityIndicator color={CLAY.ink} /></View>
       ) : (
         <>
-          {/* Tipo: standard (1 veicolo) vs moto (flotta + auto al seguito) — Airbnb sliding pill */}
-          <View style={s.seg} onLayout={(e) => setSegW(e.nativeEvent.layout.width)}>
-            {pillW > 0 && <Animated.View style={[s.segPill, { width: pillW }, pillStyle]} />}
-            {(['standard', 'moto'] as const).map((k) => {
-              const active = kind === k;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => { setKind(k); setSelectedIds([]); if (k !== 'moto') setMotoLessonType(null); }}
-                  disabled={saving}
-                  style={s.segItem}
-                  hitSlop={6}
-                >
-                  <Ionicons name={k === 'moto' ? 'bicycle-outline' : 'car-sport-outline'} size={16} color={active ? '#111111' : '#717171'} />
-                  <Text style={[s.segText, active && s.segTextActive]}>{k === 'moto' ? 'Moto' : 'Standard'}</Text>
-                </Pressable>
-              );
-            })}
+          {/* Tipo: standard (1 veicolo) vs moto (flotta + auto al seguito). */}
+          <View pointerEvents={saving ? 'none' : 'auto'}>
+            <ClaySegmented
+              options={[
+                { value: 'standard' as const, label: 'Standard' },
+                { value: 'moto' as const, label: 'Moto' },
+              ]}
+              value={kind}
+              onChange={(k) => { setKind(k); setSelectedIds([]); if (k !== 'moto') setMotoLessonType(null); }}
+              testID="create-group-lesson-kind"
+            />
           </View>
 
-          <View style={s.group}>
-            <Row icon="calendar-outline" label="Giorno" value={fmtDay(startAt)} onPress={openDatePicker} disabled={saving} />
-            <View style={s.divider} />
-            <Row icon="time-outline" label="Ora inizio" value={fmtTime(startAt)} onPress={openTimePicker} disabled={saving} />
-            <View style={s.divider} />
-            <Row icon="hourglass-outline" label="Durata" value={durationLabel} onPress={openDurationPicker} disabled={saving} />
-            <View style={s.divider} />
-            <Row icon="people-outline" label="Capienza" value={`${capacity} allievi`} onPress={openCapacityPicker} disabled={saving} />
+          <ClayList style={s.gap}>
+            <ClayListRow title="Giorno" subtitle={fmtDay(startAt)} onPress={guard(openDatePicker)} />
+            <ClayListRow title="Ora inizio" subtitle={fmtTime(startAt)} onPress={guard(openTimePicker)} />
+            <ClayListRow title="Durata" subtitle={durationLabel} onPress={guard(openDurationPicker)} />
+            <ClayListRow title="Capienza" subtitle={`${capacity} allievi`} onPress={guard(openCapacityPicker)} />
             {!isMoto ? (
-              <>
-                <View style={s.divider} />
-                <Row icon="car-outline" label="Veicolo" value={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : null} placeholder="Seleziona veicolo" onPress={openVehiclePicker} disabled={saving} />
-              </>
-            ) : (
-              <>
-                <View style={s.divider} />
-                <Row icon="bicycle-outline" label="Moto della guida" value={fleetValue} placeholder={motoVehicles.length ? 'Seleziona le moto' : 'Nessuna moto disponibile'} onPress={openFleetPicker} disabled={saving || motoVehicles.length === 0} />
-                <View style={s.divider} />
-                <Row icon="car-outline" label="Auto al seguito (facoltativa)" value={followVehicle ? followVehicle.name : null} placeholder={followCarRequired ? 'Automatica alla 1ª iscrizione' : 'Nessuna'} onPress={openFollowCarPicker} disabled={saving} />
-                <View style={s.divider} />
-                <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={saving} />
-              </>
-            )}
-          </View>
+              <ClayListRow
+                title="Veicolo"
+                subtitle={selectedVehicle ? `${selectedVehicle.name}${selectedVehicle.licenseCategory ? ` · ${selectedVehicle.licenseCategory}` : ''}` : 'Seleziona veicolo'}
+                onPress={guard(openVehiclePicker)}
+              />
+            ) : null}
+            {isMoto ? (
+              <ClayListRow
+                title="Moto della guida"
+                subtitle={fleetValue ?? (motoVehicles.length ? 'Seleziona le moto' : 'Nessuna moto disponibile')}
+                onPress={guard(openFleetPicker)}
+                dimmed={motoVehicles.length === 0}
+              />
+            ) : null}
+            {isMoto ? (
+              <ClayListRow
+                title="Auto al seguito (facoltativa)"
+                subtitle={followVehicle ? followVehicle.name : followCarRequired ? 'Automatica alla 1ª iscrizione' : 'Nessuna'}
+                onPress={guard(openFollowCarPicker)}
+              />
+            ) : null}
+            {isMoto ? (
+              <ClayListRow
+                title="Tipo guida moto"
+                subtitle={motoLessonTypeValue ?? 'Non specificato'}
+                onPress={guard(openMotoLessonType)}
+              />
+            ) : null}
+          </ClayList>
 
           {isMoto ? (
             <Text style={s.hint}>Chi si iscrive riceve automaticamente una moto libera della flotta compatibile col suo percorso; se gli allievi superano le moto, si va a rotazione.</Text>
           ) : null}
 
-          {/* Students pre-add */}
-          <Pressable onPress={openStudentsPicker} disabled={saving || (isMoto ? fleetIds.length === 0 : !vehicleId)} style={({ pressed }) => [s.group, s.studentsRow, pressed && { opacity: 0.55 }, (isMoto ? fleetIds.length === 0 : !vehicleId) && { opacity: 0.5 }]}>
-            <View style={s.rowIcon}><Ionicons name="people-outline" size={22} color={NAVY} /></View>
-            <View style={s.rowBody}>
-              <Text style={s.rowLabel}>Allievi (pre-inserisci)</Text>
-              {studentsValue ? <Text style={s.rowValue} numberOfLines={1}>{studentsValue}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{(isMoto ? fleetIds.length > 0 : !!vehicleId) ? 'Seleziona allievi idonei' : isMoto ? 'Scegli prima le moto' : 'Scegli prima il veicolo'}</Text>}
-            </View>
-            {selectedStudents.length > 0 ? (
-              <View style={s.avatarStack}>
-                {selectedStudents.slice(0, 3).map((st, idx) => (
-                  <UserPhotoCircle key={st.id} userId={st.id} size={30} style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx, borderWidth: 2, borderColor: '#FFFFFF' }}>
-                    <View style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
-                      <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
-                    </View>
-                  </UserPhotoCircle>
-                ))}
-              </View>
-            ) : null}
-            <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-          </Pressable>
-
-          {/* Open the remaining seats to invites */}
-          <View style={s.optBanner}>
-            <View style={s.optIcon}><Ionicons name="megaphone-outline" size={18} color={TEAL} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.optTitle}>Apri i posti agli inviti</Text>
-              <Text style={s.optSub}>Gli allievi idonei riceveranno una notifica</Text>
-            </View>
-            <ToggleSwitch value={openInvites} onValueChange={setOpenInvites} disabled={saving} />
-          </View>
+          {/* Allievi pre-inseriti + posti aperti agli inviti */}
+          <ClayList style={s.gap}>
+            <ClayListRow
+              title="Allievi (pre-inserisci)"
+              subtitle={studentsValue ?? (!studentsLocked ? 'Seleziona allievi idonei' : isMoto ? 'Scegli prima le moto' : 'Scegli prima il veicolo')}
+              onPress={guard(openStudentsPicker)}
+              dimmed={studentsLocked}
+              testID="create-group-lesson-students"
+            />
+            <ClayListRow
+              title="Apri i posti agli inviti"
+              subtitle="Gli allievi idonei riceveranno una notifica"
+              trailing={
+                <ClayToggle
+                  value={openInvites}
+                  onValueChange={setOpenInvites}
+                  disabled={saving}
+                  accessibilityLabel="Apri i posti agli inviti"
+                />
+              }
+            />
+          </ClayList>
         </>
       )}
-      </ScrollView>
-
-      {!loading ? (
-        <View style={[s.footer, { paddingBottom: insets.bottom + 6 }]}>
-          <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-            <Text style={s.sumKey}>Riepilogo</Text>
-            <Text style={s.sumVal} numberOfLines={1}>{selectedStudents.length}/{effectiveCapacity} allievi · {durationLabel}</Text>
-            <Text style={s.sumSub} numberOfLines={1}>{fmtDay(startAt)} · {fmtTime(startAt)}</Text>
-          </View>
-          <View style={{ flexShrink: 0 }}>
-            <Button label="Crea" tone="primary" loading={saving} disabled={!canCreate} onPress={() => handleCreate()} />
-          </View>
-        </View>
-      ) : null}
-    </View>
+    </FormSheet>
   );
 };
 
-const ELEV = { shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 } as const;
-
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 4, gap: 12 },
-  title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  lede: { fontSize: 13, fontWeight: '500', color: MUTED, marginBottom: 14 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
-  /* Airbnb segmented control (= quick-book.tsx): sliding white pill on grey track */
-  seg: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: 999, padding: SEG_PAD, position: 'relative', marginBottom: 14 },
-  segPill: {
-    position: 'absolute', top: SEG_PAD, bottom: SEG_PAD, left: SEG_PAD, borderRadius: 999, backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
-  },
-  segItem: { flex: 1, flexDirection: 'row', gap: 7, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  segText: { fontSize: 15, fontWeight: '600', color: '#717171', letterSpacing: -0.2 },
-  segTextActive: { color: '#111111', fontWeight: '700' },
-  hint: { fontSize: 12.5, color: MUTED, marginTop: -4, marginBottom: 14, paddingHorizontal: 4, lineHeight: 17 },
-  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
-  studentsRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
-  rowIcon: { width: 26, alignItems: 'center' },
-  rowBody: { flex: 1, minWidth: 0, gap: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
-  rowValue: { fontSize: 14, color: GREY },
-  rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
-  avatarStack: { flexDirection: 'row', alignItems: 'center' },
-  stackAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: N100, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
-  stackAvatarTxt: { fontSize: 11, fontWeight: '600', color: NAVY },
-  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ECFDF5', borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
-  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
-  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
-  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
-  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
+  gap: { marginTop: 14 },
+  hint: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 10, paddingHorizontal: 4 },
 });

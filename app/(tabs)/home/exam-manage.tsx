@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { examManageStore } from '../../../src/stores/examManageStore';
@@ -7,19 +7,12 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { examStudentsStore, type ExamStudentOption } from '../../../src/stores/examStudentsStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
-import { colors } from '../../../src/theme/colors';
-import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
-import { spacing } from '../../../src/theme/spacing';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { asExamOutcome, askExamOutcome } from '../../../src/utils/examOutcome';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-
-// Icone 3D Fluent, le stesse delle card agenda — al posto dei glifi piatti.
-const FLUENT_GRADUATE = require('../../../assets/icons/fluent-graduate.png');
-const FLUENT_CLOCK = require('../../../assets/icons/fluent-clock.png');
-const FLUENT_ID_CARD = require('../../../assets/icons/fluent-id-card.png');
-const FLUENT_PEOPLE = require('../../../assets/icons/fluent-people.png');
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, Icon3D } from '../../../src/components/clay';
+import { CLAY } from '../../../src/theme/clay';
+import { MORALE_ART } from '../../../src/theme/moraleArt';
 
 const WD = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 const MO = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -32,8 +25,6 @@ const isExamPlaceholder = (a: AutoscuolaAppointmentWithRelations) =>
   (a.type ?? '').toLowerCase() === 'esame' && !a.studentId;
 const studentName = (a: AutoscuolaAppointmentWithRelations) =>
   `${a.student?.firstName ?? ''} ${a.student?.lastName ?? ''}`.trim() || 'Allievo';
-const initials = (a: AutoscuolaAppointmentWithRelations) =>
-  `${a.student?.firstName?.[0] ?? ''}${a.student?.lastName?.[0] ?? ''}`.toUpperCase() || '·';
 
 export default function ExamManageScreen() {
   const router = useRouter();
@@ -51,7 +42,7 @@ export default function ExamManageScreen() {
 
   useEffect(() => () => { examManageStore.clear(); }, []);
 
-  if (!seed) return <View style={s.sheet} />;
+  if (!seed) return <View style={s.empty} />;
 
   const onChanged = seed.onChanged;
   const readOnly = seed.readOnly === true;
@@ -302,212 +293,122 @@ export default function ExamManageScreen() {
 
   const timeLabel = endsAt ? `${fmtTime(startsAt)} – ${fmtTime(endsAt)}` : 'Orario da definire';
 
+  // REG-639 clay: il form sheet unico. Testata con l'icona 3D «esame» (l'unica
+  // 3D del foglio), dettagli e allievi in liste clay su bianco, esito scritto
+  // nel sottotitolo della riga (niente pillole colorate), «Annulla esame» come
+  // CTA secondaria in fondo.
   return (
-    <View style={s.sheet}>
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={close}>
-          <Pressable onPress={close} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
+    <FormSheet
+      title="Esame di guida"
+      subtitle={startsAt ? `${fmtDay(startsAt)} · ${timeLabel}` : timeLabel}
+      leading={<Icon3D source={MORALE_ART.esame} size={44} />}
+      onClose={close}
+      testID="exam-manage-sheet"
+      cta={
+        !readOnly ? (
+          <ClayButton
+            title="Annulla esame"
+            variant="secondary"
+            onPress={cancelExam}
+            disabled={busy}
+            testID="exam-manage-cancel"
+          />
+        ) : null
+      }
+    >
+      {/* Orario e istruttori. La riga «Accompagnatore» c'e' SEMPRE: un esame
+          puo' nascere senza principale e prima, in quel caso, spariva TUTTO il
+          blocco — accompagnatori compresi (Tiziano, 2026-10-02). */}
+      <ClayList>
+        {readOnly ? (
+          <ClayListRow title="Orario" subtitle={timeLabel} />
+        ) : (
+          <ClayListRow
+            title={endsAt ? 'Modifica orario' : 'Imposta orario'}
+            subtitle={timeLabel}
+            onPress={() => { if (!busy) openTimePicker(); }}
+            testID="exam-manage-time"
+          />
+        )}
+        <ClayListRow title="Accompagnatore" subtitle={seed.instructorName ?? 'Non assegnato'} />
+        {/* REG-585: gli accompagnatori in piu', gestibili anche dal telefono.
+            In sola lettura (titolare) la riga compare solo se ce ne sono. */}
+        {readOnly ? (
+          coNames ? <ClayListRow title="Altri accompagnatori" subtitle={coNames} /> : null
+        ) : (
+          <ClayListRow
+            title="Altri accompagnatori"
+            subtitle={coNames ?? 'Nessuno — tocca per aggiungere un collega'}
+            onPress={openCoInstructorPicker}
+            testID="exam-manage-co-instructors"
+          />
+        )}
+      </ClayList>
 
-      {/* Form sheet adattivo: su iOS la sheet abbraccia il contenuto
-          (`TALL_SHEET` → `fitToContents`), su Android prende il detent alto e
-          scrolla da sola col footer inchiodato. Vedi docs/design-system.md
-          §"Modali adattivi" e src/utils/sheetPresentation.ts. */}
-      <SheetScaffold
-        contentContainerStyle={s.scroll}
-        footer={
+      {/* Allievi: tocco = scheda allievo, ••• = menu (esito, rimuovi). */}
+      <ClaySection
+        title={`Allievi · ${realAppts.length}`}
+        action={
           !readOnly ? (
-            <View style={s.footer}>
-              <Pressable onPress={cancelExam} disabled={busy} style={({ pressed }) => [s.cancel, pressed && { opacity: 0.7 }, busy && { opacity: 0.5 }]}>
-                <Text style={s.cancelTx}>Annulla esame</Text>
-              </Pressable>
-            </View>
-          ) : null
+            <Pressable
+              onPress={openAddStudents}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Aggiungi allievi"
+              testID="exam-manage-add-students"
+              style={({ pressed }) => pressed && { opacity: 0.55 }}
+            >
+              <Text style={s.action}>Aggiungi</Text>
+            </Pressable>
+          ) : undefined
         }
       >
-        {/* Header — Fluent 3D graduate icon */}
-        <View style={s.header}>
-          <Image source={FLUENT_GRADUATE} style={s.headerIcon} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.title}>Esame di guida</Text>
-            <Text style={s.subtitle}>{startsAt ? `${fmtDay(startsAt)} · ${timeLabel}` : timeLabel}</Text>
-          </View>
-        </View>
-
-        {/* Orario — card 3D modificabile; in read-only (titolare) riga statica. */}
-        {readOnly ? (
-          <View style={s.editCard}>
-            <Image source={FLUENT_CLOCK} style={s.editIc3d} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.editTitle}>Orario</Text>
-              <Text style={s.editSub}>{timeLabel}</Text>
-            </View>
-          </View>
-        ) : (
-          <Pressable onPress={openTimePicker} disabled={busy} style={({ pressed }) => [s.editCard, pressed && s.pressed]}>
-            <Image source={FLUENT_CLOCK} style={s.editIc3d} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.editTitle}>{endsAt ? 'Modifica orario' : 'Imposta orario'}</Text>
-              <Text style={s.editSub}>{timeLabel}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
-          </Pressable>
-        )}
-
-        {/* Istruttori dell'esame. La sezione c'e' SEMPRE: un esame puo' nascere
-            senza principale e prima, in quel caso, spariva TUTTO il blocco —
-            accompagnatori compresi, che quindi non si potevano ne' vedere ne'
-            cambiare (segnalato da Tiziano il 2026-10-02 su un esame con
-            instructorId null e un co-istruttore gia' assegnato). */}
-        <View style={s.accompGroup}>
-          <View style={[s.accomp, { marginBottom: 0 }]}>
-            <Image source={FLUENT_ID_CARD} style={s.accompIc} />
-            <Text style={s.accompKey}>Accompagnatore</Text>
-            <Text
-              style={[s.accompVal, !seed.instructorName && s.accompPlaceholder]}
-              numberOfLines={1}
-            >
-              {seed.instructorName ?? 'Non assegnato'}
-            </Text>
-          </View>
-          {/* REG-585: gli accompagnatori in piu', gestibili anche dal telefono.
-              In sola lettura (titolare) la riga compare solo se ce ne sono. */}
-          {readOnly ? (
-            coNames ? (
-              <View style={[s.accomp, { marginBottom: 0 }]}>
-                <Image source={FLUENT_PEOPLE} style={s.accompIc} />
-                <Text style={s.accompKey}>Altri accompagnatori</Text>
-                <Text style={s.accompVal} numberOfLines={2}>{coNames}</Text>
-              </View>
-            ) : null
-          ) : (
-            /* Card BIANCA come "Modifica orario": in questo foglio il bianco
-               vuol dire toccabile, il grigio vuol dire sola lettura. Prima
-               era grigia pur essendo toccabile. */
-            <Pressable
-              onPress={openCoInstructorPicker}
-              style={({ pressed }) => [s.editCard, { marginBottom: 0 }, pressed && s.pressed]}
-            >
-              <Image source={FLUENT_PEOPLE} style={s.editIc3d} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.editTitle}>Altri accompagnatori</Text>
-                <Text style={s.editSub} numberOfLines={2}>
-                  {coNames ?? 'Nessuno — tocca per aggiungere un collega'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Allievi — flat rows (no card), ••• menu, + to add */}
-        <View style={s.secRow}>
-          <Text style={s.sec}>ALLIEVI · {realAppts.length}</Text>
-          {!readOnly && (
-            <Pressable onPress={openAddStudents} hitSlop={8} style={({ pressed }) => [s.add, pressed && { opacity: 0.7 }]}>
-              <Ionicons name="add" size={20} color="#111111" />
-            </Pressable>
-          )}
-        </View>
         {realAppts.length === 0 ? (
           <Text style={s.emptyStudents}>
-            {readOnly ? 'Nessun allievo iscritto.' : 'Nessun allievo. Tocca + per aggiungerli.'}
+            {readOnly ? 'Nessun allievo iscritto.' : 'Nessun allievo. Tocca «Aggiungi» per iscriverli.'}
           </Text>
         ) : (
-          realAppts.map((a, idx) => (
-            <Pressable
-              key={a.id}
-              onPress={() => openStudent(a)}
-              style={({ pressed }) => [s.studentRow, idx === realAppts.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}
-            >
-              <UserPhotoCircle userId={a.student?.id} size={42}>
-                <View style={s.studentAv}><Text style={s.studentAvTx}>{initials(a)}</Text></View>
-              </UserPhotoCircle>
-              <Text style={s.studentNm} numberOfLines={1}>{studentName(a)}</Text>
-              {a.examOutcome ? (
-                <View style={[s.outcome, a.examOutcome === 'idoneo' ? s.outcomeOk : s.outcomeKo]}>
-                  <Text style={[s.outcomeTx, a.examOutcome === 'idoneo' ? s.outcomeTxOk : s.outcomeTxKo]}>
-                    {a.examOutcome === 'idoneo' ? 'Idoneo' : 'Respinto'}
-                  </Text>
-                </View>
-              ) : null}
-              {readOnly ? (
-                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-              ) : (
-                <Pressable onPress={() => onStudentMenu(a)} hitSlop={10} style={s.dots}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color="#B0B0B0" />
-                </Pressable>
-              )}
-            </Pressable>
-          ))
+          <ClayList>
+            {realAppts.map((a) => (
+              <ClayListRow
+                key={a.id}
+                leading={<Avatar userId={a.student?.id ?? a.studentId} name={studentName(a)} size={42} />}
+                title={studentName(a)}
+                subtitle={a.examOutcome === 'idoneo' ? 'Idoneo' : a.examOutcome === 'respinto' ? 'Respinto' : undefined}
+                onPress={() => openStudent(a)}
+                chevron={readOnly}
+                trailing={
+                  readOnly ? undefined : (
+                    <Pressable
+                      onPress={() => onStudentMenu(a)}
+                      hitSlop={10}
+                      style={s.dots}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Altre azioni per ${studentName(a)}`}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={20} color={CLAY.ink3} />
+                    </Pressable>
+                  )
+                }
+              />
+            ))}
+          </ClayList>
         )}
+      </ClaySection>
 
-        {/* Note — soft inset card */}
-        {seed.notes ? (
-          <>
-            <Text style={[s.sec, { marginTop: 22 }]}>NOTE</Text>
-            <View style={s.note}><Text style={s.noteTx}>{seed.notes}</Text></View>
-          </>
-        ) : null}
-      </SheetScaffold>
-    </View>
+      {seed.notes ? (
+        <ClaySection title="Note">
+          <Text style={s.noteTx}>{seed.notes}</Text>
+        </ClaySection>
+      ) : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  // Niente `flex: 1`: con un form sheet `fitToContents` il root deve avere
-  // l'altezza del contenuto, se no la sheet non sa quanto abbracciare.
-  sheet: { backgroundColor: colors.background },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 18, paddingTop: 16 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 24, paddingTop: 2 },
-
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
-  headerIcon: { width: 52, height: 52 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#9C9C9C', marginTop: 3 },
-
-  editCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: '#FFFFFF', marginBottom: 12, shadowColor: '#111111', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  editIc: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
-  // Icone 3D: niente pastiglia grigia dietro, come sulle card dell'agenda.
-  editIc3d: { width: 36, height: 36 },
-  accompIc: { width: 24, height: 24 },
-  editTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  editSub: { fontSize: 12.5, fontWeight: '400', color: '#9C9C9C', marginTop: 1 },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] },
-
-  accomp: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#F4F4F4', marginBottom: 26 },
-  accompGroup: { gap: 8, marginBottom: 26 },
-  accompKey: { fontSize: 14, fontWeight: '400', color: '#6A6A6A' },
-  accompPlaceholder: { color: '#989898', fontWeight: '500' },
-  accompVal: { fontSize: 14, fontWeight: '600', color: '#111111', marginLeft: 'auto' },
-
-  secRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
-  sec: { fontSize: 12, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.6 },
-  add: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
-
-  studentRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  // Stessi toni del web: verde idoneo, rosso respinto. Chi non ha esito non
-  // porta pastiglia — un esame futuro non è "in attesa di giudizio".
-  outcome: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
-  outcomeOk: { borderColor: '#C5E8D4', backgroundColor: '#F0FAF4' },
-  outcomeKo: { borderColor: '#FAD4CC', backgroundColor: '#FFF4F2' },
-  outcomeTx: { fontSize: 12, fontWeight: '600' },
-  outcomeTxOk: { color: '#1A7F50' },
-  outcomeTxKo: { color: '#C13515' },
-  studentAv: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  studentAvTx: { fontSize: 14, fontWeight: '600', color: '#111111' },
-  studentNm: { flex: 1, fontSize: 16, fontWeight: '500', color: '#111111' },
-  emptyStudents: { fontSize: 14, fontWeight: '400', color: '#9C9C9C', paddingVertical: 12, paddingHorizontal: 2 },
-  dots: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-
-  note: { padding: 14, borderRadius: 16, backgroundColor: '#F4F4F4', marginTop: 6 },
-  noteTx: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', lineHeight: 21 },
-
-  footer: { paddingHorizontal: spacing.lg, paddingTop: 10, paddingBottom: 28, backgroundColor: colors.background },
-  cancel: { paddingVertical: 15, borderRadius: 16, backgroundColor: '#FEF2F2', alignItems: 'center' },
-  cancelTx: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  action: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
+  emptyStudents: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, paddingHorizontal: 2 },
+  dots: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  noteTx: { fontSize: 15, lineHeight: 21, color: CLAY.ink2, paddingHorizontal: 2 },
 });

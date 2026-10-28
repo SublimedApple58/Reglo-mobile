@@ -1,16 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { bookingSheetStore } from '../../stores/bookingSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
@@ -27,17 +18,14 @@ import {
 import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
-import { ToggleSwitch } from '../ToggleSwitch';
-import { InfoBanner } from '../InfoBanner';
-import { Button } from '../Button';
-import { UserPhotoCircle } from '../UserPhotoCircle';
+import { FormSheet } from '../SheetScaffold';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle } from '../clay';
+import { CLAY } from '../../theme/clay';
+import { SOFT_EXIT, SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../../utils/motion';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
 import { loadLastBookingSelection, saveLastBookingSelection, type LastBookingSelection } from '../../utils/lastBookingSelection';
 import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
-import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON, type MotoLessonType } from '../../utils/motoLessonType';
-import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
-import { GlassCloseButton } from '../GlassCloseButton';
+import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, type MotoLessonType } from '../../utils/motoLessonType';
 
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
 
@@ -78,12 +66,7 @@ const CONFIRMABLE_CODES: Array<{
   },
 ];
 
-const NAVY = '#111111';
-const INK = '#222222';
-const GREY = '#717171';
-const MUTED = '#929292';
-const N50 = '#F4F4F4';
-const N100 = '#EBEBEB';
+
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -108,9 +91,6 @@ const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); ret
 /** bookedDateKeys arrive as `${y}-${monthIndex}-${day}` (0-based, unpadded). */
 const bookedKeyToYMD = (k: string) => { const [y, m, d] = k.split('-'); return `${y}-${pad2(Number(m) + 1)}-${pad2(Number(d))}`; };
 
-const initialsOf = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-
 const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
@@ -123,31 +103,18 @@ const isoWeekStartUTC = (d: Date) => {
   return x.getTime();
 };
 
-/* ───────── Flat row inside an elevated card (icon · label · value · chevron) ───────── */
-const Row = ({ icon, leading, label, value, valueSub, placeholder, onPress, disabled }: {
-  icon?: keyof typeof Ionicons.glyphMap; leading?: React.ReactNode; label: string;
-  value?: string | null; valueSub?: string | null; placeholder?: string;
-  onPress: () => void; disabled?: boolean;
-}) => (
-  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-    {leading ?? <View style={s.rowIcon}><Ionicons name={icon ?? 'ellipse-outline'} size={22} color={NAVY} /></View>}
-    <View style={s.rowBody}>
-      <Text style={s.rowLabel}>{label}</Text>
-      {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>}
-      {valueSub ? <Text style={s.rowValueSub} numberOfLines={1}>{valueSub}</Text> : null}
-    </View>
-    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-  </Pressable>
-);
 
 /* ───────── Shared booking form (used by the new-booking route + quick-book) ─────────
- * `embedded` hides the route shell (topbar X + hero) so the parent — e.g. the
- * quick-book sheet — can render its own header (Airbnb segmented). When the store
- * carries `presetStartMinutes` (released-scrub position), the start time is seeded
- * to it instead of the current clock time. */
+ * REG-639 clay: da solo è un `FormSheet` (titolo, riepilogo come sottotitolo,
+ * CTA in fondo). `embedded` = dentro il FormSheet di quick-book: rende solo il
+ * contenuto e, in coda, riepilogo + CTA (l'ultima cosa del foglio ospite), così
+ * l'ospite tiene testata e segmentato e i due moduli si scambiano in
+ * dissolvenza col `contentKey`. Righe = ClayListRow (titolo = campo,
+ * sottotitolo = valore), niente icone. When the store carries
+ * `presetStartMinutes` (released-scrub position), the start time is seeded to it
+ * instead of the current clock time. */
 export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(bookingSheetStore.subscribe, bookingSheetStore.get);
 
   const [studentId, setStudentId] = useState('');
@@ -256,7 +223,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const locationLabel = resolvedLocation?.name ?? locationName ?? "Sede dell'autoscuola";
   const locationSubLabel = resolvedLocation?.address ?? locationAddress ?? null;
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
   const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
 
   // Moto-vehicle awareness: the follow car (auto al seguito) and extra-moto
@@ -750,230 +717,182 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     .join(', ') || null;
   const motoLessonTypeValue = motoLessonType ? MOTO_LESSON_TYPE_LABELS[motoLessonType] : null;
 
-  // Both hosts (standalone new-booking route AND embedded in quick-book) are
-  // full-height page sheets now: the body always scrolls, the footer is pinned.
-  // (In moto mode the form grows taller than the screen, so a content-hugging
-  // form sheet would clip it on iOS — hence PAGE_SHEET everywhere.)
-  const Wrapper: React.ComponentType<any> = ScrollView;
-  const wrapperProps = {
-    style: { flex: 1 },
-    contentContainerStyle: s.content,
-    keyboardShouldPersistTaps: 'handled' as const,
-    showsVerticalScrollIndicator: false,
+  const locationValue = locationSubLabel ? `${locationLabel} · ${locationSubLabel}` : locationLabel;
+  const studentValue = selectedStudentLabel
+    ? [selectedStudentLabel, selectedStudentSubtitle].filter(Boolean).join(' · ')
+    : 'Seleziona allievo';
+  // Mentre prenota il modulo è fermo: le righe non aprono nulla.
+  const guard = (fn: () => void) => () => { if (!pending) fn(); };
+  const updateEntry = (id: string, patch: Partial<Entry>) =>
+    setEntries((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  const openEntryDuration = (entry: Entry) => {
+    optionsPickerStore.set({
+      title: 'Durata', multi: false, selected: [String(entry.duration)],
+      options: durations.map((d) => ({ value: String(d), label: `${d} min` })),
+      onConfirm: (v) => { const n = Number(v[0]); if (!Number.isNaN(n)) updateEntry(entry.id, { duration: n }); },
+    });
+    router.push(optionsPickerPath());
+  };
+  const addEntry = () => {
+    const last = entries[entries.length - 1];
+    const lastDuration = last?.duration ?? duration;
+    const newDate = last ? new Date(last.date) : new Date(date);
+    const newTime = last ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000) : normalizeToQuarter(new Date());
+    setEntries((p) => [...p, { id: String(p.length) + '-' + newDate.getTime(), date: newDate, startTime: newTime, duration: lastDuration }]);
   };
 
-  return (
-    <View style={embedded ? s.root : [s.root, { paddingTop: 14 }]}>
-      {!embedded && (
-        <View style={s.topbar}>
-          <View style={{ flex: 1 }} />
-          <GlassCloseButton onPress={() => !pending && router.back()} disabled={pending}>
-            <Pressable onPress={() => !pending && router.back()} hitSlop={10} disabled={pending} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-              <Ionicons name="close" size={20} color={NAVY} />
-            </Pressable>
-          </GlassCloseButton>
-        </View>
-      )}
+  const body = (
+    <>
+      {/* Allievo — priorità massima, lista a sé */}
+      <ClayList>
+        <ClayListRow
+          title="Allievo"
+          subtitle={studentValue}
+          leading={selectedStudentLabel ? <Avatar userId={studentId || null} name={selectedStudentLabel} size={46} /> : undefined}
+          onPress={guard(openStudentPicker)}
+          dimmed={!studentOptions.length}
+          testID="booking-student"
+        />
+      </ClayList>
 
-      <Wrapper {...wrapperProps}>
-        {/* Hero */}
-        {!embedded && (
-          <View style={s.hero}>
-            <Text style={s.heroTitle}>Nuova prenotazione</Text>
-          </View>
-        )}
-
-        {/* Allievo — priorità massima, card singola e slegata */}
-        <View style={s.group}>
-          <Row
-            label="Allievo"
-            value={selectedStudentLabel}
-            valueSub={selectedStudentLabel ? selectedStudentSubtitle : null}
-            placeholder="Seleziona allievo"
-            onPress={openStudentPicker}
-            disabled={pending || !studentOptions.length}
-            leading={
-              selectedStudentLabel
-                ? (
-                  <UserPhotoCircle userId={studentId || null} size={44}>
-                    <View style={s.avatar}><Text style={s.avatarTxt}>{initialsOf(selectedStudentLabel)}</Text></View>
-                  </UserPhotoCircle>
-                )
-                : <View style={s.rowIcon}><Ionicons name="person-outline" size={22} color={NAVY} /></View>
+      {/* Quando: una guida (giorno · ora · durata) o più guide insieme */}
+      <ClaySection title="Quando">
+        <ClayList>
+          <ClayListRow
+            title="Prenotazione multipla"
+            subtitle="Aggiungi più guide insieme"
+            trailing={
+              <ClayToggle value={multiMode} onValueChange={setMulti} disabled={pending} accessibilityLabel="Prenotazione multipla" testID="booking-multi-toggle" />
             }
           />
-        </View>
+        </ClayList>
+        <Animated.View key={multiMode ? 'multi' : 'single'} entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+          {!multiMode ? (
+            <ClayList style={s.gap}>
+              <ClayListRow title="Giorno" subtitle={fmtDay(date)} onPress={guard(() => openDatePicker(date, setDate))} />
+              <ClayListRow title="Ora" subtitle={fmtTime(startTime)} onPress={guard(() => openTimePicker(startTime, setStartTime))} />
+              <ClayListRow title="Durata" subtitle={`${duration} min`} onPress={guard(openDuration)} />
+            </ClayList>
+          ) : (
+            <>
+              {entries.map((entry, i) => (
+                <Animated.View key={entry.id} entering={softEnter()} exiting={SOFT_EXIT} layout={SOFT_LAYOUT}>
+                  <ClaySection
+                    title={`Guida ${i + 1}`}
+                    style={s.entry}
+                    action={
+                      entries.length > 1 ? (
+                        <Pressable
+                          hitSlop={8}
+                          onPress={guard(() => setEntries((p) => p.filter((e) => e.id !== entry.id)))}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Togli la guida ${i + 1}`}
+                          style={({ pressed }) => pressed && s.pressed}
+                        >
+                          <Text style={s.remove}>Togli</Text>
+                        </Pressable>
+                      ) : undefined
+                    }
+                  >
+                    <ClayList>
+                      <ClayListRow title="Giorno" subtitle={fmtDay(entry.date)} onPress={guard(() => openDatePicker(entry.date, (d) => updateEntry(entry.id, { date: d })))} />
+                      <ClayListRow title="Ora" subtitle={fmtTime(entry.startTime)} onPress={guard(() => openTimePicker(entry.startTime, (d) => updateEntry(entry.id, { startTime: d })))} />
+                      <ClayListRow title="Durata" subtitle={`${entry.duration} min`} onPress={guard(() => openEntryDuration(entry))} />
+                    </ClayList>
+                  </ClaySection>
+                </Animated.View>
+              ))}
+              {entries.length < 20 ? (
+                <Animated.View layout={SOFT_LAYOUT} style={s.add}>
+                  <ClayButton title="Aggiungi guida" variant="secondary" compact onPress={addEntry} disabled={pending} testID="booking-add-entry" />
+                </Animated.View>
+              ) : null}
+            </>
+          )}
+        </Animated.View>
+      </ClaySection>
 
-        {/* Prenotazione multipla — optional, banner leggero (non un input primario) */}
-        <InfoBanner
-          icon="layers-outline"
-          iconColor={NAVY}
-          title="Prenotazione multipla"
-          subtitle="Aggiungi più guide insieme"
-          trailing={<ToggleSwitch value={multiMode} onValueChange={setMulti} disabled={pending} />}
-          style={{ marginBottom: 14 }}
-        />
-
-        {/* Quando + Durata (single) — priorità alta */}
-        {!multiMode && (
-          <View style={s.group}>
-            <Row icon="calendar-outline" label="Giorno" value={fmtDay(date)} onPress={() => openDatePicker(date, setDate)} disabled={pending} />
-            <View style={s.divider} />
-            <Row icon="time-outline" label="Ora" value={fmtTime(startTime)} onPress={() => openTimePicker(startTime, setStartTime)} disabled={pending} />
-            <View style={s.divider} />
-            <Row icon="hourglass-outline" label="Durata" value={`${duration} min`} onPress={openDuration} disabled={pending} />
-          </View>
-        )}
-
-        {/* Guide (multi) */}
-        {multiMode && (
-          <>
-            {entries.map((entry) => (
-              <View key={entry.id} style={s.entryCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Pressable style={s.chip} onPress={() => openDatePicker(entry.date, (d) => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, date: d } : e)))} disabled={pending}>
-                    <Ionicons name="calendar-outline" size={15} color={NAVY} />
-                    <Text style={s.chipTxt}>{fmtDay(entry.date)}</Text>
-                  </Pressable>
-                  <Pressable style={[s.chip, { marginLeft: 8 }]} onPress={() => openTimePicker(entry.startTime, (d) => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, startTime: d } : e)))} disabled={pending}>
-                    <Ionicons name="time-outline" size={15} color={NAVY} />
-                    <Text style={s.chipTxt}>{fmtTime(entry.startTime)}</Text>
-                  </Pressable>
-                  <View style={{ flex: 1 }} />
-                  {entries.length > 1 ? (
-                    <Pressable hitSlop={8} onPress={() => setEntries((p) => p.filter((e) => e.id !== entry.id))} disabled={pending}>
-                      <Ionicons name="trash-outline" size={18} color="#C13515" />
-                    </Pressable>
-                  ) : null}
-                </View>
-                <View style={s.durRow}>
-                  {durations.map((dur) => { const active = entry.duration === dur; return (
-                    <Pressable key={dur} onPress={() => setEntries((p) => p.map((e) => e.id === entry.id ? { ...e, duration: dur } : e))} style={[s.durPill, active && s.durPillOn]} disabled={pending}>
-                      <Text style={[s.durPillTxt, active && s.durPillTxtOn]}>{dur} min</Text>
-                    </Pressable>
-                  ); })}
-                </View>
-              </View>
-            ))}
-            {entries.length < 20 ? (
-              <Pressable onPress={() => {
-                const last = entries[entries.length - 1];
-                const lastDuration = last?.duration ?? duration;
-                const newDate = last ? new Date(last.date) : new Date(date);
-                const newTime = last ? new Date(last.startTime.getTime() + lastDuration * 60 * 1000) : normalizeToQuarter(new Date());
-                setEntries((p) => [...p, { id: String(p.length) + '-' + newDate.getTime(), date: newDate, startTime: newTime, duration: lastDuration }]);
-              }} style={({ pressed }) => [s.addGuide, pressed && { opacity: 0.7 }]} disabled={pending}>
-                <Ionicons name="add-circle-outline" size={20} color={NAVY} />
-                <Text style={s.addGuideTxt}>Aggiungi guida</Text>
-              </Pressable>
-            ) : null}
-          </>
-        )}
-
-        {/* Secondari — stile lista piatta, priorità inferiore */}
-        <Text style={s.listCaption}>Dettagli</Text>
-        <View style={s.list}>
-          <Row icon="location-outline" label="Luogo" value={locationLabel} valueSub={locationSubLabel} onPress={openLocationPicker} disabled={pending} />
+      {/* Dettagli — priorità inferiore */}
+      <ClaySection title="Dettagli">
+        <ClayList>
+          <ClayListRow title="Luogo" subtitle={locationValue} onPress={guard(openLocationPicker)} />
           {vehiclesEnabled && studentId ? (
-            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
-              <View style={s.divider} />
-              <Row icon="car-outline" label="Veicolo" value={vehicleValue} placeholder="Seleziona veicolo" onPress={openVehicle} disabled={pending || !eligibleVehicles.length} />
-            </Animated.View>
+            <SoftRow title="Veicolo" subtitle={vehicleValue ?? 'Seleziona veicolo'} onPress={guard(openVehicle)} dimmed={!eligibleVehicles.length} />
           ) : null}
           {needFollowCar ? (
-            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
-              <View style={s.divider} />
-              <Row icon="car-sport-outline" label="Auto al seguito" value={followCarValue} placeholder="Seleziona auto al seguito" onPress={openFollowCar} disabled={pending || !followCarOptions.length} />
-            </Animated.View>
+            <SoftRow title="Auto al seguito" subtitle={followCarValue ?? 'Seleziona auto al seguito'} onPress={guard(openFollowCar)} dimmed={!followCarOptions.length} />
           ) : null}
           {primaryIsMoto && extraMotoOptions.length ? (
-            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
-              <View style={s.divider} />
-              <Row icon="bicycle-outline" label="Moto aggiuntive" value={extraMotosValue} placeholder="Nessuna" onPress={openExtraMotos} disabled={pending} />
-            </Animated.View>
+            <SoftRow title="Moto aggiuntive" subtitle={extraMotosValue ?? 'Nessuna'} onPress={guard(openExtraMotos)} />
           ) : null}
           {primaryIsMoto ? (
-            <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(150)} layout={LinearTransition.duration(220)}>
-              <View style={s.divider} />
-              <Row icon="flag-outline" label="Tipo guida moto" value={motoLessonTypeValue} placeholder="Non specificato" onPress={openMotoLessonType} disabled={pending} />
-            </Animated.View>
+            <SoftRow title="Tipo guida moto" subtitle={motoLessonTypeValue ?? 'Non specificato'} onPress={guard(openMotoLessonType)} />
           ) : null}
           {/* Il "Tipo di guida" generico (attività) è ridondante per le moto,
               che usano "Tipo guida moto" (birilli/strada) → nascosto se moto. */}
           {!primaryIsMoto ? (
-            <Animated.View layout={LinearTransition.duration(220)}>
-              <View style={s.divider} />
-              <Row icon="pricetag-outline" label="Tipo di guida" value={typeValue} onPress={openType} disabled={pending} />
-            </Animated.View>
+            <SoftRow title="Tipo di guida" subtitle={typeValue} onPress={guard(openType)} />
           ) : null}
-        </View>
-      </Wrapper>
+        </ClayList>
+      </ClaySection>
+    </>
+  );
 
-      <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-          <Text style={s.sumKey}>Riepilogo</Text>
-          <Text style={s.sumVal} numberOfLines={1}>{summaryMain}</Text>
-          {summarySub ? <Text style={s.sumSub} numberOfLines={1}>{summarySub}</Text> : null}
+  const summary = summarySub ? `${summaryMain} · ${summarySub}` : summaryMain;
+  const cta = (
+    <ClayButton
+      title={ctaLabel}
+      loading={pending}
+      disabled={!canConfirm}
+      onPress={multiMode ? confirmMulti : confirmSingle}
+      testID="booking-submit"
+    />
+  );
+
+  // Dentro quick-book: il foglio (testata col segmentato, X) è dell'ospite;
+  // qui solo contenuto + riepilogo + CTA, che restano l'ultima cosa del foglio.
+  if (embedded) {
+    return (
+      <>
+        {body}
+        <View style={s.embeddedCta}>
+          <Text style={s.summary} numberOfLines={1}>{summary}</Text>
+          {cta}
         </View>
-        <View style={{ flexShrink: 0 }}>
-          <Button label={ctaLabel} tone="primary" loading={pending} disabled={!canConfirm} onPress={multiMode ? confirmMulti : confirmSingle} />
-        </View>
-      </View>
-    </View>
+      </>
+    );
+  }
+
+  return (
+    <FormSheet
+      title="Nuova prenotazione"
+      subtitle={summary}
+      onClose={() => { if (!pending) router.back(); }}
+      cta={cta}
+      testID="new-booking-sheet"
+    >
+      {body}
+    </FormSheet>
   );
 }
 
-const ELEV = {
-  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
-} as const;
+/** Riga che compare/sparisce (veicolo, moto…) in dissolvenza, mai di botto. */
+function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
+  return (
+    <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+      <ClayListRow {...props} />
+    </Animated.View>
+  );
+}
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 2 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xl },
-
-  hero: { marginBottom: 18 },
-  heroTitle: { fontSize: 27, fontWeight: '600', color: NAVY, letterSpacing: -0.6 },
-
-  /* elevated card group (priority items) */
-  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
-
-  /* optional multi-booking banner — light tinted, clearly secondary */
-
-  /* secondary flat list */
-  listCaption: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 2, marginLeft: 6 },
-  list: { paddingHorizontal: 6, marginBottom: 4 },
-
-  /* row */
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
-  rowIcon: { width: 26, alignItems: 'center' },
-  rowBody: { flex: 1, minWidth: 0, gap: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
-  rowValue: { fontSize: 14, color: GREY },
-  rowValueSub: { fontSize: 13, color: '#929292' },
-  rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
-
-  /* avatar (allievo) */
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },
-
-  /* multi entries */
-  entryCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, ...ELEV },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: N50 },
-  chipTxt: { fontSize: 14, fontWeight: '500', color: INK },
-  durRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  durPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F2F2F2' },
-  durPillOn: { backgroundColor: NAVY },
-  durPillTxt: { fontSize: 13, fontWeight: '600', color: '#6A6A6A' },
-  durPillTxtOn: { color: '#FFFFFF' },
-  addGuide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 16, marginBottom: 14, ...ELEV },
-  addGuideTxt: { color: NAVY, fontSize: 15, fontWeight: '600' },
-
-  /* footer */
-  footer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: '#fff' },
-  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
-  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
-  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  gap: { marginTop: 14 },
+  entry: { marginTop: 22 },
+  add: { marginTop: 18 },
+  remove: { fontSize: 15, fontWeight: '500', color: '#C13515' },
+  pressed: { opacity: 0.55 },
+  // Stessa distanza che `FormSheet` mette sopra la sua CTA.
+  embeddedCta: { marginTop: 22 },
+  summary: { fontSize: 14, color: CLAY.ink3, marginBottom: 10, paddingHorizontal: 4 },
 });

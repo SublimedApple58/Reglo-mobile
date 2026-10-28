@@ -1,26 +1,8 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import {
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, {
-  Extrapolation,
-  FadeIn,
-  FadeOut,
-  interpolate,
-  type SharedValue,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { manageLessonStore, type ManageLessonMenuOption } from '../../../src/stores/manageLessonStore';
 import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
@@ -30,228 +12,167 @@ import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { locationFormStore } from '../../../src/stores/locationFormStore';
 import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { ProgressRing } from '../../../src/components/ProgressRing';
 import { SkeletonRing } from '../../../src/components/Skeleton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClayPressable } from '../../../src/components/clay';
 import { evaluationSummary, evaluationSummaryLabel } from '../../../src/utils/evaluationSheet';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
 import { isMotoLicenseCategory, vehicleServesStudent } from '../../../src/utils/license';
-import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS } from '../../../src/utils/motoLessonType';
 import { instructorCanUseVehicle } from '../../../src/utils/vehicles';
 import { formatDay, formatTime } from '../../../src/utils/date';
-import { colors } from '../../../src/theme/colors';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
+import { CLAY } from '../../../src/theme/clay';
 import { RoadLessonCard } from '../../../src/components/road/RoadLessonCard';
 import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
 
-const TONE: Record<string, { bg: string; fg: string }> = {
-  live: { bg: '#111111', fg: '#FFFFFF' },
-  confirmed: { bg: '#DCFCE7', fg: '#15803D' },
-  scheduled: { bg: '#F0F0F0', fg: '#111111' },
-  pending_review: { bg: '#FEF0E6', fg: '#C2410C' },
-};
+const DANGER = '#C13515';
 
-const PILL_ICON: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
-  sposta: 'calendar-arrow-right',
-  scambia: 'swap-horizontal',
-  cancella: 'trash-can-outline',
-};
-const PILL_LABEL: Record<string, string> = {
-  sposta: 'Sposta',
-  scambia: 'Scambia',
-  cancella: 'Elimina',
-};
-
-/** One expanded action pill — staggered spring-in driven by the shared progress. */
-function MorphPill({
-  progress,
-  index,
-  count,
-  option,
-  onPress,
-  disabled,
-}: {
-  progress: SharedValue<number>;
-  index: number;
-  count: number;
-  option: ManageLessonMenuOption;
-  onPress: () => void;
-  disabled: boolean;
-}) {
-  const st = useAnimatedStyle(() => {
-    const order = count - 1 - index; // last pill leads — fans out from the •••
-    const start = 0.08 * order;
-    const p = interpolate(progress.value, [start, start + 0.6], [0, 1], Extrapolation.CLAMP);
-    return {
-      opacity: p,
-      transform: [
-        { translateX: interpolate(p, [0, 1], [40, 0]) },
-        { scale: interpolate(p, [0, 1], [0.82, 1]) },
-      ],
-    };
-  });
-  const iconOnly = !!option.danger; // Elimina = solo cestino, come la X
+/** Elimina: testo rosso premibile (mai un bottone rosso pieno). */
+function DeleteAction({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
   return (
-    <Animated.View style={[iconOnly ? s.pillIconWrap : s.pillWrap, st]}>
-      <Pressable
-        onPress={onPress}
-        disabled={disabled}
-        style={({ pressed }) => [iconOnly ? s.pillIcon : s.pill, pressed && { opacity: 0.5 }]}
-      >
-        <MaterialCommunityIcons name={PILL_ICON[option.key] ?? 'dots-horizontal'} size={iconOnly ? 21 : 19} color={option.danger ? '#E5484D' : '#111111'} />
-        {iconOnly ? null : (
-          <Text style={s.pillLabel} numberOfLines={1}>{PILL_LABEL[option.key] ?? option.label}</Text>
-        )}
-      </Pressable>
-    </Animated.View>
+    <ClayPressable
+      kind="small"
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      style={s.textAction}
+      accessibilityRole="button"
+      accessibilityLabel="Elimina guida"
+      testID="manage-lesson-delete"
+    >
+      <Text style={[s.textActionTx, { color: DANGER }]}>Elimina guida</Text>
+    </ClayPressable>
   );
 }
 
-type MorphStatus = {
-  allowPresente: boolean;
-  pendingAction: string | null;
-  onPresente: () => void;
-  onAssente: () => void;
-};
+/** Sposta / Scambia: righe di una lista clay (aprono il loro foglio). */
+function ActionList({
+  options,
+  onAction,
+}: {
+  options: ManageLessonMenuOption[];
+  onAction: (key: string) => void;
+}) {
+  if (!options.length) return null;
+  return (
+    <ClayList>
+      {options.map((o) => (
+        <ClayListRow key={o.key} title={o.label} onPress={() => onAction(o.key)} testID={`manage-lesson-${o.key}`} />
+      ))}
+    </ClayList>
+  );
+}
 
 /**
- * Morphing action toolbar: one row with [Presente] [Assente] [•••]. Tapping •••
- * collapses Presente/Assente and fans out the secondary actions as separate
- * rounded pills while the ••• morphs into an X (back). One spring drives it all.
+ * Azioni in fondo al foglio (prop `cta` di FormSheet, ultima cosa):
+ * - guida in corso/da segnare: «Presente» (primaria) · «Assente» (secondaria);
+ *   le altre azioni (Sposta, Scambia, Elimina) restano dietro «Altre azioni» e
+ *   compaiono con una dissolvenza morbida, l'altezza scivola (niente pillole);
+ * - senza Presente/Assente: le azioni direttamente;
+ * - guida passata (correzione): «Correggi esito» + «Elimina guida».
  */
-function MorphToolbar({
+function LessonActions({
+  correctionMode,
+  showStatusActions,
+  allowPresente,
+  pendingAction,
   menuOptions,
+  onPresente,
+  onAssente,
+  onCorrect,
   onAction,
-  disabled,
-  expanded,
-  setExpanded,
-  status,
 }: {
+  correctionMode: boolean;
+  showStatusActions: boolean;
+  allowPresente: boolean;
+  pendingAction: string | null;
   menuOptions: ManageLessonMenuOption[];
+  onPresente: () => void;
+  onAssente: () => void;
+  onCorrect: () => void;
   onAction: (key: string) => void;
-  disabled: boolean;
-  expanded: boolean;
-  setExpanded: (v: boolean) => void;
-  status?: MorphStatus;
 }) {
-  const hasMenu = menuOptions.length > 0;
-  const onlyDelete = menuOptions.length === 1 && !!menuOptions[0].danger;
-  const t = useSharedValue(0);
+  const [expanded, setExpanded] = useState(false);
+  const isPending = pendingAction !== null;
+  const danger = menuOptions.find((o) => o.danger) ?? null;
+  const others = menuOptions.filter((o) => !o.danger);
 
-  useEffect(() => {
-    t.value = withSpring(expanded ? 1 : 0, { damping: 15, stiffness: 170, mass: 0.7 });
-  }, [expanded]);
-
-  const statusStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0, 0.35], [1, 0], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(t.value, [0, 1], [1, 0.95], Extrapolation.CLAMP) }],
-  }));
-  const dotsStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0, 0.3], [1, 0], Extrapolation.CLAMP),
-    transform: [{ rotate: `${interpolate(t.value, [0, 1], [0, 90], Extrapolation.CLAMP)}deg` }],
-  }));
-  const xStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0.35, 1], [0, 1], Extrapolation.CLAMP),
-    transform: [{ rotate: `${interpolate(t.value, [0, 1], [-90, 0], Extrapolation.CLAMP)}deg` }],
-  }));
-
-  // No Presente/Assente and more than one action → show the actions directly,
-  // no ••• needed (there's room for them).
-  if (hasMenu && !onlyDelete && !status) {
+  if (correctionMode) {
     return (
-      <View style={s.directRow} pointerEvents="box-none">
-        {menuOptions.map((o) =>
-          o.danger ? (
-            <Pressable
-              key={o.key}
-              onPress={() => onAction(o.key)}
-              disabled={disabled}
-              style={({ pressed }) => [s.pillIcon, pressed && { opacity: 0.7 }]}
-              accessibilityLabel="Elimina guida"
-            >
-              <MaterialCommunityIcons name="trash-can-outline" size={21} color="#E5484D" />
-            </Pressable>
-          ) : (
-            <Pressable
-              key={o.key}
-              onPress={() => onAction(o.key)}
-              disabled={disabled}
-              style={({ pressed }) => [s.directPill, pressed && { opacity: 0.5 }]}
-            >
-              <MaterialCommunityIcons name={PILL_ICON[o.key] ?? 'dots-horizontal'} size={19} color="#111111" />
-              <Text style={s.pillLabel} numberOfLines={1}>{PILL_LABEL[o.key] ?? o.label}</Text>
-            </Pressable>
-          ),
-        )}
+      <View style={s.ctaCol}>
+        {showStatusActions ? (
+          <ClayButton
+            title="Correggi esito"
+            onPress={onCorrect}
+            loading={isPending}
+            testID="manage-lesson-correct"
+          />
+        ) : null}
+        {danger ? <DeleteAction onPress={() => onAction(danger.key)} disabled={isPending} /> : null}
       </View>
     );
   }
 
+  const run = (key: string) => {
+    setExpanded(false);
+    onAction(key);
+  };
+
+  // Niente Presente/Assente: le azioni si vedono subito (c'è posto).
+  if (!showStatusActions) {
+    return (
+      <View style={s.ctaCol}>
+        <ActionList options={others} onAction={onAction} />
+        {danger ? <DeleteAction onPress={() => onAction(danger.key)} disabled={isPending} /> : null}
+      </View>
+    );
+  }
+
+  const hasMore = others.length > 0;
   return (
-    <View style={s.toolbar} pointerEvents="box-none">
-      {/* Presente / Assente (collapsed state) */}
-      {status ? (
-        <Animated.View style={[s.statusLayer, { right: hasMenu ? 60 : 0 }, statusStyle]} pointerEvents={expanded ? 'none' : 'auto'}>
-          {status.allowPresente ? (
-            <Pressable
-              onPress={status.onPresente}
-              disabled={disabled}
-              style={({ pressed }) => [s.presBtn, pressed && { opacity: 0.9 }, disabled && { opacity: 0.5 }]}
-            >
-              <GradientCTABackground radius={25} />
-              <Text style={s.presText}>{status.pendingAction === 'checked_in' ? 'Attendi…' : 'Presente'}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            onPress={status.onAssente}
-            disabled={disabled}
-            style={({ pressed }) => [s.absBtn, pressed && { opacity: 0.9 }, disabled && { opacity: 0.5 }]}
+    <View style={s.ctaCol}>
+      {allowPresente ? (
+        <ClayButton
+          title="Presente"
+          onPress={onPresente}
+          loading={pendingAction === 'checked_in'}
+          disabled={isPending}
+          testID="manage-lesson-presente"
+        />
+      ) : null}
+      <ClayButton
+        title="Assente"
+        variant="secondary"
+        onPress={onAssente}
+        loading={pendingAction === 'no_show'}
+        disabled={isPending}
+        testID="manage-lesson-assente"
+      />
+      {hasMore ? (
+        <>
+          <ClayPressable
+            kind="small"
+            onPress={() => setExpanded((v) => !v)}
+            hitSlop={8}
+            style={s.textAction}
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? 'Chiudi azioni' : 'Altre azioni'}
+            accessibilityState={{ expanded }}
+            testID="manage-lesson-more"
           >
-            <Text style={s.absText}>{status.pendingAction === 'no_show' ? 'Attendi…' : 'Assente'}</Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
-
-      {/* Action pills (expanded state) — not used when delete is the only action */}
-      {hasMenu && !onlyDelete ? (
-        <View style={s.pillsLayer} pointerEvents={expanded ? 'auto' : 'none'}>
-          {menuOptions.map((o, i) => (
-            <MorphPill
-              key={o.key}
-              progress={t}
-              index={i}
-              count={menuOptions.length}
-              option={o}
-              disabled={disabled}
-              onPress={() => { setExpanded(false); onAction(o.key); }}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {/* Right anchor: trash circle when delete is the only action, else ••• ↔ X */}
-      {onlyDelete ? (
-        <Pressable
-          onPress={() => onAction(menuOptions[0].key)}
-          disabled={disabled}
-          style={({ pressed }) => [s.fabCircle, s.moreAnchor, pressed && { opacity: 0.85 }]}
-          accessibilityLabel="Elimina guida"
-        >
-          <MaterialCommunityIcons name="trash-can-outline" size={21} color="#E5484D" />
-        </Pressable>
-      ) : hasMenu ? (
-        <Pressable
-          onPress={() => setExpanded(!expanded)}
-          style={({ pressed }) => [s.fabCircle, s.moreAnchor, pressed && { opacity: 0.85 }]}
-          accessibilityLabel={expanded ? 'Chiudi azioni' : 'Altre azioni'}
-        >
-          <Animated.View style={[s.iconAbs, dotsStyle]}>
-            <Ionicons name="ellipsis-horizontal" size={21} color="#111111" />
-          </Animated.View>
-          <Animated.View style={[s.iconAbs, xStyle]}>
-            <Ionicons name="close" size={21} color="#111111" />
-          </Animated.View>
-        </Pressable>
+            <Text style={s.textActionTx}>Altre azioni</Text>
+          </ClayPressable>
+          {expanded ? (
+            <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} layout={SOFT_LAYOUT} style={s.ctaCol}>
+              <ActionList options={others} onAction={run} />
+              {danger ? <DeleteAction onPress={() => run(danger.key)} disabled={isPending} /> : null}
+            </Animated.View>
+          ) : null}
+        </>
+      ) : danger ? (
+        <DeleteAction onPress={() => onAction(danger.key)} disabled={isPending} />
       ) : null}
     </View>
   );
@@ -259,10 +180,8 @@ function MorphToolbar({
 
 export default function ManageLessonScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { enabled: roadEnabled } = useRoadEnabled();
   const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
-  const [expanded, setExpanded] = useState(false);
 
   // Tell the parent when this route is dismissed (popped), then clear the store.
   useEffect(() => {
@@ -275,7 +194,7 @@ export default function ManageLessonScreen() {
   const lesson = data?.lesson ?? null;
 
   if (!data || !lesson) {
-    return <View style={s.sheet} />;
+    return <View style={s.empty} />;
   }
 
   const {
@@ -292,10 +211,8 @@ export default function ManageLessonScreen() {
       : (lesson.status ?? '').trim().toLowerCase() === 'no_show'
         ? 'no_show'
         : null;
-  const overline = readOnly ? 'Dettaglio guida' : 'Gestisci guida';
 
   const isPending = pendingAction !== null;
-  const tone = stateMeta ? TONE[stateMeta.tone] ?? TONE.scheduled : null;
   const phone = lesson.student?.phone ?? null;
   const hasMenu = menuOptions.length > 0;
 
@@ -455,419 +372,206 @@ export default function ManageLessonScreen() {
   const detailsSummary = summaryParts.join(' · ') || 'Tipo, pagellino e note';
 
   const showBottom = showStatusActions || hasMenu;
-  const bottomPad = insets.bottom + (showBottom ? 86 : 12);
+  const statusText = stateMeta ? stateMeta.label : stateLabel;
+  const metaLine =
+    `${formatDay(lesson.startsAt)} · ${formatTime(lesson.startsAt)}` +
+    (durationText ? ` · ${durationText}` : '') +
+    (vehiclesEnabled && !motoBlock ? ` · ${vehicleText}` : '');
+  const motoType = asMotoLessonType(lesson.motoLessonType);
 
   return (
-    <View style={s.sheet}>
-      {/* Top action bar — X close */}
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[s.content, { paddingBottom: bottomPad }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero */}
-        <View style={s.hero}>
-          <Text style={s.heroOverline}>{overline}</Text>
-          {/* Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami) */}
-          <Pressable onPress={openStudentDetail} hitSlop={6} style={({ pressed }) => [s.heroNameRow, pressed && { opacity: 0.55 }]}>
-            <Text style={s.heroName}>{studentName}</Text>
-            <Ionicons name="chevron-forward" size={21} color="#C9C9C9" style={{ marginTop: 3 }} />
-          </Pressable>
-          <Text style={s.heroMeta}>
-            {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-            {durationText ? ` · ${durationText}` : ''}
-            {vehiclesEnabled && !motoBlock ? ` · ${vehicleText}` : ''}
-          </Text>
-          <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <View style={[s.statePill, { backgroundColor: tone ? tone.bg : '#F0F0F0' }]}>
-              <Text style={[s.statePillText, { color: tone ? tone.fg : '#111111' }]}>
-                {stateMeta ? stateMeta.label : stateLabel}
-              </Text>
-            </View>
-          </View>
-
-          {/* Contatti — cerchietti in alto a sinistra */}
-          {phone ? (
-            <View style={s.contactTopRow}>
-              <Pressable
-                onPress={() => Linking.openURL(`tel:${phone}`)}
-                style={({ pressed }) => [s.contactCircle, pressed && { opacity: 0.7 }]}
-                accessibilityLabel="Chiama allievo"
-              >
-                <Ionicons name="call" size={19} color="#111111" />
-              </Pressable>
-              <Pressable
-                onPress={() => Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`)}
-                style={({ pressed }) => [s.contactCircle, pressed && { opacity: 0.7 }]}
-                accessibilityLabel="Scrivi su WhatsApp"
-              >
-                <Ionicons name="logo-whatsapp" size={19} color="#111111" />
-              </Pressable>
-            </View>
-          ) : null}
+    <FormSheet
+      testID="manage-lesson-sheet"
+      title={
+        // Nome tappabile → modal dettaglio allievo (storico, obbligo guide, esami)
+        <Pressable
+          onPress={openStudentDetail}
+          hitSlop={6}
+          style={({ pressed }) => [s.nameRow, pressed && { opacity: 0.55 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${studentName}, apri la scheda allievo`}
+          testID="manage-lesson-student"
+        >
+          <Text style={s.name} numberOfLines={2}>{studentName}</Text>
+          <Ionicons name="chevron-forward" size={19} color={CLAY.chevron} style={{ marginTop: 3 }} />
+        </Pressable>
+      }
+      subtitle={
+        <View>
+          <Text style={s.meta} numberOfLines={2}>{metaLine}</Text>
+          {/* Stato in testo semplice (niente pillola colorata). */}
+          <Text style={s.status} numberOfLines={1} testID="manage-lesson-status">{statusText}</Text>
         </View>
+      }
+      cta={
+        showBottom ? (
+          <LessonActions
+            correctionMode={correctionMode}
+            showStatusActions={showStatusActions}
+            allowPresente={allowPresente}
+            pendingAction={pendingAction}
+            menuOptions={menuOptions}
+            onPresente={() => handleStatus('checked_in')}
+            onAssente={() => handleStatus('no_show')}
+            onCorrect={openCorrect}
+            onAction={runMenu}
+          />
+        ) : undefined
+      }
+    >
+      <View style={s.body}>
+        {/* Contatti: comandi monocromatici */}
+        {phone ? (
+          <View style={s.contacts}>
+            <ClayIconButton
+              icon={<Ionicons name="call-outline" size={20} color={CLAY.ink} />}
+              size="lg"
+              onPress={() => Linking.openURL(`tel:${phone}`)}
+              accessibilityLabel="Chiama allievo"
+              testID="manage-lesson-call"
+            />
+            <ClayIconButton
+              icon={<Ionicons name="logo-whatsapp" size={21} color={CLAY.ink} />}
+              size="lg"
+              onPress={() => Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`)}
+              accessibilityLabel="Scrivi su WhatsApp"
+              testID="manage-lesson-whatsapp"
+            />
+          </View>
+        ) : null}
 
-        {/* Progresso guide — ring 3D centrale */}
-        {lesson.type !== 'esame' && (
+        {/* Progresso guide (fatte / obbligatorie): anello nero su bianco */}
+        {lesson.type !== 'esame' ? (
           <View style={s.progressBlock}>
             {studentProgress ? (
               <ProgressRing
-                size={132}
-                stroke={13}
+                size={112}
+                stroke={9}
                 progress={studentProgress.completed / Math.max(1, studentProgress.required)}
-                gradient={['#2A2A2A', '#111111']}
-                innerColor={colors.background}
+                color={CLAY.ink}
+                trackColor="#EFEFEF"
+                innerColor="#FFFFFF"
               >
-                <Text style={s.ringCount}>
+                <Text
+                  style={s.ringCount}
+                  accessibilityLabel={`${studentProgress.completed} guide su ${studentProgress.required}`}
+                >
                   {studentProgress.completed}
                   <Text style={s.ringTotal}>/{studentProgress.required}</Text>
                 </Text>
               </ProgressRing>
             ) : (
-              <SkeletonRing size={132} stroke={13} />
+              <SkeletonRing size={112} stroke={9} />
             )}
           </View>
-        )}
+        ) : null}
 
-        {/* Istruttore + Luogo — righe piatte. Read-only (titolare) = righe statiche
-            senza chevron né navigazione; altrimenti auto-save su selezione. */}
-        <View style={s.detailRows}>
-          {readOnly ? (
-            <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Istruttore</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={openInstructorPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Istruttore</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{instructorDisplay}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
-          )}
-          <View style={s.rowDivider} />
-          {readOnly ? (
-            <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Luogo</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
-                {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={openLocationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="location-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Luogo</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{locName}</Text>
-                {locAddress ? <Text style={s.detailValueSub} numberOfLines={1}>{locAddress}</Text> : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
-          )}
-
-          <View style={s.rowDivider} />
-          {readOnly ? (
-            <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Durata</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={openDurationPicker} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="time-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Durata</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{durationText}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
-          )}
-
+        {/* Istruttore, Luogo, Durata, Veicolo/i. Read-only (titolare) = righe
+            statiche senza chevron; altrimenti auto-save su selezione. */}
+        <ClayList>
+          <ClayListRow
+            title="Istruttore"
+            subtitle={instructorDisplay}
+            onPress={readOnly ? undefined : openInstructorPicker}
+            testID="manage-lesson-instructor"
+          />
+          <ClayListRow
+            title="Luogo"
+            subtitle={
+              <Text style={s.rowSub} numberOfLines={2}>
+                {locName}
+                {locAddress ? `\n${locAddress}` : ''}
+              </Text>
+            }
+            onPress={readOnly ? undefined : openLocationPicker}
+            testID="manage-lesson-location"
+          />
+          <ClayListRow
+            title="Durata"
+            subtitle={durationText}
+            onPress={readOnly ? undefined : openDurationPicker}
+            testID="manage-lesson-duration"
+          />
           {vehiclesEnabled && !motoBlock ? (
-            <>
-              <View style={s.rowDivider} />
-              {readOnly ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicolo</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
-                  </View>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={openVehiclePicker}
-                  disabled={!vehicles.length}
-                  style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
-                >
-                  <View style={s.detailIcon}><Ionicons name="car-outline" size={23} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicolo</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{vehicleText}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              )}
-            </>
+            <ClayListRow
+              title="Veicolo"
+              subtitle={vehicleText}
+              onPress={readOnly || !vehicles.length ? undefined : openVehiclePicker}
+              testID="manage-lesson-vehicle"
+            />
           ) : null}
-
-          {/* Guida moto: riga riepilogo "Veicoli" → apre il sheet dedicato
-              (moto principale + aggiuntive + auto al seguito). Read-only per il
-              titolare = riga statica. */}
+          {/* Guida moto: riepilogo "Veicoli" → foglio dedicato (moto principale
+              + aggiuntive + auto al seguito). */}
           {motoBlock ? (
-            <>
-              <View style={s.rowDivider} />
-              {readOnly ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicoli</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{motoSummaryMain}</Text>
-                    {motoSummarySub ? <Text style={s.detailValueSub} numberOfLines={1}>{motoSummarySub}</Text> : null}
-                  </View>
-                </View>
-              ) : (
-                <Pressable onPress={openVehiclesSheet} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={23} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicoli</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{motoSummaryMain}</Text>
-                    {motoSummarySub ? <Text style={s.detailValueSub} numberOfLines={1}>{motoSummarySub}</Text> : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              )}
-            </>
+            <ClayListRow
+              title="Veicoli"
+              subtitle={
+                <Text style={s.rowSub} numberOfLines={2}>
+                  {motoSummaryMain}
+                  {motoSummarySub ? `\n${motoSummarySub}` : ''}
+                </Text>
+              }
+              onPress={readOnly ? undefined : openVehiclesSheet}
+              testID="manage-lesson-vehicles"
+            />
           ) : null}
-
-          {/* Tipo guida moto (birilli/strada) — sola lettura. Mostrata solo per
-              le guide moto con il tipo impostato dal web. */}
-          {(() => {
-            const motoType = asMotoLessonType(lesson.motoLessonType);
-            if (!motoType) return null;
-            return (
-              <>
-                <View style={s.rowDivider} />
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}>
-                    <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={23} color="#111111" />
-                  </View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Tipo guida moto</Text>
-                    <Text style={s.detailValue} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
-                    <Text style={s.detailValueSub} numberOfLines={1}>{MOTO_LESSON_TYPE_HINTS[motoType]}</Text>
-                  </View>
-                </View>
-              </>
-            );
-          })()}
-        </View>
+          {/* Tipo guida moto (birilli/strada) — sola lettura, impostato dal web. */}
+          {motoType ? (
+            <ClayListRow
+              title="Tipo guida moto"
+              subtitle={
+                <Text style={s.rowSub} numberOfLines={2}>
+                  {MOTO_LESSON_TYPE_LABELS[motoType]}
+                  {`\n${MOTO_LESSON_TYPE_HINTS[motoType]}`}
+                </Text>
+              }
+            />
+          ) : null}
+        </ClayList>
 
         {/* REG-638: percorso Road della guida (solo se c'è una sessione chiusa). */}
         {lesson.type !== 'esame' && !lesson.groupLessonId ? (
           <RoadLessonCard router={router} appointmentId={lesson.id} startsAt={lesson.startsAt} enabled={roadEnabled} />
         ) : null}
 
-        {/* Dettagli guida — card 3D CTA (tutta cliccabile) → sub-sheet.
-            Nascosta in read-only (il titolare non modifica tipo/voto/note). */}
+        {/* Dettagli guida → sub-sheet. Nascosta in read-only (il titolare non
+            modifica tipo/voto/note). */}
         {!readOnly && lesson.type !== 'esame' ? (
-          <Pressable onPress={openDetails} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="create-outline" size={22} color="#111111" /></View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.cardTitle}>Dettagli guida</Text>
-              <Text style={s.cardSub} numberOfLines={1}>{detailsSummary}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
-          </Pressable>
-        ) : null}
-      </ScrollView>
-
-      {/* Backdrop to collapse the morph on outside tap */}
-      {expanded ? (
-        <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(140)} style={StyleSheet.absoluteFill}>
-          <Pressable style={s.backdrop} onPress={() => setExpanded(false)} />
-        </Animated.View>
-      ) : null}
-
-      {/* Floating bottom cluster.
-          - Guida passata (correzione): un solo "Correggi esito" (+ cestino) →
-            apre l'action sheet con Segna Presente / Segna Assente.
-          - Guida live: la MorphToolbar con Presente · Assente · ••• */}
-      {showBottom ? (
-        <View style={[s.floatWrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
-          {correctionMode ? (
-            <View style={s.corrRow}>
-              {showStatusActions ? (
-                <Pressable
-                  onPress={openCorrect}
-                  disabled={isPending}
-                  style={({ pressed }) => [s.correggiBtn, pressed && { opacity: 0.9 }, isPending && { opacity: 0.5 }]}
-                >
-                  <GradientCTABackground radius={26} />
-                  <Ionicons name="create-outline" size={18} color="#FFFFFF" />
-                  <Text style={s.correggiText}>{pendingAction ? 'Attendi…' : 'Correggi esito'}</Text>
-                </Pressable>
-              ) : null}
-              {menuOptions.some((o) => o.danger) ? (
-                <Pressable
-                  onPress={() => runMenu('cancella')}
-                  disabled={isPending}
-                  style={({ pressed }) => [s.corrTrash, pressed && { opacity: 0.85 }]}
-                  accessibilityLabel="Elimina guida"
-                >
-                  <MaterialCommunityIcons name="trash-can-outline" size={21} color="#E5484D" />
-                </Pressable>
-              ) : null}
-            </View>
-          ) : (
-            <MorphToolbar
-              menuOptions={menuOptions}
-              onAction={runMenu}
-              disabled={isPending}
-              expanded={expanded}
-              setExpanded={setExpanded}
-              status={showStatusActions ? {
-                allowPresente,
-                pendingAction,
-                onPresente: () => handleStatus('checked_in'),
-                onAssente: () => handleStatus('no_show'),
-              } : undefined}
+          <ClayList>
+            <ClayListRow
+              title="Dettagli guida"
+              subtitle={detailsSummary}
+              onPress={openDetails}
+              testID="manage-lesson-details"
             />
-          )}
-        </View>
-      ) : null}
-
-    </View>
+          </ClayList>
+        ) : null}
+      </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.background },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 },
-  iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFEFF1', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 20, gap: 24 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
 
-  // Hero
-  hero: { gap: 4 },
-  heroOverline: { fontSize: 13, fontWeight: '500', color: '#9A9A9A', letterSpacing: 0.2 },
-  // Correzione: bottom bar (Correggi esito + cestino)
-  corrRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  correggiBtn: {
-    flex: 1, height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    ...primaryCtaShadow,
-  },
-  correggiText: { fontSize: 15.5, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  corrTrash: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  heroName: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },
-  statePill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
-  statePillText: { fontSize: 12, fontWeight: '600' },
+  // Testata
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%' },
+  name: { flexShrink: 1, fontSize: 24, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5, lineHeight: 28 },
+  meta: { fontSize: 15, color: CLAY.ink3, marginTop: 3, lineHeight: 20 },
+  status: { fontSize: 15, fontWeight: '500', color: CLAY.ink2, marginTop: 1, lineHeight: 20 },
 
-  // Contatti in alto
-  contactTopRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  contactCircle: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E5E5',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
-  },
+  body: { gap: 22 },
+  contacts: { flexDirection: 'row', gap: 12 },
 
-  // Progresso ring centrale
-  progressBlock: { alignItems: 'center', paddingVertical: 4 },
-  ringCount: { fontSize: 34, fontWeight: '700', color: '#111111', letterSpacing: -1 },
-  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9C9C9C' },
+  // Anello progresso
+  progressBlock: { alignItems: 'center', paddingVertical: 2 },
+  ringCount: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8 },
+  ringTotal: { fontSize: 17, fontWeight: '500', color: CLAY.ink3 },
 
-  // Righe piatte istruttore/luogo
-  detailRows: { gap: 0 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
-  detailIcon: { width: 28, alignItems: 'center' },
-  detailBody: { flex: 1, gap: 1 },
-  detailLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
-  detailValueSub: { fontSize: 13, color: '#9C9C9C' },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
+  rowSub: { flexShrink: 1, fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
 
-  // Card 3D CTA dettagli
-  cardCta: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#111111', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
-  },
-  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  cardSub: { fontSize: 13, fontWeight: '400', color: '#717171' },
-
-  // Floating bottom cluster
-  backdrop: { flex: 1, backgroundColor: 'rgba(23,23,23,0.04)' },
-  floatWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, gap: 10 },
-
-  // Status layer (Presente / Assente) — collapses on expand, leaves room for •••
-  statusLayer: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  presBtn: {
-    flex: 1, height: 50, borderRadius: 25,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  presText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  absBtn: {
-    flex: 1, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5,
-  },
-  absText: { fontSize: 15, fontWeight: '700', color: '#E5484D', letterSpacing: -0.2 },
-
-  // Morphing action toolbar (downsized)
-  toolbar: { height: 50, justifyContent: 'center' },
-  directRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 50 },
-  directPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 9,
-    height: 50, paddingHorizontal: 18, borderRadius: 25, backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  fabCircle: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  moreAnchor: { position: 'absolute', right: 0, top: 0 },
-  iconAbs: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-
-  // Expanded action pills (separate rounded pills, leaving room for the X at right)
-  pillsLayer: { position: 'absolute', left: 0, top: 0, bottom: 0, right: 60, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pillWrap: { flex: 1, height: 50 },
-  pill: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-    borderRadius: 25, backgroundColor: '#FFFFFF', paddingHorizontal: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  pillLabel: { fontSize: 14, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
-  // Elimina — solo icona, cerchio come la X
-  pillIconWrap: { width: 50, height: 50 },
-  pillIcon: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
+  // Azioni in fondo
+  ctaCol: { gap: 10 },
+  textAction: { alignItems: 'center', paddingVertical: 10 },
+  textActionTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink2 },
 });

@@ -1,25 +1,24 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayEmpty, ClayList, ClayListRow } from '../../../src/components/clay';
 import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { AutoscuolaInstructor } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 
 /**
  * REG-585 — "Altri istruttori": chi porta la guida INSIEME al principale.
+ * Form sheet unico (FORM_SHEET + FormSheet, REG-639 clay): righe di una lista
+ * clay senza icone, la scelta è una spunta nera.
  *
  * Multi-selezione che salva a ogni tocco (niente CTA da tagliare su Android,
  * e nessun optimistic update: spinner sulla riga → risposta del BE → lista
  * aggiornata). Il principale non compare: è già lui che tiene la guida.
  */
 export default function ManageCoInstructorsScreen() {
-  const router = useRouter();
   const data = useSyncExternalStore(coInstructorPickerStore.subscribe, coInstructorPickerStore.get);
 
   const [list, setList] = useState<AutoscuolaInstructor[]>([]);
@@ -79,130 +78,68 @@ export default function ManageCoInstructorsScreen() {
     }
   };
 
-  return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Altri istruttori</Text>
-        <Text style={s.subtitle}>{data?.subtitle ?? 'Chi la porta insieme a te.'}</Text>
-      </View>
+  const subtitle = data?.subtitle ?? 'Chi la porta insieme a te.';
 
-      <SheetScaffold>
-        {loading && list.length === 0 ? (
-          <View style={s.center}>
-            <ActivityIndicator size="small" color="#111111" />
-            <Text style={s.muted}>Carico gli istruttori…</Text>
-          </View>
-        ) : failed ? (
-          <View style={s.center}>
-            <Ionicons name="cloud-offline-outline" size={26} color="#B0B0B0" />
-            <Text style={s.muted}>Non sono riuscito a caricare gli istruttori.</Text>
-          </View>
-        ) : selectable.length === 0 && !main ? (
-          <View style={s.center}>
-            <Ionicons name="people-outline" size={26} color="#B0B0B0" />
-            <Text style={s.muted}>Non ci sono altri istruttori da aggiungere.</Text>
-          </View>
-        ) : (
-          <View>
-            {error ? (
-              <View style={s.errorBox}>
-                <Ionicons name="alert-circle" size={16} color="#B42318" />
-                <Text style={s.errorText}>{error}</Text>
-              </View>
-            ) : null}
+  return (
+    <FormSheet title="Altri istruttori" subtitle={subtitle} testID="manage-co-instructors-sheet">
+      {loading && list.length === 0 ? (
+        <View style={s.center}>
+          <ActivityIndicator size="small" color={CLAY.ink} />
+          <Text style={s.muted}>Carico gli istruttori…</Text>
+        </View>
+      ) : failed ? (
+        <ClayEmpty title="Istruttori non disponibili" text="Non sono riuscito a caricare gli istruttori." />
+      ) : selectable.length === 0 && !main ? (
+        <ClayEmpty title="Nessun altro istruttore" text="Non ci sono altri istruttori da aggiungere." />
+      ) : (
+        <View>
+          {error ? <Text style={s.errorText}>{error}</Text> : null}
+          <ClayList>
             {/* Il principale, in cima e bloccato. */}
             {main ? (
-              <View style={s.mainRow}>
-                <View style={s.iconCol}>
-                  <Ionicons name="person" size={22} color="#111111" />
-                </View>
-                <View style={s.body}>
-                  <Text style={s.name} numberOfLines={1}>
-                    {main.name}{main.id === myInstructorId ? ' (tu)' : ''}
-                  </Text>
-                  <Text style={s.mainSub}>Principale · tiene lui questa guida</Text>
-                </View>
-                <Ionicons name="lock-closed" size={16} color="#C9C9C9" />
-              </View>
+              <ClayListRow
+                key={main.id}
+                title={`${main.name}${main.id === myInstructorId ? ' (tu)' : ''}`}
+                subtitle="Principale · tiene lui questa guida"
+                testID="co-instructor-main"
+              />
             ) : null}
-            {selectable.map((it, idx) => {
+            {selectable.map((it) => {
               const isOn = selected.includes(it.id);
               const isSaving = savingId === it.id;
               const blocked = savingId !== null && !isSaving;
               return (
-                <View key={it.id}>
-                  {idx > 0 || main ? <View style={s.divider} /> : null}
-                  <Pressable
-                    onPress={() => void toggle(it)}
-                    disabled={savingId !== null}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isOn, disabled: savingId !== null }}
-                    style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }, blocked && { opacity: 0.4 }]}
-                  >
-                    <View style={s.iconCol}>
-                      <Ionicons name="person" size={22} color="#111111" />
-                    </View>
-                    <View style={s.body}>
-                      <Text style={[s.name, isOn && { fontWeight: '700' }]} numberOfLines={1}>
-                        {it.name}{it.id === myInstructorId ? ' (tu)' : ''}
-                      </Text>
-                      {isOn ? <Text style={s.sub}>Porta questa guida con te</Text> : null}
-                    </View>
-                    {isSaving ? (
-                      <ActivityIndicator size="small" color="#111111" />
+                <ClayListRow
+                  key={it.id}
+                  title={`${it.name}${it.id === myInstructorId ? ' (tu)' : ''}`}
+                  subtitle={isOn ? 'Porta questa guida con te' : undefined}
+                  onPress={() => void toggle(it)}
+                  chevron={false}
+                  dimmed={blocked}
+                  testID={`co-instructor-${it.id}`}
+                  trailing={
+                    isSaving ? (
+                      <ActivityIndicator size="small" color={CLAY.ink} />
                     ) : isOn ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#047857" />
-                    ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#C9C9C9" />
-                    )}
-                  </Pressable>
-                </View>
+                      <Ionicons name="checkmark" size={22} color={CLAY.ink} accessibilityLabel="Selezionato" />
+                    ) : null
+                  }
+                />
               );
             })}
-            <Text style={s.footnote}>
-              La guida comparirà in agenda anche a chi aggiungi, e le ore contano per tutti.
-            </Text>
-          </View>
-        )}
-      </SheetScaffold>
-    </View>
+          </ClayList>
+          <Text style={s.footnote}>
+            La guida comparirà in agenda anche a chi aggiungi, e le ore contano per tutti.
+          </Text>
+        </View>
+      )}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   center: { alignItems: 'center', paddingVertical: 32, gap: 12 },
-  muted: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60 },
-  mainRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60, opacity: 0.75 },
-  mainSub: { fontSize: 13, color: colors.textSecondary },
-  iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  sub: { fontSize: 13, color: '#047857' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 40 },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3F2',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 4,
-  },
-  errorText: { flex: 1, fontSize: 13, fontWeight: '500', color: '#B42318' },
-  footnote: { marginTop: 14, fontSize: 12.5, fontWeight: '500', color: colors.textSecondary, lineHeight: 17 },
+  muted: { color: CLAY.ink3, fontSize: 15, textAlign: 'center' },
+  errorText: { fontSize: 14, lineHeight: 19, color: '#C13515', marginBottom: 12, paddingHorizontal: 4 },
+  footnote: { marginTop: 12, fontSize: 13, lineHeight: 18, color: CLAY.ink3, paddingHorizontal: 4 },
 });

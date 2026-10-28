@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CLAY, CLAY_SHADOW } from '../theme/clay';
 
 // Airbnb-style continuous calendar: months stacked vertically, scrolled by the
 // parent ScrollView (no internal scroll → no nested-scroll conflict). One weekday
@@ -152,8 +153,9 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.2857%' as unknown as number, height: CELL, alignItems: 'center', justifyContent: 'center' },
   dayCircle: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, alignItems: 'center', justifyContent: 'center' },
-  dayCircleSelected: { backgroundColor: '#111111' },
-  dayCircleToday: { borderWidth: 1.5, borderColor: '#111111' },
+  // Clay v2 (REG-639): giorno scelto = cerchio nero in clay (ombra `ink`).
+  dayCircleSelected: { backgroundColor: CLAY.ink, ...CLAY_SHADOW.ink },
+  dayCircleToday: { borderWidth: 1.5, borderColor: CLAY.ink },
   dayText: { fontSize: 15, fontWeight: '400', color: '#4B4B4D' },
   dayTextPast: { color: '#D8D8D8', fontWeight: '400' },
   dayTextSelected: { color: '#FFFFFF', fontWeight: '600' },

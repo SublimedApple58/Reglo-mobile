@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
   FadeOut,
-  LinearTransition,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -14,11 +13,8 @@ import Animated, {
 import { useDoneAccessory } from '../../../src/components/KeyboardDoneAccessory';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lessonDetailsStore } from '../../../src/stores/lessonDetailsStore';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { SelectableChip } from '../../../src/components/SelectableChip';
 import { StarRating } from '../../../src/components/StarRating';
 import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/utils/lessonTypes';
 import {
@@ -28,19 +24,17 @@ import {
 import { regloApi } from '../../../src/services/regloApi';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { FormSheet, SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { ClayButton } from '../../../src/components/clay';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection } from '../../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
+import { SOFT_LAYOUT } from '../../../src/utils/motion';
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
  * voce entra o esce, le altre card (e il bottone sotto) scivolano al loro posto
- * di molla invece di saltarci.
+ * senza rimbalzo invece di saltarci.
  */
-const LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6).overshootClamping(1).reduceMotion(ReduceMotion.Never);
+const LAYOUT = SOFT_LAYOUT;
 
 /** Firma stabile di un pagellino, per confrontare "prima" e "dopo". */
 const evalKeyOf = (
@@ -60,7 +54,6 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
 
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
 
   const lesson = data?.lesson ?? null;
@@ -188,7 +181,7 @@ export default function ManageLessonDetailsScreen() {
   }, [lesson]);
 
   if (!data || !lesson) {
-    return <View style={s.root} />;
+    return <View style={s.empty} />;
   }
 
   const { isDetailsEditable, onSaveDetails } = data;
@@ -250,354 +243,263 @@ export default function ManageLessonDetailsScreen() {
     }
   };
 
-  const topBar = (
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color={road ? '#3A3A3C' : '#111111'} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-  );
-  // Road (clay v2, REG-639): CTA nera clay con spinner. Fuori da Road resta la
-  // CTA di prima finché anche quei fogli passano al clay.
-  const saveFooter = road ? (
-    <ClayButton title="Salva" onPress={handleSave} disabled={!editable} loading={saving} testID="pagellino-save" />
-  ) : (
-          <View style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
-            <Pressable
-              onPress={handleSave}
-              disabled={!editable}
-              style={({ pressed }) => [
-                s.saveBtn,
-                s.saveFooter,
-                pressed && { opacity: 0.9 },
-                !editable && { opacity: 0.4 },
-              ]}
-            >
-              <GradientCTABackground radius={27} />
-              {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={s.saveText}>Salva</Text>
-              )}
-            </Pressable>
-          </View>
-  );
-  const content = (
-    <>
-      {road ? (
-        // Titolo e allievo stanno nella barra del foglio: qui al massimo la
-        // riga discreta «resti in Road».
-        road.showStayChip ? <Text style={s.roadStay}>Resti in Road: il percorso continua.</Text> : null
-      ) : (
-        <View style={s.headerBlock}>
-          <Text style={s.title}>Dettagli guida</Text>
-          <Text style={s.subtitle}>Tipo, pagellino e note di questa guida.</Text>
-        </View>
-      )}
-
-      {/* Tipo guida — collapse while typing notes so the sheet
-          shrinks and the textarea floats above the keyboard. */}
-      <Animated.View
-        // In Road il blocco è vuoto (niente tipo/esito): niente spazio fantasma.
-        style={[s.collapsible, collapsibleStyle, road && s.collapsibleRoad]}
-        pointerEvents={notesFocused ? 'none' : 'auto'}
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          if (h > 0 && collapse.value === 0) collapsibleH.value = h;
-        }}
-      >
-          {/* Tipo guida */}
-          {showTypes ? (
-            <View style={s.section}>
-              <Text style={s.sectionLabel}>Tipo guida</Text>
-              <View style={s.chipList}>
-                {LESSON_TYPE_OPTIONS.map((option) => (
-                  <SelectableChip
-                    key={option.value}
-                    label={option.label}
-                    active={types.includes(option.value)}
-                    onPress={() => {
-                      if (!editable) return;
-                      setTypes((prev) => {
-                        if (prev.includes(option.value)) {
-                          const next = prev.filter((t) => t !== option.value);
-                          return next.length ? next : [option.value];
-                        }
-                        return [...prev, option.value];
-                      });
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Esito (solo storico) */}
-          {showEsito ? (
-            <View style={s.section}>
-              <Text style={s.sectionLabel}>Esito</Text>
-              <View style={s.esitoRow}>
-                <Pressable
-                  onPress={() => editable && setEsito((e) => (e === 'checked_in' ? null : 'checked_in'))}
-                  style={[s.esitoBtn, esito === 'checked_in' && s.esitoBtnActive]}
-                >
-                  <Text style={[s.esitoText, esito === 'checked_in' && s.esitoTextPresente]}>Presente</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => editable && setEsito((e) => (e === 'no_show' ? null : 'no_show'))}
-                  style={[s.esitoBtn, esito === 'no_show' && s.esitoBtnActive]}
-                >
-                  <Text style={[s.esitoText, esito === 'no_show' && s.esitoTextAssente]}>Assente</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* La valutazione a stellina singola non si compila più: al suo posto
-              c'è il pagellino qui sotto. I voti già dati restano leggibili nello
-              storico guide, sulle guide che non hanno il pagellino. */}
-      </Animated.View>
-
-      {/* Pagellino dell'autoscuola: tutte le voci subito, ognuna con le sue
-          stelline; l'istruttore valuta solo quelle che vuole e le altre restano
-          «non valutate» (QA Road 27/10). Nessun vincolo di stato: si compila
-          anche a metà guida o prima del check-in. Resta fuori solo dalle guide
-          annullate senza voti, dove sarebbe solo rumore. */}
-      {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
-        <Animated.View
-          layout={LAYOUT}
-          entering={FadeIn.duration(260).reduceMotion(ReduceMotion.Never)}
-          style={[s.section, { marginBottom: road ? 2 : 20 }]}
-        >
-          <View style={[s.pagellinoHead, road && s.pagellinoHeadRoad]}>
-            {road ? null : <Text style={s.sectionLabel}>Pagellino</Text>}
-            {evalRows.length > 0 ? (
-              <Animated.Text
-                key={ratedCount}
-                entering={FadeIn.duration(180).reduceMotion(ReduceMotion.Never)}
-                style={s.pagellinoHint}
-              >
-                {ratedCount === 0
-                  ? `${evalRows.length} ${evalRows.length === 1 ? 'voce' : 'voci'}`
-                  : `${ratedCount} su ${evalRows.length} ${ratedCount === 1 ? 'valutata' : 'valutate'}`}
-              </Animated.Text>
-            ) : null}
-          </View>
-
-          {editable && evalRows.length > 0 ? (
-            <Text style={s.pagellinoLead}>
-              Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».
-            </Text>
-          ) : null}
-
-          {evalRows.length > 0 ? (
-            <View>
-              {evalRows.map((item) => {
-                const value = scores[item.id] ?? 0;
-                const isNa = legacyNa[item.id] === true;
-                return (
-                  // entering/exiting + layout: aggiungere o togliere una voce
-                  // non deve far saltare la lista — le altre card scorrono al
-                  // loro posto invece di teletrasportarsi.
-                  <Animated.View
-                    key={item.id}
-                    layout={LAYOUT}
-                    entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never)}
-                    exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.Never)}
-                    style={[s.voiceCard, road && [s.voiceCardRoad, CLAY_SHADOW.raise]]}
-                  >
-                    <View style={s.pagellinoItemTop}>
-                      <Text
-                        style={[s.pagellinoLabel, (isNa || !scores[item.id]) && s.pagellinoLabelOff]}
-                        numberOfLines={2}
-                      >
-                        {item.label}
-                        {item.archived ? ' (non più in uso)' : ''}
-                      </Text>
-                      {/* Punteggio come testo semplice accanto al nome (niente
-                          pillole): senza voto bastano le stelline vuote.
-                          UN SOLO Text con figlio annidato, così "4" e "/5"
-                          restano sulla stessa linea di base. */}
-                      {isNa || !scores[item.id] ? null : (
-                        <Animated.Text
-                          key={scores[item.id]}
-                          entering={FadeIn.duration(150).reduceMotion(ReduceMotion.Never)}
-                          style={s.scoreNum}
-                        >
-                          {scores[item.id]}
-                          <Text style={s.scoreMax}>/{item.scaleMax}</Text>
-                        </Animated.Text>
-                      )}
-                    </View>
-                    {isNa ? (
-                      <Text style={s.pagellinoValue}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
-                    ) : null}
-                    {isNa && !editable ? null : (
-                      <View style={s.pagellinoScaleRow}>
-                        <StarRating
-                          value={value}
-                          total={item.scaleMax}
-                          tone="gold"
-                          size={starSizeForScale(item.scaleMax)}
-                          onChange={
-                            editable
-                              ? (next) => {
-                                  setScores((prev) => {
-                                    const copy = { ...prev };
-                                    // Ritoccare la stellina già scelta svuota il
-                                    // voto: la voce torna «non valutata».
-                                    if (!next) delete copy[item.id];
-                                    else copy[item.id] = next;
-                                    return copy;
-                                  });
-                                  if (legacyNa[item.id]) {
-                                    setLegacyNa((prev) => {
-                                      const copy = { ...prev };
-                                      delete copy[item.id];
-                                      return copy;
-                                    });
-                                  }
-                                }
-                              : undefined
-                          }
-                          readOnly={!editable}
-                        />
-                      </View>
-                    )}
-                  </Animated.View>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {evalRows.length === 0 ? (
-            <Animated.Text
-              layout={LAYOUT}
-              entering={FadeIn.duration(200).reduceMotion(ReduceMotion.Never)}
-              exiting={FadeOut.duration(120).reduceMotion(ReduceMotion.Never)}
-              style={s.pagellinoEmpty}
-            >
-              Nessuna voce: questa guida non ha ancora un pagellino.
-            </Animated.Text>
-          ) : null}
-        </Animated.View>
-      ) : null}
-
-      {/* Note (non da Road: lì il foglio è solo il pagellino) */}
-      {road ? null : (
-      <View style={s.section}>
-        <Text style={s.sectionLabel}>Note</Text>
-        <TextInput
-          value={notes}
-          onChangeText={setNotes}
-          onFocus={() => setNotesFocused(true)}
-          onBlur={() => setNotesFocused(false)}
-          placeholder="Aggiungi note operative o osservazioni."
-          placeholderTextColor={colors.textMuted}
-          multiline
-          style={[s.notes, road && [s.notesRoad, CLAY_SHADOW.sink]]}
-          editable={editable}
-          inputAccessoryViewID={accessoryID}
-        />
-      </View>
-      )}
-    </>
-  );
-
-  if (road) {
-    // Da Road: IL form sheet (FormSheet, §13.2): titolo «Pagellino» + allievo
-    // e la X, le voci, «Salva» come ultima cosa.
-    return (
-      <FormSheet title="Pagellino" subtitle={road.subtitle} cta={saveFooter} testID="road-pagellino-sheet">
-        <View style={s.scaffoldBody}>{content}</View>
-      </FormSheet>
-    );
-  }
+  const toggleType = (value: string) => {
+    if (!editable) return;
+    setTypes((prev) => {
+      if (prev.includes(value)) {
+        const next = prev.filter((t) => t !== value);
+        return next.length ? next : [value];
+      }
+      return [...prev, value];
+    });
+  };
+  const check = <Ionicons name="checkmark" size={22} color={CLAY.ink} accessibilityLabel="Selezionato" />;
 
   return (
-    // Home/note: PAGE_SHEET, il root riempie lo schermo e il corpo scorre
-    // (SheetScaffold `fill`) con «Salva» agganciato in fondo.
-    <View style={[s.root, { flex: 1 }]}>
-      {topBar}
-      <SheetScaffold
-        fill
-        keyboardAware
-        // Coda del contenuto: senza, l'ultima voce del pagellino finisce
-        // incollata al bordo del "Salva" e sembra tagliata.
-        contentContainerStyle={[s.scaffoldBody, { paddingBottom: 28, flexGrow: 1 }]}
-        footer={saveFooter}
-      >
-        {content}
-      </SheetScaffold>
+    // IL form sheet (FORM_SHEET + FormSheet, §13.2) sia da Road (solo
+    // pagellino) sia dalla home/note (tipo, esito, pagellino, note).
+    <FormSheet
+      title={road ? 'Pagellino' : 'Dettagli guida'}
+      subtitle={road ? road.subtitle : 'Tipo, pagellino e note di questa guida.'}
+      testID={road ? 'road-pagellino-sheet' : 'lesson-details-sheet'}
+      cta={
+        <ClayButton
+          title="Salva"
+          onPress={handleSave}
+          disabled={!editable}
+          loading={saving}
+          testID={road ? 'pagellino-save' : 'lesson-details-save'}
+        />
+      }
+    >
+      <View style={s.body}>
+        {/* Da Road al massimo la riga discreta «resti in Road». */}
+        {road?.showStayChip ? <Text style={s.roadStay}>Resti in Road: il percorso continua.</Text> : null}
 
+        {/* Tipo guida + esito — si chiudono mentre si scrivono le note, così il
+            foglio si accorcia e il campo resta sopra la tastiera. */}
+        {showTypes || showEsito ? (
+          <Animated.View
+            style={[s.collapsible, collapsibleStyle]}
+            pointerEvents={notesFocused ? 'none' : 'auto'}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && collapse.value === 0) collapsibleH.value = h;
+            }}
+          >
+            {showTypes ? (
+              <ClaySection title="Tipo guida" style={s.sec}>
+                <ClayList>
+                  {LESSON_TYPE_OPTIONS.map((option) => (
+                    <ClayListRow
+                      key={option.value}
+                      title={option.label}
+                      onPress={editable ? () => toggleType(option.value) : undefined}
+                      chevron={false}
+                      trailing={types.includes(option.value) ? check : null}
+                      testID={`lesson-type-${option.value}`}
+                    />
+                  ))}
+                </ClayList>
+              </ClaySection>
+            ) : null}
 
+            {/* Esito (solo storico): si sceglie o si toglie, come prima. */}
+            {showEsito ? (
+              <ClaySection title="Esito" style={s.sec}>
+                <ClayList>
+                  <ClayListRow
+                    title="Presente"
+                    onPress={editable ? () => setEsito((e) => (e === 'checked_in' ? null : 'checked_in')) : undefined}
+                    chevron={false}
+                    trailing={esito === 'checked_in' ? check : null}
+                    testID="lesson-esito-presente"
+                  />
+                  <ClayListRow
+                    title="Assente"
+                    onPress={editable ? () => setEsito((e) => (e === 'no_show' ? null : 'no_show')) : undefined}
+                    chevron={false}
+                    trailing={esito === 'no_show' ? check : null}
+                    testID="lesson-esito-assente"
+                  />
+                </ClayList>
+              </ClaySection>
+            ) : null}
+
+            {/* La valutazione a stellina singola non si compila più: al suo posto
+                c'è il pagellino qui sotto. I voti già dati restano leggibili nello
+                storico guide, sulle guide che non hanno il pagellino. */}
+          </Animated.View>
+        ) : null}
+
+        {/* Pagellino dell'autoscuola: tutte le voci subito, ognuna con le sue
+            stelline; l'istruttore valuta solo quelle che vuole e le altre restano
+            «non valutate» (QA Road 27/10). Nessun vincolo di stato: si compila
+            anche a metà guida o prima del check-in. Resta fuori solo dalle guide
+            annullate senza voti, dove sarebbe solo rumore. */}
+        {evalItems.length > 0 && (isDetailsEditable || hasSavedScores) ? (
+          <Animated.View layout={LAYOUT} entering={FadeIn.duration(260).reduceMotion(ReduceMotion.Never)}>
+            <ClaySection
+              title={road ? undefined : 'Pagellino'}
+              style={s.sec}
+              action={
+                evalRows.length > 0 ? (
+                  <Animated.Text
+                    key={ratedCount}
+                    entering={FadeIn.duration(180).reduceMotion(ReduceMotion.Never)}
+                    style={s.pagellinoHint}
+                  >
+                    {ratedCount === 0
+                      ? `${evalRows.length} ${evalRows.length === 1 ? 'voce' : 'voci'}`
+                      : `${ratedCount} su ${evalRows.length} ${ratedCount === 1 ? 'valutata' : 'valutate'}`}
+                  </Animated.Text>
+                ) : undefined
+              }
+            >
+              {editable && evalRows.length > 0 ? (
+                <Text style={s.pagellinoLead}>
+                  Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».
+                </Text>
+              ) : null}
+
+              {evalRows.length > 0 ? (
+                <View>
+                  {evalRows.map((item) => {
+                    const value = scores[item.id] ?? 0;
+                    const isNa = legacyNa[item.id] === true;
+                    return (
+                      // entering/exiting + layout: aggiungere o togliere una voce
+                      // non deve far saltare la lista — le altre card scorrono al
+                      // loro posto invece di teletrasportarsi.
+                      <Animated.View
+                        key={item.id}
+                        layout={LAYOUT}
+                        entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never)}
+                        exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.Never)}
+                        style={[s.voiceCard, CLAY_SHADOW.raise]}
+                      >
+                        <View style={s.pagellinoItemTop}>
+                          <Text
+                            style={[s.pagellinoLabel, (isNa || !scores[item.id]) && s.pagellinoLabelOff]}
+                            numberOfLines={2}
+                          >
+                            {item.label}
+                            {item.archived ? ' (non più in uso)' : ''}
+                          </Text>
+                          {/* Punteggio come testo semplice accanto al nome (niente
+                              pillole): senza voto bastano le stelline vuote.
+                              UN SOLO Text con figlio annidato, così "4" e "/5"
+                              restano sulla stessa linea di base. */}
+                          {isNa || !scores[item.id] ? null : (
+                            <Animated.Text
+                              key={scores[item.id]}
+                              entering={FadeIn.duration(150).reduceMotion(ReduceMotion.Never)}
+                              style={s.scoreNum}
+                            >
+                              {scores[item.id]}
+                              <Text style={s.scoreMax}>/{item.scaleMax}</Text>
+                            </Animated.Text>
+                          )}
+                        </View>
+                        {isNa ? (
+                          <Text style={s.pagellinoValue}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
+                        ) : null}
+                        {isNa && !editable ? null : (
+                          <View style={s.pagellinoScaleRow}>
+                            <StarRating
+                              value={value}
+                              total={item.scaleMax}
+                              tone="gold"
+                              size={starSizeForScale(item.scaleMax)}
+                              onChange={
+                                editable
+                                  ? (next) => {
+                                      setScores((prev) => {
+                                        const copy = { ...prev };
+                                        // Ritoccare la stellina già scelta svuota il
+                                        // voto: la voce torna «non valutata».
+                                        if (!next) delete copy[item.id];
+                                        else copy[item.id] = next;
+                                        return copy;
+                                      });
+                                      if (legacyNa[item.id]) {
+                                        setLegacyNa((prev) => {
+                                          const copy = { ...prev };
+                                          delete copy[item.id];
+                                          return copy;
+                                        });
+                                      }
+                                    }
+                                  : undefined
+                              }
+                              readOnly={!editable}
+                            />
+                          </View>
+                        )}
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {evalRows.length === 0 ? (
+                <Animated.Text
+                  layout={LAYOUT}
+                  entering={FadeIn.duration(200).reduceMotion(ReduceMotion.Never)}
+                  exiting={FadeOut.duration(120).reduceMotion(ReduceMotion.Never)}
+                  style={s.pagellinoEmpty}
+                >
+                  Nessuna voce: questa guida non ha ancora un pagellino.
+                </Animated.Text>
+              ) : null}
+            </ClaySection>
+          </Animated.View>
+        ) : null}
+
+        {/* Note (non da Road: lì il foglio è solo il pagellino) */}
+        {road ? null : (
+          <ClaySection title="Note" style={s.sec}>
+            <ClayField
+              value={notes}
+              onChangeText={setNotes}
+              onFocus={() => setNotesFocused(true)}
+              onBlur={() => setNotesFocused(false)}
+              placeholder="Aggiungi note operative o osservazioni."
+              multiline
+              editable={editable}
+              inputAccessoryViewID={accessoryID}
+              accessibilityLabel="Note"
+              testID="lesson-details-notes"
+            />
+          </ClaySection>
+        )}
+      </View>
       {accessory}
-    </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 0, gap: 20 },
-  scaffoldBody: { gap: 20 },
-  saveFooter: { marginTop: 24 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4, marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  collapsible: { gap: 20, paddingBottom: 20, overflow: 'hidden' },
-  collapsibleRoad: { paddingBottom: 0, height: 0 },
-  section: { gap: 12 },
-  esitoRow: { flexDirection: 'row', gap: 6, backgroundColor: '#F2F2F4', borderRadius: 12, padding: 4 },
-  esitoBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 9 },
-  esitoBtnActive: { backgroundColor: '#FFFFFF' },
-  esitoText: { fontSize: 14, fontWeight: '600', color: '#8A8A8F' },
-  esitoTextPresente: { color: '#047857' },
-  esitoTextAssente: { color: '#B91C1C' },
-  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  pagellinoHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pagellinoHint: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  pagellinoLead: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19, marginBottom: 12, marginTop: -2 },
-  pagellinoCard: {
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14,
-  },
-  pagellinoItem: { paddingVertical: 12, gap: 6 },
-  pagellinoItemBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F1F3' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  body: { gap: 26 },
+  // Lo spazio fra le sezioni lo dà `body` (gap), non il margine di ClaySection.
+  sec: { marginTop: 0 },
+  collapsible: { gap: 26, overflow: 'hidden' },
+  pagellinoHint: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
+  pagellinoLead: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, lineHeight: 19, marginBottom: 14, paddingHorizontal: 2 },
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  pagellinoLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111111' },
-  pagellinoLabelOff: { color: '#A3A3A3' },
+  pagellinoLabel: { flex: 1, fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  pagellinoLabelOff: { color: CLAY.ink3 },
+  // Voci in rilievo clay sul bianco (come in Road).
   voiceCard: {
-    borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#EFEFF2', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 13,
-    marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04,
-    shadowRadius: 5, elevation: 1,
+    borderRadius: 22, backgroundColor: CLAY.surface,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 13,
+    marginBottom: 12,
   },
-  scoreNum: { fontSize: 14, fontWeight: '600', color: '#111111', lineHeight: 20, fontVariant: ['tabular-nums'] },
-  scoreMax: { fontSize: 12, fontWeight: '500', color: '#8E8E93', lineHeight: 20 },
+  scoreNum: { fontSize: 14, fontWeight: '600', color: CLAY.ink, lineHeight: 20, fontVariant: ['tabular-nums'] },
+  scoreMax: { fontSize: 12, fontWeight: '500', color: CLAY.ink3, lineHeight: 20 },
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  pagellinoEmpty: { fontSize: 12.5, fontWeight: '500', color: '#A3A3A3', textAlign: 'center' },
-  pagellinoValue: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  notes: {
-    minHeight: 110, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC', borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12, color: '#111111', backgroundColor: '#F7F7F7',
-    textAlignVertical: 'top', fontSize: 15, lineHeight: 22,
-  },
-
-  saveBtn: {
-    minHeight: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    ...primaryCtaShadow,
-  },
-  saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  // Clay v2 (REG-639) in Road: voci in rilievo sul bianco, note incavate.
-  voiceCardRoad: { borderWidth: 0, shadowOpacity: 0, elevation: 0, borderRadius: 22 },
-  notesRoad: { borderWidth: 0, backgroundColor: CLAY.surface, borderRadius: 18 },
-  roadStay: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginBottom: -6 },
-  pagellinoHeadRoad: { justifyContent: 'flex-start' },
+  pagellinoEmpty: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, textAlign: 'center' },
+  pagellinoValue: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
+  roadStay: { fontSize: 14, fontWeight: '400', color: CLAY.ink3 },
 });

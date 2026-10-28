@@ -1,52 +1,43 @@
 import React, { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
 import { locationPickerStore } from '../../../src/stores/locationPickerStore';
 import { InlineLocationPicker } from '../../../src/components/InlineLocationPicker';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { ClayButton } from '../../../src/components/clay';
 
+/**
+ * «Cambia luogo» — form sheet unico (FORM_SHEET + FormSheet, REG-639 clay).
+ * I luoghi sono righe di una lista clay dentro il foglio (scorre da sé);
+ * «Aggiungi nuovo luogo» è la CTA (secondaria) in fondo.
+ */
 export default function ManageLessonLocationScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(locationPickerStore.subscribe, locationPickerStore.get);
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Cambia luogo</Text>
-        <Text style={s.subtitle}>Dove inizia questa guida.</Text>
-      </View>
-
-      <SheetScaffold>
-        {data ? (
-          <InlineLocationPicker
-            showSearch={false}
-            selectedLocationId={data.selectedLocationId}
-            onSelect={(loc) => { data.onSelect(loc); router.back(); }}
-            onRequestCreate={data.onRequestCreate}
+    <FormSheet
+      title="Cambia luogo"
+      subtitle="Dove inizia questa guida."
+      testID="manage-lesson-location-sheet"
+      cta={
+        data ? (
+          <ClayButton
+            title="Aggiungi nuovo luogo"
+            variant="secondary"
+            onPress={data.onRequestCreate}
+            testID="location-add"
           />
-        ) : null}
-      </SheetScaffold>
-    </View>
+        ) : undefined
+      }
+    >
+      {data ? (
+        <InlineLocationPicker
+          showSearch={false}
+          selectedLocationId={data.selectedLocationId}
+          onSelect={(loc) => { data.onSelect(loc); router.back(); }}
+        />
+      ) : null}
+    </FormSheet>
   );
 }
-
-const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-});

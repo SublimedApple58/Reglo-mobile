@@ -1,16 +1,20 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayList, ClayListRow } from '../../../src/components/clay';
 import { instructorPickerStore } from '../../../src/stores/instructorPickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import type { AutoscuolaInstructor } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 
+/**
+ * «Cambia istruttore» — form sheet unico (FORM_SHEET + FormSheet, REG-639
+ * clay). Gli istruttori sono righe di una lista clay dentro il foglio (scorre
+ * da sé), spunta nera su quello scelto. Tap → applica e chiude.
+ */
 export default function ManageLessonInstructorScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(instructorPickerStore.subscribe, instructorPickerStore.get);
@@ -36,70 +40,46 @@ export default function ManageLessonInstructorScreen() {
     router.back();
   };
 
-  return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Cambia istruttore</Text>
-        <Text style={s.subtitle}>Scegli chi terrà questa guida.</Text>
-      </View>
+  const state = loading && list.length === 0 ? 'loading' : active.length === 0 ? 'empty' : 'list';
 
-      <SheetScaffold>
-        {loading && list.length === 0 ? (
-          <View style={s.center}>
-            <ActivityIndicator size="small" color="#111111" />
-            <Text style={s.muted}>Carico gli istruttori…</Text>
-          </View>
-        ) : active.length === 0 ? (
-          <View style={s.center}><Text style={s.muted}>Nessun istruttore disponibile.</Text></View>
-        ) : (
-          <View style={s.list}>
-            {active.map((it, idx) => {
-              const isCurrent = it.id === data?.currentInstructorId;
-              const isSelected = it.id === data?.selectedInstructorId;
-              return (
-                <View key={it.id}>
-                  {idx > 0 ? <View style={s.divider} /> : null}
-                  <Pressable onPress={() => pick(it)} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-                    <View style={s.iconCol}>
-                      <Ionicons name="person" size={22} color="#111111" />
-                    </View>
-                    <View style={s.body}>
-                      <Text style={[s.name, isSelected && { fontWeight: '700' }]} numberOfLines={1}>{it.name}</Text>
-                      {isCurrent ? <Text style={s.sub}>Istruttore attuale</Text> : null}
-                    </View>
-                    {isSelected ? <Ionicons name="checkmark-circle" size={22} color="#111111" /> : null}
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </SheetScaffold>
-    </View>
+  return (
+    <FormSheet
+      title="Cambia istruttore"
+      subtitle="Scegli chi terrà questa guida."
+      contentKey={state}
+      testID="manage-lesson-instructor-sheet"
+    >
+      {state === 'loading' ? (
+        <View style={s.center}>
+          <ActivityIndicator size="small" color={CLAY.ink} />
+          <Text style={s.muted}>Carico gli istruttori…</Text>
+        </View>
+      ) : state === 'empty' ? (
+        <View style={s.center}><Text style={s.muted}>Nessun istruttore disponibile.</Text></View>
+      ) : (
+        <ClayList>
+          {active.map((it) => {
+            const isCurrent = it.id === data?.currentInstructorId;
+            const isSelected = it.id === data?.selectedInstructorId;
+            return (
+              <ClayListRow
+                key={it.id}
+                title={it.name}
+                subtitle={isCurrent ? 'Istruttore attuale' : undefined}
+                trailing={isSelected ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null}
+                chevron={false}
+                onPress={() => pick(it)}
+                testID={`instructor-option-${it.id}`}
+              />
+            );
+          })}
+        </ClayList>
+      )}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
   center: { alignItems: 'center', paddingVertical: 32, gap: 12 },
-  muted: { color: colors.textSecondary, fontSize: 13 },
-  list: {},
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 60 },
-  iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  sub: { fontSize: 13, color: '#9A9A9A' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 40 },
+  muted: { color: CLAY.ink3, fontSize: 14 },
 });

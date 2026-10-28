@@ -1,23 +1,21 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
-import { colors, spacing, typography } from '../theme';
+import { CLAY } from '../theme/clay';
+import { ClayButton, ClayList, ClayListRow, ClaySearchField } from './clay';
 import { regloApi } from '../services/regloApi';
 import type { AutoscuolaLocation } from '../types/regloApi';
 
 type Props = {
   selectedLocationId: string | null;
   onSelect: (location: AutoscuolaLocation) => void;
-  onRequestCreate: () => void;
+  /**
+   * «Aggiungi nuovo luogo». Se il picker sta in un FormSheet, meglio passarlo
+   * come `cta` del foglio e non qui (la CTA è l'ultima cosa del foglio).
+   */
+  onRequestCreate?: () => void;
   /** Hide the search field (e.g. inside a compact bottom formsheet). */
   showSearch?: boolean;
 };
@@ -70,129 +68,57 @@ export const InlineLocationPicker = ({
   }, [locations, search, showSearch]);
 
   return (
-    <View style={{ paddingTop: 4 }}>
+    <View>
       {showSearch ? (
-        <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Cerca per nome o indirizzo"
-            returnKeyType="search"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+        <ClaySearchField
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Cerca per nome o indirizzo"
+          style={styles.search}
+        />
       ) : null}
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#111111" />
+          <ActivityIndicator color={CLAY.ink} />
         </View>
       ) : filtered.length === 0 ? (
         <Text style={styles.empty}>Nessun luogo trovato.</Text>
       ) : (
-        <View style={styles.list}>
-          {filtered.map((item, index) => {
+        <ClayList>
+          {filtered.map((item) => {
             const selected = item.id === selectedLocationId;
-            const iconName: keyof typeof Ionicons.glyphMap = item.isDefault
-              ? 'business'
-              : item.isPrecise
-                ? 'location'
-                : 'location-outline';
             return (
-              <View key={item.id}>
-                {index !== 0 ? <View style={styles.divider} /> : null}
-                <Pressable
-                  onPress={() => onSelect(item)}
-                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
-                >
-                  <View style={styles.iconCol}>
-                    <Ionicons name={iconName} size={22} color="#111111" />
-                  </View>
-                  <View style={styles.textWrap}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    {item.address ? (
-                      <Text style={styles.address} numberOfLines={1}>
-                        {item.address}
-                      </Text>
-                    ) : (
-                      <Text style={styles.addressMuted}>Luogo generico</Text>
-                    )}
-                  </View>
-                  {selected ? (
-                    <Ionicons name="checkmark-circle" size={22} color="#111111" />
-                  ) : null}
-                </Pressable>
-              </View>
+              <ClayListRow
+                key={item.id}
+                title={item.name}
+                subtitle={item.address || 'Luogo generico'}
+                trailing={selected ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null}
+                chevron={false}
+                onPress={() => onSelect(item)}
+                testID={`location-option-${item.id}`}
+              />
             );
           })}
-        </View>
+        </ClayList>
       )}
 
-      <Pressable
-        onPress={onRequestCreate}
-        style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.5 }]}
-      >
-        <View style={styles.iconCol}>
-          <Ionicons name="add" size={22} color="#111111" />
-        </View>
-        <Text style={styles.addText}>Aggiungi nuovo luogo</Text>
-      </Pressable>
+      {onRequestCreate ? (
+        <ClayButton
+          title="Aggiungi nuovo luogo"
+          variant="secondary"
+          onPress={onRequestCreate}
+          style={styles.add}
+          testID="location-add"
+        />
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F2F2F2',
-    marginBottom: spacing.md,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textPrimary,
-    padding: 0,
-  },
-  loadingRow: { paddingVertical: spacing.xl, alignItems: 'center' },
-  empty: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    paddingVertical: spacing.lg,
-  },
-  list: { marginBottom: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    minHeight: 60,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#ECECEC',
-    marginLeft: 40,
-  },
-  iconCol: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  textWrap: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: '#111111', flexShrink: 1 },
-  address: { fontSize: 13, color: '#929292' },
-  addressMuted: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
-  addRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ECECEC',
-  },
-  addText: { fontSize: 15, color: '#111111', fontWeight: '600' },
+  search: { marginBottom: 16 },
+  loadingRow: { paddingVertical: 32, alignItems: 'center' },
+  empty: { textAlign: 'center', color: CLAY.ink3, fontSize: 14, paddingVertical: 24 },
+  add: { marginTop: 22 },
 });

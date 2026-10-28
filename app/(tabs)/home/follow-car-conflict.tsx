@@ -2,7 +2,7 @@ import React from 'react';
 
 import { FollowCarConflictSheet } from '../../../src/components/booking/FollowCarConflictSheet';
 
-/** Form sheet che abbraccia il contenuto — 1-3 date in conflitto (il caso quasi sempre). */
+/** «Auto al seguito occupata»: il form sheet unico (FORM_SHEET), 1-3 date in conflitto. */
 export default function FollowCarConflictScreen() {
-  return <FollowCarConflictSheet scrollable={false} />;
+  return <FollowCarConflictSheet />;
 }

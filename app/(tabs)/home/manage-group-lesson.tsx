@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { groupLessonManageStore } from '../../../src/stores/groupLessonManageStore';
 import { groupLessonParticipantsStore } from '../../../src/stores/groupLessonParticipantsStore';
@@ -12,21 +10,15 @@ import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optio
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
-import { ProgressRing } from '../../../src/components/ProgressRing';
-import { SkeletonBlock, SkeletonRing } from '../../../src/components/Skeleton';
+import { SkeletonBlock } from '../../../src/components/Skeleton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayList, ClayListRow, ClayStat } from '../../../src/components/clay';
 import { formatDay, formatTime } from '../../../src/utils/date';
 import { transmissionLabel, isMotoLicenseCategory } from '../../../src/utils/license';
-import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS } from '../../../src/utils/motoLessonType';
 import type { GroupLesson } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
-
-const TEAL_BADGE_BG = '#D1FAE5';
-const TEAL_BADGE_FG = '#047857';
-// Moto group: orange tint (same style), coherent with the agenda cards.
-const MOTO_BADGE_BG = '#FFE7D1';
-const MOTO_BADGE_FG = '#C2410C';
 
 const DURATIONS: { value: string; label: string }[] = [
   { value: '60', label: '1 ora' },
@@ -46,7 +38,7 @@ const durationOf = (startIso: string, endIso: string | null) => {
  */
 const RowValue = ({ text, loaded, width, lines = 1 }: { text: string; loaded: boolean; width: number; lines?: number }) =>
   loaded ? (
-    <Animated.Text entering={FadeIn.duration(260)} style={s.detailValue} numberOfLines={lines}>
+    <Animated.Text entering={FadeIn.duration(260)} style={s.rowValue} numberOfLines={lines}>
       {text}
     </Animated.Text>
   ) : (
@@ -61,11 +53,10 @@ const toDateOnly = (iso: string) => {
 
 export default function ManageGroupLessonScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const seed = useSyncExternalStore(groupLessonManageStore.subscribe, groupLessonManageStore.get);
 
   const [lesson, setLesson] = useState<GroupLesson | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const groupLessonId = seed?.groupLessonId ?? null;
 
@@ -127,7 +118,7 @@ export default function ManageGroupLessonScreen() {
   );
 
   if (!seed || !groupLessonId) {
-    return <View style={s.sheet} />;
+    return <View style={s.empty} />;
   }
 
   const instructors = seed.instructors;
@@ -380,334 +371,154 @@ export default function ManageGroupLessonScreen() {
     );
   };
 
-  const bottomPad = insets.bottom + (readOnly ? 24 : 86);
+  // Le righe restano premibili (chevron fermo) ma non fanno nulla finché la
+  // guida non è caricata o mentre un salvataggio è in corso.
+  const guard = (fn: () => void) => () => {
+    if (!lesson || busy) return;
+    fn();
+  };
+  const motoType = asMotoLessonType(lesson?.motoLessonType);
 
   return (
-    <View style={s.sheet}>
-      {/* Top action bar — X close */}
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.5 }]}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
+    // IL form sheet (FORM_SHEET + FormSheet, REG-639 clay): righe di testo in
+    // liste clay, posti come numeri, «Sposta» e «Annulla» in fondo.
+    <FormSheet
+      title={isMoto ? 'Guida di gruppo moto' : 'Guida di gruppo'}
+      subtitle={
+        lesson
+          ? `${formatDay(lesson.startsAt)} · ${formatTime(lesson.startsAt)} · ${durationMin} min`
+          : 'Caricamento…'
+      }
+      testID="manage-group-lesson-sheet"
+      cta={
+        readOnly ? undefined : (
+          <View style={s.ctaCol}>
+            <ClayButton
+              title="Sposta"
+              variant="secondary"
+              onPress={openSposta}
+              disabled={!lesson || busy}
+              testID="group-lesson-move"
+            />
+            <Pressable
+              onPress={handleCancel}
+              disabled={!lesson || busy}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Annulla guida di gruppo"
+              testID="group-lesson-cancel"
+              style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.5 }, (!lesson || busy) && { opacity: 0.4 }]}
+            >
+              <Text style={s.cancelText}>Annulla guida di gruppo</Text>
+            </Pressable>
+          </View>
+        )
+      }
+    >
+      {/* Posti: due numeri al posto dell'anello colorato e della pillola. */}
+      <View style={s.stats}>
+        <ClayStat value={lesson ? `${filled}/${capacity}` : '–'} label="Iscritti" />
+        <ClayStat value={lesson ? openSeats : '–'} label={openSeats === 1 ? 'Posto libero' : 'Posti liberi'} />
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[s.content, { paddingBottom: bottomPad }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero */}
-        <View style={s.hero}>
-          <Text style={s.heroOverline}>{readOnly ? 'Dettaglio guida di gruppo' : 'Gestisci guida di gruppo'}</Text>
-          <Text style={s.heroName}>{isMoto ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
-          {lesson ? (
-            <Text style={s.heroMeta}>
-              {formatDay(lesson.startsAt)} · {formatTime(lesson.startsAt)} · {durationMin} min
-              {vehiclesEnabled ? ` · ${isMoto ? `${fleet.length} ${fleet.length === 1 ? 'moto' : 'moto'}` : vehicleName}` : ''}
-            </Text>
-          ) : (
-            <Text style={s.heroMeta}>Caricamento…</Text>
-          )}
-          <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <View style={[s.statePill, { backgroundColor: isMoto ? MOTO_BADGE_BG : TEAL_BADGE_BG }]}>
-              <Text style={[s.statePillText, { color: isMoto ? MOTO_BADGE_FG : TEAL_BADGE_FG }]}>
-                {isMoto ? 'GRUPPO MOTO' : 'GRUPPO'} · {openSeats} {openSeats === 1 ? 'posto libero' : 'posti liberi'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Posti — teal seats ring centrale */}
-        <View style={s.progressBlock}>
-          {lesson ? (
-            <ProgressRing
-              size={132}
-              stroke={13}
-              progress={filled / Math.max(1, capacity)}
-              gradient={isMoto ? ['#FB923C', '#EA580C'] : ['#14B8A6', '#0F766E']}
-              innerColor={colors.background}
-            >
-              <Text style={s.ringCount}>
-                {filled}
-                <Text style={s.ringTotal}>/{capacity}</Text>
-              </Text>
-              <Text style={s.ringLabel}>POSTI</Text>
-            </ProgressRing>
-          ) : (
-            <SkeletonRing size={132} stroke={13} />
-          )}
-        </View>
-
-        {/* Istruttore + Veicolo — righe piatte. Read-only (titolare) = statiche. */}
-        <View style={s.detailRows}>
-          {readOnly ? (
-            <>
-              <View style={s.detailRow}>
-                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
-                <View style={s.detailBody}>
-                  <Text style={s.detailLabel}>Istruttore</Text>
-                  <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
-                </View>
-              </View>
-              {/* In sola lettura la riga dei colleghi compare solo se ce ne sono. */}
-              {isShared ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Altri istruttori</Text>
-                    {/* REG-585: con piu' nomi una riga sola li tagliava a meta'. */}
-                    <RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />
-                  </View>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Pressable onPress={openInstructorPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                <View style={s.detailIcon}><Ionicons name="person-outline" size={23} color="#111111" /></View>
-                <View style={s.detailBody}>
-                  <Text style={s.detailLabel}>Istruttore</Text>
-                  <RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-              </Pressable>
-
-              {/* REG-585: i colleghi, assegnabili anche dal telefono. */}
-              <Pressable
-                onPress={openCoInstructorPicker}
-                disabled={!lesson || busy}
-                style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}
-              >
-                <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
-                <View style={s.detailBody}>
-                  <Text style={s.detailLabel}>Altri istruttori</Text>
-                  <RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-              </Pressable>
-            </>
-          )}
-          {vehiclesEnabled && isMoto ? (
-            /* MOTO group: moto fleet + shared follow car (no single vehicle). */
-            <>
-              <View style={s.rowDivider} />
-              {readOnly ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Moto della guida</Text>
-                    <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
-                  </View>
-                </View>
-              ) : (
-                <Pressable onPress={openFleetPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="motorbike" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Moto della guida</Text>
-                    <RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              )}
-              <View style={s.rowDivider} />
-              {readOnly ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Auto al seguito</Text>
-                    <RowValue text={followCarName} loaded={!!lesson} width={120} />
-                  </View>
-                </View>
-              ) : (
-                <Pressable onPress={openFollowCarPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Auto al seguito</Text>
-                    <RowValue text={followCarName} loaded={!!lesson} width={120} />
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              )}
-              {/* Tipo guida moto (birilli/strada) — sola lettura: si sceglie in
-                  creazione (mirror della guida moto singola), si modifica dal web. */}
-              {(() => {
-                const motoType = asMotoLessonType(lesson?.motoLessonType);
-                if (!motoType) return null;
-                return (
-                  <>
-                    <View style={s.rowDivider} />
-                    <View style={s.detailRow}>
-                      <View style={s.detailIcon}><MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={24} color="#111111" /></View>
-                      <View style={s.detailBody}>
-                        <Text style={s.detailLabel}>Tipo guida moto</Text>
-                        <Text style={s.detailValue} numberOfLines={1}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
-                      </View>
-                    </View>
-                  </>
-                );
-              })()}
-            </>
-          ) : vehiclesEnabled ? (
-            <>
-              <View style={s.rowDivider} />
-              {readOnly ? (
-                <View style={s.detailRow}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicolo</Text>
-                    <RowValue text={vehicleName} loaded={!!lesson} width={110} />
-                  </View>
-                </View>
-              ) : (
-                <Pressable onPress={openVehiclePicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-                  <View style={s.detailIcon}><MaterialCommunityIcons name="car-outline" size={24} color="#111111" /></View>
-                  <View style={s.detailBody}>
-                    <Text style={s.detailLabel}>Veicolo</Text>
-                    <RowValue text={vehicleName} loaded={!!lesson} width={110} />
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-                </Pressable>
-              )}
-            </>
-          ) : null}
-          {/* Capienza — 3 o 4 posti. Moto: implicita (= numero di moto), riga
-              nascosta. Read-only: statica. */}
-          {isMoto ? null : (
-          <>
-          <View style={s.rowDivider} />
-          {readOnly ? (
-            <View style={s.detailRow}>
-              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Capienza</Text>
-                <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={openCapacityPicker} disabled={!lesson || busy} style={({ pressed }) => [s.detailRow, pressed && { opacity: 0.5 }]}>
-              <View style={s.detailIcon}><Ionicons name="people-outline" size={23} color="#111111" /></View>
-              <View style={s.detailBody}>
-                <Text style={s.detailLabel}>Capienza</Text>
-                <RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
-          )}
-          </>
-          )}
-          {/* Le note ora sono per-allievo: si scrivono dal roster partecipanti
-              (ogni iscritto ha la sua nota, visibile all'allievo nella sua app). */}
-        </View>
-
-        {/* Partecipanti — card 3D CTA → roster sheet. Read-only = card statica. */}
-        {readOnly && isMoto ? (
-          /* REG-636 — titolare in sola lettura, gruppo moto: il roster si
-             apre solo per scegliere la moto di ogni partecipante. */
-          <Pressable onPress={openParticipants} disabled={!lesson} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.cardTitle}>Partecipanti</Text>
-              <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} iscritti · scegli le moto</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
-          </Pressable>
-        ) : readOnly ? (
-          <View style={s.cardCta}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.cardTitle}>Partecipanti</Text>
-              <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} iscritti</Text>
-            </View>
-          </View>
-        ) : (
-          <Pressable onPress={openParticipants} disabled={!lesson} style={({ pressed }) => [s.cardCta, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
-            <View style={s.cardIcon}><Ionicons name="people-outline" size={22} color="#111111" /></View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.cardTitle}>Partecipanti</Text>
-              <Text style={s.cardSub} numberOfLines={1}>{filled} su {capacity} · gestisci iscritti</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#C9C9C9" />
-          </Pressable>
+      {/* Istruttore, veicoli, capienza. Read-only (titolare) = righe statiche. */}
+      <ClayList style={s.block}>
+        <ClayListRow
+          title="Istruttore"
+          subtitle={<RowValue text={lesson?.instructorName ?? 'Nessun istruttore'} loaded={!!lesson} width={150} />}
+          onPress={readOnly ? undefined : guard(openInstructorPicker)}
+          testID="group-lesson-instructor"
+        />
+        {/* REG-585: i colleghi, assegnabili anche dal telefono. In sola lettura
+            la riga compare solo se ce ne sono. */}
+        {!readOnly || isShared ? (
+          <ClayListRow
+            title="Altri istruttori"
+            subtitle={<RowValue text={coInstructorsValue} loaded={!!lesson} width={120} lines={2} />}
+            onPress={readOnly ? undefined : guard(openCoInstructorPicker)}
+            testID="group-lesson-co-instructors"
+          />
+        ) : null}
+        {/* MOTO group: moto fleet + shared follow car (no single vehicle). */}
+        {vehiclesEnabled && isMoto ? (
+          <ClayListRow
+            title="Moto della guida"
+            subtitle={<RowValue text={fleetValue} loaded={!!lesson} width={160} lines={2} />}
+            onPress={readOnly ? undefined : guard(openFleetPicker)}
+            testID="group-lesson-fleet"
+          />
+        ) : null}
+        {vehiclesEnabled && isMoto ? (
+          <ClayListRow
+            title="Auto al seguito"
+            subtitle={<RowValue text={followCarName} loaded={!!lesson} width={120} />}
+            onPress={readOnly ? undefined : guard(openFollowCarPicker)}
+            testID="group-lesson-follow-car"
+          />
+        ) : null}
+        {/* Tipo guida moto (birilli/strada) — sola lettura: si sceglie in
+            creazione (mirror della guida moto singola), si modifica dal web. */}
+        {vehiclesEnabled && isMoto && motoType ? (
+          <ClayListRow title="Tipo guida moto" subtitle={MOTO_LESSON_TYPE_LABELS[motoType]} />
+        ) : null}
+        {vehiclesEnabled && !isMoto ? (
+          <ClayListRow
+            title="Veicolo"
+            subtitle={<RowValue text={vehicleName} loaded={!!lesson} width={110} />}
+            onPress={readOnly ? undefined : guard(openVehiclePicker)}
+            testID="group-lesson-vehicle"
+          />
+        ) : null}
+        {/* Capienza. Moto: implicita (= numero di moto), riga nascosta. */}
+        {isMoto ? null : (
+          <ClayListRow
+            title="Capienza"
+            subtitle={<RowValue text={`${capacity} allievi`} loaded={!!lesson} width={90} />}
+            onPress={readOnly ? undefined : guard(openCapacityPicker)}
+            testID="group-lesson-capacity"
+          />
         )}
-      </ScrollView>
+        {/* Le note ora sono per-allievo: si scrivono dal roster partecipanti
+            (ogni iscritto ha la sua nota, visibile all'allievo nella sua app). */}
+      </ClayList>
 
-      {/* Floating bottom toolbar — Sposta · cestino (nascosta in read-only) */}
-      {!readOnly && (
-        <View style={[s.floatWrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
-          <Pressable onPress={openSposta} disabled={!lesson || busy} style={({ pressed }) => [s.spostaPill, pressed && { opacity: 0.85 }]}>
-            <MaterialCommunityIcons name="calendar-arrow-right" size={19} color="#111111" />
-            <Text style={s.spostaText}>Sposta</Text>
-          </Pressable>
-          <Pressable onPress={handleCancel} disabled={!lesson || busy} style={({ pressed }) => [s.trashCircle, pressed && { opacity: 0.85 }]} accessibilityLabel="Annulla guida di gruppo">
-            <MaterialCommunityIcons name="trash-can-outline" size={21} color="#E5484D" />
-          </Pressable>
-        </View>
-      )}
+      {/* Partecipanti → roster. Read-only = riga statica, tranne il gruppo moto
+          (REG-636: il titolare apre il roster solo per scegliere le moto). */}
+      <ClayList style={s.block}>
+        <ClayListRow
+          title="Partecipanti"
+          subtitle={
+            readOnly && isMoto
+              ? `${filled} su ${capacity} iscritti · scegli le moto`
+              : readOnly
+                ? `${filled} su ${capacity} iscritti`
+                : `${filled} su ${capacity} · gestisci iscritti`
+          }
+          onPress={
+            readOnly && !isMoto
+              ? undefined
+              : openParticipants
+          }
+          testID="group-lesson-participants"
+        />
+      </ClayList>
 
       {busy ? (
-        <View style={s.busyOverlay} pointerEvents="none">
-          <ActivityIndicator color="#111111" />
+        <View style={s.busy} pointerEvents="none">
+          <ActivityIndicator color={CLAY.ink} />
         </View>
       ) : null}
-    </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.background },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 },
-  iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFEFF1', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 20, gap: 24 },
-
-  // Hero
-  hero: { gap: 4 },
-  heroOverline: { fontSize: 13, fontWeight: '500', color: '#9A9A9A', letterSpacing: 0.2 },
-  heroName: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  heroMeta: { fontSize: 14, fontWeight: '400', color: '#717171', marginTop: 2 },
-  statePill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
-  statePillText: { fontSize: 12, fontWeight: '600' },
-
-  // Posti ring centrale
-  progressBlock: { alignItems: 'center', paddingVertical: 4 },
-  ringCount: { fontSize: 34, fontWeight: '700', color: '#111111', letterSpacing: -1 },
-  ringTotal: { fontSize: 18, fontWeight: '500', color: '#9C9C9C' },
-  ringLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: '#9A9A9A', marginTop: 4 },
-
-  // Righe piatte istruttore/veicolo
-  detailRows: { gap: 0 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
-  detailIcon: { width: 28, alignItems: 'center' },
-  detailBody: { flex: 1, gap: 1 },
-  detailLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  detailValue: { fontSize: 14, fontWeight: '400', color: '#717171' },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 44 },
-
-  // Card 3D CTA partecipanti
-  cardCta: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#111111', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
-  },
-  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F4F4F4', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  cardSub: { fontSize: 13, fontWeight: '400', color: '#717171' },
-
-  // Floating bottom toolbar
-  floatWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  spostaPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    height: 50, paddingHorizontal: 22, borderRadius: 25, backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  spostaText: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  trashCircle: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-
-  busyOverlay: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', paddingTop: 60 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  stats: { flexDirection: 'row', gap: 12 },
+  block: { marginTop: 18 },
+  rowValue: { fontSize: 13.5, color: CLAY.ink3, flexShrink: 1 },
+  ctaCol: { gap: 10 },
+  cancelBtn: { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 12 },
+  cancelText: { fontSize: 15.5, fontWeight: '500', color: '#C13515', letterSpacing: -0.2 },
+  busy: { alignItems: 'center', paddingTop: 16 },
 });

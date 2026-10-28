@@ -1,17 +1,14 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import {
   ScrollableMonthsCalendar,
   CALENDAR_WEEKDAYS,
 } from '../../../src/components/ScrollableMonthsCalendar';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { CLAY } from '../../../src/theme/clay';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayString = () => {
@@ -19,31 +16,49 @@ const todayString = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/**
+ * Scelta di un giorno — REG-639 clay: il form sheet unico, che scorre da sé
+ * (niente scroll interna). I mesi stanno uno sotto l'altro; all'apertura il
+ * foglio scorre in modo che il giorno scelto stia al centro. Tocco = sceglie
+ * e chiude.
+ */
 export default function SelectDateScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(dayPickerStore.subscribe, dayPickerStore.get);
 
-  // Auto-scroll so the selected day sits centered vertically when the sheet opens.
+  // Auto-scroll: centro del giorno scelto (nel calendario) + posizione del
+  // calendario nel foglio + altezza visibile del foglio → scrollTo una volta.
   const scrollRef = useRef<ScrollView>(null);
+  const calRef = useRef<View>(null);
   const viewportH = useRef(0);
+  const calendarTop = useRef<number | null>(null);
   const targetCenterY = useRef<number | null>(null);
   const didScroll = useRef(false);
 
   const maybeScroll = useCallback(() => {
     if (didScroll.current) return;
-    if (viewportH.current <= 0 || targetCenterY.current == null) return;
+    if (viewportH.current <= 0 || targetCenterY.current == null || calendarTop.current == null) return;
     didScroll.current = true;
-    const y = Math.max(0, targetCenterY.current - viewportH.current / 2);
+    const y = Math.max(0, calendarTop.current + targetCenterY.current - viewportH.current / 2);
     scrollRef.current?.scrollTo({ y, animated: false });
   }, []);
+
+  const measureCalendar = useCallback(() => {
+    // `getInnerViewRef` esiste in RN 0.81 ma manca nei tipi.
+    const inner = (scrollRef.current as unknown as { getInnerViewRef?: () => View | null } | null)?.getInnerViewRef?.();
+    if (!inner || !calRef.current) return;
+    calRef.current.measureLayout(inner, (_x, y) => {
+      calendarTop.current = y;
+      maybeScroll();
+    });
+  }, [maybeScroll]);
 
   const onMeasureSelected = useCallback((centerY: number) => {
     targetCenterY.current = centerY;
     maybeScroll();
   }, [maybeScroll]);
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const pick = (date: string) => {
     data.onSelect(date);
@@ -51,31 +66,25 @@ export default function SelectDateScreen() {
   };
 
   return (
-    <View style={s.root}>
-      <View style={s.topBar}>
-        {Platform.OS === 'android' ? (
-          <>
-            <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-              <Ionicons name="arrow-back" size={20} color="#111111" />
-            </Pressable>
-            <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
-            <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
-              <Text style={s.todayText}>Oggi</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Pressable onPress={() => pick(todayString())} hitSlop={8} style={s.todayBtn}>
-              <Text style={s.todayText}>Oggi</Text>
-            </Pressable>
-            <Text style={s.title}>{data.title ?? 'Seleziona data'}</Text>
-            <GlassCloseButton onPress={() => router.back()}>
-              <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-                <Ionicons name="close" size={20} color="#111111" />
-              </Pressable>
-            </GlassCloseButton>
-          </>
-        )}
+    <FormSheet
+      title={data.title ?? 'Seleziona data'}
+      testID="select-date-sheet"
+      scrollProps={{
+        // Il ref arriva allo ScrollView radice del foglio (React 19: ref come prop).
+        ...({ ref: scrollRef } as object),
+        onLayout: (e) => { viewportH.current = e.nativeEvent.layout.height; maybeScroll(); },
+      }}
+    >
+      <View style={s.todayRow}>
+        <Pressable
+          onPress={() => pick(todayString())}
+          hitSlop={10}
+          accessibilityRole="button"
+          testID="select-date-today"
+          style={({ pressed }) => pressed && { opacity: 0.55 }}
+        >
+          <Text style={s.todayText}>Oggi</Text>
+        </Pressable>
       </View>
 
       <View style={s.weekRow}>
@@ -84,12 +93,7 @@ export default function SelectDateScreen() {
         ))}
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-        onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; maybeScroll(); }}
-      >
+      <View ref={calRef} onLayout={measureCalendar}>
         <ScrollableMonthsCalendar
           selectedDate={data.selectedDate}
           onSelectDate={pick}
@@ -100,18 +104,15 @@ export default function SelectDateScreen() {
           hideWeekHeader
           onMeasureSelected={onMeasureSelected}
         />
-      </ScrollView>
-    </View>
+      </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingTop: 14, paddingHorizontal: spacing.lg },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  title: { fontSize: 17, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
-  todayBtn: { minWidth: 52, paddingVertical: 6 },
-  todayText: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  weekRow: { flexDirection: 'row', paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ECECEC' },
-  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#9E9E9E' },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  todayRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: -6, marginBottom: 10 },
+  todayText: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
+  weekRow: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CLAY.hairline },
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: CLAY.ink3 },
 });

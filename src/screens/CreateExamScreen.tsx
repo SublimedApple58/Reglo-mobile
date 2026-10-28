@@ -1,20 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SheetScaffold } from '../components/SheetScaffold';
-import { UserPhotoCircle } from '../components/UserPhotoCircle';
+import { FormSheet } from '../components/SheetScaffold';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClayToggle } from '../components/clay';
 import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 
 import { examSheetStore } from '../stores/examSheetStore';
@@ -23,17 +12,7 @@ import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
 import { optionsPickerPath, optionsPickerStore } from '../stores/optionsPickerStore';
 import { regloApi } from '../services/regloApi';
-import { Button } from '../components/Button';
-import { ToggleSwitch } from '../components/ToggleSwitch';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { GlassCloseButton } from '../components/GlassCloseButton';
-
-const NAVY = '#111111';
-const GREY = '#717171';
-const MUTED = '#929292';
-const N50 = '#F4F4F4';
-const N100 = '#EBEBEB';
+import { CLAY } from '../theme/clay';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -45,15 +24,6 @@ const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 const EXAM_DURATIONS = [30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300];
 const durLabel = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m} min`);
 
-const initialsOf = (first: string, last: string) => {
-  const f = (first ?? '').trim();
-  const l = (last ?? '').trim();
-  if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
-  if (f) return f.slice(0, 2).toUpperCase();
-  if (l) return l.slice(0, 2).toUpperCase();
-  return '?';
-};
-
 type StudentItem = {
   id: string;
   firstName: string;
@@ -64,28 +34,13 @@ type StudentItem = {
   examReady: boolean; // segnato "pronto per l'esame" (segnale interno)
 };
 
-/* ── Flat row inside the elevated card (icon · label · value · chevron) ── */
-const Row = ({ icon, label, value, placeholder, onPress, disabled }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string;
-  value?: string | null; placeholder?: string; onPress: () => void; disabled?: boolean;
-}) => (
-  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-    <View style={s.rowIcon}><Ionicons name={icon} size={22} color={NAVY} /></View>
-    <View style={s.rowBody}>
-      <Text style={s.rowLabel}>{label}</Text>
-      {value ? (
-        <Text style={s.rowValue} numberOfLines={1}>{value}</Text>
-      ) : (
-        <Text style={s.rowPlaceholder} numberOfLines={1}>{placeholder}</Text>
-      )}
-    </View>
-    <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-  </Pressable>
-);
-
+/**
+ * «Crea esame» (REG-639 clay): il form sheet unico. Righe di solo testo in una
+ * lista clay (niente icone), «Orario da definire» come interruttore, note in
+ * un campo clay, CTA nera in fondo. Il riepilogo è il sottotitolo.
+ */
 export const CreateExamScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(examSheetStore.subscribe, examSheetStore.get);
 
   const [loading, setLoading] = useState(true);
@@ -152,7 +107,7 @@ export const CreateExamScreen = () => {
     [students, selectedIds],
   );
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const openStudentsPicker = () => {
     const options: ExamStudentOption[] = students
@@ -219,6 +174,9 @@ export const CreateExamScreen = () => {
   const summary = selectedStudents.length === 0
     ? 'Nessun allievo'
     : `${selectedStudents.length} ${selectedStudents.length === 1 ? 'allievo' : 'allievi'}`;
+  // Il riepilogo che stava nel footer ora è il sottotitolo del foglio.
+  const subtitle = `${summary} · ${fmtDay(examDate)}${timeSet ? ` · ${fmtTime(examDate)}` : ' · orario da definire'}`;
+  const guard = (fn: () => void) => () => { if (!saving) fn(); };
 
   const handleCreate = async () => {
     // Zero students is allowed: the exam is created as an empty slot the
@@ -250,156 +208,69 @@ export const CreateExamScreen = () => {
   };
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom + 14 }, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.header}>
-        <Text style={s.title}>Crea esame</Text>
-        <GlassCloseButton onPress={() => !saving && router.back()} disabled={saving}>
-          <Pressable onPress={() => !saving && router.back()} hitSlop={10} disabled={saving} style={({ pressed }) => [s.close, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="close" size={20} color={NAVY} />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <SheetScaffold
-        keyboardAware
-        footer={loading ? null : (
-          <View style={s.footer}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-              <Text style={s.sumKey}>Riepilogo</Text>
-              <Text style={s.sumVal} numberOfLines={1}>{summary}</Text>
-              <Text style={s.sumSub} numberOfLines={1}>{fmtDay(examDate)}{timeSet ? ` · ${fmtTime(examDate)} · ${durLabel(duration)}` : ' · orario da definire'}</Text>
-            </View>
-            <View style={{ flexShrink: 0 }}>
-              <Button label="Crea esame" tone="primary" loading={saving} onPress={handleCreate} />
-            </View>
-          </View>
-        )}
-      >
+    <FormSheet
+      title="Crea esame"
+      subtitle={loading ? undefined : subtitle}
+      onClose={() => { if (!saving) router.back(); }}
+      testID="create-exam-sheet"
+      cta={loading ? null : (
+        <ClayButton title="Crea esame" loading={saving} onPress={handleCreate} testID="create-exam-submit" />
+      )}
+    >
       {loading ? (
         <View style={s.loadingBox}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={CLAY.ink} />
         </View>
       ) : (
         <>
-          {/* Card 3D primaria: allievi + giorno + ora */}
-          <View style={s.group}>
-            {/* Allievi — riga con stack avatar */}
-            <Pressable onPress={openStudentsPicker} disabled={saving} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-              <View style={s.rowIcon}><Ionicons name="people-outline" size={22} color={NAVY} /></View>
-              <View style={s.rowBody}>
-                <Text style={s.rowLabel}>Allievi</Text>
-                {studentsValue ? (
-                  <Text style={s.rowValue} numberOfLines={1}>{studentsValue}</Text>
-                ) : (
-                  <Text style={s.rowPlaceholder} numberOfLines={1}>Seleziona allievi</Text>
-                )}
-              </View>
-              {selectedStudents.length > 0 ? (
-                <View style={s.avatarStack}>
-                  {selectedStudents.slice(0, 3).map((st, idx) => (
-                    <UserPhotoCircle key={st.id} userId={st.id} size={30} style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx, borderWidth: 2, borderColor: '#FFFFFF' }}>
-                      <View style={[s.stackAvatar, { marginLeft: idx === 0 ? 0 : -10, zIndex: 5 - idx }]}>
-                        <Text style={s.stackAvatarTxt}>{initialsOf(st.firstName, st.lastName)}</Text>
-                      </View>
-                    </UserPhotoCircle>
-                  ))}
-                  {selectedStudents.length > 3 ? (
-                    <View style={[s.stackAvatar, s.stackMore, { marginLeft: -10 }]}>
-                      <Text style={s.stackMoreTxt}>+{selectedStudents.length - 3}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
+          <ClayList>
+            <ClayListRow
+              title="Allievi"
+              subtitle={studentsValue ?? 'Seleziona allievi'}
+              onPress={guard(openStudentsPicker)}
+              testID="create-exam-students"
+            />
+            <ClayListRow title="Giorno" subtitle={fmtDay(examDate)} onPress={guard(openDatePicker)} />
+            {timeSet ? <ClayListRow title="Ora" subtitle={fmtTime(examDate)} onPress={guard(openTimePicker)} /> : null}
+            {timeSet ? <ClayListRow title="Durata" subtitle={durLabel(duration)} onPress={guard(openDurationPicker)} /> : null}
+          </ClayList>
 
-            <View style={s.divider} />
-            <Row icon="calendar-outline" label="Giorno" value={fmtDay(examDate)} onPress={openDatePicker} disabled={saving} />
-            {timeSet ? (
-              <>
-                <View style={s.divider} />
-                <Row icon="time-outline" label="Ora" value={fmtTime(examDate)} onPress={openTimePicker} disabled={saving} />
-                <View style={s.divider} />
-                <Row icon="hourglass-outline" label="Durata" value={durLabel(duration)} onPress={openDurationPicker} disabled={saving} />
-              </>
-            ) : null}
-          </View>
+          <ClayList style={s.gap}>
+            <ClayListRow
+              title="Orario da definire"
+              subtitle="Crea l'esame senza un orario fisso"
+              trailing={
+                <ClayToggle
+                  value={!timeSet}
+                  onValueChange={(v) => setTimeSet(!v)}
+                  disabled={saving}
+                  accessibilityLabel="Orario da definire"
+                />
+              }
+            />
+          </ClayList>
 
-          {/* Orario da definire — banner optional */}
-          <View style={s.optBanner}>
-            <View style={s.optIcon}><Ionicons name="help-circle-outline" size={18} color={NAVY} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.optTitle}>Orario da definire</Text>
-              <Text style={s.optSub}>Crea l'esame senza un orario fisso</Text>
-            </View>
-            <ToggleSwitch value={!timeSet} onValueChange={(v) => setTimeSet(!v)} disabled={saving} />
-          </View>
-
-          {/* Note — opzionale */}
-          <Text style={s.fieldLabel}>Note <Text style={s.fieldOptional}>· facoltativo</Text></Text>
-          <TextInput
-            style={s.textArea}
+          <ClayField
+            label="Note"
+            hint="Facoltative"
+            style={s.notes}
             value={notes}
             onChangeText={setNotes}
             placeholder="Es. sede, documenti necessari…"
-            placeholderTextColor={MUTED}
             editable={!saving}
             multiline
-            textAlignVertical="top"
             inputAccessoryViewID={accessoryID}
           />
           {accessory}
         </>
       )}
-      </SheetScaffold>
-    </View>
+    </FormSheet>
   );
 };
 
-const ELEV = {
-  shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4,
-} as const;
-
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 14, gap: 12 },
-  title: { flex: 1, fontSize: 24, fontWeight: '600', color: NAVY, letterSpacing: -0.5 },
-  close: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
   loadingBox: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
-
-  group: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 16, marginBottom: 14, ...ELEV },
-
-  /* row */
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, minHeight: 64 },
-  rowIcon: { width: 26, alignItems: 'center' },
-  rowBody: { flex: 1, minWidth: 0, gap: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: NAVY },
-  rowValue: { fontSize: 14, color: GREY },
-  rowPlaceholder: { fontSize: 14, color: MUTED },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F0F0F0' },
-
-  /* avatar stack on the allievi row */
-  avatarStack: { flexDirection: 'row', alignItems: 'center' },
-  stackAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: N100, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
-  stackAvatarTxt: { fontSize: 11, fontWeight: '600', color: NAVY },
-  stackMore: { backgroundColor: '#E7E7E7' },
-  stackMoreTxt: { fontSize: 10, fontWeight: '600', color: NAVY },
-
-  /* note text area */
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 8, marginLeft: 2 },
-  fieldOptional: { fontSize: 13, fontWeight: '500', color: MUTED },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, minHeight: 84, fontSize: 14, color: NAVY, marginBottom: 14 },
-
-  /* optional banner */
-  optBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: N50, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 14 },
-  optIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 14, fontWeight: '600', color: NAVY },
-  optSub: { fontSize: 12.5, color: MUTED, marginTop: 1 },
-
-  /* footer */
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  sumKey: { fontSize: 12, color: MUTED, fontWeight: '500' },
-  sumVal: { fontSize: 15, fontWeight: '600', color: NAVY, marginTop: 2 },
-  sumSub: { fontSize: 13, fontWeight: '500', color: GREY, marginTop: 1 },
+  gap: { marginTop: 14 },
+  notes: { marginTop: 22 },
 });

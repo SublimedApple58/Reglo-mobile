@@ -1,29 +1,26 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { examStudentsStore } from '../../../src/stores/examStudentsStore';
-import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySearchField } from '../../../src/components/clay';
+import { CLAY } from '../../../src/theme/clay';
 
-const NAVY = '#111111';
-const INK = '#1F1F1F';
-const MUTED = '#9A9A9A';
-const MUTED2 = '#6A6A6A';
-const N100 = '#EBEBEB';
-
-const initialsOf = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 const normalize = (v: string) => v.trim().toLowerCase();
+/** Righe mostrate al massimo: oltre, si chiede di scrivere per cercare. */
+const MAX_ROWS = 80;
 
+/**
+ * Scelta multipla degli allievi (esame, guida di gruppo) — REG-639 clay: il
+ * form sheet unico che scorre da sé, ricerca clay sopra, righe con la spunta
+ * nera a destra. Lo stato (pronto, patente, gruppo) è testo nel sottotitolo,
+ * niente pillole. Le righe sono un `.map` dentro il foglio (niente lista
+ * interna), limitate alle prime MAX_ROWS corrispondenze.
+ */
 export default function SelectExamStudentsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const data = useSyncExternalStore(examStudentsStore.subscribe, examStudentsStore.get);
 
   const [query, setQuery] = useState('');
@@ -49,7 +46,7 @@ export default function SelectExamStudentsScreen() {
     });
   }, [options, query, draft]);
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const toggle = (value: string) =>
     setDraft((prev) => (prev.includes(value) ? prev.filter((id) => id !== value) : [...prev, value]));
@@ -59,155 +56,74 @@ export default function SelectExamStudentsScreen() {
     router.back();
   };
 
-  return (
-    <View style={[s.root, { paddingTop: 14 }]}>
-      <View style={s.topbar}>
-        {Platform.OS === 'android' ? (
-          <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="arrow-back" size={22} color={NAVY} />
-          </Pressable>
-        ) : null}
-        <Text style={s.title} numberOfLines={1}>Allievi all&apos;esame</Text>
-        {Platform.OS !== 'android' ? (
-          <GlassCloseButton onPress={() => router.back()}>
-            <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [s.x, pressed && { opacity: 0.5 }]}>
-              <Ionicons name="close" size={20} color={NAVY} />
-            </Pressable>
-          </GlassCloseButton>
-        ) : null}
-      </View>
+  const shown = filtered.slice(0, MAX_ROWS);
+  const hidden = filtered.length - shown.length;
 
-      <View style={s.searchWrap}>
-        <Ionicons name="search" size={19} color={MUTED} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Cerca allievo..."
-          returnKeyType="search"
-          placeholderTextColor={MUTED}
-          style={s.searchInput}
-          autoCorrect={false}
-          clearButtonMode="while-editing"
+  return (
+    <FormSheet
+      title="Allievi all'esame"
+      subtitle={draft.length > 0 ? `${draft.length} ${draft.length === 1 ? 'selezionato' : 'selezionati'}` : undefined}
+      testID="select-exam-students-sheet"
+      cta={
+        <ClayButton
+          title={draft.length === 0 ? 'Conferma' : `Conferma selezione (${draft.length})`}
+          onPress={apply}
+          testID="select-exam-students-confirm"
         />
-      </View>
+      }
+    >
+      <ClaySearchField value={query} onChangeText={setQuery} placeholder="Cerca allievo..." />
 
       {draft.length > 0 ? (
-        <Pressable onPress={() => setDraft([])} hitSlop={8} style={({ pressed }) => [s.clearAll, pressed && { opacity: 0.6 }]}>
+        <Pressable
+          onPress={() => setDraft([])}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={({ pressed }) => [s.clearAll, pressed && { opacity: 0.55 }]}
+        >
           <Text style={s.clearAllTxt}>Deseleziona tutti</Text>
         </Pressable>
       ) : null}
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 16 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {filtered.length === 0 ? (
-          <Text style={s.empty}>{query ? 'Nessun allievo trovato.' : 'Nessun allievo disponibile.'}</Text>
-        ) : (
-          filtered.map((o, idx) => {
+      {filtered.length === 0 ? (
+        <Text style={s.none}>{query ? 'Nessun allievo trovato.' : 'Nessun allievo disponibile.'}</Text>
+      ) : (
+        <ClayList style={s.list}>
+          {shown.map((o) => {
             const selected = draft.includes(o.value);
+            const meta = [o.examReady ? "Pronto per l'esame" : null, o.license ? `Patente ${o.license}` : null, o.subtitle]
+              .filter(Boolean)
+              .join(' · ');
             return (
-              <View key={o.value}>
-                {idx > 0 ? <View style={s.divider} /> : null}
-                <Pressable onPress={() => toggle(o.value)} style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}>
-                  <UserPhotoCircle userId={o.value} size={46} style={o.examReady && !selected ? s.avatarReady : undefined}>
-                    <View style={[s.avatar, o.examReady && !selected && s.avatarReady, selected && { backgroundColor: NAVY }]}>
-                      <Text style={[s.avatarTxt, selected && { color: '#fff' }]}>{initialsOf(o.label)}</Text>
-                    </View>
-                  </UserPhotoCircle>
-                  <View style={s.body}>
-                    <Text style={s.name} numberOfLines={1}>{o.label}</Text>
-                    {o.license || o.subtitle || o.examReady ? (
-                      <View style={s.metaRow}>
-                        {o.examReady ? (
-                          <View style={s.readyBadge}>
-                            <Text style={s.readyTxt} numberOfLines={1}>Pronto</Text>
-                          </View>
-                        ) : null}
-                        {o.license ? (
-                          <View style={s.licenseBadge}>
-                            <Text style={s.licenseTxt} numberOfLines={1}>Patente {o.license}</Text>
-                          </View>
-                        ) : null}
-                        {o.subtitle ? (
-                          <View style={[s.badge, o.isMyCluster && s.badgeMine]}>
-                            <Text style={[s.badgeTxt, o.isMyCluster && s.badgeTxtMine]} numberOfLines={1}>{o.subtitle}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    ) : null}
+              <ClayListRow
+                key={o.value}
+                leading={<Avatar userId={o.value} name={o.label} size={42} />}
+                title={o.label}
+                subtitle={meta || undefined}
+                onPress={() => toggle(o.value)}
+                chevron={false}
+                trailing={
+                  <View style={s.check}>
+                    {selected ? <Ionicons name="checkmark" size={22} color={CLAY.ink} /> : null}
                   </View>
-                  <View style={[s.checkbox, selected && s.checkboxOn]}>
-                    {selected ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
-                  </View>
-                </Pressable>
-              </View>
+                }
+              />
             );
-          })
-        )}
-      </ScrollView>
+          })}
+        </ClayList>
+      )}
 
-      <View style={[s.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <Pressable onPress={apply} style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
-          <GradientCTABackground radius={27} />
-          <Text style={s.ctaText}>{draft.length === 0 ? 'Conferma' : `Conferma selezione (${draft.length})`}</Text>
-        </Pressable>
-      </View>
-    </View>
+      {hidden > 0 ? <Text style={s.more}>Altri {hidden} allievi: scrivi per cercare.</Text> : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: 10, gap: 12 },
-  title: { flex: 1, fontSize: 20, fontWeight: '600', color: NAVY, letterSpacing: -0.3 },
-  x: { width: 33, height: 33, borderRadius: 17, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
-
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: spacing.lg, marginBottom: 8,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderRadius: 16, borderWidth: 1, borderColor: '#ECECEC', backgroundColor: '#FFFFFF',
-  },
-  searchInput: { flex: 1, fontSize: 16, color: INK, padding: 0 },
-
-  clearAll: { alignSelf: 'flex-end', marginHorizontal: spacing.lg, marginBottom: 4, paddingVertical: 4 },
-  clearAllTxt: { fontSize: 13, fontWeight: '500', color: MUTED2, textDecorationLine: 'underline' },
-
-  empty: { fontSize: 14, color: MUTED, textAlign: 'center', paddingVertical: 32 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 60 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 64 },
-  avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: N100, alignItems: 'center', justifyContent: 'center' },
-  avatarReady: { borderWidth: 2, borderColor: '#1A7F50' },
-  avatarTxt: { fontSize: 15, fontWeight: '600', color: NAVY },
-  body: { flex: 1, minWidth: 0, gap: 3 },
-  name: { fontSize: 16, fontWeight: '600', color: INK },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  readyBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F0FAF4', borderWidth: 1, borderColor: '#C5E8D4' },
-  readyTxt: { fontSize: 11, fontWeight: '700', color: '#1A7F50' },
-  licenseBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F2F2F0' },
-  licenseTxt: { fontSize: 11, fontWeight: '600', color: '#111111' },
-  badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F2F2F2' },
-  badgeMine: { backgroundColor: N100 },
-  badgeTxt: { fontSize: 11, fontWeight: '500', color: MUTED2 },
-  badgeTxtMine: { color: NAVY },
-  checkbox: {
-    width: 24, height: 24, borderRadius: 999, borderWidth: 2, borderColor: '#D4D4D4',
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-  },
-  checkboxOn: { backgroundColor: NAVY, borderColor: NAVY },
-
-  footer: {
-    paddingHorizontal: spacing.lg, paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  cta: {
-    height: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  clearAll: { alignSelf: 'flex-end', marginTop: 12, paddingVertical: 2, paddingHorizontal: 2 },
+  clearAllTxt: { fontSize: 15, fontWeight: '500', color: CLAY.ink },
+  list: { marginTop: 14 },
+  none: { fontSize: 15, color: CLAY.ink3, textAlign: 'center', paddingVertical: 32 },
+  check: { width: 24, alignItems: 'center' },
+  more: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4, textAlign: 'center' },
 });

@@ -1,24 +1,14 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import {
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Alert, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { Avatar, ClayEmpty, ClayList, ClayListRow, ClaySearchField, ClaySection } from '../../../src/components/clay';
 import { swapStore } from '../../../src/stores/swapStore';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
 
+const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 export default function SwapLessonScreen() {
@@ -71,112 +61,47 @@ export default function SwapLessonScreen() {
     );
   };
 
+  // REG-639 clay: il form sheet unico che scorre da sé. Ricerca clay, guide
+  // raggruppate per giorno in liste clay, orario a destra in testo.
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold keyboardAware contentContainerStyle={{ gap: 14 }}>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Scambia con…</Text>
-        <Text style={s.subtitle}>Scegli una guida con cui scambiare.</Text>
-      </View>
-
-      <View style={s.searchRow}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          placeholder="Cerca allievo…"
-          returnKeyType="search"
-          placeholderTextColor={colors.textSecondary}
-          value={search}
-          onChangeText={setSearch}
-          style={s.searchInput}
-          autoCorrect={false}
-        />
-        {search ? (
-          <Pressable hitSlop={8} onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color="#D4D4D4" />
-          </Pressable>
-        ) : null}
-      </View>
+    <FormSheet
+      title="Scambia con…"
+      subtitle="Scegli una guida con cui scambiare."
+      testID="swap-lesson-sheet"
+    >
+      <ClaySearchField placeholder="Cerca allievo…" value={search} onChangeText={setSearch} />
 
       {grouped.length === 0 ? (
-        <View style={s.empty}>
-          <Ionicons name="swap-horizontal-outline" size={32} color="#D4D4D4" />
-          <Text style={s.emptyText}>Nessuna guida disponibile per lo scambio</Text>
-        </View>
+        <ClayEmpty title="Nessuna guida disponibile per lo scambio" />
       ) : (
-        grouped.map((section) => (
-          <View key={section.title} style={{ gap: 8 }}>
-            <Text style={s.sectionTitle}>{section.title}</Text>
-            <View style={s.groupCard}>
-              {section.data.map((appt, idx) => {
+        grouped.map((section, i) => (
+          <ClaySection key={section.title} title={capitalize(section.title)} style={i === 0 ? s.first : undefined}>
+            <ClayList>
+              {section.data.map((appt) => {
                 const start = new Date(appt.startsAt);
                 const end = appt.endsAt ? new Date(appt.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+                const name = `${appt.student?.firstName ?? ''} ${appt.student?.lastName ?? ''}`.trim();
                 return (
-                  <View key={appt.id}>
-                    {idx > 0 ? <View style={s.divider} /> : null}
-                    <Pressable onPress={() => confirmSwap(appt)} style={({ pressed }) => [s.row, pressed && { opacity: 0.55 }]}>
-                      <UserPhotoCircle userId={appt.student?.id} size={36}>
-                        <View style={s.avatar}>
-                          <Text style={s.avatarText}>{(appt.student?.firstName ?? '?').slice(0, 1).toUpperCase()}</Text>
-                        </View>
-                      </UserPhotoCircle>
-                      <View style={s.rowBody}>
-                        <Text style={s.rowName} numberOfLines={1}>
-                          {appt.student?.firstName ?? ''} {appt.student?.lastName ?? ''}
-                        </Text>
-                        {data?.vehiclesEnabled && appt.vehicle?.name ? (
-                          <Text style={s.rowSub} numberOfLines={1}>{appt.vehicle.name}</Text>
-                        ) : null}
-                      </View>
-                      <Text style={s.rowTime}>{hhmm(start)} – {hhmm(end)}</Text>
-                    </Pressable>
-                  </View>
+                  <ClayListRow
+                    key={appt.id}
+                    leading={<Avatar userId={appt.student?.id} name={name || '?'} size={40} />}
+                    title={name}
+                    subtitle={data?.vehiclesEnabled && appt.vehicle?.name ? appt.vehicle.name : undefined}
+                    onPress={() => confirmSwap(appt)}
+                    chevron={false}
+                    trailing={<Text style={s.time}>{hhmm(start)} – {hhmm(end)}</Text>}
+                  />
                 );
               })}
-            </View>
-          </View>
+            </ClayList>
+          </ClaySection>
         ))
       )}
-      </SheetScaffold>
-    </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 14 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  searchRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 14, height: 46, borderRadius: 14, backgroundColor: '#F3F4F6',
-  },
-  searchInput: { flex: 1, fontSize: 15, color: '#111111', padding: 0 },
-
-  empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
-
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: '#9A9A9A', textTransform: 'capitalize' },
-  groupCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC',
-    shadowColor: '#111111', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 14, minHeight: 64 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECEC', marginLeft: 62 },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 14, fontWeight: '700', color: '#111111' },
-  rowBody: { flex: 1, gap: 2 },
-  rowName: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  rowSub: { fontSize: 13, color: '#9A9A9A' },
-  rowTime: { fontSize: 14, fontWeight: '600', color: '#4A4A4A' },
+  first: { marginTop: 22 },
+  time: { fontSize: 15, fontWeight: '500', color: CLAY.ink2 },
 });

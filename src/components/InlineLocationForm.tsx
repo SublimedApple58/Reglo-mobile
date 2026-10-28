@@ -1,17 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { ToggleSwitch } from './ToggleSwitch';
-import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
-import { colors, spacing, typography } from '../theme';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClayToggle } from './clay';
+import { CLAY } from '../theme/clay';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
 
 const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -20,6 +11,12 @@ type Props = {
   initialValue?: AutoscuolaLocation | null;
   onSubmit: (values: CreateLocationInput) => Promise<void>;
   onCancel: () => void;
+  /**
+   * Impaginazione: corpo del form e CTA «Salva luogo» separati, così dentro un
+   * `FormSheet` la CTA va nel suo prop `cta` (ultima cosa del foglio).
+   * Default: corpo e poi CTA, uno sotto l'altro.
+   */
+  renderLayout?: (parts: { body: React.ReactNode; cta: React.ReactNode }) => React.ReactElement;
 };
 
 type Suggestion = {
@@ -31,7 +28,7 @@ type Suggestion = {
 const uuid = () =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) => {
+export const InlineLocationForm = ({ initialValue, onSubmit, renderLayout }: Props) => {
   const [name, setName] = useState(initialValue?.name ?? '');
   const [isPrecise, setIsPrecise] = useState(initialValue?.isPrecise ?? false);
   const [address, setAddress] = useState(initialValue?.address ?? '');
@@ -171,17 +168,16 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
     }
   };
 
-  return (
-    <View style={{ paddingTop: 4 }}>
-      <Text style={styles.label}>Nome del luogo</Text>
-      <TextInput
-        style={styles.input}
+  const body = (
+    <View>
+      <ClayField
+        label="Nome del luogo"
         value={name}
         onChangeText={setName}
         placeholder="Es. Piazzale del Comune"
-        placeholderTextColor={colors.textSecondary}
         maxLength={80}
         returnKeyType="done"
+        testID="location-form-name"
       />
 
       <View style={styles.toggleRow}>
@@ -191,20 +187,24 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
             Permette agli allievi di aprire Google Maps direttamente.
           </Text>
         </View>
-        <ToggleSwitch value={isPrecise} onValueChange={setIsPrecise} />
+        <ClayToggle
+          value={isPrecise}
+          onValueChange={setIsPrecise}
+          accessibilityLabel="Posizione precisa"
+          testID="location-form-precise"
+        />
       </View>
 
       {isPrecise ? (
         <>
-          <Text style={styles.label}>Indirizzo</Text>
-          <Text style={styles.helper}>
-            {PLACES_API_KEY
-              ? 'Cerca via, città o luogo. Selezionalo dalla lista per agganciare le coordinate.'
-              : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).'}
-          </Text>
           <View>
-            <TextInput
-              style={[styles.input, !PLACES_API_KEY && styles.inputDisabled]}
+            <ClayField
+              label="Indirizzo"
+              hint={
+                PLACES_API_KEY
+                  ? 'Cerca via, città o luogo. Selezionalo dalla lista per agganciare le coordinate.'
+                  : 'Autocomplete non configurato (manca EXPO_PUBLIC_GOOGLE_MAPS_API_KEY).'
+              }
               value={address}
               onChangeText={(t) => {
                 setAddress(t);
@@ -213,44 +213,26 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
                 setLongitude(null);
               }}
               placeholder="Es. Via Roma 14, Milano"
-              placeholderTextColor={colors.textSecondary}
               editable={Boolean(PLACES_API_KEY)}
               returnKeyType="search"
+              testID="location-form-address"
             />
             {searching ? (
-              <ActivityIndicator
-                style={styles.spinner}
-                color={colors.textSecondary}
-                size="small"
-              />
+              <ActivityIndicator style={styles.spinner} color={CLAY.ink3} size="small" />
             ) : null}
           </View>
           {suggestions.length > 0 ? (
-            <View style={styles.suggestionsBox}>
-              {suggestions.map((s, idx) => (
-                <Pressable
+            <ClayList style={styles.suggestions}>
+              {suggestions.map((s) => (
+                <ClayListRow
                   key={s.placeId}
-                  style={({ pressed }) => [
-                    styles.suggestionRow,
-                    idx !== 0 && styles.suggestionBorder,
-                    pressed && { opacity: 0.7 },
-                  ]}
+                  title={s.primaryText}
+                  subtitle={s.secondaryText || undefined}
+                  chevron={false}
                   onPress={() => selectSuggestion(s)}
-                >
-                  <Ionicons
-                    name="location-outline"
-                    size={16}
-                    color={colors.textSecondary}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.suggestionPrimary}>{s.primaryText}</Text>
-                    <Text style={styles.suggestionSecondary} numberOfLines={1}>
-                      {s.secondaryText}
-                    </Text>
-                  </View>
-                </Pressable>
+                />
               ))}
-            </View>
+            </ClayList>
           ) : null}
           {latitude != null && longitude != null ? (
             <Text style={styles.coords}>
@@ -261,98 +243,36 @@ export const InlineLocationForm = ({ initialValue, onSubmit, onCancel }: Props) 
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+    </View>
+  );
 
-      <View style={styles.footer}>
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!canSubmit || saving}
-          style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.9 }, (!canSubmit || saving) && { opacity: 0.4 }]}
-        >
-          <GradientCTABackground radius={27} />
-          {saving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveText}>Salva luogo</Text>
-          )}
-        </Pressable>
-      </View>
+  const cta = (
+    <ClayButton
+      title="Salva luogo"
+      onPress={handleSubmit}
+      disabled={!canSubmit}
+      loading={saving}
+      testID="location-form-save"
+    />
+  );
+
+  if (renderLayout) return renderLayout({ body, cta });
+  return (
+    <View>
+      {body}
+      <View style={styles.footer}>{cta}</View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  label: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  helper: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.textPrimary,
-    backgroundColor: '#FFFFFF',
-    minHeight: 48,
-  },
-  inputDisabled: { backgroundColor: '#FAFAFA', color: colors.textSecondary },
-  spinner: { position: 'absolute', right: spacing.md, top: 14 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  toggleTitle: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  toggleSubtitle: { ...typography.caption, color: colors.textSecondary },
-  suggestionsBox: {
-    marginTop: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    minHeight: 56,
-  },
-  suggestionBorder: { borderTopWidth: 1, borderTopColor: '#F2F2F2' },
-  suggestionPrimary: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  suggestionSecondary: { ...typography.caption, color: colors.textSecondary },
-  coords: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  error: { ...typography.caption, color: colors.destructive, marginTop: spacing.md },
-  footer: {
-    marginTop: spacing.lg,
-  },
-  saveBtn: {
-    minHeight: 54,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 18 },
+  toggleTitle: { fontSize: 16, fontWeight: '500', color: CLAY.ink },
+  toggleSubtitle: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 2 },
+  // Allineato al campo (etichetta 15 + gap 8 + metà campo 50).
+  spinner: { position: 'absolute', right: 16, top: 41 },
+  suggestions: { marginTop: 12 },
+  coords: { fontSize: 13, color: CLAY.ink3, marginTop: 10, paddingHorizontal: 4 },
+  error: { fontSize: 14, color: '#C13515', marginTop: 14, paddingHorizontal: 4 },
+  footer: { marginTop: 22 },
 });
