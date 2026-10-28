@@ -6,7 +6,7 @@ produzione su iOS**. Le regole del design system stanno in
 
 ## Stato
 
-- **master mobile = `88c7b1a`** (pushato). Runtime **2.4.0**, solo **iOS**.
+- **master mobile = `d5c6fc8`** (pushato). Runtime **2.4.0**, solo **iOS**.
 - **Android NON ha una build 2.4.0**: nessun OTA Android è stato pubblicato da
   REG-638 in poi. Gli OTA vanno pubblicati con `--platform ios` finché non esce
   la build Android 2.4.0.
@@ -23,7 +23,8 @@ produzione su iOS**. Le regole del design system stanno in
 | Fluidità (ombre, pressione tonda, fogli che si chiudono col gesto) | `8f2f84a` | `e6ad8891` (il precedente `6cfa4a2c` aveva l'URL API vuoto) |
 | Passo 3: «vita» su tutte le schermate | `f88438d` | `7f46b7fe` |
 | Allievi: testata unica che collassa ovunque, Il mio gruppo, picker a spunta | `4b503b0` | `e773b290-f124-4e0a-ad63-e184b6d92c56` |
-| **Pagamenti** + icone 3D trasparenti + segmentato nativo | **`88c7b1a`** | **`6d38f144-8aa1-49de-b129-90c4ae29014f`** (iOS update `01a18314-7b72-7fb3-8353-2fd50950be8f`) |
+| Pagamenti + icone 3D trasparenti + segmentato nativo | `88c7b1a` | `6d38f144-8aa1-49de-b129-90c4ae29014f` (iOS update `01a18314-7b72-7fb3-8353-2fd50950be8f`) |
+| **Memorabile** (vita dosata, salvadanaio, via obbligo dal dettaglio allievo e dal foglio guida) | **`d5c6fc8`** | **`8433fb42-4e22-4502-ae8f-533c86929c64`** (iOS update `01a18342-9c41-70e1-a25a-e5962f2075f4`) |
 
 **Come si pubblica un OTA** (dal worktree che ha i `node_modules` giusti; la
 copia principale `reglo-mobile` oggi NON ha `node_modules` aggiornati e
@@ -56,12 +57,15 @@ Altro da pulire (solo con l'ok di Tiziano): simulatore «Reglo Vita (Claude)»
 `allievi`, `allievi-feedback`, `pagamenti`, `pagamenti-feedback`), branch locale
 `feat/reg-639-clay-ds`.
 
-## Giro «memorabile» (28/10 sera) — in attesa dell'ok di Tiziano
+## Giro «memorabile» (28/10 notte) — IN PRODUZIONE su iOS
 
-Branch `feat/reg-639-memorabile`, worktree `reglo-mobile-worktrees/reg-639-memorabile`
-(da `origin/master` `24d8fc8`), **non mergiato, niente OTA**. Piano e stato in
-`plans/design-system/reg-639-memorabile.md`; tavole prima/dopo in
-`/tmp/hiro-anteprime/memorabile/` (1–13). Rilascio unico dopo l'ok.
+Approvato da Tiziano. Branch `feat/reg-639-memorabile` (worktree
+`reglo-mobile-worktrees/reg-639-memorabile`) → **master `d5c6fc8`** (pushato),
+**OTA iOS production runtime 2.4.0, gruppo `8433fb42-4e22-4502-ae8f-533c86929c64`**
+(iOS update `01a18342-9c41-70e1-a25a-e5962f2075f4`); bundle verificato su
+`https://app.reglo.it/api`. Niente Android, niente build nativa. Piano e stato in
+`plans/design-system/reg-639-memorabile.md`; tavole in `/tmp/hiro-anteprime/memorabile/`.
+Metro 8081 gira da questo worktree contro prod.
 
 **Metro da un worktree nuovo con `node_modules` linkati a `../reg-638`: la
 prima volta va avviato con `--clear`** (`env -u EXPO_PUBLIC_API_URL npx expo
