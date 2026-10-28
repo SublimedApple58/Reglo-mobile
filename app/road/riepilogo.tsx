@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../src/components/SheetScaffold';
-import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
@@ -15,10 +13,10 @@ import { openRoadPagellino } from '../../src/road/pagellino';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
 import { regloApi } from '../../src/services/regloApi';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
-import { CTA_HEIGHT, CTA_RADIUS } from '../../src/theme';
+import { CLAY, CLAY_SHADOW } from '../../src/theme';
+import { ClayButton, ClayStat, ClaySurface, Icon3D } from '../../src/components/clay';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
-import { RoadPressable } from '../../src/components/road/RoadPressable';
 
 type EvalState = { enabled: boolean; total: number; done: number } | null;
 
@@ -101,64 +99,55 @@ export default function RiepilogoScreen() {
         <>
       <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
         {showPagellino ? (
-          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} style={[s.pg, pgComplete && s.pgDone]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.pgTitle}>Pagellino</Text>
-              <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={[s.pgSub, pgComplete && s.pgSubDone]}>
-                {pgEmpty
-                  ? 'Ancora da compilare'
-                  : pgComplete
-                    ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
-                    : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
-              </Animated.Text>
-            </View>
-            <RoadPressable
-              kind="small"
-              onPress={() =>
-                openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
-              }
-              style={s.pgBtn}
-              testID="road-summary-pagellino"
-            >
-              <Text style={s.pgBtnTx}>{pgEmpty ? 'Compila' : 'Modifica'}</Text>
-            </RoadPressable>
+          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+            <ClaySurface radius={24} style={s.pg}>
+              <Icon3D name={pgComplete ? 'check' : 'memo'} size={36} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.pgTitle}>Pagellino</Text>
+                <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={s.pgSub}>
+                  {pgEmpty
+                    ? 'Ancora da compilare'
+                    : pgComplete
+                      ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
+                      : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
+                </Animated.Text>
+              </View>
+              <ClayButton
+                compact
+                variant={pgEmpty ? 'primary' : 'secondary'}
+                title={pgEmpty ? 'Compila' : 'Modifica'}
+                onPress={() =>
+                  openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
+                }
+                style={s.pgBtn}
+                testID="road-summary-pagellino"
+              />
+            </ClaySurface>
           </Animated.View>
         ) : null}
 
-        <RoadPressable kind="cta" onPress={close} style={s.closeBtn} testID="road-summary-close">
-          <Text style={s.closeTx}>Chiudi</Text>
-        </RoadPressable>
+        <ClayButton variant="secondary" title="Chiudi" onPress={close} style={s.closeBtn} testID="road-summary-close" />
       </Animated.View>
         </>
       }
     >
 
-      <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
+      {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
+      <View style={[s.miniWrap, CLAY_SHADOW.raise]}>
+        <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
+      </View>
 
       <View style={s.sum}>
-        <View style={s.sumCol}>
-          <Text style={s.sumNum}>
-            {formatKm(summary.distanceMeters)} <Text style={s.sumUnit}>km</Text>
-          </Text>
-          <Text style={s.sumLabel}>Percorsi</Text>
-        </View>
-        <View style={[s.sumCol, s.sumSep]}>
-          <Text style={s.sumNum}>
-            {formatMinutes(summary.durationSec)} <Text style={s.sumUnit}>min</Text>
-          </Text>
-          <Text style={s.sumLabel}>Di guida</Text>
-        </View>
-        <View style={[s.sumCol, s.sumSep]}>
-          <Text style={s.sumNum}>{summary.markers.length}</Text>
-          <Text style={s.sumLabel}>Segnalazioni</Text>
-        </View>
+        <ClayStat icon="road" value={formatKm(summary.distanceMeters)} unit="km" label="Percorsi" />
+        <ClayStat icon="clock" value={formatMinutes(summary.durationSec)} unit="min" label="Di guida" />
+        <ClayStat icon="memo" value={summary.markers.length} label="Segnalazioni" />
       </View>
 
       <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
       {freeStarted && freeStarted.sessionId === summary.id ? (
         <Animated.View entering={roadEnter(120)} layout={ROAD_LAYOUT} style={s.agendaLine}>
-          <Ionicons name="calendar-outline" size={15} color="#6A6A6A" style={{ marginTop: 1 }} />
+          <Icon3D name="calendar" size={18} />
           <Text style={s.agendaTx}>
             In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
             dei {freeStarted.bookedMinutes} minuti scelti.
@@ -191,66 +180,18 @@ export default function RiepilogoScreen() {
 }
 
 const s = StyleSheet.create({
-  // form sheet: padding fisso, niente safe area (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  doneK: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  doneIc: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#067647',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneKTx: { fontSize: 12, fontWeight: '500', color: '#6A6A6A', letterSpacing: 0.7, textTransform: 'uppercase' },
-  name: { fontSize: 28, fontWeight: '600', color: '#111111', letterSpacing: -0.7, marginTop: 8 },
-  sub: { fontSize: 14.5, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mini: { height: 172, borderRadius: 24 },
-  agendaLine: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  agendaTx: { flex: 1, fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', lineHeight: 19 },
-  more: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 8 },
+  root: { backgroundColor: CLAY.bg },
+  miniWrap: { borderRadius: 24, backgroundColor: CLAY.surface },
+  mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
+  agendaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 14 },
+  agendaTx: { flex: 1, fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
+  more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
   foot: {},
-  sum: { flexDirection: 'row', marginTop: 16 },
-  sumCol: { flex: 1 },
-  sumSep: { borderLeftWidth: 1, borderLeftColor: '#ECECEC', paddingLeft: 14 },
-  sumNum: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.7, fontVariant: ['tabular-nums'] },
-  sumUnit: { fontSize: 13.5, fontWeight: '500', color: '#6A6A6A', letterSpacing: 0 },
-  sumLabel: { fontSize: 12.5, fontWeight: '400', color: '#6A6A6A' },
-  pg: {
-    borderRadius: 22,
-    backgroundColor: '#FFFBEA',
-    borderWidth: 1,
-    borderColor: '#FDF0B5',
-    paddingVertical: 14,
-    paddingLeft: 16,
-    paddingRight: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  pgDone: { backgroundColor: '#F7F7F5', borderColor: '#ECECEA' },
-  pgTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  pgSub: { fontSize: 13, fontWeight: '400', color: '#8A6D12', marginTop: 2 },
-  pgSubDone: { color: '#6A6A6A' },
-  pgBtn: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pgBtnTx: { fontSize: 14.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
-  // CTA secondaria a capsula (token CTA_RADIUS): ultima cosa del foglio.
-  closeBtn: { height: CTA_HEIGHT, borderRadius: CTA_RADIUS, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  closeTx: { fontSize: 17, fontWeight: '500', color: '#111111', letterSpacing: -0.3 },
+  sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  pg: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 14, paddingRight: 12 },
+  pgTitle: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  pgSub: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 2 },
+  pgBtn: { alignSelf: 'center', paddingHorizontal: 18, height: 40, borderRadius: 20 },
+  // CTA secondaria a capsula: ultima cosa del foglio.
+  closeBtn: { marginTop: 14 },
 });

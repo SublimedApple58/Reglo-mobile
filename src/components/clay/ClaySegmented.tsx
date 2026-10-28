@@ -19,7 +19,7 @@ export function ClaySegmented<T extends string | number>({
   style,
   testID,
 }: {
-  options: Array<{ value: T; label: string }>;
+  options: Array<{ value: T; label: string; testID?: string }>;
   value: T;
   onChange: (v: T) => void;
   style?: StyleProp<ViewStyle>;
@@ -55,6 +55,7 @@ export function ClaySegmented<T extends string | number>({
             style={s.item}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
+            testID={o.testID}
           >
             <Text style={[s.tx, on && s.txOn]}>{o.label}</Text>
           </Pressable>

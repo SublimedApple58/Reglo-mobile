@@ -32,6 +32,8 @@ import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { FormSheet, SheetScaffold } from '../../../src/components/SheetScaffold';
 import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { ClayButton } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
@@ -257,20 +259,23 @@ export default function ManageLessonDetailsScreen() {
         </GlassCloseButton>
       </View>
   );
-  const saveFooter = (
-          <View style={road ? null : { paddingBottom: Math.max(insets.bottom, 12) }}>
+  // Road (clay v2, REG-639): CTA nera clay con spinner. Fuori da Road resta la
+  // CTA di prima finché anche quei fogli passano al clay.
+  const saveFooter = road ? (
+    <ClayButton title="Salva" onPress={handleSave} disabled={!editable} loading={saving} testID="pagellino-save" />
+  ) : (
+          <View style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
             <Pressable
               onPress={handleSave}
               disabled={!editable}
               style={({ pressed }) => [
                 s.saveBtn,
-                road ? null : s.saveFooter,
-                road && s.saveBtnRoad,
+                s.saveFooter,
                 pressed && { opacity: 0.9 },
                 !editable && { opacity: 0.4 },
               ]}
             >
-              {road ? null : <GradientCTABackground radius={27} />}
+              <GradientCTABackground radius={27} />
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -401,7 +406,7 @@ export default function ManageLessonDetailsScreen() {
                     layout={LAYOUT}
                     entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never)}
                     exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.Never)}
-                    style={s.voiceCard}
+                    style={[s.voiceCard, road && [s.voiceCardRoad, CLAY_SHADOW.raise]]}
                   >
                     <View style={s.pagellinoItemTop}>
                       <Text
@@ -492,7 +497,7 @@ export default function ManageLessonDetailsScreen() {
           placeholder="Aggiungi note operative o osservazioni."
           placeholderTextColor={colors.textMuted}
           multiline
-          style={s.notes}
+          style={[s.notes, road && [s.notesRoad, CLAY_SHADOW.sink]]}
           editable={editable}
           inputAccessoryViewID={accessoryID}
         />
@@ -590,8 +595,9 @@ const s = StyleSheet.create({
     ...primaryCtaShadow,
   },
   saveText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  // REG-638: in Road niente navy, CTA nera piena.
-  saveBtnRoad: { backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.18 },
+  // Clay v2 (REG-639) in Road: voci in rilievo sul bianco, note incavate.
+  voiceCardRoad: { borderWidth: 0, shadowOpacity: 0, elevation: 0, borderRadius: 22 },
+  notesRoad: { borderWidth: 0, backgroundColor: CLAY.surface, borderRadius: 18 },
   roadStay: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginBottom: -6 },
   pagellinoHeadRoad: { justifyContent: 'flex-start' },
 });

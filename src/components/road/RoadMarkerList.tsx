@@ -43,8 +43,9 @@ export function RoadMarkerList({ items }: { items: Item[] }) {
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 58 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(60,60,67,0.18)' },
-  sy: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center' },
-  img: { width: 28, height: 28 },
+  // Clay v2: l'icona 3D sta sul bianco, niente riquadro grigio.
+  sy: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  img: { width: 34, height: 34 },
   sg: { position: 'absolute', right: -5, bottom: -5 },
   tx: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },

@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FormSheet } from '../../src/components/SheetScaffold';
-import { SHEET_BOTTOM } from '../../src/utils/sheetPresentation';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../src/utils/haptics';
 import { roadStore, useRoadState, type RoadSentiment } from '../../src/road/roadStore';
-import { SENTIMENT_BAD, SENTIMENT_GOOD } from '../../src/components/road/RoadSentiment';
+import { ClayButton, ClaySegmented } from '../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { recordRoadMarker } from '../../src/road/roadActions';
 import { CUSTOM_KIND_PREFIX, markerArt, shortMarkerLabel } from '../../src/road/markerArt';
 import { formatHm } from '../../src/road/format';
@@ -80,7 +79,8 @@ export default function SegnalaSheet() {
         >
           {({ pressed }) => (
             <>
-              <View style={[s.sq, good ? s.sqGood : s.sqBad, pressed && s.sqPressed]}>
+              {/* Tessera bianca in rilievo; premuta sprofonda (ombra interna). */}
+              <View style={[s.sq, pressed ? [CLAY_SHADOW.sink, s.sqPressed] : CLAY_SHADOW.raiseSm]}>
                 <Image source={markerArt(item.kind)} style={s.sqImg} resizeMode="contain" />
               </View>
               <Text style={s.tileTx} numberOfLines={2}>{item.short}</Text>
@@ -98,29 +98,14 @@ export default function SegnalaSheet() {
       testID="road-segnala-sheet"
     >
 
-      <View style={s.seg} accessibilityRole="tablist">
-        {(
-          [
-            ['good', 'Fatto bene', 'thumbs-up-outline', SENTIMENT_GOOD],
-            ['bad', 'Da migliorare', 'thumbs-down-outline', SENTIMENT_BAD],
-          ] as const
-        ).map(([key, label, icon, color]) => {
-          const on = sentimentMode === key;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => setMode(key)}
-              style={[s.segBtn, on && s.segBtnOn]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: on }}
-              testID={`road-sentiment-${key}`}
-            >
-              <Ionicons name={icon} size={18} color={color} />
-              <Text style={[s.segTx, on && s.segTxOn]}>{label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ClaySegmented
+        options={[
+          { value: 'good' as RoadSentiment, label: 'Fatto bene', testID: 'road-sentiment-good' },
+          { value: 'bad' as RoadSentiment, label: 'Da migliorare', testID: 'road-sentiment-bad' },
+        ]}
+        value={sentimentMode}
+        onChange={setMode}
+      />
 
       <View>
         {renderGrid(base)}
@@ -138,19 +123,15 @@ export default function SegnalaSheet() {
               value={note}
               onChangeText={setNote}
               placeholder="Cosa è successo"
-              placeholderTextColor="#8E8E93"
-              style={s.noteInput}
+              placeholderTextColor={CLAY.ink4}
+              style={[s.noteInput, CLAY_SHADOW.sink]}
               autoFocus
               multiline
               maxLength={500}
             />
             <View style={s.noteActions}>
-              <Pressable onPress={() => setNoteFor(null)} style={[s.noteBtn, s.noteBtnSoft]}>
-                <Text style={s.noteBtnSoftTx}>Annulla</Text>
-              </Pressable>
-              <Pressable onPress={() => commit(noteFor, note)} style={[s.noteBtn, s.noteBtnDark]}>
-                <Text style={s.noteBtnDarkTx}>Segna</Text>
-              </Pressable>
+              <ClayButton compact variant="secondary" title="Annulla" onPress={() => setNoteFor(null)} style={{ flex: 1 }} />
+              <ClayButton compact title="Segna" onPress={() => commit(noteFor, note)} style={{ flex: 1 }} />
             </View>
           </View>
         ) : (
@@ -162,64 +143,32 @@ export default function SegnalaSheet() {
 }
 
 const s = StyleSheet.create({
-  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
-  lead: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, letterSpacing: -0.1 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 18, rowGap: 14, marginHorizontal: -3 },
-  tile: { width: '25%', alignItems: 'center', gap: 7, paddingHorizontal: 3 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 20, rowGap: 16, marginHorizontal: -3 },
+  tile: { width: '25%', alignItems: 'center', gap: 8, paddingHorizontal: 3 },
   sq: {
     width: 74,
     height: 74,
     borderRadius: 24,
-    backgroundColor: '#F2F2F0',
+    backgroundColor: CLAY.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sqGood: { backgroundColor: '#EEF8F1' },
-  sqBad: { backgroundColor: '#FDF1F0' },
-  sqPressed: { backgroundColor: '#E6E6E3', transform: [{ scale: 0.96 }] },
-  seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: '#F2F2F0' },
-  segBtn: { flex: 1, height: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  segBtnOn: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  segTx: { fontSize: 15, fontWeight: '500', color: '#6A6A6A', letterSpacing: -0.2 },
-  segTxOn: { color: '#111111', fontWeight: '600' },
+  sqPressed: { transform: [{ scale: 0.96 }] },
   sqImg: { width: 48, height: 48 },
-  tileTx: { fontSize: 12.5, fontWeight: '400', color: '#3A3A3C', textAlign: 'center', lineHeight: 15, letterSpacing: -0.1 },
-  sec: { fontSize: 13, fontWeight: '500', color: '#6A6A6A', marginTop: 20, letterSpacing: -0.05 },
-  hint: { fontSize: 12.5, fontWeight: '400', color: '#8E8E93', textAlign: 'center', marginTop: 16 },
+  tileTx: { fontSize: 12.5, fontWeight: '400', color: CLAY.ink2, textAlign: 'center', lineHeight: 15, letterSpacing: -0.1 },
+  sec: { fontSize: 13, fontWeight: '500', color: CLAY.ink3, marginTop: 22, letterSpacing: -0.05 },
+  hint: { fontSize: 12.5, fontWeight: '400', color: CLAY.ink4, textAlign: 'center', marginTop: 18 },
   noteBox: { marginTop: 18, gap: 10 },
-  noteTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  noteTitle: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
   noteInput: {
     minHeight: 70,
-    borderRadius: 16,
-    backgroundColor: '#F2F2F0',
+    borderRadius: 18,
+    backgroundColor: CLAY.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#111111',
+    color: CLAY.ink,
     textAlignVertical: 'top',
   },
-  noteActions: { flexDirection: 'row', gap: 8 },
-  noteBtn: { flex: 1, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  noteBtnSoft: { backgroundColor: '#F2F2F0' },
-  noteBtnSoftTx: { fontSize: 16, fontWeight: '600', color: '#111111' },
-  noteBtnDark: { backgroundColor: '#111111' },
-  noteBtnDarkTx: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  noteActions: { flexDirection: 'row', gap: 10 },
 });

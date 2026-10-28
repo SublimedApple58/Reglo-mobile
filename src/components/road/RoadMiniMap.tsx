@@ -109,5 +109,5 @@ export function RoadRouteMap({
 }
 
 const styles = StyleSheet.create({
-  wrap: { overflow: 'hidden', backgroundColor: '#F4F1EA' },
+  wrap: { overflow: 'hidden', backgroundColor: '#FFFFFF' },
 });
