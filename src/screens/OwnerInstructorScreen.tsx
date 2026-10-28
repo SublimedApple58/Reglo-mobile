@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import {
   ClaySearchField,
   ClaySection,
   ClayStat,
+  ClaySurface,
 } from '../components/clay';
 import { regloApi } from '../services/regloApi';
 import { ownerInstructorSheetStore } from '../stores/ownerInstructorSheetStore';
@@ -179,6 +180,26 @@ export const OwnerInstructorScreen = () => {
     return counts;
   }, [appointments]);
 
+  // REG-639 «vita»: la giornata dell'autoscuola in un numero (tutti gli istruttori).
+  const schoolToday = useMemo(() => {
+    const today = appointments
+      .filter((a) => a.status !== 'cancelled' && isToday(a.startsAt))
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    if (!today.length) return null;
+    const hhmm = (iso: string) => {
+      const d = new Date(iso);
+      return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    const last = today[today.length - 1];
+    return {
+      count: today.length,
+      line:
+        today.length === 1
+          ? `oggi · alle ${hhmm(today[0].startsAt)}`
+          : `oggi · la prima alle ${hhmm(today[0].startsAt)}, l’ultima alle ${hhmm(last.startsAt)}`,
+    };
+  }, [appointments]);
+
   const filteredInstructors = useMemo(() => {
     if (!searchQuery.trim()) return instructors;
     const q = searchQuery.toLowerCase().trim();
@@ -291,6 +312,18 @@ export const OwnerInstructorScreen = () => {
           />
         ) : (
           <>
+            {schoolToday ? (
+              <ClaySurface radius={26} style={s.dayCard} testID="owner-instructors-day">
+                <Image source={PERSONE_ART} style={s.dayArt} />
+                <View style={s.dayMain}>
+                  <Text style={s.dayNum}>
+                    {schoolToday.count} {schoolToday.count === 1 ? 'guida' : 'guide'}
+                  </Text>
+                  <Text style={s.daySub} numberOfLines={2}>{schoolToday.line}</Text>
+                </View>
+              </ClaySurface>
+            ) : null}
+
             {/* ── Istruttore scelto: oggi + azioni ─────── */}
             {selectedInstructor ? (
               <View style={s.firstBlock}>
@@ -368,7 +401,14 @@ export const OwnerInstructorScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────
 
+const PERSONE_ART = require('../../assets/icons3d-ai/persone.png');
+
 const s = StyleSheet.create({
+  dayCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20, paddingVertical: 16, paddingHorizontal: 18 },
+  dayArt: { width: 58, height: 58 },
+  dayMain: { flex: 1, minWidth: 0 },
+  dayNum: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
+  daySub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 1 },
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 120 },
   back: { marginBottom: 12 },
