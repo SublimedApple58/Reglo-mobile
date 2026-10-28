@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
-import { Ionicons } from '@expo/vector-icons';
+import { ClayButton, ClaySurface, Icon3D } from '../../../src/components/clay';
+import { CLAY } from '../../../src/theme';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../../src/utils/haptics';
@@ -57,23 +57,15 @@ export default function RoadInviteSheet() {
       cta={
         <>
       <View style={s.stack}>
-        <Pressable
-          onPress={onEnter}
-          style={({ pressed }) => [s.btn, s.btnDark, pressed && { opacity: 0.88 }]}
-          testID="road-invite-enter"
-        >
-          <Text style={s.btnDarkTx}>Entra in Road</Text>
-        </Pressable>
-        <Pressable onPress={onLater} style={({ pressed }) => [s.btn, pressed && { opacity: 0.6 }]} testID="road-invite-later">
-          <Text style={s.btnGhostTx}>Non ora</Text>
-        </Pressable>
+        <ClayButton title="Entra in Road" onPress={onEnter} testID="road-invite-enter" />
+        <ClayButton variant="secondary" title="Non ora" onPress={onLater} testID="road-invite-later" />
       </View>
         </>
       }
     >
 
-      <View style={s.hero}>
-        <Image source={car34Art(lesson.carColor)} style={s.heroImg} resizeMode="contain" />
+      <ClaySurface padded={false} radius={24} style={s.hero}>
+        <Icon3D source={car34Art(lesson.carColor)} size={62} width={76} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.heroName} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
           <Text style={s.heroMeta} numberOfLines={1}>{meta}</Text>
@@ -81,7 +73,7 @@ export default function RoadInviteSheet() {
             <Text style={s.heroMeta} numberOfLines={1}>Partenza da {locationName}</Text>
           ) : null}
         </View>
-      </View>
+      </ClaySurface>
 
       <View style={s.features}>
         <View style={s.feature}>
@@ -102,50 +94,13 @@ export default function RoadInviteSheet() {
 }
 
 const s = StyleSheet.create({
-  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  kickRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#E5484D',
-    marginRight: 7,
-    shadowColor: '#E5484D',
-    shadowOpacity: 0.5,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  kick: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 4 },
-  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginTop: 18,
-    padding: 14,
-    borderRadius: 24,
-    backgroundColor: '#F2F2F0',
-  },
-  heroImg: { width: 76, height: 62 },
-  heroName: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  heroMeta: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
-  features: { marginTop: 18, marginHorizontal: 2, gap: 14, marginBottom: 4 },
+  root: { backgroundColor: CLAY.bg },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4, padding: 14 },
+  heroName: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  heroMeta: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, marginTop: 3 },
+  features: { marginTop: 20, marginHorizontal: 2, gap: 14, marginBottom: 4 },
   feature: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureImg: { width: 30, height: 30 },
-  featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: '#3A3A3C', letterSpacing: -0.15 },
-  stack: { gap: 6 },
-  btn: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
-  btnDark: { backgroundColor: '#111111' },
-  btnDarkTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
-  btnGhostTx: { fontSize: 17, fontWeight: '500', color: '#111111', letterSpacing: -0.3 },
+  featureImg: { width: 32, height: 32 },
+  featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
+  stack: { gap: 12 },
 });

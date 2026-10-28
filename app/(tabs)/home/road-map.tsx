@@ -1,11 +1,10 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { ClayIconButton } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme';
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
 import { roadRouteMapStore } from '../../../src/road/routeMapStore';
 import { formatKm, formatMinutes } from '../../../src/road/format';
@@ -33,25 +32,19 @@ export default function RoadMapScreen() {
         edgePadding={56}
       />
       <View style={[s.bar, { top: insets.top + 8 }]}>
-        <View style={s.chip}>
-          <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-          <View style={s.chipTint} />
+        <View style={[s.chip, CLAY_SHADOW.raiseSm]}>
           <Text style={s.chipTx}>
             {formatKm(detail.distanceMeters)} km · {formatMinutes(detail.durationSec)} min
           </Text>
         </View>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.x}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
+        <ClayIconButton icon="close" onPress={() => router.back()} accessibilityLabel="Chiudi" testID="sheet-close" />
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F4F1EA' },
+  root: { flex: 1, backgroundColor: CLAY.bg },
   bar: {
     position: 'absolute',
     left: 16,
@@ -60,27 +53,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // Numeri della guida in una capsula bianca in rilievo sopra la mappa.
   chip: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.7)',
-  },
-  chipTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
-  chipTx: { fontSize: 14, fontWeight: '600', color: '#111111' },
-  x: {
-    width: 40,
     height: 40,
+    paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    backgroundColor: CLAY.surface,
   },
+  chipTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, fontVariant: ['tabular-nums'] },
 });

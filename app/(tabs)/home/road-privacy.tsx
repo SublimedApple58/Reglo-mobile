@@ -1,26 +1,26 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
-import { Ionicons } from '@expo/vector-icons';
+import { ClayButton, ClaySurface, Icon3D } from '../../../src/components/clay';
+import { CLAY, type Icon3DName } from '../../../src/theme';
 import { useRouter } from 'expo-router';
 
 import { enterRoad, markRoadPrivacySeen } from '../../../src/road/roadActions';
 import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore, roadPendingStart } from '../../../src/road/entryFlow';
 
-const ROWS: Array<{ icon: keyof typeof Ionicons.glyphMap; title: string; body: string }> = [
+const ROWS: Array<{ icon: Icon3DName; title: string; body: string }> = [
   {
-    icon: 'location-outline',
+    icon: 'road',
     title: 'Solo durante la guida',
     body: 'Il GPS si accende quando entri in Road e si spegne con «Termina guida».',
   },
   {
-    icon: 'home-outline',
+    icon: 'headquarters',
     title: 'Lo vede la tua autoscuola',
     body: "Percorso e segnalazioni compaiono in Reglo. L'allievo li vede se l'autoscuola lo consente.",
   },
   {
-    icon: 'calendar-clear-outline',
+    icon: 'calendar',
     title: 'Conservato 12 mesi',
     body: 'Poi i percorsi vengono cancellati in automatico.',
   },
@@ -55,28 +55,22 @@ export default function RoadPrivacySheet() {
       testID="road-privacy"
       cta={
         <>
-      <Pressable
-        onPress={onContinue}
-        style={({ pressed }) => [s.btn, pressed && { opacity: 0.88 }]}
-        testID="road-privacy-continue"
-      >
-        <Text style={s.btnTx}>Continua</Text>
-      </Pressable>
+      <ClayButton title="Continua" onPress={() => void onContinue()} testID="road-privacy-continue" />
         </>
       }
     >
 
-      <View style={s.card}>
+      <ClaySurface padded={false} radius={24} style={s.card}>
         {ROWS.map((r, i) => (
           <View key={r.title} style={[s.row, i > 0 && s.rowSep]}>
-            <Ionicons name={r.icon} size={24} color="#111111" style={{ marginTop: 1 }} />
+            <Icon3D name={r.icon} size={30} />
             <View style={{ flex: 1 }}>
               <Text style={s.rowTitle}>{r.title}</Text>
               <Text style={s.rowBody}>{r.body}</Text>
             </View>
           </View>
         ))}
-      </View>
+      </ClaySurface>
       {/* Spiegazione prima della CTA: il bottone resta l'ultima cosa del foglio. */}
       <Text style={s.fine}>
         {Platform.OS === 'ios'
@@ -88,31 +82,10 @@ export default function RoadPrivacySheet() {
 }
 
 const s = StyleSheet.create({
-  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
-  lead: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 6, lineHeight: 21, letterSpacing: -0.1 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  card: { borderRadius: 24, backgroundColor: '#F2F2F0', paddingVertical: 4, paddingHorizontal: 16 },
+  card: { paddingVertical: 4, paddingHorizontal: 16 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14 },
-  rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(60,60,67,0.18)' },
-  rowTitle: { fontSize: 15.5, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  rowBody: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', marginTop: 2, lineHeight: 19.5 },
-  btn: {
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
-  fine: { fontSize: 12.5, fontWeight: '400', color: '#8E8E93', textAlign: 'center', marginTop: 12, lineHeight: 17.5, paddingHorizontal: 10 },
+  rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
+  rowTitle: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  rowBody: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, marginTop: 2, lineHeight: 19.5 },
+  fine: { fontSize: 12.5, fontWeight: '400', color: CLAY.ink4, textAlign: 'center', marginTop: 14, lineHeight: 17.5, paddingHorizontal: 10 },
 });

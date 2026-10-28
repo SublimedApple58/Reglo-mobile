@@ -175,3 +175,17 @@ Sostituisce la scelta B (Road al centro in rilievo, rimossa con il suo codice). 
 - `src/components/road/RoadTabParts.tsx`: `BriefingLines` (tab), `BriefingRows` (foglio), `RoadAvatar`, `RouteThumb` (SVG). Glifi monocromatici, niente pillole.
 - `app/(tabs)/drive/avvia.tsx`: con un volto scelto si apre su «Parti con» (`roadFreePreselect`): allievo con riga del server, briefing, «Guida» con l'auto e «Cambia», durate, «Fino alle … · alle … hai …» (rosso se si sovrappone), «Parti con X». Intestazioni di sezione in frase normale (niente maiuscoletto).
 - «Annulla» 10 s: `roadFreeStarted` (memoria) → banner nero in `app/road/index.tsx` → `undoRoadFree()` → `POST /road/free/undo`, GPS spento, si torna alle tab. Il riepilogo aggiunge «In agenda diventa …; prezzo e crediti restano quelli dei N minuti scelti».
+
+## Clay v2 (REG-639, 28/10/2026)
+
+Tutte le schermate Road usano il design system clay v2 (design-system §0):
+tab Road (pannello bianco, briefing in card con l'icona 3D di ogni voce e il
+glifo del segno in fondo, sede 3D sulla mappa, «Ultime guide» come
+`ClayList`), «Con chi guidi?»/«Parti con» (ricerca incavata, liste per gruppo
+e per lettera, durata `ClaySegmented`, auto 3D in card), guida in corso
+(testata bianca col volto vero, `ClayMapControls`, Segnala/Termina clay alti
+62), riepilogo/percorso (numeri `ClayStat`, mappa in rilievo), «Cosa è
+successo?» (tessere bianche che sprofondano), pagellino da Road, informativa,
+invito. Ordine del foglio «Parti con» come l'anteprima approvata: durata →
+briefing → auto. Resta fuori `RoadLessonCard` (card in agenda, fuori da Road).
+

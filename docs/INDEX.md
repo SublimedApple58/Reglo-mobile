@@ -40,7 +40,7 @@
 
 | Doc | Scope |
 |-----|-------|
-| [design-system.md](design-system.md) | Completo: palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet (respiro, CTA ancorata in fondo, perché non sommare `insets.bottom`) |
+| [design-system.md](design-system.md) | **§0 Clay v2 (REG-639, dal 28/10/2026): lo stile dell'app — bianco e nero, volume clay (`CLAY_SHADOW`), icone 3D colorate (`Icon3D`), componenti in `src/components/clay/`; vince sul resto.** Completo: palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet (respiro, CTA ancorata in fondo, perché non sommare `insets.bottom`) |
 | [patterns/keyboard-accessory.md](patterns/keyboard-accessory.md) | Chiusura tastiera iOS: quando toolbar "Fatto" (`useDoneAccessory`) vs `returnKeyType="search"`/`"done"`; auto-wiring in `Input` |
 
 ## Architecture

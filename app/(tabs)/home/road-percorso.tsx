@@ -1,8 +1,8 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { SHEET_BOTTOM } from '../../../src/utils/sheetPresentation';
-import { Ionicons } from '@expo/vector-icons';
+import { ClayStat } from '../../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../../src/theme';
 import { useRouter, useSegments } from 'expo-router';
 
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
@@ -49,27 +49,16 @@ export default function RoadPercorsoSheet() {
           accessibilityRole="button"
           accessibilityLabel="Apri la mappa"
           testID="road-percorso-map"
+          style={({ pressed }) => [s.miniWrap, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.98 }] }]}
         >
+          {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
           <RoadRouteMap track={detail.track} markers={detail.markers} style={s.mini} />
         </Pressable>
 
         <View style={s.sum}>
-          <View style={s.sumCol}>
-            <Text style={s.sumNum}>
-              {formatKm(detail.distanceMeters)} <Text style={s.sumUnit}>km</Text>
-            </Text>
-            <Text style={s.sumLabel}>Percorsi</Text>
-          </View>
-          <View style={[s.sumCol, s.sumSep]}>
-            <Text style={s.sumNum}>
-              {formatMinutes(detail.durationSec)} <Text style={s.sumUnit}>min</Text>
-            </Text>
-            <Text style={s.sumLabel}>Di guida</Text>
-          </View>
-          <View style={[s.sumCol, s.sumSep]}>
-            <Text style={s.sumNum}>{detail.markers.length}</Text>
-            <Text style={s.sumLabel}>Segnalazioni</Text>
-          </View>
+          <ClayStat icon="road" value={formatKm(detail.distanceMeters)} unit="km" label="Percorsi" />
+          <ClayStat icon="clock" value={formatMinutes(detail.durationSec)} unit="min" label="Di guida" />
+          <ClayStat icon="memo" value={detail.markers.length} label="Segnalazioni" />
         </View>
 
         <SentimentCounts {...countSentiments(detail.markers)} style={{ marginTop: 14 }} />
@@ -102,26 +91,9 @@ export default function RoadPercorsoSheet() {
 }
 
 const s = StyleSheet.create({
-  // form sheet: padding fisso, niente safe area (§13.2.1)
-  // form sheet: respiro fisso, mai insets.bottom (§13.2.1)
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
-  sub: { fontSize: 14.5, fontWeight: '400', color: '#6A6A6A', marginTop: 3 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mini: { height: 172, borderRadius: 24 },
-  sum: { flexDirection: 'row', marginTop: 16 },
-  sumCol: { flex: 1 },
-  sumSep: { borderLeftWidth: 1, borderLeftColor: '#ECECEC', paddingLeft: 14 },
-  sumNum: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.7, fontVariant: ['tabular-nums'] },
-  sumUnit: { fontSize: 13.5, fontWeight: '500', color: '#6A6A6A', letterSpacing: 0 },
-  sumLabel: { fontSize: 12.5, fontWeight: '400', color: '#6A6A6A' },
-  more: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 8 },
+  root: { backgroundColor: CLAY.bg },
+  miniWrap: { borderRadius: 24, backgroundColor: CLAY.surface },
+  mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
+  sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
 });

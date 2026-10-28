@@ -6,6 +6,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 | Component | Used by screens | Notes |
 |-----------|----------------|-------|
+| `src/components/clay/*` (clay v2, REG-639: `ClayButton`, `ClayIconButton`, `ClaySurface`, `ClayList/Row`, `ClaySearchField`, `ClaySegmented`, `Avatar`, `ClayMapControls`, `ClayStat`, `Icon3D`) + `theme/clay.ts`, `theme/icons3d.ts` | Road: `drive/index`, `drive/avvia`, `app/road/index`, `riepilogo`, `segnala`, `home/road-*`, `manage-lesson-details` (variante `road`); **tutti i fogli** via la X (`SheetCloseButton`/`GlassCloseButton` → `ClayIconButton`); **tab bar** di tutta l'app (`AppTabBar`) | Toccare un preset di `CLAY_SHADOW` o un componente cambia tutte queste schermate. `RoadPressable`/`RoadAvatar` sono alias di `ClayPressable`/`Avatar`. Regole in design-system §0. |
 | `BottomSheet` | CreateExam, IstruttoreHome, InstructorManage, LocationPickerSheet, NotificationOverlay, OwnerInstructor, RescheduleAppointmentSheet, TitolareHome (8) | iOS + Android separate implementations. ClusterSettings + Vehicles migrated to formSheet routes. |
 | `TimePickerDrawer` | CreateExam, InstructorManage, OwnerInstructor, PublicationModeEditor, RescheduleAppointmentSheet, Settings (6) | Depends on BottomSheet. ClusterSettings + Vehicles now use the formSheet `time-picker` route (timePickerStore). |
 | `CalendarDrawer` | AllievoHome, CreateExam, IstruttoreHome (3) | Depends on MiniCalendar + BottomSheet. (TitolareHome ora è un wrapper di IstruttoreHome.) |
