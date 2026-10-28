@@ -73,3 +73,31 @@ export const CLAY_SHADOW = {
     boxShadow: [rim(0.04), shadow(4, 10, -4, 'rgba(17,17,17,0.22)'), shadow(-2, 4, 0, 'rgba(17,17,17,0.07)', true)],
   },
 } satisfies Record<string, ViewStyle>;
+
+/**
+ * Volume delle CTA (Tiziano 28/10/2026, anteprima `cta-varianti`): la CTA nera
+ * è un cuscino gonfio ma sobrio — sfumatura verticale (luce in alto, scuro in
+ * basso), luce interna sul bordo alto, ombra interna in basso, ombra esterna
+ * morbida. Via di mezzo tra le varianti A e B, poco più leggera di B.
+ * Premuta sprofonda: la sfumatura si inverte e l'ombra diventa tutta interna.
+ * La secondaria a riposo resta `raise`; premuta sprofonda come la nera.
+ * La sfumatura è `experimental_backgroundImage` (RN 0.81, New Architecture).
+ */
+export const CLAY_CTA = {
+  primary: {
+    experimental_backgroundImage: 'linear-gradient(180deg, #353535 0%, #1C1C1C 50%, #0B0B0B 100%)',
+    boxShadow: [
+      shadow(14, 24, -10, 'rgba(17,17,17,0.48)'),
+      shadow(2, 2, 0, 'rgba(255,255,255,0.3)', true),
+      shadow(-7, 12, 0, 'rgba(0,0,0,0.6)', true),
+    ],
+  },
+  primaryPressed: {
+    experimental_backgroundImage: 'linear-gradient(180deg, #0B0B0B 0%, #151515 60%, #1E1E1E 100%)',
+    boxShadow: [shadow(3, 6, -2, 'rgba(17,17,17,0.25)'), shadow(3, 9, 0, 'rgba(0,0,0,0.7)', true)],
+  },
+  secondaryPressed: {
+    experimental_backgroundImage: 'linear-gradient(180deg, #F6F6F6 0%, #FFFFFF 70%)',
+    boxShadow: [rim(0.06), shadow(2, 5, -2, 'rgba(17,17,17,0.14)'), shadow(3, 8, 0, 'rgba(17,17,17,0.11)', true)],
+  },
+} satisfies Record<string, ViewStyle>;

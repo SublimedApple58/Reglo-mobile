@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { CLAY, CLAY_SHADOW } from '../../theme/clay';
+import { CLAY, CLAY_CTA, CLAY_SHADOW } from '../../theme/clay';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../theme/spacing';
 import { ClayPressable } from './ClayPressable';
 
 /**
  * CTA clay (§0): capsula alta `CTA_HEIGHT`, la più tonda.
- * - `primary`: clay nero, testo bianco; premuta sprofonda (ombra interna).
- * - `secondary`: bianco in rilievo, testo nero.
+ * - `primary`: cuscino nero (`CLAY_CTA.primary`: sfumatura + luce e ombra
+ *   interne), testo bianco; premuta sprofonda (`primaryPressed`).
+ * - `secondary`: bianco in rilievo (`raise`), testo nero; premuta sprofonda
+ *   (`secondaryPressed`).
  * `compact` = 46 di altezza (CTA dentro card o pannelli).
  * In attesa mostra lo spinner al posto del contenuto, senza cambiare etichetta.
  */
@@ -42,7 +44,15 @@ export function ClayButton({
   const primary = variant === 'primary';
   const off = disabled && !loading;
   const height = compact ? 46 : CTA_HEIGHT;
-  const shadow = off ? null : primary ? (pressed ? CLAY_SHADOW.inkPressed : CLAY_SHADOW.ink) : CLAY_SHADOW.raise;
+  const volume = off
+    ? null
+    : primary
+      ? pressed
+        ? CLAY_CTA.primaryPressed
+        : CLAY_CTA.primary
+      : pressed
+        ? CLAY_CTA.secondaryPressed
+        : CLAY_SHADOW.raise;
   const fg = off ? CLAY.ink4 : primary ? '#FFFFFF' : CLAY.ink;
 
   return (
@@ -60,7 +70,7 @@ export function ClayButton({
         s.base,
         { height, borderRadius: compact ? height / 2 : CTA_RADIUS },
         { backgroundColor: off ? '#F1F1F1' : primary ? CLAY.ink : CLAY.surface },
-        shadow,
+        volume,
         style,
       ]}
     >

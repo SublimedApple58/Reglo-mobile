@@ -53,12 +53,25 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 
 | Preset | Livelli | Uso |
 |---|---|---|
-| `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, CTA secondaria, controlli mappa |
+| `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, CTA secondaria a riposo, controlli mappa |
 | `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro |
 | `sink` | interna 1px · interna 0/2/5 α.08 | ricerca, binario del segmentato |
-| `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | CTA primaria, cursore segmentato, bottone nero |
-| `inkPressed` | interna 0/2/6 α.55 | CTA nera premuta |
+| `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | cursore segmentato, bottone nero, toast (NON più la CTA: vedi `CLAY_CTA`) |
+| `inkPressed` | interna 0/2/6 α.55 | storico (la CTA premuta usa `CLAY_CTA.primaryPressed`) |
 | `avatar` | bordo · esterna 0/4/10/-4 α.22 · interna | volti (foto o iniziali) |
+
+Volume delle CTA (`CLAY_CTA`, Tiziano 28/10/2026 dopo l'anteprima
+`cta-varianti`: via di mezzo tra «gonfia sobria» e «cuscino», poco più leggera
+del cuscino). Ogni preset = sfumatura (`experimental_backgroundImage`) + ombre:
+
+| Preset | Sfumatura (alto → basso) | Ombre | Uso |
+|---|---|---|---|
+| `primary` | `#353535` → `#1C1C1C` (50%) → `#0B0B0B` | esterna 0/14/24/-10 α.48 · luce interna 0/2/2 bianco α.30 · ombra interna 0/-7/12 nero α.60 | CTA nera a riposo |
+| `primaryPressed` | `#0B0B0B` → `#151515` (60%) → `#1E1E1E` (si inverte) | esterna 0/3/6/-2 α.25 · interna 0/3/9 nero α.70 | CTA nera premuta: sprofonda |
+| `secondaryPressed` | `#F6F6F6` → `#FFFFFF` (70%) | bordo α.06 · esterna 0/2/5/-2 α.14 · interna 0/3/8 α.11 | CTA bianca premuta: sprofonda (a riposo resta `raise`) |
+
+Lo scambio a riposo/premuta è istantaneo (`onPressIn`/`onPressOut`): l'ombra
+non si anima, si anima solo la scala di `ClayPressable`.
 
 ### 0.3 Ombre interne in React Native — come e quanto costano
 
@@ -93,7 +106,7 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 | Componente | Cosa | Note |
 |---|---|---|
 | `ClayPressable` | base premibile: scala a molla senza rimbalzo (`cta` .96 · `card` .97 · `small` .92) | ex `RoadPressable` (che resta come alias) |
-| `ClayButton` | CTA a capsula `primary` (clay nero) / `secondary` (bianco in rilievo); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premuta: ombra interna (`inkPressed`) |
+| `ClayButton` | CTA a capsula `primary` (cuscino nero `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
 | `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
 | `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
 | `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto), titolo, sottotitolo con `subtitleIcon` 3D (17), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
