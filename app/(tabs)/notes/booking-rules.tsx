@@ -1,16 +1,13 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { SelectableChip } from '../../../src/components/SelectableChip';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayToggle } from '../../../src/components/clay';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120] as const;
 
@@ -49,7 +46,7 @@ export default function BookingRulesScreen() {
       seededRef.current = true;
     }
   }, [data]);
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const {
     appBookingActors, setAppBookingActors,
@@ -87,34 +84,24 @@ export default function BookingRulesScreen() {
   };
 
   return (
-    <View style={[s.root, { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Prenotazione guide</Text>
-        <Text style={s.subtitle}>Chi può prenotare, modalità e durate.</Text>
-      </View>
-
-      <SheetScaffold
-        fill
-        style={{ gap: 20 }}
-        contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
-        footer={
-          <Pressable
-            onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
-            disabled={saving}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, saving && { opacity: 0.6 }]}
-          >
-            <GradientCTABackground radius={27} />
-            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
-          </Pressable>
-        }
-      >
+    // REG-639 (Tiziano 28/10): form sheet alto quanto il contenuto come tutti i
+    // fogli; il pannello «per percorso» lo allunga e allora scorre il foglio
+    // stesso (§13.2.1: niente scroll interno, quindi niente conflitto col pan).
+    <FormSheet
+      title="Prenotazione guide"
+      subtitle="Chi può prenotare, modalità e durate."
+      busy={saving}
+      testID="booking-rules-sheet"
+      cta={
+        <ClayButton
+          title="Salva"
+          loading={saving}
+          onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
+          testID="booking-rules-save"
+        />
+      }
+    >
+      <View style={s.body}>
       <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
         <Text style={s.label}>Chi prenota</Text>
         <View style={s.chips}>
@@ -200,21 +187,17 @@ export default function BookingRulesScreen() {
             <Text style={s.toggleLabel}>Solo orari tondi</Text>
             <Text style={s.toggleDesc}>Slot solo a ore piene (es. 9:00, 10:00).</Text>
           </View>
-          <ToggleSwitch value={roundedHoursOnly} onValueChange={setRoundedHoursOnly} />
+          <ClayToggle value={roundedHoursOnly} onValueChange={setRoundedHoursOnly} accessibilityLabel="Solo orari tondi" />
         </View>
       </Animated.View>
-      </SheetScaffold>
-    </View>
+      </View>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 20 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  body: { gap: 20 },
   section: { gap: 11 },
   label: { fontSize: 13, fontWeight: '600', color: '#4A4A4A' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -237,10 +220,4 @@ const s = StyleSheet.create({
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   toggleLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
   toggleDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
-  cta: {
-    minHeight: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
 });

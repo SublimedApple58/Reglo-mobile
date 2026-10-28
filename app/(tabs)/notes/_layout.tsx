@@ -21,7 +21,7 @@ export default function NotesLayout() {
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />
-      <Stack.Screen name="group-students" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="group-students" options={FORM_SHEET} />
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello
           schermo. Un formSheet a detent (TALL_SHEET/SCROLL_SHEET) NON basta: il
           pan nativo della sheet ruba il gesto allo scroll e il "Salva" resta
@@ -35,7 +35,7 @@ export default function NotesLayout() {
           PAGE_SHEET (presentation:'modal') è il pattern già usato dalle form lunghe
           dell'app (quick-book → BookingForm/BlockForm): page sheet senza detent +
           SheetScaffold fill → scroll nativo pulito. */}
-      <Stack.Screen name="booking-rules" options={PAGE_SHEET} />
+      <Stack.Screen name="booking-rules" options={FORM_SHEET} />
       {/* REG-638: percorso Road di una guida dallo storico allievo. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
