@@ -1,18 +1,19 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { Avatar, ClayButton, ClaySearchField } from '../../../src/components/clay';
+import { Avatar, ClayButton, ClayList, ClaySearchField } from '../../../src/components/clay';
+import { SettingCheckRow } from '../../../src/components/SettingsRows';
 import { CLAY } from '../../../src/theme/clay';
 import { groupStudentsStore } from '../../../src/stores/groupStudentsStore';
 
 /**
  * «Allievi del gruppo» (modalità autonoma). REG-639 (Tiziano 28/10): form sheet
  * alto quanto il contenuto come tutti i fogli; con tanti allievi scorre il
- * foglio stesso. Clay: volti, selezione nera, niente pillole né pallini.
+ * foglio stesso. Clay: volti, spunta nera a destra (come il picker), niente
+ * pillole né pallini.
  */
 export default function GroupStudentsScreen() {
   const router = useRouter();
@@ -77,7 +78,7 @@ export default function GroupStudentsScreen() {
           {search ? 'Nessun allievo con questo nome.' : 'Ancora nessun allievo in autoscuola.'}
         </Animated.Text>
       ) : (
-        <View style={s.rows}>
+        <ClayList>
           {sorted.map((item) => {
             const isSel = selected.includes(item.id);
             const assignedToOther = !isSel && !!item.assignedInstructorId;
@@ -86,25 +87,18 @@ export default function GroupStudentsScreen() {
               : null;
             const sub = [license, assignedToOther ? 'nel gruppo di un altro istruttore' : null].filter(Boolean).join(' · ');
             return (
-              <Pressable
+              <SettingCheckRow
                 key={item.id}
+                title={`${item.firstName} ${item.lastName}`}
+                subtitle={sub || null}
+                oneLine
+                leading={<Avatar userId={item.id} name={`${item.firstName} ${item.lastName}`} size={42} />}
+                checked={isSel}
                 onPress={() => toggle(item.id)}
-                style={({ pressed }) => [s.row, isSel && s.rowOn, pressed && { opacity: 0.7 }]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSel }}
-              >
-                <Avatar userId={item.id} name={`${item.firstName} ${item.lastName}`} size={42} />
-                <View style={s.body}>
-                  <Text style={s.name} numberOfLines={1}>{item.firstName} {item.lastName}</Text>
-                  {sub ? <Text style={s.sub} numberOfLines={1}>{sub}</Text> : null}
-                </View>
-                <View style={[s.mark, isSel && s.markOn]}>
-                  {isSel ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
-                </View>
-              </Pressable>
+              />
             );
           })}
-        </View>
+        </ClayList>
       )}
     </FormSheet>
   );
@@ -115,17 +109,5 @@ const s = StyleSheet.create({
   search: { marginBottom: 6 },
   clear: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 4 },
   clearText: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
-  rows: { gap: 8, marginTop: 8 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 64,
-    paddingVertical: 11, paddingHorizontal: 14, borderRadius: 20,
-    backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: 'transparent',
-  },
-  rowOn: { backgroundColor: '#F4F4F4', borderColor: CLAY.ink },
-  body: { flex: 1, minWidth: 0 },
-  name: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
-  sub: { fontSize: 13, color: CLAY.ink3, marginTop: 2 },
-  mark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#D4D4D4', alignItems: 'center', justifyContent: 'center' },
-  markOn: { borderWidth: 0, backgroundColor: CLAY.ink },
   emptyText: { fontSize: 14.5, color: CLAY.ink3, textAlign: 'center', paddingVertical: 34 },
 });

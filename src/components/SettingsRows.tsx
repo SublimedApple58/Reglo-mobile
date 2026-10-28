@@ -58,11 +58,15 @@ function Shell({
   );
 }
 
-function Label({ title, subtitle }: { title: string; subtitle?: string | null }) {
+function Label({ title, subtitle, subtitleColor, oneLine }: { title: string; subtitle?: string | null; subtitleColor?: string | null; oneLine?: boolean }) {
   return (
     <View style={s.main}>
-      <Text style={s.title}>{title}</Text>
-      {subtitle ? <Text style={s.sub}>{subtitle}</Text> : null}
+      <Text style={s.title} numberOfLines={oneLine ? 1 : undefined}>{title}</Text>
+      {subtitle ? (
+        <Text style={[s.sub, subtitleColor ? { color: subtitleColor } : null]} numberOfLines={oneLine ? 1 : undefined}>
+          {subtitle}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -104,15 +108,33 @@ export const SettingValueRow = markClayRow(function SettingValueRow({
   );
 });
 
-/** Voce di una scelta: spunta nera a destra quando è scelta. */
+/**
+ * Voce di una scelta: spunta nera a destra quando è scelta (come Impostazioni
+ * iOS). La usano anche il picker condiviso e «Allievi del gruppo»: volto a
+ * sinistra con `leading`, al posto della spunta un nodo con `trailing`.
+ */
 export const SettingCheckRow = markClayRow(function SettingCheckRow({
   title,
   subtitle,
+  subtitleColor,
+  leading,
+  trailing,
+  oneLine,
   checked,
   onPress,
   testID,
   ...pos
-}: ClayRowPosition & { title: string; subtitle?: string | null; checked: boolean; onPress: () => void; testID?: string }) {
+}: ClayRowPosition & {
+  title: string;
+  subtitle?: string | null;
+  subtitleColor?: string | null;
+  leading?: React.ReactNode;
+  trailing?: React.ReactNode;
+  oneLine?: boolean;
+  checked: boolean;
+  onPress: () => void;
+  testID?: string;
+}) {
   return (
     <Shell
       {...pos}
@@ -124,8 +146,9 @@ export const SettingCheckRow = markClayRow(function SettingCheckRow({
       testID={testID}
       accessibilityLabel={title}
     >
-      <Label title={title} subtitle={subtitle} />
-      <View style={s.check}>{checked ? <Ionicons name="checkmark" size={21} color={CLAY.ink} /> : null}</View>
+      {leading}
+      <Label title={title} subtitle={subtitle} subtitleColor={subtitleColor} oneLine={oneLine} />
+      {trailing ?? <View style={s.check}>{checked ? <Ionicons name="checkmark" size={21} color={CLAY.ink} /> : null}</View>}
     </Shell>
   );
 });

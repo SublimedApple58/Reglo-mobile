@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { ClayButton, ClayList, ClaySection } from '../../../src/components/clay';
-import { SettingCheckRow, SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
+import { ClayButton, ClayList } from '../../../src/components/clay';
+import { SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 
@@ -146,10 +146,30 @@ export default function BookingRulesScreen() {
     router.push('/(tabs)/notes/select-options' as never);
   };
 
+  // Durate: scelta multipla nel picker; alla conferma si allinea la selezione.
+  const pickDurations = () => {
+    optionsPickerStore.set({
+      title: 'Durate delle guide',
+      hint: 'Fra cui scelgono gli allievi',
+      tone: 'mono',
+      multi: true,
+      confirmLabel: 'Conferma',
+      options: DURATION_OPTIONS.map((d) => ({ value: String(d), label: `${d} minuti` })),
+      selected: bookingSlotDurations.map(String),
+      onConfirm: (values) => {
+        const next = new Set(values.map(Number));
+        for (const d of DURATION_OPTIONS) {
+          if (next.has(d) !== bookingSlotDurations.includes(d)) toggleDuration(d);
+        }
+      },
+    });
+    router.push('/(tabs)/notes/select-options' as never);
+  };
+
   return (
     // REG-639 (giro dopo la prova sull'iPhone, 28/10): niente chip a griglia.
-    // Le scelte singole aprono il picker, le durate sono righe con la spunta
-    // (come Impostazioni iOS). Form sheet alto quanto il contenuto: con il
+    // Ogni scelta è una riga col valore che apre il picker (durate a scelta
+    // multipla): il foglio resta corto (Tiziano 28/10). Form sheet alto quanto il contenuto: con il
     // percorso aperto si allunga e scorre il foglio stesso (§13.2.1).
     <FormSheet
       title="Prenotazione guide"
@@ -179,22 +199,15 @@ export default function BookingRulesScreen() {
               />
             ))
           : null}
+        <SettingValueRow
+          title="Durate"
+          subtitle="Fra cui scelgono gli allievi"
+          value={bookingSlotDurations.length ? `${bookingSlotDurations.join(', ')} min` : 'Nessuna'}
+          onPress={pickDurations}
+          testID="booking-rules-durations"
+        />
         <SettingValueRow title="Modalità istruttore" value={modeValue.replace('Come l’autoscuola · ', '')} subtitle={!instructorBookingMode ? 'Come l’autoscuola' : null} onPress={pickMode} testID="booking-rules-mode" />
       </ClayList>
-
-      <ClaySection title="Durata delle guide" footnote="Gli allievi scelgono fra le durate con la spunta." style={s.section}>
-        <ClayList>
-          {DURATION_OPTIONS.map((dur) => (
-            <SettingCheckRow
-              key={dur}
-              title={`${dur} minuti`}
-              checked={bookingSlotDurations.includes(dur)}
-              onPress={() => toggleDuration(dur)}
-              testID={`booking-rules-duration-${dur}`}
-            />
-          ))}
-        </ClayList>
-      </ClaySection>
 
       <ClayList style={s.section}>
         <SettingToggleRow

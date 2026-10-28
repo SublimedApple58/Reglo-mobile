@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { optionsPickerStore, shouldShowPickerSearch } from '../stores/optionsPickerStore';
 import { matchesPersonSearch } from '../utils/peopleSearch';
 import { FormSheet } from './SheetScaffold';
-import { Avatar, ClayButton, ClaySearchField } from './clay';
+import { Avatar, ClayButton, ClayList, ClaySearchField } from './clay';
+import { SettingCheckRow } from './SettingsRows';
 import { CLAY } from '../theme/clay';
 
 const SUCCESS = '#2F7A4A';
@@ -51,38 +51,28 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
     router.back();
   };
 
+  // Righe da Impostazioni iOS in una lista clay: la scelta è la spunta nera a
+  // destra (Tiziano 28/10: niente pallini né bordo nero sulla riga). Tutta la
+  // riga è premibile.
   const rows = visible.map((o) => {
     const on = data.multi ? picked.includes(o.value) : data.selected.includes(o.value);
     return (
-      <Pressable
+      <SettingCheckRow
         key={o.value}
+        title={o.label}
+        subtitle={o.subtitle}
+        subtitleColor={o.subtitleTone ? (o.subtitleTone === 'success' ? SUCCESS : ACCENT) : null}
+        oneLine
+        leading={o.leadingInitials ? <Avatar userId={o.leadingUserId ?? null} name={o.label} size={38} /> : undefined}
+        trailing={
+          o.trailingInitials && !on ? (
+            <View style={s.trailingAvatar}><Text style={s.trailingAvatarText}>{o.trailingInitials}</Text></View>
+          ) : undefined
+        }
+        checked={on}
         onPress={() => (data.multi ? toggleMulti(o.value) : pickSingle(o.value))}
-        style={({ pressed }) => [s.row, on && s.rowOn, pressed && { opacity: 0.7 }]}
-        accessibilityRole="button"
-        accessibilityState={{ selected: on }}
-      >
-        {o.leadingInitials ? <Avatar userId={o.leadingUserId ?? null} name={o.label} size={38} /> : null}
-        <View style={s.body}>
-          <Text style={s.label} numberOfLines={1}>{o.label}</Text>
-          {o.subtitle ? (
-            <Text
-              style={[s.sub, o.subtitleTone ? { color: o.subtitleTone === 'success' ? SUCCESS : ACCENT } : null]}
-              numberOfLines={1}
-            >
-              {o.subtitle}
-            </Text>
-          ) : null}
-        </View>
-        {/* La selezione tinge TUTTA la riga (non è una spunta in fondo):
-            il tocco ha una superficie, non un bersaglio da 23px. */}
-        {o.trailingInitials && !on ? (
-          <View style={s.trailingAvatar}><Text style={s.trailingAvatarText}>{o.trailingInitials}</Text></View>
-        ) : (
-          <View style={[s.mark, on && s.markOn]}>
-            {on ? <Ionicons name="checkmark" size={15} color="#FFFFFF" /> : null}
-          </View>
-        )}
-      </Pressable>
+        testID={`option-${o.value}`}
+      />
     );
   });
 
@@ -122,7 +112,7 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
           {data.emptyLabel ?? 'Nessun risultato'}
         </Animated.Text>
       ) : (
-        <View style={s.rows}>{rows}</View>
+        <ClayList>{rows}</ClayList>
       )}
       {data.footnote ? <Text style={s.footnote}>{data.footnote}</Text> : null}
     </FormSheet>
@@ -132,20 +122,8 @@ export function OptionsPickerSheet({ scrollable }: { scrollable: boolean }) {
 const s = StyleSheet.create({
   root: { backgroundColor: '#FFFFFF', height: 1 },
   search: { marginBottom: 14 },
-  rows: { gap: 8 },
   empty: { fontSize: 14.5, color: CLAY.ink3, textAlign: 'center', paddingVertical: 34 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 64,
-    paddingVertical: 13, paddingHorizontal: 16, borderRadius: 20,
-    backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: 'transparent',
-  },
-  rowOn: { backgroundColor: '#F4F4F4', borderColor: CLAY.ink },
-  mark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#D4D4D4', alignItems: 'center', justifyContent: 'center' },
-  markOn: { borderWidth: 0, backgroundColor: CLAY.ink },
-  body: { flex: 1, minWidth: 0 },
-  label: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
-  sub: { fontSize: 13, color: CLAY.ink3, marginTop: 2 },
-  trailingAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  trailingAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#F2F2F2', alignItems: 'center', justifyContent: 'center' },
   trailingAvatarText: { fontSize: 10.5, fontWeight: '600', color: CLAY.ink },
   footnote: { fontSize: 13, color: CLAY.ink3, lineHeight: 18, marginTop: 16, marginHorizontal: 4 },
 });
