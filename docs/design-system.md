@@ -5,6 +5,85 @@
 
 ---
 
+## 0. Clay v2 — lo stile dell'app (REG-639, dal 28/10/2026)
+
+Approvato da Tiziano il 28/10/2026 (anteprime `clay-v2-componenti` / `clay-v2-road`).
+**Dove questa sezione e le successive sono in conflitto, vince questa.** Si
+applica a Road per prima, poi a tutta l'app.
+
+### 0.1 Principi
+
+- **Bianco puro e nero.** Fondo pagina e superfici `#FFFFFF`; testi e CTA
+  primaria `#111111`. Mai fondi crema, grigi o colorati: il volume non si fa
+  col colore di fondo.
+- **Il volume è clay**: superfici morbide, gonfie, tattili ma sobrie —
+  ombra esterna morbida + bordo di luce (1px appena scuro che stacca il bianco
+  dal bianco) + ombra interna in basso. Gli incavi (ricerca, binario del
+  segmentato) hanno solo ombra interna.
+- **Il colore arriva solo dalle icone 3D e dalle foto** (tab bar, righe di
+  lista, voci del briefing, auto, statistiche). Icone monocromatiche solo
+  dove sono strumenti: X, cerca, chevron, indietro, «+», «centra».
+- Regole fisse che restano: niente pillole/tag/badge/eyebrow decorativi,
+  niente blu/navy nella UI (le icone 3D colorate approvate restano come
+  sono, anche se blu: rotatoria, parcheggio), animazioni sobrie senza
+  rimbalzi (§8), sensazione nativa iOS/Airbnb.
+
+### 0.2 Token — `src/theme/clay.ts`, `src/theme/spacing.ts`
+
+| Token | Valore | Uso |
+|---|---|---|
+| `CLAY.bg` / `CLAY.surface` | `#FFFFFF` | fondo pagina e superfici |
+| `CLAY.ink` | `#111111` | testo, CTA primaria, cursore segmentato |
+| `CLAY.ink2` | `#3A3A3C` | testo di dettaglio forte |
+| `CLAY.ink3` | `#6A6A6A` | testo secondario (5.4:1 sul bianco) |
+| `CLAY.ink4` | `#8E8E8E` | placeholder |
+| `CLAY.hairline` | `rgba(17,17,17,.07)` | separatori nelle liste |
+| `CLAY.chevron` | `#BDBDBD` | chevron |
+| `CTA_HEIGHT` / `CTA_RADIUS` | 54 / 27 | CTA a capsula |
+| `CLAY_RADIUS.card` | 28 | card, liste, tab bar (capsula 34 a parte) |
+| `CLAY_RADIUS.tile` | 22 | tessere statistiche, riga auto |
+| `CLAY_RADIUS.sheet` | 38 | anteprime; il form sheet nativo usa il suo raggio |
+| `FIELD_HEIGHT` | 46 | ricerca e segmentato (capsula, raggio 23) |
+
+Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
+
+| Preset | Livelli | Uso |
+|---|---|---|
+| `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, tab bar, CTA secondaria, controlli mappa |
+| `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro, bolla tab attiva |
+| `sink` | interna 1px · interna 0/2/5 α.08 | ricerca, binario del segmentato |
+| `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | CTA primaria, cursore segmentato, bottone nero |
+| `inkPressed` | interna 0/2/6 α.55 | CTA nera premuta |
+| `avatar` | bordo · esterna 0/4/10/-4 α.22 · interna | volti (foto o iniziali) |
+
+### 0.3 Ombre interne in React Native — come e quanto costano
+
+- Si usa **`boxShadow` nativo** (RN 0.81, New Architecture attiva): esterne e
+  `inset: true` sullo stesso nodo, più livelli in un array. Nessuna libreria,
+  nessun gradiente finto, niente Skia. È solo JS → va in OTA (già in uso in
+  `AllievoTheoryHomeScreen`/`IstruttoreHomeScreen`).
+- **iOS**: disegnate dal layer nativo. **Android**: da Android 9; sotto non
+  compaiono e il bordo 1px tiene comunque la forma.
+- **Prestazioni**: massimo 3 livelli per preset; in una lista l'ombra va sul
+  **contenitore**, mai su ogni riga; **non animare l'ombra** (si animano
+  solo transform e opacity con Reanimated); niente blur sui fogli (hanno la
+  loro ombra nativa).
+- Il nodo con `boxShadow` deve avere `backgroundColor` e `borderRadius`
+  propri; se serve `overflow: 'hidden'` (foto, mappa) metterlo su un figlio,
+  altrimenti l'ombra esterna viene tagliata.
+
+### 0.4 Icone 3D — `src/theme/icons3d.ts` + `<Icon3D>`
+
+- Registro `ICONS_3D` (Fluent 3D, MIT, già de-rosate): `agenda`, `calendar`,
+  `people`, `profile`, `exam`, `clock`, `headquarters`, `check`, `memo`, `road`.
+  Segnalazioni Road: `markerArt(kind)`; auto: `car34Art(color)`.
+- `<Icon3D name="exam" size={17} />` oppure `<Icon3D source={markerArt('stop')} />`.
+- Sempre su bianco, mai in un riquadro colorato, mai `tintColor`.
+- Dove: tab bar (28), voci del briefing/pagellino (30–36), motivo nelle righe
+  di lista (17, prima del testo), card (44), statistiche (30), auto (70×56).
+
+---
+
 ## 1. Palette Colori
 
 > **Via il blu (REG-638, 27/10/2026), su TUTTA l'app** (allievo, istruttore,

@@ -19,3 +19,14 @@ export const radii = {
 export const CTA_HEIGHT = 54;
 export const CTA_RADIUS = CTA_HEIGHT / 2;
 
+
+/**
+ * Clay v2 (REG-639): raggi delle superfici. La CTA resta `CTA_RADIUS`;
+ * campo e segmentato sono capsule alte `FIELD_HEIGHT`.
+ */
+export const CLAY_RADIUS = {
+  card: 28,
+  tile: 22,
+  sheet: 38,
+} as const;
+export const FIELD_HEIGHT = 46;
