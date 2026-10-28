@@ -1517,16 +1517,20 @@ const styles = StyleSheet.create({
   },
   weekLabel: { fontSize: 19, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
   todayLink: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  dayHeaderRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10 },
+  // Nessun padding orizzontale: le colonne della griglia sono assolute (colX =
+  // GUTTER_W + i·(colW + COL_GAP)) e ignorano il padding dello scroll; qui
+  // spacer GUTTER_W + celle colW/COL_GAP → ogni etichetta è centrata sulla sua colonna.
+  dayHeaderRow: { flexDirection: 'row', paddingBottom: 10 },
   dayHeaderCell: { alignItems: 'center' },
   dayLetter: { fontSize: 12.5, fontWeight: '500', color: '#6A6A6A', marginBottom: 4 },
-  dayNumber: { fontSize: 15, fontWeight: '600', color: '#111111' },
+  // Numero e cerchio di oggi nella stessa scatola alta 26: stessa linea di base.
+  dayNumber: { fontSize: 15, fontWeight: '600', color: '#111111', height: 26, lineHeight: 26, textAlign: 'center' },
   todayCircle: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: '#111111',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#111111', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  todayCircleText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  todayCircleText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', lineHeight: 26 },
   scrollView: { flex: 1 },
   hourLabel: {
     position: 'absolute', top: -7, left: 4, width: GUTTER_W - 8,
