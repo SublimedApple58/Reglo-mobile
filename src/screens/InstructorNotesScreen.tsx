@@ -153,13 +153,15 @@ export const InstructorNotesScreen = () => {
   const drivingThisWeek = useMemo(() => {
     if (!instructorId) return 0;
     const { start, end } = weekBounds();
+    // Solo fra gli allievi in lista: «5 allievi · 6 guidano con te» non torna.
+    const shownIds = new Set(visibleStudents.map((st) => st.id));
     const ids = new Set<string>();
     for (const a of allAppointments) {
       const t = new Date(a.startsAt).getTime();
-      if (a.instructorId === instructorId && t >= start && t < end) ids.add(a.studentId);
+      if (a.instructorId === instructorId && t >= start && t < end && shownIds.has(a.studentId)) ids.add(a.studentId);
     }
     return ids.size;
-  }, [allAppointments, instructorId]);
+  }, [allAppointments, instructorId, visibleStudents]);
 
   // Il prossimo esame fra gli allievi visibili: la card in evidenza.
   const nextExam = useMemo(() => {

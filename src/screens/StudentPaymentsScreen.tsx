@@ -683,7 +683,7 @@ const SEP_INSET = PAD + 36 + 13;
 
 const s = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.background },
-  bleed: { marginHorizontal: -22, marginTop: -6 },
+  bleed: { marginHorizontal: -18, marginTop: -6 },
   topBar: {
     flexDirection: 'row', justifyContent: 'flex-end',
     paddingLeft: 30, paddingRight: 16, paddingTop: 20, paddingBottom: 4,
