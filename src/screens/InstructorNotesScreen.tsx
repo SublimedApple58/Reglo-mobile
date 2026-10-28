@@ -1,47 +1,42 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  Keyboard,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  withTiming,
-  interpolate,
-  Extrapolation,
-  FadeIn,
-} from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
-import { UserPhotoCircle } from '../components/UserPhotoCircle';
-import { avatarColors } from '../utils/avatarColors';
+import { ClayPageHeader } from '../components/ClayPageHeader';
+import {
+  Avatar,
+  ClayEmpty,
+  ClayIconButton,
+  ClayList,
+  ClayListRow,
+  ClaySearchField,
+  ClaySegmented,
+  ClaySurface,
+} from '../components/clay';
+import { CLAY } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
-import { colors } from '../theme';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
-
 const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-const H_PAD = 22;
+const H_PAD = 20;
+const dayMonth = (iso: string) => `${new Date(iso).getDate()} ${monthsShort[new Date(iso).getMonth()]}`;
 
-const COMPACT_H = 54; // top button row
-const LARGE_TITLE_H = 56;
-const PILLS_H = 60;
-
+/** Lunedì 00:00 → lunedì successivo, ora locale. */
+function weekBounds(now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { start: start.getTime(), end: end.getTime() };
+}
 
 type StudentEntry = {
   id: string;
@@ -51,6 +46,13 @@ type StudentEntry = {
   assignedInstructorId?: string | null;
 };
 
+/**
+ * Tab «Allievi» — REG-639 «vita ovunque» (anteprima approvata 28/10): titolo
+ * con una riga umana, ricerca clay sempre visibile, «I miei / Tutti» come
+ * segmentato clay (solo in modalità autonoma), l'esame più vicino in evidenza
+ * con l'oggetto 3D, poi una lista sola con i volti. Il dettaglio è un form
+ * sheet (`notes/[studentId]`). Niente pallini, chip né pillole.
+ */
 export const InstructorNotesScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -63,23 +65,7 @@ export const InstructorNotesScreen = () => {
   const [autonomousMode, setAutonomousMode] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [segment, setSegment] = useState<'mine' | 'all'>('mine');
-
-  const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef<TextInput>(null);
-  const searchProgress = useSharedValue(0);
-
-  const openSearch = () => {
-    setSearchActive(true);
-    searchProgress.value = withTiming(1, { duration: 280 });
-    setTimeout(() => searchInputRef.current?.focus(), 220);
-  };
-  const closeSearch = () => {
-    Keyboard.dismiss();
-    setSearchActive(false);
-    setSearchQuery('');
-    searchProgress.value = withTiming(0, { duration: 240 });
-  };
 
   const loadData = useCallback(async () => {
     try {
@@ -149,294 +135,190 @@ export const InstructorNotesScreen = () => {
     return students.filter((s) => s.assignedInstructorId === instructorId);
   }, [useClusters, segment, students, instructorId]);
 
-  const searchData = useMemo(() => {
-    if (!searchActive) return visibleStudents;
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return visibleStudents;
-    return students.filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(q));
-  }, [searchActive, searchQuery, visibleStudents, students]);
-
   const navigateToStudent = (student: StudentEntry) => {
-    closeSearch();
     router.push({
       pathname: '/(tabs)/notes/[studentId]',
       params: { studentId: student.id, name: `${student.firstName} ${student.lastName}` },
     } as never);
   };
 
-  /* ── Collapsible header animation ── */
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
-  const largeTitleStyle = useAnimatedStyle(() => {
-    // On overscroll (scrollY < 0) the list bounces down — cancel that movement
-    // so the large title stays pinned like the rest of the header.
-    const ty = scrollY.value < 0
-      ? scrollY.value
-      : interpolate(scrollY.value, [0, LARGE_TITLE_H], [0, -12], Extrapolation.CLAMP);
-    return {
-      opacity: interpolate(scrollY.value, [0, LARGE_TITLE_H * 0.7], [1, 0], Extrapolation.CLAMP) * (1 - searchProgress.value),
-      transform: [{ translateY: ty }],
-    };
-  });
-  const compactStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [LARGE_TITLE_H * 0.5, LARGE_TITLE_H * 0.95], [0, 1], Extrapolation.CLAMP) * (1 - searchProgress.value),
-  }));
-  // Search crossfade in the top row: title+buttons fade out, input row fades in.
-  const titleRowStyle = useAnimatedStyle(() => ({ opacity: 1 - searchProgress.value }));
-  const searchRowStyle = useAnimatedStyle(() => ({ opacity: searchProgress.value }));
-  const headerBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
-  }));
-  // When search is active, collapse the large-title's height in the list header so the
-  // rows physically rise up under the pinned pills (works even when the list is too short to scroll).
-  const largeTitleWrapStyle = useAnimatedStyle(() => ({
-    height: interpolate(searchProgress.value, [0, 1], [LARGE_TITLE_H, 0], Extrapolation.CLAMP),
-  }));
-  const pillsWrapStyle = useAnimatedStyle(() => {
-    // collapse: 0 = expanded (pills sit below the large title), 1 = pinned right under the top row.
-    // Driven by scroll OR by search being active (whichever is greater) so the pills snap up reliably.
-    const collapse = Math.max(
-      searchProgress.value,
-      interpolate(scrollY.value, [0, LARGE_TITLE_H], [0, 1], Extrapolation.CLAMP),
-    );
-    return { transform: [{ translateY: interpolate(collapse, [0, 1], [LARGE_TITLE_H, 0]) }] };
-  });
-
-  const headerH = insets.top + COMPACT_H + (useClusters ? PILLS_H : 0);
-
-  const renderPills = (
-    <View style={styles.filterRow}>
-      <Pressable onPress={() => setSegment('mine')} style={[styles.pill, segment === 'mine' && styles.pillActive]}>
-        <Text style={[styles.pillText, segment === 'mine' && styles.pillTextActive]}>I miei</Text>
-      </Pressable>
-      <Pressable onPress={() => setSegment('all')} style={[styles.pill, segment === 'all' && styles.pillActive]}>
-        <Text style={[styles.pillText, segment === 'all' && styles.pillTextActive]}>Tutti</Text>
-      </Pressable>
-    </View>
+  const query = searchQuery.trim().toLowerCase();
+  const shown = useMemo(
+    () => (query ? students.filter((st) => `${st.firstName} ${st.lastName}`.toLowerCase().includes(query)) : visibleStudents),
+    [query, students, visibleStudents],
   );
 
-  const renderRow = useCallback(
-    (student: StudentEntry) => {
-      const info = studentInfo.get(student.id) ?? { total: 0, completed: 0 };
-      const completed = Math.min(info.completed, REQUIRED_LESSONS);
-      const examISO = studentExam.get(student.id);
-      const examLabel = examISO
-        ? `${new Date(examISO).getDate()} ${monthsShort[new Date(examISO).getMonth()]}`
-        : null;
-      const initials = `${student.firstName.charAt(0)}${student.lastName.charAt(0)}`.toUpperCase();
-      const { bg, fg } = avatarColors(student.id);
-      return (
-        <Pressable
-          key={student.id}
-          style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
-          onPress={() => navigateToStudent(student)}
+  // «3 guidano con te questa settimana»: allievi distinti con una guida mia
+  // (non annullata) da lunedì a domenica.
+  const drivingThisWeek = useMemo(() => {
+    if (!instructorId) return 0;
+    const { start, end } = weekBounds();
+    const ids = new Set<string>();
+    for (const a of allAppointments) {
+      const t = new Date(a.startsAt).getTime();
+      if (a.instructorId === instructorId && t >= start && t < end) ids.add(a.studentId);
+    }
+    return ids.size;
+  }, [allAppointments, instructorId]);
+
+  // Il prossimo esame fra gli allievi visibili: la card in evidenza.
+  const nextExam = useMemo(() => {
+    let best: { student: StudentEntry; iso: string } | null = null;
+    for (const st of visibleStudents) {
+      const iso = studentExam.get(st.id);
+      if (iso && (!best || new Date(iso) < new Date(best.iso))) best = { student: st, iso };
+    }
+    return best;
+  }, [visibleStudents, studentExam]);
+
+  const lead = loading
+    ? ' '
+    : [
+        `${visibleStudents.length} ${visibleStudents.length === 1 ? 'allievo' : 'allievi'}`,
+        drivingThisWeek > 0
+          ? `${drivingThisWeek} ${drivingThisWeek === 1 ? 'guida' : 'guidano'} con te questa settimana`
+          : null,
+      ].filter(Boolean).join(' · ');
+
+  const rowSubtitle = (st: StudentEntry) => {
+    const info = studentInfo.get(st.id) ?? { total: 0, completed: 0 };
+    const done = Math.min(info.completed, REQUIRED_LESSONS);
+    const exam = studentExam.get(st.id);
+    const base =
+      info.total === 0
+        ? 'Nessuna guida ancora'
+        : done >= REQUIRED_LESSONS
+          ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
+          : `${done} di ${REQUIRED_LESSONS} guide`;
+    return exam ? `${base} · esame il ${dayMonth(exam)}` : base;
+  };
+
+  const examCard = (() => {
+    if (!nextExam || query) return null;
+    const info = studentInfo.get(nextExam.student.id) ?? { total: 0, completed: 0 };
+    const missing = Math.max(0, REQUIRED_LESSONS - info.completed);
+    return (
+      <Animated.View entering={FadeIn.duration(260)}>
+        <ClaySurface
+          radius={26}
+          onPress={() => navigateToStudent(nextExam.student)}
+          style={s.examCard}
+          testID="students-next-exam"
+          accessibilityLabel={`${nextExam.student.firstName} all'esame il ${dayMonth(nextExam.iso)}`}
         >
-          <UserPhotoCircle userId={student.id} size={54}>
-            <View style={[styles.avatar, { backgroundColor: bg }]}>
-              <Text style={[styles.avatarText, { color: fg }]}>{initials}</Text>
-            </View>
-          </UserPhotoCircle>
-          <View style={styles.rowBody}>
-            <Text style={styles.rowName} numberOfLines={1}>{student.firstName} {student.lastName}</Text>
-            <Text style={styles.rowSub} numberOfLines={1}>
-              {info.total} guid{info.total === 1 ? 'a' : 'e'} · obbligo {completed}/{REQUIRED_LESSONS}
+          <Image source={VITA_ART.esame} style={s.examArt} />
+          <View style={s.examMain}>
+            <Text style={s.examTitle} numberOfLines={1}>
+              {nextExam.student.firstName} all’esame il {dayMonth(nextExam.iso)}
             </Text>
-            {examLabel ? (
-              <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: '#8B5CF6' }]} />
-                <Text style={styles.statusText} numberOfLines={1}>Esame · {examLabel}</Text>
-              </View>
-            ) : null}
+            <Text style={s.examSub} numberOfLines={1}>
+              {missing === 0 ? 'Obbligo guide completato' : `Mancano ${missing} ${missing === 1 ? 'guida' : 'guide'} all’obbligo`}
+            </Text>
           </View>
-        </Pressable>
-      );
-    },
-    [studentInfo, studentExam],
-  );
-
-  const skeletonContent = (
-    <View>
-      {Array.from({ length: 7 }).map((_, i) => (
-        <View key={`skel-${i}`} style={styles.row}>
-          <SkeletonBlock width={54} height={54} radius={27} />
-          <View style={{ flex: 1, gap: 7 }}>
-            <SkeletonBlock width="50%" height={15} radius={6} />
-            <SkeletonBlock width="70%" height={12} radius={6} />
-            <SkeletonBlock width="40%" height={12} radius={6} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
+        </ClaySurface>
+      </Animated.View>
+    );
+  })();
 
   return (
-    <View style={styles.root}>
+    <View style={s.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-
-      {/* ── Sticky collapsible header ── */}
-      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]} pointerEvents="box-none">
-        {/* Blur bg + border (fade in on scroll) */}
-        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]} pointerEvents="none">
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.96)' }]} />
-          )}
-          <View style={styles.headerBorder} />
-        </Animated.View>
-
-        {/* Top row: crossfades between [compact title + buttons] and [search input + Annulla] */}
-        <View style={styles.compactRow}>
-          <Animated.View style={[styles.topOverlay, titleRowStyle]} pointerEvents={searchActive ? 'none' : 'auto'}>
-            <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Allievi</Animated.Text>
-            <View style={styles.headerBtns}>
-              <Pressable onPress={openSearch} hitSlop={6} style={styles.circleBtn}>
-                <Ionicons name="search" size={19} color="#111111" />
-              </Pressable>
-              {autonomousMode ? (
-                <Pressable onPress={() => router.push('/(tabs)/notes/cluster-settings' as never)} hitSlop={6} style={styles.circleBtn}>
-                  <Ionicons name="settings-outline" size={19} color="#111111" />
-                </Pressable>
-              ) : null}
-            </View>
-          </Animated.View>
-
-          <Animated.View style={[styles.topOverlay, styles.searchOverlayRow, searchRowStyle]} pointerEvents={searchActive ? 'auto' : 'none'}>
-            <View style={styles.searchInputBox}>
-              <Ionicons name="search" size={20} color="#111111" />
-              <TextInput
-                ref={searchInputRef}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Cerca allievo..."
-                placeholderTextColor="#929292"
-                style={styles.searchInput}
-                autoCorrect={false}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 ? (
-                <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color="#C4C4C4" />
-                </Pressable>
-              ) : null}
-            </View>
-            <Pressable onPress={closeSearch} hitSlop={8}>
-              <Text style={styles.cancelText}>Annulla</Text>
-            </Pressable>
-          </Animated.View>
-        </View>
-
-        {/* Pills (pinned: slide up under the buttons on scroll) */}
-        {useClusters ? (
-          <Animated.View style={[styles.pillsWrap, pillsWrapStyle]} pointerEvents="box-none">
-            {renderPills}
-          </Animated.View>
-        ) : null}
-      </View>
-
-      {/* ── List ── */}
-      <Animated.FlatList
-        data={loading ? [] : searchData}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(340)}>
-            {renderRow(item)}
-          </Animated.View>
-        )}
-        keyExtractor={(item) => `${segment}-${item.id}`}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
+      <ScrollView
+        contentContainerStyle={[s.content, { paddingTop: insets.top }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-            progressViewOffset={headerH}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
+      >
+        <ClayPageHeader
+          title="Allievi"
+          subtitle={lead}
+          actions={
+            autonomousMode ? (
+              <ClayIconButton
+                icon={<Ionicons name="options-outline" size={20} color={CLAY.ink} />}
+                onPress={() => router.push('/(tabs)/notes/cluster-settings' as never)}
+                accessibilityLabel="Impostazioni allievi"
+                testID="students-settings"
+              />
+            ) : undefined
+          }
+        />
+
+        <ClaySearchField
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Cerca un allievo"
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          style={s.search}
+          testID="students-search"
+        />
+
+        {useClusters && !query ? (
+          <ClaySegmented
+            options={[
+              { value: 'mine', label: mineCount ? `I miei · ${mineCount}` : 'I miei', testID: 'students-mine' },
+              { value: 'all', label: 'Tutti', testID: 'students-all' },
+            ]}
+            value={segment}
+            onChange={setSegment}
+            style={s.segmented}
           />
-        }
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + COMPACT_H }]}
-        ListHeaderComponent={
-          <View>
-            <Animated.View style={[{ justifyContent: 'flex-end' }, largeTitleWrapStyle]}>
-              <Animated.Text style={[styles.largeTitle, largeTitleStyle]}>Allievi</Animated.Text>
-            </Animated.View>
-            {/* Spacer for the pinned pills (+ gap before the first row) */}
-            {useClusters ? <View style={{ height: PILLS_H + 10 }} /> : <View style={{ height: 8 }} />}
-          </View>
-        }
-        ListEmptyComponent={
-          loading ? skeletonContent : (
-            <Text style={styles.emptyText}>
-              {searchActive && searchQuery.trim() ? 'Nessun risultato' : 'Nessun allievo trovato.'}
-            </Text>
-          )
-        }
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-      />
+        ) : null}
+
+        {examCard}
+
+        {loading ? (
+          <ClaySurface padded={false} style={s.list}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <View key={i} style={s.skRow}>
+                <SkeletonBlock width={46} height={46} radius={23} />
+                <View style={{ flex: 1, gap: 7 }}>
+                  <SkeletonBlock width="50%" height={15} radius={6} />
+                  <SkeletonBlock width="70%" height={12} radius={6} />
+                </View>
+              </View>
+            ))}
+          </ClaySurface>
+        ) : shown.length === 0 ? (
+          <ClayEmpty
+            icon={VITA_ART.volante}
+            title={query ? 'Nessun risultato' : 'Ancora nessun allievo'}
+            text={query ? `Nessun allievo si chiama «${searchQuery.trim()}».` : 'Quando l’autoscuola ti assegna un allievo, lo trovi qui.'}
+          />
+        ) : (
+          <Animated.View key={`${segment}-${query ? 'q' : ''}`} entering={FadeIn.duration(220)}>
+            <ClayList style={s.list}>
+              {shown.map((st) => (
+                <ClayListRow
+                  key={st.id}
+                  leading={<Avatar userId={st.id} name={`${st.firstName} ${st.lastName}`} size={46} />}
+                  title={`${st.firstName} ${st.lastName}`}
+                  subtitle={rowSubtitle(st)}
+                  onPress={() => navigateToStudent(st)}
+                  testID={`student-row-${st.id}`}
+                />
+              ))}
+            </ClayList>
+          </Animated.View>
+        )}
+      </ScrollView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: H_PAD, paddingBottom: 120 },
-
-  /* Header */
-  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, overflow: 'visible' },
-  headerBorder: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    height: StyleSheet.hairlineWidth, backgroundColor: colors.border,
-  },
-  compactRow: { height: COMPACT_H, justifyContent: 'center' },
-  topOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: H_PAD,
-  },
-  searchOverlayRow: { gap: 14 },
-  searchInputBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9,
-    height: 46, borderRadius: 999, paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#111111',
-  },
-  compactTitle: { fontSize: 20, fontWeight: '700', color: '#111111', letterSpacing: -0.3, marginLeft: 2 },
-  headerBtns: { flexDirection: 'row', gap: 10 },
-  circleBtn: {
-    width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2F2F2',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  pillsWrap: { height: PILLS_H, justifyContent: 'center', paddingHorizontal: H_PAD },
-
-  largeTitle: { fontSize: 32, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
-
-  /* Filter pills */
-  filterRow: { flexDirection: 'row', gap: 8 },
-  pill: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999, backgroundColor: '#EEF0F3' },
-  pillActive: { backgroundColor: '#111111' },
-  pillText: { fontSize: 14, fontWeight: '500', color: '#595959' },
-  pillTextActive: { color: '#FFFFFF', fontWeight: '600' },
-
-  /* Flat row */
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
-  avatar: {
-    width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
-  },
-  avatarText: { fontSize: 17, fontWeight: '700' },
-  rowBody: { flex: 1, minWidth: 0, gap: 3 },
-  rowName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  rowSub: { fontSize: 14, color: '#929292' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 14, fontWeight: '500', color: '#595959', flexShrink: 1 },
-
-  emptyText: { textAlign: 'center', color: '#929292', marginTop: 24, fontSize: 15 },
-
-  /* Inline search input */
-  searchInput: { flex: 1, fontSize: 16, color: '#111111', padding: 0 },
-  cancelText: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  content: { paddingHorizontal: H_PAD, paddingBottom: 130 },
+  search: { marginTop: 18 },
+  segmented: { marginTop: 12 },
+  examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16, paddingVertical: 14, paddingHorizontal: 18 },
+  examArt: { width: 54, height: 54 },
+  examMain: { flex: 1, minWidth: 0 },
+  examTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  examSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
+  list: { marginTop: 16 },
+  skRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 18 },
 });
