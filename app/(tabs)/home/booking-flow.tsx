@@ -123,7 +123,7 @@ export default function BookingFlowScreen() {
             style={({ pressed }) => [s.dateCard, pressed && { opacity: 0.85 }]}
             onPress={() => setField('calendarOpen', true)}
           >
-            <Image source={require('../../../assets/icons/fluent-calendar.png')} style={s.dateIcon} />
+            <Image source={require('../../../assets/icons3d-ai/calendario.png')} style={s.dateIcon} />
             <View style={{ flex: 1 }}>
               <Text style={s.dateText}>{formatDay(preferredDate.toISOString())}</Text>
               <Text style={s.dateHint}>Scegli quando guidare</Text>

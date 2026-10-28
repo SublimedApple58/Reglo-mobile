@@ -338,7 +338,7 @@ export const StudentMyNotesScreen = () => {
         ) : appointments.length === 0 ? (
           <Animated.View entering={FadeIn.duration(250)} style={st.emptyState}>
             <View style={st.emptyIconWrap}>
-              <Image source={require('../../assets/icons/fluent-memo.png')} style={st.emptyIcon} />
+              <Image source={require('../../assets/icons3d-ai/blocconote.png')} style={st.emptyIcon} />
             </View>
             <Text style={st.emptyTitle}>Ancora niente</Text>
             <Text style={st.emptySub}>

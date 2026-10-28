@@ -4,18 +4,18 @@
 // (most precise, stays correct for mixed paths), falling back to the student's
 // own license category. Car students (category B) keep the existing artwork.
 //
-// NB: these are pre-coloured Fluent 3D assets — never apply `tintColor` in RN.
+// NB: these are pre-coloured AI 3D icons (design-system §0.4, `assets/icons3d-ai/`)
+// — never apply `tintColor` in RN.
 import { isMotoLicenseCategory } from './license';
 
-const CAR = require('../../assets/icons/fluent-car.png');
-const RACING = require('../../assets/icons/fluent-racing.png');
-const MOTORCYCLE = require('../../assets/icons/fluent-motorcycle.png');
+const CAR = require('../../assets/icons3d-ai/auto.png');
+const MOTORCYCLE = require('../../assets/icons3d-ai/moto.png');
 
 /** Card / list / empty-state guide illustration (car vs moto). */
 export const lessonArtSource = (licenseCategory?: string | null) =>
   isMotoLicenseCategory(licenseCategory) ? MOTORCYCLE : CAR;
 
-/** Hero "prossima guida" illustration. Car students get the racing variant;
- *  there is no racing-moto asset, so moto students get the standard moto. */
+/** Hero "prossima guida" illustration (REG-639: same art as the cards, the
+ *  Fluent «racing» variant is gone). */
 export const heroArtSource = (licenseCategory?: string | null) =>
-  isMotoLicenseCategory(licenseCategory) ? MOTORCYCLE : RACING;
+  isMotoLicenseCategory(licenseCategory) ? MOTORCYCLE : CAR;

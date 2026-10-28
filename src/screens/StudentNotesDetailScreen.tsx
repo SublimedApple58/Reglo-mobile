@@ -78,9 +78,9 @@ import { openRoadPercorso } from '../road/openRoadPercorso';
 import type { RoadStudentItem } from '../types/regloApi';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
-const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
-const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
-const FLUENT_BUILDING = require('../../assets/icons/fluent-building.png');
+const ART_ESAME = require('../../assets/icons3d-ai/esame.png');
+const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
+const ART_EDIFICIO = require('../../assets/icons3d-ai/edificio.png');
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
 
@@ -924,13 +924,13 @@ export const StudentNotesDetailScreen = () => {
                 </View>
                 <View style={s.setGlyphs}>
                   {groupEnabled ? (
-                    <SettingGlyph source={FLUENT_PEOPLE} on={groupOptIn} />
+                    <SettingGlyph source={ART_PERSONE} on={groupOptIn} />
                   ) : null}
                   {studentPhase === 'PRATICA' ? (
-                    <SettingGlyph source={FLUENT_GRADUATE} on={examReady} />
+                    <SettingGlyph source={ART_ESAME} on={examReady} />
                   ) : null}
                   {locations.length > 0 ? (
-                    <SettingGlyph source={FLUENT_BUILDING} on={false} neutral />
+                    <SettingGlyph source={ART_EDIFICIO} on={false} neutral />
                   ) : null}
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -941,7 +941,7 @@ export const StudentNotesDetailScreen = () => {
           {/* Exam — flat icon row */}
           {!loading && upcomingExam ? (
             <Animated.View entering={FadeIn.duration(350)} style={s.examRow}>
-              <Image source={FLUENT_GRADUATE} style={s.examIcon} />
+              <Image source={ART_ESAME} style={s.examIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={s.examTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
                 <Text style={s.examDate}>{formatExamDate(upcomingExam.date)}</Text>

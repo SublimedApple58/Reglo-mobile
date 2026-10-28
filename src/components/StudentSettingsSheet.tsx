@@ -10,9 +10,9 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { GlassCloseButton } from './GlassCloseButton';
 
-const FLUENT_GRADUATE = require('../../assets/icons/fluent-graduate.png');
-const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
-const FLUENT_BUILDING = require('../../assets/icons/fluent-building.png');
+const ART_ESAME = require('../../assets/icons3d-ai/esame.png');
+const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
+const ART_EDIFICIO = require('../../assets/icons3d-ai/edificio.png');
 
 /**
  * "Impostazioni allievo" in un form sheet: nella scheda allievo le tre righe
@@ -45,7 +45,7 @@ export function StudentSettingsSheet() {
 
       {data.group ? (
         <View style={s.row}>
-          <Image source={FLUENT_PEOPLE} style={s.icon} />
+          <Image source={ART_PERSONE} style={s.icon} />
           <View style={s.body}>
             <Text style={s.rowTitle}>Guide di gruppo</Text>
             <Text style={s.rowSub}>{data.group.value ? 'Può partecipare' : 'Non può partecipare'}</Text>
@@ -60,7 +60,7 @@ export function StudentSettingsSheet() {
 
       {data.examReady ? (
         <View style={s.row}>
-          <Image source={FLUENT_GRADUATE} style={s.icon} />
+          <Image source={ART_ESAME} style={s.icon} />
           <View style={s.body}>
             <Text style={s.rowTitle}>Pronto per l&apos;esame</Text>
             <Text style={s.rowSub}>{data.examReady.value ? 'Segnato come pronto' : 'Non segnato'}</Text>
@@ -78,7 +78,7 @@ export function StudentSettingsSheet() {
           onPress={data.location.onPress}
           style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
         >
-          <Image source={FLUENT_BUILDING} style={s.icon} />
+          <Image source={ART_EDIFICIO} style={s.icon} />
           <View style={s.body}>
             <Text style={s.rowTitle}>Luogo di default</Text>
             <Text style={s.rowSub} numberOfLines={1}>{data.location.label}</Text>

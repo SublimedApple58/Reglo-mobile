@@ -1,25 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Image,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  Extrapolation,
-  FadeIn,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  SharedValue,
-} from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, useAnimatedStyle, SharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSession } from '../context/SessionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -32,34 +16,14 @@ import {
   dismissItem as storeDismissItem,
 } from '../services/notificationStore';
 import { NotificationItem, PersistedNotification } from '../types/notifications';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { formatDay, formatTime, formatRelativeTime } from '../utils/date';
+import { CLAY } from '../theme/clay';
+import { MORALE_ART } from '../theme/moraleArt';
+import { ClayEmpty, ClayIconButton, ClayList, ClaySection } from '../components/clay';
+import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
 
-const COMPACT_H = 44;
-const SCROLL_RANGE = 70;
-
-const ICON_MAP: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap> = {
-  waitlist: 'time-outline',
-  group_lesson_invite: 'people-outline',
-  swap: 'swap-horizontal',
-  confirmation: 'checkmark-done-outline',
-  available_slots: 'calendar-outline',
-  holiday_declared: 'calendar-outline',
-  weekly_absence: 'calendar-clear-outline',
-  sick_leave_cancelled: 'medkit-outline',
-  appointment_rescheduled: 'swap-horizontal-outline',
-  appointment_cancelled: 'close-circle-outline',
-  availability_published: 'megaphone-outline',
-  appointment_location_changed: 'location-outline',
-  theory_exam_countdown: 'time-outline',
-  theory_quiz_inactivity: 'school-outline',
-  student_phase_change: 'sparkles-outline',
-  license_path_started: 'car-sport-outline',
-  exam_ready_nudge: 'ribbon-outline',
-  exam_scheduled: 'school-outline',
-};
+/** Rosso solo per il testo delle azioni distruttive (§0). */
+const DESTRUCTIVE = '#C13515';
 
 const getTitle = (item: PersistedNotification): string => {
   switch (item.kind) {
@@ -201,30 +165,68 @@ const opensDrawer = (kind: PersistedNotification['kind']): boolean =>
 const opensGroupLessonInvites = (kind: PersistedNotification['kind']): boolean =>
   kind === 'group_lesson_invite';
 
+/* ── Giorni ── */
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+/** «Oggi», «Ieri», poi «Lunedì 26 ottobre». */
+const dayLabel = (iso: string): string => {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (dayKey(d) === dayKey(today)) return 'Oggi';
+  if (dayKey(d) === dayKey(yesterday)) return 'Ieri';
+  const label = d.toLocaleDateString('it-IT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(d.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : null),
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+/** Le notifiche (già in ordine, dalla più recente) divise per giorno. */
+const groupByDay = (list: PersistedNotification[]) => {
+  const groups: { key: string; title: string; items: PersistedNotification[] }[] = [];
+  for (const item of list) {
+    const key = dayKey(new Date(item.receivedAt));
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.items.push(item);
+    else groups.push({ key, title: dayLabel(item.receivedAt), items: [item] });
+  }
+  return groups;
+};
+
 /* ── Swipeable Card ── */
 
 type CardProps = {
   item: PersistedNotification;
   onTap: () => void;
   onDismiss: () => void;
+  /** Lo imposta `ClayList`. */
+  divider?: boolean;
 };
 
 const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: () => void }) => {
   const animStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, -drag.value / 80),
-    transform: [{ scale: Math.min(1, Math.max(0.8, -drag.value / 100)) }],
   }));
   return (
-    <Pressable onPress={onPress} style={styles.swipeActionPressable}>
+    <Pressable onPress={onPress} style={styles.swipeActionPressable} accessibilityRole="button" accessibilityLabel="Elimina notifica">
       <Animated.View style={[styles.swipeAction, animStyle]}>
-        <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+        <Ionicons name="trash-outline" size={18} color={DESTRUCTIVE} />
         <Text style={styles.swipeActionText}>Elimina</Text>
       </Animated.View>
     </Pressable>
   );
 };
 
-const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
+/**
+ * Riga di notifica (REG-639 clay): niente icona né puntino. Da leggere =
+ * titolo nero 600; letta = titolo 500 grigio. Ora a destra (il giorno è
+ * nel titolo della sezione). Scorri verso sinistra per eliminarla.
+ */
+const NotificationCard = React.memo(({ item, onTap, onDismiss, divider }: CardProps) => {
   const swipeableRef = useRef<any>(null);
 
   const handleDelete = useCallback(() => {
@@ -232,38 +234,49 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss }: CardProps) => {
     onDismiss();
   }, [onDismiss]);
 
+  const title = getTitle(item);
+  const subtitle = getSubtitle(item);
+
   return (
-    <ReanimatedSwipeable
-      ref={swipeableRef}
-      friction={2}
-      rightThreshold={80}
-      renderRightActions={(_, drag) => <RightAction drag={drag} onPress={handleDelete} />}
-      onSwipeableOpen={(direction) => {
-        if (direction === 'right') onDismiss();
-      }}
-      overshootRight={false}
-    >
-      <Pressable onPress={onTap} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-        <View style={[styles.iconChip, item.read ? styles.iconChipRead : styles.iconChipUnread]}>
-          <Ionicons name={ICON_MAP[item.kind]} size={18} color={item.read ? '#676767' : '#FFFFFF'} />
-        </View>
-        <View style={styles.cardCenter}>
-          <Text style={[styles.cardTitle, item.read && styles.cardTitleRead]} numberOfLines={1}>
-            {getTitle(item)}
-          </Text>
-          <Text style={styles.cardSubtitle} numberOfLines={1}>
-            {getSubtitle(item)}
-          </Text>
-          <Text style={styles.cardTimestamp}>{formatRelativeTime(item.receivedAt)}</Text>
-        </View>
-      </Pressable>
-    </ReanimatedSwipeable>
+    <View>
+      {divider ? <View style={styles.divider} /> : null}
+      <ReanimatedSwipeable
+        ref={swipeableRef}
+        friction={2}
+        rightThreshold={80}
+        renderRightActions={(_, drag) => <RightAction drag={drag} onPress={handleDelete} />}
+        onSwipeableOpen={(direction) => {
+          if (direction === 'right') onDismiss();
+        }}
+        overshootRight={false}
+      >
+        <Pressable
+          onPress={onTap}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.read ? '' : 'Da leggere. '}${title}${subtitle ? `, ${subtitle}` : ''}`}
+        >
+          <View style={styles.rowMain}>
+            <Text style={[styles.rowTitle, item.read && styles.rowTitleRead]} numberOfLines={1}>
+              {title}
+            </Text>
+            {subtitle ? (
+              <Text style={styles.rowSub} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          <Text style={styles.rowTime}>{formatTime(item.receivedAt)}</Text>
+        </Pressable>
+      </ReanimatedSwipeable>
+    </View>
   );
 });
 
 /* ── Screen ── */
 
 export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } = {}) => {
+  const { autoscuolaRole } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<PersistedNotification[]>([]);
@@ -357,194 +370,109 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
 
   const visibleItems = items.filter((i) => !i.dismissed);
   const hasUnread = visibleItems.some((i) => !i.read);
+  const isInstructorApp = autoscuolaRole === 'INSTRUCTOR' || autoscuolaRole === 'INSTRUCTOR_OWNER';
 
-  /* ── Scroll animation ── */
-  const scrollY = useSharedValue(0);
-  const headerH = insets.top + COMPACT_H;
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollY.value = e.contentOffset.y;
-    },
-  });
-  const largeTitleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
-    transform: [{ translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -10], Extrapolation.CLAMP) }],
-  }));
-  const compactStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
-  }));
-  const borderStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
-  }));
-  // Header background (blur + hairline) fades in only on scroll — at rest the top
-  // is clean white, no grey bar behind the status bar.
-  const headerBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  const renderItem = useCallback(
-    ({ item }: { item: PersistedNotification }) => (
-      <NotificationCard
-        item={item}
-        onTap={() => handleTap(item)}
-        onDismiss={() => handleDismiss(item.id)}
-      />
-    ),
-    [handleTap, handleDismiss],
-  );
+  const groups = useMemo(() => groupByDay(items.filter((i) => !i.dismissed)), [items]);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      {/* ── Sticky blur header ── */}
-      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]} pointerEvents="box-none">
-        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]} pointerEvents="none">
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.95)' }]} />
-          )}
-          <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, borderStyle]} />
-        </Animated.View>
-        <View style={styles.headerRow}>
-          {asTab ? (
-            <View style={styles.backBtn} />
-          ) : (
-            <Pressable onPress={() => router.back()} hitSlop={14} style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
-            </Pressable>
-          )}
-          <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>
-            Notifiche
-          </Animated.Text>
+    <GestureHandlerRootView style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Testata clay (come l'Agenda): titolo grande, riga grigia, azioni a destra. */}
+      <View style={styles.hd}>
+        {/* Indietro: sempre se spinta; nella app istruttore anche come tab,
+            perché lì «Notifiche» non è nella barra (si apre dalla campanella). */}
+        {!asTab || isInstructorApp ? (
+          <ClayIconButton
+            icon="back"
+            onPress={() => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/home'))}
+            accessibilityLabel="Indietro"
+            style={styles.back}
+            testID="inbox-back"
+          />
+        ) : null}
+        <View style={styles.hdTop}>
+          <View style={styles.hdTitles}>
+            <Text style={styles.title} accessibilityRole="header">
+              Notifiche
+            </Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {hasUnread ? 'Hai aggiornamenti da leggere' : 'Sei in pari'}
+            </Text>
+          </View>
           {hasUnread ? (
-            <Pressable onPress={handleMarkAllRead} hitSlop={8} style={styles.markAllBtn}>
-              <Text style={styles.markAllText}>Segna tutte</Text>
-            </Pressable>
-          ) : (
-            <View style={{ width: 80 }} />
-          )}
+            <ClayIconButton
+              icon={<Ionicons name="checkmark-done" size={20} color={CLAY.ink} />}
+              onPress={handleMarkAllRead}
+              accessibilityLabel="Segna tutte come lette"
+              testID="inbox-mark-all"
+            />
+          ) : null}
         </View>
       </View>
 
-      <Animated.FlatList
-        data={visibleItems}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.list, { paddingTop: headerH }]}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListHeaderComponent={
-          <Animated.View style={[styles.largeHeader, largeTitleStyle]}>
-            <Text style={styles.largeTitle}>Notifiche</Text>
-            <Text style={styles.largeSub}>
-              {hasUnread ? 'Hai aggiornamenti da leggere' : 'Sei in pari'}
-            </Text>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} />}
+      >
+        {groups.length === 0 ? (
+          <Animated.View entering={FadeIn.duration(250)} style={styles.empty}>
+            <ClayEmpty
+              icon={MORALE_ART.aeroplanino}
+              title="Nessuna notifica"
+              text="Avvisi su guide, scambi e disponibilità compariranno qui."
+            />
           </Animated.View>
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            progressViewOffset={headerH}
-          />
-        }
-        ListEmptyComponent={
-          <Animated.View entering={FadeIn.duration(250)} style={styles.emptyState}>
-            <View style={styles.emptyIconWrap}>
-              <Image source={require('../../assets/icons/fluent-bell.png')} style={styles.emptyIcon} />
-            </View>
-            <Text style={styles.emptyTitle}>Nessuna notifica</Text>
-            <Text style={styles.emptySub}>
-              Avvisi su guide, scambi e disponibilità{'\n'}compariranno qui.
-            </Text>
-          </Animated.View>
-        }
-      />
+        ) : (
+          groups.map((g, i) => (
+            <ClaySection key={g.key} title={g.title} style={i === 0 ? styles.firstSection : undefined}>
+              <ClayList>
+                {g.items.map((item) => (
+                  <NotificationCard
+                    key={item.id}
+                    item={item}
+                    onTap={() => handleTap(item)}
+                    onDismiss={() => handleDismiss(item.id)}
+                  />
+                ))}
+              </ClayList>
+            </ClaySection>
+          ))
+        )}
+      </ScrollView>
     </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: CLAY.bg },
 
-  /* Header */
-  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  headerBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: colors.textPrimary },
-  markAllBtn: { paddingHorizontal: 8, minWidth: 80, alignItems: 'flex-end' },
-  markAllText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  /* Testata */
+  hd: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },
+  back: { marginBottom: 12 },
+  hdTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hdTitles: { flex: 1, minWidth: 0 },
+  title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
+  sub: { fontSize: 15, color: CLAY.ink3, marginTop: 1 },
 
-  /* Large title */
-  largeTitle: { fontSize: 24, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
-  largeSub: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 4, marginBottom: 18 },
+  /* Lista */
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 20 },
+  firstSection: { marginTop: 18 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)', marginHorizontal: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18 },
+  rowPressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
+  rowMain: { flex: 1, minWidth: 0 },
+  rowTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
+  rowTitleRead: { fontWeight: '500', color: CLAY.ink3 },
+  rowSub: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 3 },
+  rowTime: { fontSize: 13.5, color: CLAY.ink3, alignSelf: 'flex-start', marginTop: 2 },
 
-  /* List */
-  list: { paddingBottom: 60 },
-  largeHeader: { paddingHorizontal: spacing.lg },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: spacing.lg + 42 + 13 },
+  /* Scorri per eliminare: testo rosso su bianco, niente bottone pieno. */
+  swipeActionPressable: { width: 84 },
+  swipeAction: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  swipeActionText: { fontSize: 12, fontWeight: '600', color: DESTRUCTIVE },
 
-  /* Row — flat, full-bleed, hairline divider (Airbnb inbox). No shadow → nothing
-     for the swipeable's overflow:hidden to clip. */
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingVertical: 15,
-    paddingHorizontal: spacing.lg,
-    gap: 13,
-    minHeight: 66,
-  },
-  cardPressed: { backgroundColor: '#F6F7F9' },
-  // Monochrome circular icon — navy-filled when unread (scannable), soft grey when read.
-  iconChip: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconChipUnread: { backgroundColor: colors.primary },
-  iconChipRead: { backgroundColor: '#F1F2F6' },
-  cardCenter: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  cardTitleRead: { color: '#484848' },
-  cardSubtitle: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
-  cardTimestamp: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
-
-  /* Swipe — flush flat action, full row height */
-  swipeActionPressable: { flex: 1, justifyContent: 'center', alignItems: 'center', width: 84 },
-  swipeAction: {
-    flex: 1,
-    backgroundColor: '#DC2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    gap: 3,
-  },
-  swipeActionText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.2 },
-
-  /* Empty */
-  emptyState: { alignItems: 'center', paddingTop: 70, paddingHorizontal: 24 },
-  emptyIconWrap: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  emptyIcon: { width: 46, height: 46 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  emptySub: { fontSize: 14, fontWeight: '400', color: colors.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: 8 },
+  /* Vuoto */
+  empty: { paddingTop: 40 },
 });

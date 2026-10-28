@@ -1488,7 +1488,7 @@ export const AllievoHomeScreen = () => {
           <Text style={styles.largeTitleText}>Ciao, {firstName}</Text>
           {activeCompanyName ? (
             <View style={styles.largeTitleSchoolRow}>
-              <Image source={require('../../assets/icons/fluent-pin.png')} style={styles.largeTitleSchoolIcon} />
+              <Image source={require('../../assets/icons3d-ai/pin.png')} style={styles.largeTitleSchoolIcon} />
               <Text style={[styles.largeTitleSub, { flexShrink: 1 }]} numberOfLines={1}>{activeCompanyName}</Text>
               {studentLicenseLabel ? (
                 <View style={styles.licensePill}>
@@ -1546,7 +1546,7 @@ export const AllievoHomeScreen = () => {
               >
                 <View style={styles.examHeroTop}>
                   <View style={styles.examHeroEyebrowRow}>
-                    <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examHeroIcon} />
+                    <Image source={require('../../assets/icons3d-ai/esame.png')} style={styles.examHeroIcon} />
                     <Text style={styles.examHeroEyebrow}>ESAME DI GUIDA</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
@@ -1611,7 +1611,7 @@ export const AllievoHomeScreen = () => {
               }}
               style={({ pressed }) => [styles.examCard, pressed && styles.ctaPressed]}
             >
-              <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examIcon} />
+              <Image source={require('../../assets/icons3d-ai/esame.png')} style={styles.examIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.examLabel}>Esame di guida</Text>
                 <Text style={styles.examDate}>
@@ -1814,7 +1814,7 @@ export const AllievoHomeScreen = () => {
               onPress={() => router.push('/(tabs)/home/swaps')}
               style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
             >
-              <Image source={require('../../assets/icons/fluent-swap.png')} style={styles.swapIcon} />
+              <Image source={require('../../assets/icons3d-ai/scambio.png')} style={styles.swapIcon} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.swapTitle}>Scambi</Text>
                 <Text style={styles.swapSub} numberOfLines={1}>
@@ -1842,7 +1842,7 @@ export const AllievoHomeScreen = () => {
               onPress={() => router.push('/(tabs)/home/group-lesson-invites')}
               style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
             >
-              <Image source={require('../../assets/icons/fluent-people.png')} style={styles.groupIcon} />
+              <Image source={require('../../assets/icons3d-ai/persone.png')} style={styles.groupIcon} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.swapTitle}>Guide di gruppo</Text>
                 <Text style={styles.swapSub} numberOfLines={1}>

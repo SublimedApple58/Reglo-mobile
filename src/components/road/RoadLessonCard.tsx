@@ -9,7 +9,15 @@ import { ROAD_ASSETS } from '../../road/markerArt';
 import { formatKm, formatMinutes } from '../../road/format';
 import { openRoadPercorso } from '../../road/openRoadPercorso';
 import { RoadRouteMap } from './RoadMiniMap';
-import { countSentiments, SENTIMENT_BAD, SENTIMENT_GOOD, SentimentCounts } from './RoadSentiment';
+import { countSentiments, SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
+import { ClayButton, ClaySurface } from '../clay';
+import { CLAY } from '../../theme/clay';
+
+/** «1 positiva · 2 da migliorare», solo testo (REG-639: niente puntini colorati). */
+const sentimentText = ({ good, bad }: { good: number; bad: number }) =>
+  [good ? `${good} ${good === 1 ? 'positiva' : 'positive'}` : null, bad ? `${bad} da migliorare` : null]
+    .filter(Boolean)
+    .join(' · ');
 
 /**
  * REG-638 — percorso Road della guida dentro il dettaglio guida dell'istruttore:
@@ -46,8 +54,10 @@ export function RoadLessonCard({
 
   if (!detail || detail.status === 'active') return null;
 
+  const sentiments = sentimentText(countSentiments(detail.markers));
+
   return (
-    <View style={s.card} testID="road-lesson-card">
+    <ClaySurface padded={false} style={s.card} testID="road-lesson-card">
       <RoadRouteMap track={detail.track} markers={detail.markers} style={s.mini} />
       <View style={s.head}>
         <View style={s.headL}>
@@ -58,16 +68,16 @@ export function RoadLessonCard({
           {formatKm(detail.distanceMeters)} km · {formatMinutes(detail.durationSec)} min
         </Text>
       </View>
-      <SentimentCounts {...countSentiments(detail.markers)} style={s.counts} />
-      <Pressable
+      {sentiments ? <Text style={s.counts}>{sentiments}</Text> : null}
+      <ClayButton
+        title="Apri percorso e segnalazioni"
+        variant="secondary"
+        compact
         onPress={() => void openRoadPercorso(router, 'home', appointmentId, detail)}
-        style={({ pressed }) => [s.open, pressed && { opacity: 0.7 }]}
-        accessibilityRole="button"
+        style={s.open}
         testID="road-lesson-open"
-      >
-        <Text style={s.openTx}>Apri percorso e segnalazioni</Text>
-      </Pressable>
-    </View>
+      />
+    </ClaySurface>
   );
 }
 
@@ -110,28 +120,15 @@ export function RoadHistoryChip({
 }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 24, backgroundColor: '#F7F7F5', padding: 8, paddingBottom: 8 },
-  mini: { height: 150, borderRadius: 18 },
+  card: { padding: 8, paddingBottom: 12 },
+  mini: { height: 150, borderRadius: 20 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 12 },
   headL: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headImg: { width: 22, height: 22 },
-  headTx: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  headMeta: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A' },
-  counts: { paddingHorizontal: 8, marginTop: 6 },
-  open: {
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  openTx: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  headTx: { fontSize: 16, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  headMeta: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3 },
+  counts: { paddingHorizontal: 8, marginTop: 6, fontSize: 13.5, color: CLAY.ink3, letterSpacing: -0.1 },
+  open: { marginTop: 14, marginHorizontal: 4 },
   chip: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

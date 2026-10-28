@@ -362,7 +362,7 @@ export const SwapOffersScreen = () => {
           <Animated.View entering={FadeIn.duration(250)} style={st.emptyState}>
             <View style={st.emptyIconWrap}>
               <Image
-                source={require('../../assets/icons/fluent-swap.png')}
+                source={require('../../assets/icons3d-ai/scambio.png')}
                 style={st.emptyIcon}
               />
             </View>

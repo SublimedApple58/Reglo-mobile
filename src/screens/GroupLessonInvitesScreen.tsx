@@ -13,7 +13,7 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import type { AutoscuolaStudent, GroupLessonInvite } from '../types/regloApi';
 
-const FLUENT_PEOPLE = require('../../assets/icons/fluent-people.png');
+const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
 const NAVY = '#111111';
 const NAVY_400 = '#6A6A6A';
 const NAVY_50 = '#F4F4F4';
@@ -132,7 +132,7 @@ export const GroupLessonInvitesScreen = () => {
         <View style={s.center}><ActivityIndicator color={colors.primary} /></View>
       ) : invites.length === 0 ? (
         <View style={s.center}>
-          <Image source={FLUENT_PEOPLE} style={{ width: 56, height: 56, opacity: 0.5 }} />
+          <Image source={ART_PERSONE} style={{ width: 56, height: 56, opacity: 0.5 }} />
           <Text style={s.emptyTitle}>Nessun invito</Text>
           <Text style={s.emptySub}>Quando l'autoscuola apre una guida di gruppo per te, la troverai qui.</Text>
         </View>

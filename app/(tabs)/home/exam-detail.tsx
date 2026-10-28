@@ -39,7 +39,7 @@ export default function ExamDetailScreen() {
       <SheetScaffold contentContainerStyle={s.scaffoldBody}>
       {/* Purple hero */}
       <View style={s.hero}>
-        <Image source={require('../../../assets/icons/fluent-graduate.png')} style={s.heroIcon} />
+        <Image source={require('../../../assets/icons3d-ai/esame.png')} style={s.heroIcon} />
         <View style={{ flex: 1 }}>
           <Text style={s.heroLabel}>Esame di guida</Text>
           <Text style={s.heroTime}>
