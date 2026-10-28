@@ -14,6 +14,35 @@ import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
 import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
+import { useTabBarHeight } from '../../src/components/tabBarSpace';
+
+/**
+ * Tab bar «B · vetro» (Tiziano 28/10): la barra sta sopra le schermate. Solo le
+ * radici dell'app istruttore scorrono sotto il vetro (si tengono lo spazio da
+ * sé, `useTabBarOverlap`); qualsiasi pagina a schermo pieno aperta sopra ha lo
+ * spazio riservato qui. I fogli (form sheet, modali) non contano: aprirli non
+ * cambia il layout della radice sotto.
+ */
+const UNDER_GLASS_TABS = new Set(['home', 'drive', 'notes', 'more']);
+const FULL_PAGES = new Set([
+  'availability', 'notifications', 'swaps', 'group-lesson-invites',
+  'cluster-settings',
+  'settings', 'appearance', 'instructor-hours', 'instructors-overview', 'locations', 'vehicles', 'evaluation-sheet',
+]);
+
+type NestedState = { routes?: { name: string }[]; index?: number } | undefined;
+
+/** La pagina «di carta» in cima alla pila della tab (ignora fogli e modali). */
+function topPageIsRoot(state: NestedState): boolean {
+  const routes = state?.routes ?? [];
+  const top = Math.min(state?.index ?? routes.length - 1, routes.length - 1);
+  for (let i = top; i >= 0; i -= 1) {
+    const name = routes[i]?.name;
+    if (name === 'index') return true;
+    if (name && FULL_PAGES.has(name)) return false;
+  }
+  return true;
+}
 
 
 /* ── Layout ── */
@@ -51,6 +80,7 @@ export default function TabsLayout() {
   const showInboxTab =
     !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
   const isOwner = autoscuolaRole === 'OWNER';
+  const tabBarHeight = useTabBarHeight();
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
   // filter reliably (expo-router descriptors don't update reactively).
@@ -110,7 +140,15 @@ export default function TabsLayout() {
             instructorApp={instructorApp}
           />
         )}
-        screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+        screenOptions={({ route }) => {
+          const underGlass =
+            instructorApp && UNDER_GLASS_TABS.has(route.name) && topPageIsRoot((route as { state?: NestedState }).state);
+          return {
+            headerShown: false,
+            tabBarHideOnKeyboard: true,
+            sceneStyle: { paddingBottom: underGlass ? 0 : tabBarHeight, backgroundColor: '#FFFFFF' },
+          };
+        }}
       >
         <Tabs.Screen name="home" options={{ title: instructorApp ? 'Agenda' : 'Home' }} />
         <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />

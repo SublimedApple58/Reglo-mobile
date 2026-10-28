@@ -42,6 +42,7 @@ import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, blockLabel, guideLook } from '../utils/agendaLook';
 import { CLAY_SHADOW } from '../theme/clay';
+import { useTabBarOverlap } from './tabBarSpace';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -663,6 +664,8 @@ const WeekPage = React.memo(function WeekPage({
   canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick,
   refreshing, onRefresh,
 }: WeekPageProps) {
+  // Tab bar in vetro sopra la griglia: l'ultima ora resta raggiungibile.
+  const barOverlap = useTabBarOverlap();
   const colX = (i: number) => GUTTER_W + i * (colW + COL_GAP);
   const gridHeight = (LAST_HOUR - FIRST_HOUR) * ROW_H;
 
@@ -964,7 +967,7 @@ const WeekPage = React.memo(function WeekPage({
       <ScrollView
         style={styles.scrollView}
         nestedScrollEnabled
-        contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 110, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
+        contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 110 + barOverlap, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           onRefresh ? (

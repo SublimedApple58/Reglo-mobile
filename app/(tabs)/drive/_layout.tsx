@@ -22,6 +22,7 @@ export default function DriveLayout() {
       <Stack.Screen name="appena-finita" options={FORM_SHEET} />
       {/* «Compila il pagellino» dalla tab: lo stack /road esiste solo in guida. */}
       <Stack.Screen name="pagellino" options={FORM_SHEET} />
+      <Stack.Screen name="note" options={FORM_SHEET} />
       {/* «Ultime guide»: percorso della guida e mappa a tutto schermo, come in home. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />

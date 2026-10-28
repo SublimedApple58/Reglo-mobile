@@ -14,6 +14,7 @@ import { endRoad, undoRoadFree, undoRoadMarker } from '../../src/road/roadAction
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT } from '../../src/road/motion';
 import { openRoadPagellino } from '../../src/road/pagellino';
+import { openRoadNotes, prefetchRoadNotes } from '../../src/road/roadNotes';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
 import { SentimentBadge } from '../../src/components/road/RoadSentiment';
@@ -79,6 +80,11 @@ export default function RoadScreen() {
   const session = st.session;
   const lesson = session?.lesson ?? null;
   const fix = st.fix;
+
+  // La nota della guida si carica subito: il foglio «Note» si apre senza attese.
+  useEffect(() => {
+    prefetchRoadNotes(lesson);
+  }, [lesson]);
 
   // La camera segue l'auto, orientata nella direzione di marcia.
   useEffect(() => {
@@ -287,6 +293,17 @@ export default function RoadScreen() {
             </Text>
           </View>
         </View>
+        {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
+        <Pressable
+          onPress={() => void openRoadNotes(router, lesson)}
+          style={({ pressed }) => [s.noteBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+          accessibilityRole="button"
+          accessibilityLabel="Note sulla guida"
+          hitSlop={4}
+          testID="road-note"
+        >
+          <Ionicons name="create-outline" size={20} color="#111111" />
+        </Pressable>
         {st.evaluationEnabled ? (
           <Pressable
             onPress={() => openRoadPagellino(router, lesson, { showStayChip: true })}
@@ -432,6 +449,7 @@ const s = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: CLAY.surface,
   },
+  noteBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: CLAY.surface },
   pgTx: { fontSize: 14.5, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
 
   toast: {

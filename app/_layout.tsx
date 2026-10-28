@@ -21,6 +21,9 @@ import {
 } from '../src/utils/pendingInstructorLink';
 import { colors } from '../src/theme';
 import { RoadController } from '../src/road/RoadController';
+import Animated, { FadeOut, ReduceMotion } from 'react-native-reanimated';
+import { useAutoscuolaSettings } from '../src/hooks/queries/useAutoscuolaSettings';
+import { isInstructor } from '../src/utils/roles';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,14 +175,32 @@ const AuthGate = () => {
       .catch(() => undefined);
   }, [autoscuolaRole, router, segments, status]);
 
-  if (status === 'loading') {
-    return <LoadingScreen />;
-  }
+  // Giro Road (Tiziano 28/10): l'istruttore vede la tab bar già giusta. Al
+  // primo avvio senza impostazioni in cache il velo di caricamento resta finché
+  // non arrivano (max ~1,5 s), poi sparisce in dissolvenza: la barra si compone
+  // sotto con lo stato noto. Con la cache le impostazioni ci sono subito.
+  const settings = useAutoscuolaSettings();
+  const [veilTimedOut, setVeilTimedOut] = useState(false);
+  const waitSettings = status === 'ready' && isInstructor(autoscuolaRole) && settings.data === undefined && !veilTimedOut;
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const t = setTimeout(() => setVeilTimedOut(true), 1500);
+    return () => clearTimeout(t);
+  }, [status]);
 
   return (
     <>
-      <Slot />
-      <RoadController />
+      {status !== 'loading' ? (
+        <>
+          <Slot />
+          <RoadController />
+        </>
+      ) : null}
+      {status === 'loading' || waitSettings ? (
+        <Animated.View style={StyleSheet.absoluteFill} exiting={FadeOut.duration(200).reduceMotion(ReduceMotion.Never)}>
+          <LoadingScreen />
+        </Animated.View>
+      ) : null}
     </>
   );
 };

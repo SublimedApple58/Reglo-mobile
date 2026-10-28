@@ -17,6 +17,7 @@ import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { ClayButton, ClayStat, ClaySurface } from '../../src/components/clay';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
+import { RoadNotesCard } from '../../src/components/road/RoadNotesCard';
 
 type EvalState = { enabled: boolean; total: number; done: number } | null;
 
@@ -127,6 +128,11 @@ export default function RiepilogoScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Giro Road: le note subito alla fine, sotto il pagellino. */}
+        <Animated.View entering={roadEnter(200)} layout={ROAD_LAYOUT}>
+          <RoadNotesCard router={router} lesson={lesson} route="/road/note" style={showPagellino ? s.notesGap : undefined} />
+        </Animated.View>
+
         <ClayButton variant="secondary" title="Chiudi" onPress={close} style={s.closeBtn} testID="road-summary-close" />
       </Animated.View>
         </>
@@ -194,4 +200,5 @@ const s = StyleSheet.create({
   pgBtn: { alignSelf: 'center', paddingHorizontal: 18, height: 40, borderRadius: 20 },
   // CTA secondaria a capsula: ultima cosa del foglio.
   closeBtn: { marginTop: 14 },
+  notesGap: { marginTop: 10 },
 });

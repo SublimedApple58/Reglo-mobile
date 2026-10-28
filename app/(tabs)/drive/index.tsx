@@ -46,6 +46,7 @@ import {
   roadStagger,
 } from '../../../src/road/motion';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
+import { useTabBarOverlap } from '../../../src/components/tabBarSpace';
 
 const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
@@ -70,6 +71,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 export default function RoadTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const barOverlap = useTabBarOverlap();
   const { height } = useWindowDimensions();
   // Solo fase e sessione: la tab non si ridisegna a ogni fix GPS.
   const roadPhase = useRoadSelector((s) => s.phase);
@@ -190,7 +192,7 @@ export default function RoadTab() {
         style={{ flex: 1 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingBottom: 28 }}
+        contentContainerStyle={{ paddingBottom: 28 + barOverlap }}
         showsVerticalScrollIndicator={false}
         testID="road-tab"
       >

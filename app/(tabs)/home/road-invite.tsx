@@ -59,6 +59,8 @@ export default function RoadInviteSheet() {
       <View style={s.stack}>
         <ClayButton title="Entra in Road" onPress={onEnter} testID="road-invite-enter" />
         <ClayButton variant="secondary" title="Non ora" onPress={onLater} testID="road-invite-later" />
+        {/* Giro Road (Tiziano 28/10): dopo «Non ora» si deve sapere come tornarci. */}
+        <Text style={s.laterHint}>La ritrovi toccando la guida in agenda</Text>
       </View>
         </>
       }
@@ -93,4 +95,5 @@ const s = StyleSheet.create({
   features: { marginTop: 20, marginHorizontal: 4, gap: 10, marginBottom: 4 },
   featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
   stack: { gap: 12 },
+  laterHint: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, textAlign: 'center', marginTop: -2 },
 });

@@ -14,6 +14,7 @@ import { optionsPickerPath, optionsPickerStore } from '../../../src/stores/optio
 import { regloApi } from '../../../src/services/regloApi';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClayIconButton, ClayList, ClayListRow, ClayPressable, Icon3D } from '../../../src/components/clay';
+import { PlayGlyph } from '../../../src/components/clay/ClayButton';
 import { VITA_ART } from '../../../src/theme/vitaArt';
 import { evaluationSummary, evaluationSummaryLabel } from '../../../src/utils/evaluationSheet';
 import { LESSON_TYPE_OPTIONS, normalizeLessonType } from '../../../src/utils/lessonTypes';
@@ -25,6 +26,9 @@ import { SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/mot
 import { CLAY } from '../../../src/theme/clay';
 import { RoadLessonCard } from '../../../src/components/road/RoadLessonCard';
 import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
+import { useRoadSelector } from '../../../src/road/roadStore';
+import { SHEET_HANDOFF_MS, beginRoadEntry } from '../../../src/road/entryFlow';
+import * as Haptics from '../../../src/utils/haptics';
 
 const DANGER = '#C13515';
 
@@ -71,6 +75,9 @@ function ActionList({
  *   compaiono con una dissolvenza morbida, l'altezza scivola (niente pillole);
  * - senza Presente/Assente: le azioni direttamente;
  * - guida passata (correzione): «Correggi esito» + «Elimina guida».
+ * Giro Road (Tiziano 28/10): se è la guida che Road può avviare adesso, in
+ * cima «Avvia con Road» (primaria nera) e Presente/Assente scendono a
+ * secondarie affiancate: così chi ha detto «Non ora» all'invito ci ritorna.
  */
 function LessonActions({
   correctionMode,
@@ -82,7 +89,9 @@ function LessonActions({
   onAssente,
   onCorrect,
   onAction,
+  onRoad,
 }: {
+  onRoad?: (() => void) | null;
   correctionMode: boolean;
   showStatusActions: boolean;
   allowPresente: boolean;
@@ -119,10 +128,21 @@ function LessonActions({
     onAction(key);
   };
 
+  const roadButton = onRoad ? (
+    <ClayButton
+      title="Avvia con Road"
+      leading={<PlayGlyph />}
+      onPress={onRoad}
+      disabled={isPending}
+      testID="manage-lesson-road"
+    />
+  ) : null;
+
   // Niente Presente/Assente: le azioni si vedono subito (c'è posto).
   if (!showStatusActions) {
     return (
       <View style={s.ctaCol}>
+        {roadButton}
         <ActionList options={others} onAction={onAction} />
         {danger ? <DeleteAction onPress={() => onAction(danger.key)} disabled={isPending} /> : null}
       </View>
@@ -130,25 +150,42 @@ function LessonActions({
   }
 
   const hasMore = others.length > 0;
+  const presente = allowPresente ? (
+    <ClayButton
+      title="Presente"
+      variant={roadButton ? 'secondary' : 'primary'}
+      onPress={onPresente}
+      loading={pendingAction === 'checked_in'}
+      disabled={isPending}
+      style={roadButton ? s.half : undefined}
+      testID="manage-lesson-presente"
+    />
+  ) : null;
+  const assente = (
+    <ClayButton
+      title="Assente"
+      variant="secondary"
+      onPress={onAssente}
+      loading={pendingAction === 'no_show'}
+      disabled={isPending}
+      style={roadButton && presente ? s.half : undefined}
+      testID="manage-lesson-assente"
+    />
+  );
   return (
     <View style={s.ctaCol}>
-      {allowPresente ? (
-        <ClayButton
-          title="Presente"
-          onPress={onPresente}
-          loading={pendingAction === 'checked_in'}
-          disabled={isPending}
-          testID="manage-lesson-presente"
-        />
-      ) : null}
-      <ClayButton
-        title="Assente"
-        variant="secondary"
-        onPress={onAssente}
-        loading={pendingAction === 'no_show'}
-        disabled={isPending}
-        testID="manage-lesson-assente"
-      />
+      {roadButton}
+      {roadButton && presente ? (
+        <View style={s.statusRow}>
+          {presente}
+          {assente}
+        </View>
+      ) : (
+        <>
+          {presente}
+          {assente}
+        </>
+      )}
       {hasMore ? (
         <>
           <ClayPressable
@@ -180,6 +217,8 @@ function LessonActions({
 export default function ManageLessonScreen() {
   const router = useRouter();
   const { enabled: roadEnabled } = useRoadEnabled();
+  const roadEligible = useRoadSelector((st) => st.eligible);
+  const roadPhase = useRoadSelector((st) => st.phase);
   const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
 
   // Tell the parent when this route is dismissed (popped), then clear the store.
@@ -377,7 +416,22 @@ export default function ManageLessonScreen() {
     !readOnly && lesson.type !== 'esame' && lessonDone && !evalRecap && !(lesson.notes && lesson.notes.trim());
   const firstName = lesson.student?.firstName?.trim() || null;
 
-  const showBottom = showStatusActions || hasMenu;
+  // Giro Road: la guida che Road può avviare adesso (stesso criterio
+  // dell'invito, deciso dal server: esclude esami e guide di gruppo).
+  const roadLesson =
+    roadEnabled && roadPhase === 'idle' && !readOnly && !correctionMode && roadEligible?.appointmentId === lesson.id
+      ? roadEligible
+      : null;
+  const startRoad = roadLesson
+    ? () => {
+        if (isPending) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+        router.back();
+        setTimeout(() => void beginRoadEntry(router, roadLesson), SHEET_HANDOFF_MS);
+      }
+    : null;
+
+  const showBottom = showStatusActions || hasMenu || !!startRoad;
   const statusText = stateMeta ? stateMeta.label : stateLabel;
   const metaLine =
     `${formatDay(lesson.startsAt)} · ${formatTime(lesson.startsAt)}` +
@@ -421,6 +475,7 @@ export default function ManageLessonScreen() {
             onAssente={() => handleStatus('no_show')}
             onCorrect={openCorrect}
             onAction={runMenu}
+            onRoad={startRoad}
           />
         ) : undefined
       }
@@ -560,6 +615,8 @@ const s = StyleSheet.create({
 
   // Azioni in fondo
   ctaCol: { gap: 10 },
+  statusRow: { flexDirection: 'row', gap: 10 },
+  half: { flex: 1 },
   textAction: { alignItems: 'center', paddingVertical: 10 },
   textActionTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink2 },
 });

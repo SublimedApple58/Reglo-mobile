@@ -17,6 +17,7 @@ export default function RoadLayout() {
           Si chiudono solo con la X; il riepilogo esce da Road. */}
       <Stack.Screen name="segnala" options={FORM_SHEET} />
       <Stack.Screen name="pagellino" options={FORM_SHEET} />
+      <Stack.Screen name="note" options={FORM_SHEET} />
       <Stack.Screen name="riepilogo" options={FORM_SHEET} />
     </Stack>
   );

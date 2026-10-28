@@ -217,3 +217,10 @@ sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
   della stessa misura e compare in dissolvenza.
 - **Riepilogo**: trascinarlo giù = «Chiudi» (`FormSheet closeOnGesture`: esce da
   Road); «Avvia guida» non si chiude col gesto mentre parte (`busy`).
+
+## Giro Road (28/10/2026 sera)
+
+- **Note sulla guida dentro Road**: tasto matita in testata (`app/road/index.tsx`, `road-note`) durante la guida; riga «Note sulla guida» (`RoadNotesCard`) nel riepilogo e in «Appena finita». Stesso campo `appointment.notes` (lo vede anche l'allievo: il foglio lo dice) e stesso foglio `edit-notes` (ri-esportato come `road/note` e `drive/note`). La nota esistente si legge con `getAppointments` (allievo + orario) e resta in `src/road/roadNotes.ts`. Nessun cambio backend.
+- **«Avvia con Road» nel foglio della guida** (`home/manage-lesson.tsx`): solo se Road è acceso, fase `idle` e `roadStore.eligible.appointmentId === lesson.id` (stesso criterio dell'invito, deciso dal server). Presente/Assente scendono a secondarie affiancate. Sotto «Non ora» dell'invito: «La ritrovi toccando la guida in agenda».
+- **Tab Road senza salto all'avvio**: `roadStore.roadKnown`; finché `/road/state` non risponde, `useInstructorTabs` usa `roadEnabled` dalle impostazioni persistite.
+

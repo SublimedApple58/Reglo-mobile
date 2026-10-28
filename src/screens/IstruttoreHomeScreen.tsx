@@ -68,6 +68,7 @@ import { AvailabilityButton, InboxBellButton } from '../components/InboxBellButt
 import { prefetchRoadForAppointment } from '../road/roadAppointmentQuery';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { useInstructorTabs } from '../hooks/useInstructorTabs';
+import { useTabBarOverlap } from '../components/tabBarSpace';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
 
@@ -2145,6 +2146,7 @@ const FabMenu = ({
   onSickLeave: () => void;
 }) => {
   const router = useRouter();
+  const barOverlap = useTabBarOverlap();
   const fabScale = useSharedValue(1);
   const fabStyle = useAnimatedStyle(() => ({ transform: [{ scale: fabScale.value }] }));
 
@@ -2169,7 +2171,7 @@ const FabMenu = ({
       onPress={disabled ? undefined : openMenu}
       onPressIn={() => { fabScale.value = withTiming(0.92, { duration: 90 }); }}
       onPressOut={() => { fabScale.value = withTiming(1, { duration: 120 }); }}
-      style={[styles.fab, disabled && { opacity: 0.5 }, fabStyle]}
+      style={[styles.fab, { bottom: 24 + barOverlap }, disabled && { opacity: 0.5 }, fabStyle]}
       testID="agenda-fab"
       accessibilityLabel="Nuovo"
     >

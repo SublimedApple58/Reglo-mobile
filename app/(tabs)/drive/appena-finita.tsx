@@ -10,6 +10,7 @@ import { lessonStudentName } from '../../../src/road/roadStore';
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { roadFreeStore } from '../../../src/road/freeStartStore';
 import { SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
+import { RoadNotesCard } from '../../../src/components/road/RoadNotesCard';
 
 /**
  * «Appena finita» (Tiziano 28/10/2026): la guida appena chiusa col pagellino
@@ -61,7 +62,10 @@ export default function RoadAppenaFinitaSheet() {
           </ClayPressable>
         </>
       }
-    />
+    >
+      {/* Giro Road (Tiziano 28/10): le note subito alla fine, nello stesso foglio. */}
+      <RoadNotesCard router={router} lesson={seed.lesson} route="/(tabs)/drive/note" />
+    </FormSheet>
   );
 }
 

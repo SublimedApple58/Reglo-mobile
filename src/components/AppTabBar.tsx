@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   interpolate,
+  LinearTransition,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import { setTabBarBodyHeight } from './tabBarSpace';
 
 /* ── Icon map: outline (inactive) → filled (active) ── */
 
@@ -33,8 +39,14 @@ const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
   },
 };
 
+// Se l'insieme delle voci cambia (es. Road acceso/spento mentre l'app è
+// aperta) le voci scivolano al loro posto e la nuova entra in dissolvenza.
+const TAB_LAYOUT = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never);
+const TAB_IN = FadeIn.duration(220).reduceMotion(ReduceMotion.Never);
+const TAB_OUT = FadeOut.duration(160).reduceMotion(ReduceMotion.Never);
+
 const ACTIVE = '#111111';
-const INACTIVE = '#8E8E93';
+const INACTIVE = '#9A9A9F';
 
 /**
  * Istruttore (REG-638, «T1 piatta»): Agenda · Road · Allievi · Tu, glifi in
@@ -80,6 +92,7 @@ const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, 
   const iconName = isFocused && filled in Ionicons.glyphMap ? filled : outline;
 
   return (
+    <Animated.View style={st.tabSlot} layout={TAB_LAYOUT} entering={TAB_IN} exiting={TAB_OUT}>
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: isFocused }}
@@ -92,7 +105,7 @@ const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, 
       <Animated.View style={iconStyle}>
         <Ionicons
           name={iconName}
-          size={25}
+          size={26}
           color={isFocused ? ACTIVE : INACTIVE}
         />
         {badgeCount > 0 ? (
@@ -111,6 +124,7 @@ const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, 
         {label}
       </Text>
     </Pressable>
+    </Animated.View>
   );
 };
 
@@ -151,8 +165,20 @@ export const AppTabBar = ({
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   useEffect(() => setPressedKey(null), [state.index]);
 
+  const bottomPad = Math.max(insets.bottom, 8);
   return (
-    <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    // «B · vetro a tutta larghezza» (Tiziano 28/10): la barra sta sopra le
+    // schermate; dietro, su iOS il materiale sfocato di sistema, su Android un
+    // bianco quasi pieno (il blur Android costa troppo). Niente riga dura.
+    <View
+      style={[st.bar, { paddingBottom: bottomPad }]}
+      onLayout={(e) => setTabBarBodyHeight(e.nativeEvent.layout.height - bottomPad)}
+    >
+      {Platform.OS === 'ios' ? (
+        <BlurView pointerEvents="none" tint="systemChromeMaterialLight" intensity={100} style={StyleSheet.absoluteFill} />
+      ) : null}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, Platform.OS === 'ios' ? st.veilIos : st.veilAndroid]} />
+      <View pointerEvents="none" style={st.edge} />
       <View style={st.row}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
@@ -222,21 +248,27 @@ export const AppTabBar = ({
 /* ── Styles ── */
 
 const st = StyleSheet.create({
-  // «T1 piatta»: barra bianca piatta con un filo sottile in alto; niente vetro, niente ombre.
+  // «B · vetro a tutta larghezza»: sopra le schermate, il contenuto scorre sotto.
   bar: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.14)',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingTop: 7,
   },
+  veilIos: { backgroundColor: 'rgba(255,255,255,0.55)' },
+  veilAndroid: { backgroundColor: 'rgba(255,255,255,0.96)' },
+  // Filo appena percettibile (era 0.14 e pieno): separa senza tagliare.
+  edge: { position: 'absolute', left: 0, right: 0, top: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.08)' },
   row: {
     flexDirection: 'row',
   },
+  tabSlot: { flex: 1 },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
     paddingVertical: 2,
   },
   tabLabel: {
