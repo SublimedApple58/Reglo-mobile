@@ -1,16 +1,23 @@
 # REG-639 — giro «memorabile»: vita dosata per importanza
 
-**Stato:** passo 1 (analisi) approvato come direzione da Tiziano il 28/10/2026;
-il giudizio vero è sulle anteprime. **Passo 2 fatto, in attesa dell'ok**:
-Pagamenti + dettaglio allievo, salvadanaio normale e pieno (Gemini, §0.9,
-`assets/vita/salvadanaio*.png`, 76 pt). Tavole prima/dopo in
-`/tmp/hiro-anteprime/memorabile/1-…4-*.png`; originali Gemini e prompt in
-`/tmp/hiro-anteprime/memorabile/icone/`. Niente merge/push/OTA.
+**Stato (28/10 sera): tutto il piano implementato, in attesa dell'ok di
+Tiziano per il rilascio unico** (niente merge/push/OTA prima). Branch
+`feat/reg-639-memorabile`. Tavole prima/dopo: `/tmp/hiro-anteprime/memorabile/`
+1 Pagamenti · 2 dettaglio allievo · 3 storico · 4 icone · 5 Agenda · 6 Allievi ·
+7 dettaglio guida · 8 Road · 9 Disponibilità · 10 Tu · 11 Ore di guida · 12 Il
+mio gruppo · 13 Pagellino. Originali Gemini e prompt in
+`/tmp/hiro-anteprime/memorabile/icone/`.
 
-Note del passo 2: «Tutto saldato» catturato forzando solo il riepilogo in
-locale (nessun allievo in pari, niente scritture su prod); il salvadanaio pieno
-è stato generato allegando il primo come terza reference, per avere la stessa
-forma.
+**Correzioni di Tiziano al passo 2** («perfetto», 28/10): (1) via TOTALMENTE il
+blocco guide obbligatorie dal dettaglio allievo (né trofeo, né barra, né «6 di
+6»); (2) salvadanaio sulla riga Pagamenti a 46 pt.
+
+**Scostamenti dal piano**: niente mazzo di chiavi 3D (Road non ha uno stato vuoto
+che lo giustifichi: meno icone); Road tiene la miniatura di mappa quando la
+guida ha un percorso vero, l'auto 3D solo senza percorso; Allievi senza guide
+future né da pagare tiene il contatore guide. Nessuna icona nuova oltre ai due
+salvadanai. «Tutto saldato» catturato forzando solo il riepilogo in locale
+(nessun allievo in pari; niente scritture su prod).
 
 Feedback di partenza (Tiziano, 28/10/2026): le schermate sono corrette ma
 **asettiche** (es. il foglio Pagamenti appena rifatto): non aiutano a capire

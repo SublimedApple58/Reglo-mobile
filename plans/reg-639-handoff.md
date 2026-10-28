@@ -56,6 +56,19 @@ Altro da pulire (solo con l'ok di Tiziano): simulatore «Reglo Vita (Claude)»
 `allievi`, `allievi-feedback`, `pagamenti`, `pagamenti-feedback`), branch locale
 `feat/reg-639-clay-ds`.
 
+## Giro «memorabile» (28/10 sera) — in attesa dell'ok di Tiziano
+
+Branch `feat/reg-639-memorabile`, worktree `reglo-mobile-worktrees/reg-639-memorabile`
+(da `origin/master` `24d8fc8`), **non mergiato, niente OTA**. Piano e stato in
+`plans/design-system/reg-639-memorabile.md`; tavole prima/dopo in
+`/tmp/hiro-anteprime/memorabile/` (1–13). Rilascio unico dopo l'ok.
+
+**Metro da un worktree nuovo con `node_modules` linkati a `../reg-638`: la
+prima volta va avviato con `--clear`** (`env -u EXPO_PUBLIC_API_URL npx expo
+start --port 8081 --clear`), altrimenti l'app mostra «Welcome to Expo» (il
+bundle non trova la cartella `app`). Copiare anche `.env.local` da un altro
+worktree. Il simulatore si ricollega con `xcrun simctl terminate` + `launch`.
+
 ## Cosa resta
 
 1. **App allievo, testata**: le schermate intere dello studente (Impostazioni,

@@ -85,6 +85,30 @@ Dove sta oggi:
   scambio). **Dettaglio allievo**: volto grande, tre statistiche con volante,
   stella, orologio.
 
+Giro «memorabile» (28/10/2026, piano `plans/design-system/reg-639-memorabile.md`):
+ogni schermata dice **il prossimo passo** con una frase e un numero, e ha un
+piccolo momento di gioia dove c'è un traguardo vero.
+- **Pagamenti**: hero col salvadanaio 3D («3 guide da pagare», la più vecchia),
+  «Spunta la casella quando Serena ti paga», si apre su «Da pagare»; spuntata
+  l'ultima passa in dissolvenza a «Tutto saldato» col salvadanaio pieno; in
+  «Tutte» i mesi vecchi senza niente da riscuotere sono piegati.
+- **Dettaglio allievo**: «Prossima guida …» sotto il nome; riga Pagamenti con
+  «3 guide da pagare» in nero 600 e salvadanaio 46 pt. **Niente blocco guide
+  obbligatorie** (tolto per scelta di Tiziano: né barra, né trofeo, né «6 di 6»).
+  Nello storico, senza note resta solo la matita.
+- **Agenda**: la card «Oggi» segue la giornata (la prima con chi, quella in
+  corso e quando finisce, la prossima, domani); a giornata finita l'espresso.
+- **Allievi**: seconda riga = prossima guida / esame e «N da pagare» in nero;
+  in cima i volti di chi guida con te questa settimana.
+- **Dettaglio guida**: guida fatta e non valutata → «Com'è andata Marco?» con la
+  stella 3D al posto di «Dettagli guida»; l'anello ha l'etichetta.
+- **Road**: «Ultime guide» senza percorso = auto 3D nel colore del veicolo;
+  segnalazioni a parole («1 da ripassare» in nero, «1 fatta bene»).
+- **Disponibilità** «55 h a settimana · 5 giorni»; **Tu** e **Ore di guida**: una
+  frase di confronto col periodo prima allo stesso punto, solo se positiva (mai
+  «meno di…»); **Il mio gruppo**: «Condividi» il codice d'invito; **Pagellino**:
+  la scala a parole («da 1 a 5 stelle») al posto delle stelle gialle.
+
 ### 0.3 Token — `src/theme/clay.ts`, `src/theme/spacing.ts`
 
 | Token | Valore | Uso |
@@ -284,7 +308,7 @@ nell'app allievo**, in attesa del suo giro.
 
 | Set | File | Registro | Dove |
 |---|---|---|---|
-| «Vita» | `assets/vita/` calendario, volante, esame (= pagellino), edificio, termometro, stella, orologio, campanella; foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia |
+| «Vita» | `assets/vita/` calendario, volante, esame (= pagellino), edificio, termometro, stella, orologio, campanella, **salvadanaio** e **salvadanaio-pieno** (76 pt); foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia, dettaglio guida («Com'è andata?», stella); **Pagamenti** (hero) e riga Pagamenti del dettaglio allievo (46 pt): salvadanaio = da riscuotere, pieno = tutto saldato |
 | Road | `assets/road/` 12 segnalazioni, emblema, auto 3/4 e dall'alto per colore | `src/road/markerArt.ts` | mappa, griglia segnalazioni, briefing, «Parti con» |
 | Allievo / Allievi | `assets/icons3d-ai/` auto, moto, esame, persone, edificio, scambio, blocconote, calendario, pin | `require` diretto, `src/utils/lessonArt.ts` | home allievo, gruppi, scambi, dettaglio allievo |
 | Morale | `assets/morale/` espresso, aeroplanino, piantina, trofeo, esame (84 pt) | `src/theme/moraleArt.ts` (`MORALE_ART`) | SOLO stati vuoti (`ClayEmpty`), traguardo ore, testata del foglio esame |
@@ -338,6 +362,12 @@ reference di Gabriele con cui è stato approvato il metodo il 28/10/2026.
    scuro, e guardare che non resti fondo né alone.
 4. Le auto si generano UNA volta (rossa) e le altre tinte si ottengono
    ricolorando la carrozzeria (maschera sui rossi, esclusi vetri e gomme).
+4b. **Varianti dello stesso oggetto** (es. salvadanaio → salvadanaio pieno,
+   giro «memorabile» 28/10): chat nuova con le 2 reference **più l'icona già
+   approvata come TERZA immagine**, e nel `Subject:` «the SAME <oggetto> as the
+   third attached image (identical shape, colour, camera angle and size in
+   frame), now …». Così forma, materiale e inquadratura restano identici e le
+   due icone si scambiano senza salti.
 5. **Anteprima** su tavola (grande · misura reale · su riga premuta) in
    `/tmp/hiro-anteprime/<task>/` e **ok di Tiziano** prima di metterla
    nell'app.
