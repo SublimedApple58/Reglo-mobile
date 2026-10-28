@@ -86,7 +86,7 @@ sede-cartina) + 2 già approvate (calendario, volante).
 | Veicolo | **no**: `AutoscuolaVehicle` non ha foto | backend: campo `photoUrl` + upload **dalla web app, lo fa il titolare** (modulo veicoli). Il mobile solo legge. Senza foto: auto 3D nel colore del veicolo (`carColor`, come in Road) sopra `cartina-road` |
 | Sede / autoscuola | **no**: `Company` ha solo `logoUrl` | backend: campo `coverPhotoUrl` + upload **dalla web app, lo fa il titolare** (Impostazioni autoscuola). Il mobile solo legge. Senza foto: illustrazione `sede-cartina` |
 
-### 3. Dati ed endpoint per numeri e traguardi
+### 3. Dati ed endpoint per i numeri
 
 | Dato | Fonte | Lavoro |
 |------|-------|--------|
