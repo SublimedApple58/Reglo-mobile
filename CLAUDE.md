@@ -32,7 +32,9 @@ Dettagli: [docs/git-flow.md](docs/git-flow.md) · staging operativo: `../reglo/d
 - `Screen` component wraps all screens (SafeArea)
 - Sheets: ONE form sheet for everything — route preset `FORM_SHEET` + `<FormSheet>` component (`src/components/SheetScaffold.tsx`). No handle/grabber, no swipe to dismiss: it closes ONLY with the clay X (white raised circle, `ClayIconButton`) top-right. Never build a sheet by hand. See `docs/design-system.md` §13.2 (and §0 for the clay style). The old rule «`BottomSheet` with handle, never X» is superseded (REG-639, 28/10/2026).
 - Centered `Modal` for quick actions
-- Theme tokens in `src/theme/`: colors (pink #EC4899, yellow #FACC15), spacing, typography
+- Theme tokens in `src/theme/`: `colors.ts`, `spacing.ts`, `typography.ts`, `clay.ts` (clay v2), `icons3d.ts`. Palette = **white, black (`#111111`), neutrals + clay volume** (`CLAY`, `CLAY_SHADOW`, design-system §0). No blue/navy. Colour comes ONLY from 3D icons (`Icon3D`) and photos.
+  - Pink `#EC4899` is NOT a UI colour: it survives only as one choice («Rosa») in the agenda colour palette (`src/utils/agendaColors.ts`). Never use it for UI.
+  - Yellow `#FACC15` (`colors.accent` / `yellow` scale) stays only as an accent where it is already used: pagellino stars (`StarRating`, `EvaluationSheetScreen`, `EvaluationItemSheet`, notes screens), toggle tracks and highlights in `InstructorManageScreen`/`OwnerInstructorScreen`, «Programmata» state in `IstruttoreHomeScreen`, `NotificationOverlay`, `PhaseCard`, `QuizChaptersScreen`, `Button` variant `secondary`. Don't add new uses.
 - Design system reference: `docs/design-system.md` — read before UI work (also kept at `plans/design-system/DESIGN_SYSTEM.md`)
 - All API responses use `ApiResponse<T> = ApiSuccess<T> | ApiError` — always check `response.success`
 - Three roles: STUDENT (allievo), INSTRUCTOR (istruttore), OWNER (titolare). Tabs conditional by role.
