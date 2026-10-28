@@ -11,11 +11,16 @@
   - «Nuovo»: card «Guida» con `cartina-road`, auto `car34Art(colore veicolo)` su alone bianco sfocato, nome del veicolo esclusivo (senza colore: rossa); icone libere sul bianco;
   - Disponibilità: copertina **foto realistica** `sede-foto` (Gemini, al posto della cartina illustrata, poi eliminata) con velo leggero + card con `WeekStrip`; sabato e domenica restano righe separate (servono per modificarli);
   - «Tu»: `MonthHoursCard` su `getInstructorHoursRange` (leggibile dall'istruttore; passato `instructorId`, così il titolare-istruttore vede solo sé), lista unica.
-- **Resta da fare (backend, full-stack con `reglo/`)**: foto del veicolo
-  (`AutoscuolaVehicle.photoUrl`) e copertina della sede (`Company.coverPhotoUrl`),
-  caricate dal titolare **dalla web app**; il mobile le legge e usa i segnaposto
-  (auto 3D sulla cartina, `sede-foto`) se mancano. Facoltativo: nome del veicolo
-  sulla riga «Veicoli» di «Tu» (una chiamata in più).
+- **Copertina della sede (passo 2, 28/10)**: fatta, in STAGING (web `reglo`
+  `feat/reg-639-sede-foto`, migrazione `20261101120000_location_cover_photo`).
+  Foto **solo della sede** (`AutoscuolaLocation.coverPhotoKey`, `isDefault`),
+  caricata dal titolare in Impostazioni → «Sede e luoghi»; il mobile legge
+  `coverPhotoUrl` da `/api/mobile/me` (luogo di default del membro se ha foto,
+  altrimenti sede, altrimenti segnaposto `sede-foto`; se l'URL non si carica,
+  segnaposto). Mobile pronto sul branch `feat/reg-639-sede-foto`: OTA solo col
+  via di Tiziano e DOPO il backend in prod.
+- **Foto dei veicoli**: non si fanno (Tiziano 28/10). Facoltativo: nome del
+  veicolo sulla riga «Veicoli» di «Tu» (una chiamata in più).
 
 - **Approvata da Tiziano il 28/10** la tavola `D-mix` (`/tmp/hiro-anteprime/vita/D-mix.png`,
   sorgente `gen.py` nella stessa cartella).

@@ -85,3 +85,5 @@ Aggiorna la riga **Stato attuale** in cima a questa sezione (runtime + floor + d
 1. `staging` è condiviso → lato backend si allinea PRIMA di shippare (doc reglo).
 2. Niente lavoro diretto su `master` per task grossi → feature branch su entrambi i repo.
 3. Niente OTA/build prod senza OK esplicito dell'utente.
+4. Prima del merge in `master` le verifiche sono `npx tsc --noEmit -p .` + `npx expo export --platform ios` (il bundle compila): il repo **non ha script di lint né di test**, non cercarli. L'unico errore tsc noto e tollerato è `src/navigation/TabNavigator.tsx(27)`.
+5. Un branch costruito sopra un altro branch **non ancora in `master`** se lo porta dietro: il merge in `master` pubblica anche quello (es. REG-639 nato su REG-638 ha portato tutto Road in `master` il 28/10). Prima del merge controlla `git log origin/master..HEAD` e dillo all'utente.
