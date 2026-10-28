@@ -9,7 +9,18 @@
   C traguardi); scelto un mix. Reglo Road resta com'è.
 - Icone di prova Gemini (`/tmp/hiro-anteprime/vita/icone-prova/`, metodo: blocco
   STILE §0.4 + 2 reference di Gabriele): **calendario e volante approvate,
-  patente da rifare**.
+  patente da rifare** (poi uscita dal piano: serviva solo ai traguardi).
+
+## Decisioni di Tiziano (28/10, dopo l'approvazione)
+
+1. **Niente Traguardi in «Tu»**: tolta la riga e l'endpoint traguardi. «Tu» tiene
+   il numero del mese e il grafico.
+2. **Saluto dell'Agenda con l'ora**: Buongiorno / Buon pomeriggio / Buonasera.
+   Fasce proposte: fino alle 13:00, poi fino alle 18:00, poi sera.
+3. **Foto di veicolo e sede le carica il titolare dalla web app.** Se mancano, al
+   loro posto va un **segnaposto curato, generato da noi**, mai vuoto né triste:
+   - **veicolo** → l'auto 3D nel colore del veicolo sopra la `cartina-road`;
+   - **sede** → un'illustrazione calda, `sede-cartina`: cartina Road con l'edificio 3D al centro.
 
 ## La direzione, schermata per schermata
 
@@ -18,7 +29,7 @@ pillole/badge/puntini colorati. In più: **oggetti 3D colorati e caldi (mai
 scuri)**, **foto vere**, **un numero che conta** e **micro-copy umano**.
 
 1. **Agenda, intestazione (da A)**
-   - Saluto sopra il titolo: «Buongiorno, Tiziano» (buongiorno / buon pomeriggio / buonasera).
+   - Saluto sopra il titolo, con l'ora: «Buongiorno / Buon pomeriggio / Buonasera, Tiziano».
    - Card clay «Oggi N guide» con il calendario 3D; sotto, «La prima alle 9:00 · pausa caffè alle 10».
    - Avviso «1 guida fuori disponibilità · Gestisci» in card clay con la campanella 3D.
    - Griglia settimanale invariata.
@@ -31,14 +42,13 @@ scuri)**, **foto vere**, **un numero che conta** e **micro-copy umano**.
    - Le icone sono **libere sul bianco**, senza riquadri tinti. Guida di gruppo mostra i
      volti degli allievi sovrapposti.
 3. **Disponibilità (da B)**
-   - Copertina con la **foto della sede**; sopra, la card clay «Disponibilità /
+   - Copertina con la **foto della sede** (se manca: illustrazione `sede-cartina`); sopra, la card clay «Disponibilità /
      Quando gli allievi possono prenotarti».
    - Mini-calendario dei 7 giorni con le fasce in nero.
    - Poi le righe lun–ven e «Weekend · Libero» (se sab e dom sono entrambi liberi).
 4. **Tu (da C)**
    - Foto profilo in alto a destra.
    - Card del mese: «OTTOBRE · 46 h guidate · 52 guide» con il grafico a barre.
-   - Riga «Traguardi» con 4 oggetti 3D; quelli non raggiunti sono in grigio.
    - Poi le righe senza icone: Ore di guida, Veicoli (con il nome del veicolo a destra),
      Luoghi guida, Pagellino, Aspetto agenda, Impostazioni.
 
@@ -52,20 +62,20 @@ Regola: colori caldi, niente parti grandi nere, niente blu.
 |---|-----------|------|-------|
 | 1 | `calendario` | card «Oggi» in Agenda, «Blocca un orario» | **approvata** (prova 28/10), sostituisce `icons3d-ai/calendario` |
 | 2 | `volante` | stato vuoto dell'Agenda («giornata libera») e riserva per «Guida» senza veicolo | **approvata** (prova 28/10) |
-| 3 | `patente` | traguardo «allievi promossi» | **da rifare** |
-| 4 | `campanella` | avviso «fuori disponibilità» | c'è (set Road, ambra): si riusa |
-| 5 | `esame` | riga «Esame» del foglio «Nuovo» | da rigenerare più calda (oggi tocco nero grande) |
-| 6 | `edificio` | riga «Lezione teorica» | da rigenerare più calda (finestre nere) |
-| 7 | `termometro` | riga «Malattia» | **nuova** |
-| 8 | `trofeo` | traguardo «N guide con Reglo» | ritocco: base non nera |
-| 9 | `espresso` | traguardo «nessuna guida annullata nel mese» | c'è (morale): si riusa |
-| 10 | `piantina` | traguardo «1 anno con l'autoscuola» | c'è (morale): si riusa |
-| 11 | `persone` | «Guida di gruppo» quando gli allievi non hanno foto | c'è: si riusa |
-| 12 | `cartina-road` | sfondo della card «Guida» (illustrazione, non mappa vera) | **nuova**: asset statico largo (circa 370×138 pt @3x) |
-| 13 | auto 3/4 colorate | card «Guida» | ci sono (`assets/road/cars/auto-34-*`) |
+| 3 | `esame` | riga «Esame» del foglio «Nuovo» | da rigenerare più calda (oggi tocco nero grande) |
+| 4 | `edificio` | riga «Lezione teorica»; anche dentro `sede-cartina` | da rigenerare più calda (finestre nere) |
+| 5 | `termometro` | riga «Malattia» | **nuova** |
+| 6 | `cartina-road` | sfondo della card «Guida» e segnaposto della foto veicolo (con l'auto sopra) | **nuova**: illustrazione statica larga (circa 370×138 pt @3x), non una mappa vera |
+| 7 | `sede-cartina` | segnaposto della foto sede (copertina di Disponibilità) | **nuova**: cartina calda con l'edificio 3D al centro, circa 402×170 pt @3x |
+| — | `campanella` | avviso «fuori disponibilità» | c'è (set Road, ambra): si riusa |
+| — | `persone` | «Guida di gruppo» quando gli allievi non hanno foto | c'è: si riusa |
+| — | auto 3/4 colorate | card «Guida» e segnaposto veicolo | ci sono (`assets/road/cars/auto-34-*`) |
 
-Totale da generare: **5** (patente, esame, edificio, termometro, cartina-road)
-più 1 ritocco (trofeo).
+Uscite col taglio dei traguardi: `patente` (era da rifare), ritocco `trofeo`;
+`espresso` e `piantina` restano solo dove già sono (stati vuoti, `MORALE_ART`).
+
+Totale: **5 da generare** (esame, edificio, termometro, cartina-road,
+sede-cartina) + 2 già approvate (calendario, volante).
 
 ### 2. Foto da caricare
 
@@ -73,8 +83,8 @@ più 1 ritocco (trofeo).
 |------|-------------|-----------|
 | Profilo istruttore | sì: `photoUrl` su `/me` e `/api/autoscuole/user-photos` | farla caricare a chi non ce l'ha; senza foto si usano le iniziali (Avatar clay) |
 | Volti degli allievi (Guida di gruppo) | sì: `getUserPhotos` | niente; senza foto si usano le iniziali, oppure l'icona `persone` se nessuno ha la foto |
-| Veicolo | **no**: `AutoscuolaVehicle` non ha foto | backend: campo `photoUrl` + upload nel modulo veicoli (web e mobile). Senza foto si usa l'auto 3D nel colore del veicolo (`carColor`, come in Road) |
-| Sede / autoscuola | **no**: `Company` ha solo `logoUrl` | backend: campo `coverPhotoUrl` + upload da web (Impostazioni autoscuola). Senza foto la copertina usa la `cartina-road` |
+| Veicolo | **no**: `AutoscuolaVehicle` non ha foto | backend: campo `photoUrl` + upload **dalla web app, lo fa il titolare** (modulo veicoli). Il mobile solo legge. Senza foto: auto 3D nel colore del veicolo (`carColor`, come in Road) sopra `cartina-road` |
+| Sede / autoscuola | **no**: `Company` ha solo `logoUrl` | backend: campo `coverPhotoUrl` + upload **dalla web app, lo fa il titolare** (Impostazioni autoscuola). Il mobile solo legge. Senza foto: illustrazione `sede-cartina` |
 
 ### 3. Dati ed endpoint per numeri e traguardi
 
@@ -84,16 +94,12 @@ più 1 ritocco (trofeo).
 | «N guide fuori disponibilità» | c'è già | — |
 | Mini-calendario Disponibilità, «Weekend · Libero» | disponibilità già caricata | solo mobile |
 | Ore e guide del mese + grafico | `getInstructorHoursRange({from,to})` esiste (`total.totalMinutes`, `appointmentCount`, `buckets`) | mobile. Oltre 14 giorni i bucket sono **settimane**: il grafico mostra le settimane del mese, non i giorni. Va verificato che l'istruttore possa leggere le proprie ore |
-| Traguardi | **non esiste** | backend nuovo: `GET /api/autoscuole/instructor/milestones` → `{ totalLessons, passedStudents, cancelledThisMonth, memberSince }`. `passedStudents` viene dall'esito esame REG-513. Soglie (50/100/250/500 guide, 1 anno…) da decidere con Tiziano |
 
 Ordine suggerito: icone → Agenda e «Nuovo» (zero backend) → Disponibilità
-(senza foto della sede, con la cartina) → Tu con le ore del mese → endpoint
-traguardi → campi foto veicolo e sede (full-stack, branch anche su `reglo/`).
+(con `sede-cartina` finché non c'è la foto) → Tu con le ore del mese → campi
+foto veicolo e sede con upload web (full-stack, branch anche su `reglo/`).
 
 ## Decisioni aperte
 
-- Soglie e testi dei traguardi; cosa mostrare se un traguardo non è raggiunto
-  (grigio, come in mockup, o nascosto).
-- Il saluto cambia con l'ora? (proposta: sì, 3 fasce.)
-- Foto veicolo e sede: chi le carica (titolare da web) e se servono a tutti o
-  solo alle autoscuole che le mettono.
+- Nessuna di prodotto. Da confermare solo all'implementazione le fasce orarie
+  del saluto (13:00 / 18:00).
