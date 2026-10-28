@@ -288,8 +288,10 @@ export default function RoadScreen() {
           <Text style={s.name} numberOfLines={1}>{name}</Text>
           <View style={s.liveRow}>
             <View style={s.liveDot} />
-            <Text style={s.liveTx} numberOfLines={1}>
-              In corso · {formatRange(lesson.startsAt, lesson.endsAt)}
+            {/* Giro Road: solo l'orario, il pallino rosso dice già «in corso»
+                (con il tasto note il testo lungo si troncava). */}
+            <Text style={s.liveTx} numberOfLines={1} accessibilityLabel={`In corso, ${formatRange(lesson.startsAt, lesson.endsAt)}`}>
+              {formatRange(lesson.startsAt, lesson.endsAt)}
             </Text>
           </View>
         </View>
@@ -390,7 +392,7 @@ export default function RoadScreen() {
             leading={<Ionicons name="add" size={24} color="#FFFFFF" />}
             onPress={onSegnala}
             disabled={ending}
-            style={[s.btn, { flex: 1.45 }]}
+            style={[s.btn, { flex: 1 }]}
             testID="road-segnala"
           />
           <ClayButton
@@ -421,7 +423,7 @@ const s = StyleSheet.create({
     backgroundColor: CLAY.surface,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     paddingLeft: 14,
     paddingRight: 12,
   },
