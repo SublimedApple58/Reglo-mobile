@@ -61,14 +61,14 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 | `avatar` | bordo · esterna 0/4/10/-4 α.22 · interna | volti (foto o iniziali) |
 
 Volume delle CTA (`CLAY_CTA`, Tiziano 28/10/2026 dopo l'anteprima
-`cta-varianti`: via di mezzo tra «gonfia sobria» e «cuscino», poco più leggera
-del cuscino). Ogni preset = sfumatura (`experimental_backgroundImage`) + ombre:
+`cta-varianti`: la primaria è la **variante A «gonfia sobria»**, solo ombre,
+niente sfumatura; la secondaria resta `raise` a riposo e sprofonda premuta):
 
-| Preset | Sfumatura (alto → basso) | Ombre | Uso |
+| Preset | Fondo | Ombre | Uso |
 |---|---|---|---|
-| `primary` | `#353535` → `#1C1C1C` (50%) → `#0B0B0B` | esterna 0/14/24/-10 α.48 · luce interna 0/2/2 bianco α.30 · ombra interna 0/-7/12 nero α.60 | CTA nera a riposo |
-| `primaryPressed` | `#0B0B0B` → `#151515` (60%) → `#1E1E1E` (si inverte) | esterna 0/3/6/-2 α.25 · interna 0/3/9 nero α.70 | CTA nera premuta: sprofonda |
-| `secondaryPressed` | `#F6F6F6` → `#FFFFFF` (70%) | bordo α.06 · esterna 0/2/5/-2 α.14 · interna 0/3/8 α.11 | CTA bianca premuta: sprofonda (a riposo resta `raise`) |
+| `primary` | `#1E1E1E` pieno | esterna 0/14/24/-10 α.50 · luce interna 0/3/4 bianco α.34 · ombra interna 0/-8/13 nero α.80 | CTA nera a riposo |
+| `primaryPressed` | `#1E1E1E` pieno | esterna 0/3/6/-2 α.25 · interna 0/3/8 nero α.70 · luce interna 0/-1/2 bianco α.06 | CTA nera premuta: sprofonda |
+| `secondaryPressed` | sfumatura `#F6F6F6` → `#FFFFFF` (70%) | bordo α.06 · esterna 0/2/5/-2 α.14 · interna 0/3/8 α.11 | CTA bianca premuta: sprofonda (a riposo resta `raise`) |
 
 Lo scambio a riposo/premuta è istantaneo (`onPressIn`/`onPressOut`): l'ombra
 non si anima, si anima solo la scala di `ClayPressable`.
@@ -106,7 +106,7 @@ non si anima, si anima solo la scala di `ClayPressable`.
 | Componente | Cosa | Note |
 |---|---|---|
 | `ClayPressable` | base premibile: scala a molla senza rimbalzo (`cta` .96 · `card` .97 · `small` .92) | ex `RoadPressable` (che resta come alias) |
-| `ClayButton` | CTA a capsula `primary` (cuscino nero `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
+| `ClayButton` | CTA a capsula `primary` (nero gonfio `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
 | `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
 | `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
 | `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto), titolo, sottotitolo con `subtitleIcon` 3D (17), chevron se premibile | l'ombra sta sulla lista, non sulle righe |

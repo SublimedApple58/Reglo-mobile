@@ -6,8 +6,8 @@ import { ClayPressable } from './ClayPressable';
 
 /**
  * CTA clay (§0): capsula alta `CTA_HEIGHT`, la più tonda.
- * - `primary`: cuscino nero (`CLAY_CTA.primary`: sfumatura + luce e ombra
- *   interne), testo bianco; premuta sprofonda (`primaryPressed`).
+ * - `primary`: nero gonfio (`CLAY_CTA.primary`: luce e ombra interne +
+ *   ombra esterna), testo bianco; premuta sprofonda (`primaryPressed`).
  * - `secondary`: bianco in rilievo (`raise`), testo nero; premuta sprofonda
  *   (`secondaryPressed`).
  * `compact` = 46 di altezza (CTA dentro card o pannelli).
