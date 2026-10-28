@@ -304,7 +304,7 @@ export function isBlueHue(hex: string): boolean {
  * colore). Per tornare al fondo pastello pieno: `AGENDA_BLOCK_BAR = false`
  * (unico interruttore, letto da `utils/agendaLook`).
  */
-export const AGENDA_BLOCK_BAR = true;
+export const AGENDA_BLOCK_BAR = false; // Tiziano 29/10: la barretta su bianco è bocciata → fondo pieno pastello
 const WASH_WHITE = 0.88;
 export function mixWithWhite(hex: string, white: number): string {
   const rgb = hexToRgb(hex);

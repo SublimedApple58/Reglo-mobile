@@ -33,11 +33,8 @@ import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { ScrubBubble } from '../components/BookableBand';
 import { requestRoadCheck } from '../road/entryFlow';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
-import { AgendaDayView } from '../components/agenda/AgendaDayView';
-import { AgendaDayStrip, dateKeyOf } from '../components/agenda/AgendaDayStrip';
-import { ClaySegmented, ClaySurface } from '../components/clay';
+import { ClaySurface } from '../components/clay';
 import { CLAY, CLAY_CTA } from '../theme/clay';
-import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 import { primaryCtaShadow } from '../components/GradientCTA';
 import { blockKindOf } from '../utils/weeklyAgenda';
 import { examManageStore } from '../stores/examManageStore';
@@ -388,8 +385,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     m.setHours(0, 0, 0, 0);
     return m.getTime();
   }, [selectedDate]);
-  // REG-639: si apre sulla vista Giorno; Settimana = la griglia di sempre.
-  const [agendaView, setAgendaView] = useState<'day' | 'week'>('day');
   const [instructorList, setInstructorList] = useState<AutoscuolaInstructor[]>([]);
   const [instructorListLoading, setInstructorListLoading] = useState(false);
   // Per-day availability cache (day view): seed instantly on day change so a
@@ -1873,24 +1868,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     });
   }, [openExamManage]);
 
-  // Impegni per giorno nella striscia della vista Giorno: guide, esami (uno per
-  // orario) e guide di gruppo (una per gruppo); le annullate non contano.
-  const dayCounts = useMemo(() => {
-    const seen = new Set<string>();
-    const out: Record<string, number> = {};
-    for (const a of appointments) {
-      if ((a.status ?? '').trim().toLowerCase() === 'cancelled') continue;
-      const k = dateKeyOf(new Date(a.startsAt));
-      const unit = a.type === 'esame' ? `ex|${a.startsAt}|${a.endsAt ?? ''}|${a.instructorId ?? ''}`
-        : a.type === 'group_lesson' ? `gl|${a.groupLessonId ?? a.startsAt}` : a.id;
-      if (seen.has(unit)) continue;
-      seen.add(unit);
-      out[k] = (out[k] ?? 0) + 1;
-    }
-    return out;
-  }, [appointments]);
-
-
   if (!instructorId && !ownerMode) {
     return (
       <Screen>
@@ -1925,15 +1902,15 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     </View>
   ) : null;
 
-  const selectedKey = dateKeyOf(selectedDate);
-  const isTodaySelected = selectedKey === dateKeyOf(new Date());
-  const longDate = selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  // La riga sotto il titolo è sempre la data di oggi (la settimana mostrata
+  // ha la sua intestazione e il suo «Oggi» nella griglia).
+  const longDate = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      {/* Agenda REG-639 (notte 28/10): vista Giorno (predefinita) e Settimana (la griglia). */}
+      {/* Agenda REG-639: solo la settimana (griglia) con testata clay. */}
       <View style={{ flex: 1, paddingTop: safeInsets.top }}>
         <View style={hd.wrap}>
           <View style={hd.top}>
@@ -1941,11 +1918,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               <Text style={hd.title} accessibilityRole="header">Agenda</Text>
               <Text style={hd.date} numberOfLines={1}>
                 {longDate}
-                {!isTodaySelected ? (
-                  <Text style={hd.today} onPress={() => setSelectedDate(new Date())} suppressHighlighting>
-                    {'   '}Oggi
-                  </Text>
-                ) : null}
               </Text>
             </View>
             {headerActions ? (
@@ -1956,15 +1928,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             ) : null}
           </View>
           {scopeTabs}
-          <ClaySegmented
-            options={[
-              { value: 'day', label: 'Giorno', testID: 'agenda-view-day' },
-              { value: 'week', label: 'Settimana', testID: 'agenda-view-week' },
-            ]}
-            value={agendaView}
-            onChange={setAgendaView}
-            style={hd.segmented}
-          />
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
           {outOfAvailAppointments.length > 0 && (
             <ClaySurface
@@ -1991,71 +1954,39 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           )}
         </View>
 
-        {agendaView === 'day' ? (
-          <Animated.View key="day" entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={{ flex: 1 }}>
-            <AgendaDayStrip
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              counts={dayCounts}
-              holidays={holidays}
-            />
-            <View style={hd.stripRule} />
-            <AgendaDayView
-              date={selectedDate}
-              appointments={appointments}
-              instructorBlocks={instructorBlocks}
-              availability={weekAvailability[selectedKey]}
-              holiday={holidays.has(selectedKey)}
-              groupByInstructor={ownerMode || calendarScope === 'all'}
-              loading={appointmentsLoading}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              onPressAppointment={openLessonDrawer}
-              onPressExam={openExamFromAgenda}
-              onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
-              onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
-              onBookAt={(ownerMode || !canInstructorBook || calendarScope === 'all') ? undefined : (date, startMin, winStart, winEnd, durMin) => {
-                openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
-              }}
-            />
-          </Animated.View>
-        ) : (
-          <Animated.View key="week" entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={{ flex: 1 }}>
-            <WeeklyAgendaView
-            onPressDay={(d) => { setSelectedDate(d); setAgendaView('day'); }}
-              appointments={appointments}
-              instructorBlocks={instructorBlocks}
-              holidays={holidays}
-              anchorDate={selectedDate}
-              readOnly={ownerMode}
-              loading={appointmentsLoading}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              myInstructorId={effectiveInstructorId ?? null}
-              studentCompletedMinutes={studentCompletedMinutes}
-              weekAvailabilityByDate={weekAvailability}
-              onDateChange={(monday) => {
-                // Aggiorna selectedDate solo se cambia settimana (evita loop col sync anchor).
-                setSelectedDate((prev) => {
-                  const pm = new Date(prev);
-                  const pd = pm.getDay();
-                  pm.setDate(pm.getDate() + (pd === 0 ? -6 : 1 - pd));
-                  pm.setHours(0, 0, 0, 0);
-                  return pm.getTime() === monday.getTime() ? prev : monday;
-                });
-              }}
-              onPressAppointment={openLessonDrawer}
-              onPressExam={openExamFromAgenda}
-              onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
-              onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
-              onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
-                openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
-              }}
-              allowedDurations={bookingDurations}
-              onGhostActiveChange={setGhostCtaActive}
-            />
-          </Animated.View>
-        )}
+        {/* Agenda = SOLO la vista settimanale (REG-638; confermato da Tiziano 29/10). */}
+          <WeeklyAgendaView
+            appointments={appointments}
+            instructorBlocks={instructorBlocks}
+            holidays={holidays}
+            anchorDate={selectedDate}
+            readOnly={ownerMode}
+            loading={appointmentsLoading}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            myInstructorId={effectiveInstructorId ?? null}
+            studentCompletedMinutes={studentCompletedMinutes}
+            weekAvailabilityByDate={weekAvailability}
+            onDateChange={(monday) => {
+              // Aggiorna selectedDate solo se cambia settimana (evita loop col sync anchor).
+              setSelectedDate((prev) => {
+                const pm = new Date(prev);
+                const pd = pm.getDay();
+                pm.setDate(pm.getDate() + (pd === 0 ? -6 : 1 - pd));
+                pm.setHours(0, 0, 0, 0);
+                return pm.getTime() === monday.getTime() ? prev : monday;
+              });
+            }}
+            onPressAppointment={openLessonDrawer}
+            onPressExam={openExamFromAgenda}
+            onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
+            onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
+            onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
+              openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
+            }}
+            allowedDurations={bookingDurations}
+            onGhostActiveChange={setGhostCtaActive}
+          />
       </View>
 
       {/* ── FAB Menu (nascosto per il titolare: home in sola lettura;
@@ -3748,13 +3679,10 @@ const hd = StyleSheet.create({
   titles: { flex: 1, minWidth: 0 },
   title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
   date: { fontSize: 15, color: CLAY.ink3, marginTop: 1 },
-  today: { color: CLAY.ink, fontWeight: '600' },
   scope: { flexDirection: 'row', gap: 20, marginTop: 14 },
   scopeTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink4 },
   scopeOn: { color: CLAY.ink, fontWeight: '600' },
-  segmented: { marginTop: 16 },
   oob: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16 },
   oobTx: { flex: 1, fontSize: 15, fontWeight: '500', color: CLAY.ink },
   oobAction: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
-  stripRule: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.10)', marginTop: 6 },
 });
