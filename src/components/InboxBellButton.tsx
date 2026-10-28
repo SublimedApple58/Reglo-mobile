@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import { CLAY_SHADOW } from '../theme/clay';
 
-/** Cerchio bianco con ombra morbida delle azioni in testa (orologio, campanella). */
+/** Cerchio bianco clay in rilievo delle azioni in testa (orologio, campanella). */
 export const headerCircle: ViewStyle = {
   width: 44,
   height: 44,
@@ -12,11 +13,8 @@ export const headerCircle: ViewStyle = {
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: '#FFFFFF',
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
+  // Clay v2 (REG-639): stesso rilievo dei bottoni icona (`raiseSm`).
+  ...CLAY_SHADOW.raiseSm,
 };
 
 /**
@@ -29,7 +27,7 @@ export function AvailabilityButton({ style }: { style?: StyleProp<ViewStyle> }) 
     <Pressable
       onPress={() => router.push('/(tabs)/role')}
       hitSlop={8}
-      style={({ pressed }) => [headerCircle, pressed && { opacity: 0.7 }, style]}
+      style={({ pressed }) => [headerCircle, pressed && CLAY_SHADOW.sink, style]}
       accessibilityRole="button"
       accessibilityLabel="Disponibilità"
       testID="availability-button"
@@ -50,7 +48,7 @@ export function InboxBellButton({ style }: { style?: StyleProp<ViewStyle> }) {
     <Pressable
       onPress={() => router.push('/(tabs)/inbox')}
       hitSlop={8}
-      style={({ pressed }) => [headerCircle, pressed && { opacity: 0.7 }, style]}
+      style={({ pressed }) => [headerCircle, pressed && CLAY_SHADOW.sink, style]}
       accessibilityRole="button"
       accessibilityLabel={unread ? `Notifiche, ${unread} da leggere` : 'Notifiche'}
       testID="inbox-bell"

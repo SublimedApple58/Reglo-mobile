@@ -16,7 +16,6 @@ import Animated, {
 import {
   View,
   Text,
-  Image,
   Pressable,
   ScrollView,
   FlatList,
@@ -36,13 +35,13 @@ import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { agendaVehicleLabel, showVehicleOnBlocks } from '../utils/agendaVehicle';
 import {
   AUTOMATIC_MARKER_WIDTH,
-  automaticMarkerColorFor,
   resolveAgendaColorConfig,
-  resolveGuideBlockStyle,
   type AgendaColorConfig,
 } from '../utils/agendaColors';
 import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
 import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
+import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, blockLabel, guideLook } from '../utils/agendaLook';
+import { CLAY_SHADOW } from '../theme/clay';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -62,6 +61,8 @@ type WeeklyAgendaViewProps = {
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
+  /** REG-639: tocco sull'intestazione di un giorno → vista Giorno. */
+  onPressDay?: (day: Date) => void;
   /**
    * REG-585 — chi sta guardando la griglia. Sui blocchi condivisi mostra
    * l'icona catena + "con <collega>", togliendo i propri panni dai nomi.
@@ -259,39 +260,14 @@ type LessonLook = { bg: string; text: string; sub: string; pressed: string; ring
 
 // Active guides are navy-filled pills; "spent" states (cancelled / no_show) recede
 // to a muted grey so the eye reads the live week at a glance.
-const NAVY: LessonLook = { bg: '#111111', text: '#FFFFFF', sub: 'rgba(255,255,255,0.62)', pressed: '#333333' };
-const MUTED: LessonLook = { bg: '#EEEEEE', text: '#959595', sub: 'rgba(126,126,126,0.7)', pressed: '#E6E6E6' };
-// Allievo con esame il giorno dopo → rosso attenuato ma inconfondibile.
-const RED: LessonLook = { bg: '#F6D2CD', text: '#8E2A20', sub: 'rgba(142,42,32,0.62)', pressed: '#EFC2BC' };
 
 const getLessonLook = (
   appt: AutoscuolaAppointmentWithRelations,
   colorConfig: AgendaColorConfig,
-): LessonLook => {
-  const status = (appt.status ?? '').trim().toLowerCase();
-  if (status === 'cancelled' || status === 'no_show') return MUTED;
-  // Esame il giorno dopo → rosso: segnale di priorità mantenuto SOPRA il criterio
-  // colore (REG-403). I flag arrivano dal BE; se assente → passa al criterio.
-  const durationMin = appt.endsAt
-    ? (new Date(appt.endsAt).getTime() - new Date(appt.startsAt).getTime()) / 60000
-    : 60;
-  const ctx = { durationMin, student: appt.student, vehicle: appt.vehicle };
-  // Bordo delle guide automatiche (REG-622): vale anche sopra il rosso.
-  if (appt.examNextDay) return { ...RED, ring: automaticMarkerColorFor(ctx, colorConfig) };
-  // Colore del blocco per criterio Aspetto (durata|patente) + eccezioni, come
-  // sul web. Tinta soft (pastello) + testo scuro leggibile (stessa lingua di
-  // esami/gruppi in questa griglia).
-  const style = resolveGuideBlockStyle(ctx, colorConfig);
-  if (style) {
-    return {
-      bg: style.backgroundColor,
-      text: '#111111',
-      sub: 'rgba(17,17,17,0.62)',
-      pressed: style.backgroundColor,
-      ring: style.borderColor ?? null,
-    };
-  }
-  return NAVY;
+): LessonLook & { bar: string | null; muted: boolean } => {
+  // REG-639: un solo punto per l'aspetto (barretta + tinta leggerissima).
+  const l = guideLook(appt, colorConfig);
+  return { bg: l.wash, text: l.text, sub: l.sub, pressed: l.wash, ring: l.ring, bar: l.bar, muted: l.muted };
 };
 
 // Dedicated tinted looks for exams (indigo) and group lessons (teal) — same
@@ -300,10 +276,12 @@ const getLessonLook = (
 // gruppo teal, gruppo moto arancio. Il bordo è la versione satura del fondo.
 // `shadow` = l'accento dell'ombra in tinta, gli stessi hex della web app
 // (`--agenda-card-shadow` in globals.css) e delle card della giornaliera.
-const EXAM_LOOK = { bg: '#F7F7F7', shadow: '#8B5CF6', text: '#6D28D9' };
-const GROUP_LOOK = { bg: '#ECFDF5', shadow: '#10B981', text: '#0F766E' };
-// Moto group lessons: identical style, ORANGE tint.
-const GROUP_MOTO_LOOK = { bg: '#FFEDD5', shadow: '#F97316', text: '#C2410C' };
+// REG-639 clay: niente viola/teal saturi — stesse tinte della vista Giorno
+// (`utils/agendaLook`): fondo leggerissimo, barretta piena, testo nero.
+const EXAM_LOOK = { bg: CLAY_EXAM.wash, bar: CLAY_EXAM.bar ?? '#111111', text: '#111111' };
+const GROUP_LOOK = { bg: CLAY_GROUP.wash, bar: CLAY_GROUP.bar ?? '#2FA36B', text: '#111111' };
+// Moto group lessons: identical style, ambra.
+const GROUP_MOTO_LOOK = { bg: CLAY_GROUP_MOTO.wash, bar: CLAY_GROUP_MOTO.bar ?? '#F5A524', text: '#111111' };
 const GROUP_CAPACITY = 3; // fallback — real capacity comes from the BE row annotation
 
 /**
@@ -662,6 +640,8 @@ type WeekPageProps = {
   onPressExam?: (appointments: AutoscuolaAppointmentWithRelations[]) => void;
   onPressGroupLesson?: (groupLessonId: string) => void;
   onPressBlock?: (block: InstructorBlock) => void;
+  /** REG-639: tocco sull'intestazione di un giorno → vista Giorno. */
+  onPressDay?: (day: Date) => void;
   /** REG-585 — chi guarda: serve al segnale "condivisa con" sui blocchi. */
   myInstructorId?: string | null;
   /** Ghost-block booking enabled (instructor, not read-only). */
@@ -681,7 +661,7 @@ type WeekPageProps = {
 const WeekPage = React.memo(function WeekPage({
   monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
   weekAvailabilityByDate, readOnly, loading,
-  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, myInstructorId,
+  onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onPressDay, myInstructorId,
   canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick,
   refreshing, onRefresh,
 }: WeekPageProps) {
@@ -922,13 +902,21 @@ const WeekPage = React.memo(function WeekPage({
           const isPast = day < today && !isToday;
           const isHoliday = holidayCols.has(idx);
           return (
-            <View key={idx} style={[styles.dayHeaderCell, { width: colW, marginLeft: idx === 0 ? 0 : COL_GAP }]}>
+            <Pressable
+              key={idx}
+              onPress={onPressDay ? () => onPressDay(day) : undefined}
+              disabled={!onPressDay}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={day.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+              style={({ pressed }) => [styles.dayHeaderCell, { width: colW, marginLeft: idx === 0 ? 0 : COL_GAP }, pressed && { opacity: 0.55 }]}
+            >
               <Text
                 style={[
                   styles.dayLetter,
                   isPast && !isHoliday && { color: '#CCCCCC' },
                   isToday && { color: '#111111' },
-                  isHoliday && { color: '#D97706' },
+                  isHoliday && { color: '#B4B4B4', textDecorationLine: 'line-through' },
                 ]}
               >
                 {DAY_LABELS[idx]}
@@ -942,13 +930,13 @@ const WeekPage = React.memo(function WeekPage({
                   style={[
                     styles.dayNumber,
                     isPast && !isHoliday && { color: '#CCCCCC' },
-                    isHoliday && { color: '#D97706' },
+                    isHoliday && { color: '#B4B4B4', textDecorationLine: 'line-through' },
                   ]}
                 >
                   {day.getDate()}
                 </Text>
               )}
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -967,9 +955,9 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(timeless)}
                 style={({ pressed }) => [styles.examBanner, pressed && { opacity: 0.94, transform: [{ scale: 0.992 }] }]}
               >
-                <Image source={require('../../assets/icons/fluent-graduate.png')} style={styles.examBannerIcon} />
+                <View style={styles.examBannerBar} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.examBannerLabel}>Esame di guida · {dayLabel}</Text>
+                  <Text style={styles.examBannerLabel}>Esame · {dayLabel}</Text>
                   <Text style={styles.examBannerTitle} numberOfLines={1}>
                     {n === 0 ? 'Nessun allievo' : `${n} ${n === 1 ? 'allievo' : 'allievi'}`} · Orario da definire
                   </Text>
@@ -1011,10 +999,10 @@ const WeekPage = React.memo(function WeekPage({
                 left: colX(colIdx),
                 width: colW,
                 height: gridHeight,
-                borderRadius: 14,
-                backgroundColor: isHoliday ? '#FFF8EC' : '#F4F4F4',
-                borderWidth: isTodayCol ? 1.5 : 0,
-                borderColor: '#D9D9D9',
+                // REG-639 clay: colonne bianche separate da un filetto (niente grigio).
+                backgroundColor: '#FFFFFF',
+                borderLeftWidth: colIdx === 0 ? 0 : StyleSheet.hairlineWidth,
+                borderLeftColor: isHoliday || isTodayCol ? 'rgba(17,17,17,0.14)' : 'rgba(17,17,17,0.08)',
               }}
             />
           );
@@ -1031,7 +1019,7 @@ const WeekPage = React.memo(function WeekPage({
               <View
                 key={`avt-${colIdx}-${i}`}
                 pointerEvents="none"
-                style={[styles.availTint, { top, height, left: colX(colIdx) + 2, width: colW - 4 }]}
+                style={[styles.availTint, { top, height, left: colX(colIdx), width: 3 }]}
               />
             );
           }),
@@ -1105,10 +1093,11 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressAppointment(appt)}
                 style={({ pressed }) => [
                   styles.lesson,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: pressed ? look.pressed : look.bg },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, opacity: pressed ? 0.8 : look.muted ? 0.7 : 1 },
                   look.ring ? { borderWidth: AUTOMATIC_MARKER_WIDTH, borderColor: look.ring } : null,
                 ]}
               >
+                {look.bar ? <View style={[styles.eventBar, { backgroundColor: look.bar }]} /> : null}
                 <View style={styles.lessonInner}>
                   <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
                   {showTime && (
@@ -1154,9 +1143,10 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(appts)}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, shadowColor: EXAM_LOOK.shadow, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, opacity: pressed ? 0.8 : 1 },
                 ]}
               >
+                <View style={[styles.eventBar, { backgroundColor: EXAM_LOOK.bar }]} />
                 <View style={[styles.eventInner, { backgroundColor: EXAM_LOOK.bg }]}>
                 {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
                     tipo lo dicono colore e icona, le parole restano nello sheet. */}
@@ -1207,9 +1197,10 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, shadowColor: look.shadow, opacity: pressed ? 0.85 : 1 },
+                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, opacity: pressed ? 0.8 : 1 },
                 ]}
               >
+                <View style={[styles.eventBar, { backgroundColor: look.bar }]} />
                 <View style={[styles.eventInner, { backgroundColor: look.bg }]}>
                 {/* Stessa regola dell'esame: niente parole, il tipo sta nel
                     colore e nell'icona. Per i gruppi moto l'icona è già quella
@@ -1256,8 +1247,10 @@ const WeekPage = React.memo(function WeekPage({
             const height = Math.max(((clampedEm - clampedSm) / 60) * ROW_H, 24);
             const bKind = blockKindOf(block.reason);
             const p = BLOCK_PRESENTATION[bKind];
-            const tint = { bg: p.bg, border: p.border, text: p.color, icon: p.icon as any };
-            const label = p.short;
+            // REG-639 clay: blocchi neutri e quieti (bianco, tratteggio grigio,
+            // testo grigio); la pausa tra guide si legge «Pausa».
+            const tint = { bg: '#FFFFFF', border: 'rgba(17,17,17,0.18)', text: '#6A6A6A', icon: p.icon as any };
+            const label = blockLabel(block.reason, p.short);
             // La lezione teorica è un evento (non un'assenza): rettangolo PIENO
             // indaco, niente bordo tratteggiato — come le guide/esami in griglia.
             const isTheory = bKind === 'theory';
@@ -1273,9 +1266,6 @@ const WeekPage = React.memo(function WeekPage({
                 ]}
               >
                 {/* Teorica: niente icona (in colonna stretta si sovrappone al titolo) */}
-                {!isTheory && (
-                  <Ionicons name={tint.icon} size={11} color={tint.text} style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85 }} />
-                )}
                 <Text style={[styles.blockName, { color: tint.text }]} numberOfLines={1}>{label}</Text>
                 {height >= 36 && (
                   <Text style={[styles.blockTime, { color: tint.text }]} numberOfLines={1}>
@@ -1303,8 +1293,8 @@ const WeekPage = React.memo(function WeekPage({
             pointerEvents="none"
             style={{ position: 'absolute', top: nowLineTop, left: colX(todayColIdx), width: colW, height: 0, zIndex: 10 }}
           >
-            <View style={{ position: 'absolute', top: -1, left: 0, right: 0, height: 2, backgroundColor: '#FF3B30' }} />
-            <View style={{ position: 'absolute', top: -4, left: -3, width: 9, height: 9, borderRadius: 5, backgroundColor: '#FF3B30' }} />
+            <View style={{ position: 'absolute', top: -1, left: 0, right: 0, height: 1.5, backgroundColor: '#111111' }} />
+            <View style={{ position: 'absolute', top: -4, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: '#111111' }} />
           </View>
         )}
       </ScrollView>
@@ -1326,6 +1316,7 @@ export default function WeeklyAgendaView({
   onPressExam,
   onPressGroupLesson,
   onPressBlock,
+  onPressDay,
   myInstructorId,
   onBookAt,
   allowedDurations,
@@ -1432,6 +1423,7 @@ export default function WeeklyAgendaView({
       onPressExam={onPressExam}
       onPressGroupLesson={onPressGroupLesson}
       onPressBlock={onPressBlock}
+      onPressDay={onPressDay}
       myInstructorId={myInstructorId}
       canBook={!!onBookAt}
       allowedDur={allowedDur}
@@ -1442,7 +1434,7 @@ export default function WeeklyAgendaView({
       onRefresh={onRefresh}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
-      studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
+      studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, onPressDay,
       myInstructorId, onBookAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, refreshing, onRefresh]);
 
   return (
@@ -1454,10 +1446,10 @@ export default function WeeklyAgendaView({
           <Pressable
             onPress={goToday}
             hitSlop={8}
-            style={({ pressed }) => [styles.todayPill, pressed && { backgroundColor: '#333333' }]}
+            style={({ pressed }) => pressed && { opacity: 0.55 }}
+            accessibilityRole="button"
           >
-            <Ionicons name="arrow-undo" size={13} color="#FFFFFF" />
-            <Text style={styles.todayPillText}>Oggi</Text>
+            <Text style={styles.todayLink}>Oggi</Text>
           </Pressable>
         )}
       </View>
@@ -1535,22 +1527,8 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 12,
   },
-  weekLabel: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
-  todayPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: '#111111',
-    shadowColor: '#111111',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  todayPillText: { fontSize: 13.5, fontWeight: '600', color: '#FFFFFF' },
+  weekLabel: { fontSize: 19, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
+  todayLink: { fontSize: 15, fontWeight: '600', color: '#111111' },
   dayHeaderRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10 },
   dayHeaderCell: { alignItems: 'center' },
   dayLetter: { fontSize: 11, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.3, marginBottom: 4 },
@@ -1560,17 +1538,17 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#111111', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  todayCircleText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  todayCircleText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   scrollView: { flex: 1 },
   hourLabel: {
     position: 'absolute', top: -7, left: 4, width: GUTTER_W - 8,
     fontSize: 10, fontWeight: '500', color: '#B0B0B0', fontVariant: ['tabular-nums'],
   },
-  // Faint availability hint over the grey canvas — just lighter, no shadow.
+  // REG-639 clay: la disponibilità è un binario sottile a sinistra della colonna.
   availTint: {
     position: 'absolute',
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(17,17,17,0.16)',
   },
   // Invisible bookable surface (the ghost block is the visual feedback).
   bookSurface: {
@@ -1677,14 +1655,12 @@ const styles = StyleSheet.create({
   ctaBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   lesson: {
     position: 'absolute',
-    borderRadius: 13,
+    borderRadius: 10,
     zIndex: 4,
-    shadowColor: '#000000',
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    ...CLAY_SHADOW.raiseSm,
   },
+  // Barretta del colore (REG-639): a filo sinistro, raggio come il blocco.
+  eventBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderTopLeftRadius: 10, borderBottomLeftRadius: 10, zIndex: 1 },
   lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
   lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
   lessonVehicle: { fontSize: 9, fontWeight: '600', marginTop: 1 },
@@ -1705,17 +1681,15 @@ const styles = StyleSheet.create({
   // interno che ritaglia il contenuto.
   eventCard: {
     position: 'absolute',
-    borderRadius: 8,
+    borderRadius: 10,
     zIndex: 4,
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    ...CLAY_SHADOW.raiseSm,
   },
   eventInner: {
     flex: 1,
-    borderRadius: 8,
-    paddingHorizontal: 5,
+    borderRadius: 10,
+    paddingLeft: 7,
+    paddingRight: 5,
     paddingVertical: 5,
     overflow: 'hidden',
   },
@@ -1740,18 +1714,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F7F7F7',
-    borderRadius: 22,
-    padding: 14,
-    shadowColor: '#8B5CF6',
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingRight: 14,
+    paddingLeft: 18,
+    overflow: 'hidden',
+    ...CLAY_SHADOW.raise,
   },
-  examBannerIcon: { width: 42, height: 42 },
-  examBannerLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examBannerTitle: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
+  examBannerBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: '#111111' },
+  examBannerLabel: { fontSize: 13, fontWeight: '500', color: '#6A6A6A', textTransform: 'capitalize' },
+  examBannerTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2, marginTop: 2 },
   block: {
     position: 'absolute',
     borderRadius: 13,
@@ -1763,7 +1736,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   // Lezione teorica in griglia: pieno, bordo solido (override del dashed).
-  blockSolid: { borderStyle: 'solid', borderWidth: 0, shadowColor: '#111111', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  blockName: { fontSize: 10, fontWeight: '700', lineHeight: 13 },
+  blockSolid: { borderStyle: 'solid', borderWidth: 0, ...CLAY_SHADOW.raiseSm },
+  blockName: { fontSize: 10, fontWeight: '600', lineHeight: 13 },
   blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });

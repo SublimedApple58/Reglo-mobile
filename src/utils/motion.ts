@@ -22,7 +22,7 @@ import {
  * di Tiziano), mentre il default di Reanimated lo farebbe.
  */
 const N = ReduceMotion.Never;
-const SOFT = Easing.bezier(0.25, 0.1, 0.25, 1);
+export const SOFT = Easing.bezier(0.25, 0.1, 0.25, 1);
 const DECEL = Easing.out(Easing.cubic);
 
 /** Spring senza rimbalzo per `withSpring` (scala al tocco, controllo segmentato). */
@@ -72,3 +72,7 @@ export const SOFT_TEXT_OUT = ROAD_TEXT_OUT;
 export const SOFT_CARD_EXIT = ROAD_CARD_EXIT;
 export const SOFT_LAYOUT_AFTER_EXIT = ROAD_LAYOUT_AFTER_EXIT;
 export const SOFT_SPRING = ROAD_SPRING;
+
+/** Dissolvenza incrociata di un contenuto che cambia (giorno dell'agenda, vista Giorno↔Settimana). */
+export const SOFT_SWAP_IN = FadeIn.duration(220).easing(SOFT).reduceMotion(N);
+export const SOFT_SWAP_OUT = FadeOut.duration(120).easing(SOFT).reduceMotion(N);

@@ -248,6 +248,10 @@ export function softenTint(hex: string): string {
 export type AgendaBlockStyle = {
   backgroundColor: string;
   shadowColor: string;
+  /** Colore pieno della barretta (REG-639). */
+  barColor?: string;
+  /** Tinta leggerissima di fondo (REG-639). */
+  washColor?: string;
   borderWidth?: number;
   borderColor?: string;
 };
@@ -262,7 +266,24 @@ export function agendaBlockStyle(
   overrideHex?: string | null,
 ): AgendaBlockStyle {
   const bg = softenTint(overrideHex || entry.bgHex);
-  return { backgroundColor: bg, shadowColor: bg };
+  const vivid = vividHex(entry, overrideHex);
+  return { backgroundColor: bg, shadowColor: bg, barColor: vivid, washColor: mixWithWhite(vivid, WASH_WHITE) };
+}
+
+/**
+ * REG-639 (notte 28/10): nei blocchi il colore dell'autoscuola è una BARRETTA
+ * piena a sinistra + una tinta leggerissima dello stesso colore come fondo,
+ * testo nero. `WASH_WHITE` = quanto bianco nella tinta di fondo (0.88 = 12% di
+ * colore). Per tornare al fondo pastello pieno: `AGENDA_BLOCK_BAR = false`
+ * (unico interruttore, letto da `utils/agendaLook`).
+ */
+export const AGENDA_BLOCK_BAR = true;
+const WASH_WHITE = 0.88;
+export function mixWithWhite(hex: string, white: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const [r, g, b] = rgb;
+  return toHex(r + (255 - r) * white, g + (255 - g) * white, b + (255 - b) * white);
 }
 
 // ─── Config risolta + risoluzione per-guida ───────────────────────────────────

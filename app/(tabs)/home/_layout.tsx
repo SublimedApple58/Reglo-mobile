@@ -7,7 +7,7 @@ export default function HomeLayout() {
   return (
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="add-action" options={HUG_SHEET} />
+      <Stack.Screen name="add-action" options={FORM_SHEET} />
       <Stack.Screen name="select-date" options={{ presentation: 'modal', headerShown: false }} />
       {/* Quick-book hosts the full BookingForm: in moto mode it grows taller
           than the screen, so it needs the scrollable full-height page sheet

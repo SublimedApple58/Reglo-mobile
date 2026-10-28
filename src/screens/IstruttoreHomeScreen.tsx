@@ -31,9 +31,13 @@ import { cancelFaultStore, type CancelFault } from '../stores/cancelFaultStore';
 import { lessonInvolvesInstructor, unionCoInstructors } from '../utils/coInstructors';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { ScrubBubble } from '../components/BookableBand';
-import { SelectableChip } from '../components/SelectableChip';
 import { requestRoadCheck } from '../road/entryFlow';
 import WeeklyAgendaView from '../components/WeeklyAgendaView';
+import { AgendaDayView } from '../components/agenda/AgendaDayView';
+import { AgendaDayStrip, dateKeyOf } from '../components/agenda/AgendaDayStrip';
+import { ClaySegmented, ClaySurface } from '../components/clay';
+import { CLAY, CLAY_CTA } from '../theme/clay';
+import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 import { primaryCtaShadow } from '../components/GradientCTA';
 import { blockKindOf } from '../utils/weeklyAgenda';
 import { examManageStore } from '../stores/examManageStore';
@@ -308,7 +312,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // REG-638 «T1 piatta»: Disponibilità e Notifiche non sono più tab per l'istruttore,
   // si aprono da orologio e campanella in testa all'Agenda.
   const headerActions = useInstructorTabs().instructorApp && !ownerMode;
-  const { instructorId, user, autoscuolaRole, activeCompanyId } = useSession();
+  const { instructorId, autoscuolaRole, activeCompanyId } = useSession();
   const { width: screenWidth } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
   // Owner (titolare puro, senza instructorId) vede la stessa home dell'istruttore
@@ -377,6 +381,15 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const rangeKeyRef = useRef<string | null>(null);
   const loadRequestRef = useRef(0);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const selectedWeekKey = useMemo(() => {
+    const m = new Date(selectedDate);
+    const dow = m.getDay();
+    m.setDate(m.getDate() + (dow === 0 ? -6 : 1 - dow));
+    m.setHours(0, 0, 0, 0);
+    return m.getTime();
+  }, [selectedDate]);
+  // REG-639: si apre sulla vista Giorno; Settimana = la griglia di sempre.
+  const [agendaView, setAgendaView] = useState<'day' | 'week'>('day');
   const [instructorList, setInstructorList] = useState<AutoscuolaInstructor[]>([]);
   const [instructorListLoading, setInstructorListLoading] = useState(false);
   // Per-day availability cache (day view): seed instantly on day change so a
@@ -1091,7 +1104,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         setWeekAvailability((prev) => ({ ...prev, ...map }));
       }).catch(() => { /* keep previously loaded availability — never flash empty */ });
     }
-  }, [selectedDate, instructorId]);
+    // REG-639: dipende dalla SETTIMANA, non dal giorno — nella vista Giorno si
+    // cambia giorno a ogni tocco e le 21 chiamate partirebbero ogni volta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekKey, instructorId]);
 
   // Re-fetch data when screen regains focus (e.g. after changing availability).
   // Gated: returning from a sheet/tab fires 'focus' constantly; without a gate
@@ -1842,7 +1858,38 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     router.push('/(tabs)/home/quick-book');
   }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
 
-  const userName = user?.name?.split(' ')[0] ?? (ownerMode ? 'Titolare' : 'Istruttore');
+  const openExamFromAgenda = useCallback((appts: AutoscuolaAppointmentWithRelations[]) => {
+    if (!appts.length) return;
+    const first = appts[0];
+    openExamManage({
+      startsAt: first.startsAt,
+      endsAt: first.endsAt,
+      instructorId: first.instructorId,
+      instructorName: first.instructor?.name ?? null,
+      // REG-585: unione dei colleghi su tutte le righe dell'esame.
+      coInstructors: unionCoInstructors(appts),
+      notes: first.notes,
+      appointments: appts,
+    });
+  }, [openExamManage]);
+
+  // Impegni per giorno nella striscia della vista Giorno: guide, esami (uno per
+  // orario) e guide di gruppo (una per gruppo); le annullate non contano.
+  const dayCounts = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Record<string, number> = {};
+    for (const a of appointments) {
+      if ((a.status ?? '').trim().toLowerCase() === 'cancelled') continue;
+      const k = dateKeyOf(new Date(a.startsAt));
+      const unit = a.type === 'esame' ? `ex|${a.startsAt}|${a.endsAt ?? ''}|${a.instructorId ?? ''}`
+        : a.type === 'group_lesson' ? `gl|${a.groupLessonId ?? a.startsAt}` : a.id;
+      if (seen.has(unit)) continue;
+      seen.add(unit);
+      out[k] = (out[k] ?? 0) + 1;
+    }
+    return out;
+  }, [appointments]);
+
 
   if (!instructorId && !ownerMode) {
     return (
@@ -1859,112 +1906,156 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     );
   }
 
-  // Scope filter — Airbnb-style chips (same language as the Allievi filters),
-  // replacing the old segmented bar. Shared by the weekly + daily headers.
-  const scopeChips = canSwitchScope ? (
-    <View style={scopeStyles.row}>
-      <SelectableChip
-        label="Le mie guide"
-        active={calendarScope === 'personal'}
-        onPress={() => setCalendarScope('personal')}
-      />
-      <SelectableChip
-        label="Tutti gli istruttori"
-        active={calendarScope === 'all'}
-        onPress={() => setCalendarScope('all')}
-      />
+  // Ambito per il titolare-istruttore (REG-639): due voci di testo, niente chip.
+  const scopeTabs = canSwitchScope ? (
+    <View style={hd.scope}>
+      {(['personal', 'all'] as const).map((v) => (
+        <Pressable
+          key={v}
+          onPress={() => setCalendarScope(v)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ selected: calendarScope === v }}
+        >
+          <Text style={[hd.scopeTx, calendarScope === v && hd.scopeOn]}>
+            {v === 'personal' ? 'Le mie guide' : 'Tutti gli istruttori'}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   ) : null;
 
+  const selectedKey = dateKeyOf(selectedDate);
+  const isTodaySelected = selectedKey === dateKeyOf(new Date());
+  const longDate = selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      {/* Agenda: solo la vista a griglia (REG-638, decisione di Tiziano 28/10: niente vista giorno/settimana). */}
+      {/* Agenda REG-639 (notte 28/10): vista Giorno (predefinita) e Settimana (la griglia). */}
       <View style={{ flex: 1, paddingTop: safeInsets.top }}>
-        {/* Header compatto (saluto + scope) */}
-        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-          <View style={styles.greetRow}>
-            <Text style={styles.greetName} numberOfLines={1}>Ciao, {userName} {'👋'}</Text>
+        <View style={hd.wrap}>
+          <View style={hd.top}>
+            <View style={hd.titles}>
+              <Text style={hd.title} accessibilityRole="header">Agenda</Text>
+              <Text style={hd.date} numberOfLines={1}>
+                {longDate}
+                {!isTodaySelected ? (
+                  <Text style={hd.today} onPress={() => setSelectedDate(new Date())} suppressHighlighting>
+                    {'   '}Oggi
+                  </Text>
+                ) : null}
+              </Text>
+            </View>
             {headerActions ? (
-                <View style={styles.headerActions}>
-                  <AvailabilityButton />
-                  <InboxBellButton />
-                </View>
-              ) : null}
+              <View style={styles.headerActions}>
+                <AvailabilityButton />
+                <InboxBellButton />
+              </View>
+            ) : null}
           </View>
-          {scopeChips}
+          {scopeTabs}
+          <ClaySegmented
+            options={[
+              { value: 'day', label: 'Giorno', testID: 'agenda-view-day' },
+              { value: 'week', label: 'Settimana', testID: 'agenda-view-week' },
+            ]}
+            value={agendaView}
+            onChange={setAgendaView}
+            style={hd.segmented}
+          />
           {!initialLoading && error ? <Text style={styles.error}>{error}</Text> : null}
           {outOfAvailAppointments.length > 0 && (
-            <Pressable
+            <ClaySurface
+              size="sm"
+              padded={false}
+              radius={18}
+              style={hd.oob}
               onPress={() => {
                 outOfAvailStore.set({
                   appointments: outOfAvailAppointments,
-onChanged: () => { loadOutOfAvailability(); loadData(); },
+                  onChanged: () => { loadOutOfAvailability(); loadData(); },
                   onOpenGroupLesson: openGroupLessonManage,
                 });
                 router.push('/(tabs)/home/out-of-availability');
               }}
-              style={({ pressed }) => [oobStyles.banner, pressed && { opacity: 0.7 }]}
+              accessibilityLabel={`${outOfAvailCount} guide fuori disponibilità, gestisci`}
             >
-              <View style={oobStyles.bannerIcon}>
-                <Ionicons name="alert-circle-outline" size={20} color="#111111" />
-              </View>
-              <Text style={oobStyles.bannerText}>
-                <Text style={oobStyles.bannerCount}>{outOfAvailCount}</Text>
-                {' '}guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
+              <Text style={hd.oobTx} numberOfLines={1}>
+                {outOfAvailCount} guid{outOfAvailCount === 1 ? 'a' : 'e'} fuori disponibilità
               </Text>
-              <Text style={oobStyles.bannerAction}>Gestisci</Text>
-              <Ionicons name="chevron-forward" size={18} color="#C9C9C9" />
-            </Pressable>
+              <Text style={hd.oobAction}>Gestisci</Text>
+              <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
+            </ClaySurface>
           )}
         </View>
 
-        <WeeklyAgendaView
-          appointments={appointments}
-          instructorBlocks={instructorBlocks}
-          holidays={holidays}
-          anchorDate={selectedDate}
-          readOnly={ownerMode}
-          loading={appointmentsLoading}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          myInstructorId={effectiveInstructorId ?? null}
-          studentCompletedMinutes={studentCompletedMinutes}
-          weekAvailabilityByDate={weekAvailability}
-          onDateChange={(monday) => {
-            // Aggiorna selectedDate solo se cambia settimana (evita loop col sync anchor).
-            setSelectedDate((prev) => {
-              const pm = new Date(prev);
-              const pd = pm.getDay();
-              pm.setDate(pm.getDate() + (pd === 0 ? -6 : 1 - pd));
-              pm.setHours(0, 0, 0, 0);
-              return pm.getTime() === monday.getTime() ? prev : monday;
-            });
-          }}
-          onPressAppointment={openLessonDrawer}
-          onPressExam={(appts) => {
-            if (!appts.length) return;
-            const first = appts[0];
-            openExamManage({
-              startsAt: first.startsAt,
-              endsAt: first.endsAt,
-              instructorId: first.instructorId,
-              instructorName: first.instructor?.name ?? null,
-              // REG-585: come sopra — unione su tutte le righe dell'esame.
-              coInstructors: unionCoInstructors(appts),
-              notes: first.notes,
-              appointments: appts,
-            });
-          }}
-          onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
-          onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
-          onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
-            openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
-          }}
-          allowedDurations={bookingDurations}
-          onGhostActiveChange={setGhostCtaActive}
-        />
+        {agendaView === 'day' ? (
+          <Animated.View key="day" entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={{ flex: 1 }}>
+            <AgendaDayStrip
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              counts={dayCounts}
+              holidays={holidays}
+            />
+            <View style={hd.stripRule} />
+            <AgendaDayView
+              date={selectedDate}
+              appointments={appointments}
+              instructorBlocks={instructorBlocks}
+              availability={weekAvailability[selectedKey]}
+              holiday={holidays.has(selectedKey)}
+              groupByInstructor={ownerMode || calendarScope === 'all'}
+              loading={appointmentsLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              onPressAppointment={openLessonDrawer}
+              onPressExam={openExamFromAgenda}
+              onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
+              onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
+              onBookAt={(ownerMode || !canInstructorBook || calendarScope === 'all') ? undefined : (date, startMin, winStart, winEnd, durMin) => {
+                openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
+              }}
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View key="week" entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={{ flex: 1 }}>
+            <WeeklyAgendaView
+            onPressDay={(d) => { setSelectedDate(d); setAgendaView('day'); }}
+              appointments={appointments}
+              instructorBlocks={instructorBlocks}
+              holidays={holidays}
+              anchorDate={selectedDate}
+              readOnly={ownerMode}
+              loading={appointmentsLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              myInstructorId={effectiveInstructorId ?? null}
+              studentCompletedMinutes={studentCompletedMinutes}
+              weekAvailabilityByDate={weekAvailability}
+              onDateChange={(monday) => {
+                // Aggiorna selectedDate solo se cambia settimana (evita loop col sync anchor).
+                setSelectedDate((prev) => {
+                  const pm = new Date(prev);
+                  const pd = pm.getDay();
+                  pm.setDate(pm.getDate() + (pd === 0 ? -6 : 1 - pd));
+                  pm.setHours(0, 0, 0, 0);
+                  return pm.getTime() === monday.getTime() ? prev : monday;
+                });
+              }}
+              onPressAppointment={openLessonDrawer}
+              onPressExam={openExamFromAgenda}
+              onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
+              onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
+              onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
+                openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
+              }}
+              allowedDurations={bookingDurations}
+              onGhostActiveChange={setGhostCtaActive}
+            />
+          </Animated.View>
+        )}
       </View>
 
       {/* ── FAB Menu (nascosto per il titolare: home in sola lettura;
@@ -2119,6 +2210,8 @@ const FabMenu = ({
       onPressIn={() => { fabScale.value = withTiming(0.92, { duration: 90 }); }}
       onPressOut={() => { fabScale.value = withTiming(1, { duration: 120 }); }}
       style={[styles.fab, disabled && { opacity: 0.5 }, fabStyle]}
+      testID="agenda-fab"
+      accessibilityLabel="Nuovo"
     >
       <Ionicons name="add" size={28} color="#FFFFFF" />
     </AnimatedPressable>
@@ -2129,14 +2222,6 @@ const LARGE_TITLE_H = 64;
 // Max height for the in-sheet picker formsheets (instructor / location): hugs
 // content for short lists, scrolls beyond this.
 
-const scopeStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 14,
-    marginBottom: 4,
-  },
-});
 
 const styles = StyleSheet.create({
   content: {
@@ -3647,148 +3732,29 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#111111',
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    // REG-639: nero clay gonfio, come la CTA primaria (variante A).
+    ...CLAY_CTA.primary,
     zIndex: 52,
   },
 });
 
-const oobStyles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-    marginTop: spacing.sm,
-    marginBottom: 10,
-    shadowColor: '#111111',
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  bannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F4F4F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111111',
-  },
-  bannerCount: {
-    fontWeight: '600',
-    color: '#111111',
-  },
-  bannerAction: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#111111',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: radii.sm,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  studentName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  badgeInstructor: {
-    backgroundColor: '#FEF3C7',
-  },
-  badgeVehicle: {
-    backgroundColor: '#EBEBEB',
-  },
-  badgeBoth: {
-    backgroundColor: '#F0F0F0',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  badgeTextInstructor: {
-    color: '#92400E',
-  },
-  badgeTextVehicle: {
-    color: '#111111',
-  },
-  badgeTextBoth: {
-    color: '#0A0A0A',
-  },
-  cardTime: {
-    fontSize: 12,
-    color: '#6A6A6A',
-    marginBottom: 2,
-  },
-  cardMeta: {
-    fontSize: 12,
-    color: '#929292',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: spacing.sm,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    alignItems: 'center',
-  },
-  actionBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#434343',
-  },
-  actionBtnDanger: {
-    borderColor: '#FECACA',
-    backgroundColor: '#FEF2F2',
-  },
-  actionBtnDangerText: {
-    color: '#DC2626',
-  },
-  actionBtnPrimary: {
-    borderColor: '#111111',
-    backgroundColor: '#111111',
-  },
-  actionBtnPrimaryText: {
-    color: '#FFFFFF',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#929292',
-    fontSize: 14,
-    paddingVertical: 32,
-  },
+
+/* Testata dell'Agenda — REG-639 clay (notte 28/10/2026). */
+const hd = StyleSheet.create({
+  wrap: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  titles: { flex: 1, minWidth: 0 },
+  title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
+  date: { fontSize: 15, color: CLAY.ink3, marginTop: 1 },
+  today: { color: CLAY.ink, fontWeight: '600' },
+  scope: { flexDirection: 'row', gap: 20, marginTop: 14 },
+  scopeTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink4 },
+  scopeOn: { color: CLAY.ink, fontWeight: '600' },
+  segmented: { marginTop: 16 },
+  oob: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  oobTx: { flex: 1, fontSize: 15, fontWeight: '500', color: CLAY.ink },
+  oobAction: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
+  stripRule: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.10)', marginTop: 6 },
 });
