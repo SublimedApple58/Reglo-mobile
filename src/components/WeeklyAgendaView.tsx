@@ -183,7 +183,7 @@ const MONTH_NAMES = [
   'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
   'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic',
 ];
-const DAY_LABELS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+const DAY_LABELS = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -972,7 +972,7 @@ const WeekPage = React.memo(function WeekPage({
       <ScrollView
         style={styles.scrollView}
         nestedScrollEnabled
-        contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 28, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
+        contentContainerStyle={{ height: gridHeight + GRID_TOP_PAD + 110, paddingHorizontal: 12, paddingTop: GRID_TOP_PAD }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           onRefresh ? (
@@ -1019,7 +1019,7 @@ const WeekPage = React.memo(function WeekPage({
               <View
                 key={`avt-${colIdx}-${i}`}
                 pointerEvents="none"
-                style={[styles.availTint, { top, height, left: colX(colIdx), width: 3 }]}
+                style={[styles.availTint, { top, height, left: colX(colIdx), width: colW }]}
               />
             );
           }),
@@ -1531,7 +1531,7 @@ const styles = StyleSheet.create({
   todayLink: { fontSize: 15, fontWeight: '600', color: '#111111' },
   dayHeaderRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10 },
   dayHeaderCell: { alignItems: 'center' },
-  dayLetter: { fontSize: 11, fontWeight: '600', color: '#6A6A6A', letterSpacing: 0.3, marginBottom: 4 },
+  dayLetter: { fontSize: 12.5, fontWeight: '500', color: '#6A6A6A', marginBottom: 4 },
   dayNumber: { fontSize: 15, fontWeight: '600', color: '#111111' },
   todayCircle: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: '#111111',
@@ -1544,11 +1544,10 @@ const styles = StyleSheet.create({
     position: 'absolute', top: -7, left: 4, width: GUTTER_W - 8,
     fontSize: 10, fontWeight: '500', color: '#B0B0B0', fontVariant: ['tabular-nums'],
   },
-  // REG-639 clay: la disponibilità è un binario sottile a sinistra della colonna.
+  // REG-639 clay: la disponibilità è una tinta di fondo appena accennata.
   availTint: {
     position: 'absolute',
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(17,17,17,0.16)',
+    backgroundColor: 'rgba(17,17,17,0.028)',
   },
   // Invisible bookable surface (the ghost block is the visual feedback).
   bookSurface: {

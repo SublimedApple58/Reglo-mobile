@@ -267,7 +267,34 @@ export function agendaBlockStyle(
 ): AgendaBlockStyle {
   const bg = softenTint(overrideHex || entry.bgHex);
   const vivid = vividHex(entry, overrideHex);
+  if (NEUTRAL_BLUE && isBlueHue(vivid)) {
+    return { backgroundColor: '#FFFFFF', shadowColor: '#FFFFFF', barColor: '#111111', washColor: '#FFFFFF' };
+  }
   return { backgroundColor: bg, shadowColor: bg, barColor: vivid, washColor: mixWithWhite(vivid, WASH_WHITE) };
+}
+
+/**
+ * REG-639 (decisione del 28/10 notte, da confermare con Tiziano): sul MOBILE
+ * niente blu/azzurro in agenda. Se il colore della voce (default o scelto
+ * dall'autoscuola) è un blu o un azzurro, il blocco diventa neutro: barretta
+ * nera e scheda bianca senza tinta. La palette condivisa col web e i dati NON
+ * cambiano. Per togliere la regola: `NEUTRAL_BLUE = false` (punto unico).
+ */
+export const NEUTRAL_BLUE = true;
+export function isBlueHue(hex: string): boolean {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return false;
+  const [r, g, b] = rgb.map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (max === 0 || d / max < 0.12) return false; // grigi: non sono blu
+  let h: number;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return h >= 180 && h <= 260; // dall'azzurro/ciano al blu, escluso il viola
 }
 
 /**

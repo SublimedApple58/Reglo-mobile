@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 
 import type { AutoscuolaAppointmentWithRelations, InstructorBlock } from '../../types/regloApi';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
@@ -168,7 +167,7 @@ export function AgendaDayView({
   onPressGroupLesson,
   onPressBlock,
   onBookAt,
-  bottomInset = 120,
+  bottomInset = 150,
 }: Props) {
   const settings = useAutoscuolaSettings();
   const colorConfig = useMemo(() => resolveAgendaColorConfig(settings.data), [settings.data]);
@@ -241,7 +240,6 @@ export function AgendaDayView({
               <Text style={s.freeTx}>
                 Libero <Text style={s.freeSub}>· {hm(it.start)}–{hm(it.end)} · {dur(it.end - it.start)}</Text>
               </Text>
-              <Ionicons name="add" size={20} color={CLAY.ink} />
             </Pressable>
           </TimeRow>
         );
@@ -428,7 +426,7 @@ const s = StyleSheet.create({
   blockSub: { fontWeight: '400', color: CLAY.ink4 },
   free: {
     minHeight: 50, borderRadius: 18, borderWidth: 1.2, borderStyle: 'dashed', borderColor: 'rgba(17,17,17,0.22)',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
   },
   freePressed: { backgroundColor: 'rgba(17,17,17,0.03)' },
   freeTx: { fontSize: 15, fontWeight: '600', color: CLAY.ink, flexShrink: 1 },
