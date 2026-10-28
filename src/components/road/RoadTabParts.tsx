@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
-import type { RoadBriefing } from '../../types/regloApi';
+import type { RoadBriefing, RoadRecentSession } from '../../types/regloApi';
+import { dayLabel, formatHm, formatKm, formatMinutes } from '../../road/format';
 import { markerArt } from '../../road/markerArt';
 import { CLAY } from '../../theme/clay';
 import { Icon3D } from '../clay/Icon3D';
@@ -149,7 +150,35 @@ export function RouteThumb({
   );
 }
 
+/** «Oggi 11:00 · 5,9 km · ✓ 3 ↑ 2» (glifi, niente pillole). */
+export function SessionNumbers({ session, withDay, style }: { session: RoadRecentSession; withDay?: boolean; style?: object }) {
+  const head = withDay
+    ? `${dayLabel(session.startedAt)} ${formatHm(session.lesson.startsAt)} · ${formatKm(session.distanceMeters)} km`
+    : `${formatKm(session.distanceMeters)} km · ${formatMinutes(session.durationSec)} min`;
+  return (
+    <View style={[s.nums, style]}>
+      <Text style={s.numsTx}>{head}</Text>
+      {session.markerGood ? (
+        <>
+          <Text style={s.numsTx}> · </Text>
+          <Ionicons name="checkmark" size={14} color={SENTIMENT_GOOD} />
+          <Text style={s.numsTx}> {session.markerGood}</Text>
+        </>
+      ) : null}
+      {session.markerBad ? (
+        <>
+          <Text style={s.numsTx}>{session.markerGood ? '   ' : ' · '}</Text>
+          <Ionicons name="arrow-up" size={14} color={SENTIMENT_BAD} />
+          <Text style={s.numsTx}> {session.markerBad}</Text>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  nums: { flexDirection: 'row', alignItems: 'center' },
+  numsTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
   line: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
   lineTx: { flex: 1, fontSize: 15.5, fontWeight: '400', color: CLAY.ink, letterSpacing: -0.2 },

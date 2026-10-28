@@ -15,14 +15,14 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { regloApi } from '../../../src/services/regloApi';
-import type { RoadFreeOptions, RoadRecentSession, RoadSuggestion } from '../../../src/types/regloApi';
+import type { RoadFreeOptions, RoadSuggestion } from '../../../src/types/regloApi';
 import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
-import { BriefingLines, RoadAvatar, RouteThumb } from '../../../src/components/road/RoadTabParts';
-import { SENTIMENT_BAD, SENTIMENT_GOOD } from '../../../src/components/road/RoadSentiment';
+import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
+import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
 import { ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadState } from '../../../src/road/roadStore';
-import { dayLabel, formatHm, formatKm, formatMinutes, formatRange } from '../../../src/road/format';
+import { dayLabel, formatHm } from '../../../src/road/format';
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
@@ -38,7 +38,6 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
 import {
-  ROAD_CARD_EXIT,
   ROAD_EXIT,
   ROAD_LAYOUT,
   ROAD_LAYOUT_AFTER_EXIT,
@@ -80,7 +79,6 @@ export default function RoadTab() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [otherMode, setOtherMode] = useState(false);
-  const [laterIds, setLaterIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -137,8 +135,23 @@ export default function RoadTab() {
   const selected = faces.find((f) => f.id === selectedId) ?? faces[0] ?? null;
 
   const recent = options?.recentSessions ?? [];
-  const toClose = options?.toClose && !laterIds.includes(options.toClose.sessionId) ? options.toClose : null;
+  // Guida finita col pagellino da compilare: niente CTA nella tab (resta una
+  // sola primaria, «Parti con»). Si apre da sola il foglio «Appena finita»,
+  // una volta per avvio dell'app; poi resta la riga in «Ultime guide».
+  const toClose = options?.toClose ?? null;
   const toCloseSession = toClose ? recent.find((r) => r.id === toClose.sessionId) ?? null : null;
+  const toCloseId = toCloseSession?.id ?? null;
+  useFocusEffect(
+    useCallback(() => {
+      if (!toCloseId || inRoad || !pagellinoPrompt.shouldShow(toCloseId)) return;
+      // Dopo il cambio di tab: il foglio non si sovrappone alla transizione.
+      const t = setTimeout(() => {
+        pagellinoPrompt.markShown(toCloseId);
+        router.push('/(tabs)/drive/appena-finita');
+      }, 450);
+      return () => clearTimeout(t);
+    }, [toCloseId, inRoad, router]),
+  );
 
   const defaultVehicle = options?.vehicles.find((v) => v.id === options.defaultVehicleId) ?? null;
   const freeLine = [
@@ -262,55 +275,8 @@ export default function RoadTab() {
             </Animated.View>
           ) : (
             <Animated.View key="free" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-              {toClose && toCloseSession ? (
-                // ── Guida appena finita, pagellino da compilare ──────────
-                <Animated.View
-                  key={`close-${toClose.sessionId}`}
-                  entering={roadEnter()}
-                  exiting={ROAD_CARD_EXIT}
-                  layout={ROAD_LAYOUT}
-                  style={s.closeBlock}
-                  testID="road-tab-toclose"
-                >
-                  <Text style={s.kicker}>
-                    Appena finita · {formatRange(toCloseSession.lesson.startsAt, toCloseSession.endedAt ?? toCloseSession.lesson.endsAt)}
-                  </Text>
-                  <Text style={s.name}>{lessonStudentName(toCloseSession.lesson)}</Text>
-                  <SessionNumbers session={toCloseSession} style={{ marginTop: 3 }} />
-                  <ClayButton
-                    title="Compila il pagellino"
-                    onPress={() =>
-                      openRoadPagellino(
-                        router,
-                        toCloseSession.lesson,
-                        { showStayChip: false, onSaved: () => void load() },
-                        '/(tabs)/drive/pagellino',
-                      )
-                    }
-                    style={s.cta}
-                    testID="road-tab-pagellino"
-                  />
-                  <RoadPressable
-                    kind="small"
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => undefined);
-                      setLaterIds((l) => [...l, toClose.sessionId]);
-                    }}
-                    hitSlop={8}
-                    style={s.secondary}
-                  >
-                    <Text style={s.secondaryTx}>Più tardi</Text>
-                  </RoadPressable>
-                </Animated.View>
-              ) : null}
-
               {/* ── Libero: con chi guidi? ─────────────────────────────── */}
-              <Animated.View
-                // Sale solo dopo che la card «appena finita» è sparita.
-                layout={ROAD_LAYOUT_AFTER_EXIT}
-                style={toClose && toCloseSession ? s.afterClose : null}
-                testID="road-tab-free"
-              >
+              <Animated.View layout={ROAD_LAYOUT} testID="road-tab-free">
                 <Text style={s.title}>Con chi guidi?</Text>
                 {freeLine ? (
                   <Animated.Text key={freeLine} entering={ROAD_TEXT_IN} style={s.sub}>
@@ -402,8 +368,16 @@ export default function RoadTab() {
                   key={r.id}
                   leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} />}
                   title={lessonStudentName(r.lesson)}
-                  subtitle={<SessionNumbers session={r} withDay />}
-                  onPress={() => void openRoadPercorso(router, 'drive', r.appointmentId)}
+                  subtitle={
+                    r.id === toCloseId
+                      ? `${dayLabel(r.startedAt)} ${formatHm(r.lesson.startsAt)} · Pagellino da compilare`
+                      : <SessionNumbers session={r} withDay />
+                  }
+                  onPress={() =>
+                    r.id === toCloseId
+                      ? openRoadPagellino(router, r.lesson, { showStayChip: false }, '/(tabs)/drive/pagellino')
+                      : void openRoadPercorso(router, 'drive', r.appointmentId)
+                  }
                   testID="road-tab-recent"
                 />
               ))}
@@ -447,32 +421,6 @@ function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: n
         <Text style={s.hqTx}>Sede</Text>
       </View>
     </Marker>
-  );
-}
-
-/** «Oggi 11:00 · 5,9 km · ✓ 3 ↑ 2» (glifi, niente pillole). */
-function SessionNumbers({ session, withDay, style }: { session: RoadRecentSession; withDay?: boolean; style?: object }) {
-  const head = withDay
-    ? `${dayLabel(session.startedAt)} ${formatHm(session.lesson.startsAt)} · ${formatKm(session.distanceMeters)} km`
-    : `${formatKm(session.distanceMeters)} km · ${formatMinutes(session.durationSec)} min`;
-  return (
-    <View style={[s.nums, style]}>
-      <Text style={s.numsTx}>{head}</Text>
-      {session.markerGood ? (
-        <>
-          <Text style={s.numsTx}> · </Text>
-          <Ionicons name="checkmark" size={14} color={SENTIMENT_GOOD} />
-          <Text style={s.numsTx}> {session.markerGood}</Text>
-        </>
-      ) : null}
-      {session.markerBad ? (
-        <>
-          <Text style={s.numsTx}>{session.markerGood ? '   ' : ' · '}</Text>
-          <Ionicons name="arrow-up" size={14} color={SENTIMENT_BAD} />
-          <Text style={s.numsTx}> {session.markerBad}</Text>
-        </>
-      ) : null}
-    </View>
   );
 }
 
@@ -545,15 +493,6 @@ const s = StyleSheet.create({
   ctaTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
   secondary: { alignItems: 'center', paddingVertical: 14 },
   secondaryTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink2 },
-  closeBlock: { paddingBottom: 6 },
-  afterClose: {
-    marginTop: 8,
-    paddingTop: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: CLAY.hairline,
-  },
-  nums: { flexDirection: 'row', alignItems: 'center' },
-  numsTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
   recent: { marginTop: 22 },
   section: { fontSize: 20, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.4, paddingHorizontal: 24, marginBottom: 12 },
   recentList: { marginHorizontal: 20 },

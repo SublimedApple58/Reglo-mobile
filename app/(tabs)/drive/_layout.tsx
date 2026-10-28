@@ -16,6 +16,8 @@ export default function DriveLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="avvia" options={FORM_SHEET} />
       <Stack.Screen name="road-privacy" options={FORM_SHEET} />
+      {/* Guida appena finita col pagellino da compilare: si apre da sola (una volta per avvio). */}
+      <Stack.Screen name="appena-finita" options={FORM_SHEET} />
       {/* «Compila il pagellino» dalla tab: lo stack /road esiste solo in guida. */}
       <Stack.Screen name="pagellino" options={FORM_SHEET} />
       {/* «Ultime guide»: percorso della guida e mappa a tutto schermo, come in home. */}
