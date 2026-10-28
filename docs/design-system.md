@@ -133,7 +133,7 @@ decorazione delle righe.
 
 | Chiave | Dove |
 |---|---|
-| `espresso` | «Giornata libera» (vista Giorno dell'Agenda, `AgendaDayView`) |
+| `espresso` | «Giornata libera» (oggi non usata: era nella vista Giorno dell'Agenda, eliminata il 29/10) |
 | `aeroplanino` | «Nessuna notifica» (`NotificationInboxScreen`) |
 | `piantina` | liste vuote: luoghi (`LocationsScreen`), veicoli (`VehiclesScreen`), Panoramica istruttori (`OwnerInstructorScreen`) |
 | `trofeo` | traguardo ore di guida (`InstructorHoursScreen`) |
@@ -226,8 +226,6 @@ Fuori da `src/components/clay/` (import diretto):
 |---|---|---|
 | `ClayPageHeader` (`src/components/ClayPageHeader.tsx`) | testata delle schermate intere clay: riga comandi (indietro a sinistra, azioni a destra, tutti `ClayIconButton`), titolo grande 32/600 e riga grigia di contesto; sta DENTRO lo scroll | `MoreScreen` («Tu»/«Altro»), `SettingsScreen` (staff), `InstructorHoursScreen`, `VehiclesScreen`, `LocationsScreen`, `EvaluationSheetScreen`, `AppearanceSettingsScreen` (Agenda, notifiche, Disponibilità e Panoramica istruttori hanno una testata propria con lo stesso stile) |
 | `ClayAccountParts` (`src/components/ClayAccountParts.tsx`) | `ProfileSummaryCard` (volto + nome + ruolo · autoscuola + chevron → modifica profilo), `ClayTextRow` (riga di solo testo, `danger` = rosso `CLAY_DANGER` `#C13515` solo per azioni distruttive), `AppVersionFooter` | `MoreScreen`, `SettingsScreen` |
-| `AgendaDayView` (`src/components/agenda/`) | vista Giorno dell'Agenda: lista per orario (§6.20) | `IstruttoreHomeScreen` |
-| `AgendaDayStrip` (`src/components/agenda/`) | striscia dei giorni lun–sab, a pagine settimanali; giorno scelto nel cerchio nero clay, numero di impegni grigio sotto; esporta `dateKeyOf` | `IstruttoreHomeScreen` |
 
 ---
 
@@ -1011,53 +1009,44 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 - **iOS:** usa token deprecati `glass*` + `BlurView` nativo per effetto vetro.
 - **Android:** tab bar custom con `bg: #FFFFFF`, highlight navy.
 
-### 6.20 Agenda istruttore / titolare (clay v2, REG-639 notte 28/10/2026)
+### 6.20 Agenda istruttore / titolare (clay v2, REG-639)
 
 Feature doc completo: [features/agenda-istruttore.md](features/agenda-istruttore.md).
 Schermata: `IstruttoreHomeScreen` (anche `TitolareHomeScreen` = `ownerMode`).
+**Una sola vista: la Settimana** (griglia `WeeklyAgendaView`), come dopo
+REG-638. La vista Giorno a lista provata la notte del 28/10 è stata bocciata
+da Tiziano il 29/10 ed eliminata.
 
-- **Testata**: titolo «Agenda» 32/600 + data lunga in grigio (`mercoledì 28
-  ottobre`), con il link testuale «Oggi» quando il giorno scelto non è oggi;
-  a destra orologio (Disponibilità) e campanella (`InboxBellButton`) solo
-  nell'app istruttore. Il titolare-istruttore ha sotto due voci di testo
-  «Le mie guide» / «Tutti gli istruttori» (niente chip). Poi `ClaySegmented`
-  **Giorno | Settimana**. Il banner «N guide fuori disponibilità» è una
-  `ClaySurface` piccola con «Gestisci» + chevron, senza icona.
-- **Giorno (predefinita)** — `AgendaDayStrip` + `AgendaDayView`: una **lista
-  per orario**, non una griglia. Guide = card bianche clay con la barretta del
-  colore (sotto), nome allievo nero + riga grigia (tipo · durata · veicolo);
-  esami e guide di gruppo = stessa card («Esame», «Guida di gruppo», «N su
-  capienza»); pause, blocchi, malattia, ferie = **righe quiete** grigie con un
-  filetto (la pausa tra guide si legge «Pausa»), non card; i **buchi liberi**
-  ≥ 30 min dentro la disponibilità (solo nel futuro) sono una riga tratteggiata
-  «Libero · 10:00–11:30 · 1 h 30» senza «+», che al tocco apre il quick-book
-  con l'orario già messo; **«adesso»** = filetto nero con pallino e ora. Giorno
-  vuoto = `ClayEmpty` con l'espresso «Giornata libera». Titolare / «Tutti gli
-  istruttori» = sezioni per istruttore, ricerca oltre 5 istruttori, niente
-  buchi liberi.
-- **Settimana** — `WeeklyAgendaView` (la griglia): colonne **bianche** divise
-  da un filetto (niente grigio), nomi dei giorni in minuscolo (`lun`, `mar`…),
-  festivi grigi barrati, disponibilità come **tinta appena accennata**
-  (`rgba(17,17,17,0.028)`) sull'intera colonna, linea dell'ora nera, blocchi
-  istruttore bianchi tratteggiati in grigio senza icona. Tocco
-  sull'intestazione di un giorno → vista Giorno su quel giorno.
-- **Colore dei blocchi** = barretta piena a sinistra + tinta leggerissima
-  (12% di colore) dello stesso colore, testo sempre nero — un solo punto,
-  `src/utils/agendaLook.ts`, per le due viste. Esami: barretta nera su bianco
-  (niente viola); gruppi: verde foglia `#2FA36B`, gruppi moto: ambra `#F5A524`;
-  annullata/assente: grigio tenue. Interruttore per tornare al pastello pieno:
-  `AGENDA_BLOCK_BAR` in `src/utils/agendaColors.ts`. **`NEUTRAL_BLUE`** (stesso
-  file): sul mobile ogni voce blu/azzurra (tinta 180°–260°) diventa barretta
-  nera + scheda bianca; palette e dati condivisi col web non cambiano. **Da
-  confermare con Tiziano.** Dettagli in
-  [features/agenda-block-colors.md](features/agenda-block-colors.md).
+- **Testata**: titolo «Agenda» 32/600 + data di oggi in grigio; a destra
+  orologio (Disponibilità) e campanella (`InboxBellButton`), cerchi bianchi
+  clay, solo nell'app istruttore. Il titolare-istruttore ha sotto due voci di
+  testo «Le mie guide» / «Tutti gli istruttori» (niente chip). Il banner «N guide
+  fuori disponibilità» è una `ClaySurface` piccola con «Gestisci» + chevron,
+  senza icona. Niente segmentato.
+- **Griglia**: colonne **bianche** divise da un filetto (niente grigio), nomi
+  dei giorni in minuscolo (`lun`, `mar`…), oggi nel cerchio nero, festivi
+  grigi barrati, disponibilità come **tinta appena accennata**
+  (`rgba(17,17,17,0.028)`), linea dell'ora nera, «Oggi» come link testuale.
+  L'intestazione dei giorni non è tappabile.
+- **Blocchi delle guide = riempimento pastello pieno**: fondo pieno nella tinta
+  scelta dall'autoscuola (ammorbidita da `softenTint`), **niente bordo, niente
+  barretta**, solo un'**ombra morbida nella stessa tinta**, testo scuro
+  leggibile. Un solo punto: `src/utils/agendaLook.ts` (`AGENDA_BLOCK_BAR =
+  false` in `agendaColors.ts`; la barretta su bianco è stata bocciata). Il
+  bordo del cambio automatico (REG-622) resta, è un'impostazione di prodotto.
+  Esami: bianco con ombra neutra (niente viola); gruppi: verde foglia pastello,
+  gruppi moto: ambra pastello; annullata/assente: grigio tenue; esame il giorno
+  dopo: rosso pastello. Blocchi istruttore (pausa, blocco, malattia, ferie):
+  bianchi tratteggiati in grigio, senza icona; la pausa tra guide si legge
+  «Pausa». Dettagli in [features/agenda-block-colors.md](features/agenda-block-colors.md).
+- **Blu (in sospeso)**: con `NEUTRAL_BLUE = true` (stesso file) le voci
+  blu/azzurre/indaco diventano blocchi bianchi con ombra neutra; palette e dati
+  condivisi col web non cambiano. **Decisione aperta con Tiziano.**
 - **FAB «+»**: cerchio nero 56 col volume della CTA primaria
   (`CLAY_CTA.primary`). Apre il foglio **«Nuovo»** (`home/add-action`,
   FORM_SHEET + `<FormSheet>`): `ClayList` di solo testo (Guida, Guida di
   gruppo, Esame, Lezione teorica, Blocca un orario, Malattia), titolo + una
   riga che spiega, **niente icone**.
-- Cambio vista e cambio giorno: dissolvenza morbida (`SOFT_SWAP_IN/OUT`),
-  niente slide né rimbalzi.
 
 ---
 

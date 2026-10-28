@@ -9,6 +9,7 @@ _(aggiornato a fine di ogni fase)_
 
 - [x] Fase 0 — basi (`302f8f0`): primitivi `ClaySection`, `ClayToggle`, `ClayField`, `ClayEmpty`; 13 icone Gemini generate (tavola `/tmp/hiro-anteprime/clay/icone/tavola-notte.png`), 5 di morale in `assets/morale/` (`src/theme/moraleArt.ts`). FormSheet lungo su Android non verificabile stanotte (niente emulatore): da provare.
 - [x] Fase 1 — Agenda (`de4124a`): `src/components/agenda/AgendaDayView.tsx` + `AgendaDayStrip.tsx`, testata nuova in `IstruttoreHomeScreen`, aspetto unico dei blocchi in `src/utils/agendaLook.ts` (interruttore `AGENDA_BLOCK_BAR` in `agendaColors`), Settimana ripulita (colonne bianche, binario disponibilità, blocchi neutri, «Pausa», linea adesso nera, tocco sul giorno → Giorno), foglio «Nuovo» su FormSheet senza icone, quick-book col segmentato clay; le 21 chiamate di disponibilità ora partono per settimana e non a ogni giorno. Anteprime `/tmp/hiro-anteprime/clay/notte/agenda/`. Correzioni dopo la revisione: **blu neutralizzato sul mobile** — se il colore della voce è un blu/azzurro (default o scelto dall'autoscuola) il blocco diventa barretta nera + scheda bianca; palette web e dati invariati; interruttore unico `NEUTRAL_BLUE` in `src/utils/agendaColors.ts` (**da confermare con Tiziano**). Settimana: giorni in minuscolo come nella vista Giorno, disponibilità = tinta di fondo appena accennata; spazio in fondo alle liste per il «+»; via il «+» dentro «Libero».
+  - **Superata il 29/10 (commit `7361d96`)**: Tiziano ha bocciato la vista Giorno e la barretta. Agenda = **solo Settimana** (come dopo REG-638, tocco sul giorno come prima), blocchi a **riempimento pastello pieno** senza bordo con ombra morbida in tinta (`AGENDA_BLOCK_BAR = false`). `AgendaDayView` / `AgendaDayStrip` eliminati. Anteprima `/tmp/hiro-anteprime/clay/agenda-v3/confronto.png`.
 - [x] Fase 2 — fogli dell'Agenda (`551fe5a`): ~30 fogli su `FORM_SHEET` + `<FormSheet>` (gestisci guida + sottofogli, guide di gruppo, co-istruttori, note, pagellino unificato, prenota/blocca/lezione teorica/malattia, auto al seguito, esami, allievi d'esame, guida di gruppo, sposta, scambia, fuori disponibilità, data, intervallo, allievo, ora). Via Fluent, pillole di stato (lo stato è testo), eyebrow, fondi grigi, footer fissi, molla con rimbalzo di «Gestisci guida». Anteprime `/tmp/hiro-anteprime/clay/notte/fogli-agenda/`.
 - [x] Fase 3 — Disponibilità (`8c71375`): testata con indietro + titolo grande, orari settimanali come lista (fasce in testo), eccezioni, pubblicazione per settimana senza pillole; fogli giorno/eccezione/ora su FormSheet. Anteprime `/tmp/hiro-anteprime/clay/notte/disponibilita/`.
 - [x] Fase 4 — Tu (`e1dfa57`): «Tu» (profilo, Gestione, Account, Esci rosso), Ore di guida (numero grande + trofeo), Veicoli, Luoghi, Pagellino, Aspetto agenda (nota sul blu), Impostazioni; Panoramica istruttori del titolare (lista con ricerca, fogli invito e disponibilità su FormSheet al posto dei BottomSheet). Anteprime `/tmp/hiro-anteprime/clay/notte/tu/`.
@@ -34,6 +35,8 @@ Regole sempre valide: bianco puro, testi e CTA neri, mai fondi grigi/crema, mai 
 - **Fuori**: Allievi (`InstructorNotesScreen`, dettaglio allievo, pagamenti, cluster settings, rotte `notes/*`), schermate allievo, Road.
 
 ## Nuova Agenda
+
+> **Superato il 29/10**: la parte qui sotto su vista Giorno, striscia dei giorni, buchi «Libero» e barretta di colore è stata bocciata da Tiziano. Oggi l'agenda è **solo la Settimana** (griglia clay: colonne bianche, disponibilità come tinta appena accennata, giorni in minuscolo) con blocchi a **riempimento pastello pieno**, niente barretta, ombra morbida in tinta. Il resto (testata, FAB, foglio «Nuovo») vale.
 
 - **Testata**: titolo grande «Agenda» + data sotto; a destra due bottoni clay (disponibilità, campanella). Via «Ciao 👋».
 - **Navigazione**: `ClaySegmented` «Giorno | Settimana», si apre su **Giorno**; passaggio fluido (dissolvenza incrociata). Sotto, striscia di 6 giorni scorrevole a settimane: giorno scelto in cerchio nero clay, sotto il numero di guide in grigio piccolo (numero, non badge). Tocco sulla data → calendario del mese in foglio.
@@ -68,8 +71,8 @@ Regole sempre valide: bianco puro, testi e CTA neri, mai fondi grigi/crema, mai 
 
 ## Rischi e decisioni (prese stanotte)
 
-- Colore dei blocchi: barretta + tinta leggerissima (nota 2), un solo punto nel codice per tornare indietro.
-- Vista Giorno predefinita (nota 3), nuova, non il vecchio `DayItinerary`.
+- Colore dei blocchi: ~~barretta + tinta leggerissima~~ → dal 29/10 fondo pieno pastello, senza bordo, ombra in tinta (`AGENDA_BLOCK_BAR = false`).
+- ~~Vista Giorno predefinita~~ → dal 29/10 solo vista Settimana.
 - Allievi: si cambiano solo i file icona Fluent.
 - Android: form sheet lunghi tagliavano la CTA → verifica in fase 0.
 - Dati su prod (nota 4): solo Autoscuola Maltese; nessuna azione che manda notifiche/mail/WhatsApp a persone vere; si cancella tutto ciò che si crea.
@@ -80,7 +83,7 @@ Regole sempre valide: bianco puro, testi e CTA neri, mai fondi grigi/crema, mai 
 
 ## Decisioni da confermare (per Tiziano)
 
-1. **Niente blu in agenda.** Sul telefono le guide con un colore blu o azzurro si vedono con la barretta nera e la scheda bianca. Sul web e nei dati non cambia niente. Se vuoi tornare indietro basta un interruttore (`NEUTRAL_BLUE` in `src/utils/agendaColors.ts`). In alternativa possiamo cambiare i colori predefiniti, ma così cambia anche il web.
+1. **Blu in agenda — IN SOSPESO, aspetta la risposta di Tiziano.** Oggi (`NEUTRAL_BLUE = true` in `src/utils/agendaColors.ts`) sul telefono le guide con un colore blu, azzurro o indaco si vedono come blocchi bianchi con ombra neutra, mentre gli altri colori sono pastello pieno. Sul web e nei dati non cambia niente. Le strade: lasciarlo così, spegnerlo (`false`: i blu tornano pastello blu come gli altri colori) oppure cambiare i colori predefiniti (cambia anche il web). Confronto: `/tmp/hiro-anteprime/clay/agenda-v3/confronto.png`.
 2. **Vista del titolare non provata sullo schermo.** Non ho fatto logout dal simulatore per non toccare la tua sessione. L'agenda raggruppata per istruttore e la Panoramica istruttori le ho controllate solo nel codice.
 3. **Esito d'esame.** «Idoneo» e «Respinto» ora sono scritti in nero, senza verde e rosso. Sul web restano colorati.
 4. **«Esci».** Ora sta solo nella schermata «Tu». Dalle Impostazioni è stato tolto per non averlo due volte.
@@ -92,8 +95,8 @@ Regole sempre valide: bianco puro, testi e CTA neri, mai fondi grigi/crema, mai 
 
 ## Cosa provare sul simulatore
 
-1. **Agenda:** si apre su «Giorno». Cambia giorno dalla striscia, poi passa a «Settimana» e tocca un giorno per tornare alla vista Giorno.
-2. **Buco libero:** tocca una riga «Libero». Si apre «Prenota guida» con l'orario già messo. Chiudi senza prenotare.
+1. **Agenda:** si apre sulla Settimana. Scorri a destra e a sinistra tra le settimane e torna con «Oggi»; guarda i blocchi a fondo pastello.
+2. **Spazio libero:** tocca uno spazio vuoto della griglia, poi «Scegli i dettagli»: si apre «Prenota guida» con l'orario già messo. Chiudi senza prenotare.
 3. **Una guida:** aprila e scorri fino in fondo. Titolo e X devono restare fissi in alto.
 4. **Il «+»:** apri il foglio «Nuovo» e prova «Esame» o «Blocca un orario» senza salvare.
 5. **Disponibilità:** dall'orologio in alto apri la schermata e tocca «Lunedì».

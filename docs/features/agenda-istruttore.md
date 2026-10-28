@@ -1,74 +1,65 @@
 # Agenda istruttore / titolare (clay v2, REG-639)
 
-La prima tab dell'app istruttore e titolare: le guide, gli esami, le guide di
-gruppo, i blocchi e la disponibilità, in due viste — **Giorno** (predefinita,
-una lista per orario) e **Settimana** (la griglia oraria). Rifatta nella notte
-del 28/10/2026 (commit `de4124a` + correzioni `f1e6c94`), branch
-`feat/reg-639-clay-ds`. Lo stile è il clay v2 (`docs/design-system.md` §0,
-riassunto in §6.20).
+La prima tab dell'app istruttore e titolare: guide, esami, guide di gruppo,
+blocchi e disponibilità in **una sola vista, la Settimana** (la griglia oraria
+lun–sab), come dopo REG-638. REG-639 ne ha rifatto lo stile (clay v2:
+`docs/design-system.md` §0, riassunto in §6.20), non la struttura.
 
-> Storia: fino a REG-638 c'erano vista giorno a timeline (`itinCard`,
-> `BookableBand`), `WeeklyOverview`, `WeeklyLiveCard`, `DayItinerary`,
-> `home/day-detail`. REG-638 (28/10) le ha tolte lasciando solo la griglia;
-> REG-639 ha aggiunto la nuova vista Giorno a lista. Dove gli altri feature doc
-> citano quei componenti, sono storici.
+> Storia: la notte del 28/10 era stata aggiunta una vista Giorno a lista
+> (`AgendaDayView` + `AgendaDayStrip`, commit `de4124a`) con la barretta di
+> colore sui blocchi. Tiziano l'ha bocciata il 29/10: **solo Settimana**, blocchi
+> a **riempimento pastello pieno** (commit `7361d96`). I componenti della vista
+> Giorno sono stati eliminati; dove altri doc li citano, sono storici. Prima
+> ancora (fino a REG-638) c'erano `itinCard`, `BookableBand`, `WeeklyOverview`,
+> `WeeklyLiveCard`, `DayItinerary`, `home/day-detail`: tutti eliminati.
 
 ## File
 
 | File | Ruolo |
 |------|-------|
-| `src/screens/IstruttoreHomeScreen.tsx` | La schermata: dati (bootstrap agenda, disponibilità, festivi, fuori disponibilità), testata, scelta vista (`agendaView: 'day' \| 'week'`, parte da `'day'`), FAB «+», tutti i gestori di tocco (apri guida/esame/gruppo/blocco, quick-book). `ownerMode` = titolare puro in sola lettura. |
+| `src/screens/IstruttoreHomeScreen.tsx` | La schermata: dati (bootstrap agenda, disponibilità, festivi, fuori disponibilità), testata clay, FAB «+», tutti i gestori di tocco (apri guida/esame/gruppo/blocco, quick-book). `ownerMode` = titolare puro in sola lettura. |
 | `src/screens/TitolareHomeScreen.tsx` | Wrapper: `<IstruttoreHomeScreen ownerMode />`. |
-| `src/components/agenda/AgendaDayStrip.tsx` | Striscia dei giorni lun–sab, a pagine settimanali (`FlatList` orizzontale, ±26 settimane). Giorno scelto nel cerchio nero clay, oggi in nero pieno, passati in grigio, sotto il numero di impegni in grigio (niente se zero). Segue il giorno scelto da fuori («Oggi», tocco in Settimana). Esporta `dateKeyOf(d)` (`YYYY-MM-DD`). |
-| `src/components/agenda/AgendaDayView.tsx` | Vista Giorno. `buildItems` costruisce la sequenza del giorno: guide, esami (raggruppati per inizio/fine/istruttore), guide di gruppo (per `groupLessonId`), blocchi, **buchi liberi** e **«adesso»**; ordine per minuto, a parità «adesso» → eventi → buchi. Esami senza orario (`!endsAt`) in testa come «Esame, orario da definire». |
-| `src/components/WeeklyAgendaView.tsx` | Vista Settimana (griglia). Nuova prop `onPressDay(day)` sull'intestazione del giorno. Colonne bianche col filetto, giorni in minuscolo, disponibilità come tinta appena accennata, blocchi istruttore neutri, linea dell'ora nera, link «Oggi» testuale. Blocco fantasma per prenotare invariato. |
-| `src/utils/agendaLook.ts` | Aspetto di un evento per tutte e due le viste: `guideLook`, `EXAM_LOOK`, `GROUP_LOOK`, `GROUP_MOTO_LOOK`, `blockLabel`. Vedi [agenda-block-colors.md](agenda-block-colors.md). |
-| `src/utils/agendaColors.ts` | Criterio colore + interruttori `AGENDA_BLOCK_BAR` e `NEUTRAL_BLUE`, `mixWithWhite`. |
+| `src/components/WeeklyAgendaView.tsx` | La griglia settimanale: settimane affiancate a scorrimento, colonne bianche col filetto, giorni in minuscolo, disponibilità come tinta appena accennata, blocchi istruttore neutri, linea dell'ora nera, link «Oggi» testuale, blocco fantasma per prenotare. L'intestazione dei giorni NON è tappabile (come prima). |
+| `src/utils/agendaLook.ts` | Aspetto di un evento (un solo punto): `guideLook`, `EXAM_LOOK`, `GROUP_LOOK`, `GROUP_MOTO_LOOK`, `blockLabel`. Vedi [agenda-block-colors.md](agenda-block-colors.md). |
+| `src/utils/agendaColors.ts` | Criterio colore + interruttori `AGENDA_BLOCK_BAR` (oggi `false`) e `NEUTRAL_BLUE` (oggi `true`, in sospeso), `mixWithWhite`. |
 | `app/(tabs)/home/add-action.tsx` | Foglio «Nuovo» del «+» (`FORM_SHEET` + `<FormSheet>`): `ClayList` di solo testo — Guida, Guida di gruppo (se `groupLessonsEnabled`), Esame, Lezione teorica, Blocca un orario, Malattia. Al tocco chiude e lancia l'azione a foglio chiuso (iOS +380 ms). Dati da `homeAddSheetStore`. |
-| `app/(tabs)/home/quick-book.tsx` | Prenotazione veloce da buco libero / blocco fantasma: [quick-book.md](quick-book.md). |
-| `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`). |
-| `src/theme/moraleArt.ts` | `MORALE_ART.espresso` per lo stato vuoto «Giornata libera». |
+| `app/(tabs)/home/quick-book.tsx` | Prenotazione veloce dal blocco fantasma della griglia: [quick-book.md](quick-book.md). |
+| `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`), cerchi bianchi clay `raiseSm`. |
 
-## Viste
+## La vista
 
-**Testata** (stili `hd` in `IstruttoreHomeScreen`): «Agenda» 32/600, data
-lunga in grigio con link «Oggi» se il giorno scelto non è oggi, orologio +
-campanella a destra; per il `INSTRUCTOR_OWNER` le due voci di testo «Le mie
-guide» / «Tutti gli istruttori» (`calendarScope`); `ClaySegmented` Giorno |
-Settimana (`testID` `agenda-view-day` / `agenda-view-week`); errore; banner
-fuori disponibilità (`ClaySurface` → `home/out-of-availability`).
+**Testata** (stili `hd` in `IstruttoreHomeScreen`): «Agenda» 32/600 con sotto
+la data di oggi in grigio; a destra orologio (Disponibilità) e campanella; per
+il `INSTRUCTOR_OWNER` due voci di testo «Le mie guide» / «Tutti gli istruttori»
+(`calendarScope`, niente chip); errore; banner «N guide fuori disponibilità»
+(`ClaySurface` piccola → `home/out-of-availability`). Niente segmentato:
+l'agenda si apre e resta sulla Settimana.
 
-**Giorno** (`AgendaDayView`):
-- guida = `EventCard` bianca clay con barretta + tinta (`guideLook`), nome
-  allievo («Cognome Nome») e riga grigia: stato (Assente / In corso), tipo
-  (o tipo moto birilli/strada), durata, veicolo se `agendaShowVehicle`;
-- esame = barretta nera, «Esame» + «N allievi · nomi»; gruppo = barretta verde
-  (ambra se moto), «Guida di gruppo» + «N su capienza · nomi»;
-- blocchi (pausa, blocco, malattia, ferie, teoria) = righe quiete grigie con
-  filetto, la pausa tra guide (`lesson_buffer`) si legge «Pausa»; tappabili
-  (`handlePressBlock`) tranne in `ownerMode`;
-- **buchi liberi**: dentro le finestre di disponibilità del giorno, solo nel
-  futuro (oggi dall'ora corrente arrotondata a 15'), almeno 30 min → riga
-  tratteggiata «Libero · hh:mm–hh:mm · durata», tocco →
-  `onBookAt(date, start, start, end)` → `openQuickBookSheet`. Calcolati solo se
-  c'è `onBookAt`: niente buchi per `ownerMode`, senza permesso di prenotare
-  (`canInstructorBook`) o con «Tutti gli istruttori»;
-- **«adesso»**: filetto nero con pallino e ora, solo oggi; un timer al minuto
-  sposta «adesso» e i buchi;
-- titolare / «Tutti gli istruttori» (`groupByInstructor`): sezioni per
-  istruttore in ordine alfabetico, senza blocchi né buchi, ricerca
-  (`ClaySearchField`) oltre 5 istruttori;
-- vuoto = `ClayEmpty` espresso «Giornata libera» (testo diverso se festivo o se
-  si può prenotare); in caricamento tre schede-scheletro;
-- pull-to-refresh → `handleRefresh`; spazio in fondo 150 pt per il FAB.
+**Settimana** (`WeeklyAgendaView`):
+- intestazione con l'intervallo («26 – 31 Ott») e il link testuale «Oggi»
+  quando si è su un'altra settimana;
+- giorni `lun`…`sab` in minuscolo, oggi nel cerchio nero, passati in grigio,
+  festivi grigi barrati;
+- colonne bianche separate da un filetto; la disponibilità è una tinta di fondo
+  appena accennata (`rgba(17,17,17,0.028)`);
+- **guide**: blocco a **fondo pieno in tinta pastello** (il colore scelto
+  dall'autoscuola, ammorbidito da `softenTint`), **senza bordo** né barretta,
+  **ombra morbida nella stessa tinta** (`tintShadow`), testo scuro. Cambio
+  automatico: bordo REG-622 (impostazione di prodotto). Annullate/assenti: grigio
+  tenue. Esame il giorno dopo: rosso pastello;
+- esami: fondo bianco con ombra neutra; guide di gruppo: verde foglia pastello,
+  gruppi moto: ambra pastello, ombra in tinta;
+- blocchi istruttore (pausa, blocco, malattia, ferie): bianchi tratteggiati in
+  grigio, senza icona; la pausa tra guide (`lesson_buffer`) si legge «Pausa»;
+  lezione teorica piena;
+- esami senza orario: card bianca clay sopra la griglia («Esame · giorno»);
+- linea dell'ora nera sulla colonna di oggi;
+- tocco/trascinamento su uno spazio libero → blocco fantasma → «Scegli i
+  dettagli» → quick-book.
 
-**Settimana** (`WeeklyAgendaView`): la griglia di sempre ripulita in clay (vedi
-design-system §6.20). Tocco sull'intestazione di un giorno →
-`setSelectedDate(d)` + `setAgendaView('day')`. Lo swipe di settimana aggiorna
-`selectedDate` solo se cambia settimana (`onDateChange`).
-
-Il cambio vista e il cambio giorno usano `SOFT_SWAP_IN` / `SOFT_SWAP_OUT`
-(`utils/motion.ts`): dissolvenza, niente rimbalzi.
+**FAB «+»**: cerchio nero 56 col volume della CTA primaria
+(`CLAY_CTA.primary`, `testID="agenda-fab"`) → foglio «Nuovo». Si nasconde mentre
+è attiva la CTA del blocco fantasma (`onGhostActiveChange`).
 
 ## Flusso dati
 
@@ -77,57 +68,42 @@ IstruttoreHomeScreen
  ├─ useAgendaBootstrap(from/to = loadRange, instructorId per scope) ─► appointments, instructorBlocks, students, vehicles
  ├─ useAutoscuolaSettings / instructor settings / festivi ─────────────► settings, holidays
  ├─ disponibilità: 21 × getAvailabilitySlots (settimana prima, corrente, dopo) ─► weekAvailability[YYYY-MM-DD]
- ├─ dayCounts (impegni per giorno, esami e gruppi contati una volta, annullate escluse)
- │
- ├─ agendaView === 'day'
- │    ├─ AgendaDayStrip(selected, counts = dayCounts, holidays)
- │    └─ AgendaDayView(date, appointments, instructorBlocks,
- │                     availability = weekAvailability[dateKeyOf(selectedDate)],
- │                     holiday, groupByInstructor = ownerMode || scope 'all', …)
- └─ agendaView === 'week'
-      └─ WeeklyAgendaView(appointments, instructorBlocks, holidays, anchorDate = selectedDate,
-                          weekAvailabilityByDate = weekAvailability, onPressDay, …)
+ └─ WeeklyAgendaView(appointments, instructorBlocks, holidays, anchorDate = selectedDate,
+                     weekAvailabilityByDate = weekAvailability, onBookAt, …)
 ```
 
-- Le due viste ricevono **gli stessi dati**: il bootstrap copre una finestra
-  mobile (`loadRange`, ~7 giorni indietro fino all'orizzonte di prenotazione)
-  scollegata dal giorno mostrato; ogni vista filtra lato client. Cambiare
-  giorno nella vista Giorno non costa rete.
-- **Disponibilità per settimana (cambio REG-639)**: l'effetto che scarica le
-  21 giornate di disponibilità dipende ora da `selectedWeekKey` (il lunedì del
-  giorno scelto) e da `instructorId`, **non più da `selectedDate`**. Nella
-  vista Giorno si cambia giorno a ogni tocco: con la dipendenza dal giorno
-  partivano 21 chiamate ogni volta. Il risultato si **fonde** con quello già in
-  memoria (mai rimpiazzato, mai svuotato su errore).
-- Gestori condivisi dalle due viste: `openLessonDrawer` (guida →
-  `manage-lesson`, o `manage-group-lesson` se è una riga di gruppo),
-  `openExamFromAgenda` (→ `exam-manage`, unione dei colleghi su tutte le righe,
-  REG-585), `openGroupLessonManage`, `handlePressBlock`, `openQuickBookSheet`.
-  Tutti i fogli di arrivo sono `FORM_SHEET` + `<FormSheet>` (design-system
-  §13.2).
+- Il bootstrap copre una finestra mobile (`loadRange`, ~7 giorni indietro fino
+  all'orizzonte di prenotazione); la griglia filtra lato client.
+- **Disponibilità per settimana (REG-639)**: l'effetto che scarica le 21
+  giornate dipende da `selectedWeekKey` (il lunedì della settimana mostrata) e da
+  `instructorId`, non da `selectedDate`. Il risultato si **fonde** con quello
+  già in memoria (mai rimpiazzato, mai svuotato su errore).
+- Lo swipe di settimana aggiorna `selectedDate` solo se cambia settimana
+  (`onDateChange`).
+- Gestori: `openLessonDrawer` (guida → `manage-lesson`, o `manage-group-lesson`
+  se è una riga di gruppo), `openExamFromAgenda` (→ `exam-manage`, unione dei
+  colleghi su tutte le righe, REG-585), `openGroupLessonManage`,
+  `handlePressBlock`, `openQuickBookSheet`. Tutti i fogli di arrivo sono
+  `FORM_SHEET` + `<FormSheet>` (design-system §13.2).
 
 ## Regole / gotcha
 
-- Il titolare puro (`ownerMode`) è in sola lettura: niente FAB, niente buchi
-  liberi, blocchi non tappabili, fogli in `readOnly`.
+- Il titolare puro (`ownerMode`) è in sola lettura: niente FAB, niente blocco
+  fantasma, blocchi non tappabili, fogli in `readOnly`.
 - Il colore dei blocchi passa SOLO da `agendaLook` (non duplicare la logica
-  nelle viste). `NEUTRAL_BLUE` è una decisione della notte **da confermare con
-  Tiziano** (e oggi neutralizza anche il viola: vedi
-  [agenda-block-colors.md](agenda-block-colors.md)).
-- `dateKeyOf` di `AgendaDayStrip` è la chiave locale `YYYY-MM-DD` usata anche
-  per `weekAvailability`, `holidays` e `dayCounts`: non mescolarla con chiavi
-  UTC.
-- Il FAB è un cerchio nero 56 con `CLAY_CTA.primary` (`testID="agenda-fab"`);
-  si nasconde mentre è attiva la CTA del blocco fantasma
-  (`onGhostActiveChange`).
+  nella griglia).
+- **Blu in sospeso**: con `NEUTRAL_BLUE = true` le voci blu/azzurre/indaco
+  (tinta 180°–245°, saturazione ≥ 0.35) diventano blocchi bianchi con ombra
+  neutra; palette e dati condivisi col web invariati. **Decisione aperta con
+  Tiziano**: tenere, togliere (`false` = pastello blu) o cambiare i default.
 
 ## Connessioni
 
-- [quick-book.md](quick-book.md) — prenotazione da buco libero / blocco fantasma.
+- [quick-book.md](quick-book.md) — prenotazione dal blocco fantasma.
 - [agenda-block-colors.md](agenda-block-colors.md) — colore dei blocchi.
 - [group-lessons.md](group-lessons.md), [exam-creation.md](exam-creation.md),
   [exam-outcome.md](exam-outcome.md), [lezione-teorica.md](lezione-teorica.md),
   [instructor-manage.md](instructor-manage.md) — i fogli che si aprono dall'agenda.
-- [availability-editor.md](availability-editor.md) — fonte delle finestre di
-  disponibilità (buchi liberi, tinta della griglia); si apre dall'orologio.
+- [availability-editor.md](availability-editor.md) — fonte della tinta di
+  disponibilità; si apre dall'orologio.
 - [notifications.md](notifications.md) — campanella in testata.
