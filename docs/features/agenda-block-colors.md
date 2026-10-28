@@ -155,7 +155,7 @@ quello delle guide automatiche (REG-622, `ring`).
 
 Esami, guide di gruppo e blocchi istruttore NON passano dal criterio: esami =
 bianco con ombra neutra (niente più viola), gruppi = verde foglia pastello,
-gruppi moto = ambra pastello (gli accenti delle icone 3D, §0.4), con ombra in
+gruppi moto = ambra pastello (gli accenti delle icone 3D, §0.9), con ombra in
 tinta; blocchi/pause = bianchi tratteggiati grigi.
 
 **Interruttore `AGENDA_BLOCK_BAR`** (`src/utils/agendaColors.ts`, oggi

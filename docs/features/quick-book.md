@@ -95,7 +95,7 @@ pill navy `+`. Così le **guide prenotate dominano** la timeline e i vuoti reced
 
 ## Segmented control "Airbnb" — STORICO
 
-> Sostituito da `ClaySegmented` (design-system §0.5) come titolo del FormSheet.
+> Sostituito da `ClaySegmented` (design-system §0.7) come titolo del FormSheet.
 
 Stesso componente di `app/(tabs)/role/availability-exception.tsx`: track `#EBEBEB`,
 pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → attivo

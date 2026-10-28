@@ -5,203 +5,295 @@
 
 ---
 
-## 0. Clay v2 — lo stile dell'app (REG-639, dal 28/10/2026)
+## 0. Clay leggero — il design system dell'app (REG-639, in produzione dal 28/10/2026)
 
-Approvato da Tiziano il 28/10/2026 (anteprime `clay-v2-componenti` / `clay-v2-road`).
-**Dove questa sezione e le successive sono in conflitto, vince questa.** Si
-applica a Road per prima, poi a tutta l'app.
+Questo è il design system **com'è oggi in produzione** (master `88c7b1a`, ultimo
+OTA iOS 2.4.0 gruppo `6d38f144`). **Dove questa sezione e le successive sono in
+conflitto, vince questa**: le sezioni 1–14 sono più vecchie e descrivono anche
+componenti superati (badge, chip, BottomSheet con maniglia, gradienti navy).
+L'app istruttore/titolare è tutta allineata; nell'app allievo restano da
+allineare la testata delle schermate intere (`ClayPageHeader`) e «Le tue
+guide» (vedi `plans/reg-639-handoff.md`).
 
-### 0.1 Principi
+### 0.1 Principi — le regole fisse
 
-- **Bianco puro e nero.** Fondo pagina e superfici `#FFFFFF`; testi e CTA
-  primaria `#111111`. Mai fondi crema, grigi o colorati: il volume non si fa
-  col colore di fondo.
-- **Il volume è clay**: superfici morbide, gonfie, tattili ma sobrie —
-  ombra esterna morbida + bordo di luce (1px appena scuro che stacca il bianco
-  dal bianco) + ombra interna in basso. Gli incavi (ricerca, binario del
-  segmentato) hanno solo ombra interna.
-- **Il colore arriva solo dalle (poche) icone 3D e dalle foto**: segnalazioni
-  Road, auto, emblema (§0.4). Icone monocromatiche solo dove sono strumenti:
-  X, cerca, chevron, indietro, «+», «centra».
-- Regole fisse che restano: niente pillole/tag/badge/eyebrow decorativi,
-  niente blu/navy nella UI né nelle icone (§0.4), animazioni sobrie senza
-  rimbalzi (§8), sensazione nativa iOS/Airbnb.
-- **La tab bar NON è clay**: resta la «T1 piatta» di REG-638 (§6.19). La
-  capsula clay con bolla in rilievo è stata provata e bocciata da Tiziano il
-  28/10/2026 («sembra la versione finta di quella nativa Apple»): non
-  riproporla.
+1. **Bianco puro e nero.** Fondo pagina e superfici `#FFFFFF`, testo e CTA
+   primaria `#111111`. Mai fondi crema, grigi o colorati: il volume non si fa
+   col colore di fondo. Niente blu/navy/indaco, niente rosa nella UI (§1).
+2. **Clay leggero.** Superfici morbide e tattili ma sobrie: ombra esterna
+   morbida + bordo di luce (1px appena scuro che stacca il bianco dal bianco) +
+   ombra interna in basso. Gli incavi (ricerca, binari) hanno solo ombra
+   interna. Le CTA nere hanno volume (luce interna in alto, ombra interna in
+   basso) e premute **sprofondano** (§0.4).
+3. **Il colore arriva solo dalle icone 3D e dalle foto** (§0.9). Il resto è
+   bianco, nero e grigi neutri.
+4. **Niente pillole, badge, tag, eyebrow, pallini colorati.** Lo stato si dice
+   con una parola o con un controllo nativo (spunta, casella, interruttore),
+   mai con una capsula colorata. Titoli di sezione in minuscolo 17/600, mai
+   MAIUSCOLETTO. Mai chip a griglia per scegliere: righe con spunta, stepper,
+   segmentato (§0.7).
+5. **Peso del testo 500–600**, mai 700/800.
+6. **Nativo iOS prima di tutto**: testata a titolo grande che collassa (§0.5),
+   form sheet adattivi (§0.6), picker con la spunta, segmentato e menu nativi
+   dove servono (`@expo/ui`, §0.7). Riferimento: Impostazioni iOS, Airbnb.
+7. **Animazioni sobrie, senza rimbalzo, e MAI spente da «Riduci movimento»**
+   (§0.8).
+8. **CTA tonde** (capsula `CTA_HEIGHT` 54, raggio 27) e bottoni icona tondi
+   (`ClayIconButton` 40). La CTA è sempre l'ultima cosa del foglio, fissa.
+9. **La tab bar NON è clay**: resta la «T1 piatta» di REG-638 (§6.19). La
+   capsula clay con bolla in rilievo è stata bocciata il 28/10/2026 («sembra la
+   versione finta di quella nativa Apple»): non riproporla.
 
-### 0.2 Token — `src/theme/clay.ts`, `src/theme/spacing.ts`
+### 0.2 «Vita» — dosata per importanza, mai asettica
+
+Le schermate solo clay (ombre e raggi giusti) erano **asettiche**. Si danno vita
+con **oggetti 3D caldi**, **foto**, **un numero che conta** e **micro-copy
+umano** («Buongiorno», «Tutte fatte, buon resto di giornata»), sempre su
+bianco/nero e senza pillole. Piano: `plans/design-system/reg-639-vita.md`.
+
+**Principio (Tiziano, 28/10/2026): la vita va dosata per importanza.** Le
+sezioni chiave ricevono più cura e più 3D, quelle secondarie meno; **mai
+uniforme ovunque** (un'icona 3D su ogni riga di ogni pagina è rumore, non vita),
+**ma nessuna pagina deve essere asettica**: anche una pagina secondaria ha
+almeno un elemento caldo (un numero protagonista, una frase umana, un oggetto
+3D nella testata o nello stato vuoto).
+
+| Peso | Dove | Cosa ricevono |
+|---|---|---|
+| Alto | Agenda, foglio «Nuovo», Disponibilità, «Tu», dettaglio allievo | saluto con l'ora, card «Oggi» col calendario 3D, cartina Road + auto nel colore del veicolo, foto della sede in copertina, ore del mese con le barre delle settimane, statistiche con oggetti 3D |
+| Medio | Il mio gruppo, Allievi, Pagamenti, Ore di guida | icone 3D sulle righe principali (gruppo), un numero grande («3 guide da pagare»), sezioni per mese |
+| Basso | impostazioni, sottopagine, fogli di modifica | testata pulita, righe native; il calore sta negli stati vuoti (`MORALE_ART`) e nelle frasi |
+
+Dove sta oggi:
+- **Agenda**: saluto con l'ora (`greetingFor`: Buongiorno <13, Buon pomeriggio
+  <18, Buonasera) sopra il titolo; `AgendaTodayCard` (calendario 3D, «Oggi N
+  guide», la prima/la prossima, la pausa; giornata vuota = volante); campanella
+  3D sull'avviso «fuori disponibilità».
+- **Foglio «Nuovo»**: card clay «Guida» con `cartina-road` e auto
+  `car34Art(colore del veicolo esclusivo)` (senza colore: rossa) su un alone
+  bianco sfocato (ellisse bianca velata + `boxShadow` bianco: il
+  `radial-gradient` su iOS non si disegna); le altre voci con l'oggetto 3D
+  libero sul bianco, niente riquadri.
+- **Disponibilità**: copertina foto della sede caricata dal titolare
+  (`Company.coverPhotoUrl`, dalla web app; senza foto `SEDE_COVER_FALLBACK` =
+  `sede-foto`), velo bianco leggero in alto, card che sale sulla copertina con
+  la striscia della settimana (`WeekStrip`).
+- **Tu**: titolo + volto a destra; `MonthHoursCard` (ore del mese + guide +
+  barre delle settimane, settimana in corso nera); un'unica lista, «Esci» in
+  fondo. Niente traguardi (bocciati).
+- **Il mio gruppo**: righe con oggetto 3D 40 pt (persone, calendario, orologio,
+  scambio). **Dettaglio allievo**: volto grande, tre statistiche con volante,
+  stella, orologio.
+
+### 0.3 Token — `src/theme/clay.ts`, `src/theme/spacing.ts`
 
 | Token | Valore | Uso |
 |---|---|---|
 | `CLAY.bg` / `CLAY.surface` | `#FFFFFF` | fondo pagina e superfici |
-| `CLAY.ink` | `#111111` | testo, CTA primaria, cursore segmentato |
+| `CLAY.ink` | `#111111` | testo, CTA primaria, cursore segmentato, spunte, casella piena |
 | `CLAY.ink2` | `#3A3A3C` | testo di dettaglio forte |
 | `CLAY.ink3` | `#6A6A6A` | testo secondario (5.4:1 sul bianco) |
-| `CLAY.ink4` | `#8E8E8E` | placeholder |
-| `CLAY.hairline` | `rgba(17,17,17,.07)` | separatori nelle liste |
+| `CLAY.ink4` | `#8E8E8E` | placeholder, stati spenti («Programmata», righe annullate) |
+| `CLAY.hairline` | `rgba(17,17,17,.07)` | separatori leggeri |
+| divisori delle liste | `rgba(17,17,17,.12)`, **0.5 pt** | vedi §0.7 (mai `hairlineWidth` su un divisore assoluto) |
+| `CLAY_ROW_PRESSED` | fondo `rgba(17,17,17,.045)` | riga premuta, a tutta larghezza |
 | `CLAY.chevron` | `#BDBDBD` | chevron |
 | `CTA_HEIGHT` / `CTA_RADIUS` | 54 / 27 | CTA a capsula |
 | `CLAY_RADIUS.card` | 28 | card, liste |
 | `CLAY_RADIUS.tile` | 22 | tessere statistiche, riga auto |
 | `CLAY_RADIUS.sheet` | 38 | anteprime; il form sheet nativo usa il suo raggio |
-| `FIELD_HEIGHT` | 46 | ricerca e segmentato (capsula, raggio 23) |
+| `FIELD_HEIGHT` | 46 | ricerca e segmentato clay (capsula, raggio 23) |
+| `NAV_BAR_H` | 56 | barra della testata sotto la safe area |
+| `CLAY_DANGER` | `#C13515` | SOLO testo di azioni distruttive («Esci», «Elimina») |
+
+### 0.4 Volume clay — ombre, luce interna, CTA
 
 Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 
 | Preset | Livelli | Uso |
 |---|---|---|
 | `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, CTA secondaria a riposo, controlli mappa |
-| `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro |
-| `sink` | interna 1px · interna 0/2/5 α.08 | ricerca, binario del segmentato |
-| `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | cursore segmentato, bottone nero, toast (NON più la CTA: vedi `CLAY_CTA`) |
-| `inkPressed` | interna 0/2/6 α.55 | storico (la CTA premuta usa `CLAY_CTA.primaryPressed`) |
+| `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro, bottoni dello stepper |
+| `sink` | interna 1px · interna 0/2/5 α.08 | ricerca, binario del segmentato e dell'interruttore, campi |
+| `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | cursore segmentato, bottone nero, toast |
+| `inkPressed` | interna 0/2/6 α.55 | storico |
 | `avatar` | bordo · esterna 0/4/10/-4 α.22 · interna | volti (foto o iniziali) |
 
-Volume delle CTA (`CLAY_CTA`, Tiziano 28/10/2026 dopo l'anteprima
-`cta-varianti`: la primaria è la **variante A «gonfia sobria»**, solo ombre,
-niente sfumatura; la secondaria resta `raise` a riposo e sprofonda premuta):
+Volume delle CTA (`CLAY_CTA`; la primaria è la variante «gonfia sobria», solo
+ombre, niente sfumatura):
 
 | Preset | Fondo | Ombre | Uso |
 |---|---|---|---|
 | `primary` | `#1E1E1E` pieno | esterna 0/14/24/-10 α.50 · luce interna 0/3/4 bianco α.34 · ombra interna 0/-8/13 nero α.80 | CTA nera a riposo |
 | `primaryPressed` | `#1E1E1E` pieno | esterna 0/3/6/-2 α.25 · interna 0/3/8 nero α.70 · luce interna 0/-1/2 bianco α.06 | CTA nera premuta: sprofonda |
-| `secondaryPressed` | sfumatura `#F6F6F6` → `#FFFFFF` (70%) | bordo α.06 · esterna 0/2/5/-2 α.14 · interna 0/3/8 α.11 | CTA bianca premuta: sprofonda (a riposo resta `raise`) |
+| `secondaryPressed` | sfumatura `#F6F6F6` → `#FFFFFF` (70%) | bordo α.06 · esterna 0/2/5/-2 α.14 · interna 0/3/8 α.11 | CTA bianca premuta: sprofonda (a riposo `raise`) |
 
-Lo scambio a riposo/premuta è istantaneo (`onPressIn`/`onPressOut`): l'ombra
-non si anima, si anima solo la scala di `ClayPressable`.
+Lo scambio riposo/premuta è istantaneo (`onPressIn`/`onPressOut`): l'ombra non
+si anima, si anima solo la scala di `ClayPressable`.
 
-### 0.3 Ombre interne in React Native — come e quanto costano
+**Come si fanno in React Native (e quanto costano):**
+- **`boxShadow` nativo** (RN 0.81, New Architecture): esterne e `inset: true`
+  sullo stesso nodo, più livelli in un array. Niente librerie, niente Skia: è
+  solo JS → va in OTA. iOS le disegna dal layer; Android da Android 9 (sotto
+  resta il bordo 1px).
+- Massimo 3 livelli per preset; in una lista l'ombra va sul **contenitore**,
+  mai su ogni riga; **non animare l'ombra** (solo transform e opacity); niente
+  blur sui fogli.
+- Il nodo con `boxShadow` ha `backgroundColor` e `borderRadius` propri;
+  `overflow: 'hidden'` (foto, mappa) su un figlio, mai lì.
+- L'ombra **interna** si disegna sotto i figli: su una foto va in un velo
+  assoluto sopra il contenuto (vedi `Avatar`).
+- **Ombre tagliate, le tre cause**: (1) un antenato con `overflow: 'hidden'` →
+  margine interno compensato da uno negativo (`paddingBottom: 28,
+  marginBottom: -28`); (2) un fratello bianco disegnato sopra → l'alone resta
+  entro lo spazio fra i blocchi (~20 pt; dentro `FormSheet` il centro ha 4 pt
+  sopra, 22 di lato, ~18–22 sotto); (3) le vecchie `shadow*` iOS → portarle a
+  `boxShadow` (eccezione: ombra che segue un PNG, es. auto sulla mappa).
 
-- Si usa **`boxShadow` nativo** (RN 0.81, New Architecture attiva): esterne e
-  `inset: true` sullo stesso nodo, più livelli in un array. Nessuna libreria,
-  nessun gradiente finto, niente Skia. È solo JS → va in OTA (già in uso in
-  `AllievoTheoryHomeScreen`/`IstruttoreHomeScreen`).
-- **iOS**: disegnate dal layer nativo. **Android**: da Android 9; sotto non
-  compaiono e il bordo 1px tiene comunque la forma.
-- **Prestazioni**: massimo 3 livelli per preset; in una lista l'ombra va sul
-  **contenitore**, mai su ogni riga; **non animare l'ombra** (si animano
-  solo transform e opacity con Reanimated); niente blur sui fogli (hanno la
-  loro ombra nativa).
-- Il nodo con `boxShadow` deve avere `backgroundColor` e `borderRadius`
-  propri; se serve `overflow: 'hidden'` (foto, mappa) metterlo su un figlio,
-  altrimenti l'ombra esterna viene tagliata.
-- L'ombra **interna** di un nodo si disegna **sotto i suoi figli**: su una
-  foto (avatar) va in un velo assoluto sopra il contenuto (vedi `Avatar`).
-- **Ombre tagliate — le tre cause trovate (REG-639 fluidità, 28/10/2026)**:
-  1. un **antenato** con `overflow: 'hidden'` (es. un blocco che si chiude in
-     altezza) taglia l'ombra delle card dentro: dare all'antenato un margine
-     interno compensato da uno negativo (`paddingBottom: 28, marginBottom: -28`
-     e lo stesso in orizzontale) così l'ombra ha spazio per sfumare;
-  2. un **fratello bianco** disegnato sopra copre l'alone: l'alone esterno
-     resta entro lo spazio fra i blocchi (~20 pt); dentro `FormSheet` il centro
-     che scorre ha 4 pt sopra, 22 di lato e ~18–22 sotto apposta (lo scroll
-     ritaglia ai suoi bordi);
-  3. le vecchie `shadow*` (iOS, fuori schermo e senza tracciato) vanno portate
-     a `boxShadow`: oltre al taglio, costano a ogni fotogramma (marker della
-     mappa, anello `ProgressRing`). Eccezione: ombra che segue la sagoma di un
-     PNG (auto sulla mappa) → resta `shadow*` con `shouldRasterizeIOS`.
-- **Pressione = la riga intera, angoli della card compresi** (Tiziano 28/10,
-  seconda segnalazione: l'evidenziazione era un rettangolo che lasciava una
-  striscia bianca e non seguiva gli angoli). `ClayList` mette le righe in un
-  figlio che **ritaglia col raggio della card** (l'ombra resta sul genitore,
-  fuori dal ritaglio); la riga premuta si colora a tutta larghezza
-  (`CLAY_ROW_PRESSED`) e gli angoli li dà il ritaglio. Il respiro di 4 pt
-  sopra la prima riga e sotto l'ultima sta DENTRO la riga
-  (`clayRowPadding({ first, last }, base)`), così anche quello si evidenzia.
-  Una riga personalizzata (o un wrapper di `ClayListRow`) riceve
-  `divider`/`first`/`last` dalla lista: li passa a `clayRowPadding` / alla
-  `ClayListRow` interna e si dichiara con `markClayRow(Componente)`; le righe
-  non dichiarate ricevono il respiro dalla lista FUORI dalla riga (premute
-  lascerebbero una striscia bianca). Bottoni e CTA: scala + «sprofonda»
-  (`ClayButton`, `ClayPressable`), mai un fondo rettangolare.
+### 0.5 Schermate intere — testata nativa che collassa scorrendo
 
-### 0.4 Icone 3D — meno icone, generate con l'AI, stile unico
+**Una sola testata per tutte le schermate intere dell'app istruttore/titolare**:
+`ClayLargeTitleScroll` (o `ClayNavBar` + `useLargeTitleScroll` quando lo scroll
+è proprio), in `src/components/ClayLargeTitle.tsx`. È la «large title» di iOS:
 
-**Regola (Tiziano, 28/10/2026 — vince su §10.2 e sulle note «Fluent» in fondo):**
+- **Barra fissa e opaca** sotto la safe area (`NAV_BAR_H` 56): indietro a
+  sinistra (`ClayIconButton` `back`, testID `page-back`), azioni tonde a destra
+  (`ClayIconButton`, sempre visibili).
+- **Titolo grande** 32/600 + riga grigia di contesto 15 come **primo elemento
+  dello scroll**; scorrendo sparisce sotto la barra e al suo posto compare il
+  **titolo piccolo** 17/600 centrato nella barra (opacità interpolata su
+  `scrollY`). La **linea sottile** sotto la barra compare solo quando il
+  contenuto ci passa sotto.
+- Lo scroll sta **sotto** la barra, non dietro: il pull-to-refresh resta
+  visibile.
+- `search`: la ricerca si apre **nella barra** (campo con autofocus +
+  «Annulla»), come la search bar nativa (Allievi: bottone «cerca» in alto, mai
+  un campo grande nel corpo).
+- `overlay`: barra trasparente sopra una copertina (foto della sede, mappa di
+  Road) che diventa bianca opaca col titolo piccolo quando la copertina passa
+  sotto.
+
+In uso: Allievi, Il mio gruppo, Tu e tutte le sottopagine/impostazioni (Aspetto,
+Ore di guida, Veicoli, Luoghi, Pagellino, Panoramica istruttori), Notifiche,
+Disponibilità (`overlay`), Road (`overlay`). **L'Agenda tiene la sua testata
+fissa** (saluto + titolo + bottoni) perché sotto scorre la griglia.
+`ClayPageHeader` (testata dentro lo scroll, che non collassa) resta **solo
+nell'app allievo**, in attesa del suo giro.
+
+### 0.6 Fogli — adattivi, testata fissa e opaca, CTA fissa, X, niente grabber
+
+**Un solo foglio per tutto**: rotta con `FORM_SHEET` + componente
+`<FormSheet>` (`src/components/SheetScaffold.tsx`); dettagli in §13.2.
+
+- **Altezza adattiva**: il foglio abbraccia il contenuto; se supera lo schermo
+  scorre **solo il centro**. Mai page sheet per le liste lunghe.
+- **Testata fissa e opaca**: titolo (24/600) + sottotitolo grigio a sinistra,
+  **X tonda in alto a destra** (`ClayIconButton`, testID `sheet-close`). Linea
+  sottile sotto la testata solo a contenuto scorso.
+- **CTA fissa** in fondo (`cta`), bianca, niente fascia grigia; linea sopra
+  solo se sotto c'è altro contenuto.
+- **Niente grabber/maniglia.** Si chiude con la X, trascinando giù o toccando
+  fuori; `busy` spegne il gesto mentre salva, `dirty` chiede conferma nativa
+  prima di perdere modifiche, `closeOnGesture` fa eseguire `onClose` al gesto.
+  Mai `gestureEnabled: false`.
+- Su Android il form sheet taglia la CTA: `TALL_SHEET` + `SheetScaffold`.
+
+### 0.7 Liste e scelte — righe in card clay, spunte, stepper, segmentato
+
+- **Righe in card clay**: `ClayList` è UNA superficie in rilievo con le righe
+  dentro; i divisori li mette la lista (`divider`/`first`/`last` passati a ogni
+  riga). Righe pronte: `ClayListRow` (volto/icona, titolo, sottotitolo,
+  chevron) e le righe da Impostazioni iOS di `src/components/SettingsRows.tsx`.
+- **Pressed state a tutta riga, angoli compresi**: `ClayList` ritaglia le righe
+  col raggio della card (l'ombra resta fuori dal ritaglio); la riga premuta si
+  colora tutta (`CLAY_ROW_PRESSED`) e gli angoli li dà il ritaglio. Il respiro
+  di 4 pt sopra la prima riga e sotto l'ultima sta DENTRO la riga
+  (`clayRowPadding({ first, last }, base)`); una riga personalizzata si
+  dichiara con `markClayRow(Componente)`. Mai un rettangolo che lascia strisce
+  bianche. Le icone 3D sulle righe sono trasparenti (§0.9): niente quadrato
+  bianco sulla riga premuta.
+- **Divisori**: `rgba(17,17,17,.12)`, assoluti in alto alla riga, rientrati di
+  18 pt, alti **0.5 pt**. Con `StyleSheet.hairlineWidth` (1/3 pt) un divisore
+  assoluto a y frazionaria **non viene disegnato** (giro pagamenti 28/10).
+- **Righe da Impostazioni** (`SettingsRows.tsx`): `SettingToggleRow`
+  (interruttore `ClayToggle`), `SettingValueRow` (valore grigio + chevron, apre
+  un picker o il time picker), `SettingCheckRow` (spunta), `SettingStepperRow`
+  (− n + in bottoni tondi `raiseSm`, min/max, haptic).
+- **Picker condiviso con spunte nere** (`optionsPickerStore` +
+  `select-options`, `OptionsPickerSheet`): righe `SettingCheckRow` in una card
+  clay, **spunta nera a destra** sulla voce scelta, niente pallini né bordo
+  nero sulla riga. Singola scelta: si applica al tocco e chiude; multipla: CTA
+  «Conferma · N». Esempi: Chi prenota, Durate (una riga «30, 45, 60 min» che
+  apre la scelta multipla), Allievi del gruppo.
+- **Mai chip a griglia**. Numeri → stepper; una voce fra poche → riga con
+  valore + picker, o **segmentato**:
+  - `ClaySegmented` (binario incavato + cursore clay nero, 200 ms al tocco):
+    filtri dentro le schermate clay (Allievi);
+  - **segmentato nativo iOS** via `@expo/ui` (`PaymentsFilterSegmented` in
+    `src/components/PaymentsFilter.tsx`): sottile, a tutta larghezza, **massimo
+    3 voci** che stanno in larghezza (Pagamenti: Tutte · Da pagare · Pagate),
+    ripiego `ClaySegmented` dove SwiftUI non c'è (Android, iOS < 17).
+- **Controlli nativi `@expo/ui` (SwiftUI)**: già nel binario dalla 2.1.0 (2.4.0
+  compresa), quindi vanno in OTA. Si caricano con il ripiego di
+  `src/components/SFSymbol.tsx` (`SWIFT_UI`). Nel menu contestuale un `Picker`
+  va con `variant="inline"` (lista verticale con la spunta); senza, su iOS 26
+  diventa una striscia orizzontale tagliata.
+- **Stato di una riga = UN solo segnale.** Esempio Pagamenti: se la guida si
+  può segnare, a destra c'è una **casella** (vuota = da pagare, nera con la
+  spunta = pagata; un tocco scrive dopo la risposta del server, senza
+  conferma); altrimenti lo stato a parole in grigio («Da pagare» in nero 600).
+  Informazione secondaria (chi/quando, storico) nel foglio di dettaglio, mai
+  sotto la riga.
+
+### 0.8 Animazioni — sobrie, senza rimbalzo, mai spente
+
+- Nulla compare o sparisce di botto, ma **niente overshoot**: timing che
+  decelera o spring molto smorzate con `overshootClamping`. Niente curve
+  «bouncy»/«elastic».
+- Preset: `src/road/motion.ts` (`ROAD_LAYOUT`, `roadEnter`, `ROAD_EXIT`,
+  `ROAD_TEXT_IN/OUT`, `ROAD_SPRING`), `SEGMENT_TIMING` (200 ms) per cursori e
+  interruttori, `ClayPressable` per la scala al tocco (`cta` .96 · `card` .97 ·
+  `small` .92).
+- **Mai spente da «Riduci movimento»**: sempre
+  `.reduceMotion(ReduceMotion.Never)`, mai `useReducedMotion` per togliere
+  un'animazione.
+- Si animano solo transform e opacity, mai le ombre. Dettagli in §8.
+
+### 0.9 Icone 3D — poche, trasparenti, generate con l'AI in uno stile unico
+
+**Regole (Tiziano, 28/10/2026 — vincono su §10.2 e sulle note «Fluent»):**
 
 1. **Meno icone possibili.** Un'icona c'è solo se porta informazione che il
-   testo non dà, o dove il testo non ci sta (la mappa). Dove bastano testo e
-   gerarchia (CTA, titoli di card, statistiche, righe informative, banner,
-   elenchi di vantaggi) l'icona NON si mette. Una CTA nera non ha disegnino.
+   testo non dà, o dove il testo non ci sta (la mappa), o dove dà la «vita»
+   dosata di §0.2. Una CTA nera non ha disegnino.
 2. **Le icone che restano sono 3D di alta qualità, generate con l'AI in uno
-   stile unico** (prompt qui sotto). Mai icone di pacchetti pronti.
-3. **Microsoft Fluent 3D Emoji bandite — e tolte dall'app** (REG-639 notte,
-   28/10/2026, commit `302f679`): i 17 PNG `assets/icons/fluent-*.png` sono
-   stati eliminati; nelle schermate istruttore/titolare l'icona è stata tolta,
-   in quelle allievo/Allievi sostituita dalle nuove icone AI (tabella sotto)
-   a impaginazione invariata. Non se ne aggiungono MAI di nuove. Restano in
-   `assets/icons/` solo le illustrazioni del percorso teoria (`stat-*`,
-   `cta-*`, `review-retry`, `study-books`, `tag-theory`, `chapters/` — usate da
-   `AllievoTheoryHomeScreen`, `SchedaGridScreen`, `ExamSchedeListScreen`,
-   `TopicListScreen`), fuori dal perimetro di questo giro: da rifare con lo
-   stesso metodo quando si tocca la teoria.
-4. **Niente blu** nelle icone (anche i cartelli che in Italia sono blu:
-   rotonda, parcheggio, pedoni sono resi in bianco/nero/grigio o con un
-   oggetto). Eccezione: le auto nel colore vero del veicolo (`azzurro`, `blu`).
+   stile unico** (blocco STILE qui sotto). Mai icone di pacchetti pronti.
+   **Microsoft Fluent 3D Emoji bandite e tolte dall'app**: mai riaggiungerle.
+3. **Colori caldi, niente parti grandi nere, niente blu** (anche i cartelli
+   che in Italia sono blu si rendono in bianco/nero/grigio o con un oggetto).
+   Eccezione: le auto nel colore vero del veicolo.
+4. **Sempre PNG TRASPARENTI** (RGBA, `@2x`/`@3x`), mai JPG né fondo bianco
+   pieno: su una riga premuta il fondo bianco diventava un quadrato bianco
+   («orrendo», giro pagamenti 28/10). L'ombra di contatto resta come velo
+   semitrasparente che sfuma prima del bordo.
 5. Icone monocromatiche (SF Symbols / Ionicons) solo per i comandi: X, cerca,
-   chevron, indietro, «+», «centra». La tab bar resta a glifi (§6.19).
+   chevron, indietro, «+», «centra», filtro. La tab bar resta a glifi.
+6. `<Icon3D source={…} size={…} />`: solo `source`, mai `tintColor`.
 
-**Le icone in uso oggi (15 soggetti, `src/road/markerArt.ts`):**
+**Inventario:**
 
-| Soggetto | File (`assets/road/`) | Dove |
-|---|---|---|
-| 12 segnalazioni: stop, precedenza, distanza, velocità, semaforo, rotonda, svolta, corsia, pedoni, specchietti, parcheggio, altro | `s-stop`, `s-prec`, `s-dist`, `f-vel`, `f-sem`, `f-rot`, `f-svo`, `f-cor`, `f-ped`, `f-spe`, `f-par`, `f-alt` — `markerArt(kind)` | puntine sulla mappa, griglia «Cosa è successo?», righe del briefing, elenco segnalazioni, toast in guida (su cerchio bianco) |
-| Voci dell'autoscuola (`custom:*`) | stessa icona di «altro» (puntina nera) | come sopra |
-| Auto della guida, 3/4 | `cars/auto-34-<colore>` — `car34Art(color)` | «Parti con», invito Road |
-| Auto sulla mappa, dall'alto | `cars/auto-su-<colore>` — `carTopArt(color)` | posizione in guida |
-| Emblema Road | `road-3d` — `ROAD_ASSETS.road` | card Road in agenda |
+| Set | File | Registro | Dove |
+|---|---|---|---|
+| «Vita» | `assets/vita/` calendario, volante, esame (= pagellino), edificio, termometro, stella, orologio, campanella; foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia |
+| Road | `assets/road/` 12 segnalazioni, emblema, auto 3/4 e dall'alto per colore | `src/road/markerArt.ts` | mappa, griglia segnalazioni, briefing, «Parti con» |
+| Allievo / Allievi | `assets/icons3d-ai/` auto, moto, esame, persone, edificio, scambio, blocconote, calendario, pin | `require` diretto, `src/utils/lessonArt.ts` | home allievo, gruppi, scambi, dettaglio allievo |
+| Morale | `assets/morale/` espresso, aeroplanino, piantina, trofeo, esame (84 pt) | `src/theme/moraleArt.ts` (`MORALE_ART`) | SOLO stati vuoti (`ClayEmpty`), traguardo ore, testata del foglio esame |
+| Teoria (vecchie) | `assets/icons/` `stat-*`, `cta-*`, `chapters/` | `require` diretto | percorso teoria allievo: da rifare con questo metodo quando si tocca la teoria |
 
-**Icone «di morale» (REG-639 notte, `src/theme/moraleArt.ts` → `MORALE_ART`,
-file in `assets/morale/`, 84 pt):** un po' di calore, SOLO negli stati vuoti
-(`ClayEmpty`), nei traguardi e nella testata del foglio esame — mai come
-decorazione delle righe.
+**Formato:** segnalazioni 48 pt, righe 40 pt, «vita» 64 pt (64/128/192 px),
+emblema 36 pt, auto 3/4 80×65 pt, auto dall'alto 30×46 pt. ~2–15 KB a file.
 
-| Chiave | Dove |
-|---|---|
-| `espresso` | «Giornata libera» (oggi non usata: era nella vista Giorno dell'Agenda, eliminata il 29/10) |
-| `aeroplanino` | «Nessuna notifica» (`NotificationInboxScreen`) |
-| `piantina` | liste vuote: luoghi (`LocationsScreen`), veicoli (`VehiclesScreen`), Panoramica istruttori (`OwnerInstructorScreen`) |
-| `trofeo` | traguardo ore di guida (`InstructorHoursScreen`) |
-| `esame` | testata del foglio esame (`home/exam-manage`) |
-
-**Sostituti delle Fluent nelle schermate allievo / Allievi (`assets/icons3d-ai/`,
-`require` diretto):**
-
-| File | Dove |
-|---|---|
-| `auto`, `moto` | `src/utils/lessonArt.ts` (`lessonArtSource` / `heroArtSource`: card, hero, stati vuoti della home allievo) |
-| `esame` | `AllievoHomeScreen` (hero/card esame), `home/exam-detail`, `StudentNotesDetailScreen`, `StudentSettingsSheet` |
-| `persone` | guide di gruppo: `AllievoHomeScreen`, `GroupLessonInvitesScreen`, `StudentNotesDetailScreen`, `StudentSettingsSheet` |
-| `edificio` | `StudentNotesDetailScreen`, `StudentSettingsSheet` |
-| `scambio` | `AllievoHomeScreen` (riga Scambi), `SwapOffersScreen` |
-| `blocconote` | stato vuoto di `StudentMyNotesScreen` |
-| `calendario` | `home/booking-flow` (data della prenotazione) |
-| `pin` | `AllievoHomeScreen` (sede dell'autoscuola nel titolo) |
-
-Tavola di generazione (soggetti, prove, anteprima a tre misure):
-`/tmp/hiro-anteprime/clay/icone/tavola-notte.png` (file locale, non nel repo).
-
-`<Icon3D source={markerArt('stop')} size={30} />` (solo `source`: il vecchio
-registro `ICONS_3D` è stato eliminato). Sempre su bianco, mai `tintColor`.
-
-**Formato:** PNG RGBA con `@2x`/`@3x` (RN sceglie da sé). Segnalazioni 48 pt
-(48/96/144 px), emblema 36 pt, auto 3/4 80×65 pt, auto dall'alto 30×46 pt.
-~2–15 KB a file.
-
-**Come se ne fa una nuova (metodo approvato):**
-
-1. Generare su **Gemini** (account Reglo) incollando il blocco STILE + il
-   soggetto, una chat nuova per immagine. Si generano su bianco puro.
-2. Scontornare (flood fill dagli angoli → alfa), ritagliare stretto con ~4%
-   di margine, esportare 1x/2x/3x. Le auto si generano UNA volta (rossa) e le
-   altre tinte si ottengono ricolorando la carrozzeria (maschera sui rossi,
-   esclusi vetri e gomme), così restano identiche.
-3. Anteprima su tavola (grande · 50 · 30 · fondo scuro) e ok di Tiziano
-   prima di metterla nell'app.
-
-**Blocco STILE (da riusare identico):**
+**Blocco STILE per Gemini (da incollare identico):**
 
 ```
 Premium 3D icon in the spirit of Airbnb's 2025 app icons: a real-world
@@ -220,71 +312,75 @@ purple. No emoji style, no cartoon faces, not photorealistic, no logos, no
 watermark. Square 1:1.
 ```
 
-Poi `Subject: …` (oggetto, materiali e colori dei dettagli). Per una vista
-diversa (es. dall'alto per la mappa) dirlo nel soggetto e chiedere di
-ignorare la camera di 3/4. I prompt di tutte le 15 icone sono nel piano
-`plans/design-system/reg-639-icone-3d.md`.
+Poi una riga `Subject: …` con l'oggetto, i materiali e i colori dei dettagli
+(caldi, niente parti grandi nere). Per una vista diversa (es. dall'alto per la
+mappa) dirlo nel soggetto e chiedere di ignorare la camera di 3/4. I prompt
+delle 15 icone di Road sono in `plans/design-system/reg-639-icone-3d.md`.
 
-### 0.4b «Vita» — direzione D · Mix (REG-639, approvata e fatta il 28/10/2026)
+**Reference di stile (allegarle a OGNI generazione):**
+`docs/assets/icone-ref/ref1.png` (griglia di oggetti 3D) e
+`docs/assets/icone-ref/ref2.png` (oggetti 3D premium su bianco). Sono le due
+reference di Gabriele con cui è stato approvato il metodo il 28/10/2026.
 
-Le schermate clay erano giuste ma asettiche: si danno vita con **oggetti 3D
-caldi**, **foto**, **un numero che conta** e **micro-copy umano**, sempre su
-bianco/nero, senza pillole. Piano completo: `plans/design-system/reg-639-vita.md`.
+**Metodo (approvato da Tiziano il 28/10/2026):**
 
-- **Immagini**: `assets/vita/` (1x/@2x/@3x), registro `src/theme/vitaArt.ts`
-  (`VITA_ART`). Icone (calendario, volante, esame, edificio, termometro,
-  stella, orologio, campanella) **PNG trasparenti**, ombra di contatto come
-  velo semitrasparente: reggono la riga premuta (`CLAY_ROW_PRESSED`) senza
-  quadrato bianco. Ogni icona nuova DEVE avere l'alfa (mai JPG o fondo pieno). `cartina-road` (sfondo card «Guida») e `sede-foto` (copertina) JPG.
-- **Agenda**: saluto con l'ora (`greetingFor`: Buongiorno <13, Buon pomeriggio
-  <18, Buonasera) sopra il titolo; `AgendaTodayCard` (calendario 3D, «Oggi N
-  guide», la prima/la prossima, la pausa; giornata vuota = volante); campanella
-  3D sull'avviso «fuori disponibilità».
-- **Foglio «Nuovo»**: card clay «Guida» con `cartina-road` e auto
-  `car34Art(colore del veicolo esclusivo)` (senza colore: rossa) su un alone
-  bianco sfocato (ellisse bianca velata + `boxShadow` bianco: il
-  `radial-gradient` su iOS non si disegna); le altre voci con l'oggetto 3D
-  libero sul bianco, niente riquadri.
-- **Disponibilità**: copertina foto (`SEDE_COVER_FALLBACK` = `sede-foto` finché
-  il titolare non carica la foto vera) con velo bianco leggero in alto; card che
-  sale sulla copertina con titolo e striscia della settimana (`WeekStrip`).
-- **Tu**: titolo + volto a destra; `MonthHoursCard` (ore del mese + guide +
-  barre delle settimane, settimana in corso nera) da `getInstructorHoursRange`
-  con `instructorId`; un'unica lista, «Esci» in fondo. Niente traguardi.
-- **Resta (backend, full-stack)**: foto del veicolo (`AutoscuolaVehicle.photoUrl`)
-  e copertina della sede (`Company.coverPhotoUrl`), caricate dal titolare dalla
-  web app; il mobile solo le legge, con i segnaposto sopra se mancano.
+1. **Gemini**, account Reglo, **una chat nuova per ogni immagine**: blocco
+   STILE + `Subject: …` + **le 2 reference** allegate. Si genera su bianco puro.
+2. **Se Gemini resta bloccato oltre 2 minuti** (generazione che non finisce,
+   nessuna immagine), ci si ferma e si riprova **in una chat nuova**; non si
+   aspetta oltre.
+3. **PNG trasparente**: scontorno con gli strumenti in `docs/assets/icone-3d/`
+   — `mask.swift` (soggetto ritagliato da macOS Vision) e `scontorna.py`
+   (bianco → alfa fuori dal soggetto, ombra che sfuma ai bordi, 1x/@2x/@3x con
+   ridimensionamento in alfa premoltiplicato, niente alone). Istruzioni in
+   testa allo script. Su bianco il risultato è identico all'originale.
+   Controllo: comporre l'icona su bianco, su `#F5F5F5` (riga premuta) e su
+   scuro, e guardare che non resti fondo né alone.
+4. Le auto si generano UNA volta (rossa) e le altre tinte si ottengono
+   ricolorando la carrozzeria (maschera sui rossi, esclusi vetri e gomme).
+5. **Anteprima** su tavola (grande · misura reale · su riga premuta) in
+   `/tmp/hiro-anteprime/<task>/` e **ok di Tiziano** prima di metterla
+   nell'app.
 
-### 0.5 Componenti — `src/components/clay/` (import da `src/components/clay`)
+**Autorizzazione:** le sessioni di sviluppo sono AUTORIZZATE da Tiziano a usare
+il Mac a CONTROLLO COMPLETO (usa_il_mac, non limitato a Chrome) per generare le
+icone su Gemini, senza chiedere.
+
+### 0.10 Componenti — `src/components/clay/` (import da `src/components/clay`)
 
 | Componente | Cosa | Note |
 |---|---|---|
-| `ClayPressable` | base premibile: scala a molla senza rimbalzo (`cta` .96 · `card` .97 · `small` .92) | ex `RoadPressable` (che resta come alias) |
-| `ClayButton` | CTA a capsula `primary` (nero gonfio `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
-| `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
-| `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
-| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto o auto), titolo, sottotitolo (solo testo), chevron se premibile | l'ombra sta sulla lista, non sulle righe; la lista passa `divider`/`first`/`last` (pressione con gli angoli della card, §0.3) |
-| `ClaySearchField` | capsula incavata 46, lente monocromatica | props di `TextInput` |
-| `ClaySegmented` | binario incavato + cursore clay nero; parte AL TOCCO (`onPressIn`) sul thread UI e arriva in 200 ms (`SEGMENT_TIMING`, mai una molla: `SOFT_SPRING` ci mette ~0,5 s); etichette grigia/bianca in dissolvenza incrociata guidata dal cursore, niente cambio di colore secco | haptic di selezione; il genitore si aggiorna dopo, il cursore non lo aspetta |
-| `Avatar` | foto (`UserPhotoCircle`) o iniziali su `avatarColors`, volume clay, anello nero se `selected` | ex `RoadAvatar` (alias) |
-| `ClayMapControls` | colonna bianca 56 in rilievo: velocità + «centra» (SF Symbol `location(.fill)`, ripiego `near-me`) | `bottom` lo decide la schermata |
-| `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
-| `Icon3D` | icona 3D colorata, solo `source` (§0.4) | |
-| `ClaySection` | sezione di schermata o foglio: titolo 17/600 in minuscolo (mai maiuscoletto né eyebrow), `action` testuale a destra («Modifica»), contenuto (di solito una `ClayList`), `footnote` grigia sotto | notifiche (un giorno = una sezione), «Tu» e sottosezioni, Disponibilità, fogli dell'Agenda |
-| `ClayToggle` | interruttore clay: binario incavato (`sink`) che si riempie di nero in dissolvenza, pallino bianco in rilievo che scorre in 200 ms (`SEGMENT_TIMING`, niente rimbalzo), haptic | sostituisce `Switch`/`ToggleSwitch` nelle schermate clay; MAI giallo. In `BookingForm`, `BlockForm`, `CreateExamScreen`, `CreateGroupLessonScreen`, `AppearanceSettingsScreen`, `EvaluationSheetScreen`, `sick-leave`, `publish-day`, `vehicle-form`, `location-form` |
-| `ClayField` | campo di testo: etichetta 15/500 sopra, campo incavato bianco (`sink`, raggio 16), nota o errore sotto; `multiline` cresce col testo | `forwardRef` su `TextInput`. In `edit-notes`, `manage-lesson-details`, `profile-edit`, `instructor-invite`, `BlockForm`, `CreateExamScreen`, `InlineLocationForm`, `EvaluationItemSheet` |
-| `ClayEmpty` | stato vuoto: icona «di morale» 84 pt (§0.4, `MORALE_ART`), titolo, una riga, azione facoltativa; centrato, mai un riquadro grigio | Agenda (Giorno), notifiche, luoghi, veicoli, Panoramica istruttori |
-| `FormSheet` | resta IL foglio (§13.2); X = `ClayIconButton` | `src/components/SheetScaffold.tsx` |
-| Tab bar | NON clay: resta la «T1 piatta» (§6.19), glifi monocromatici | bocciata la versione clay (28/10) |
+| `ClayPressable` | base premibile: scala a molla senza rimbalzo (`cta` .96 · `card` .97 · `small` .92) | ex `RoadPressable` (alias) |
+| `ClayButton` | CTA a capsula `primary` (nero gonfio) / `secondary` (bianco `raise`); `compact` 46; `leading`; `loading` = spinner (mai cambio di etichetta) | premute sprofondano |
+| `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | X di tutti i fogli, azioni della testata |
+| `ClaySurface` | card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` a filo); con `onPress` premibile | `overflow: hidden` su un figlio |
+| `ClayList` + `ClayListRow` | lista in card clay, divisori automatici, pressione a tutta riga (§0.7) | ombra sulla lista, non sulle righe |
+| `ClaySection` | titolo di sezione 17/600 in minuscolo, `action` testuale a destra, contenuto, `footnote` grigia | mai eyebrow |
+| `ClaySearchField` | capsula incavata 46, lente monocromatica | nella testata con `search` |
+| `ClaySegmented` | segmentato clay: binario incavato + cursore nero, 200 ms al tocco, etichette in dissolvenza incrociata | haptic di selezione |
+| `ClayToggle` | interruttore clay: binario incavato che si riempie di nero, pallino bianco in rilievo, 200 ms | mai `Switch`, mai giallo |
+| `ClayField` | campo: etichetta 15/500 sopra, campo incavato (`sink`, raggio 16), nota/errore sotto | `forwardRef` |
+| `Avatar` | foto o iniziali su `avatarColors`, volume clay, anello nero se `selected` | |
+| `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero + etichetta; numero protagonista | cifre tabellari |
+| `Icon3D` | icona 3D colorata, solo `source` (§0.9) | |
+| `ClayEmpty` | stato vuoto: icona morale 84 pt, titolo, una riga, azione facoltativa | mai un riquadro grigio |
+| `ClayMapControls` | colonna bianca 56: velocità + «centra» | Road |
 
-Fuori da `src/components/clay/` (import diretto):
+Fuori da `src/components/clay/`:
 
-| Componente | Cosa | Usato da |
-|---|---|---|
-| `ClayLargeTitleScroll` / `ClayNavBar` (`src/components/ClayLargeTitle.tsx`) | **testata unica delle schermate intere dell'app istruttore** (REG-639, 28/10): barra fissa e opaca sotto la safe area (indietro a sinistra, azioni tonde `ClayIconButton` a destra, sempre visibili), titolo grande 32/600 + riga grigia come primo elemento dello scroll che, scorrendo, lascia il posto al titolo piccolo centrato nella barra; linea sottile solo quando il contenuto passa sotto. `search` apre la ricerca nella barra con «Annulla»; `overlay` = barra trasparente sopra una copertina (foto/mappa) che diventa bianca. Lo scroll sta SOTTO la barra (pull-to-refresh visibile) | `InstructorNotesScreen` (Allievi, con ricerca), `ClusterSettingsScreen`, `MoreScreen`, `SettingsScreen` (staff), `InstructorHoursScreen`, `VehiclesScreen`, `LocationsScreen`, `EvaluationSheetScreen`, `AppearanceSettingsScreen`, `OwnerInstructorScreen`, `NotificationInboxScreen` (istruttore), `InstructorAvailabilityScreen` e Road (`overlay`). L'Agenda resta con la sua testata fissa (la griglia scorre sotto) |
-| `SettingToggleRow` / `SettingValueRow` / `SettingCheckRow` / `SettingStepperRow` (`src/components/SettingsRows.tsx`) | righe da Impostazioni iOS dentro una `ClayList` al posto dei chip a griglia: interruttore, valore + chevron (apre il picker o il time picker), spunta, stepper − n + | fogli del gruppo: `notes/booking-rules`, `notes/limits`, `notes/extras` |
-| `ClayPageHeader` (`src/components/ClayPageHeader.tsx`) | SOLO app allievo (in attesa del secondo giro): testata delle schermate intere clay: riga comandi (indietro a sinistra, azioni a destra, tutti `ClayIconButton`), titolo grande 32/600 e riga grigia di contesto; sta DENTRO lo scroll | `MoreScreen` («Tu»/«Altro»), `SettingsScreen` (staff), `InstructorHoursScreen`, `VehiclesScreen`, `LocationsScreen`, `EvaluationSheetScreen`, `AppearanceSettingsScreen` (Agenda, notifiche, Disponibilità e Panoramica istruttori hanno una testata propria con lo stesso stile) |
-| `ClayAccountParts` (`src/components/ClayAccountParts.tsx`) | `ProfileSummaryCard` (volto + nome + ruolo · autoscuola + chevron → modifica profilo), `ClayTextRow` (riga di solo testo, `danger` = rosso `CLAY_DANGER` `#C13515` solo per azioni distruttive), `AppVersionFooter` | `MoreScreen`, `SettingsScreen` |
+| Componente | Cosa |
+|---|---|
+| `ClayLargeTitleScroll` / `ClayNavBar` / `useLargeTitleScroll` (`ClayLargeTitle.tsx`) | testata nativa che collassa (§0.5) |
+| `FormSheet` / `SheetCloseButton` (`SheetScaffold.tsx`) | IL foglio (§0.6, §13.2) |
+| `SettingToggleRow` / `SettingValueRow` / `SettingCheckRow` / `SettingStepperRow` (`SettingsRows.tsx`) | righe da Impostazioni iOS (§0.7) |
+| `OptionsPickerSheet` (+ `optionsPickerStore`, rotte `select-options` / `select-options-long`) | picker condiviso con spunte nere |
+| `PaymentsFilterSegmented` (`PaymentsFilter.tsx`) | segmentato nativo iOS `@expo/ui` con ripiego clay |
+| `SFSymbol` (`SFSymbol.tsx`) | SF Symbol nativo + `SWIFT_UI` (caricamento sicuro di `@expo/ui`) |
+| `ClayAccountParts` | `ProfileSummaryCard`, `ClayTextRow` (`danger` = `CLAY_DANGER`), `AppVersionFooter` |
+| `AgendaTodayCard`, `MonthHoursCard`, `WeekStrip` | le card «vita» di Agenda, Tu, Disponibilità |
+| `ClayPageHeader` | SOLO app allievo, da sostituire con la testata di §0.5 |
+| Tab bar | NON clay: «T1 piatta» (§6.19) |
+
 
 ---
 
@@ -1676,7 +1772,7 @@ Uso: navigazione, bottoni, badge di stato, indicatori. Sempre monocromatiche.
 
 ### 10.2 Icone 3D (elementi decorativi e identita visiva)
 
-> **SUPERATA (REG-639, 28/10/2026):** le Fluent 3D Emoji sono bandite e le icone vanno ridotte al minimo; vale §0.4. I file `assets/icons/fluent-*.png` sono stati **eliminati** (commit `302f679`): nessuna schermata li usa più. Il testo sotto resta solo come storico delle illustrazioni del **percorso teoria** (`stat-*`, `cta-*`, `review-retry`, `study-books`, `tag-theory`, `chapters/`), le uniche ancora in `assets/icons/`; la «Regola» in fondo NON vale più: le nuove icone si generano col metodo di §0.4.
+> **SUPERATA (REG-639, 28/10/2026):** le Fluent 3D Emoji sono bandite e le icone vanno ridotte al minimo; vale §0.9. I file `assets/icons/fluent-*.png` sono stati **eliminati** (commit `302f679`): nessuna schermata li usa più. Il testo sotto resta solo come storico delle illustrazioni del **percorso teoria** (`stat-*`, `cta-*`, `review-retry`, `study-books`, `tag-theory`, `chapters/`), le uniche ancora in `assets/icons/`; la «Regola» in fondo NON vale più: le nuove icone si generano col metodo di §0.9.
 
 Libreria (storica): **Microsoft Fluent Emoji 3D** (`assets/icons/`)
 
@@ -1709,7 +1805,7 @@ Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA,
 | `tag-theory.png` | Open book | Tag "Percorso teoria" |
 | `chapters/chapter-XX.png` | Vari (25 icone) | Icona per capitolo nella lista argomenti |
 
-**Regola (SUPERATA, vedi §0.4 — non cercare più emoji Fluent):** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
+**Regola (SUPERATA, vedi §0.9 — non cercare più emoji Fluent):** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
 
 ---
 
@@ -1745,7 +1841,7 @@ Le CTA usano **ombre esterne concentrate** per sembrare "sollevate" dalla pagina
 
 **Press state CTA:** `opacity: 0.9, transform: [{ scale: 0.96 }]`
 
-Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota. *(Storico, percorso teoria: per le nuove card vale §0.4 — niente icona dove bastano testo e gerarchia, e mai Fluent.)*
+Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota. *(Storico, percorso teoria: per le nuove card vale §0.9 — niente icona dove bastano testo e gerarchia, e mai Fluent.)*
 
 **Principio ombre concentrate:** `shadowRadius` basso (5-6) + `shadowOffset.height` corto (3) = ombra stretta vicino alla card → effetto 3D "sollevato dal tavolo". Evitare `shadowRadius` > 10 sulle CTA (troppo disperso, sembra alone).
 
@@ -1818,6 +1914,8 @@ Esempio: `PRONTO PER L'ESAME?` sopra le card Simulazione/Esercitazione.
 ## 13. Pattern Nativi iOS
 
 ### 13.1 iOS Large Title con BlurView
+
+> **SUPERATA (REG-639, 28/10/2026):** le schermate intere usano `ClayLargeTitleScroll` / `ClayNavBar` (§0.5): barra opaca, niente BlurView. Il testo sotto resta come storico.
 
 Pattern per schermate con lista scrollabile. Il titolo grande scompare nello scroll e il titolo compatto appare nella barra blur.
 
@@ -2065,7 +2163,7 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - Touch target minimo: **44x44px** (rispettato da day cell calendario, bottoni freccia, chip)
 - Animazioni: usare `useNativeDriver: true` dove possibile
 - Ombre: specificare sempre **sia** `shadowColor/Opacity/Radius/Offset` (iOS) **sia** `elevation` (Android)
-- **Icone 3D**: poche, generate con l'AI in stile unico, mai Fluent (§0.4)
+- **Icone 3D**: poche, generate con l'AI in stile unico, mai Fluent (§0.9)
 - **Icone Ionicons** per UI funzionale: navigazione, bottoni, badge stato
 - **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
 - **Ombre esterne** per CTA e card tappabili
@@ -2092,7 +2190,7 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Non** approssimare i valori Figma — riproduci esattamente dimensioni, colori, spacing
 - **Non** usare class component — solo functional component con hooks
 - **Non** animare `width`/`height` — usare `transform` e `opacity` per performance
-- **Non** aggiungere icone Fluent 3D (bandite, §0.4) né icone decorative dove bastano testo e gerarchia
+- **Non** aggiungere icone Fluent 3D (bandite, §0.9) né icone decorative dove bastano testo e gerarchia
 - **Non** usare icone 3D per bottoni funzionali piccoli (nav, close, chevron)
 - **Non** dare ombre esterne a card informative — usare inset shadow
 - **Non** dare inset shadow a CTA — usare ombre esterne

@@ -190,7 +190,7 @@ successo?» (tessere bianche che sprofondano), pagellino da Road, informativa,
 invito. Ordine del foglio «Parti con» come l'anteprima approvata: durata →
 briefing → auto. Resta fuori `RoadLessonCard` (card in agenda, fuori da Road).
 
-**Icone (28/10, design-system §0.4):** le 15 icone Road (12 segnalazioni,
+**Icone (28/10, design-system §0.9):** le 15 icone Road (12 segnalazioni,
 auto 3/4 e dall'alto, emblema) sono 3D generate con l'AI in stile unico,
 niente blu, al posto delle Fluent; stessi nomi in `assets/road/` con
 `@2x`/`@3x`. Tolte dove bastava il testo: CTA «Compila il pagellino», tasto

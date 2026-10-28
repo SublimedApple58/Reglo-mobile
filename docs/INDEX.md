@@ -41,7 +41,7 @@
 
 | Doc | Scope |
 |-----|-------|
-| [design-system.md](design-system.md) | **§0 Clay v2 (REG-639, dal 28/10/2026): lo stile dell'app — bianco e nero, volume clay (`CLAY_SHADOW`), poche icone 3D generate con l'AI in stile unico (`Icon3D`, §0.4; Fluent eliminate dall'app; icone «di morale» `MORALE_ART` e `assets/icons3d-ai/`), componenti in `src/components/clay/` + `ClayPageHeader`, `ClayAccountParts`, `components/agenda/` (§0.5); Agenda §6.20; quali fogli sono già su FormSheet §13.2; vince sul resto.** Completo: palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet (respiro, CTA ancorata in fondo, perché non sommare `insets.bottom`) |
+| [design-system.md](design-system.md) | **§0 Clay leggero (REG-639, in prod dal 28/10/2026): IL design system com'è oggi — bianco/nero, volume clay (`CLAY_SHADOW`, `CLAY_CTA`), vita dosata per importanza (§0.2), testata nativa che collassa `ClayLargeTitleScroll` (§0.5), fogli adattivi `FormSheet` (§0.6), righe in card clay, picker a spunta, stepper, segmentato clay e nativo `@expo/ui` (§0.7), animazioni senza rimbalzo (§0.8), icone 3D trasparenti con prompt STILE, reference in `docs/assets/icone-ref/` e strumenti di scontorno in `docs/assets/icone-3d/` (§0.9), componenti (§0.10); vince sul resto.** Completo: palette, typography, spacing, radii, shadows, componenti storici, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet |
 | [patterns/keyboard-accessory.md](patterns/keyboard-accessory.md) | Chiusura tastiera iOS: quando toolbar "Fatto" (`useDoneAccessory`) vs `returnKeyType="search"`/`"done"`; auto-wiring in `Input` |
 
 ## Architecture
