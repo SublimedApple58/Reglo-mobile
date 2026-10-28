@@ -1,4 +1,6 @@
 import type { RoadFreeOptions } from '../types/regloApi';
+import { regloApi } from '../services/regloApi';
+import { prefetchUserPhotos } from '../services/userPhotos';
 
 /**
  * REG-638 Road libero — opzioni di «Avvia guida» (durate, veicoli, allievi
@@ -20,6 +22,35 @@ export const roadFreeStore = {
     };
   },
 };
+
+/**
+ * Foto dei volti di Road scaricate prima di servire (Tiziano 28/10): i tre
+ * suggeriti e gli allievi recenti, appena le opzioni arrivano.
+ */
+export function prefetchRoadFaces(next: RoadFreeOptions | null) {
+  if (!next) return;
+  prefetchUserPhotos([...(next.suggestions ?? []).map((f) => f.id), ...next.recentStudents.slice(0, 8).map((r) => r.id)]);
+}
+
+/**
+ * All'avvio dell'app istruttore (tab Road visibile): opzioni e foto già
+ * pronte quando si tocca Road, invece di tre attese in fila (opzioni → URL
+ * delle foto → foto). Una volta per avvio; la tab poi le riconferma.
+ */
+let warmed = false;
+export function warmRoadFree() {
+  if (warmed) return;
+  warmed = true;
+  void regloApi
+    .getRoadFreeOptions()
+    .then((next) => {
+      if (!roadFreeStore.get()) roadFreeStore.set(next);
+      prefetchRoadFaces(next);
+    })
+    .catch(() => {
+      warmed = false;
+    });
+}
 
 export const ROAD_FREE_SHEET_ROUTE = '/(tabs)/drive/avvia' as const;
 export const ROAD_FREE_PRIVACY_ROUTE = '/(tabs)/drive/road-privacy' as const;

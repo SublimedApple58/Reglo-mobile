@@ -19,7 +19,7 @@ import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
-import { ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
+import { prefetchRoadFaces, ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
 import { dayLabel, formatHm } from '../../../src/road/format';
 import { openRoadPagellino } from '../../../src/road/pagellino';
@@ -44,6 +44,9 @@ import {
   ROAD_TEXT_OUT,
   roadEnter,
   roadStagger,
+  SWITCH_IN,
+  SWITCH_LAYOUT,
+  SWITCH_OUT,
 } from '../../../src/road/motion';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { useTabBarOverlap } from '../../../src/components/tabBarSpace';
@@ -79,14 +82,40 @@ export default function RoadTab() {
   const mapRef = useRef<MapView>(null);
   const [pos, setPos] = useState<{ latitude: number; longitude: number } | null>(null);
   const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
+  // Opzioni arrivate dal prefetch d'avvio (`warmRoadFree`) mentre la tab era già montata.
+  useEffect(
+    () =>
+      roadFreeStore.subscribe(() => {
+        const next = roadFreeStore.get();
+        if (next) setOptions((prev) => prev ?? next);
+      }),
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Cambio di volto: per ~0,3 s le altezze scivolano coi tempi brevi della
+  // scelta (200 ms), non con quelli dei cambi di stato (300 ms, +130 ms di
+  // attesa sotto). Tiziano 28/10: il cambio allievo era lentissimo.
+  const [switching, setSwitching] = useState(false);
+  const switchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (switchTimer.current) clearTimeout(switchTimer.current);
+  }, []);
+  const pickFace = useCallback((id: string) => {
+    Haptics.selectionAsync().catch(() => undefined);
+    setSwitching(true);
+    setSelectedId(id);
+    if (switchTimer.current) clearTimeout(switchTimer.current);
+    switchTimer.current = setTimeout(() => setSwitching(false), 320);
+  }, []);
+  const lay = switching ? SWITCH_LAYOUT : ROAD_LAYOUT;
   const [otherMode, setOtherMode] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const next = await regloApi.getRoadFreeOptions();
       roadFreeStore.set(next);
+      prefetchRoadFaces(next);
       setOptions(next);
       setError(null);
     } catch (err) {
@@ -224,7 +253,7 @@ export default function RoadTab() {
           </MapView>
         </View>
 
-        <Animated.View style={s.panel} layout={ROAD_LAYOUT} testID="road-tab-panel">
+        <Animated.View style={s.panel} layout={lay} testID="road-tab-panel">
           {!options && !inRoad ? (
             error ? (
               <Animated.Text key="err" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} style={s.sub}>{error}</Animated.Text>
@@ -247,14 +276,14 @@ export default function RoadTab() {
             )
           ) : inRoad ? (
             // ── Road in corso ────────────────────────────────────────────
-            <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+            <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay}>
               <Text style={s.kicker}>Guida in corso</Text>
               <Text style={s.name}>{lessonStudentName(roadSession?.lesson)}</Text>
               <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.cta} />
             </Animated.View>
           ) : showAgenda && current ? (
             // ── Guida in agenda tra poco ─────────────────────────────────
-            <Animated.View key="agenda" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT} testID="road-tab-agenda">
+            <Animated.View key="agenda" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay} testID="road-tab-agenda">
               <Text style={s.kicker}>
                 {['In agenda', formatHm(current.startsAt), current.vehicle ? [current.vehicle.name, current.vehicle.plate].filter(Boolean).join(' ') : null]
                   .filter(Boolean)
@@ -281,9 +310,9 @@ export default function RoadTab() {
               </RoadPressable>
             </Animated.View>
           ) : (
-            <Animated.View key="free" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+            <Animated.View key="free" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay}>
               {/* ── Libero: con chi guidi? ─────────────────────────────── */}
-              <Animated.View layout={ROAD_LAYOUT} testID="road-tab-free">
+              <Animated.View layout={lay} testID="road-tab-free">
                 <Text style={s.title}>Con chi guidi?</Text>
                 {freeLine ? (
                   <Animated.Text key={freeLine} entering={ROAD_TEXT_IN} style={s.sub}>
@@ -296,10 +325,7 @@ export default function RoadTab() {
                     <Animated.View key={f.id} entering={roadStagger(i)}>
                     <RoadPressable
                       kind="small"
-                      onPress={() => {
-                        Haptics.selectionAsync().catch(() => undefined);
-                        setSelectedId(f.id);
-                      }}
+                      onPress={() => pickFace(f.id)}
                       style={s.face}
                       accessibilityRole="button"
                       accessibilityLabel={`${f.name}, ${f.reason}`}
@@ -323,11 +349,11 @@ export default function RoadTab() {
                 </View>
 
                 {selected ? (
-                  <Animated.View layout={ROAD_LAYOUT}>
+                  <Animated.View layout={lay}>
                     {/* Il briefing cambia col volto: dissolvenza incrociata, l'altezza scivola. */}
-                    <Animated.View layout={ROAD_LAYOUT}>
+                    <Animated.View layout={lay}>
                       <ClaySurface style={s.brief}>
-                        <Animated.View key={selected.id} entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} layout={ROAD_LAYOUT}>
+                        <Animated.View key={selected.id} entering={SWITCH_IN} exiting={SWITCH_OUT} layout={lay}>
                           <Text style={s.briefHead} numberOfLines={1}>
                             {firstName(selected.name)} · {selected.reason}
                           </Text>
@@ -342,9 +368,9 @@ export default function RoadTab() {
                         </Animated.View>
                       </ClaySurface>
                     </Animated.View>
-                    <Animated.View layout={ROAD_LAYOUT}>
+                    <Animated.View layout={lay}>
                       <ClayButton leading={<PlayGlyph />} onPress={() => openStart(selected.id)} style={s.cta} testID="road-tab-start">
-                        <Animated.Text key={selected.id} entering={ROAD_TEXT_IN} style={s.ctaTx} numberOfLines={1}>
+                        <Animated.Text key={selected.id} entering={SWITCH_IN} exiting={SWITCH_OUT} style={s.ctaTx} numberOfLines={1}>
                           Parti con {firstName(selected.name)} · {options?.defaultDuration ?? 60} min
                         </Animated.Text>
                       </ClayButton>
@@ -366,7 +392,7 @@ export default function RoadTab() {
         </Animated.View>
 
         {recent.length && !inRoad ? (
-          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT_AFTER_EXIT}>
+          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={switching ? SWITCH_LAYOUT : ROAD_LAYOUT_AFTER_EXIT}>
             <Text style={s.section}>Ultime guide</Text>
             {/* Una superficie con le righe: l'ombra sta sulla lista, non sulle righe. */}
             <ClayList style={s.recentList}>

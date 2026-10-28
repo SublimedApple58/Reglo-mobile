@@ -62,6 +62,17 @@ export const ROAD_LAYOUT_AFTER_EXIT = LinearTransition.duration(320).delay(130).
 export const ROAD_TEXT_IN = FadeIn.duration(200).delay(110).easing(SOFT).reduceMotion(N);
 export const ROAD_TEXT_OUT = FadeOut.duration(110).easing(SOFT).reduceMotion(N);
 
+/**
+ * Scelta istantanea (volto in «Con chi guidi?», Tiziano 28/10): tutto entro
+ * ~200 ms, niente molla. Anello del volto a tempo fisso; il contenuto che
+ * cambia esce in 80 ms ed entra in 150 (sovrapposizione minima, mai un vuoto
+ * lungo); le altezze scivolano in 200 ms invece dei 300 dei cambi di stato.
+ */
+export const SELECT_TIMING = { duration: 180, easing: SOFT, reduceMotion: N } as const;
+export const SWITCH_IN = FadeIn.duration(150).delay(50).easing(SOFT).reduceMotion(N);
+export const SWITCH_OUT = FadeOut.duration(80).easing(SOFT).reduceMotion(N);
+export const SWITCH_LAYOUT = LinearTransition.duration(200).easing(SOFT).reduceMotion(N);
+
 // Nomi generici (FormSheet e codice nuovo); i ROAD_* restano come alias.
 export const SOFT_LAYOUT = ROAD_LAYOUT;
 export const softEnter = roadEnter;

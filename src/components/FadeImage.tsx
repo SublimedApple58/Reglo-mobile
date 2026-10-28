@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCachedPhotoUri } from '../services/photoDiskCache';
 import { ImageProps, ImageSourcePropType, ImageStyle, StyleProp, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -12,7 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const FADE_MS = 200;
-const EASE = Easing.out(Easing.cubic);
+// Ease morbida e simmetrica: con un out-cubic l'80% arrivava nei primi 60 ms
+// e la foto sembrava comparire di botto (Tiziano 28/10).
+const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 /**
  * Foto che non compare mai a scatto (giro Road, Tiziano 28/10): sotto uno
@@ -44,8 +46,13 @@ export function FadeImage({
   const opacity = useSharedValue(0);
   const [shown, setShown] = useState(false);
 
-  // Nuova foto nello stesso posto: si riparte dallo skeleton.
+  // Nuova foto nello stesso posto: si riparte dallo skeleton. Solo a un cambio
+  // vero (non al mount): se la foto è già in memoria `onLoad` può arrivare
+  // prima dell'effetto e l'azzeramento la lascerebbe invisibile.
+  const prevUri = useRef(uri);
   useEffect(() => {
+    if (prevUri.current === uri) return;
+    prevUri.current = uri;
     opacity.value = 0;
     setShown(false);
   }, [uri, opacity]);
@@ -87,7 +94,7 @@ export function FadeImage({
  * stesso ritmo di `SkeletonBlock`), riempie il posto della foto.
  */
 export function SkeletonFill({ radius = 0 }: { radius?: number }) {
-  const pulse = useSharedValue(0.45);
+  const pulse = useSharedValue(0.55);
   useEffect(() => {
     pulse.value = withRepeat(
       withTiming(1, {
@@ -107,5 +114,7 @@ export function SkeletonFill({ radius = 0 }: { radius?: number }) {
 
 const s = StyleSheet.create({
   wrap: { overflow: 'hidden' },
-  skeleton: { backgroundColor: 'rgba(17,17,17,0.07)' },
+  // Grigio clay percettibile anche dentro il volto bianco con l'ombra (prima,
+  // al 3–7%, sul telefono non si vedeva: Tiziano 28/10).
+  skeleton: { backgroundColor: 'rgba(17,17,17,0.10)' },
 });

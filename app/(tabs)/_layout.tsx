@@ -14,6 +14,7 @@ import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { isMotoLicenseCategory } from '../../src/utils/license';
 import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
+import { warmRoadFree } from '../../src/road/freeStartStore';
 import { useTabBarHeight } from '../../src/components/tabBarSpace';
 
 /**
@@ -77,6 +78,10 @@ export default function TabsLayout() {
   // REG-638 «T1 piatta»: istruttore → Agenda · Road · Allievi · Tu. Disponibilità
   // e Notifiche si aprono da orologio e campanella nell'intestazione dell'Agenda.
   const { instructorApp, showRoad: showDriveTab } = useInstructorTabs();
+  // Road pronta prima del tocco: opzioni e foto dei volti in background.
+  React.useEffect(() => {
+    if (showDriveTab) warmRoadFree();
+  }, [showDriveTab]);
   const showInboxTab =
     !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
   const isOwner = autoscuolaRole === 'OWNER';

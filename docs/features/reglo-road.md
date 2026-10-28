@@ -224,3 +224,8 @@ sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
 - **«Avvia con Road» nel foglio della guida** (`home/manage-lesson.tsx`): solo se Road è acceso, fase `idle` e `roadStore.eligible.appointmentId === lesson.id` (stesso criterio dell'invito, deciso dal server). Presente/Assente scendono a secondarie affiancate. Sotto «Non ora» dell'invito: «La ritrovi toccando la guida in agenda».
 - **Tab Road senza salto all'avvio**: `roadStore.roadKnown`; finché `/road/state` non risponde, `useInstructorTabs` usa `roadEnabled` dalle impostazioni persistite.
 
+
+### Giro Road — fix velocità «Con chi guidi?» (28/10, dopo OTA 01a183c3)
+- **Cambio volto**: anello e volto a tempo fisso (`SELECT_TIMING` 180 ms, niente molla); briefing e testo del bottone `SWITCH_OUT` 80 ms / `SWITCH_IN` 150 ms; per ~0,3 s dopo il tocco le altezze usano `SWITCH_LAYOUT` (200 ms) invece di `ROAD_LAYOUT`/`ROAD_LAYOUT_AFTER_EXIT` (stato `switching` in `drive/index.tsx`).
+- **Foto**: `useCachedPhotoUri` fissa l'URI per tutta la vita del componente (prima il primo re-render dopo il download passava dal remoto al file e la foto ripartiva dallo skeleton). `FadeImage` azzera solo a un cambio vero di URI; ease simmetrica 200 ms; skeleton al 10%.
+- **Prefetch**: `warmRoadFree()` (dal layout delle tab, una volta per avvio) legge le opzioni di Road e chiama `prefetchRoadFaces` → `prefetchUserPhotos` → `warmPhoto` (file su disco). Ogni URL ricevuto da `userPhotos` va subito sul disco.

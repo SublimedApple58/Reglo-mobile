@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { regloApi } from './regloApi';
-import { clearPhotoDiskCache } from './photoDiskCache';
+import { clearPhotoDiskCache, warmPhoto } from './photoDiskCache';
 
 /**
  * Cache client delle foto profilo per gli avatar (allievi/istruttori).
@@ -80,6 +80,8 @@ async function flush() {
       const same = prev?.u && url && prev.u.split('?')[0] === url.split('?')[0] && !isSigned(url);
       cache.set(key, same ? { u: prev!.u, t: now } : { u: url, t: now });
       fresh.add(key);
+      // Sul disco subito, anche se il volto non è ancora a schermo.
+      warmPhoto(url);
     });
     scheduleSave();
   } catch {
@@ -97,6 +99,21 @@ function requestKey(key: Key) {
   if (fresh.has(key) || inflight.has(key) || queued.has(key)) return;
   queued.add(key);
   if (!flushTimer) flushTimer = setTimeout(() => void flush(), 60);
+}
+
+/**
+ * Prefetch delle foto di questi utenti (Road: i volti suggeriti appena
+ * arrivano le opzioni, anche all'avvio dell'app): URL in un'unica chiamata e
+ * file sul disco, così il volto compare già pronto.
+ */
+export function prefetchUserPhotos(userIds: Array<string | null | undefined>) {
+  for (const id of userIds) {
+    if (!id) continue;
+    const key = `u:${id}` as Key;
+    const known = cache.get(key);
+    if (known?.u && usable(known)) warmPhoto(known.u);
+    requestKey(key);
+  }
 }
 
 /** Invalida la foto di un utente (es. dopo un upload) e la richiede di nuovo. */

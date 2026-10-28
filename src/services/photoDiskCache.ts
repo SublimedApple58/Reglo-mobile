@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 
 /**
@@ -27,7 +27,7 @@ function fileNameFor(url: string): string {
   return `${(h >>> 0).toString(36)}-${base.length.toString(36)}.${ext}`;
 }
 
-void (async () => {
+const dirReady = (async () => {
   try {
     const info = await FileSystem.getInfoAsync(DIR);
     if (!info.exists) await FileSystem.makeDirectoryAsync(DIR, { intermediates: true });
@@ -37,6 +37,15 @@ void (async () => {
   }
   notify();
 })();
+
+/**
+ * Salva una foto sul disco prima che serva (prefetch: volti di Road appena
+ * arrivano gli URL). Chi la mostra dopo la legge dal file, senza rete.
+ */
+export function warmPhoto(url: string | null | undefined) {
+  if (!url || !/^https?:\/\//.test(url)) return;
+  void dirReady.then(() => download(url, fileNameFor(url)));
+}
 
 async function download(url: string, name: string) {
   if (downloading.has(name) || !onDisk || onDisk.has(name)) return;
@@ -70,18 +79,26 @@ const subscribe = (fn: () => void) => {
  * URI da mostrare per una foto: il file locale se c'è, altrimenti l'URL
  * remoto (e intanto lo salva). `undefined` solo nei primi millisecondi,
  * finché la cartella non è letta (lo skeleton copre).
+ *
+ * L'URI scelto resta FISSO per tutta la vita del componente (stessa foto):
+ * prima, a download finito, il primo re-render (es. tocco su un altro volto
+ * in Road) passava dall'URL remoto al file e la foto ripartiva dallo
+ * skeleton con una seconda dissolvenza (Tiziano 28/10).
  */
 export function useCachedPhotoUri(url: string | null | undefined): string | null | undefined {
   const remote = url && /^https?:\/\//.test(url) ? url : null;
   const name = remote ? fileNameFor(remote) : null;
   const ready = useSyncExternalStore(subscribe, () => onDisk !== null);
+  const pinned = useRef<{ name: string; uri: string } | null>(null);
   const local = ready && name && onDisk!.has(name) ? `${DIR}${name}` : null;
   useEffect(() => {
     if (remote && name && ready && !local) void download(remote, name);
   }, [remote, name, ready, local]);
-  if (!remote) return url;
+  if (!remote || !name) return url;
+  if (pinned.current?.name === name) return pinned.current.uri;
   if (!ready) return undefined;
-  return local ?? remote;
+  pinned.current = { name, uri: local ?? remote };
+  return pinned.current.uri;
 }
 
 /** Uscita dall'account: via le foto salvate. */

@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { avatarColors } from '../../utils/avatarColors';
-import { SOFT_SPRING } from '../../utils/motion';
+import { SELECT_TIMING } from '../../utils/motion';
 import { initialsOf } from '../../road/format';
 import { UserPhotoCircle } from '../UserPhotoCircle';
 
@@ -13,6 +13,9 @@ import { UserPhotoCircle } from '../UserPhotoCircle';
  * Volume: ombra esterna sul cerchio + luce/ombra interna in un velo SOPRA la
  * foto (l'ombra interna di un nodo sta sotto i figli e la foto la coprirebbe).
  * `selected` = anello nero che compare morbido, il volto si stringe dentro.
+ * Anello e volto a tempo fisso (`SELECT_TIMING`, 180 ms, niente molla): il
+ * bordo passa da un volto all'altro netto ma animato (Tiziano 28/10: la molla
+ * di prima impiegava ~0,5 s e sembrava lentissima).
  */
 export function Avatar({
   userId,
@@ -26,11 +29,11 @@ export function Avatar({
   selected?: boolean;
 }) {
   const ring = useAnimatedStyle(() => ({
-    opacity: withTiming(selected ? 1 : 0, { duration: 180 }),
-    transform: [{ scale: withSpring(selected ? 1 : 0.9, SOFT_SPRING) }],
+    opacity: withTiming(selected ? 1 : 0, SELECT_TIMING),
+    transform: [{ scale: withTiming(selected ? 1 : 0.94, SELECT_TIMING) }],
   }));
   const face = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(selected ? (size - 8) / size : 1, SOFT_SPRING) }],
+    transform: [{ scale: withTiming(selected ? (size - 8) / size : 1, SELECT_TIMING) }],
   }));
   const { bg, fg } = avatarColors(userId ?? name);
   const round = { width: size, height: size, borderRadius: size / 2 };
