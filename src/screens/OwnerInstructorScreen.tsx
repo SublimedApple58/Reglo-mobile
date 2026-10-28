@@ -185,7 +185,7 @@ export const OwnerInstructorScreen = () => {
     const today = appointments
       .filter((a) => a.status !== 'cancelled' && isToday(a.startsAt))
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-    if (!today.length) return null;
+    if (!today.length) return { count: 0, line: 'Giornata libera in autoscuola' };
     const hhmm = (iso: string) => {
       const d = new Date(iso);
       return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -317,7 +317,9 @@ export const OwnerInstructorScreen = () => {
                 <Image source={PERSONE_ART} style={s.dayArt} />
                 <View style={s.dayMain}>
                   <Text style={s.dayNum}>
-                    {schoolToday.count} {schoolToday.count === 1 ? 'guida' : 'guide'}
+                    {schoolToday.count === 0
+                      ? 'Oggi nessuna guida'
+                      : `${schoolToday.count} ${schoolToday.count === 1 ? 'guida' : 'guide'}`}
                   </Text>
                   <Text style={s.daySub} numberOfLines={2}>{schoolToday.line}</Text>
                 </View>
@@ -407,7 +409,7 @@ const s = StyleSheet.create({
   dayCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20, paddingVertical: 16, paddingHorizontal: 18 },
   dayArt: { width: 58, height: 58 },
   dayMain: { flex: 1, minWidth: 0 },
-  dayNum: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
+  dayNum: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.7 },
   daySub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 1 },
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 120 },
