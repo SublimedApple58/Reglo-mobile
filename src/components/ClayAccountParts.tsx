@@ -1,11 +1,12 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Avatar, CLAY_ROW_PRESSED, ClaySurface, clayRowPadding, markClayRow } from './clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { currentAppVersion } from '../config/forceUpdate';
 import type { UserPublic } from '../types/regloApi';
+import { FadeImage } from './FadeImage';
 
 /** Rosso clay: solo testo di azioni distruttive o errori (guida REG-639). */
 export const CLAY_DANGER = '#C13515';
@@ -33,7 +34,7 @@ export function ProfileSummaryCard({
     <ClaySurface onPress={onPress} style={s.card} testID={testID} accessibilityLabel={`${name}, modifica profilo`}>
       {user?.photoUrl ? (
         <View style={[s.photoWrap, CLAY_SHADOW.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
-          <Image source={{ uri: user.photoUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+          <FadeImage source={{ uri: user.photoUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
         </View>
       ) : (
         <Avatar userId={user?.id} name={name} size={size} />

@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { invalidateUserPhoto } from '../services/userPhotos';
 import { colors } from '../theme/colors';
+import { FadeImage } from './FadeImage';
 
 /**
  * Avatar grande centrato con pill "Modifica" (stile Airbnb) per caricare la
@@ -93,7 +93,7 @@ export function ProfilePhotoEditor({ size = 128 }: { size?: number }) {
     <View style={s.block}>
       <Pressable onPress={handlePress} style={s.wrap}>
         {user?.photoUrl ? (
-          <Image source={{ uri: user.photoUrl }} style={circle} />
+          <FadeImage source={{ uri: user.photoUrl }} style={circle} />
         ) : (
           <View style={[circle, s.fallback]}>
             <Text style={s.initials}>{initials}</Text>

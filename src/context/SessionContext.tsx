@@ -3,6 +3,7 @@ import { authStorage, RegloApiError, onAuthInvalidated } from '../services/apiCl
 import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
+import { clearUserPhotoCache } from '../services/userPhotos';
 import { AuthPayload, AutoscuolaRole, CompanySummary, UserPublic } from '../types/regloApi';
 
 type SessionStatus = 'loading' | 'unauthenticated' | 'company_select' | 'ready';
@@ -100,6 +101,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   const clearSessionAndUnauthenticate = useCallback(async () => {
     await authStorage.clear();
     await sessionStorage.clear();
+    clearUserPhotoCache();
     setState(unauthenticatedState);
   }, []);
 
@@ -256,6 +258,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     }
     await authStorage.clear();
     await sessionStorage.clear();
+    clearUserPhotoCache();
     setState(unauthenticatedState);
   }, []);
 

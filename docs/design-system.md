@@ -2208,6 +2208,7 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - Animazioni: usare `useNativeDriver: true` dove possibile
 - Ombre: specificare sempre **sia** `shadowColor/Opacity/Radius/Offset` (iOS) **sia** `elevation` (Android)
 - **Icone 3D**: poche, generate con l'AI in stile unico, mai Fluent (§0.9)
+- **Foto e dati che caricano (giro Road, 28/10/2026)**: mai a scatto. Dati → skeleton sobrio con la forma del contenuto (`SkeletonBlock`, grigio clay che respira, niente rotelle dove c'è un layout noto). Foto remote → sempre `FadeImage` (`src/components/FadeImage.tsx`): skeleton sotto, dissolvenza ~200 ms, mai spenta da Riduci movimento. Avatar → `UserPhotoCircle`/`Avatar` (skeleton finché non si sa se c'è la foto, poi foto o iniziali). Cache: mappa id→URL in AsyncStorage (`userPhotos`) + file su disco (`photoDiskCache`, `cacheDirectory/photos/`): alla seconda apertura i volti sono già lì. Niente expo-image finché non c'è una build nativa che lo includa.
 - **Icone Ionicons** per UI funzionale: navigazione, bottoni, badge stato
 - **Inset shadow** (`boxShadow` con `inset: true`) per card informative non tappabili
 - **Ombre esterne** per CTA e card tappabili

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   StyleSheet,
   Text,
@@ -46,6 +45,7 @@ import {
   roadEnter,
   roadStagger,
 } from '../../../src/road/motion';
+import { SkeletonBlock } from '../../../src/components/Skeleton';
 
 const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
@@ -227,8 +227,20 @@ export default function RoadTab() {
             error ? (
               <Animated.Text key="err" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} style={s.sub}>{error}</Animated.Text>
             ) : (
-              <Animated.View key="load" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT}>
-                <ActivityIndicator color="#111111" style={{ marginVertical: 30 }} />
+              // Skeleton con la stessa forma di «Con chi guidi?» (giro Road
+              // 28/10): niente rotella, il pannello non cambia altezza all'arrivo.
+              <Animated.View key="load" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} testID="road-tab-skeleton">
+                <SkeletonBlock width="58%" height={28} radius={8} />
+                <SkeletonBlock width="80%" height={15} radius={6} style={{ marginTop: 10 }} />
+                <View style={s.faces}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <View key={i} style={s.face}>
+                      <SkeletonBlock width={64} height={64} radius={32} />
+                      <SkeletonBlock width={44} height={12} radius={5} style={{ marginTop: 3 }} />
+                    </View>
+                  ))}
+                </View>
+                <SkeletonBlock height={54} radius={27} style={s.cta} />
               </Animated.View>
             )
           ) : inRoad ? (

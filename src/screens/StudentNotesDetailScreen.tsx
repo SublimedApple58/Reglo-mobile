@@ -629,7 +629,9 @@ export const StudentNotesDetailScreen = () => {
               ? `Prossima guida ${formatDay(nextLesson.startsAt)} · ${formatTime(nextLesson.startsAt)}`
               : 'Nessuna guida in programma'}
           </Animated.Text>
-        ) : null}
+        ) : (
+          <SkeletonBlock width={210} height={15} radius={6} style={s.nextSkel} />
+        )}
       </View>
 
       {/* REG-458 — percorso mostrato: esiste solo con più di un percorso. */}
@@ -952,6 +954,7 @@ const s = StyleSheet.create({
   // volto usciva tagliato piatto. Lo stesso posto lo dà la testata più bassa.
   hero: { alignItems: 'center' },
   sheetHead: { paddingBottom: 6 },
+  nextSkel: { marginTop: 12, marginBottom: 3 },
   heroName: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 12 },
   heroSub: { fontSize: 15, color: CLAY.ink3, marginTop: 3, textAlign: 'center' },
   pathCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18, paddingVertical: 14, paddingHorizontal: 18 },

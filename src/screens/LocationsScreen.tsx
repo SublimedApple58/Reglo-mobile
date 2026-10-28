@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,7 @@ import { useLocations } from '../hooks/queries/useLocations';
 import { queryKeys } from '../hooks/queries/queryKeys';
 import { locationFormStore } from '../stores/locationFormStore';
 import type { AutoscuolaLocation, CreateLocationInput } from '../types/regloApi';
+import { FadeImage } from '../components/FadeImage';
 
 const toNumber = (value: number | string | null | undefined): number | null => {
   if (value == null) return null;
@@ -161,11 +162,10 @@ export const LocationsScreen = () => {
           ) : (
             <ClaySurface padded={false} radius={26} testID="locations-sede">
               <View style={styles.coverClip}>
-                <Image
+                <FadeImage
                   source={sede?.coverPhotoUrl && !coverFailed ? { uri: sede.coverPhotoUrl } : SEDE_COVER_FALLBACK}
                   onError={() => setCoverFailed(true)}
                   style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
                 />
               </View>
               <View style={styles.sedeRow}>

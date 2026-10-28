@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
@@ -10,6 +10,7 @@ import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { useSession } from '../context/SessionContext';
 import { useVehiclesEnabled } from '../hooks/useVehiclesEnabled';
 import { isInstructor, isOwner } from '../utils/roles';
+import { FadeImage } from '../components/FadeImage';
 
 type MenuItem = { route: string; label: string };
 
@@ -65,7 +66,7 @@ export const MoreScreen = () => {
           >
             {user?.photoUrl ? (
               <View style={[s.photo, CLAY_SHADOW.avatar]}>
-                <Image source={{ uri: user.photoUrl }} style={s.photo} />
+                <FadeImage source={{ uri: user.photoUrl }} style={s.photo} />
               </View>
             ) : (
               <Avatar userId={user?.id} name={name} size={40} />

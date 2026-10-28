@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { CLAY } from '../theme/clay';
 import { SEDE_COVER_FALLBACK } from '../theme/vitaArt';
 import { softEnter } from '../utils/motion';
 import { useSession } from '../context/SessionContext';
+import { FadeImage } from '../components/FadeImage';
 
 const H_PAD = 20;
 
@@ -94,10 +95,9 @@ export const InstructorAvailabilityScreen = () => {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       >
         <View style={[styles.cover, { width: winW, height: insets.top + COVER_H }]}>
-          <Image
+          <FadeImage
             source={coverSource}
             style={StyleSheet.absoluteFill}
-            resizeMode="cover"
             onError={() => setCoverFailed(true)}
           />
           {/* Velo per la foto: chiaro in alto (orologio e indietro leggibili), nessuno al centro. */}
