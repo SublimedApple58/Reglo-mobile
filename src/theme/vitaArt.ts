@@ -17,6 +17,15 @@ export const VITA_ART = {
   campanella: require('../../assets/vita/campanella.png') as ImageSourcePropType,
   /** Fondo della card «Guida» del foglio «Nuovo» (370×138 pt): auto 3D sopra. */
   cartinaRoad: require('../../assets/vita/cartina-road.jpg') as ImageSourcePropType,
+  /**
+   * Passo 3 «vita ovunque» (Tiziano 28/10): stella (pagellino/voto), orologio
+   * (ore al volante, Ore di guida), pagellino (cartellina con stelle).
+   * SEGNAPOSTO finché arrivano le icone Gemini: i file in `assets/vita/` vanno
+   * sostituiti a parità di nome, il codice non cambia.
+   */
+  stella: require('../../assets/vita/stella.png') as ImageSourcePropType,
+  orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
+  pagellino: require('../../assets/vita/pagellino.png') as ImageSourcePropType,
   /** Foto realistica di una sede (Gemini, approvata 28/10): copertina di Disponibilità senza foto vera. */
   sedeFoto: require('../../assets/vita/sede-foto.jpg') as ImageSourcePropType,
 };

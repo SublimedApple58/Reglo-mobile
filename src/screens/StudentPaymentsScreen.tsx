@@ -7,7 +7,6 @@ import {
   LayoutChangeEvent,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -26,7 +25,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter, useSegments } from 'expo-router';
 
 import {
@@ -36,7 +34,7 @@ import {
 } from '../utils/haptics';
 import { HoldRing } from '../components/HoldRing';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { GlassCloseButton } from '../components/GlassCloseButton';
+import { FormSheet } from '../components/SheetScaffold';
 import { studentPaymentsStore } from '../stores/studentPaymentsStore';
 import { paymentHistoryStore } from '../stores/paymentHistoryStore';
 import { regloApi } from '../services/regloApi';
@@ -517,23 +515,13 @@ export const StudentPaymentsScreen = () => {
 
   if (!data) return <View style={s.sheet} />;
 
+  // REG-639: form sheet nativo alto quanto il contenuto (FORM_SHEET + FormSheet),
+  // scorre da sé solo se supera lo schermo. Il contenuto tiene i suoi margini.
   return (
-    <View style={s.sheet}>
-      <StatusBar style="dark" />
+    <FormSheet title="Pagamenti" subtitle={data.studentName || undefined} testID="student-payments-sheet">
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <View style={s.bleed}>
         <View style={s.pad}>
-          <Text style={s.title}>Pagamenti</Text>
-          {data.studentName ? <Text style={s.subtitle}>{data.studentName}</Text> : null}
 
           {manualMode ? (
             <Animated.View entering={FadeIn.duration(320)} style={s.hero}>
@@ -684,8 +672,8 @@ export const StudentPaymentsScreen = () => {
             ))}
           </Animated.View>
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </FormSheet>
   );
 };
 
@@ -695,6 +683,7 @@ const SEP_INSET = PAD + 36 + 13;
 
 const s = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.background },
+  bleed: { marginHorizontal: -22, marginTop: -6 },
   topBar: {
     flexDirection: 'row', justifyContent: 'flex-end',
     paddingLeft: 30, paddingRight: 16, paddingTop: 20, paddingBottom: 4,

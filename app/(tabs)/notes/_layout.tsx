@@ -7,7 +7,8 @@ export default function NotesLayout() {
   return (
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="[studentId]" options={{ presentation: 'modal', headerShown: false }} />
+      {/* REG-639: dettaglio allievo = form sheet alto quanto il contenuto (Tiziano 28/10). */}
+      <Stack.Screen name="[studentId]" options={FORM_SHEET} />
       <Stack.Screen name="cluster-settings" />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="select-options" options={HUG_SHEET} />
@@ -16,7 +17,7 @@ export default function NotesLayout() {
       {/* Pagamenti guide (REG-450): ancora page sheet, STORICO. Regola Reglo dal
           27/10/2026 (design-system §13.2.1): form sheet alto quanto il contenuto
           che scorre da sé, mai page sheet per le liste lunghe → da migrare. */}
-      <Stack.Screen name="student-payments" options={PAGE_SHEET} />
+      <Stack.Screen name="student-payments" options={FORM_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />

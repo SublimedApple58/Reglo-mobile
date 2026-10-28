@@ -2,27 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Image,
   Linking,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolate,
   Easing,
   FadeIn,
   FadeOut,
   LinearTransition,
   ReduceMotion,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
@@ -38,13 +30,13 @@ import {
   evaluationSummary,
   evaluationSummaryLabel,
 } from '../utils/evaluationSheet';
-import { ToggleSwitch } from '../components/ToggleSwitch';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
-import { InfoBanner } from '../components/InfoBanner';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
-import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { regloApi } from '../services/regloApi';
+import { FormSheet } from '../components/SheetScaffold';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClayPressable, ClaySection, ClaySurface } from '../components/clay';
+import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaCase,
@@ -61,7 +53,7 @@ import {
 import { colors } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
-import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS } from '../utils/motoLessonType';
 import {
   asExamOutcome,
   askExamOutcome,
@@ -71,7 +63,6 @@ import {
   type ExamOutcome,
 } from '../utils/examOutcome';
 import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
-import { GlassCloseButton } from '../components/GlassCloseButton';
 import { RoadHistoryChip } from '../components/road/RoadLessonCard';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
@@ -84,16 +75,6 @@ const ART_EDIFICIO = require('../../assets/icons3d-ai/edificio.png');
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
 
-
-const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
-  manovre: { bg: '#DCFCE7', fg: '#15803D' },
-  parcheggio: { bg: '#EBEBEB', fg: '#000000' },
-  urbano: { bg: '#EBEBEB', fg: '#111111' },
-  extraurbano: { bg: '#CCFBF1', fg: '#0F766E' },
-  notturna: { bg: '#F2F2F0', fg: '#111111' },
-  autostrada: { bg: '#F1F1F1', fg: '#6D28D9' },
-};
-const tintFor = (t: string) => TYPE_TINT[t.toLowerCase()] ?? { bg: '#F2F2F2', fg: '#595959' };
 
 function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | null {
   const s = (status ?? '').toLowerCase();
@@ -176,30 +157,9 @@ const HEIGHT_GLIDE = LinearTransition.duration(240).easing(Easing.out(Easing.cub
  *  cifra grossa che si sostituisce di colpo è lo scatto più visibile. */
 const STAT_DISSOLVE = FadeIn.duration(160).reduceMotion(ReduceMotion.Never);
 
-const SEGMENT_EMPTY = '#DDDDDD';
-const SEGMENT_FULL = '#111111';
-
-/**
- * Un segmento della barra dell'obbligo.
- *
- * Esiste come componente a sé perché `useAnimatedStyle` non si può chiamare
- * dentro una `map`. Il filtro per percorso cambia il conteggio (l'obbligo è
- * PER percorso) e la barra sbiancava di colpo: ora la tinta passa in 160ms.
- * **Tutti insieme**: riempirli a scaglioni da sinistra sembrava una barra di
- * caricamento di un gioco (bocciato il 10/10).
- */
-const ObbligoSegment = ({ filled }: { filled: boolean }) => {
-  const style = useAnimatedStyle(() => ({
-    // Una tinta che cambia non è movimento: resta anche con «Riduci movimento».
-    backgroundColor: withTiming(filled ? SEGMENT_FULL : SEGMENT_EMPTY, { duration: 160 }),
-  }));
-  return <Animated.View style={[s.segment, style]} />;
-};
-
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
   const segments = useSegments() as string[];
-  const insets = useSafeAreaInsets();
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name: string }>();
   // REG-638: percorsi Road delle guide dello storico (chip «Percorso»).
   const { enabled: roadEnabled } = useRoadEnabled();
@@ -669,803 +629,441 @@ export const StudentNotesDetailScreen = () => {
     return `ha già ${cats.slice(0, 2).join(', ')} +${cats.length - 2}`;
   })();
 
-  // Flip card (front = summary, back = personal info)
-  const flip = useSharedValue(0);
-  const toggleFlip = () => { flip.value = withTiming(flip.value < 0.5 ? 1 : 0, { duration: 520, easing: Easing.inOut(Easing.cubic) }); };
-  const frontStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flip.value, [0, 1], [0, 180])}deg` }],
-    backfaceVisibility: 'hidden',
-    opacity: flip.value < 0.5 ? 1 : 0,
-  }));
-  const backStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flip.value, [0, 1], [180, 360])}deg` }],
-    backfaceVisibility: 'hidden',
-    opacity: flip.value < 0.5 ? 0 : 1,
-  }));
+  const subtitleLine = [licenseLabel, giaConseguite].filter(Boolean).join(' · ');
+  const missing = Math.max(0, REQUIRED_LESSONS - completedCount);
+  const obbligoLine = isCompleted
+    ? 'Obbligo completato'
+    : missing === 1
+      ? `Ancora 1 e ${firstName} è pronto`
+      : `Ancora ${missing} e ${firstName} è pronto`;
+  const showSettings = groupEnabled || studentPhase === 'PRATICA' || locations.length > 0;
 
+  // REG-639 «vita ovunque» (Tiziano 28/10): il dettaglio allievo è un FORM SHEET
+  // nativo alto quanto il contenuto (FORM_SHEET + FormSheet); scorre da sé solo
+  // se supera lo schermo. In testa il volto grande, poi i numeri che contano.
   return (
-    <View style={s.sheet}>
-      <StatusBar style="dark" />
+    <FormSheet
+      testID="student-detail-sheet"
+      cta={
+        phone && !loading ? (
+          <View style={s.ctaRow}>
+            <ClayPressable
+              onPress={() => Linking.openURL(`tel:${phone}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Chiama ${firstName}`}
+              style={s.callBtn}
+            >
+              <Ionicons name="call" size={20} color={CLAY.ink} />
+            </ClayPressable>
+            <ClayButton
+              title="Scrivi su WhatsApp"
+              onPress={() => Linking.openURL(`https://wa.me/${cleanPhone}`)}
+              leading={<Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />}
+              style={s.waBtn}
+            />
+          </View>
+        ) : undefined
+      }
+    >
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
-      {/* Top bar — close */}
-      <View style={[s.topBar, Platform.OS === 'android' && { justifyContent: 'flex-start' }]}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name={Platform.OS === 'android' ? 'arrow-back' : 'close'} size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
+      {/* Volto, nome, patente */}
+      <View style={s.hero}>
+        <Avatar userId={studentId ?? null} name={fullName} size={88} />
+        <Text style={s.heroName} numberOfLines={1}>{fullName}</Text>
+        {subtitleLine ? <Text style={s.heroSub} numberOfLines={2}>{subtitleLine}</Text> : null}
       </View>
 
-      <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: phone ? 110 : 40 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Profile flip card — real layout always; data fades in */}
-        <Pressable onPress={toggleFlip} style={s.flipWrap}>
-          {/* FRONT */}
-          <Animated.View style={[s.face, s.faceFront, frontStyle]}>
-            <View style={s.profileLeft}>
-              <UserPhotoCircle userId={studentId} size={72} style={{ marginBottom: 8 }}>
-                <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
-              </UserPhotoCircle>
-              <Text style={s.profileName} numberOfLines={1}>{firstName}</Text>
-              {licenseLabel ? (
-                <View style={s.licenseChip}>
-                  <Ionicons name="card-outline" size={11} color="#595959" />
-                  <Text style={s.licenseChipText}>{licenseLabel}</Text>
-                </View>
-              ) : null}
-            </View>
+      {/* REG-458 — percorso mostrato: esiste solo con più di un percorso. */}
+      {licensePaths.length > 1 ? (
+        <ClaySurface
+          radius={22}
+          onPress={() => setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))}
+          style={s.pathCard}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>
+              {shownPath ? `Percorso ${shownPath.licenseCategory ?? ''}`.trim() : 'Tutti i percorsi'}
+            </Text>
+            <Text style={s.cardSub}>
+              {shownPath ? 'Numeri e storico di questo percorso' : 'Numeri e storico di tutti i percorsi'}
+            </Text>
+          </View>
+          <Text style={s.link}>
+            {shownPath
+              ? hiddenByPath > 0 ? `Vedi tutto (${hiddenByPath})` : 'Vedi tutto'
+              : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`}
+          </Text>
+        </ClaySurface>
+      ) : null}
+
+      {/* Tre numeri, ognuno col suo oggetto 3D */}
+      <View style={s.stats}>
+        {[
+          { art: VITA_ART.volante, value: String(completedCount), unit: '', label: completedCount === 1 ? 'guida fatta' : 'guide fatte' },
+          { art: VITA_ART.stella, value: avgRating ?? '—', unit: avgRating ? '/5' : '', label: 'pagellino' },
+          { art: VITA_ART.orologio, value: String(totalHours), unit: 'h', label: 'al volante' },
+        ].map((st) => (
+          <ClaySurface key={st.label} radius={22} padded={false} style={s.stat}>
+            <Image source={st.art} style={s.statArt} />
             {loading ? (
-              <View style={s.profileStats}>
-                {[0, 1, 2].map((i) => (
-                  <View key={i}>
-                    {i > 0 ? <View style={s.statHr} /> : null}
-                    <View style={s.statBlock}>
-                      <SkeletonBlock width={36} height={20} radius={6} />
-                      <SkeletonBlock width={62} height={12} radius={5} style={{ marginTop: 7 }} />
-                    </View>
+              <SkeletonBlock width={40} height={22} radius={6} style={{ marginTop: 8 }} />
+            ) : (
+              <Animated.Text key={`${st.label}-${st.value}`} entering={STAT_DISSOLVE} style={s.statNum}>
+                {st.value}
+                {st.unit ? <Text style={s.statUnit}> {st.unit}</Text> : null}
+              </Animated.Text>
+            )}
+            <Text style={s.statLbl} numberOfLines={1}>{st.label}</Text>
+          </ClaySurface>
+        ))}
+      </View>
+
+      {/* Guide obbligatorie */}
+      <ClaySurface radius={22} style={s.card}>
+        <View style={s.rowBetween}>
+          <Text style={s.cardTitle}>Guide obbligatorie</Text>
+          {loading ? null : (
+            <Text style={s.cardSub}>{Math.min(completedCount, REQUIRED_LESSONS)} di {REQUIRED_LESSONS}</Text>
+          )}
+        </View>
+        <View style={s.track}>
+          <Animated.View
+            layout={HEIGHT_GLIDE}
+            style={[s.fill, { width: `${loading ? 0 : (Math.min(completedCount, REQUIRED_LESSONS) / REQUIRED_LESSONS) * 100}%` }]}
+          />
+        </View>
+        {loading ? (
+          <SkeletonBlock width={150} height={13} radius={6} style={{ marginTop: 10 }} />
+        ) : (
+          <Animated.Text key={obbligoLine} entering={STAT_DISSOLVE} style={s.cardSubBelow}>
+            {obbligoLine}
+          </Animated.Text>
+        )}
+      </ClaySurface>
+
+      {/* Esame in arrivo */}
+      {!loading && upcomingExam ? (
+        <ClaySurface radius={22} style={[s.card, s.examCard]}>
+          <Image source={VITA_ART.esame} style={s.examArt} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
+            <Text style={s.cardSub}>{formatExamDate(upcomingExam.date)}</Text>
+          </View>
+        </ClaySurface>
+      ) : null}
+
+      {/* Pagamenti e impostazioni: una lista sola */}
+      {!loading && (paymentsManualMode || showSettings) ? (
+        <ClayList style={s.listGap}>
+          {paymentsManualMode ? (
+            <ClayListRow
+              title="Pagamenti"
+              subtitle={
+                unpaidCount === 0
+                  ? 'Tutte le guide sono saldate'
+                  : unpaidCount === 1 ? '1 guida da pagare' : `${unpaidCount} guide da pagare`
+              }
+              onPress={openPayments}
+              testID="student-payments-row"
+            />
+          ) : null}
+          {showSettings ? (
+            <ClayListRow
+              title="Impostazioni"
+              subtitle={[
+                groupEnabled ? (groupOptIn ? 'Guide di gruppo sì' : 'Guide di gruppo no') : null,
+                studentPhase === 'PRATICA' ? (examReady ? 'pronto per l’esame' : null) : null,
+              ].filter(Boolean).join(' · ') || 'Gruppo, esame e luogo'}
+              trailing={
+                <View style={s.setGlyphs}>
+                  {groupEnabled ? <SettingGlyph source={ART_PERSONE} on={groupOptIn} /> : null}
+                  {studentPhase === 'PRATICA' ? <SettingGlyph source={ART_ESAME} on={examReady} /> : null}
+                  {locations.length > 0 ? <SettingGlyph source={ART_EDIFICIO} on={false} neutral /> : null}
+                </View>
+              }
+              onPress={openStudentSettings}
+              testID="student-settings-row"
+            />
+          ) : null}
+        </ClayList>
+      ) : null}
+
+      {/* Pagellino: una riga, il dettaglio si apre al tocco */}
+      {!loading && pagellino ? (
+        <Animated.View layout={EVAL_LAYOUT} style={s.listGap}>
+          <ClaySurface radius={22} padded={false}>
+            <Pressable
+              onPress={() => setPagellinoOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: pagellinoOpen }}
+              style={({ pressed }) => [s.pagHead, pressed && { opacity: 0.6 }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>Pagellino</Text>
+                <Text style={s.cardSub}>
+                  {pagellino.lessonCount === 1 ? '1 guida valutata' : `${pagellino.lessonCount} guide valutate`}
+                </Text>
+              </View>
+              <View style={s.sparkRow}>
+                {pagellino.items.slice(0, 6).map((item) => (
+                  <View key={item.itemId} style={s.sparkTrack}>
+                    <View style={[s.sparkFill, { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` }]} />
                   </View>
                 ))}
               </View>
-            ) : (
-              // REG-458 — tutti e tre questi numeri sono PER percorso: cambiando
-              // il filtro cambiano insieme. La chiave sul valore li fa sfumare
-              // al proprio posto; l'etichetta sotto non si muove, così si legge
-              // «è cambiato il numero», non «è cambiata la scheda».
-              <Animated.View entering={FadeIn.duration(350)} style={s.profileStats}>
-                <View style={s.statBlock}>
-                  <Animated.Text key={completedCount} entering={STAT_DISSOLVE} style={s.statNum}>
-                    {completedCount}
-                  </Animated.Text>
-                  <Text style={s.statLbl}>completate</Text>
-                </View>
-                <View style={s.statHr} />
-                <View style={s.statBlock}>
-                  <View style={s.statValueRow}>
-                    <Animated.Text key={avgRating ?? '—'} entering={STAT_DISSOLVE} style={s.statNum}>
-                      {avgRating ?? '—'}
-                    </Animated.Text>
-                  </View>
-                  <Text style={s.statLbl}>voto medio</Text>
-                </View>
-                <View style={s.statHr} />
-                <View style={s.statBlock}>
-                  <Animated.Text key={totalHours} entering={STAT_DISSOLVE} style={s.statNum}>
-                    {totalHours}h
-                  </Animated.Text>
-                  <Text style={s.statLbl}>ore guidate</Text>
-                </View>
-              </Animated.View>
-            )}
-            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
-          </Animated.View>
-
-          {/* BACK */}
-          <Animated.View style={[s.face, s.faceBack, backStyle]}>
-            <Text style={s.backTitle}>Dati personali</Text>
-            <View style={s.backRow}>
-              <Ionicons name="person-outline" size={16} color="#929292" />
-              <View style={{ flex: 1 }}><Text style={s.backLabel}>Nome</Text><Text style={s.backValue} numberOfLines={1}>{fullName}</Text></View>
-            </View>
-            <View style={s.backRow}>
-              <Ionicons name="mail-outline" size={16} color="#929292" />
-              <View style={{ flex: 1 }}><Text style={s.backLabel}>Email</Text><Text style={s.backValue} numberOfLines={1}>{email ?? '—'}</Text></View>
-            </View>
-            <View style={s.backRow}>
-              <Ionicons name="call-outline" size={16} color="#929292" />
-              <View style={{ flex: 1 }}><Text style={s.backLabel}>Telefono</Text><Text style={s.backValue} numberOfLines={1}>{phone ?? '—'}</Text></View>
-            </View>
-            <View style={s.backRow}>
-              <Ionicons name="card-outline" size={16} color="#929292" />
-              <View style={{ flex: 1 }}><Text style={s.backLabel}>Percorso patente</Text><Text style={s.backValue} numberOfLines={1}>{licenseLabel ?? '—'}</Text></View>
-            </View>
-            {/* REG-458 — solo se ha già concluso un percorso. All'istruttore
-                serve sapere che chi ha in auto guida già: cambia come gli parla. */}
-            {obtained.length > 0 ? (
-              <View style={s.backRow}>
-                <Ionicons name="ribbon-outline" size={16} color="#929292" />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.backLabel}>
-                    {obtained.length === 1 ? 'Già conseguita' : 'Già conseguite'}
-                  </Text>
-                  <Text style={s.backValue} numberOfLines={2}>
-                    {obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-            <View style={s.flipHint}><Ionicons name="sync-outline" size={14} color="#C4C4C4" /></View>
-          </Animated.View>
-        </Pressable>
-
-        <View style={s.below}>
-          {/* REG-458 — che cosa si sta guardando. Esiste solo con più di un
-              percorso, cioè quasi mai. Governa tutto quello che sta sotto —
-              obbligo, voto medio, ore, storico guide — perché è esattamente
-              quello che filtra, e per questo sta in cima e non in mezzo. */}
-          {licensePaths.length > 1 ? (
-            <InfoBanner
-              variant="quiet"
-              eyebrow={shownPath ? 'Percorso in corso' : 'Stai vedendo'}
-              title={
-                shownPath
-                  ? [shownPath.licenseCategory ?? '—', giaConseguite].filter(Boolean).join(' · ')
-                  : 'Tutti i percorsi'
-              }
-              actionLabel={
-                shownPath
-                  ? hiddenByPath > 0
-                    ? `Vedi tutto (${hiddenByPath})`
-                    : 'Vedi tutto'
-                  : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`
-              }
-              onPress={() =>
-                setPathChoice(shownPath ? ALL_LESSON_PATHS : (thisPath?.id ?? ALL_LESSON_PATHS))
-              }
-              style={{ marginBottom: 18 }}
-            />
-          ) : null}
-          {/* Obbligo guide — flat (frame always, data fades in) */}
-          <View style={s.flatBlock}>
-            <View style={s.obbligoTop}>
-              <Text style={s.flatLabel}>OBBLIGO GUIDE</Text>
-              {loading ? (
-                <SkeletonBlock width={44} height={22} radius={6} />
-              ) : (
-                <Animated.View entering={FadeIn.duration(350)} style={s.obbligoCountRow}>
-                  {/* La chiave è il numero: cambiando percorso cambia il
-                      conteggio, e una cifra che si sostituisce di colpo è lo
-                      scatto più visibile della schermata, perché è grossa. */}
-                  <Animated.Text
-                    key={Math.min(completedCount, REQUIRED_LESSONS)}
-                    entering={STAT_DISSOLVE}
-                    style={s.obbligoCount}
-                  >
-                    {Math.min(completedCount, REQUIRED_LESSONS)}
-                  </Animated.Text>
-                  <Text style={s.obbligoTotal}>/{REQUIRED_LESSONS}</Text>
-                </Animated.View>
-              )}
-            </View>
-            <View style={s.segments}>
-              {Array.from({ length: REQUIRED_LESSONS }).map((_, i) => (
-                <ObbligoSegment key={i} filled={!loading && i < completedCount} />
-              ))}
-            </View>
-            {loading ? (
-              <SkeletonBlock width={150} height={13} radius={6} style={{ marginTop: 12 }} />
-            ) : (
-              <Animated.View
-                // «Obbligo completato» ↔ «Mancano 4 guide»: la frase cambia con
-                // il percorso, e con lei la spunta verde. La chiave la fa
-                // dissolvere invece di sostituirla a scatto.
-                key={isCompleted ? 'done' : REQUIRED_LESSONS - completedCount}
-                entering={STAT_DISSOLVE}
-                style={s.obbligoStatusRow}
-              >
-                {isCompleted ? <Ionicons name="checkmark-circle" size={15} color="#16A34A" /> : null}
-                <Text style={[s.obbligoStatus, isCompleted && { color: '#16A34A' }]}>
-                  {isCompleted ? 'Obbligo completato' : `Mancano ${REQUIRED_LESSONS - completedCount} guide`}
+              {pagellino.average != null ? (
+                <Text style={s.pagBig}>
+                  {pagellino.average.toFixed(1).replace('.', ',')}
+                  <Text style={s.statUnit}>/{pagellino.scaleMax}</Text>
                 </Text>
-              </Animated.View>
-            )}
-          </View>
-
-          {/* Pagamenti guide (REG-450) — una riga sola con il numero che conta;
-              il registro filtrabile (Tutte / Future / Da pagare / Completate /
-              Annullate) vive nella sua schermata, dove ha spazio. Compare solo
-              se l'autoscuola incassa a mano: con Stripe o coi crediti
-              obbligatori i soldi passano dalla sezione Pagamenti del web. */}
-          {!loading && paymentsManualMode ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
-              <Pressable
-                onPress={openPayments}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.flatLabel}>Pagamenti</Text>
-                  <Text style={s.pagInsight}>
-                    {unpaidCount === 0
-                      ? 'Tutte le guide sono saldate'
-                      : unpaidCount === 1
-                        ? '1 guida da pagare'
-                        : `${unpaidCount} guide da pagare`}
-                  </Text>
-                </View>
-                {unpaidCount > 0 ? (
-                  <View style={s.payPill}>
-                    <Text style={s.payPillText}>{unpaidCount}</Text>
-                  </View>
-                ) : (
-                  <View style={s.payOk}>
-                    <Ionicons name="checkmark" size={13} color="#15803D" />
-                  </View>
-                )}
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            </Animated.View>
-          ) : null}
-
-          {/* Impostazioni allievo — una riga sola: le tre voci (gruppo, pronto
-              per l'esame, luogo) vivono nel form sheet, dove hanno spazio.
-              Qui resta lo STATO, leggibile senza aprire nulla. */}
-          {!loading && (groupEnabled || studentPhase === 'PRATICA' || locations.length > 0) ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.flatBlock}>
-              <Pressable
-                onPress={openStudentSettings}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.flatLabel}>Impostazioni</Text>
-                </View>
-                <View style={s.setGlyphs}>
-                  {groupEnabled ? (
-                    <SettingGlyph source={ART_PERSONE} on={groupOptIn} />
-                  ) : null}
-                  {studentPhase === 'PRATICA' ? (
-                    <SettingGlyph source={ART_ESAME} on={examReady} />
-                  ) : null}
-                  {locations.length > 0 ? (
-                    <SettingGlyph source={ART_EDIFICIO} on={false} neutral />
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            </Animated.View>
-          ) : null}
-
-          {/* Exam — flat icon row */}
-          {!loading && upcomingExam ? (
-            <Animated.View entering={FadeIn.duration(350)} style={s.examRow}>
-              <Image source={ART_ESAME} style={s.examIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.examTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
-                <Text style={s.examDate}>{formatExamDate(upcomingExam.date)}</Text>
-              </View>
-              <View style={s.examBadge}><Text style={s.examBadgeText}>In arrivo</Text></View>
-            </Animated.View>
-          ) : null}
-
-          {/* Pagellino — media per voce su tutte le guide. A RIPOSO è una riga
-              sola: il dettaglio si apre al tap, come la chip della singola
-              guida. Un pannello sempre aperto qui in mezzo era ingombrante. */}
-          {!loading && pagellino ? (
-            <Animated.View layout={EVAL_LAYOUT} entering={FadeIn.duration(350)} style={s.flatBlock}>
-              <Pressable
-                onPress={() => setPagellinoOpen((v) => !v)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: pagellinoOpen }}
-                style={({ pressed }) => [s.pagHeadRow, pressed && { opacity: 0.6 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.flatLabel}>Pagellino</Text>
-                  <Text style={s.pagInsight}>
-                    {pagellino.lessonCount === 1 ? '1 guida valutata' : `${pagellino.lessonCount} guide valutate`}
-                  </Text>
-                </View>
-
-                {/* Micro-barre: la forma del voto si legge senza aprire nulla. */}
-                <View style={s.sparkRow}>
-                    {pagellino.items.slice(0, 6).map((item) => (
-                      <View key={item.itemId} style={s.sparkTrack}>
-                        <View
-                          style={[s.sparkFill, { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` }]}
-                        />
-                      </View>
-                  ))}
-                </View>
-
-                <View style={s.pagBig}>
-                  {pagellino.average != null ? (
-                    <>
-                      <Text style={s.obbligoCount}>
-                        {pagellino.average.toFixed(1).replace('.', ',')}
-                      </Text>
-                      <Text style={s.obbligoTotal}>/{pagellino.scaleMax}</Text>
-                    </>
-                  ) : (
-                    <Text style={s.obbligoTotal}>{pagellino.items.length} voci</Text>
-                  )}
-                </View>
-                <Ionicons
-                  name={pagellinoOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textMuted}
-                  style={{ marginLeft: 6 }}
-                />
-              </Pressable>
-
-              {pagellinoOpen ? (
-                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)}>
-                  {pagellino.items.map((item) => (
-                    <View key={item.itemId} style={s.pagRow}>
-                      <View style={s.pagRowTop}>
-                        <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
-                        <Text style={s.pagVal}>
-                          <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
-                          /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
-                        </Text>
-                      </View>
-                      {/* Barra e non stelline: una media come 4,2 con le stelline
-                          si potrebbe disegnare solo con mezze stelle finte. */}
-                      <View style={s.pagTrack}>
-                        <View
-                          style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]}
-                        />
-                      </View>
-                    </View>
-                  ))}
-                  {pagellino.weakest ? (
-                    <Text style={s.pagFoot}>
-                      Voce più bassa:{' '}
-                      <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
-                      {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax} su ${pagellino.weakest.count === 1 ? '1 guida' : `${pagellino.weakest.count} guide`})`}
-                    </Text>
-                  ) : null}
-                </Animated.View>
               ) : null}
-            </Animated.View>
-          ) : null}
+              <Ionicons name={pagellinoOpen ? 'chevron-up' : 'chevron-down'} size={16} color={CLAY.chevron} />
+            </Pressable>
+            {pagellinoOpen ? (
+              <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={s.pagBody}>
+                {pagellino.items.map((item) => (
+                  <View key={item.itemId} style={s.pagRow}>
+                    <View style={s.rowBetween}>
+                      <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
+                      <Text style={s.pagVal}>
+                        <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
+                        /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                      </Text>
+                    </View>
+                    <View style={s.pagTrack}>
+                      <View style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]} />
+                    </View>
+                  </View>
+                ))}
+                {pagellino.weakest ? (
+                  <Text style={s.pagFoot}>
+                    Da allenare: <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
+                    {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax})`}
+                  </Text>
+                ) : null}
+              </Animated.View>
+            ) : null}
+          </ClaySurface>
+        </Animated.View>
+      ) : null}
 
-          <View style={s.divider} />
-
-          {/* Storico guide — flat timeline (skeleton → fade) */}
-          <Text style={s.sectionLabel}>STORICO GUIDE</Text>
-          {/* Involucro a identità stabile: è lui che fa scorrere l'altezza
-              quando il filtro aggiunge o toglie guide. La chiave (e quindi la
-              dissolvenza) sta DENTRO: su un nodo che si rimonta una
-              transizione di layout non avrebbe niente da interpolare. */}
-          <Animated.View layout={HEIGHT_GLIDE}>
+      {/* Storico guide */}
+      <ClaySection title="Storico guide">
+        <Animated.View layout={HEIGHT_GLIDE}>
           {loading ? (
-            <View>
+            <ClaySurface padded={false}>
               {[0, 1, 2].map((i) => (
-                <View key={i} style={s.tlRow}>
-                  <View style={s.tlLeft}>
-                    <View style={s.tlDot} />
-                    {i < 2 ? <View style={s.tlLine} /> : null}
-                  </View>
-                  <View style={[s.tlBody, i < 2 && s.tlBodyBorder]}>
-                    <SkeletonBlock width="52%" height={15} radius={6} />
-                    <SkeletonBlock width="38%" height={12} radius={6} style={{ marginTop: 8 }} />
-                    <SkeletonBlock width="80%" height={12} radius={6} style={{ marginTop: 8 }} />
-                  </View>
+                <View key={i} style={[s.hRow, i > 0 && s.hDivider]}>
+                  <SkeletonBlock width="52%" height={15} radius={6} />
+                  <SkeletonBlock width="38%" height={12} radius={6} style={{ marginTop: 8 }} />
                 </View>
               ))}
-            </View>
+            </ClaySurface>
           ) : appointments.length === 0 ? (
-            <Animated.Text
-              key={`empty-${hiddenByPath}`}
-              entering={LIST_DISSOLVE}
-              style={s.emptyText}
-            >
-              {/* REG-458 — «nessuna guida» a chi ne ha, solo sul percorso
-                  precedente, sarebbe falso. */}
+            <Animated.Text key={`empty-${hiddenByPath}`} entering={LIST_DISSOLVE} style={s.emptyText}>
               {hiddenByPath === 1
                 ? "Nessuna guida in questo percorso. L'altra è sotto «Vedi tutto»."
                 : hiddenByPath > 1
                   ? `Nessuna guida in questo percorso. Le altre ${hiddenByPath} sono sotto «Vedi tutto».`
-                  : 'Nessuna guida registrata con questo allievo.'}
+                  : `Ancora nessuna guida con ${firstName}.`}
             </Animated.Text>
           ) : (
-            // La chiave è il percorso: cambiandolo lo storico si rimonta e
-            // sfuma **una volta**, invece di sostituirsi di colpo. Le righe
-            // dentro non si animano una per una: vedi `LIST_DISSOLVE`.
             <Animated.View key={shownPathId ?? 'all'} entering={LIST_DISSOLVE}>
-              {appointments.map((appt, idx) => {
-                  const isLast = idx === appointments.length - 1;
+              <ClaySurface padded={false}>
+                {appointments.map((appt, idx) => {
                   const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
                   const isGroup = (appt.type ?? '').trim().toLowerCase() === 'group_lesson' || !!appt.groupLessonId;
                   const isMotoGroup = appt.groupLessonKind === 'moto';
                   const motoType = asMotoLessonType(appt.motoLessonType);
-                  const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : [])).filter((t: string) => t !== 'guida' && t !== 'group_lesson');
+                  const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : []))
+                    .filter((t: string) => t !== 'guida' && t !== 'group_lesson' && t.toLowerCase() !== 'esame')
+                    .map((t: string) => t.charAt(0).toUpperCase() + t.slice(1));
+                  const kind = isExam
+                    ? 'Esame'
+                    : isGroup
+                      ? `${isMotoGroup ? 'Gruppo moto' : 'Guida di gruppo'}${appt.groupLessonCapacity ? ` · ${appt.groupLessonFilled ?? 0}/${appt.groupLessonCapacity}` : ''}`
+                      : [...allTypes, motoType ? MOTO_LESSON_TYPE_LABELS[motoType] : null].filter(Boolean).join(' · ');
+                  const vehicles = [appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name]
+                    .filter(Boolean)
+                    .join(' + ');
+                  const meta = isExam ? kind : [appt.instructor?.name ?? 'Istruttore', vehicles || null, kind || null].filter(Boolean).join(' · ');
+                  const summary = evaluationSummary(appt.evaluations);
+                  const open = openEvalId === appt.id;
+                  const outcome = isExam ? asExamOutcome(appt.examOutcome) : null;
+                  const recordable = isExam && canRecordExamOutcome(appt);
+                  const saving = outcomeSavingId === appt.id;
                   return (
-                    <View key={appt.id} style={s.tlRow}>
-                      <View style={s.tlLeft}>
-                        <View style={[s.tlDot, isExam && s.tlDotExam]} />
-                        {!isLast ? <View style={s.tlLine} /> : null}
+                    <View key={appt.id} style={[s.hRow, idx > 0 && s.hDivider]}>
+                      <View style={s.rowBetween}>
+                        <Text style={s.hDate}>
+                          {formatDay(appt.startsAt)} ·{' '}
+                          {examTimeIsTbd(appt) ? EXAM_TIME_TBD : formatTime(appt.startsAt)}
+                        </Text>
+                        {appt.rating != null && !appt.evaluations?.length ? (
+                          <StarRating value={appt.rating} readOnly size={13} tone="gold" />
+                        ) : null}
                       </View>
-                      <View style={[s.tlBody, !isLast && s.tlBodyBorder, !isExam && !appt.notes?.trim() && { opacity: 0.65 }]}>
-                        <View style={s.tlTopRow}>
-                          <Text style={s.tlDate}>{formatDay(appt.startsAt)}</Text>
-                          <Text style={s.tlTime}>
-                            {/* REG-604: esame senza orario → scritta, non 00:00. */}
-                            {examTimeIsTbd(appt)
-                              ? EXAM_TIME_TBD
-                              : `${formatTime(appt.startsAt)}${appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}`}
-                          </Text>
-                          {appt.rating != null && !appt.evaluations?.length ? (
-                            // Stellina storica: solo sulle guide che NON hanno il
-                            // pagellino (quelle create prima della feature), dove
-                            // è l'unica valutazione esistente.
-                            <StarRating value={appt.rating} readOnly size={13} tone="gold" />
-                          ) : null}
-                        </View>
-                        {(() => {
-                          // La chip riassume E apre: il pagellino della guida si
-                          // legge qui, senza passare dal foglio "Dettagli guida"
-                          // (che resta il posto dove si MODIFICA).
-                          const summary = evaluationSummary(appt.evaluations);
-                          if (!summary) return null;
-                          const label = evaluationSummaryLabel(summary);
-                          const open = openEvalId === appt.id;
-                          const rows = (appt.evaluations ?? []).filter(
-                            (row) => row.notApplicable || row.score != null,
-                          );
-                          return (
-                            <Animated.View layout={EVAL_LAYOUT}>
-                              <Pressable
-                                onPress={() => setOpenEvalId((cur) => (cur === appt.id ? null : appt.id))}
-                                hitSlop={6}
-                                accessibilityRole="button"
-                                accessibilityState={{ expanded: open }}
-                                style={({ pressed }) => [
-                                  s.tlPagellino,
-                                  open && s.tlPagellinoOpen,
-                                  pressed && { opacity: 0.6 },
-                                ]}
-                              >
-                                <Ionicons name="star" size={11} color={open ? '#A16207' : '#FACC15'} />
-                                <Text style={[s.tlPagellinoText, open && s.tlPagellinoTextOpen]}>
-                                  {label}
-                                </Text>
-                                <Ionicons
-                                  name={open ? 'chevron-up' : 'chevron-down'}
-                                  size={12}
-                                  color={open ? '#A16207' : colors.textMuted}
-                                />
-                              </Pressable>
-                              {open ? (
-                                <Animated.View
-                                  entering={FadeIn.duration(180)}
-                                  exiting={FadeOut.duration(120)}
-                                  style={s.tlVoci}
-                                >
-                                  {rows.map((row, i) => (
-                                    <View
-                                      key={row.itemId}
-                                      style={[s.tlVoce, i > 0 && s.tlVoceBorder]}
-                                    >
-                                      <Text style={s.tlVoceName} numberOfLines={2}>{row.label}</Text>
-                                      {row.notApplicable || row.score == null ? (
-                                        <Text style={s.tlVoceNa}>— non valutabile</Text>
-                                      ) : (
-                                        <StarRating
-                                          value={row.score}
-                                          total={row.scaleMax}
-                                          readOnly
-                                          size={13}
-                                          tone="gold"
-                                        />
-                                      )}
-                                    </View>
-                                  ))}
-                                </Animated.View>
-                              ) : null}
-                            </Animated.View>
-                          );
-                        })()}
-                        {isExam ? (
-                          (() => {
-                            // Chip "Esame" + esito: sul web la stessa riga del
-                            // registro porta la pill Idoneo/Respinto, qui
-                            // mancava e l'esame sembrava senza esito.
-                            const outcome = asExamOutcome(appt.examOutcome);
-                            const tone = outcome ? EXAM_OUTCOME_TONE[outcome] : null;
-                            const recordable = canRecordExamOutcome(appt);
-                            const saving = outcomeSavingId === appt.id;
-                            return (
-                              <View style={s.tlExamRow}>
-                                <View style={[s.tlChip, { backgroundColor: '#F1F1F1' }]}>
-                                  <Text style={[s.tlChipText, { color: '#6D28D9' }]}>Esame</Text>
-                                </View>
-                                {outcome && tone ? (
-                                  <Pressable
-                                    onPress={recordable && !saving ? () => recordOutcome(appt) : undefined}
-                                    disabled={!recordable || saving}
-                                    hitSlop={6}
-                                    accessibilityRole={recordable ? 'button' : 'text'}
-                                    accessibilityLabel={`Esito esame: ${EXAM_OUTCOME_LABELS[outcome]}`}
-                                    style={({ pressed }) => [
-                                      s.tlOutcome,
-                                      { borderColor: tone.border, backgroundColor: tone.bg },
-                                      (pressed || saving) && { opacity: 0.6 },
-                                    ]}
-                                  >
-                                    <Ionicons
-                                      name={outcome === 'idoneo' ? 'checkmark-circle' : 'close-circle'}
-                                      size={12}
-                                      color={tone.ink}
-                                    />
-                                    <Text style={[s.tlOutcomeText, { color: tone.ink }]}>
-                                      {EXAM_OUTCOME_LABELS[outcome]}
-                                    </Text>
-                                  </Pressable>
-                                ) : recordable ? (
-                                  <Pressable
-                                    onPress={saving ? undefined : () => recordOutcome(appt)}
-                                    disabled={saving}
-                                    hitSlop={6}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Registra esito esame"
-                                    style={({ pressed }) => [
-                                      s.tlOutcome,
-                                      s.tlOutcomeEmpty,
-                                      (pressed || saving) && { opacity: 0.6 },
-                                    ]}
-                                  >
-                                    <Ionicons name="ellipsis-horizontal" size={12} color="#6D28D9" />
-                                    <Text style={[s.tlOutcomeText, { color: '#6D28D9' }]}>
-                                      Registra esito
-                                    </Text>
-                                  </Pressable>
-                                ) : null}
-                              </View>
-                            );
-                          })()
-                        ) : isGroup ? (
-                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: isMotoGroup ? '#FFF4EA' : '#ECFDF5' }]}>
-                            <Ionicons name="people" size={12} color={isMotoGroup ? '#C2410C' : '#0F766E'} />
-                            <Text style={[s.tlChipText, { color: isMotoGroup ? '#C2410C' : '#0F766E' }]}>
-                              {isMotoGroup ? 'Gruppo moto' : 'Guida di gruppo'}
-                              {appt.groupLessonCapacity ? ` · ${appt.groupLessonFilled ?? 0}/${appt.groupLessonCapacity}` : ''}
-                            </Text>
-                          </View>
-                        ) : allTypes.length ? (
-                          <View style={s.tlChips}>
-                            {allTypes.map((t: string, i: number) => {
-                              const { bg, fg } = tintFor(t);
-                              return (
-                                <View key={i} style={[s.tlChip, { backgroundColor: bg }]}>
-                                  <Text style={[s.tlChipText, { color: fg }]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
-                                </View>
-                              );
-                            })}
-                          </View>
-                        ) : null}
-                        {!isExam && !isGroup && motoType ? (
-                          <View style={[s.tlChip, s.tlChipGroup, { backgroundColor: '#F1F1F1', alignSelf: 'flex-start', marginTop: allTypes.length ? 6 : 0 }]}>
-                            <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[motoType]} size={12} color="#111111" />
-                            <Text style={[s.tlChipText, { color: '#111111' }]}>{MOTO_LESSON_TYPE_LABELS[motoType]}</Text>
-                          </View>
-                        ) : null}
-                        {!isExam ? (
-                          <Text style={s.tlMeta}>{appt.instructor?.name ?? 'Istruttore'} · {[appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name].filter(Boolean).join(' + ') || 'Veicolo n/d'}</Text>
-                        ) : null}
-                        {roadByLesson.get(appt.id) ? (
-                          <RoadHistoryChip
-                            item={roadByLesson.get(appt.id)!}
-                            onPress={() =>
-                              void openRoadPercorso(router, segments[1] === 'notes' ? 'notes' : 'home', appt.id)
-                            }
-                          />
-                        ) : null}
+                      <Text style={s.hMeta} numberOfLines={2}>{meta}</Text>
+
+                      {isExam && (outcome || recordable) ? (
                         <Pressable
-                          onPress={() => openDetails(appt)}
+                          onPress={recordable && !saving ? () => recordOutcome(appt) : undefined}
+                          disabled={!recordable || saving}
                           hitSlop={6}
-                          style={({ pressed }) => [s.tlNoteRow, pressed && { opacity: 0.6 }]}
+                          accessibilityRole={recordable ? 'button' : 'text'}
+                          style={({ pressed }) => [s.inlineAction, (pressed || saving) && { opacity: 0.6 }]}
                         >
-                          <Text style={[s.tlNote, !appt.notes?.trim() && s.tlNoteEmpty, { flex: 1 }]}>
-                            {appt.notes?.trim() || 'Aggiungi dettagli'}
+                          <Text
+                            style={[
+                              s.inlineActionTx,
+                              outcome ? { color: EXAM_OUTCOME_TONE[outcome].ink, textDecorationLine: 'none' } : null,
+                            ]}
+                          >
+                            {outcome ? `Esito: ${EXAM_OUTCOME_LABELS[outcome]}` : 'Registra esito'}
                           </Text>
-                          <Ionicons name="create-outline" size={15} color={colors.textMuted} style={{ marginTop: 1 }} />
                         </Pressable>
-                      </View>
+                      ) : null}
+
+                      {summary ? (
+                        <Animated.View layout={EVAL_LAYOUT}>
+                          <Pressable
+                            onPress={() => setOpenEvalId((cur) => (cur === appt.id ? null : appt.id))}
+                            hitSlop={6}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: open }}
+                            style={({ pressed }) => [s.evalRow, pressed && { opacity: 0.6 }]}
+                          >
+                            <Ionicons name="star" size={12} color="#F5A524" />
+                            <Text style={s.evalTx}>{evaluationSummaryLabel(summary)}</Text>
+                            <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={12} color={CLAY.ink4} />
+                          </Pressable>
+                          {open ? (
+                            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={s.voci}>
+                              {(appt.evaluations ?? [])
+                                .filter((row) => row.notApplicable || row.score != null)
+                                .map((row, i) => (
+                                  <View key={row.itemId} style={[s.voce, i > 0 && s.hDivider]}>
+                                    <Text style={s.voceName} numberOfLines={2}>{row.label}</Text>
+                                    {row.notApplicable || row.score == null ? (
+                                      <Text style={s.voceNa}>non valutabile</Text>
+                                    ) : (
+                                      <StarRating value={row.score} total={row.scaleMax} readOnly size={13} tone="gold" />
+                                    )}
+                                  </View>
+                                ))}
+                            </Animated.View>
+                          ) : null}
+                        </Animated.View>
+                      ) : null}
+
+                      {roadByLesson.get(appt.id) ? (
+                        <RoadHistoryChip
+                          item={roadByLesson.get(appt.id)!}
+                          onPress={() => void openRoadPercorso(router, segments[1] === 'notes' ? 'notes' : 'home', appt.id)}
+                        />
+                      ) : null}
+
+                      <Pressable
+                        onPress={() => openDetails(appt)}
+                        hitSlop={6}
+                        style={({ pressed }) => [s.noteRow, pressed && { opacity: 0.6 }]}
+                      >
+                        <Text style={[s.note, !appt.notes?.trim() && s.noteEmpty]}>
+                          {appt.notes?.trim() || 'Aggiungi dettagli'}
+                        </Text>
+                        <Ionicons name="create-outline" size={15} color={CLAY.ink4} />
+                      </Pressable>
                     </View>
                   );
                 })}
-              </Animated.View>
-            )}
-          </Animated.View>
-        </View>
-      </ScrollView>
-
-      {/* Sticky contact footer */}
-      {phone && !loading ? (
-        <Animated.View entering={FadeIn.duration(300)} style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <Pressable
-            onPress={() => Linking.openURL(`tel:${phone}`)}
-            style={({ pressed }) => [s.callBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Ionicons name="call" size={20} color="#111111" />
-          </Pressable>
-          <Pressable
-            onPress={() => Linking.openURL(`https://wa.me/${cleanPhone}`)}
-            style={({ pressed }) => [s.waBtn, pressed && { opacity: 0.9 }]}
-          >
-            <GradientCTABackground radius={28} />
-            <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
-            <Text style={s.waBtnText}>Scrivi su WhatsApp</Text>
-          </Pressable>
+              </ClaySurface>
+            </Animated.View>
+          )}
         </Animated.View>
+      </ClaySection>
+
+      {/* Contatti (prima sul retro della card che si girava) */}
+      {!loading && (email || phone || obtained.length > 0) ? (
+        <ClaySection title="Contatti">
+          <ClayList>
+            {phone ? <ClayListRow title="Telefono" subtitle={phone} /> : null}
+            {email ? <ClayListRow title="Email" subtitle={email} /> : null}
+            {obtained.length > 0 ? (
+              <ClayListRow
+                title={obtained.length === 1 ? 'Patente già conseguita' : 'Patenti già conseguite'}
+                subtitle={obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
+              />
+            ) : null}
+          </ClayList>
+        </ClaySection>
       ) : null}
-    </View>
+    </FormSheet>
   );
 };
 
 const s = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.background },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingLeft: 30, paddingRight: 16, paddingTop: 20, paddingBottom: 4 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#DDDDDD', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 30, paddingTop: 4 },
-  below: { paddingHorizontal: 8 }, // guide + note narrower than the profile card
-
-  // Profile flip card (single allowed card)
-  flipWrap: { marginHorizontal: 4, marginTop: 18, marginBottom: 26 },
-  face: {
-    // minHeight so the card fits the TALLER face (the back / "Dati personali",
-    // 4 rows) — the back is absolutely positioned, so without this the card is
-    // sized to the front and the back overflows below it (last row clipped).
-    minHeight: 260,
-    backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 22, paddingHorizontal: 22,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.09, shadowRadius: 18, elevation: 5,
-  },
-  faceFront: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-  faceBack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', gap: 13 },
-  profileLeft: { flex: 1, alignItems: 'center', gap: 4, paddingRight: 8 },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#EBEBEB', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  avatarText: { fontSize: 24, fontWeight: '700', color: '#111111' },
-  profileName: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.3, textAlign: 'center' },
-  licenseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F2F2' },
-  licenseChipText: { fontSize: 12, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
-  profileStats: { width: 108, alignSelf: 'center' },
-  statBlock: { paddingVertical: 6 },
-  statNum: { fontSize: 20, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  statLbl: { fontSize: 12, color: colors.textMuted },
-  statHr: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  flipHint: { position: 'absolute', top: 12, right: 12 },
-
-  // Back face
-  backTitle: { fontSize: 11, fontWeight: '600', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backLabel: { fontSize: 11, fontWeight: '500', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
-  backValue: { fontSize: 15, fontWeight: '400', color: '#111111', marginTop: 1 },
-
-  // Flat blocks
-  flatBlock: { marginBottom: 22 },
-  flatLabel: { fontSize: 11, fontWeight: '700', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase' },
-  obbligoTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  obbligoCountRow: { flexDirection: 'row', alignItems: 'baseline' },
-  obbligoCount: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
-  obbligoTotal: { fontSize: 15, fontWeight: '600', color: '#929292' },
-  segments: { flexDirection: 'row', gap: 6, marginTop: 12 },
-  segment: { flex: 1, height: 9, borderRadius: 5, backgroundColor: '#DDDDDD' },
-  obbligoStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  obbligoStatus: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
-
-  examRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
-  examIcon: { width: 40, height: 40 },
-  groupOptBlock: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
-  groupOptIcon: { width: 40, height: 40 },
-  groupOptTitle: { fontSize: 15, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  groupOptSub: { fontSize: 13, fontWeight: '500', color: '#929292', marginTop: 1 },
-  examTitle: { fontSize: 15, fontWeight: '700', color: '#111111' },
-  examDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  examBadge: { backgroundColor: '#F1F1F1', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  examBadgeText: { fontSize: 11, fontWeight: '700', color: '#6D28D9' },
-
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginBottom: 18 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#929292', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
-
-  tlRow: { flexDirection: 'row', gap: 14 },
-  tlLeft: { width: 12, alignItems: 'center', paddingTop: 18 },
-  tlDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#C4C4C4' },
-  tlDotExam: { backgroundColor: '#8B5CF6' },
-  tlLine: { width: 1.5, flex: 1, backgroundColor: colors.border, marginTop: 6, minHeight: 16 },
-  tlBody: { flex: 1, paddingVertical: 14, gap: 6 },
-  tlBodyBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  tlTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  tlPagellino: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    marginTop: 6, paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 8, backgroundColor: '#F2F2F4',
-  },
-  tlPagellinoText: { fontSize: 11.5, fontWeight: '700', color: '#111111' },
-  tlPagellinoOpen: { backgroundColor: '#FEF9C3' },
-  tlPagellinoTextOpen: { color: '#A16207' },
-  // Niente pannello incorniciato: le voci sono un rientro della riga, non una
-  // scatola appoggiata dentro la timeline.
-  tlVoci: { marginTop: 6, paddingLeft: 2 },
-  tlVoce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 7 },
-  tlVoceBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F4F4F6' },
-  tlVoceName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#6A6A6A' },
-  tlVoceNa: { fontSize: 11.5, fontWeight: '500', color: '#A3A3A3' },
-
-  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 4 },
-  pagHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
-  pagInsight: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 3 },
-
-  // Pagamenti (REG-450): il debito si legge dal pallino ambra, il saldato dal
-  // check verde — stesso vocabolario cromatico dei badge del registro.
-  payPill: {
-    minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7,
-    backgroundColor: '#FFF4E5', alignItems: 'center', justifyContent: 'center',
-  },
-  payPillText: { fontSize: 12.5, fontWeight: '600', color: '#B45309' },
-  payOk: {
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#ECFDF3',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  pagInsightStrong: { fontWeight: '600', color: '#111111' },
-  sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 26 },
-  sparkTrack: {
-    width: 6, height: '100%', borderRadius: 3, backgroundColor: '#EFEFF2',
-    justifyContent: 'flex-end', overflow: 'hidden',
-  },
-  sparkFill: { width: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
-  pagBig: { flexDirection: 'row', alignItems: 'baseline' },
-  pagRow: { marginTop: 14 },
-  pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#111111' },
-  pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  pagValNum: { fontSize: 13, fontWeight: '700', color: '#111111' },
-  pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
-  pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
-  pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
-  pagFootStrong: { fontWeight: '600', color: '#111111' },
-  tlDate: { fontSize: 11, fontWeight: '700', color: '#929292', textTransform: 'uppercase', letterSpacing: 0.4 },
-  tlTime: { fontSize: 15, fontWeight: '700', color: '#111111' },
-  tlChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tlChip: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
-  tlChipGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  tlChipText: { fontSize: 11, fontWeight: '700' },
-  tlExamRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  tlOutcome: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  tlOutcomeEmpty: { borderColor: '#E2E2E2', backgroundColor: 'transparent' },
-  tlOutcomeText: { fontSize: 11, fontWeight: '700' },
-  tlMeta: { fontSize: 13, color: '#929292' },
-  tlNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tlNote: { fontSize: 14, color: '#111111', lineHeight: 20 },
-  tlNoteEmpty: { color: '#929292', fontStyle: 'italic' },
-
-  // Floating contact buttons (no bar — each floats with its own shadow)
-  footer: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingHorizontal: 30, paddingTop: 8,
-  },
+  hero: { alignItems: 'center', marginTop: -8 },
+  heroName: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 12 },
+  heroSub: { fontSize: 15, color: CLAY.ink3, marginTop: 3, textAlign: 'center' },
+  pathCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18, paddingVertical: 14, paddingHorizontal: 18 },
+  link: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
+  stats: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  stat: { flex: 1, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12 },
+  statArt: { width: 34, height: 34 },
+  statNum: { fontSize: 24, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 6, fontVariant: ['tabular-nums'] },
+  statUnit: { fontSize: 14, fontWeight: '500', color: CLAY.ink3 },
+  statLbl: { fontSize: 12.5, color: CLAY.ink3, marginTop: 1 },
+  card: { marginTop: 12, paddingVertical: 16, paddingHorizontal: 18 },
+  rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  cardTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  cardSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
+  cardSubBelow: { fontSize: 14, color: CLAY.ink3, marginTop: 9 },
+  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.07)', overflow: 'hidden', marginTop: 12 },
+  fill: { height: '100%', borderRadius: 4, backgroundColor: CLAY.ink },
+  examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  examArt: { width: 46, height: 46 },
+  listGap: { marginTop: 12 },
+  setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  pagHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 18 },
+  sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 26 },
+  sparkTrack: { width: 5, height: '100%', borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.07)', justifyContent: 'flex-end', overflow: 'hidden' },
+  sparkFill: { width: '100%', borderRadius: 3, backgroundColor: CLAY.ink },
+  pagBig: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  pagBody: { paddingHorizontal: 18, paddingBottom: 16 },
+  pagRow: { marginTop: 12 },
+  pagName: { flex: 1, fontSize: 15, color: CLAY.ink },
+  pagVal: { fontSize: 13, color: CLAY.ink3 },
+  pagValNum: { fontWeight: '600', color: CLAY.ink },
+  pagTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.07)', overflow: 'hidden', marginTop: 6 },
+  pagFill: { height: '100%', borderRadius: 3, backgroundColor: CLAY.ink },
+  pagFoot: { fontSize: 13.5, color: CLAY.ink3, marginTop: 14 },
+  pagFootStrong: { fontWeight: '600', color: CLAY.ink },
+  hRow: { paddingVertical: 14, paddingHorizontal: 18 },
+  hDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
+  hDate: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  hMeta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
+  inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
+  inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
+  evalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8 },
+  evalTx: { fontSize: 14, fontWeight: '500', color: CLAY.ink2 },
+  voci: { marginTop: 6 },
+  voce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 8 },
+  voceName: { flex: 1, fontSize: 14, color: CLAY.ink },
+  voceNa: { fontSize: 13, color: CLAY.ink4 },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
+  note: { flex: 1, fontSize: 15, color: CLAY.ink, lineHeight: 20 },
+  noteEmpty: { color: CLAY.ink4 },
+  emptyText: { fontSize: 15, color: CLAY.ink3, paddingHorizontal: 4 },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   callBtn: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 12, elevation: 8,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: CLAY.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...CLAY_SHADOW.raise,
   },
-  waBtn: {
-    height: 56, borderRadius: 28, paddingHorizontal: 28,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-    ...primaryCtaShadow,
-  },
-  waBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  waBtn: { flex: 1, alignSelf: 'auto' },
 });

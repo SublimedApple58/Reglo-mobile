@@ -21,7 +21,8 @@ export default function HomeLayout() {
       <Stack.Screen name="manage-group-lesson" options={FORM_SHEET} />
       <Stack.Screen name="group-lesson-detail" options={TALL_SHEET} />
       <Stack.Screen name="manage-group-lesson-participants" options={FORM_SHEET} />
-      <Stack.Screen name="student-detail" options={{ presentation: 'modal', headerShown: false }} />
+      {/* REG-639: dettaglio allievo = form sheet alto quanto il contenuto (Tiziano 28/10). */}
+      <Stack.Screen name="student-detail" options={FORM_SHEET} />
       <Stack.Screen name="new-booking" options={FORM_SHEET} />
       <Stack.Screen name="block-slot" options={FORM_SHEET} />
       <Stack.Screen name="theory-lesson" options={FORM_SHEET} />
@@ -37,7 +38,7 @@ export default function HomeLayout() {
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
       {/* Pagamenti guide (REG-450): registro a lunghezza libera (lo storico di un
           allievo arriva a decine di guide) → page sheet con scroll nativo. */}
-      <Stack.Screen name="student-payments" options={PAGE_SHEET} />
+      <Stack.Screen name="student-payments" options={FORM_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={HUG_SHEET} />
       <Stack.Screen name="select-options-long" options={PAGE_SHEET} />
