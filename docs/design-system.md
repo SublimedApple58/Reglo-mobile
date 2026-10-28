@@ -171,7 +171,7 @@ ignorare la camera di 3/4. I prompt di tutte le 15 icone sono nel piano
 | `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
 | `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto o auto), titolo, sottotitolo (solo testo), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
 | `ClaySearchField` | capsula incavata 46, lente monocromatica | props di `TextInput` |
-| `ClaySegmented` | binario incavato + cursore clay nero che scivola (`SOFT_SPRING`), testo bianco sulla voce scelta | haptic di selezione |
+| `ClaySegmented` | binario incavato + cursore clay nero; parte AL TOCCO (`onPressIn`) sul thread UI e arriva in 200 ms (`SEGMENT_TIMING`, mai una molla: `SOFT_SPRING` ci mette ~0,5 s); etichette grigia/bianca in dissolvenza incrociata guidata dal cursore, niente cambio di colore secco | haptic di selezione; il genitore si aggiorna dopo, il cursore non lo aspetta |
 | `Avatar` | foto (`UserPhotoCircle`) o iniziali su `avatarColors`, volume clay, anello nero se `selected` | ex `RoadAvatar` (alias) |
 | `ClayMapControls` | colonna bianca 56 in rilievo: velocità + «centra» (SF Symbol `location(.fill)`, ripiego `near-me`) | `bottom` lo decide la schermata |
 | `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
@@ -948,6 +948,8 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 ---
 
 ### 6.19 AppTabBar (era GlassTabBar)
+
+> **Reattività (28/10/2026):** la voce toccata si accende già al tocco (`onPressIn` → stato locale `pressedKey`), senza aspettare che la navigazione renderizzi la schermata nuova; si riallinea a `state.index` appena la navigazione è avvenuta, o si spegne se il tocco è annullato.
 
 > **REG-639 (28/10/2026): la tab bar NON è clay — vale la «T1 piatta» qui sotto.** La capsula bianca in rilievo con icone 3D e bolla sulla voce attiva è stata provata sul simulatore e bocciata da Tiziano («sembra la versione finta di quella nativa Apple»); il file è tornato identico a REG-638. Non riproporla.
 >

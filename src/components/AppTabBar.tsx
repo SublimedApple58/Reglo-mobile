@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,11 +54,13 @@ type TabItemProps = {
   label: string;
   isFocused: boolean;
   onPress: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   iconOverride?: keyof typeof Ionicons.glyphMap;
   badgeCount?: number;
 };
 
-const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCount = 0 }: TabItemProps) => {
+const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, iconOverride, badgeCount = 0 }: TabItemProps) => {
   const progress = useSharedValue(isFocused ? 1 : 0);
 
   useEffect(() => {
@@ -83,6 +85,8 @@ const TabItem = ({ routeName, label, isFocused, onPress, iconOverride, badgeCoun
       accessibilityState={{ selected: isFocused }}
       accessibilityLabel={label}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       style={st.tabItem}
     >
       <Animated.View style={iconStyle}>
@@ -141,12 +145,19 @@ export const AppTabBar = ({
 
   const visibleRoutes = state.routes.filter((route) => !hiddenTabs.has(route.name));
 
+  // Voce toccata: si accende AL TOCCO, senza aspettare che la navigazione
+  // renderizzi la schermata nuova (che può costare centinaia di ms sul thread
+  // JS). Si spegne appena la navigazione è avvenuta o il tocco è annullato.
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
+  useEffect(() => setPressedKey(null), [state.index]);
+
   return (
     <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={st.row}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
+          const shownFocused = pressedKey ? pressedKey === route.key : isFocused;
 
           let label =
             options.tabBarLabel !== undefined
@@ -194,8 +205,10 @@ export const AppTabBar = ({
               key={route.key}
               routeName={route.name}
               label={label}
-              isFocused={isFocused}
+              isFocused={shownFocused}
               onPress={onPress}
+              onPressIn={() => setPressedKey(route.key)}
+              onPressOut={() => setTimeout(() => setPressedKey((k) => (k === route.key ? null : k)), 0)}
               iconOverride={tabIconOverride}
               badgeCount={route.name === 'inbox' ? unreadCount : 0}
             />

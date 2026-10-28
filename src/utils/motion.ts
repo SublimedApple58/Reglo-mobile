@@ -28,6 +28,13 @@ const DECEL = Easing.out(Easing.cubic);
 /** Spring senza rimbalzo per `withSpring` (scala al tocco, controllo segmentato). */
 export const ROAD_SPRING = { damping: 30, stiffness: 260, overshootClamping: true } as const;
 
+/**
+ * Cursore di un controllo segmentato / scelta istantanea: 200 ms morbidi,
+ * senza rimbalzo. Tempo fisso (non una molla): `ROAD_SPRING` impiega ~0,5 s
+ * ad arrivare (smorzamento appena sotto il critico), troppo per un tocco.
+ */
+export const SEGMENT_TIMING = { duration: 200, easing: SOFT, reduceMotion: N } as const;
+
 /** Posizione/altezza che cambia: scivola e si ferma, senza rimbalzo. */
 export const ROAD_LAYOUT = LinearTransition.duration(300).easing(SOFT).reduceMotion(N);
 
