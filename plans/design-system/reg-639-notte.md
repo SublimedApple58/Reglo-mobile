@@ -7,8 +7,8 @@
 ## Cosa è stato fatto
 _(aggiornato a fine di ogni fase)_
 
-- [ ] Fase 0 — basi
-- [ ] Fase 1 — Agenda
+- [x] Fase 0 — basi (`302f8f0`): primitivi `ClaySection`, `ClayToggle`, `ClayField`, `ClayEmpty`; 13 icone Gemini generate (tavola `/tmp/hiro-anteprime/clay/icone/tavola-notte.png`), 5 di morale in `assets/morale/` (`src/theme/moraleArt.ts`). FormSheet lungo su Android non verificabile stanotte (niente emulatore): da provare.
+- [x] Fase 1 — Agenda (`de4124a`): `src/components/agenda/AgendaDayView.tsx` + `AgendaDayStrip.tsx`, testata nuova in `IstruttoreHomeScreen`, aspetto unico dei blocchi in `src/utils/agendaLook.ts` (interruttore `AGENDA_BLOCK_BAR` in `agendaColors`), Settimana ripulita (colonne bianche, binario disponibilità, blocchi neutri, «Pausa», linea adesso nera, tocco sul giorno → Giorno), foglio «Nuovo» su FormSheet senza icone, quick-book col segmentato clay; le 21 chiamate di disponibilità ora partono per settimana e non a ogni giorno. Anteprime `/tmp/hiro-anteprime/clay/notte/agenda/`. Da decidere: la tinta di default delle guide ≤30 min è BLU (palette condivisa col web).
 - [ ] Fase 2 — fogli dell'Agenda
 - [ ] Fase 3 — Disponibilità
 - [ ] Fase 4 — Tu
