@@ -1,11 +1,19 @@
-import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  ReduceMotion,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 
-import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
-import { ToastNotice, ToastTone } from '../components/ToastNotice';
+import { impactAsync, ImpactFeedbackStyle, notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { FormSheet } from '../components/SheetScaffold';
 import { PaymentsFilterSegmented } from '../components/PaymentsFilter';
 import {
@@ -102,13 +110,126 @@ const statusLabel = (status: string) => {
   }
 };
 
+/* ──────────────────────────────── movimento ─────────────────────────────── */
+
+/**
+ * Feedback di «segna pagata» (Tiziano 28/10: la riga spariva di botto e il
+ * toast compariva in mezzo al foglio). Modello Promemoria di iOS: la casella
+ * si riempie di nero, la riga resta il tempo di vederla piena, poi si chiude
+ * e le altre salgono senza salti; numero e salvadanaio cambiano nello stesso
+ * tempo. VELOCE e fluido (Tiziano: si vede il movimento, niente attese):
+ * ~200–250 ms, easing morbido, niente rimbalzi; «Riduci movimento» non spegne
+ * niente (§0). Annullare: si ritocca la casella finché è lì, o da «Pagate».
+ */
+const NEVER = ReduceMotion.Never;
+const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
+/** Quanto resta la riga spuntata prima di uscire dal filtro. */
+const HOLD_MS = 200;
+const COLLAPSE_MS = 240;
+/** Cambio del numero e del salvadanaio: esce + entra = durata del collapse. */
+const SWAP_OUT_MS = 90;
+const SWAP_IN_MS = COLLAPSE_MS - SWAP_OUT_MS;
+
+/** Casella che si riempie: da 0.6 a 1 con la spunta, senza rimbalzo. */
+const checkFill = () => {
+  'worklet';
+  return {
+    initialValues: { opacity: 0, transform: [{ scale: 0.6 }] },
+    animations: {
+      opacity: withTiming(1, { duration: 110, reduceMotion: NEVER }),
+      transform: [{ scale: withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic), reduceMotion: NEVER }) }],
+    },
+  };
+};
+
+/**
+ * Chiude il contenuto in altezza (e in dissolvenza) quando `collapsing`:
+ * l'altezza cambia fotogramma per fotogramma, così tutto quello che sta sotto
+ * (righe, fondo della card, mesi, piede) sale insieme, senza salti.
+ */
+function Collapse({
+  collapsing,
+  onCollapsed,
+  children,
+}: {
+  collapsing: boolean;
+  onCollapsed?: () => void;
+  children: React.ReactNode;
+}) {
+  const measured = useRef(0);
+  const height = useSharedValue(-1);
+  const opacity = useSharedValue(1);
+  const done = useRef(onCollapsed);
+  done.current = onCollapsed;
+  const finish = useCallback(() => done.current?.(), []);
+
+  useEffect(() => {
+    if (!collapsing) return;
+    opacity.value = withTiming(0, { duration: COLLAPSE_MS * 0.55, easing: EASE, reduceMotion: NEVER });
+    height.value = withSequence(
+      withTiming(measured.current, { duration: 0, reduceMotion: NEVER }),
+      withTiming(0, { duration: COLLAPSE_MS, easing: EASE, reduceMotion: NEVER }, (ok) => {
+        if (ok) runOnJS(finish)();
+      }),
+    );
+  }, [collapsing, finish, height, opacity]);
+
+  const style = useAnimatedStyle(() =>
+    height.value < 0 ? { opacity: opacity.value } : { height: height.value, opacity: opacity.value, overflow: 'hidden' },
+  );
+  return (
+    <Animated.View
+      style={style}
+      onLayout={(e) => {
+        if (!collapsing) measured.current = e.nativeEvent.layout.height;
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * Cambio di contenuto in dissolvenza incrociata «di passaggio»: il vecchio
+ * esce (opacità, un filo verso l'alto), il nuovo entra dal basso. Per il
+ * numero grande dell'hero e per il passaggio a «Tutto saldato».
+ */
+function FadeSwap({ swapKey, children, style }: { swapKey: string; children: React.ReactNode; style?: object }) {
+  const [shown, setShown] = useState({ key: swapKey, node: children });
+  const latest = useRef({ key: swapKey, node: children });
+  latest.current = { key: swapKey, node: children };
+  const opacity = useSharedValue(1);
+  const shift = useSharedValue(0);
+
+  const swapIn = useCallback(() => {
+    setShown(latest.current);
+    shift.value = 5;
+    opacity.value = withTiming(1, { duration: SWAP_IN_MS, easing: EASE, reduceMotion: NEVER });
+    shift.value = withTiming(0, { duration: SWAP_IN_MS, easing: Easing.out(Easing.cubic), reduceMotion: NEVER });
+  }, [opacity, shift]);
+
+  useEffect(() => {
+    if (swapKey === shown.key) return;
+    opacity.value = withTiming(0, { duration: SWAP_OUT_MS, easing: EASE, reduceMotion: NEVER }, (ok) => {
+      if (ok) runOnJS(swapIn)();
+    });
+    shift.value = withTiming(-3, { duration: SWAP_OUT_MS, easing: EASE, reduceMotion: NEVER });
+  }, [swapKey, shown.key, opacity, shift, swapIn]);
+
+  const anim = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ translateY: shift.value }] }));
+  // Stesso contenuto, valori aggiornati (es. la data della più vecchia).
+  const node = swapKey === shown.key ? children : shown.node;
+  return <Animated.View style={[style, anim]}>{node}</Animated.View>;
+}
+
 /* ─────────────────────────────────── riga ───────────────────────────────── */
 
 /**
  * Riga di Pagamenti (REG-639, giro dopo la prova di Tiziano): dentro una
  * `ClayList` come le altre liste. UN solo segnale di stato:
  * - guida che si può segnare → la casella a destra: vuota = da pagare, nera
- *   con la spunta = pagata. Si tocca e scrive (risposta del BE, poi toast);
+ *   con la spunta = pagata. Si tocca e scrive: in attesa del BE un piccolo
+ *   spinner nella casella, alla risposta si riempie (niente toast);
  * - guida che non si segna (annullata, futura, a credito, sola lettura) → lo
  *   stato a parole, in grigio («Da pagare» in nero: è quella che conta).
  * Il tocco sulla riga apre il foglio «Guida» con chi/quando e lo storico: via
@@ -122,6 +243,9 @@ const PaymentRow = markClayRow(function PaymentRow({
   dim,
   check,
   busy,
+  fill,
+  collapsing,
+  onCollapsed,
   onPress,
   onToggle,
   testID,
@@ -137,12 +261,18 @@ const PaymentRow = markClayRow(function PaymentRow({
   /** Casella: `paid`/`unpaid`, assente se la guida non si segna. */
   check?: 'paid' | 'unpaid' | null;
   busy?: boolean;
+  /** La casella si è appena riempita/svuotata per un tocco: si anima. */
+  fill?: boolean;
+  /** La riga esce dal filtro: si chiude in altezza. */
+  collapsing?: boolean;
+  onCollapsed?: () => void;
   onPress: () => void;
   onToggle?: () => void;
   testID?: string;
 }) {
   const paid = check === 'paid';
   return (
+    <Collapse collapsing={!!collapsing} onCollapsed={onCollapsed}>
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [s.row, clayRowPadding(pos, 13), pressed && CLAY_ROW_PRESSED]}
@@ -167,19 +297,28 @@ const PaymentRow = markClayRow(function PaymentRow({
           testID={testID ? `${testID}-check` : undefined}
         >
           {busy ? (
-            <ActivityIndicator size="small" color={CLAY.ink} />
+            // In attesa del BE (niente optimistic update): la casella resta
+            // lì, con lo spinner dentro.
+            <View style={[s.check, paid ? s.checkOn : s.checkBusy]}>
+              <ActivityIndicator size="small" color={paid ? '#FFFFFF' : CLAY.ink} style={s.checkSpin} />
+            </View>
           ) : paid ? (
-            <Animated.View key="on" entering={FadeIn.duration(160)} style={[s.check, s.checkOn]}>
+            <Animated.View key="on" entering={fill ? checkFill : undefined} style={[s.check, s.checkOn]}>
               <Ionicons name="checkmark" size={17} color="#FFFFFF" />
             </Animated.View>
           ) : (
-            <Animated.View key="off" entering={FadeIn.duration(160)} style={s.check} />
+            <Animated.View
+              key="off"
+              entering={fill ? FadeIn.duration(140).reduceMotion(NEVER) : undefined}
+              style={s.check}
+            />
           )}
         </Pressable>
       ) : state ? (
         <Text style={[s.rowState, stateStrong && s.rowStateStrong]} numberOfLines={1}>{state}</Text>
       ) : null}
     </Pressable>
+    </Collapse>
   );
 });
 
@@ -221,7 +360,16 @@ export const StudentPaymentsScreen = () => {
   /** Mesi vecchi senza niente da riscuotere: piegati finché non si aprono. */
   const [showOld, setShowOld] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  /** Ultima casella toccata: solo lei si anima (non tutte all'apertura). */
+  const [filledId, setFilledId] = useState<string | null>(null);
+  /**
+   * Righe spuntate che non stanno più nel filtro attivo (es. pagata in «Da
+   * pagare»): restano un attimo (`hold`, si possono ritoccare), poi si chiudono
+   * (`collapse`) e solo allora escono dalla lista.
+   */
+  const [leaving, setLeaving] = useState<Record<string, 'hold' | 'collapse'>>({});
+  const holdTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => () => Object.values(holdTimers.current).forEach(clearTimeout), []);
   /**
    * Scritture già confermate dal BE, applicate qui senza rileggere tutto lo
    * storico (niente optimistic update: si scrive solo ciò che il server ha
@@ -274,10 +422,21 @@ export const StudentPaymentsScreen = () => {
   }, [manualMode, lessons, predicates]);
 
   const activeFilter = filterDefs.some((f) => f.value === filter) ? filter : 'all';
+  const activeFilterRef = useRef(activeFilter);
+  activeFilterRef.current = activeFilter;
   const unpaidLessons = lessons.filter(predicates.unpaid);
-  const unpaidCount = unpaidLessons.length;
-  /** La più vecchia da riscuotere (lessons è dal più recente). */
-  const oldestUnpaid = unpaidLessons[unpaidLessons.length - 1] ?? null;
+  // Il numero grande cambia quando la riga comincia a uscire, non prima:
+  // numero e righe dicono sempre la stessa cosa.
+  const holding = activeFilter === 'unpaid'
+    ? Object.entries(leaving).filter(([, phase]) => phase === 'hold').length
+    : 0;
+  const unpaidCount = unpaidLessons.length + holding;
+  const leavingCount = Object.keys(leaving).length;
+  /** La più vecchia da riscuotere (lessons è dal più recente), contando chi aspetta di uscire. */
+  const dueForHero = activeFilter === 'unpaid'
+    ? lessons.filter((l) => predicates.unpaid(l) || leaving[l.id] === 'hold')
+    : unpaidLessons;
+  const oldestUnpaid = dueForHero[dueForHero.length - 1] ?? null;
   const firstName = (data?.studentName ?? '').trim().split(/\s+/)[0] || null;
   const canTick = !!data?.canManagePayments;
 
@@ -333,7 +492,7 @@ export const StudentPaymentsScreen = () => {
   /** Righe raggruppate per mese: l'ordine di lettura naturale su mobile. */
   const sections = useMemo(() => {
     const out: { key: string; label: string; rows: RowModel[] }[] = [];
-    for (const l of lessons.filter(predicates[activeFilter])) {
+    for (const l of lessons.filter((x) => x.id in leaving || predicates[activeFilter](x))) {
       const key = monthKey(l.startsAt);
       let sec = out[out.length - 1];
       if (!sec || sec.key !== key) {
@@ -343,7 +502,10 @@ export const StudentPaymentsScreen = () => {
       sec.rows.push(rowModel(l));
     }
     return out;
-  }, [lessons, predicates, activeFilter, rowModel]);
+  }, [lessons, predicates, activeFilter, rowModel, leaving]);
+  /** Stanno uscendo tutte le righe rimaste: si chiude anche il piede. */
+  const allGoing =
+    sections.length > 0 && sections.every((sec) => sec.rows.every((r) => leaving[r.lesson.id] === 'collapse'));
 
   /**
    * In «Tutte» i mesi prima del mese scorso che non hanno niente da riscuotere
@@ -363,10 +525,30 @@ export const StudentPaymentsScreen = () => {
 
   const applyStatus = useCallback(
     async (lesson: AutoscuolaAppointmentWithRelations, status: 'paid' | 'unpaid'): Promise<boolean> => {
-      if (savingId) return false;
+      if (savingId || leaving[lesson.id] === 'collapse') return false;
       setSavingId(lesson.id);
       try {
         const res = await regloApi.setManualPaymentStatus(lesson.id, status);
+        // Uscita dal filtro: «Da pagare» perde la pagata, «Pagate» la tolta.
+        // Ritoccata mentre aspetta di uscire → resta (è l'annullamento).
+        const filterNow = activeFilterRef.current;
+        const leavesFilter =
+          (filterNow === 'unpaid' && res.manualPaymentStatus === 'paid') ||
+          (filterNow === 'paid' && res.manualPaymentStatus !== 'paid');
+        clearTimeout(holdTimers.current[lesson.id]);
+        setLeaving((prev) => {
+          const next = { ...prev };
+          if (leavesFilter) next[lesson.id] = 'hold';
+          else delete next[lesson.id];
+          return next;
+        });
+        if (leavesFilter) {
+          holdTimers.current[lesson.id] = setTimeout(
+            () => setLeaving((prev) => (prev[lesson.id] === 'hold' ? { ...prev, [lesson.id]: 'collapse' } : prev)),
+            HOLD_MS,
+          );
+        }
+        setFilledId(lesson.id);
         setPatched((prev) => ({
           ...prev,
           [lesson.id]: {
@@ -377,27 +559,44 @@ export const StudentPaymentsScreen = () => {
           },
         }));
         void notificationAsync(NotificationFeedbackType.Success).catch(() => {});
-        setToast({
-          text: status === 'paid' ? 'Guida segnata come pagata.' : 'Guida segnata come da pagare.',
-          tone: 'success',
-        });
         await data?.onChanged?.();
         return true;
       } catch (e) {
         void notificationAsync(NotificationFeedbackType.Error).catch(() => {});
-        setToast({ text: e instanceof Error ? e.message : 'Errore nel salvataggio.', tone: 'danger' });
+        // Errore: avviso nativo, la casella resta com'era.
+        Alert.alert('Non salvato', e instanceof Error ? e.message : 'Riprova tra un attimo.');
         return false;
       } finally {
         setSavingId(null);
       }
     },
-    [savingId, data],
+    [savingId, data, leaving],
   );
 
   const toggle = useCallback(
-    (row: RowModel) => void applyStatus(row.lesson, row.check === 'paid' ? 'unpaid' : 'paid'),
+    (row: RowModel) => {
+      void impactAsync(ImpactFeedbackStyle.Light).catch(() => {});
+      void applyStatus(row.lesson, row.check === 'paid' ? 'unpaid' : 'paid');
+    },
     [applyStatus],
   );
+
+  /** Chiusa la riga: esce davvero dalla lista. */
+  const dropLeaving = useCallback((ids: string[]) => {
+    setLeaving((prev) => {
+      const next = { ...prev };
+      ids.forEach((id) => delete next[id]);
+      return next;
+    });
+  }, []);
+
+  /** Cambio filtro: chi stava uscendo esce subito (si vede già il nuovo filtro). */
+  const changeFilter = useCallback((value: LessonFilter) => {
+    Object.values(holdTimers.current).forEach(clearTimeout);
+    holdTimers.current = {};
+    setLeaving({});
+    setFilter(value);
+  }, []);
 
   /** Foglio «Guida»: stato, chi/quando (storico) e la CTA per cambiarlo. */
   const openDetail = useCallback(
@@ -426,22 +625,20 @@ export const StudentPaymentsScreen = () => {
   // fissa e opaca con la X, scorre solo il centro.
   return (
     <FormSheet title="Pagamenti" subtitle={data.studentName || undefined} testID="student-payments-sheet">
-      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-
       {manualMode ? (
         // Hero (REG-639 «memorabile»): il salvadanaio dice a colpo d'occhio a
-        // che punto è l'allievo; spuntata l'ultima guida passa in dissolvenza a
-        // «Tutto saldato» col salvadanaio pieno (l'haptic lo dà la scrittura).
-        <Animated.View
-          key={unpaidCount > 0 ? 'due' : 'ok'}
-          entering={FadeIn.duration(320)}
+        // che punto è l'allievo. Il numero cambia di passaggio (esce e rientra)
+        // quando la riga spuntata comincia a uscire; all'ultima passa a «Tutto
+        // saldato» col salvadanaio pieno (l'haptic lo dà la scrittura).
+        <View
           style={s.hero}
           accessible
+          accessibilityLiveRegion="polite"
           accessibilityLabel={
             unpaidCount > 0 ? `${unpaidCount} da pagare` : `Tutto saldato${firstName ? `: ${firstName} è in pari` : ''}`
           }
         >
-          <View style={s.heroText}>
+          <FadeSwap swapKey={String(unpaidCount)} style={s.heroText}>
             {unpaidCount > 0 ? (
               <>
                 <View style={s.heroLine}>
@@ -463,9 +660,11 @@ export const StudentPaymentsScreen = () => {
                 </Text>
               </>
             )}
-          </View>
-          <Icon3D source={unpaidCount > 0 ? VITA_ART.salvadanaio : VITA_ART.salvadanaioPieno} size={76} />
-        </Animated.View>
+          </FadeSwap>
+          <FadeSwap swapKey={unpaidCount > 0 ? 'due' : 'ok'}>
+            <Icon3D source={unpaidCount > 0 ? VITA_ART.salvadanaio : VITA_ART.salvadanaioPieno} size={76} />
+          </FadeSwap>
+        </View>
       ) : (
         <Text style={s.note}>
           L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
@@ -476,33 +675,32 @@ export const StudentPaymentsScreen = () => {
         <PaymentsFilterSegmented
           options={filterDefs}
           value={activeFilter}
-          onChange={setFilter}
+          onChange={changeFilter}
           fallback={
             <ClaySegmented
               options={filterDefs.map((f) => ({ value: f.value, label: f.label }))}
               value={activeFilter}
-              onChange={setFilter}
+              onChange={changeFilter}
             />
           }
         />
       </View>
 
       <Animated.View key={activeFilter} entering={FadeIn.duration(180)}>
-        {manualMode && canTick && unpaidCount > 0 && activeFilter !== 'paid' ? (
-          <Text style={s.hint}>
-            Spunta la casella quando {firstName ?? "l'allievo"} ti paga.
-          </Text>
+        {manualMode && canTick && (unpaidCount > 0 || leavingCount > 0) && activeFilter !== 'paid' ? (
+          // Spuntata l'ultima, la frase si chiude insieme alla riga.
+          <Collapse collapsing={unpaidCount === 0}>
+            <Text style={s.hint}>
+              Spunta la casella quando {firstName ?? "l'allievo"} ti paga.
+            </Text>
+          </Collapse>
         ) : null}
-        {sections.length === 0 ? (
-          activeFilter === 'unpaid' ? (
-            // Il salvadanaio pieno è già nell'hero: qui basta la frase.
-            <ClayEmpty title="Niente da riscuotere" text="Le guide saldate sono in «Pagate»." />
-          ) : (
-            <ClayEmpty title="Nessuna guida" text="Non ci sono guide per questo filtro." />
-          )
-        ) : (
-          shownSections.map((section) => (
-            <ClaySection key={section.key} title={section.label}>
+        {shownSections.map((section) => {
+            const ids = section.rows.map((r) => r.lesson.id);
+            const monthGoing = ids.every((id) => leaving[id] === 'collapse');
+            return (
+            <Collapse key={section.key} collapsing={monthGoing} onCollapsed={() => dropLeaving(ids)}>
+            <ClaySection title={section.label}>
               <ClayList>
                 {section.rows.map((row) => (
                   <PaymentRow
@@ -514,6 +712,9 @@ export const StudentPaymentsScreen = () => {
                     dim={row.dim}
                     check={row.check}
                     busy={savingId === row.lesson.id}
+                    fill={filledId === row.lesson.id}
+                    collapsing={!monthGoing && leaving[row.lesson.id] === 'collapse'}
+                    onCollapsed={() => dropLeaving([row.lesson.id])}
                     onPress={() => openDetail(row)}
                     onToggle={() => toggle(row)}
                     testID={`payment-row-${row.lesson.id}`}
@@ -521,8 +722,15 @@ export const StudentPaymentsScreen = () => {
                 ))}
               </ClayList>
             </ClaySection>
-          ))
-        )}
+            </Collapse>
+            );
+          })}
+        {sections.length === 0 && activeFilter !== 'unpaid' ? (
+          <ClayEmpty title="Nessuna guida" text="Non ci sono guide per questo filtro." />
+        ) : null}
+        {/* «Da pagare» vuoto: niente stato vuoto, lo dice già l'hero («Tutto
+            saldato», salvadanaio pieno). Così, all'ultima spuntata, il foglio
+            si accorcia in un solo movimento mentre la riga si chiude. */}
         {folded.length > 0 ? (
           <Pressable
             onPress={() => setShowOld(true)}
@@ -537,7 +745,9 @@ export const StudentPaymentsScreen = () => {
         ) : null}
       </Animated.View>
       {manualMode && sections.length > 0 && canTick ? (
-        <Text style={s.foot}>Tocca una guida per vedere chi l&apos;ha segnata e quando.</Text>
+        <Collapse collapsing={allGoing}>
+          <Text style={s.foot}>Tocca una guida per vedere chi l&apos;ha segnata e quando.</Text>
+        </Collapse>
       ) : null}
     </FormSheet>
   );
@@ -577,6 +787,8 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#C4C4C4', alignItems: 'center', justifyContent: 'center',
   },
   checkOn: { backgroundColor: CLAY.ink, borderColor: CLAY.ink },
+  checkBusy: { borderColor: CLAY.ink },
+  checkSpin: { transform: [{ scale: 0.7 }] },
 
   foot: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4 },
 });

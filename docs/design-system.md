@@ -730,6 +730,15 @@ elevation: 3,
 
 ### 5.7 Toast Notice
 
+**Regola (Tiziano 28/10/2026)**: il toast sta solo nelle schermate piene, in
+alto sotto la status bar. **Mai dentro un foglio** (`FormSheet`): lì si
+posizionava a metà del foglio, sopra il contenuto. Nei fogli il risultato si
+vede sulla riga o sull'interruttore (casella che si riempie, riga che esce con
+un collapse), gli errori li dice un `Alert` nativo. Stile: bianco, glifo
+monocromatico nero (rosso solo per l'errore), **nessuna barretta di
+avanzamento**. Pattern di riferimento: feedback della casella in Pagamenti
+(`docs/features/lesson-payments.md`).
+
 ```ts
 shadowColor: /* varia per tone (vedi sezione ToastNotice) */,
 shadowOpacity: 0.3,

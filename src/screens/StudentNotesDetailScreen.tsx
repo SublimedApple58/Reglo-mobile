@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -30,7 +31,6 @@ import {
   evaluationSummary,
   evaluationSummaryLabel,
 } from '../utils/evaluationSheet';
-import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
@@ -172,7 +172,12 @@ export const StudentNotesDetailScreen = () => {
   const [defaultLocationName, setDefaultLocationName] = useState<string | null>(null);
   const [locSaving, setLocSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  /**
+   * Niente toast in un foglio (Tiziano 28/10: compariva in mezzo, sopra il
+   * contenuto): il risultato si vede già sulla riga o sull'interruttore, gli
+   * errori li dice un avviso nativo.
+   */
+  const showError = useCallback((text: string) => Alert.alert('Non è andata', text), []);
 
   const loadData = useCallback(async () => {
     if (!studentId) return;
@@ -223,11 +228,11 @@ export const StudentNotesDetailScreen = () => {
         setDefaultLocationName(me.defaultLocationName ?? null);
       }
     } catch {
-      setToast({ text: 'Errore nel caricamento', tone: 'danger' });
+      showError('Errore nel caricamento');
     } finally {
       setLoading(false);
     }
-  }, [studentId, name]);
+  }, [studentId, name, showError]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -247,32 +252,20 @@ export const StudentNotesDetailScreen = () => {
           if (outcome === current) return;
           setOutcomeSavingId(appt.id);
           try {
-            const res = await regloApi.setExamOutcome(appt.id, outcome);
+            await regloApi.setExamOutcome(appt.id, outcome);
             // Nessun update ottimistico: si ricarica dal BE, che intanto può
             // aver portato l'allievo a PATENTATO (la fase in testa alla
             // schermata deve muoversi insieme all'esito).
             await loadData();
-            setToast({
-              text:
-                outcome === null
-                  ? 'Esito rimosso.'
-                  : res?.data?.promoted
-                    ? `${EXAM_OUTCOME_LABELS[outcome]} · allievo ora patentato.`
-                    : `Esito registrato: ${EXAM_OUTCOME_LABELS[outcome]}.`,
-              tone: 'success',
-            });
           } catch (err) {
-            setToast({
-              text: err instanceof Error ? err.message : 'Impossibile registrare l\u2019esito.',
-              tone: 'danger',
-            });
+            showError(err instanceof Error ? err.message : 'Impossibile registrare l\u2019esito.');
           } finally {
             setOutcomeSavingId(null);
           }
         },
       });
     },
-    [loadData, name],
+    [loadData, name, showError],
   );
 
   // Apre il foglio "Dettagli guida" (Tipo/Valutazione/Note) per una guida dello
@@ -335,7 +328,7 @@ export const StudentNotesDetailScreen = () => {
             await loadData();
             return true;
           } catch (e) {
-            setToast({ text: e instanceof Error ? e.message : 'Errore nel salvataggio', tone: 'danger' });
+            showError(e instanceof Error ? e.message : 'Errore nel salvataggio');
             return false;
           }
         },
@@ -343,7 +336,7 @@ export const StudentNotesDetailScreen = () => {
       const stack = segments[1] === 'notes' ? 'notes' : 'home';
       router.push(`/(tabs)/${stack}/manage-lesson-details`);
     },
-    [loadData, router, segments],
+    [loadData, router, segments, showError],
   );
 
   // Luogo di default (REG-392): aggiorna solo sulla risposta BE (niente
@@ -356,14 +349,13 @@ export const StudentNotesDetailScreen = () => {
         const res = await regloApi.setStudentDefaultLocation(String(studentId), locId);
         setDefaultLocationId(res.defaultLocation?.id ?? null);
         setDefaultLocationName(res.defaultLocation?.name ?? null);
-        setToast({ text: 'Luogo di default aggiornato.', tone: 'success' });
       } catch (e) {
-        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+        showError(e instanceof Error ? e.message : 'Errore.');
       } finally {
         setLocSaving(false);
       }
     },
-    [studentId, locSaving],
+    [studentId, locSaving, showError],
   );
 
   // Apre il form sheet NATIVO riusabile (OptionsPickerSheet) invece di un modal
@@ -404,10 +396,9 @@ export const StudentNotesDetailScreen = () => {
               setGroupSaving(true);
               try {
                 await regloApi.updateStudentGroupLessonOptIn(String(studentId), next);
-                setToast({ text: next ? 'Abilitato alle guide di gruppo.' : 'Disabilitato dalle guide di gruppo.', tone: 'success' });
               } catch (e) {
                 setGroupOptIn(!next);
-                setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+                showError(e instanceof Error ? e.message : 'Errore.');
               } finally {
                 setGroupSaving(false);
               }
@@ -423,10 +414,9 @@ export const StudentNotesDetailScreen = () => {
               setExamReadySaving(true);
               try {
                 await regloApi.setStudentExamReady(String(studentId), next);
-                setToast({ text: next ? 'Allievo segnato pronto per l\'esame.' : 'Rimosso dai pronti.', tone: 'success' });
               } catch (e) {
                 setExamReady(!next);
-                setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+                showError(e instanceof Error ? e.message : 'Errore.');
               } finally {
                 setExamReadySaving(false);
               }
@@ -441,7 +431,7 @@ export const StudentNotesDetailScreen = () => {
     router.push(`/(tabs)/${stack}/student-settings`);
   }, [
     name, groupEnabled, groupOptIn, groupSaving, studentPhase, examReady, examReadySaving,
-    locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, setToast,
+    locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, showError,
   ]);
 
   // ── Pagamenti guide (REG-450) ───────────────────────────────────────────
@@ -625,7 +615,6 @@ export const StudentNotesDetailScreen = () => {
         ) : undefined
       }
     >
-      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       {/* Volto, nome, patente */}
       <View style={s.hero}>

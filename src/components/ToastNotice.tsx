@@ -24,11 +24,13 @@ type ToastNoticeProps = {
 
 type ToneConfig = { icon: keyof typeof Ionicons.glyphMap; accent: string };
 
-// Light-theme, Airbnb-restrained, mono-navy. Soft outline glyphs (no icon chip).
-// Colours are the app's own semantic tokens — bright green / luminous red.
+// Bianco/nero, sobrio (Tiziano 28/10: la barretta verde che si svuotava era
+// «orrenda»). Glifo monocromatico nero; rosso solo per l'errore. Il toast sta
+// SOLO nelle schermate piene, in alto sotto la status bar: mai dentro un
+// foglio, dove il risultato si vede sulla riga e gli errori li dice un Alert.
 const toneConfig: Record<ToastTone, ToneConfig> = {
-  success: { icon: 'checkmark', accent: colors.positive }, // #22C55E
-  info: { icon: 'information-circle-outline', accent: colors.primary }, // navy
+  success: { icon: 'checkmark', accent: '#111111' },
+  info: { icon: 'information-circle-outline', accent: '#111111' },
   danger: { icon: 'alert-circle-outline', accent: colors.destructive }, // #C13515
 };
 
@@ -44,7 +46,7 @@ export const ToastNotice = ({
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(HIDDEN_Y);
   const opacity = useSharedValue(0);
-  const bar = useSharedValue(1); // 1 → 0 drains the auto-dismiss bar
+  const bar = useSharedValue(1); // 1 → 0: auto-dismiss countdown (not drawn)
   const liveId = useSharedValue(0); // guards stale animation callbacks
 
   const [visibleMessage, setVisibleMessage] = useState<string | null>(null);
@@ -136,9 +138,6 @@ export const ToastNotice = ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
-  const barStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: bar.value }],
-  }));
 
   if (!visibleMessage) return null;
 
@@ -151,15 +150,10 @@ export const ToastNotice = ({
     >
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.toast, cardStyle]}>
-          <Ionicons name={config.icon} size={24} color={config.accent} />
+          <Ionicons name={config.icon} size={20} color={config.accent} />
           <Text style={styles.text} numberOfLines={2}>
             {visibleMessage}
           </Text>
-          <View style={styles.barTrack}>
-            <Animated.View
-              style={[styles.barFill, { backgroundColor: config.accent }, barStyle]}
-            />
-          </View>
         </Animated.View>
       </GestureDetector>
     </View>
@@ -177,9 +171,8 @@ const styles = StyleSheet.create({
   toast: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 18,
-    paddingBottom: 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
@@ -195,25 +188,9 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#111111',
     lineHeight: 20,
-    letterSpacing: 0.1,
-  },
-  barTrack: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    bottom: 9,
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: '#EFEAE0',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    width: '100%',
-    borderRadius: 2,
-    transformOrigin: 'left',
+    letterSpacing: -0.1,
   },
 });

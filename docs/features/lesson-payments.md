@@ -68,19 +68,40 @@ In modalità manuale la testata dice subito cosa fare:
 - **frase che guida** sopra la lista: «Spunta la casella quando Serena ti
   paga» (solo se c'è da pagare, la guida si può segnare e il filtro non è
   «Pagate»); in fondo resta «Tocca una guida per vedere chi l'ha segnata e quando»;
-- **tutto saldato**: spuntata l'ultima, l'hero passa in dissolvenza (320 ms,
-  niente rimbalzo; l'haptic `success` lo dà già la scrittura) a «Tutto saldato
-  · Serena è in pari, niente da riscuotere» col **salvadanaio pieno**;
+- **tutto saldato**: spuntata l'ultima, l'hero passa a «Tutto saldato ·
+  Serena è in pari, niente da riscuotere» col **salvadanaio pieno**;
 - **apertura**: se ci sono guide da pagare il filtro parte da «Da pagare»
   (calcolato dal seed dello store al montaggio), altrimenti da «Tutte»;
-  «Da pagare» vuoto = «Niente da riscuotere» senza icona (il salvadanaio pieno
-  è già nell'hero);
+  «Da pagare» vuoto = nessuno stato vuoto sotto il segmentato (lo dice già
+  l'hero con il salvadanaio pieno);
 - **mesi vecchi piegati**: in «Tutte», i mesi prima del mese scorso senza
   nessuna guida da pagare finiscono sotto «Mostra agosto e prima» (si apre al
   tocco, per la sessione del foglio).
 
 In sola lettura resta la nota «L'autoscuola incassa dalla sezione Pagamenti…»,
 senza hero né salvadanaio.
+
+## Feedback della casella (28/10/2026, dopo la segnalazione di Tiziano)
+
+Prima la riga spariva di botto e un toast «Guida segnata come pagata.» con la
+barretta verde compariva in mezzo al foglio. Ora (modello Promemoria di iOS,
+tutto in `StudentPaymentsScreen`, durate in testa al file):
+- **tocco**: haptic leggero, spinner dentro la casella finché risponde il BE
+  (niente optimistic update);
+- **risposta**: la casella si riempie di nero con la spunta (scala 0.6→1,
+  160 ms, senza rimbalzo) + haptic `success`;
+- **uscita dal filtro** (pagata in «Da pagare», tolta in «Pagate»): la riga
+  resta 200 ms (`HOLD_MS`), poi si chiude in altezza in 240 ms (`Collapse`);
+  righe, card, mesi e piede salgono insieme. Se era l'ultima del mese si chiude
+  il mese intero; se era l'ultima in assoluto si chiudono anche la frase guida
+  e il piede;
+- **numero e salvadanaio** cambiano quando la riga comincia a chiudersi, nello
+  stesso tempo (`FadeSwap`: esce 90 ms, entra 150 ms), così numero e righe
+  dicono sempre la stessa cosa;
+- **annullare**: ritoccare la casella finché la riga è lì, o da «Pagate»;
+- **errore**: `Alert` nativo, la casella resta com'era. Nessun toast nel foglio.
+- Il foglio nativo (`fitToContents`) si riadatta da sé all'altezza nuova con la
+  sua animazione, un attimo dopo il collapse.
 
 **Dettaglio allievo** (`StudentNotesDetailScreen`): la riga «Pagamenti» ha
 «N guide da pagare» in nero 600 (in pari: «In pari, niente da riscuotere» in
