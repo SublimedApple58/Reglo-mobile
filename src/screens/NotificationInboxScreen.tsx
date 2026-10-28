@@ -18,7 +18,7 @@ import {
 import { NotificationItem, PersistedNotification } from '../types/notifications';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
-import { CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPressShape } from '../components/clay';
+import { Avatar, CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPressShape } from '../components/clay';
 import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
 
@@ -224,6 +224,24 @@ const RightAction = ({ drag, onPress }: { drag: SharedValue<number>; onPress: ()
 };
 
 /**
+ * La persona di cui parla la notifica (REG-639 «vita»): il suo volto sta a
+ * sinistra della riga. Solo dove c'è davvero una persona; le altre righe
+ * restano di solo testo (niente icone decorative).
+ */
+function personOf(item: NotificationItem): { userId: string | null; name: string } | null {
+  switch (item.kind) {
+    case 'swap':
+      return { userId: item.data.requestingStudentId, name: item.data.requestingStudentName };
+    case 'confirmation':
+      return item.data.acceptedByName ? { userId: null, name: item.data.acceptedByName } : null;
+    case 'weekly_absence':
+      return item.data.studentName ? { userId: item.data.studentId, name: item.data.studentName } : null;
+    default:
+      return null;
+  }
+}
+
+/**
  * Riga di notifica (REG-639 clay): niente icona né puntino. Da leggere =
  * titolo nero 600; letta = titolo 500 grigio. Ora a destra (il giorno è
  * nel titolo della sezione). Scorri verso sinistra per eliminarla.
@@ -238,6 +256,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
 
   const title = getTitle(item);
   const subtitle = getSubtitle(item);
+  const person = personOf(item);
 
   return (
     <View>
@@ -258,6 +277,11 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
           accessibilityRole="button"
           accessibilityLabel={`${item.read ? '' : 'Da leggere. '}${title}${subtitle ? `, ${subtitle}` : ''}`}
         >
+          {person ? (
+            <View style={item.read ? styles.faceRead : undefined}>
+              <Avatar userId={person.userId} name={person.name} size={40} />
+            </View>
+          ) : null}
           <View style={styles.rowMain}>
             <Text style={[styles.rowTitle, item.read && styles.rowTitleRead]} numberOfLines={1}>
               {title}
@@ -372,6 +396,7 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
 
   const visibleItems = items.filter((i) => !i.dismissed);
   const hasUnread = visibleItems.some((i) => !i.read);
+  const unreadCount = visibleItems.filter((i) => !i.read).length;
   const isInstructorApp = autoscuolaRole === 'INSTRUCTOR' || autoscuolaRole === 'INSTRUCTOR_OWNER';
 
   const groups = useMemo(() => groupByDay(items.filter((i) => !i.dismissed)), [items]);
@@ -397,7 +422,9 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
               Notifiche
             </Text>
             <Text style={styles.sub} numberOfLines={1}>
-              {hasUnread ? 'Hai aggiornamenti da leggere' : 'Sei in pari'}
+              {hasUnread
+                ? unreadCount === 1 ? '1 novità da leggere' : `${unreadCount} novità da leggere`
+                : visibleItems.length ? 'Sei in pari, hai letto tutto' : 'Sei in pari'}
             </Text>
           </View>
           {hasUnread ? (
@@ -464,6 +491,7 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)', marginHorizontal: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18 },
   rowMain: { flex: 1, minWidth: 0 },
+  faceRead: { opacity: 0.55 },
   rowTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
   rowTitleRead: { fontWeight: '500', color: CLAY.ink3 },
   rowSub: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 3 },
