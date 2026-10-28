@@ -9,11 +9,11 @@ _(aggiornato a fine di ogni fase)_
 
 - [x] Fase 0 — basi (`302f8f0`): primitivi `ClaySection`, `ClayToggle`, `ClayField`, `ClayEmpty`; 13 icone Gemini generate (tavola `/tmp/hiro-anteprime/clay/icone/tavola-notte.png`), 5 di morale in `assets/morale/` (`src/theme/moraleArt.ts`). FormSheet lungo su Android non verificabile stanotte (niente emulatore): da provare.
 - [x] Fase 1 — Agenda (`de4124a`): `src/components/agenda/AgendaDayView.tsx` + `AgendaDayStrip.tsx`, testata nuova in `IstruttoreHomeScreen`, aspetto unico dei blocchi in `src/utils/agendaLook.ts` (interruttore `AGENDA_BLOCK_BAR` in `agendaColors`), Settimana ripulita (colonne bianche, binario disponibilità, blocchi neutri, «Pausa», linea adesso nera, tocco sul giorno → Giorno), foglio «Nuovo» su FormSheet senza icone, quick-book col segmentato clay; le 21 chiamate di disponibilità ora partono per settimana e non a ogni giorno. Anteprime `/tmp/hiro-anteprime/clay/notte/agenda/`. Correzioni dopo la revisione: **blu neutralizzato sul mobile** — se il colore della voce è un blu/azzurro (default o scelto dall'autoscuola) il blocco diventa barretta nera + scheda bianca; palette web e dati invariati; interruttore unico `NEUTRAL_BLUE` in `src/utils/agendaColors.ts` (**da confermare con Tiziano**). Settimana: giorni in minuscolo come nella vista Giorno, disponibilità = tinta di fondo appena accennata; spazio in fondo alle liste per il «+»; via il «+» dentro «Libero».
-- [ ] Fase 2 — fogli dell'Agenda
-- [ ] Fase 3 — Disponibilità
-- [ ] Fase 4 — Tu
-- [ ] Fase 5 — resto + Fluent
-- [ ] Fase 6 — documentazione
+- [x] Fase 2 — fogli dell'Agenda (`551fe5a`): ~30 fogli su `FORM_SHEET` + `<FormSheet>` (gestisci guida + sottofogli, guide di gruppo, co-istruttori, note, pagellino unificato, prenota/blocca/lezione teorica/malattia, auto al seguito, esami, allievi d'esame, guida di gruppo, sposta, scambia, fuori disponibilità, data, intervallo, allievo, ora). Via Fluent, pillole di stato (lo stato è testo), eyebrow, fondi grigi, footer fissi, molla con rimbalzo di «Gestisci guida». Anteprime `/tmp/hiro-anteprime/clay/notte/fogli-agenda/`.
+- [x] Fase 3 — Disponibilità (`8c71375`): testata con indietro + titolo grande, orari settimanali come lista (fasce in testo), eccezioni, pubblicazione per settimana senza pillole; fogli giorno/eccezione/ora su FormSheet. Anteprime `/tmp/hiro-anteprime/clay/notte/disponibilita/`.
+- [x] Fase 4 — Tu (`e1dfa57`): «Tu» (profilo, Gestione, Account, Esci rosso), Ore di guida (numero grande + trofeo), Veicoli, Luoghi, Pagellino, Aspetto agenda (nota sul blu), Impostazioni; Panoramica istruttori del titolare (lista con ricerca, fogli invito e disponibilità su FormSheet al posto dei BottomSheet). Anteprime `/tmp/hiro-anteprime/clay/notte/tu/`.
+- [x] Fase 5 — resto + Fluent (`302f679`): notifiche (sezioni per giorno, aeroplanino, indietro dalla campanella), `RoadLessonCard` bianca; **tutte le 17 Fluent eliminate**: nelle schermate allievo/Allievi sostituite con le icone Gemini (`assets/icons3d-ai/`) a impaginazione invariata. Anteprime `/tmp/hiro-anteprime/clay/notte/resto/`.
+- [x] Fase 6 — documentazione: design-system §0.4/§0.5/§13.2/agenda, feature doc agenda-istruttore + colori blocchi + quick-book, INDEX, impact-map, CLAUDE.md.
 
 ---
 
@@ -75,3 +75,18 @@ Regole sempre valide: bianco puro, testi e CTA neri, mai fondi grigi/crema, mai 
 - Account titolare (nota 5): `tiziano.difelice@reglo.it`; se non entra, verifica nel codice e segnalazione.
 - Fuori perimetro: codice morto (`src/navigation`, `InstructorManageScreen`, `Badge`, `NativePageSheet`) e le 21 chiamate di disponibilità.
 - Contesto: stop a fine fase oltre il 45%.
+
+
+## Domande aperte per Tiziano (mattino)
+
+1. **Blu in agenda (NEUTRAL_BLUE)**: sul mobile i colori blu/azzurri delle voci (default «fino a 30 min» e «46–60 min», o scelti dall'autoscuola) diventano barretta nera + scheda bianca. Palette web e dati invariati. Togliere: `NEUTRAL_BLUE = false` in `src/utils/agendaColors.ts`. In alternativa si possono cambiare i default della palette (tocca anche il web).
+2. **Account titolare non provato sul simulatore**: per non scollegare la sessione di Tiziano dal simulatore non ho fatto logout/login con l'account titolare; la vista titolare (Agenda raggruppata per istruttore, Panoramica istruttori) è verificata nel codice, non a schermo.
+3. **Esiti esame** (Idoneo/Respinto) ora sono testo nero, non più verde/rosso (il web usa ancora le pillole colorate).
+4. **«Esci»** spostato dalle Impostazioni staff alla schermata «Tu» (niente doppioni).
+5. **Rimozione partecipante** di una guida di gruppo aggiorna la lista prima della risposta del server (preesistente, contro la regola «niente optimistic update»): non toccato perché lavoro solo UI.
+6. **Panoramica istruttori**: scegliendo un istruttore lo stato degli altri («Libero · 0 guide oggi») resta vecchio (preesistente, ora più visibile).
+7. **Android**: non verificato (niente emulatore stanotte): da provare soprattutto fogli lunghi e tastiera su «Aggiungi luogo».
+8. **La X dei fogli** scorre via col contenuto nei fogli lunghi (comportamento del FormSheet unico): per chiudere si torna su. Valutare una X fissa.
+
+## Fuori dal perimetro (restano com'erano)
+Sezione Allievi (solo file icona cambiati), schermate allievo (idem), codice morto (`src/navigation`, `InstructorManageScreen`, `Badge`, `NativePageSheet`), fogli `settings/` dell'allievo.
