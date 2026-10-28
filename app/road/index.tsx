@@ -130,6 +130,21 @@ export default function RoadScreen() {
   const markers = st.markers;
   const lastMarkerId = markers.length ? markers[markers.length - 1].clientId : null;
   const coords = st.track;
+  // I pin cambiano solo con le segnalazioni, non a ogni fix GPS.
+  const pins = useMemo(
+    () =>
+      markers.map((m) => (
+        <RoadMarkerPin
+          key={m.clientId}
+          coordinate={{ latitude: m.lat, longitude: m.lng }}
+          kind={m.kind}
+          label={m.label}
+          small={m.clientId !== lastMarkerId}
+          sentiment={m.sentiment}
+        />
+      )),
+    [markers, lastMarkerId],
+  );
 
   const speedKmh = useMemo(() => {
     if (!fix || fix.speed == null || Date.now() - fix.t > 15_000) return 0;
@@ -254,16 +269,7 @@ export default function RoadScreen() {
         }}
       >
         <RoadTrack coordinates={coords} />
-        {markers.map((m) => (
-          <RoadMarkerPin
-            key={m.clientId}
-            coordinate={{ latitude: m.lat, longitude: m.lng }}
-            kind={m.kind}
-            label={m.label}
-            small={m.clientId !== lastMarkerId}
-            sentiment={m.sentiment}
-          />
-        ))}
+        {pins}
         {fix ? (
           <RoadCarMarker coordinate={{ latitude: fix.lat, longitude: fix.lng }} rotation={carRotation} color={lesson.carColor} />
         ) : null}

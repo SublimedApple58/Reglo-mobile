@@ -21,7 +21,7 @@ import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
 import { ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
-import { lessonStudentName, useRoadState } from '../../../src/road/roadStore';
+import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
 import { dayLabel, formatHm } from '../../../src/road/format';
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
@@ -72,7 +72,9 @@ export default function RoadTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const road = useRoadState();
+  // Solo fase e sessione: la tab non si ridisegna a ogni fix GPS.
+  const roadPhase = useRoadSelector((s) => s.phase);
+  const roadSession = useRoadSelector((s) => s.session);
   const mapRef = useRef<MapView>(null);
   const [pos, setPos] = useState<{ latitude: number; longitude: number } | null>(null);
   const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
@@ -122,7 +124,7 @@ export default function RoadTab() {
     mapRef.current?.setCamera({ center, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM });
   }, [center.latitude, center.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const inRoad = road.phase !== 'idle' && !!road.session;
+  const inRoad = roadPhase !== 'idle' && !!roadSession;
   const current = options?.currentLesson ?? null;
   const showAgenda = !inRoad && !!current && !otherMode;
 
@@ -242,7 +244,7 @@ export default function RoadTab() {
             // ── Road in corso ────────────────────────────────────────────
             <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
               <Text style={s.kicker}>Guida in corso</Text>
-              <Text style={s.name}>{lessonStudentName(road.session?.lesson)}</Text>
+              <Text style={s.name}>{lessonStudentName(roadSession?.lesson)}</Text>
               <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.cta} />
             </Animated.View>
           ) : showAgenda && current ? (

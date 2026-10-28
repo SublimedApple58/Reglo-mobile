@@ -4,7 +4,7 @@ import { FormSheet } from '../../src/components/SheetScaffold';
 import { useRouter } from 'expo-router';
 
 import * as Haptics from '../../src/utils/haptics';
-import { roadStore, useRoadState, type RoadSentiment } from '../../src/road/roadStore';
+import { roadStore, useRoadSelector, type RoadSentiment } from '../../src/road/roadStore';
 import { ClayButton, ClaySegmented } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { recordRoadMarker } from '../../src/road/roadActions';
@@ -21,7 +21,9 @@ type Item = { kind: string; label: string; short: string };
  */
 export default function SegnalaSheet() {
   const router = useRouter();
-  const { catalog, street, sentimentMode } = useRoadState();
+  const catalog = useRoadSelector((s) => s.catalog);
+  const street = useRoadSelector((s) => s.street);
+  const sentimentMode = useRoadSelector((s) => s.sentimentMode);
   const good = sentimentMode === 'good';
   const setMode = (m: RoadSentiment) => {
     if (m === sentimentMode) return;

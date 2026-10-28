@@ -6,7 +6,7 @@ import { useNavigation, useRouter } from 'expo-router';
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
 import { countSentiments, SentimentCounts } from '../../src/components/road/RoadSentiment';
-import { lessonStudentName, useRoadState } from '../../src/road/roadStore';
+import { lessonStudentName, useRoadSelector } from '../../src/road/roadStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
@@ -31,7 +31,7 @@ const MAX_MARKERS = 4;
  */
 export default function RiepilogoScreen() {
   const router = useRouter();
-  const { summary } = useRoadState();
+  const summary = useRoadSelector((s) => s.summary);
   const [ev, setEv] = useState<EvalState>(null);
 
   const appointmentId = summary?.appointmentId;

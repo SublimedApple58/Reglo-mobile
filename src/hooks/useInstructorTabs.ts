@@ -1,5 +1,5 @@
 import { useSession } from '../context/SessionContext';
-import { useRoadState } from '../road/roadStore';
+import { useRoadSelector } from '../road/roadStore';
 import { isInstructor } from '../utils/roles';
 
 /**
@@ -10,7 +10,7 @@ import { isInstructor } from '../utils/roles';
  */
 export function useInstructorTabs(): { instructorApp: boolean; showRoad: boolean } {
   const { autoscuolaRole } = useSession();
-  const { roadEnabled } = useRoadState();
+  const roadEnabled = useRoadSelector((s) => s.roadEnabled);
   const instructorApp = isInstructor(autoscuolaRole);
   return { instructorApp, showRoad: instructorApp && roadEnabled };
 }

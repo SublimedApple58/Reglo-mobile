@@ -945,7 +945,9 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(timeless)}
                 style={({ pressed }) => [styles.examBanner, pressed && { opacity: 0.94, transform: [{ scale: 0.992 }] }]}
               >
-                <View style={styles.examBannerBar} />
+                <View style={styles.examBannerClip} pointerEvents="none">
+                  <View style={styles.examBannerBar} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.examBannerLabel}>Esame · {dayLabel}</Text>
                   <Text style={styles.examBannerTitle} numberOfLines={1}>
@@ -1718,9 +1720,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingRight: 14,
     paddingLeft: 18,
-    overflow: 'hidden',
+    // Niente `overflow: 'hidden'` qui: taglierebbe l'ombra clay (§0.3). Si
+    // ritaglia un figlio (`examBannerClip`) con la barretta.
     ...CLAY_SHADOW.raise,
   },
+  examBannerClip: { ...StyleSheet.absoluteFillObject, borderRadius: 18, overflow: 'hidden' },
   examBannerBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: '#111111' },
   examBannerLabel: { fontSize: 13, fontWeight: '500', color: '#6A6A6A', textTransform: 'capitalize' },
   examBannerTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2, marginTop: 2 },

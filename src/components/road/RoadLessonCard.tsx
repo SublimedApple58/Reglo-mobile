@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { Router } from 'expo-router';
 
-import { regloApi } from '../../services/regloApi';
-import type { RoadDetail, RoadStudentItem } from '../../types/regloApi';
+import type { RoadStudentItem } from '../../types/regloApi';
+import { useRoadForAppointment } from '../../road/roadAppointmentQuery';
+import { SOFT_SWAP_IN, softEnter } from '../../utils/motion';
 import { ROAD_ASSETS } from '../../road/markerArt';
 import { formatKm, formatMinutes } from '../../road/format';
 import { openRoadPercorso } from '../../road/openRoadPercorso';
@@ -23,6 +25,13 @@ const sentimentText = ({ good, bad }: { good: number; bad: number }) =>
  * REG-638 — percorso Road della guida dentro il dettaglio guida dell'istruttore:
  * mini mappa, km e minuti, conteggi, «Apri percorso e segnalazioni». Si carica
  * solo se Road è acceso e la guida è già partita; senza sessione non compare.
+ *
+ * Fluidità (REG-639): i dati arrivano dalla cache (l'Agenda li chiede al tocco
+ * del blocco), quindi di solito la card c'è già al primo fotogramma, con le
+ * misure finali. La mappa, che è la parte pesante, si monta solo a foglio
+ * aperto (dopo l'animazione di presentazione) sopra un segnaposto della stessa
+ * misura, e compare in dissolvenza. Se i dati arrivano dopo, la card entra
+ * morbida invece di comparire di colpo.
  */
 export function RoadLessonCard({
   router,
@@ -35,49 +44,59 @@ export function RoadLessonCard({
   startsAt: string;
   enabled: boolean;
 }) {
-  const [detail, setDetail] = useState<RoadDetail | null>(null);
-  const started = new Date(startsAt).getTime() <= Date.now();
+  const { data: detail, isFetched } = useRoadForAppointment(appointmentId, startsAt, enabled);
+  // Dati già in cache al montaggio = niente animazione d'entrata.
+  const [cachedAtMount] = useState(() => detail !== undefined);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    if (!enabled || !started) return;
+    if (!detail || detail.status === 'active') return;
     let alive = true;
-    regloApi
-      .getRoadForAppointment(appointmentId)
-      .then((d) => {
-        if (alive) setDetail(d ?? null);
-      })
-      .catch(() => undefined);
+    const task = InteractionManager.runAfterInteractions(() => {
+      // Margine per la scivolata nativa del form sheet (~350 ms).
+      setTimeout(() => alive && setMapReady(true), 120);
+    });
     return () => {
       alive = false;
+      task.cancel();
     };
-  }, [appointmentId, enabled, started]);
+  }, [detail]);
 
+  if (!isFetched && detail === undefined) return null;
   if (!detail || detail.status === 'active') return null;
 
   const sentiments = sentimentText(countSentiments(detail.markers));
 
   return (
-    <ClaySurface padded={false} style={s.card} testID="road-lesson-card">
-      <RoadRouteMap track={detail.track} markers={detail.markers} style={s.mini} />
-      <View style={s.head}>
-        <View style={s.headL}>
-          <Image source={ROAD_ASSETS.road} style={s.headImg} resizeMode="contain" />
-          <Text style={s.headTx}>Percorso Road</Text>
+    <Animated.View entering={cachedAtMount ? undefined : softEnter()}>
+      <ClaySurface padded={false} style={s.card} testID="road-lesson-card">
+        <View style={[s.mini, s.mapHolder]}>
+          {mapReady ? (
+            <Animated.View entering={SOFT_SWAP_IN} style={StyleSheet.absoluteFill}>
+              <RoadRouteMap track={detail.track} markers={detail.markers} style={s.miniFill} />
+            </Animated.View>
+          ) : null}
         </View>
-        <Text style={s.headMeta}>
-          {formatKm(detail.distanceMeters)} km · {formatMinutes(detail.durationSec)} min
-        </Text>
-      </View>
-      {sentiments ? <Text style={s.counts}>{sentiments}</Text> : null}
-      <ClayButton
-        title="Apri percorso e segnalazioni"
-        variant="secondary"
-        compact
-        onPress={() => void openRoadPercorso(router, 'home', appointmentId, detail)}
-        style={s.open}
-        testID="road-lesson-open"
-      />
-    </ClaySurface>
+        <View style={s.head}>
+          <View style={s.headL}>
+            <Image source={ROAD_ASSETS.road} style={s.headImg} resizeMode="contain" />
+            <Text style={s.headTx}>Percorso Road</Text>
+          </View>
+          <Text style={s.headMeta}>
+            {formatKm(detail.distanceMeters)} km · {formatMinutes(detail.durationSec)} min
+          </Text>
+        </View>
+        {sentiments ? <Text style={s.counts}>{sentiments}</Text> : null}
+        <ClayButton
+          title="Apri percorso e segnalazioni"
+          variant="secondary"
+          compact
+          onPress={() => void openRoadPercorso(router, 'home', appointmentId, detail)}
+          style={s.open}
+          testID="road-lesson-open"
+        />
+      </ClaySurface>
+    </Animated.View>
   );
 }
 
@@ -122,6 +141,9 @@ export function RoadHistoryChip({
 const s = StyleSheet.create({
   card: { padding: 8, paddingBottom: 12 },
   mini: { height: 150, borderRadius: 20 },
+  // Segnaposto della mappa: stessa misura, grigio della mappa «muted».
+  mapHolder: { backgroundColor: '#F2F1EE', overflow: 'hidden' },
+  miniFill: { flex: 1, borderRadius: 20 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 12 },
   headL: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headImg: { width: 22, height: 22 },

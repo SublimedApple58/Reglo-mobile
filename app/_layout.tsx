@@ -1,10 +1,10 @@
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, InteractionManager, Platform } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StyleSheet } from 'react-native';
-import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query';
+import { QueryClient, defaultShouldDehydrateQuery, focusManager, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
@@ -39,11 +39,16 @@ let persistThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 const fileSystemPersister = {
   persistClient: (client: unknown) => {
     if (persistThrottleTimer) clearTimeout(persistThrottleTimer);
-    persistThrottleTimer = setTimeout(async () => {
-      try {
-        await FileSystem.writeAsStringAsync(CACHE_FILE, JSON.stringify(client));
-      } catch {}
-    }, 1000);
+    // Serializzare la cache (~400 KB) costa sul thread JS: si scrive a
+    // interazioni finite, mai durante una transizione o un'animazione
+    // (REG-639 fluidità).
+    persistThrottleTimer = setTimeout(() => {
+      InteractionManager.runAfterInteractions(async () => {
+        try {
+          await FileSystem.writeAsStringAsync(CACHE_FILE, JSON.stringify(client));
+        } catch {}
+      });
+    }, 2000);
   },
   restoreClient: async () => {
     try {
@@ -220,7 +225,12 @@ export default function RootLayout() {
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister: fileSystemPersister, maxAge: 24 * 60 * 60 * 1000 }}
+      persistOptions={{
+        persister: fileSystemPersister,
+        maxAge: 24 * 60 * 60 * 1000,
+        // `meta.persist === false` resta solo in memoria (es. tracciati Road).
+        dehydrateOptions: { shouldDehydrateQuery: (q) => q.meta?.persist !== false && defaultShouldDehydrateQuery(q) },
+      }}
     >
       <SessionProvider>
         <GestureHandlerRootView style={styles.root}>

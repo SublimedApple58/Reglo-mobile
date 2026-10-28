@@ -6,7 +6,7 @@ import { useSession } from '../context/SessionContext';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { regloApi } from '../services/regloApi';
 import { isInstructor } from '../utils/roles';
-import { roadStore, useRoadState } from './roadStore';
+import { roadStore, useRoadSelector } from './roadStore';
 import { isInviteDismissed, resumeRoad } from './roadActions';
 import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
@@ -31,7 +31,7 @@ export function RoadController() {
   const segments = useSegments() as string[];
   const { status, autoscuolaRole } = useSession();
   const { enabled } = useRoadEnabled();
-  const { phase } = useRoadState();
+  const phase = useRoadSelector((s) => s.phase);
   const allowed = status === 'ready' && isInstructor(autoscuolaRole) && enabled;
   const root = segments[0];
   const rootRef = useRef(root);

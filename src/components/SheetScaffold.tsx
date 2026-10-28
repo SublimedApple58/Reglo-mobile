@@ -98,6 +98,29 @@ export function FormSheet({
     if (next !== scrolled) setScrolled(next);
     userOnScroll?.(e);
   };
+  // Fogli più alti dello schermo: il contenuto scorre e UIKit non passa il
+  // trascinamento al foglio. Tirato giù oltre l'inizio e rilasciato = chiudi
+  // (stesse regole del gesto nativo: `busy` no, `dirty` chiede conferma).
+  const userOnScrollEndDrag = scrollProps?.onScrollEndDrag;
+  const onScrollEndDrag = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    userOnScrollEndDrag?.(e);
+    if (busy || e.nativeEvent.contentOffset.y > -PULL_TO_CLOSE) return;
+    // A rimbalzo finito: chiudere mentre lo scroll torna su lasciava il velo
+    // scuro del foglio piantato sullo schermo.
+    pendingClose.current = true;
+    // Rete di sicurezza se iOS non manda la fine del rimbalzo.
+    setTimeout(finishPendingClose, 450);
+  };
+  const pendingClose = useRef(false);
+  const finishPendingClose = () => {
+    if (!pendingClose.current) return;
+    pendingClose.current = false;
+    close();
+  };
+  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollProps?.onMomentumScrollEnd?.(e);
+    finishPendingClose();
+  };
   const backdrop = useAnimatedStyle(() => ({ opacity: withTiming(scrolled ? 1 : 0, { duration: 140 }) }), [scrolled]);
 
   return (
@@ -116,6 +139,8 @@ export function FormSheet({
       testID={testID}
       {...scrollProps}
       onScroll={onScroll}
+      onScrollEndDrag={onScrollEndDrag}
+      onMomentumScrollEnd={onMomentumScrollEnd}
       scrollEventThrottle={32}
     >
       {/* Lo sticky header di RN sposta lo stile del figlio su un suo
@@ -210,6 +235,9 @@ export function useSheetDismissGuard({
 
   return () => setReleased(true);
 }
+
+/** Quanto tirare giù (pt, oltre l'inizio) un foglio che scorre per chiuderlo. */
+const PULL_TO_CLOSE = 64;
 
 const fs = StyleSheet.create({
   scroll: { backgroundColor: '#FFFFFF' },

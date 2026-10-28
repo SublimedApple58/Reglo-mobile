@@ -24,7 +24,7 @@ function useTracksViewChanges(deps: unknown[] = []) {
   return Platform.OS === 'android' ? tracks : undefined;
 }
 
-export function RoadTrack({ coordinates, width = 7 }: { coordinates: LatLng[]; width?: number }) {
+export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7 }: { coordinates: LatLng[]; width?: number }) {
   if (coordinates.length < 2) return null;
   return (
     <>
@@ -46,7 +46,7 @@ export function RoadTrack({ coordinates, width = 7 }: { coordinates: LatLng[]; w
       />
     </>
   );
-}
+});
 
 // Geometria del pin (come il prototipo): etichetta, 7 pt d'aria, puntino 18.
 const TAG_H = 36;
@@ -54,7 +54,8 @@ const TAG_H_SMALL = 30;
 const GAP = 7;
 const DOT = 18;
 
-export function RoadMarkerPin({
+/** Memo: in guida la mappa si ridisegna a ogni fix GPS, i pin no. */
+export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   coordinate,
   kind,
   label,
@@ -98,7 +99,15 @@ export function RoadMarkerPin({
       </View>
     </Marker>
   );
-}
+}, (a, b) =>
+  a.coordinate.latitude === b.coordinate.latitude &&
+  a.coordinate.longitude === b.coordinate.longitude &&
+  a.kind === b.kind &&
+  a.label === b.label &&
+  a.small === b.small &&
+  a.zIndex === b.zIndex &&
+  a.sentiment === b.sentiment,
+);
 
 /** Puntino bianco bordato di nero: partenza / arrivo nelle minimappe. */
 export function RoadEndpointDot({ coordinate }: { coordinate: LatLng }) {
@@ -132,7 +141,9 @@ export function RoadCarMarker({
       tracksViewChanges={tracksViewChanges}
       zIndex={10}
     >
-      <View style={car.wrap} pointerEvents="none">
+      {/* Ombra dell'auto sulla sua sagoma (PNG): resta `shadow*`, ma il layer
+          si rasterizza, così mentre la camera si muove non si ricalcola. */}
+      <View style={car.wrap} pointerEvents="none" shouldRasterizeIOS>
         <View style={car.haloOuter} />
         <View style={car.haloInner} />
         <Image
@@ -156,11 +167,9 @@ const pin = StyleSheet.create({
     paddingRight: 13,
     borderRadius: TAG_H / 2,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    // `boxShadow` (clay §0.3): le `shadow*` sui marker si ricalcolano fuori
+    // schermo a ogni movimento della mappa.
+    boxShadow: '0px 6px 10px rgba(0,0,0,0.16)',
   },
   tagSmall: { height: TAG_H_SMALL, borderRadius: TAG_H_SMALL / 2, paddingLeft: 4, paddingRight: 4, gap: 0 },
   img: { width: 28, height: 28 },
@@ -186,11 +195,7 @@ const pin = StyleSheet.create({
     backgroundColor: '#111111',
     borderWidth: 3.5,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    boxShadow: '0px 2px 3px rgba(0,0,0,0.25)',
   },
   endpoint: {
     width: 16,
@@ -199,10 +204,7 @@ const pin = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 4,
     borderColor: '#111111',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    boxShadow: '0px 1px 2px rgba(0,0,0,0.25)',
   },
 });
 

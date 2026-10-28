@@ -258,8 +258,23 @@ export const roadStore = {
   },
 };
 
+/**
+ * Tutto lo stato Road: si ridisegna a OGNI cambio, compreso ogni fix GPS
+ * (~1 al secondo in guida). Solo per la schermata della mappa dal vivo; altrove
+ * `useRoadSelector` (REG-639 fluidità: prima le tab intere si ridisegnavano a
+ * ogni fix).
+ */
 export function useRoadState(): State {
   return useSyncExternalStore(roadStore.subscribe, roadStore.get);
+}
+
+/**
+ * Una parte dello stato Road: chi la usa si ridisegna solo quando cambia quel
+ * valore. Il selettore deve restituire un primitivo o un oggetto già nello
+ * stato (mai un oggetto nuovo a ogni chiamata).
+ */
+export function useRoadSelector<T>(select: (s: State) => T): T {
+  return useSyncExternalStore(roadStore.subscribe, () => select(roadStore.get()));
 }
 
 export function lessonStudentName(lesson: RoadLesson | null | undefined): string {

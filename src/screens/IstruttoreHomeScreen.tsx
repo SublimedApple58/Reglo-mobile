@@ -65,6 +65,8 @@ import { useHolidays } from '../hooks/queries/useHolidays';
 import { queryKeys, STALE_TIMES } from '../hooks/queries/queryKeys';
 
 import { AvailabilityButton, InboxBellButton } from '../components/InboxBellButton';
+import { prefetchRoadForAppointment } from '../road/roadAppointmentQuery';
+import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { useInstructorTabs } from '../hooks/useInstructorTabs';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
@@ -401,6 +403,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [clusterDurations, setClusterDurations] = useState<number[] | null>(null);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const queryClient = useQueryClient();
+  const { enabled: roadEnabled } = useRoadEnabled();
   // Cross-fade applied to the day timeline when a background (stale-while-
   // revalidate) refresh swaps in fresh BE data over an already-painted day.
   const timelineFadeSV = useSharedValue(1);
@@ -902,6 +905,9 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     }
     setSheetLesson(lesson);
     setSheetStudentProgress(null);
+    // Percorso Road chiesto subito: il foglio si apre con la card già al suo
+    // posto invece di vederla comparire dopo (REG-639 fluidità).
+    prefetchRoadForAppointment(queryClient, lesson, roadEnabled);
     // Seed the store synchronously so the route paints immediately, then push.
     manageLessonStore.set(buildManageSnapshot(lesson, null));
     router.push('/(tabs)/home/manage-lesson');
