@@ -2,16 +2,23 @@
 
 ## Stato
 
-- **28/10 — parte mobile IMPLEMENTATA** (solo commit locali, niente push/OTA):
-  - immagini in `assets/vita/` (@2x/@3x; icone OPACHE su bianco puro, cartine JPG) e registro `src/theme/vitaArt.ts`;
+- **28/10 — parte mobile FATTA e APPROVATA da Tiziano** (le 4 schermate: Agenda,
+  «Nuovo» con alone, Disponibilità con foto, «Tu»). Solo commit locali su
+  `feat/reg-639-clay-ds` (c5033cf, fe2c5be), niente push né OTA. Riepilogo nel
+  design system §0.4b.
+  - immagini in `assets/vita/` (1x/@2x/@3x; icone OPACHE su bianco puro, cartina e foto JPG), registro `src/theme/vitaArt.ts`;
   - Agenda: saluto con l'ora, `AgendaTodayCard`, campanella 3D sull'avviso;
-  - «Nuovo»: card «Guida» con `cartina-road` e auto `car34Art(colore veicolo)`, nome del veicolo esclusivo (senza colore: rossa);
-  - Disponibilità: copertina `sede-cartina` + card con la striscia della settimana (`WeekStrip`), sabato e domenica restano righe separate (servono per modificarli);
+  - «Nuovo»: card «Guida» con `cartina-road`, auto `car34Art(colore veicolo)` su alone bianco sfocato, nome del veicolo esclusivo (senza colore: rossa); icone libere sul bianco;
+  - Disponibilità: copertina **foto realistica** `sede-foto` (Gemini, al posto della cartina illustrata, poi eliminata) con velo leggero + card con `WeekStrip`; sabato e domenica restano righe separate (servono per modificarli);
   - «Tu»: `MonthHoursCard` su `getInstructorHoursRange` (leggibile dall'istruttore; passato `instructorId`, così il titolare-istruttore vede solo sé), lista unica.
-  - Non fatto: nome del veicolo sulla riga «Veicoli» di «Tu» (servirebbe una chiamata in più); backend foto veicolo/sede.
+- **Resta da fare (backend, full-stack con `reglo/`)**: foto del veicolo
+  (`AutoscuolaVehicle.photoUrl`) e copertina della sede (`Company.coverPhotoUrl`),
+  caricate dal titolare **dalla web app**; il mobile le legge e usa i segnaposto
+  (auto 3D sulla cartina, `sede-foto`) se mancano. Facoltativo: nome del veicolo
+  sulla riga «Veicoli» di «Tu» (una chiamata in più).
 
 - **Approvata da Tiziano il 28/10** la tavola `D-mix` (`/tmp/hiro-anteprime/vita/D-mix.png`,
-  sorgente `gen.py` nella stessa cartella). Il codice dell'app NON è ancora toccato.
+  sorgente `gen.py` nella stessa cartella).
 - Nata dal feedback: le schermate clay (ombre, radius, struttura giusti) erano
   **asettiche**. Esplorate 3 direzioni (A oggetti caldi, B persone e posti,
   C traguardi); scelto un mix. Reglo Road resta com'è.
@@ -74,7 +81,7 @@ Regola: colori caldi, niente parti grandi nere, niente blu.
 | 4 | `edificio` | riga «Lezione teorica»; anche dentro `sede-cartina` | da rigenerare più calda (finestre nere) |
 | 5 | `termometro` | riga «Malattia» | **nuova** |
 | 6 | `cartina-road` | sfondo della card «Guida» e segnaposto della foto veicolo (con l'auto sopra) | **nuova**: illustrazione statica larga (circa 370×138 pt @3x), non una mappa vera |
-| 7 | `sede-cartina` | segnaposto della foto sede (copertina di Disponibilità) | **nuova**: cartina calda con l'edificio 3D al centro, circa 402×170 pt @3x |
+| 7 | ~~`sede-cartina`~~ → `sede-foto` | segnaposto della copertina di Disponibilità | sostituita il 28/10 da una **foto realistica** (Gemini), 402×212 pt |
 | — | `campanella` | avviso «fuori disponibilità» | c'è (set Road, ambra): si riusa |
 | — | `persone` | «Guida di gruppo» quando gli allievi non hanno foto | c'è: si riusa |
 | — | auto 3/4 colorate | card «Guida» e segnaposto veicolo | ci sono (`assets/road/cars/auto-34-*`) |

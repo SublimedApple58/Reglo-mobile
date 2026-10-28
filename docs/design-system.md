@@ -198,6 +198,35 @@ diversa (es. dall'alto per la mappa) dirlo nel soggetto e chiedere di
 ignorare la camera di 3/4. I prompt di tutte le 15 icone sono nel piano
 `plans/design-system/reg-639-icone-3d.md`.
 
+### 0.4b «Vita» — direzione D · Mix (REG-639, approvata e fatta il 28/10/2026)
+
+Le schermate clay erano giuste ma asettiche: si danno vita con **oggetti 3D
+caldi**, **foto**, **un numero che conta** e **micro-copy umano**, sempre su
+bianco/nero, senza pillole. Piano completo: `plans/design-system/reg-639-vita.md`.
+
+- **Immagini**: `assets/vita/` (1x/@2x/@3x), registro `src/theme/vitaArt.ts`
+  (`VITA_ART`). Icone (calendario, volante, esame, edificio, termometro)
+  **opache su bianco puro**: vanno SOLO su superfici `#FFF`. Campanella PNG
+  trasparente. `cartina-road` (sfondo card «Guida») e `sede-foto` (copertina) JPG.
+- **Agenda**: saluto con l'ora (`greetingFor`: Buongiorno <13, Buon pomeriggio
+  <18, Buonasera) sopra il titolo; `AgendaTodayCard` (calendario 3D, «Oggi N
+  guide», la prima/la prossima, la pausa; giornata vuota = volante); campanella
+  3D sull'avviso «fuori disponibilità».
+- **Foglio «Nuovo»**: card clay «Guida» con `cartina-road` e auto
+  `car34Art(colore del veicolo esclusivo)` (senza colore: rossa) su un alone
+  bianco sfocato (ellisse bianca velata + `boxShadow` bianco: il
+  `radial-gradient` su iOS non si disegna); le altre voci con l'oggetto 3D
+  libero sul bianco, niente riquadri.
+- **Disponibilità**: copertina foto (`SEDE_COVER_FALLBACK` = `sede-foto` finché
+  il titolare non carica la foto vera) con velo bianco leggero in alto; card che
+  sale sulla copertina con titolo e striscia della settimana (`WeekStrip`).
+- **Tu**: titolo + volto a destra; `MonthHoursCard` (ore del mese + guide +
+  barre delle settimane, settimana in corso nera) da `getInstructorHoursRange`
+  con `instructorId`; un'unica lista, «Esci» in fondo. Niente traguardi.
+- **Resta (backend, full-stack)**: foto del veicolo (`AutoscuolaVehicle.photoUrl`)
+  e copertina della sede (`Company.coverPhotoUrl`), caricate dal titolare dalla
+  web app; il mobile solo le legge, con i segnaposto sopra se mancano.
+
 ### 0.5 Componenti — `src/components/clay/` (import da `src/components/clay`)
 
 | Componente | Cosa | Note |
