@@ -17,7 +17,7 @@ import {
 } from '../components/clay';
 import { ClayPageHeader } from '../components/ClayPageHeader';
 import { CLAY } from '../theme/clay';
-import { MORALE_ART } from '../theme/moraleArt';
+import { VITA_ART } from '../theme/vitaArt';
 import { useInstructorHours } from '../hooks/queries/useInstructorHours';
 import { hoursPeriodStore } from '../stores/hoursPeriodStore';
 import type { InstructorHoursBucket } from '../types/regloApi';
@@ -167,7 +167,7 @@ export const InstructorHoursScreen = () => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={CLAY.ink3} />}
       >
-        <ClayPageHeader title="Ore di guida" onBack={() => router.back()} />
+        <ClayPageHeader title="Ore di guida" subtitle="Il tempo che hai passato al volante" onBack={() => router.back()} />
 
         <ClayList style={s.period}>
           <ClayListRow
@@ -188,12 +188,14 @@ export const InstructorHoursScreen = () => {
           <ClayEmpty title="Errore nel caricamento" text="Trascina verso il basso per riprovare." />
         ) : !data || data.total.totalMinutes === 0 ? (
           <ClayEmpty
+            icon={VITA_ART.orologio}
             title="Nessuna guida nel periodo"
             text="Le ore di guida compariranno qui dopo le lezioni completate."
           />
         ) : (
           <>
-            <View style={s.hero}>
+            {/* REG-639 «vita»: il numero che conta in una card, con l'orologio 3D. */}
+            <ClaySurface radius={26} style={s.heroCard}>
               <View style={s.heroMain}>
                 <ClayHeroNumber
                   {...heroParts(data.total.totalMinutes)}
@@ -203,15 +205,15 @@ export const InstructorHoursScreen = () => {
                   <Text style={s.theory}>Lezione teorica · {formatMinutes(data.total.theoryMinutes)}</Text>
                 ) : null}
               </View>
-              <Icon3D source={MORALE_ART.trofeo} size={72} />
-            </View>
+              <Icon3D source={VITA_ART.orologio} size={72} />
+            </ClaySurface>
 
             <View style={s.stats}>
               <ClayStat
                 value={formatMinutes(Math.max(data.total.totalMinutes - data.total.outsideWorkingHoursMinutes, 0))}
-                label="In orario"
+                label="nei tuoi orari"
               />
-              <ClayStat value={formatMinutes(data.total.outsideWorkingHoursMinutes)} label="Fuori orario" />
+              <ClayStat value={formatMinutes(data.total.outsideWorkingHoursMinutes)} label="fuori orario" />
             </View>
 
             <ClaySection
@@ -247,11 +249,11 @@ const s = StyleSheet.create({
 
   skel: { marginTop: 28 },
 
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28 },
+  heroCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, paddingVertical: 18, paddingHorizontal: 20 },
   heroMain: { flex: 1, minWidth: 0 },
   theory: { fontSize: 14.5, color: CLAY.ink3, marginTop: 4 },
 
-  stats: { flexDirection: 'row', gap: 12, marginTop: 22 },
+  stats: { flexDirection: 'row', gap: 12, marginTop: 12 },
 
   chartCard: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 14 },
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, height: COLUMN_HEIGHT + 36 },

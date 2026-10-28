@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { ClayButton, ClayList, ClaySection, ClaySurface, ClayToggle } from '../components/clay';
 import { ClayPageHeader } from '../components/ClayPageHeader';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
 import { SOFT_CARD_EXIT, SOFT_LAYOUT, SOFT_SPRING, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
 import { regloApi } from '../services/regloApi';
 import { useSession } from '../context/SessionContext';
@@ -324,7 +325,7 @@ export const EvaluationSheetScreen = () => {
         contentContainerStyle={[s.scroll, { paddingTop: insets.top, paddingBottom: 40 + insets.bottom + (dirty ? 96 : 0) }]}
         showsVerticalScrollIndicator={false}
       >
-        <ClayPageHeader title="Pagellino" onBack={() => router.back()} />
+        <ClayPageHeader title="Pagellino" subtitle="Come valuti ogni guida" onBack={() => router.back()} />
 
         {isLoading && !data ? (
           <View style={s.skel}>
@@ -337,11 +338,13 @@ export const EvaluationSheetScreen = () => {
           <>
             {/* Interruttore: è la domanda prima di tutte le altre. */}
             <ClaySurface style={s.toggleCard}>
+              {/* REG-639 «vita»: la cartellina 3D del pagellino. */}
+              <Image source={VITA_ART.pagellino} style={s.toggleArt} />
               <View style={s.toggleText}>
                 <Text style={s.toggleTitle}>Pagellino attivo</Text>
                 <Text style={s.toggleSub}>
                   {enabled
-                    ? 'Gli istruttori valutano le guide su queste voci.'
+                    ? 'Ogni guida si valuta su queste voci.'
                     : 'Spento: nessuna valutazione nel foglio della guida. Quelle già date restano.'}
                 </Text>
               </View>
@@ -476,8 +479,9 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   skel: { gap: 12, marginTop: 20 },
 
-  toggleCard: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 20 },
+  toggleCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 },
   toggleText: { flex: 1, minWidth: 0 },
+  toggleArt: { width: 54, height: 54, marginVertical: -4 },
   toggleTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
   toggleSub: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3, lineHeight: 18 },
 
