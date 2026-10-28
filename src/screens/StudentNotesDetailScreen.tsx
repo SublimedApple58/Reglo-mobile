@@ -37,7 +37,6 @@ import { FormSheet } from '../components/SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClayPressable, ClaySection, ClaySurface, Icon3D } from '../components/clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { VITA_ART } from '../theme/vitaArt';
-import { MORALE_ART } from '../theme/moraleArt';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaCase,
@@ -68,7 +67,7 @@ import { RoadHistoryChip } from '../components/road/RoadLessonCard';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import type { RoadStudentItem } from '../types/regloApi';
-import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
+import { isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
@@ -516,7 +515,6 @@ export const StudentNotesDetailScreen = () => {
     }).length,
     [appointments],
   );
-  const isCompleted = completedCount >= REQUIRED_LESSONS;
 
   /** Media per voce su tutto lo storico: alimenta sia il blocco "Pagellino"
    *  sia la statistica "voto medio" della card profilo. */
@@ -590,12 +588,6 @@ export const StudentNotesDetailScreen = () => {
   })();
 
   const subtitleLine = [licenseLabel, giaConseguite].filter(Boolean).join(' · ');
-  const missing = Math.max(0, REQUIRED_LESSONS - completedCount);
-  const obbligoLine = isCompleted
-    ? 'Obbligo completato'
-    : missing === 1
-      ? `Ancora 1 e ${firstName} è pronto`
-      : `Ancora ${missing} e ${firstName} è pronto`;
   /** La prossima guida (o esame) in programma, la più vicina. */
   const nextLesson = useMemo(() => {
     const now = Date.now();
@@ -695,43 +687,6 @@ export const StudentNotesDetailScreen = () => {
         ))}
       </View>
 
-      {/* Guide obbligatorie */}
-      {!loading && isCompleted ? (
-        // REG-639 «memorabile»: obbligo fatto = un piccolo traguardo, non una
-        // barra piena. Il trofeo è quello dei traguardi (MORALE_ART).
-        <ClaySurface radius={22} style={[s.card, s.examCard]}>
-          <Icon3D source={MORALE_ART.trofeo} size={48} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Guide obbligatorie fatte</Text>
-            <Text style={s.cardSub}>
-              {`${firstName} le ha fatte tutte e ${REQUIRED_LESSONS}`}
-            </Text>
-          </View>
-        </ClaySurface>
-      ) : (
-      <ClaySurface radius={22} style={s.card}>
-        <View style={s.rowBetween}>
-          <Text style={s.cardTitle}>Guide obbligatorie</Text>
-          {loading ? null : (
-            <Text style={s.cardSub}>{Math.min(completedCount, REQUIRED_LESSONS)} di {REQUIRED_LESSONS}</Text>
-          )}
-        </View>
-        <View style={s.track}>
-          <Animated.View
-            layout={HEIGHT_GLIDE}
-            style={[s.fill, { width: `${loading ? 0 : (Math.min(completedCount, REQUIRED_LESSONS) / REQUIRED_LESSONS) * 100}%` }]}
-          />
-        </View>
-        {loading ? (
-          <SkeletonBlock width={150} height={13} radius={6} style={{ marginTop: 10 }} />
-        ) : (
-          <Animated.Text key={obbligoLine} entering={STAT_DISSOLVE} style={s.cardSubBelow}>
-            {obbligoLine}
-          </Animated.Text>
-        )}
-      </ClaySurface>
-      )}
-
       {/* Esame in arrivo */}
       {!loading && upcomingExam ? (
         <ClaySurface radius={22} style={[s.card, s.examCard]}>
@@ -761,7 +716,7 @@ export const StudentNotesDetailScreen = () => {
                 )
               }
               trailing={
-                <Icon3D source={unpaidCount === 0 ? VITA_ART.salvadanaioPieno : VITA_ART.salvadanaio} size={40} />
+                <Icon3D source={unpaidCount === 0 ? VITA_ART.salvadanaioPieno : VITA_ART.salvadanaio} size={46} />
               }
               onPress={openPayments}
               testID="student-payments-row"
@@ -1018,9 +973,6 @@ const s = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   cardTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   cardSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
-  cardSubBelow: { fontSize: 14, color: CLAY.ink3, marginTop: 9 },
-  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.07)', overflow: 'hidden', marginTop: 12 },
-  fill: { height: '100%', borderRadius: 4, backgroundColor: CLAY.ink },
   examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   examArt: { width: 46, height: 46 },
   listGap: { marginTop: 12 },
