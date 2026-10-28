@@ -283,6 +283,8 @@ export type AutoscuolaLocation = {
   placeId: string | null;
   isDefault: boolean;
   isPrecise: boolean;
+  /** REG-639: foto di copertina (solo la sede), URL pubblico; null = segnaposto. */
+  coverPhotoUrl?: string | null;
 };
 
 /**

@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { ActionSheetIOS, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActionSheetIOS, Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayEmpty, ClayIconButton, ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayEmpty, ClayIconButton, ClayList, ClayListRow, ClaySection, ClaySurface } from '../components/clay';
+import { SEDE_COVER_FALLBACK } from '../theme/vitaArt';
 import { ClayPageHeader } from '../components/ClayPageHeader';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
@@ -117,6 +118,7 @@ export const LocationsScreen = () => {
     }
   };
 
+  const [coverFailed, setCoverFailed] = useState(false);
   const sede = locations.find((l) => l.isDefault) ?? null;
   const customs = locations.filter((l) => !l.isDefault);
   const sedeTappable = sede?.isPrecise && toNumber(sede.latitude) != null && toNumber(sede.longitude) != null;
@@ -139,39 +141,54 @@ export const LocationsScreen = () => {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
         <ClayPageHeader
           title="Luoghi guida"
+          subtitle="Da dove partono le tue guide"
           onBack={() => router.back()}
           actions={
             <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi luogo" testID="locations-add" />
           }
         />
 
+        {/* REG-639 «vita»: la sede con la sua foto (caricata dal titolare dalla
+            web app; senza foto, o se non si carica, la foto d'esempio). */}
         <ClaySection
           title="Sede principale"
-          footnote="Modificabile solo dal titolare dalle impostazioni web. Usata come luogo di default per ogni guida."
+          footnote="La sede e la sua foto le cambia il titolare dalla web app. È il luogo di default di ogni guida."
         >
-          <ClayList>
-            {isLoading ? (
+          {isLoading ? (
+            <ClayList>
               <ClayListRow title=" " subtitle={<SkeletonBlock width={180} height={12} radius={6} />} />
-            ) : (
-              <ClayListRow
-                title={sede?.name ?? "Sede dell'autoscuola"}
-                subtitle={sede?.address || 'Non ancora configurata'}
-                trailing={
-                  sedeTappable ? (
-                    <Pressable
-                      onPress={() => openMaps(sede!)}
-                      hitSlop={8}
-                      style={styles.trailingBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Apri in Maps"
-                    >
-                      <Text style={styles.mapsTx}>Maps</Text>
-                    </Pressable>
-                  ) : undefined
-                }
-              />
-            )}
-          </ClayList>
+            </ClayList>
+          ) : (
+            <ClaySurface padded={false} radius={26} testID="locations-sede">
+              <View style={styles.coverClip}>
+                <Image
+                  source={sede?.coverPhotoUrl && !coverFailed ? { uri: sede.coverPhotoUrl } : SEDE_COVER_FALLBACK}
+                  onError={() => setCoverFailed(true)}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.sedeRow}>
+                <View style={styles.sedeMain}>
+                  <Text style={styles.sedeName} numberOfLines={1}>{sede?.name ?? "Sede dell'autoscuola"}</Text>
+                  <Text style={styles.sedeSub} numberOfLines={2}>
+                    {sede?.address || (sede?.isPrecise ? 'Posizione sulla mappa' : 'Posizione generica')}
+                  </Text>
+                </View>
+                {sedeTappable ? (
+                  <Pressable
+                    onPress={() => openMaps(sede!)}
+                    hitSlop={8}
+                    style={styles.trailingBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Apri in Maps"
+                  >
+                    <Text style={styles.mapsTx}>Maps</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </ClaySurface>
+          )}
         </ClaySection>
 
         <ClaySection title="Altri luoghi">
@@ -209,6 +226,11 @@ export const LocationsScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  coverClip: { height: 150, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden', backgroundColor: '#F2F0EC' },
+  sedeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 18 },
+  sedeMain: { flex: 1, minWidth: 0 },
+  sedeName: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  sedeSub: { fontSize: 14, color: CLAY.ink3, marginTop: 2 },
   root: { flex: 1, backgroundColor: CLAY.bg },
   scroll: { paddingHorizontal: 20, paddingBottom: 140 },
   trailingBtn: { minWidth: 34, height: 34, alignItems: 'center', justifyContent: 'center' },

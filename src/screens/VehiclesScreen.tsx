@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +13,10 @@ import { MORALE_ART } from '../theme/moraleArt';
 import { regloApi } from '../services/regloApi';
 import { vehicleFormStore } from '../stores/vehicleFormStore';
 import { AutoscuolaVehicle, AutoscuolaSettings } from '../types/regloApi';
-import { transmissionLabel } from '../utils/license';
+import { isMotoLicenseCategory, transmissionLabel } from '../utils/license';
+import { car34Art } from '../road/markerArt';
+
+const MOTO_ART = require('../../assets/icons3d-ai/moto.png');
 import { useSession } from '../context/SessionContext';
 
 /**
@@ -108,6 +111,15 @@ export const VehiclesScreen = () => {
     }
   }, [toggleStatus]);
 
+  // Una riga umana sotto il titolo: quanti mezzi e qual è il tuo.
+  const mineVehicle = instructorId ? vehicles.find((v) => v.assignedInstructorId === instructorId) : null;
+  const headerLine = loading
+    ? "I mezzi dell'autoscuola disponibili per le guide."
+    : [
+        vehicles.length === 1 ? '1 mezzo' : `${vehicles.length} mezzi`,
+        mineVehicle ? `la ${mineVehicle.name} è la tua` : null,
+      ].filter(Boolean).join(' · ');
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
@@ -122,7 +134,7 @@ export const VehiclesScreen = () => {
       >
         <ClayPageHeader
           title="Veicoli"
-          subtitle="I mezzi dell'autoscuola disponibili per le guide."
+          subtitle={headerLine}
           onBack={() => router.back()}
           actions={
             <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi veicolo" testID="vehicles-add" />
@@ -173,6 +185,16 @@ export const VehiclesScreen = () => {
               return (
                 <ClayListRow
                   key={vehicle.id}
+                  // REG-639 «vita»: il mezzo col suo oggetto 3D — l'auto nel colore
+                  // vero del veicolo (Aspetto agenda), la moto per le moto.
+                  leading={
+                    isMotoLicenseCategory(vehicle.licenseCategory) ? (
+                      <Image source={MOTO_ART} style={styles.motoArt} />
+                    ) : (
+                      <Image source={car34Art(vehicle.color)} style={styles.carArt} resizeMode="contain" />
+                    )
+                  }
+                  dimmed={vehicle.status === 'inactive'}
                   title={vehicle.name}
                   subtitle={sub || undefined}
                   onPress={() => openForm(vehicle)}
@@ -200,6 +222,8 @@ export const VehiclesScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  carArt: { width: 58, height: 47, marginVertical: -4 },
+  motoArt: { width: 50, height: 50, marginHorizontal: 4, marginVertical: -4 },
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: 20, paddingBottom: 140 },
   list: { marginTop: 22 },
