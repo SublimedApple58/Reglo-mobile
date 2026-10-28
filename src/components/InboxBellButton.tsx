@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import { useStackBase } from '../hooks/useStackBase';
 import { CLAY_SHADOW } from '../theme/clay';
 
 /** Cerchio bianco clay in rilievo delle azioni in testa (orologio, campanella). */
@@ -19,13 +20,14 @@ export const headerCircle: ViewStyle = {
 
 /**
  * Disponibilità (REG-638, «T1 piatta»): l'istruttore la apre dall'orologio
- * nell'intestazione dell'Agenda invece che da una tab.
+ * nell'intestazione dell'Agenda invece che da una tab. È una push dello stack
+ * Agenda (`home/availability`), così si chiude con lo swipe da sinistra.
  */
 export function AvailabilityButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => router.push('/(tabs)/role')}
+      onPress={() => router.push('/(tabs)/home/availability')}
       hitSlop={8}
       style={({ pressed }) => [headerCircle, pressed && CLAY_SHADOW.sink, style]}
       accessibilityRole="button"
@@ -39,14 +41,17 @@ export function AvailabilityButton({ style }: { style?: StyleProp<ViewStyle> }) 
 
 /**
  * Campanella delle notifiche (REG-638, tab bar «T1 piatta»): per l'istruttore
- * «Notifiche» non è più nella barra e si apre da qui.
+ * «Notifiche» non è più nella barra e si apre da qui, come push dello stack
+ * Agenda o Road (`home/notifications`, `drive/notifications`): swipe indietro nativo.
  */
 export function InboxBellButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const router = useRouter();
   const unread = useUnreadNotifications();
+  // Push nello stack da cui si tocca (Agenda o Road): indietro torna lì.
+  const stackBase = useStackBase('home');
   return (
     <Pressable
-      onPress={() => router.push('/(tabs)/inbox')}
+      onPress={() => router.push(`/(tabs)/${stackBase}/notifications` as never)}
       hitSlop={8}
       style={({ pressed }) => [headerCircle, pressed && CLAY_SHADOW.sink, style]}
       accessibilityRole="button"

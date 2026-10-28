@@ -14,6 +14,8 @@ export default function DriveLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      {/* Campanella: notifiche come push di questo stack (swipe indietro nativo). */}
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="avvia" options={FORM_SHEET} />
       <Stack.Screen name="road-privacy" options={FORM_SHEET} />
       {/* Guida appena finita col pagellino da compilare: si apre da sola (una volta per avvio). */}

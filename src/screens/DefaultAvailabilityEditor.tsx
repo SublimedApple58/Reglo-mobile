@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useStackBase } from '../hooks/useStackBase';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface } from '../components/clay';
@@ -63,6 +64,8 @@ type Props = {
 
 export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro }: Props) => {
   const router = useRouter();
+  // I fogli si aprono nello stack corrente (`home/` o `role/`).
+  const stackBase = useStackBase();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
 
@@ -111,7 +114,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
   const openTimePicker = useCallback(
     (current: Date, onPick: (d: Date) => void) => {
       timePickerStore.set({ selectedTime: current, onConfirm: onPick });
-      router.push('/(tabs)/role/time-picker' as never);
+      router.push(`/(tabs)/${stackBase}/time-picker` as never);
     },
     [router],
   );
@@ -128,7 +131,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
         setSchedule((prev) => ({ ...prev, [day]: available ? newRanges : [] }));
       },
     });
-    router.push('/(tabs)/role/publish-day' as never);
+    router.push(`/(tabs)/${stackBase}/publish-day` as never);
   };
 
   const handleSave = async () => {
@@ -196,7 +199,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
       openTimePicker,
       onSaved: () => queryClient.invalidateQueries({ queryKey: queryKeys.dailyOverrides(activeCompanyId, instructorId) }),
     });
-    router.push('/(tabs)/role/availability-exception' as never);
+    router.push(`/(tabs)/${stackBase}/availability-exception` as never);
   };
 
   const isDirty = !loading && savedRef.current !== '' && savedRef.current !== keyOf(schedule);

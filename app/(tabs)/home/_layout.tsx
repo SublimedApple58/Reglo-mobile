@@ -7,6 +7,12 @@ export default function HomeLayout() {
   return (
     <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="index" />
+      {/* REG-639 fluidità: Disponibilità e Notifiche dall'orologio e dalla
+          campanella dell'Agenda = schermate push (swipe indietro nativo). */}
+      <Stack.Screen name="availability" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="availability-exception" options={FORM_SHEET} />
+      <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="add-action" options={FORM_SHEET} />
       <Stack.Screen name="select-date" options={FORM_SHEET} />
       <Stack.Screen name="quick-book" options={FORM_SHEET} />

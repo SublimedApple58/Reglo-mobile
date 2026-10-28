@@ -1122,7 +1122,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
   const handleBellPress = () => {
     bubbleDismissed.current = true;
     Animated.timing(bubbleOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start();
-    router.push('/(tabs)/inbox');
+    // Istruttore: niente tab Notifiche (REG-638) → push nello stack Agenda.
+    router.push(isInstructor ? '/(tabs)/home/notifications' : '/(tabs)/inbox');
   };
 
   if (!isStudent && !isInstructor && !isOwner) return null;
