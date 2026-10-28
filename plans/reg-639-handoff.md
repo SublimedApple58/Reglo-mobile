@@ -24,7 +24,8 @@ produzione su iOS**. Le regole del design system stanno in
 | Passo 3: «vita» su tutte le schermate | `f88438d` | `7f46b7fe` |
 | Allievi: testata unica che collassa ovunque, Il mio gruppo, picker a spunta | `4b503b0` | `e773b290-f124-4e0a-ad63-e184b6d92c56` |
 | Pagamenti + icone 3D trasparenti + segmentato nativo | `88c7b1a` | `6d38f144-8aa1-49de-b129-90c4ae29014f` (iOS update `01a18314-7b72-7fb3-8353-2fd50950be8f`) |
-| **Memorabile** (vita dosata, salvadanaio, via obbligo dal dettaglio allievo e dal foglio guida) | **`d5c6fc8`** | **`8433fb42-4e22-4502-ae8f-533c86929c64`** (iOS update `01a18342-9c41-70e1-a25a-e5962f2075f4`) |
+| Memorabile (vita dosata, salvadanaio, via obbligo dal dettaglio allievo e dal foglio guida) | `d5c6fc8` | `8433fb42-4e22-4502-ae8f-533c86929c64` (iOS update `01a18342-9c41-70e1-a25a-e5962f2075f4`) |
+| **Feedback «pagata»** (casella che si riempie, riga che si chiude, foglio che si accorcia insieme con `useSheetAnticipate`; niente toast nei fogli, toast senza barretta verde) | **`2ff82d1`** | **`3f2bbc47-0868-4a02-9694-ac25541902ab`** (iOS update `01a1836c-1d30-7f15-af63-3f5a6efdf94c`) |
 
 **Come si pubblica un OTA** (dal worktree che ha i `node_modules` giusti; la
 copia principale `reglo-mobile` oggi NON ha `node_modules` aggiornati e
