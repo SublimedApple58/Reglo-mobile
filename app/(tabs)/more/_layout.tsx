@@ -11,6 +11,8 @@ export default function MoreLayout() {
       <Stack.Screen name="appearance" />
       <Stack.Screen name="instructor-hours" />
       <Stack.Screen name="instructors-overview" />
+      <Stack.Screen name="instructor-invite" options={FORM_SHEET} />
+      <Stack.Screen name="instructor-availability" options={FORM_SHEET} />
       <Stack.Screen name="locations" />
       <Stack.Screen name="vehicles" />
       <Stack.Screen name="evaluation-sheet" />

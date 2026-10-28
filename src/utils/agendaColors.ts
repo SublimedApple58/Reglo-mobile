@@ -288,13 +288,13 @@ export function isBlueHue(hex: string): boolean {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;
-  if (max === 0 || d / max < 0.12) return false; // grigi: non sono blu
+  if (max === 0 || d / max < 0.35) return false; // grigi e grigio-ardesia: non sono blu
   let h: number;
   if (max === r) h = ((g - b) / d) % 6;
   else if (max === g) h = (b - r) / d + 2;
   else h = (r - g) / d + 4;
   h = (h * 60 + 360) % 360;
-  return h >= 180 && h <= 260; // dall'azzurro/ciano al blu, escluso il viola
+  return h >= 180 && h < 245; // dall'azzurro/ciano al blu, escluso il viola (#8B5CF6 = 258°)
 }
 
 /**

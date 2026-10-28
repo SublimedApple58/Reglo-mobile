@@ -13,6 +13,24 @@ Role-conditional settings screen + instructor cluster settings.
 - `src/stores/instructorSettingsStore.ts` — publishes instructor/owner setting values + handlers to those sub-pages
 
 ## Design (design-system aligned)
+
+> **REG-639 clay (notte 28/10/2026, commit `e1dfa57`) — stato attuale per
+> istruttore/titolare.** La tab **«Tu»** (`MoreScreen`, «Altro» per il
+> titolare puro): `ClayPageHeader` («Tu»), `ProfileSummaryCard` (volto + nome
+> + ruolo · autoscuola → `more/profile-edit`), sezione «Gestione» (Panoramica
+> istruttori solo per `INSTRUCTOR_OWNER`, Ore di guida, Veicoli, Luoghi guida,
+> Pagellino, Aspetto agenda — righe di solo testo, niente icone) e sezione
+> «Account» con **Impostazioni** + **«Esci»** (rosso, `ClayTextRow danger`,
+> `testID="more-sign-out"`), poi `AppVersionFooter`. **«Esci» è stato spostato
+> qui dalle Impostazioni dello staff.** `SettingsScreen.renderNonStudentContent`
+> ora ha: `ClayPageHeader` «Impostazioni» con indietro, sezione «Preferenze»
+> (Disponibilità → `more/availability-mode` solo istruttori, Agenda →
+> `more/agenda-settings` solo titolari, Notifiche) e sezione «Account» con il
+> solo **«Elimina account»**. L'allievo invece tiene «Esci» + «Elimina account»
+> nel suo Profilo (`renderStudentContent`). Tutti i fogli di `more/` sono
+> `FORM_SHEET` + `<FormSheet>`; i componenti sono in `src/components/clay` +
+> `ClayAccountParts`. Il paragrafo sotto è storico dove contraddice questo.
+
 The instructor/owner branch (`renderNonStudentContent`): large title, then directly the settings. **The profile card was MOVED to the "Altro" screen (`MoreScreen`)** to avoid duplication between Altro and Impostazioni — it is no longer rendered here (it still opens `more/profile-edit`, now tapped from the Altro hero card). Every setting is a **normal `menuGroup` row** (icon + label + current-value hint + chevron) that opens a **formSheet sub-page** in the "Altro" stack — Disponibilità → `more/availability-mode`, Agenda (owner) → `more/agenda-settings`, plus Notifiche; then the account group (Esci / Elimina account). No inline control cards. `SelectableChip` is outline navy globally; selection in the sub-pages = navy radio/check; pink reserved for CTAs. Profile fields are published to `settingsStore` for all roles; instructor/owner setting values to `instructorSettingsStore`. **No yellow anywhere**: `SelectableChip` is now **outline navy** globally (`#1A1A2E`), the agenda segmented control is outline navy, and Switch tracks use pink (not `#FACC15`). Pink reserved for CTAs only. The profile fields are published to `settingsStore` for **all roles** (was student-only) so `more/profile-edit` can bind to them.
 
 ## Settings by role

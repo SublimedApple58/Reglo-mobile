@@ -100,9 +100,16 @@ non si anima, si anima solo la scala di `ClayPressable`.
    elenchi di vantaggi) l'icona NON si mette. Una CTA nera non ha disegnino.
 2. **Le icone che restano sono 3D di alta qualità, generate con l'AI in uno
    stile unico** (prompt qui sotto). Mai icone di pacchetti pronti.
-3. **Microsoft Fluent 3D Emoji bandite.** Sono ancora in ~25 schermate fuori
-   da Road (agenda, esami, note, home allievo, `lessonArt`): si sostituiscono
-   o si tolgono al prossimo giro, MAI se ne aggiungono di nuove.
+3. **Microsoft Fluent 3D Emoji bandite — e tolte dall'app** (REG-639 notte,
+   28/10/2026, commit `302f679`): i 17 PNG `assets/icons/fluent-*.png` sono
+   stati eliminati; nelle schermate istruttore/titolare l'icona è stata tolta,
+   in quelle allievo/Allievi sostituita dalle nuove icone AI (tabella sotto)
+   a impaginazione invariata. Non se ne aggiungono MAI di nuove. Restano in
+   `assets/icons/` solo le illustrazioni del percorso teoria (`stat-*`,
+   `cta-*`, `review-retry`, `study-books`, `tag-theory`, `chapters/` — usate da
+   `AllievoTheoryHomeScreen`, `SchedaGridScreen`, `ExamSchedeListScreen`,
+   `TopicListScreen`), fuori dal perimetro di questo giro: da rifare con lo
+   stesso metodo quando si tocca la teoria.
 4. **Niente blu** nelle icone (anche i cartelli che in Italia sono blu:
    rotonda, parcheggio, pedoni sono resi in bianco/nero/grigio o con un
    oggetto). Eccezione: le auto nel colore vero del veicolo (`azzurro`, `blu`).
@@ -118,6 +125,36 @@ non si anima, si anima solo la scala di `ClayPressable`.
 | Auto della guida, 3/4 | `cars/auto-34-<colore>` — `car34Art(color)` | «Parti con», invito Road |
 | Auto sulla mappa, dall'alto | `cars/auto-su-<colore>` — `carTopArt(color)` | posizione in guida |
 | Emblema Road | `road-3d` — `ROAD_ASSETS.road` | card Road in agenda |
+
+**Icone «di morale» (REG-639 notte, `src/theme/moraleArt.ts` → `MORALE_ART`,
+file in `assets/morale/`, 84 pt):** un po' di calore, SOLO negli stati vuoti
+(`ClayEmpty`), nei traguardi e nella testata del foglio esame — mai come
+decorazione delle righe.
+
+| Chiave | Dove |
+|---|---|
+| `espresso` | «Giornata libera» (vista Giorno dell'Agenda, `AgendaDayView`) |
+| `aeroplanino` | «Nessuna notifica» (`NotificationInboxScreen`) |
+| `piantina` | liste vuote: luoghi (`LocationsScreen`), veicoli (`VehiclesScreen`), Panoramica istruttori (`OwnerInstructorScreen`) |
+| `trofeo` | traguardo ore di guida (`InstructorHoursScreen`) |
+| `esame` | testata del foglio esame (`home/exam-manage`) |
+
+**Sostituti delle Fluent nelle schermate allievo / Allievi (`assets/icons3d-ai/`,
+`require` diretto):**
+
+| File | Dove |
+|---|---|
+| `auto`, `moto` | `src/utils/lessonArt.ts` (`lessonArtSource` / `heroArtSource`: card, hero, stati vuoti della home allievo) |
+| `esame` | `AllievoHomeScreen` (hero/card esame), `home/exam-detail`, `StudentNotesDetailScreen`, `StudentSettingsSheet` |
+| `persone` | guide di gruppo: `AllievoHomeScreen`, `GroupLessonInvitesScreen`, `StudentNotesDetailScreen`, `StudentSettingsSheet` |
+| `edificio` | `StudentNotesDetailScreen`, `StudentSettingsSheet` |
+| `scambio` | `AllievoHomeScreen` (riga Scambi), `SwapOffersScreen` |
+| `blocconote` | stato vuoto di `StudentMyNotesScreen` |
+| `calendario` | `home/booking-flow` (data della prenotazione) |
+| `pin` | `AllievoHomeScreen` (sede dell'autoscuola nel titolo) |
+
+Tavola di generazione (soggetti, prove, anteprima a tre misure):
+`/tmp/hiro-anteprime/clay/icone/tavola-notte.png` (file locale, non nel repo).
 
 `<Icon3D source={markerArt('stop')} size={30} />` (solo `source`: il vecchio
 registro `ICONS_3D` è stato eliminato). Sempre su bianco, mai `tintColor`.
@@ -176,8 +213,21 @@ ignorare la camera di 3/4. I prompt di tutte le 15 icone sono nel piano
 | `ClayMapControls` | colonna bianca 56 in rilievo: velocità + «centra» (SF Symbol `location(.fill)`, ripiego `near-me`) | `bottom` lo decide la schermata |
 | `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
 | `Icon3D` | icona 3D colorata, solo `source` (§0.4) | |
+| `ClaySection` | sezione di schermata o foglio: titolo 17/600 in minuscolo (mai maiuscoletto né eyebrow), `action` testuale a destra («Modifica»), contenuto (di solito una `ClayList`), `footnote` grigia sotto | notifiche (un giorno = una sezione), «Tu» e sottosezioni, Disponibilità, fogli dell'Agenda |
+| `ClayToggle` | interruttore clay: binario incavato (`sink`) che si riempie di nero in dissolvenza, pallino bianco in rilievo che scorre in 200 ms (`SEGMENT_TIMING`, niente rimbalzo), haptic | sostituisce `Switch`/`ToggleSwitch` nelle schermate clay; MAI giallo. In `BookingForm`, `BlockForm`, `CreateExamScreen`, `CreateGroupLessonScreen`, `AppearanceSettingsScreen`, `EvaluationSheetScreen`, `sick-leave`, `publish-day`, `vehicle-form`, `location-form` |
+| `ClayField` | campo di testo: etichetta 15/500 sopra, campo incavato bianco (`sink`, raggio 16), nota o errore sotto; `multiline` cresce col testo | `forwardRef` su `TextInput`. In `edit-notes`, `manage-lesson-details`, `profile-edit`, `instructor-invite`, `BlockForm`, `CreateExamScreen`, `InlineLocationForm`, `EvaluationItemSheet` |
+| `ClayEmpty` | stato vuoto: icona «di morale» 84 pt (§0.4, `MORALE_ART`), titolo, una riga, azione facoltativa; centrato, mai un riquadro grigio | Agenda (Giorno), notifiche, luoghi, veicoli, Panoramica istruttori |
 | `FormSheet` | resta IL foglio (§13.2); X = `ClayIconButton` | `src/components/SheetScaffold.tsx` |
 | Tab bar | NON clay: resta la «T1 piatta» (§6.19), glifi monocromatici | bocciata la versione clay (28/10) |
+
+Fuori da `src/components/clay/` (import diretto):
+
+| Componente | Cosa | Usato da |
+|---|---|---|
+| `ClayPageHeader` (`src/components/ClayPageHeader.tsx`) | testata delle schermate intere clay: riga comandi (indietro a sinistra, azioni a destra, tutti `ClayIconButton`), titolo grande 32/600 e riga grigia di contesto; sta DENTRO lo scroll | `MoreScreen` («Tu»/«Altro»), `SettingsScreen` (staff), `InstructorHoursScreen`, `VehiclesScreen`, `LocationsScreen`, `EvaluationSheetScreen`, `AppearanceSettingsScreen` (Agenda, notifiche, Disponibilità e Panoramica istruttori hanno una testata propria con lo stesso stile) |
+| `ClayAccountParts` (`src/components/ClayAccountParts.tsx`) | `ProfileSummaryCard` (volto + nome + ruolo · autoscuola + chevron → modifica profilo), `ClayTextRow` (riga di solo testo, `danger` = rosso `CLAY_DANGER` `#C13515` solo per azioni distruttive), `AppVersionFooter` | `MoreScreen`, `SettingsScreen` |
+| `AgendaDayView` (`src/components/agenda/`) | vista Giorno dell'Agenda: lista per orario (§6.20) | `IstruttoreHomeScreen` |
+| `AgendaDayStrip` (`src/components/agenda/`) | striscia dei giorni lun–sab, a pagine settimanali; giorno scelto nel cerchio nero clay, numero di impegni grigio sotto; esporta `dateKeyOf` | `IstruttoreHomeScreen` |
 
 ---
 
@@ -961,6 +1011,54 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 - **iOS:** usa token deprecati `glass*` + `BlurView` nativo per effetto vetro.
 - **Android:** tab bar custom con `bg: #FFFFFF`, highlight navy.
 
+### 6.20 Agenda istruttore / titolare (clay v2, REG-639 notte 28/10/2026)
+
+Feature doc completo: [features/agenda-istruttore.md](features/agenda-istruttore.md).
+Schermata: `IstruttoreHomeScreen` (anche `TitolareHomeScreen` = `ownerMode`).
+
+- **Testata**: titolo «Agenda» 32/600 + data lunga in grigio (`mercoledì 28
+  ottobre`), con il link testuale «Oggi» quando il giorno scelto non è oggi;
+  a destra orologio (Disponibilità) e campanella (`InboxBellButton`) solo
+  nell'app istruttore. Il titolare-istruttore ha sotto due voci di testo
+  «Le mie guide» / «Tutti gli istruttori» (niente chip). Poi `ClaySegmented`
+  **Giorno | Settimana**. Il banner «N guide fuori disponibilità» è una
+  `ClaySurface` piccola con «Gestisci» + chevron, senza icona.
+- **Giorno (predefinita)** — `AgendaDayStrip` + `AgendaDayView`: una **lista
+  per orario**, non una griglia. Guide = card bianche clay con la barretta del
+  colore (sotto), nome allievo nero + riga grigia (tipo · durata · veicolo);
+  esami e guide di gruppo = stessa card («Esame», «Guida di gruppo», «N su
+  capienza»); pause, blocchi, malattia, ferie = **righe quiete** grigie con un
+  filetto (la pausa tra guide si legge «Pausa»), non card; i **buchi liberi**
+  ≥ 30 min dentro la disponibilità (solo nel futuro) sono una riga tratteggiata
+  «Libero · 10:00–11:30 · 1 h 30» senza «+», che al tocco apre il quick-book
+  con l'orario già messo; **«adesso»** = filetto nero con pallino e ora. Giorno
+  vuoto = `ClayEmpty` con l'espresso «Giornata libera». Titolare / «Tutti gli
+  istruttori» = sezioni per istruttore, ricerca oltre 5 istruttori, niente
+  buchi liberi.
+- **Settimana** — `WeeklyAgendaView` (la griglia): colonne **bianche** divise
+  da un filetto (niente grigio), nomi dei giorni in minuscolo (`lun`, `mar`…),
+  festivi grigi barrati, disponibilità come **tinta appena accennata**
+  (`rgba(17,17,17,0.028)`) sull'intera colonna, linea dell'ora nera, blocchi
+  istruttore bianchi tratteggiati in grigio senza icona. Tocco
+  sull'intestazione di un giorno → vista Giorno su quel giorno.
+- **Colore dei blocchi** = barretta piena a sinistra + tinta leggerissima
+  (12% di colore) dello stesso colore, testo sempre nero — un solo punto,
+  `src/utils/agendaLook.ts`, per le due viste. Esami: barretta nera su bianco
+  (niente viola); gruppi: verde foglia `#2FA36B`, gruppi moto: ambra `#F5A524`;
+  annullata/assente: grigio tenue. Interruttore per tornare al pastello pieno:
+  `AGENDA_BLOCK_BAR` in `src/utils/agendaColors.ts`. **`NEUTRAL_BLUE`** (stesso
+  file): sul mobile ogni voce blu/azzurra (tinta 180°–260°) diventa barretta
+  nera + scheda bianca; palette e dati condivisi col web non cambiano. **Da
+  confermare con Tiziano.** Dettagli in
+  [features/agenda-block-colors.md](features/agenda-block-colors.md).
+- **FAB «+»**: cerchio nero 56 col volume della CTA primaria
+  (`CLAY_CTA.primary`). Apre il foglio **«Nuovo»** (`home/add-action`,
+  FORM_SHEET + `<FormSheet>`): `ClayList` di solo testo (Guida, Guida di
+  gruppo, Esame, Lezione teorica, Blocca un orario, Malattia), titolo + una
+  riga che spiega, **niente icone**.
+- Cambio vista e cambio giorno: dissolvenza morbida (`SOFT_SWAP_IN/OUT`),
+  niente slide né rimbalzi.
+
 ---
 
 ## 7. Pattern UI
@@ -1532,9 +1630,9 @@ Uso: navigazione, bottoni, badge di stato, indicatori. Sempre monocromatiche.
 
 ### 10.2 Icone 3D (elementi decorativi e identita visiva)
 
-> **SUPERATA (REG-639, 28/10/2026):** le Fluent 3D Emoji sono bandite e le icone vanno ridotte al minimo; vale §0.4. Il testo sotto descrive le schermate non ancora convertite.
+> **SUPERATA (REG-639, 28/10/2026):** le Fluent 3D Emoji sono bandite e le icone vanno ridotte al minimo; vale §0.4. I file `assets/icons/fluent-*.png` sono stati **eliminati** (commit `302f679`): nessuna schermata li usa più. Il testo sotto resta solo come storico delle illustrazioni del **percorso teoria** (`stat-*`, `cta-*`, `review-retry`, `study-books`, `tag-theory`, `chapters/`), le uniche ancora in `assets/icons/`; la «Regola» in fondo NON vale più: le nuove icone si generano col metodo di §0.4.
 
-Libreria: **Microsoft Fluent Emoji 3D** (`assets/icons/`)
+Libreria (storica): **Microsoft Fluent Emoji 3D** (`assets/icons/`)
 
 Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA, statistiche e sezioni tematiche. **Mai** per navigazione o bottoni funzionali piccoli.
 
@@ -1565,7 +1663,7 @@ Le icone 3D danno personalita e calore all'app. Si usano per decorare card, CTA,
 | `tag-theory.png` | Open book | Tag "Percorso teoria" |
 | `chapters/chapter-XX.png` | Vari (25 icone) | Icona per capitolo nella lista argomenti |
 
-**Regola:** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
+**Regola (SUPERATA, vedi §0.4 — non cercare più emoji Fluent):** quando aggiungi una nuova sezione decorativa (card, stat, CTA tematica), cerca sempre prima un'emoji Fluent 3D appropriata. Usa `require('../../assets/icons/...')` con `Image` component, mai URI remoti.
 
 ---
 
@@ -1601,7 +1699,7 @@ Le CTA usano **ombre esterne concentrate** per sembrare "sollevate" dalla pagina
 
 **Press state CTA:** `opacity: 0.9, transform: [{ scale: 0.96 }]`
 
-Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota.
+Ogni CTA card ha un'icona 3D Fluent prominente (44px) in alto a sinistra. L'icona e il primo elemento visivo che l'utente nota. *(Storico, percorso teoria: per le nuove card vale §0.4 — niente icona dove bastano testo e gerarchia, e mai Fluent.)*
 
 **Principio ombre concentrate:** `shadowRadius` basso (5-6) + `shadowOffset.height` corto (3) = ombra stretta vicino alla card → effetto 3D "sollevato dal tavolo". Evitare `shadowRadius` > 10 sulle CTA (troppo disperso, sembra alone).
 
@@ -1743,27 +1841,49 @@ contenitore con `marginHorizontal: -22` (vedi `drive/avvia.tsx`, `s.bleed`). La
 ricerca sta nel contenuto, non in una testata sticky (il wrapper sticky di RN
 rompe la riga titolo/X).
 
-**Fogli già su `FormSheet` (28/10/2026):** tutti quelli di Road —
-`drive/avvia` (3 passi), `drive/pagellino` e `road/pagellino`
-(`manage-lesson-details` variante Road), `road/segnala`, `road/riepilogo`,
-`home/road-percorso` (anche da `notes` e `drive`), `home/road-privacy` (anche da
-`drive`), `home/road-invite`.
+**Fogli già su `FORM_SHEET` + `<FormSheet>` (28/10/2026, REG-639 notte):
+praticamente tutti quelli dell'app istruttore/titolare.**
 
-**Da migrare** (usano ancora `SheetScaffold` legacy o un preset vecchio
-`TALL_SHEET`/`HUG_SHEET`/`SCROLL_SHEET`/`PAGE_SHEET`): home → `booking-flow`,
-`cancel-fault`, `edit-notes`, `exam-detail`, `exam-manage`,
-`group-lesson-detail`, `lesson-detail`, `manage-co-instructors`,
-`manage-group-lesson-participants`, `manage-lesson-correct`,
-`manage-lesson-details` (variante home), `manage-lesson-instructor`,
-`manage-lesson-location`, `manage-lesson-location-form`,
-`manage-lesson-vehicles`, `out-of-availability`, `quick-book`,
-`reschedule-lesson`, `select-date-range`, `select-options`,
-`select-options-long`, `sick-leave`, `swap-detail`, `swap-lesson`; more →
-`agenda-settings`, `availability-mode`, `color-picker`, `hours-period`,
-`location-form`, `profile-edit`; notes → `booking-rules`, `extras`, `limits`;
-role → `publish-day`; settings → `availability`, `profile-edit`; componenti →
-`LessonsOverview`, `PaymentHistorySheet`, `BlockForm`, `BookingForm`,
-`CreateExamScreen`.
+- Road: `drive/avvia` (3 passi), `drive/pagellino` e `road/pagellino`
+  (`manage-lesson-details` variante Road), `drive/appena-finita`,
+  `road/segnala`, `road/riepilogo`, `home/road-percorso` (anche da `notes` e
+  `drive`), `home/road-privacy` (anche da `drive`), `home/road-invite`.
+- Agenda (stack `home/`): `add-action` («Nuovo»), `quick-book`, `new-booking`
+  e `block-slot` / `theory-lesson` (`BookingForm` / `BlockForm`),
+  `manage-lesson` e sottofogli (`manage-lesson-details` variante home,
+  `-correct`, `-instructor`, `-vehicles`, `-location`, `-location-form`,
+  `manage-co-instructors`, `cancel-fault`, `edit-notes`), `swap-lesson`,
+  `reschedule-lesson`, `exam-manage`, `create-exam` (`CreateExamScreen`),
+  `select-exam-students`, `create-group-lesson` (`CreateGroupLessonScreen`),
+  `manage-group-lesson`, `manage-group-lesson-participants`, `sick-leave`,
+  `out-of-availability`, `follow-car-conflict` e `-long`
+  (`FollowCarConflictSheet`), `select-date`, `select-date-range`,
+  `select-student`, `time-picker`.
+- Disponibilità (stack `role/`): `availability-exception`, `publish-day`,
+  `time-picker`, `instructor-invite`, `instructor-availability` (anche
+  ri-esportati in `more/` per la Panoramica istruttori del titolare-istruttore).
+- «Tu» (stack `more/`): `profile-edit`, `availability-mode`,
+  `agenda-settings`, `location-form`, `vehicle-form`, `evaluation-item`
+  (`EvaluationItemSheet`), `time-picker`, `color-picker`, `hours-period`.
+
+**Da migrare** (ancora `SheetScaffold` legacy o un preset vecchio
+`TALL_SHEET`/`HUG_SHEET`/`SCROLL_SHEET`/`PAGE_SHEET`) — sono soprattutto gli
+**Allievi** (stack `notes/`) e le **route allievo**:
+- condivisi Agenda/Allievi: `select-options` (`HUG_SHEET`),
+  `select-options-long` (`PAGE_SHEET`), `student-settings`, `payment-history`
+  (`HUG_SHEET`), `student-payments` (`PAGE_SHEET`) — in `home/` e in `notes/`;
+  `notes/time-picker` (`HUG_SHEET`);
+- Allievi: `notes/booking-rules` (`PAGE_SHEET`), `notes/limits`,
+  `notes/extras` (`TALL_SHEET`);
+- allievo: `home/lesson-detail`, `home/booking-flow`, `home/exam-detail`,
+  `home/swap-detail`, `home/group-lesson-detail` (`TALL_SHEET`),
+  `home/all-lessons` (`SCROLL_SHEET`), `settings/profile-edit`,
+  `settings/availability` (`TALL_SHEET`), `settings/le-tue-guide`
+  (`SCROLL_SHEET`), `settings/time-picker` (`HUG_SHEET`);
+- componenti: `LessonsOverview`, `PaymentHistorySheet`.
+
+`instructor-invite` e `instructor-availability` sono registrati con `FORM_SHEET`
+in entrambi gli stack (`role/` e `more/`).
 
 ### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
 

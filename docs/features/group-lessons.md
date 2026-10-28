@@ -4,7 +4,23 @@
 Mobile side of the **Guide di gruppo** module (1 istruttore + 1 veicolo + fino a 3 o 4 allievi, 3–4h). Optional module, gated on `settings.groupLessonsEnabled` (backend `CompanyService.limits`). Istruttore/titolare creano e gestiscono le guide di gruppo dall'agenda; l'allievo riceve un invito e si iscrive.
 
 ## Accent / design
-Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent-people.png`):
+
+> **REG-639 clay (notte 28/10/2026) — agenda istruttore oggi.** Nelle due viste
+> (`AgendaDayView` Giorno, `WeeklyAgendaView` Settimana) la guida di gruppo è
+> **una sola card bianca clay** con **barretta verde foglia `#2FA36B`** a
+> sinistra e tinta leggerissima dello stesso verde (`GROUP_LOOK` in
+> `src/utils/agendaLook.ts`); i gruppi **moto** hanno barretta **ambra
+> `#F5A524`** (`GROUP_MOTO_LOOK`). Testo nero: «Guida di gruppo» / «Guida di
+> gruppo moto» + «N su capienza · nomi» (Giorno) o «Gruppo»/«Gruppo moto»
+> (griglia). **Niente icona** (le Fluent sono state eliminate), niente teal
+> saturo, niente pallini posti in agenda. Tap → `manage-group-lesson`, ora
+> `FORM_SHEET` + `<FormSheet>` come `manage-group-lesson-participants` e
+> `create-group-lesson`. Lato allievo l'icona «persone» è la nuova AI
+> `assets/icons3d-ai/persone.png` (`AllievoHomeScreen`,
+> `GroupLessonInvitesScreen`). Il resto della sezione descrive il look
+> precedente (teal/arancio, `DayItinerary`), dove non contraddetto.
+
+Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent-people.png`, eliminata il 28/10):
 - surface `#ECFDF5`, ombra `#10B981`, label/icona `#0F766E`/`#047857`, indicatore posti (quadratini pieni/vuoti).
 - Esame = viola, Guida singola = navy, **Guida di gruppo = teal**. Mono-navy per tutto il resto.
 - Preview design approvata: `plans/frontend/010-group-lessons-preview.html` (+ `.png`).
@@ -30,7 +46,7 @@ Card gemella dell'esame ma con **accento teal/emerald** (icona 3D Fluent `fluent
   - `AllievoHomeScreen.tsx` — gli appuntamenti `type==='group_lesson'` sono **esclusi** dall'hero/mini (`upcoming`) e mostrati in una **sezione teal dedicata** (`upcomingGroupLessons`): card full-width modellata sulla card guida-di-gruppo dell'agenda istruttore (`#ECFDF5`, label `#0F766E`, **pallini posti** `#10B981`/vuoti `#BDEAD6`, time-forward). I posti (`filled/capacity`) sono caricati per id via `getGroupLesson` (poche guide → `groupSeats` state); senza dati la card va senza pallini. Tap → `openGroupLessonDetail` semina `groupLessonStudentStore` e pusha `home/group-lesson-detail`.
   - `app/(tabs)/home/group-lesson-detail.tsx` (route **`presentation:'formSheet'` content-hugging** — `fitToContents`, no grabber, no ScrollView, root senza `flex:1`) + `src/stores/groupLessonStudentStore.ts` — **sheet allievo**, stile clonato dal "Gestisci guida" istruttore ma **minimale**: kicker teal "Guida di gruppo" + **orario in risalto** (`heroClock` 30px) + giorno/durata. Posti come **pallini grandi anonimi** (niente nomi degli altri allievi — `getGroupLesson` è student-safe), righe piatte Istruttore/Veicolo sola lettura, bottone "Ritira iscrizione" in fondo al flusso. **Niente** banner crediti, **niente** state-pill posti, **niente** banda arancione (richiesta utente: meno colore). **Skeleton fedele a dissolvenza**: ogni campo dinamico (orario, giorno, pallini posti, nomi istruttore/veicolo) è un `Slot` ad **altezza fissa** che mostra uno `SkeletonBlock` shimmer finché i dati non arrivano, poi fa **cross-fade** (`FadeIn`) del valore — altezza stabile → niente salto del detent, comparsa morbida. CTA "Ritira iscrizione" (destructive) → conferma `Alert` con **avviso penale** se entro il `penaltyCutoffHoursPreset` → `regloApi.withdrawFromGroupLesson(groupLessonId)` → `onChanged` (invalida le query) + `router.back()`.
   - `regloApi.withdrawFromGroupLesson(groupLessonId)` → `POST /api/autoscuole/group-lessons/{id}/withdraw`.
-- **Notifiche** `src/types/notifications.ts` (kind `group_lesson_invite`), `src/screens/NotificationInboxScreen.tsx` (icona `people-outline`, theme teal, title/subtitle; tap → `home/group-lesson-invites`). Recovery dal BE `/api/autoscuole/notifications`.
+- **Notifiche** `src/types/notifications.ts` (kind `group_lesson_invite`), `src/screens/NotificationInboxScreen.tsx` (title/subtitle — icona `people-outline` e theme teal tolti col clay del 28/10; tap → `home/group-lesson-invites`). Recovery dal BE `/api/autoscuole/notifications`.
 
 ## Pagamento
 La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "da pagare" (`paymentRequired`, `paymentStatus="pending"`, `manualPaymentStatus="unpaid"`) al **prezzo di una guida normale** (`lessonPrice60`, nessun prezzo dedicato). La gestione del pagamento è **solo backend/web** (il titolare addebita/archivia): l'app mobile **non mostra più** pagamenti né importi all'allievo (pagamenti in-app rimossi).
@@ -38,7 +54,7 @@ La guida di gruppo **non scala crediti**: ogni partecipante ha un appointment "d
 **Ritiro / rimozione (decisione A, 2026-06-10)**: si riusa la logica delle guide normali (lato backend). Ritiro/rimozione **prima del cutoff** = posto liberato senza addebito; **dopo il cutoff o a guida avvenuta** = resta "da pagare" e finisce nelle *cancellazioni tardive* (il titolare addebita/archivia). Il posto liberato fa **re-broadcast** dell'invito; il ritiro dell'allievo notifica l'istruttore. Dettagli backend: `reglo/docs/features/group-lessons.md`.
 
 ## Note / limiti noti
-- Sia la vista **giornaliera** (hour-grid, `IstruttoreHomeScreen` `timelineItems`/`renderRow` kind `groupLesson`) sia la **settimanale** (day-detail sheet) collassano i partecipanti in **una sola card** per guida (teal, icona 3D Fluent people, **niente nome allievo**, pallini posti `count/capacity`, card più grande di una guida normale). Tap → "Gestisci guida di gruppo" page sheet.
+- *(Storico pre-REG-638/639; oggi vedi «Accent / design» sopra: una card per gruppo anche in `AgendaDayView`, raggruppata per `groupLessonId` in `buildItems`.)* Sia la vista **giornaliera** (hour-grid, `IstruttoreHomeScreen` `timelineItems`/`renderRow` kind `groupLesson`) sia la **settimanale** (day-detail sheet) collassano i partecipanti in **una sola card** per guida (teal, icona 3D Fluent people, **niente nome allievo**, pallini posti `count/capacity`, card più grande di una guida normale). Tap → "Gestisci guida di gruppo" page sheet.
 - Le guide di gruppo **vuote** (0 partecipanti) ora compaiono anche in agenda: il bootstrap backend (`getAutoscuolaAgendaBootstrapAction`) sintetizza una riga `gl-empty:<glId>` (fonte unica web+mobile); `weeklyAgenda.ts` e `IstruttoreHomeScreen.timelineItems` escludono le righe `gl-empty:` dal conteggio (mostrano `0/3`). Così sono gestibili/annullabili anche senza iscritti.
 - **Capienza configurabile 3 o 4** (2026-06-12): riga "Capienza" nel form di creazione e nella sheet di gestione (auto-save, il BE rifiuta sotto gli iscritti attuali). Le card agenda (giorno/settimana/griglia) leggono la capienza reale dall'annotazione BE `groupLessonCapacity` sulle righe (fallback 3); le UI allievo (inviti, card home, detail sheet) erano già dinamiche su `capacity` dal payload.
 

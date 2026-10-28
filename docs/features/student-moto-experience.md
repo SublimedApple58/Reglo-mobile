@@ -13,9 +13,9 @@ Car students (category `B`) are **unchanged** (default branch = today's car art)
 
 ## Shared art chooser
 `src/utils/lessonArt.ts` — one place so the per-screen `require()`s never drift:
-- `lessonArtSource(category)` → `fluent-motorcycle.png` (moto) | `fluent-car.png` (car) — cards / lists / empty states.
-- `heroArtSource(category)` → `fluent-motorcycle.png` (moto) | `fluent-racing.png` (car) — the "prossima guida" hero (no racing-moto asset exists).
-- Asset `assets/icons/fluent-motorcycle.png`: Microsoft Fluent 3D sport motorcycle (MIT), framing matched to `fluent-car.png` (256×256). Pipeline + de-pink notes: memory `reference_3d_icons_pipeline`. **Never `tintColor`** (pre-coloured).
+- `lessonArtSource(category)` → `assets/icons3d-ai/moto.png` (moto) | `assets/icons3d-ai/auto.png` (car) — cards / lists / empty states.
+- `heroArtSource(category)` → same two images (REG-639, 28/10/2026: the Fluent «racing» hero variant is gone).
+- Assets: AI-generated 3D icons in the single Reglo style (design-system §0.4), `@2x`/`@3x`. The old Fluent PNGs (`fluent-car`, `fluent-motorcycle`, `fluent-racing`) were deleted. **Never `tintColor`** (pre-coloured).
 
 ## Files
 - `src/utils/license.ts` — `isMotoLicenseCategory`.

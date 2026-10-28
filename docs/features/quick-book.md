@@ -1,47 +1,63 @@
 # Quick-book (prenotazione veloce istruttore)
 
-Prenotazione/blocco rapido dalla home istruttore tramite gesture sulla timeline
-(tieni-premuto-e-scorri su una fascia libera; sia in vista giorno sia nel giorno
-**espanso** della vista settimana — stesso `BookableBand`).
-Apre un **page sheet nativo** con una **segmented control "Airbnb"** che alterna
-**Prenota guida** ⇄ **Blocca slot**, con i form **identici** alle modali dedicate
-(`new-booking` / `block-slot`) e Giorno+Ora pre-compilati dalla gesture.
+Prenotazione/blocco rapido dall'Agenda istruttore con l'orario già messo.
+
+> **Stato al 28/10/2026 (REG-639 clay, notte).** Si apre da due punti:
+> - **vista Giorno** (`AgendaDayView`, predefinita): tocco su una riga
+>   tratteggiata **«Libero · 10:00–11:30 · 1 h 30»** (buco libero ≥ 30 min
+>   dentro la disponibilità, solo nel futuro);
+> - **vista Settimana** (`WeeklyAgendaView`): il **blocco fantasma** (vedi
+>   Flusso).
+>
+> Il foglio è **IL form sheet unico** (`FORM_SHEET` + `<FormSheet>`,
+> design-system §13.2): il **titolo è un `ClaySegmented`** «Prenota guida» |
+> «Blocca orario», il corpo è `<BookingForm embedded />` o
+> `<BlockForm embedded />`, che si scambiano in dissolvenza (`contentKey`). La X
+> clay in alto a destra è l'unico modo di chiudere. Le sezioni «Timeline
+> giorno», «Slot libero = banda fantasma» e «Segmented control Airbnb» più sotto
+> sono **storiche** (la timeline `BookableBand` e la vista giorno vecchia non
+> esistono più dal 28/10).
 
 ## Architettura
 
-I form delle due modali dedicate sono estratti in **componenti condivisi**, riusati
-sia dalle route standalone sia dal quick-book (embedded). Un solo source of truth ⇒
+I form delle due route dedicate sono **componenti condivisi**, riusati sia
+dalle route standalone sia dal quick-book (embedded). Un solo source of truth ⇒
 i form quick sono identici a quelli pieni per costruzione.
 
 | File | Ruolo |
 |------|-------|
-| `src/components/booking/BookingForm.tsx` | Form completo "Nuova prenotazione" (allievo, multipla, giorno/ora/durata, luogo, veicolo, tipo). Prop `embedded` nasconde topbar/hero. Legge `bookingSheetStore`. |
-| `src/components/booking/BlockForm.tsx` | Form completo "Blocca slot" (giorno, ora inizio/fine, motivo, ripeti settimane). Prop `embedded` nasconde header. Legge `blockSheetStore`. |
-| `app/(tabs)/home/new-booking.tsx` | Route standalone (FAB) → `<BookingForm />`. `presentation: 'modal'`. |
-| `app/(tabs)/home/block-slot.tsx` | Route standalone (FAB) → `<BlockForm />`. `presentation: 'formSheet'` fitToContents. |
-| `app/(tabs)/home/quick-book.tsx` | Sheet quick-book: topbar (X + segmented Airbnb) + `<BookingForm embedded />` / `<BlockForm embedded />`. **`PAGE_SHEET`** (2026-07-02: era formSheet fitToContents, ma il form moto superava lo schermo e su iOS non scrollava) — full height, body in ScrollView, footer pinnato. |
+| `src/components/booking/BookingForm.tsx` | Form completo prenotazione (allievo, multipla, giorno/ora/durata, luogo, veicolo, tipo). Da solo è un `<FormSheet>` (titolo, riepilogo come sottotitolo, CTA in fondo); `embedded` rende solo contenuto + riepilogo + CTA in coda dentro il FormSheet del quick-book. Legge `bookingSheetStore`. |
+| `src/components/booking/BlockForm.tsx` | Form completo «Blocca orario» / lezione teorica (giorno, ora inizio/fine, motivo, ripeti settimane). Stessa logica `embedded`. Legge `blockSheetStore`. |
+| `app/(tabs)/home/new-booking.tsx` | Route standalone (foglio «Nuovo» → Guida) → `<BookingForm />`. `FORM_SHEET`. |
+| `app/(tabs)/home/block-slot.tsx` / `theory-lesson.tsx` | Route standalone → `<BlockForm />`. `FORM_SHEET`. |
+| `app/(tabs)/home/quick-book.tsx` | Il quick-book: `<FormSheet title={<ClaySegmented …/>} contentKey={mode}>` + form embedded. `FORM_SHEET` (era `PAGE_SHEET` dal 2026-07-02: ora il FormSheet scorre da sé, quindi anche il form moto lungo ci sta). |
 | `src/utils/lastBookingSelection.ts` | Memoria per-istruttore (AsyncStorage) dell'ultimo veicolo/auto al seguito **selezionati prenotando** (≠ ultimo veicolo usato). Salvata da `BookingForm` a prenotazione riuscita; riletta all'apertura per preimpostare i picker. |
 | `src/stores/bookingSheetStore.ts` | Dati booking + callback optimistic. Campo `presetStartMinutes?` (quick-book). |
 | `src/stores/blockSheetStore.ts` | Dati block + callback optimistic. Campo `presetStartMinutes?` (quick-book). |
 
 ## Flusso
 
-1. **Gesture** in `IstruttoreHomeScreen`:
-   - Day view: `<BookableBand onPick={(min) => openQuickBookSheet(...)} />` (banda fantasma + hold-to-scrub; vedi "Timeline giorno").
-   - Week view: `WeeklyOverview` → tap su un giorno lo espande nell'itinerario → `<BookableBand onPick={(min) => openQuickBookSheet(date, ...)} />` con la **data del giorno espanso** (stessa gesture della vista giorno).
-   - **Grid view** (`WeeklyAgendaView`): **blocco fantasma** (2026-06-12, sostituisce lo scrub) — hold (220ms) su spazio libero genera un blocco draft da 1h che si trascina live (15' step verticali, cross-colonna orizzontale); release lo piazza → knob alto/basso per la durata (30'–4h) + CTA bottom "Scegli i dettagli". Tap su spazio libero = piazza il blocco lì (o dismisses quello esistente). Il blocco piazzato si ri-trascina con hold (160ms). Posizione/size su shared values (UI thread, zero re-render); label via mini pub/sub `ghostTimeLabel`/`ghostDurLabel`; bolla finger = la solita `ScrubBubble` (label = range). CTA conferma → `onBookAt(date, start, start, start+dur, dur)`. `onGhostActiveChange` nasconde il FAB della home mentre la CTA è visibile. Dismiss: ✕, conferma, swipe settimana, tap fuori, unmount.
-   - Empty-day CTA: bottone "Prenota una guida" → `openQuickBookSheet(...)`.
+1. **Origine** in `IstruttoreHomeScreen` (vedi [agenda-istruttore.md](agenda-istruttore.md)):
+   - **Vista Giorno** (`AgendaDayView`): riga «Libero» → `onBookAt(date, start, start, end)`.
+     Niente buchi liberi per il titolare puro (`ownerMode`), senza permesso di
+     prenotare (`canInstructorBook`) o con «Tutti gli istruttori».
+   - **Vista Settimana** (`WeeklyAgendaView`): **blocco fantasma** (2026-06-12) — hold (220ms) su spazio libero genera un blocco draft da 1h che si trascina live (15' step verticali, cross-colonna orizzontale); release lo piazza → knob alto/basso per la durata (30'–4h) + CTA bottom "Scegli i dettagli". Tap su spazio libero = piazza il blocco lì (o dismisses quello esistente). Il blocco piazzato si ri-trascina con hold (160ms). Posizione/size su shared values (UI thread, zero re-render); label via mini pub/sub `ghostTimeLabel`/`ghostDurLabel`; bolla finger = `ScrubBubble`. CTA conferma → `onBookAt(date, start, start, start+dur, dur)`. `onGhostActiveChange` nasconde il FAB mentre la CTA è visibile. Dismiss: ✕, conferma, swipe settimana, tap fuori, unmount.
 2. `openQuickBookSheet(date, startMinutes, windowStart, windowEnd, durationMinutes?)` calcola il preset
    clampato; la durata del blocco fantasma (step liberi da 15') viene **snappata alla
    durata consentita più vicina** e passata come `presetDurationMinutes` →
    `seedBookingStore(date, preset, presetDur)` la usa come `defaultDuration`.
    Poi semina anche `seedBlockStore(date, preset)` e fa
    `router.push('/(tabs)/home/quick-book')`.
-3. La route renderizza il form scelto dalla segmented; il **parent (home) possiede la
+3. La route renderizza il form scelto dal segmentato; il **parent (home) possiede la
    logica optimistic** (insert/replace/reconcile/remove) tramite le callback degli store
    — nessuna duplicazione di logica weekly-limit / recurring.
 
-## Timeline giorno (rail itinerario)
+## Timeline giorno (rail itinerario) — STORICO (fino al 28/10/2026)
+
+> Descrive la vista giorno precedente a REG-638/639 (`seq`, `ItinRow`,
+> `BookableBand`, hold-to-scrub). Sostituita dalla vista Giorno a lista
+> (`AgendaDayView`), dove i buchi liberi si calcolano in `buildItems` e si
+> prenotano con un tocco.
 
 La day view di `IstruttoreHomeScreen` costruisce **una sola sequenza ordinata**
 (`seq`) che mischia: marker disponibilità, righe prenotate (`ItinRow`) e fasce
@@ -83,7 +99,9 @@ pill navy `+`. Così le **guide prenotate dominano** la timeline e i vuoti reced
   appare solo sulla **prima** fascia libera del giorno (`showHint`, flag `freeHintShown`
   nel loop di render), non su ognuna.
 
-## Segmented control "Airbnb"
+## Segmented control "Airbnb" — STORICO
+
+> Sostituito da `ClaySegmented` (design-system §0.5) come titolo del FormSheet.
 
 Stesso componente di `app/(tabs)/role/availability-exception.tsx`: track `#EBEBEB`,
 pill bianca animata (`translateX`, `withTiming 220ms`), testo `#717171` → attivo
@@ -130,7 +148,7 @@ non diceva nemmeno quale auto fosse. Ora, al tocco su «Prenota N guide»:
 
 | File | Ruolo |
 |------|-------|
-| `src/stores/followCarConflictStore.ts` | Esito della prova a vuoto + `onConfirm`. `followCarConflictPath()`: **1-3** conflitti → `follow-car-conflict` (`HUG_SHEET`), **4+** → `follow-car-conflict-long` (`PAGE_SHEET`). |
+| `src/stores/followCarConflictStore.ts` | Esito della prova a vuoto + `onConfirm`. `followCarConflictPath()`: **1-3** conflitti → `follow-car-conflict`, **4+** → `follow-car-conflict-long`. Dal 28/10 (REG-639) **entrambe** `FORM_SHEET` + `<FormSheet>` (erano `HUG_SHEET` / `PAGE_SHEET`). |
 | `src/components/booking/FollowCarConflictSheet.tsx` | Il foglio. `scrollable={false}` radice `<View>` senza ScrollView (il `fitToContents` non la sa misurare), `scrollable` corpo che scorre + CTA ancorata. |
 | `app/(tabs)/home/follow-car-conflict.tsx` / `-long.tsx` | Le due rotte, stesso componente (stesso schema di `select-options` / `select-options-long`). |
 | `BookingForm.confirmMulti` | Prova a vuoto → foglio → `submitBatch`. `batchSharedPayload()` è l'unico posto dove si dice cosa è condiviso. |
@@ -178,7 +196,7 @@ Gemello web: `reglo/components/pages/Autoscuole/dialogs/FollowCarConflictPane.ts
   (`IstruttoreHomeScreen`) resta com'è: è solo un'affordance di scrub, non un blocco.
 - **Malattia** resta fuori dalla gesture (solo nel menu FAB `+`): la gesture è pensata
   per un singolo slot, la malattia è da-ora-a-fine-giornata.
-- **Page sheet, non più fitToContents** (2026-07-02): il form guida in modalità moto
+- **(Storico, superato dal FormSheet REG-639)** **Page sheet, non più fitToContents** (2026-07-02): il form guida in modalità moto
   (auto al seguito + moto aggiuntive) supera lo schermo e una formSheet
   content-hugging su iOS clippa senza scrollare. `quick-book` ora usa `PAGE_SHEET`;
   `BookingForm` renderizza sempre il body in `ScrollView` flex:1 con footer pinnato,

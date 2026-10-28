@@ -10,23 +10,24 @@
 | Swaps | [swaps.md](features/swaps.md) | `SwapOffersScreen` |
 | Esito esame (idoneo/respinto dal foglio esame) | [exam-outcome.md](features/exam-outcome.md) | `app/(tabs)/home/exam-manage.tsx`, `regloApi.setExamOutcome`, campo `examOutcome` sull'appuntamento |
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
-| Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` |
-| Settings | [settings.md](features/settings.md) | `SettingsScreen`, `ClusterSettingsScreen` |
+| Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` (clay: sezioni per giorno, indietro anche da tab nell'app istruttore) |
+| Settings | [settings.md](features/settings.md) | `SettingsScreen`, `MoreScreen` (tab «Tu»: profilo, Gestione, «Esci»), `ClusterSettingsScreen`, `ClayAccountParts` |
 | Avvisi su WhatsApp — consenso (REG-500) | [whatsapp-alerts.md](features/whatsapp-alerts.md) | `WhatsAppAlertsRow`, `settings/profile-edit`, `more/profile-edit`, `SignupScreen` |
 | Associazione istruttore via QR (REG-451) | [instructor-qr-link.md](features/instructor-qr-link.md) | `InstructorLinkScreen`, `settings/associa-istruttore`, `+native-intent`, `pendingInstructorLink`, `SettingsScreen` (riga Scansiona QR) |
 | Foto profilo + Firma allievo | [student-photo-signature.md](features/student-photo-signature.md) | `settings/profile-edit`, `settings/signature`, `SettingsScreen` (avatar), `apiClient` (FormData) |
 | Exam Creation | [exam-creation.md](features/exam-creation.md) | `CreateExamScreen` |
 | Instructor Manage | [instructor-manage.md](features/instructor-manage.md) | `IstruttoreHomeScreen` (+ `TitolareHomeScreen` = wrapper `ownerMode`, sola lettura), `InstructorManageScreen` |
-| Colori blocchi agenda (criterio Aspetto) | [agenda-block-colors.md](features/agenda-block-colors.md) | `src/utils/agendaColors.ts`, `WeeklyAgendaView`/`DayItinerary`/`IstruttoreHomeScreen` (blocchi), `AppearanceSettingsScreen` + `more/appearance` (pannello owner), `more/color-picker`, `regloApi.ts` (`AutoscuolaSettings.agendaColor*`), `utils/agendaVehicle.ts` (veicolo nei blocchi, REG-633) |
+| Agenda istruttore / titolare — vista Giorno (lista, buchi liberi) + Settimana (griglia), clay v2 (REG-639) | [agenda-istruttore.md](features/agenda-istruttore.md) | `IstruttoreHomeScreen` (+ `TitolareHomeScreen`), `src/components/agenda/AgendaDayView`, `AgendaDayStrip`, `WeeklyAgendaView`, `src/utils/agendaLook.ts`, `home/add-action` («Nuovo»), `home/quick-book` |
+| Colori blocchi agenda (criterio Aspetto) | [agenda-block-colors.md](features/agenda-block-colors.md) | `src/utils/agendaColors.ts` (+ `AGENDA_BLOCK_BAR`, `NEUTRAL_BLUE`), `src/utils/agendaLook.ts` (barretta + tinta, REG-639), `AgendaDayView`/`WeeklyAgendaView` (blocchi), `AppearanceSettingsScreen` + `more/appearance` (pannello owner), `more/color-picker`, `regloApi.ts` (`AutoscuolaSettings.agendaColor*`), `utils/agendaVehicle.ts` (veicolo nei blocchi, REG-633) |
 | Tipo guida moto (birilli/strada, sola lettura) | [moto-lesson-type.md](features/moto-lesson-type.md) | `src/utils/motoLessonType.ts`, `app/(tabs)/home/manage-lesson.tsx` (riga), `StudentNotesDetailScreen` (chip), `regloApi.ts` (`AutoscuolaAppointment.motoLessonType`) |
-| Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `home/quick-book`, `BookingForm`, `BlockForm` |
+| Quick-book | [quick-book.md](features/quick-book.md) | `IstruttoreHomeScreen`, `AgendaDayView` (buchi «Libero»), `WeeklyAgendaView` (blocco fantasma), `home/quick-book` (FormSheet + `ClaySegmented`), `BookingForm`, `BlockForm` |
 | Lezione teorica (agenda) | [lezione-teorica.md](features/lezione-teorica.md) | `IstruttoreHomeScreen`, `DayItinerary`, `WeeklyAgendaView`, `weeklyAgenda` (`BLOCK_PRESENTATION.theory`), `BlockForm`/`blockSheetStore` (`kind`), `home/theory-lesson` |
 | Pagellino di valutazione (REG-443) | [evaluation-sheet.md](features/evaluation-sheet.md) | `home/manage-lesson-details`, `StarRating`, `IstruttoreHomeScreen`, `StudentNotesDetailScreen`, `EvaluationSheetScreen` (Altro → Pagellino), `EvaluationItemSheet` |
 | Notes | [notes.md](features/notes.md) | `InstructorNotesScreen`, `StudentMyNotesScreen` |
 | Pagamenti guide (REG-450) | [lesson-payments.md](features/lesson-payments.md) | `StudentPaymentsScreen`, `home/student-payments` + `notes/student-payments`, `studentPaymentsStore`, `src/utils/lessonPayments.ts`, `StudentNotesDetailScreen` (blocco Pagamenti); storico chi/quando REG-637: `PaymentHistorySheet`, `home|notes/payment-history`, `paymentHistoryStore`, `src/utils/paymentHistory.ts` |
 | Locations | [locations.md](features/locations.md) | `LocationsScreen`, `more/location-form` |
 | Vehicles | [vehicles.md](features/vehicles.md) | `VehiclesScreen`, `OwnerVehiclesScreen`, `InstructorVehiclesScreen`, `more/vehicle-form` |
-| Group lessons | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen`, `GroupLessonInvitesScreen`, `DayItinerary`/`weeklyAgenda` (teal card), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
+| Group lessons | [group-lessons.md](features/group-lessons.md) | `CreateGroupLessonScreen`, `GroupLessonInvitesScreen`, `AgendaDayView`/`WeeklyAgendaView` (card con barretta verde/ambra, `agendaLook`), `home/create-group-lesson`, `home/group-lesson-invites`, `home/manage-group-lesson` (+ `-participants`) |
 | Instructor Hours | [instructor-hours.md](features/instructor-hours.md) | `InstructorHoursScreen` |
 | Quiz Teoria | [quiz-theory.md](features/quiz-theory.md) | `QuizHomeScreen`, `QuizSessionScreen`, `QuizResultsScreen` |
 | Student Phase (+ percorsi multipli REG-458) | [student-phase.md](features/student-phase.md) | `AllievoAwaitingScreen`, `AllievoTheoryHomeScreen`, `AllievoLicensedScreen`, `PhaseProgressBar`, `_layout.tsx`, `useStudentPhase`, `StudentNotesDetailScreen` |
@@ -40,7 +41,7 @@
 
 | Doc | Scope |
 |-----|-------|
-| [design-system.md](design-system.md) | **§0 Clay v2 (REG-639, dal 28/10/2026): lo stile dell'app — bianco e nero, volume clay (`CLAY_SHADOW`), poche icone 3D generate con l'AI in stile unico (`Icon3D`, §0.4; Fluent bandite), componenti in `src/components/clay/`; vince sul resto.** Completo: palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet (respiro, CTA ancorata in fondo, perché non sommare `insets.bottom`) |
+| [design-system.md](design-system.md) | **§0 Clay v2 (REG-639, dal 28/10/2026): lo stile dell'app — bianco e nero, volume clay (`CLAY_SHADOW`), poche icone 3D generate con l'AI in stile unico (`Icon3D`, §0.4; Fluent eliminate dall'app; icone «di morale» `MORALE_ART` e `assets/icons3d-ai/`), componenti in `src/components/clay/` + `ClayPageHeader`, `ClayAccountParts`, `components/agenda/` (§0.5); Agenda §6.20; quali fogli sono già su FormSheet §13.2; vince sul resto.** Completo: palette, typography, spacing, radii, shadows, tutti i componenti con props/stili/stati, animazioni, regole, piattaforme. **§13.2.1**: layout interno dei form sheet (respiro, CTA ancorata in fondo, perché non sommare `insets.bottom`) |
 | [patterns/keyboard-accessory.md](patterns/keyboard-accessory.md) | Chiusura tastiera iOS: quando toolbar "Fatto" (`useDoneAccessory`) vs `returnKeyType="search"`/`"done"`; auto-wiring in `Input` |
 
 ## Architecture

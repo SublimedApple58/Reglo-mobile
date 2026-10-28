@@ -67,7 +67,25 @@ funzionava già. `components/LessonsOverview.tsx` e `agendaLessons` /
 **codice morto** (mai importati / mai renderizzati): fuori perimetro.
 
 ## Inbox features
-- Design-system layout: sticky blur header (back + "Notifiche" + "Segna tutte"), off-white, `Animated.FlatList`, per-kind tinted icon chips (`THEME` map), Fluent `fluent-bell.png` empty state. No beige.
+- **Clay v2 (REG-639 notte, 28/10/2026, commit `302f679`)** — `NotificationInboxScreen`:
+  - testata come l'Agenda: titolo grande «Notifiche» + riga grigia («Hai
+    aggiornamenti da leggere» / «Sei in pari»), «Segna tutte come lette» =
+    `ClayIconButton` con `checkmark-done` a destra (solo se ci sono non lette);
+  - **indietro** (`ClayIconButton` «back», `testID="inbox-back"`) sempre quando
+    la schermata è spinta, e **anche quando è la tab** nell'app istruttore
+    (`INSTRUCTOR` / `INSTRUCTOR_OWNER`): lì «Notifiche» non è nella barra, si
+    apre dalla campanella dell'Agenda (`InboxBellButton`). Torna indietro o, se
+    non c'è storia, a `/(tabs)/home`;
+  - **raggruppate per giorno**: una `ClaySection` per giorno («Oggi», «Ieri»,
+    poi «Lunedì 26 ottobre», `groupByDay`) con dentro una `ClayList` delle card;
+    `ScrollView` semplice (non più `Animated.FlatList`), niente blur;
+  - via le icone per tipo (`ICON_MAP`) e le chip colorate: le righe sono solo
+    testo (titolo + sottotitolo + ora); swipe per eliminare con l'azione
+    «Elimina» in rosso `#C13515` (unico colore);
+  - stato vuoto = `ClayEmpty` con l'icona di morale **aeroplanino**
+    (`MORALE_ART.aeroplanino`), «Nessuna notifica». Il vecchio
+    `fluent-bell.png` è stato eliminato.
+- *(Storico, prima del 28/10)* Design-system layout: sticky blur header (back + "Notifiche" + "Segna tutte"), off-white, `Animated.FlatList`, per-kind tinted icon chips (`THEME` map), Fluent `fluent-bell.png` empty state. No beige.
 - Tap routing: swap → `/(tabs)/home/swaps`; `opensDrawer()` kinds (waitlist/proposal/confirmation/available_slots) still `emitOpenDrawer`.
 - Swipeable cards (right-swipe dismisses)
 - Mark as read / mark all read
@@ -84,7 +102,7 @@ Still custom `BottomSheet` in `NotificationOverlay`, shown to students: **Waitli
 ## Adding a new notification kind (full checklist)
 1. `src/types/notifications.ts` — add to NotificationItem union + standalone data type
 2. `src/components/NotificationOverlay.tsx` — add handler in subscribePushIntent
-3. `src/screens/NotificationInboxScreen.tsx` — add to ICON_MAP, THEME, getTitle(), getSubtitle(), and opensDrawer() if it should open a drawer
+3. `src/screens/NotificationInboxScreen.tsx` — add to getTitle(), getSubtitle(), and opensDrawer() if it should open a drawer (ICON_MAP/THEME non esistono più dal 28/10, REG-639)
 4. `../reglo/app/api/autoscuole/notifications/route.ts` — add recovery query
 5. `../reglo/` action file — add `sendAutoscuolaPushToUsers()` call
 
