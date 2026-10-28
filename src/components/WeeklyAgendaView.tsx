@@ -1256,7 +1256,16 @@ const WeekPage = React.memo(function WeekPage({
                 ]}
               >
                 {/* Teorica: niente icona (in colonna stretta si sovrappone al titolo) */}
-                <Text style={[styles.blockName, { color: tint.text }]} numberOfLines={1}>{label}</Text>
+                {/* Spazio utile = altezza − bordo (2×1.5). Sotto 13pt niente scritta
+                    (resta il tratteggio), sotto 20pt carattere più piccolo. */}
+                {height - 3 >= 13 ? (
+                  <Text
+                    style={[styles.blockName, height - 3 < 20 && styles.blockNameSm, { color: tint.text }]}
+                    numberOfLines={1}
+                  >
+                    {label}
+                  </Text>
+                ) : null}
                 {height >= 36 && (
                   <Text style={[styles.blockTime, { color: tint.text }]} numberOfLines={1}>
                     {pad(bStart.getHours())}:{pad(bStart.getMinutes())}–{pad(bEnd.getHours())}:{pad(bEnd.getMinutes())}
@@ -1719,7 +1728,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 13,
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    // Testo centrato in verticale: nei blocchi bassi (pausa da 5', alti 24pt)
+    // il padding verticale tagliava la scritta.
+    justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 5,
     borderWidth: 1.5,
@@ -1728,5 +1739,6 @@ const styles = StyleSheet.create({
   // Lezione teorica in griglia: pieno, bordo solido (override del dashed).
   blockSolid: { borderStyle: 'solid', borderWidth: 0, ...CLAY_SHADOW.raiseSm },
   blockName: { fontSize: 10, fontWeight: '600', lineHeight: 13 },
+  blockNameSm: { fontSize: 8.5, lineHeight: 11 },
   blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });
