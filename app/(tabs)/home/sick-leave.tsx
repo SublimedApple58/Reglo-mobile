@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
 
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClayList, ClayListRow, ClayToggle } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
+import { VITA_ART } from '../../../src/theme/vitaArt';
 import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
 
 import { sickLeaveSheetStore } from '../../../src/stores/sickLeaveSheetStore';
@@ -118,7 +119,7 @@ export default function SickLeaveScreen() {
 
   return (
     <FormSheet
-      title="Registra malattia"
+      title="Malattia"
       subtitle={`${summaryMain} · ${summarySub}`}
       onClose={() => { if (!pending) router.back(); }}
       busy={pending}
@@ -133,7 +134,11 @@ export default function SickLeaveScreen() {
         />
       }
     >
-      <Text style={s.lead}>Le guide in conflitto verranno cancellate.</Text>
+      {/* REG-639 «vita»: il termometro 3D e una frase gentile. */}
+      <View style={s.hero}>
+        <Image source={VITA_ART.termometro} style={s.heroArt} />
+        <Text style={s.lead}>Riguardati. Le guide in conflitto vengono annullate e gli allievi avvisati.</Text>
+      </View>
 
       {/* Date — singolo giorno o periodo (un solo calendario range) */}
       <ClayList>
@@ -180,6 +185,8 @@ function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
 
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },
-  lead: { fontSize: 15, lineHeight: 21, color: CLAY.ink2, marginBottom: 16 },
+  hero: { alignItems: 'center', marginBottom: 18 },
+  heroArt: { width: 84, height: 84 },
+  lead: { fontSize: 15.5, lineHeight: 21, color: CLAY.ink2, textAlign: 'center', marginTop: 8, paddingHorizontal: 12 },
   gap: { marginTop: 22 },
 });

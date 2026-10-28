@@ -1830,7 +1830,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         vehicles.find((v) => v.assignedInstructorId === instructorId)?.id ??
         vehicles[0]?.id ??
         '',
-      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name, licenseCategory: v.licenseCategory ?? null, transmission: v.transmission ?? null })),
+      vehicles: vehicles.map((v) => ({ id: v.id, name: v.name, licenseCategory: v.licenseCategory ?? null, transmission: v.transmission ?? null, color: v.color ?? null })),
       followCarRules: settings?.followCarRules,
       studentOptions: bookingStudentOptions,
       defaultLocation: defaultLocation

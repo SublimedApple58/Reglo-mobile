@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
 
@@ -19,7 +19,11 @@ import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { FormSheet } from '../SheetScaffold';
-import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle } from '../clay';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle } from '../clay';
+import { VITA_ART } from '../../theme/vitaArt';
+import { car34Art } from '../../road/markerArt';
+
+const MOTO_ART = require('../../../assets/icons3d-ai/moto.png');
 import { CLAY } from '../../theme/clay';
 import { SOFT_EXIT, SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../../utils/motion';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
@@ -743,17 +747,30 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   const body = (
     <>
-      {/* Allievo — priorità massima, lista a sé */}
-      <ClayList>
+      {/* Allievo — priorità massima. REG-639 «vita»: la card ha in testa la
+          cartina Road con il mezzo della guida (auto 3D nel colore del veicolo,
+          moto per le moto; senza veicolo l'auto rossa), come la card «Guida»
+          del foglio «Nuovo». */}
+      <ClaySurface padded={false} radius={26}>
+        <View style={s.mapClip}>
+          <Image source={VITA_ART.cartinaRoad} style={s.map} resizeMode="cover" />
+          <View pointerEvents="none" style={s.glow} />
+          {selectedVehicle && isMotoLicenseCategory(selectedVehicle.licenseCategory) ? (
+            <Image source={MOTO_ART} style={s.moto} resizeMode="contain" />
+          ) : (
+            <Image source={car34Art(selectedVehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
+          )}
+        </View>
         <ClayListRow
-          title="Allievo"
-          subtitle={studentValue}
+          title={selectedStudentLabel ?? 'Allievo'}
+          subtitle={selectedStudentLabel ? 'Allievo della guida · tocca per cambiarlo' : studentValue}
           leading={selectedStudentLabel ? <Avatar userId={studentId || null} name={selectedStudentLabel} size={46} /> : undefined}
           onPress={guard(openStudentPicker)}
           dimmed={!studentOptions.length}
+          last
           testID="booking-student"
         />
-      </ClayList>
+      </ClaySurface>
 
       {/* Quando: una guida (giorno · ora · durata) o più guide insieme */}
       <ClaySection title="Quando">
@@ -865,7 +882,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <FormSheet
-      title="Nuova prenotazione"
+      title="Nuova guida"
       subtitle={summary}
       onClose={() => { if (!pending) router.back(); }}
       busy={pending}
@@ -887,6 +904,21 @@ function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
 }
 
 const s = StyleSheet.create({
+  // Card «Allievo» con la cartina (stesse misure della card «Guida» di «Nuovo»).
+  mapClip: { height: 104, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
+  map: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  glow: {
+    position: 'absolute',
+    right: 24,
+    bottom: 12,
+    width: 120,
+    height: 70,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    boxShadow: [{ offsetX: 0, offsetY: 0, blurRadius: 30, spreadDistance: 16, color: 'rgba(255,255,255,0.9)' }],
+  },
+  car: { position: 'absolute', right: 16, bottom: 2, width: 128, height: 100 },
+  moto: { position: 'absolute', right: 30, bottom: 6, width: 92, height: 92 },
   empty: { backgroundColor: '#FFFFFF', height: 1 },
   gap: { marginTop: 14 },
   entry: { marginTop: 22 },

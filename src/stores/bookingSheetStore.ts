@@ -24,7 +24,8 @@ export type BookingSheetData = {
   defaultDuration: number;
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
-  vehicles: { id: string; name: string; licenseCategory?: string | null; transmission?: string | null }[];
+  /** `color` (REG-639): l'auto 3D in testa al foglio è nel colore del veicolo. */
+  vehicles: { id: string; name: string; licenseCategory?: string | null; transmission?: string | null; color?: string | null }[];
   /**
    * Global follow-car rule per moto category (derived from the company's single
    * global toggle; a moto category is present+enabled when the rule is on).

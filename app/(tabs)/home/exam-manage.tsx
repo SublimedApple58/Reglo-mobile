@@ -348,6 +348,12 @@ export default function ExamManageScreen() {
       {/* Allievi: tocco = scheda allievo, ••• = menu (esito, rimuovi). */}
       <ClaySection
         title={`Allievi · ${realAppts.length}`}
+        // REG-639 «vita»: due parole gentili prima dell'esame.
+        footnote={
+          !readOnly && realAppts.length > 0
+            ? realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${realAppts.length}.`
+            : undefined
+        }
         action={
           !readOnly ? (
             <Pressable
