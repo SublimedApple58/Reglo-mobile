@@ -47,6 +47,8 @@ export default function AddActionScreen() {
         <ClaySurface padded={false} radius={26} onPress={() => pick(data.onBook)} style={s.card} testID="add-book" accessibilityLabel="Guida">
           <View style={s.mapClip}>
             <Image source={VITA_ART.cartinaRoad} style={s.map} resizeMode="cover" />
+            {/* Alone bianco morbido dietro l'auto: la stacca dalla cartina (Tiziano 28/10). */}
+            <View pointerEvents="none" style={s.glow} />
             <Image source={car34Art(vehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
           </View>
           <View style={s.cardText}>
@@ -84,6 +86,17 @@ const s = StyleSheet.create({
   mapClip: { height: 138, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
   map: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   car: { position: 'absolute', right: 14, bottom: 4, width: 150, height: 120 },
+  // Alone: ellisse bianca velata con ombra bianca molto sfocata (il radial-gradient su iOS non si disegna).
+  glow: {
+    position: 'absolute',
+    right: 22,
+    bottom: 18,
+    width: 136,
+    height: 84,
+    borderRadius: 68,
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    boxShadow: [{ offsetX: 0, offsetY: 0, blurRadius: 34, spreadDistance: 18, color: 'rgba(255,255,255,0.9)' }],
+  },
   cardText: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 14 },
   cardMain: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 18, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },

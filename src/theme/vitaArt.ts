@@ -17,9 +17,15 @@ export const VITA_ART = {
   campanella: require('../../assets/vita/campanella.png') as ImageSourcePropType,
   /** Fondo della card «Guida» del foglio «Nuovo» (370×138 pt): auto 3D sopra. */
   cartinaRoad: require('../../assets/vita/cartina-road.jpg') as ImageSourcePropType,
-  /** Segnaposto della copertina di Disponibilità (402×170 pt) finché manca la foto della sede. */
-  sedeCartina: require('../../assets/vita/sede-cartina.jpg') as ImageSourcePropType,
+  /** Foto realistica di una sede (Gemini, approvata 28/10): copertina di Disponibilità senza foto vera. */
+  sedeFoto: require('../../assets/vita/sede-foto.jpg') as ImageSourcePropType,
 };
+
+/**
+ * Copertina di Disponibilità quando l'autoscuola non ha caricato la foto della
+ * sede. Tiziano 28/10: una FOTO realistica, non la cartina illustrata.
+ */
+export const SEDE_COVER_FALLBACK: ImageSourcePropType = VITA_ART.sedeFoto;
 
 /** Saluto in testa all'Agenda: cambia con l'ora (Tiziano 28/10). */
 export function greetingFor(date: Date = new Date()): string {

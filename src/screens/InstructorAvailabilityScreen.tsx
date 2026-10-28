@@ -13,7 +13,7 @@ import { PublicationModeEditor } from './PublicationModeEditor';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
 import { useInstructorSettings } from '../hooks/queries/useInstructorSettings';
 import { CLAY } from '../theme/clay';
-import { VITA_ART } from '../theme/vitaArt';
+import { SEDE_COVER_FALLBACK } from '../theme/vitaArt';
 import { softEnter } from '../utils/motion';
 import { useSession } from '../context/SessionContext';
 
@@ -22,7 +22,7 @@ const H_PAD = 20;
 /**
  * Disponibilità dell'istruttore — REG-639 clay, direzione «D · Mix». Si apre
  * dall'orologio nella testata dell'Agenda: copertina della sede in alto (oggi
- * sempre il segnaposto `sedeCartina`, finché il titolare non carica la foto
+ * sempre la foto segnaposto `sedeFoto`, finché il titolare non carica la foto
  * dalla web app), indietro clay sopra la copertina, poi una card in rilievo
  * che sale sulla copertina con titolo, riga e la settimana a colpo d'occhio;
  * sotto le righe dei giorni e le eccezioni (ClaySection/ClayList).
@@ -79,7 +79,11 @@ export const InstructorAvailabilityScreen = () => {
         }
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       >
-        <Image source={VITA_ART.sedeCartina} style={[styles.cover, { width: winW, height: insets.top + 150 }]} resizeMode="cover" />
+        <View style={[styles.cover, { width: winW, height: insets.top + 150 }]}>
+          <Image source={SEDE_COVER_FALLBACK} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {/* Velo per la foto: chiaro in alto (orologio e indietro leggibili), nessuno al centro. */}
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.coverVeil]} />
+        </View>
 
         {!instructorId ? (
           <ClayEmpty
@@ -121,7 +125,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: H_PAD, flexDirection: 'row' },
   content: { paddingHorizontal: H_PAD },
-  cover: { marginHorizontal: -H_PAD },
+  cover: { marginHorizontal: -H_PAD, overflow: 'hidden' },
+  coverVeil: {
+    experimental_backgroundImage:
+      'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 38%, rgba(255,255,255,0) 72%, rgba(255,255,255,0.35) 100%)',
+  },
   /** La card sale sulla copertina. */
   lift: { marginTop: -34 },
   introCard: { paddingTop: 18, paddingHorizontal: 18, paddingBottom: 18 },
