@@ -26,6 +26,12 @@ export const VITA_ART = {
   stella: require('../../assets/vita/stella.png') as ImageSourcePropType,
   orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
+  /**
+   * Giro «memorabile» (Gemini, 28/10): salvadanaio = guide da riscuotere
+   * (hero di Pagamenti, riga del dettaglio allievo); pieno = tutto saldato.
+   */
+  salvadanaio: require('../../assets/vita/salvadanaio.png') as ImageSourcePropType,
+  salvadanaioPieno: require('../../assets/vita/salvadanaio-pieno.png') as ImageSourcePropType,
   /** Foto realistica di una sede (Gemini, approvata 28/10): copertina di Disponibilità senza foto vera. */
   sedeFoto: require('../../assets/vita/sede-foto.jpg') as ImageSourcePropType,
 };

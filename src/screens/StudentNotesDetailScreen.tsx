@@ -34,9 +34,10 @@ import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
-import { Avatar, ClayButton, ClayList, ClayListRow, ClayPressable, ClaySection, ClaySurface } from '../components/clay';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClayPressable, ClaySection, ClaySurface, Icon3D } from '../components/clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { VITA_ART } from '../theme/vitaArt';
+import { MORALE_ART } from '../theme/moraleArt';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaCase,
@@ -69,9 +70,6 @@ import { openRoadPercorso } from '../road/openRoadPercorso';
 import type { RoadStudentItem } from '../types/regloApi';
 import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
-const ART_ESAME = require('../../assets/icons3d-ai/esame.png');
-const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
-const ART_EDIFICIO = require('../../assets/icons3d-ai/edificio.png');
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
 
@@ -88,44 +86,6 @@ const formatExamDate = (iso: string) => {
   const d = new Date(iso);
   return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
 };
-
-/**
- * Icona 3D dell'impostazione nel riepilogo: accesa a piena opacità con il
- * badge, spenta smorzata. Lo stato si legge dall'icona, non da un'etichetta.
- */
-const SettingGlyph = ({
-  source,
-  on,
-  neutral,
-}: {
-  source: number;
-  on: boolean;
-  /** Il luogo non è un interruttore: nessun badge, nessuno smorzamento. */
-  neutral?: boolean;
-}) => {
-  const dim = !neutral && !on;
-  return (
-    <View style={gs.wrap}>
-      <Image source={source} style={[gs.img30, dim && gs.dim]} />
-      {on ? (
-        <View style={gs.badge}>
-          <Ionicons name="checkmark" size={9} color="#FFFFFF" />
-        </View>
-      ) : null}
-    </View>
-  );
-};
-
-const gs = StyleSheet.create({
-  wrap: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  img30: { width: 30, height: 30 },
-  dim: { opacity: 0.32 },
-  badge: {
-    position: 'absolute', right: -1, bottom: -1, width: 15, height: 15, borderRadius: 8,
-    backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#FDFDFD',
-  },
-});
 
 /** Le righe si riassestano quando un pagellino si apre o si chiude. Preesiste
  *  al filtro per percorso, che invece NON usa transizioni di layout: una
@@ -636,6 +596,14 @@ export const StudentNotesDetailScreen = () => {
     : missing === 1
       ? `Ancora 1 e ${firstName} è pronto`
       : `Ancora ${missing} e ${firstName} è pronto`;
+  /** La prossima guida (o esame) in programma, la più vicina. */
+  const nextLesson = useMemo(() => {
+    const now = Date.now();
+    return [...allAppointments]
+      .filter((a) => ['scheduled', 'confirmed'].includes((a.status ?? '').trim().toLowerCase()))
+      .filter((a) => new Date(a.startsAt).getTime() > now)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ?? null;
+  }, [allAppointments]);
   const showSettings = groupEnabled || studentPhase === 'PRATICA' || locations.length > 0;
 
   // REG-639 «vita ovunque» (Tiziano 28/10): il dettaglio allievo è un FORM SHEET
@@ -672,6 +640,14 @@ export const StudentNotesDetailScreen = () => {
         <Avatar userId={studentId ?? null} name={fullName} size={88} />
         <Text style={s.heroName} numberOfLines={1}>{fullName}</Text>
         {subtitleLine ? <Text style={s.heroSub} numberOfLines={2}>{subtitleLine}</Text> : null}
+        {!loading ? (
+          // REG-639 «memorabile»: il prossimo passo, subito sotto il nome.
+          <Animated.Text entering={STAT_DISSOLVE} style={s.nextTx} numberOfLines={1}>
+            {nextLesson
+              ? `Prossima guida ${formatDay(nextLesson.startsAt)} · ${formatTime(nextLesson.startsAt)}`
+              : 'Nessuna guida in programma'}
+          </Animated.Text>
+        ) : null}
       </View>
 
       {/* REG-458 — percorso mostrato: esiste solo con più di un percorso. */}
@@ -720,6 +696,19 @@ export const StudentNotesDetailScreen = () => {
       </View>
 
       {/* Guide obbligatorie */}
+      {!loading && isCompleted ? (
+        // REG-639 «memorabile»: obbligo fatto = un piccolo traguardo, non una
+        // barra piena. Il trofeo è quello dei traguardi (MORALE_ART).
+        <ClaySurface radius={22} style={[s.card, s.examCard]}>
+          <Icon3D source={MORALE_ART.trofeo} size={48} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>Guide obbligatorie fatte</Text>
+            <Text style={s.cardSub}>
+              {`${firstName} le ha fatte tutte e ${REQUIRED_LESSONS}`}
+            </Text>
+          </View>
+        </ClaySurface>
+      ) : (
       <ClaySurface radius={22} style={s.card}>
         <View style={s.rowBetween}>
           <Text style={s.cardTitle}>Guide obbligatorie</Text>
@@ -741,6 +730,7 @@ export const StudentNotesDetailScreen = () => {
           </Animated.Text>
         )}
       </ClaySurface>
+      )}
 
       {/* Esame in arrivo */}
       {!loading && upcomingExam ? (
@@ -760,9 +750,18 @@ export const StudentNotesDetailScreen = () => {
             <ClayListRow
               title="Pagamenti"
               subtitle={
-                unpaidCount === 0
-                  ? 'Tutte le guide sono saldate'
-                  : unpaidCount === 1 ? '1 guida da pagare' : `${unpaidCount} guide da pagare`
+                // REG-639 «memorabile»: il da riscuotere è il prossimo passo, in
+                // nero; in pari resta grigio. Il salvadanaio lo dice a colpo d'occhio.
+                unpaidCount === 0 ? (
+                  'In pari, niente da riscuotere'
+                ) : (
+                  <Text style={s.dueTx} numberOfLines={1}>
+                    {unpaidCount === 1 ? '1 guida da pagare' : `${unpaidCount} guide da pagare`}
+                  </Text>
+                )
+              }
+              trailing={
+                <Icon3D source={unpaidCount === 0 ? VITA_ART.salvadanaioPieno : VITA_ART.salvadanaio} size={40} />
               }
               onPress={openPayments}
               testID="student-payments-row"
@@ -775,13 +774,6 @@ export const StudentNotesDetailScreen = () => {
                 groupEnabled ? (groupOptIn ? 'Guide di gruppo sì' : 'Guide di gruppo no') : null,
                 studentPhase === 'PRATICA' ? (examReady ? 'pronto per l’esame' : null) : null,
               ].filter(Boolean).join(' · ') || 'Gruppo, esame e luogo'}
-              trailing={
-                <View style={s.setGlyphs}>
-                  {groupEnabled ? <SettingGlyph source={ART_PERSONE} on={groupOptIn} /> : null}
-                  {studentPhase === 'PRATICA' ? <SettingGlyph source={ART_ESAME} on={examReady} /> : null}
-                  {locations.length > 0 ? <SettingGlyph source={ART_EDIFICIO} on={false} neutral /> : null}
-                </View>
-              }
               onPress={openStudentSettings}
               testID="student-settings-row"
             />
@@ -966,12 +958,20 @@ export const StudentNotesDetailScreen = () => {
 
                       <Pressable
                         onPress={() => openDetails(appt)}
-                        hitSlop={6}
-                        style={({ pressed }) => [s.noteRow, pressed && { opacity: 0.6 }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={appt.notes?.trim() ? 'Modifica dettagli' : 'Aggiungi dettagli'}
+                        hitSlop={10}
+                        style={({ pressed }) => [
+                          s.noteRow,
+                          // Senza note la matita sale accanto alla data (se lì
+                          // non c'è già la vecchia stellina).
+                          !appt.notes?.trim() && !(appt.rating != null && !appt.evaluations?.length) && s.noteRowEmpty,
+                          pressed && { opacity: 0.6 },
+                        ]}
                       >
-                        <Text style={[s.note, !appt.notes?.trim() && s.noteEmpty]}>
-                          {appt.notes?.trim() || 'Aggiungi dettagli'}
-                        </Text>
+                        {/* Senza note resta solo la matita: «Aggiungi dettagli» su
+                            ogni riga era rumore (REG-639 «memorabile»). */}
+                        {appt.notes?.trim() ? <Text style={s.note}>{appt.notes.trim()}</Text> : <View style={{ flex: 1 }} />}
                         <Ionicons name="create-outline" size={15} color={CLAY.ink4} />
                       </Pressable>
                     </View>
@@ -1024,7 +1024,6 @@ const s = StyleSheet.create({
   examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   examArt: { width: 46, height: 46 },
   listGap: { marginTop: 12 },
-  setGlyphs: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   pagHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 18 },
   sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 26 },
   sparkTrack: { width: 5, height: '100%', borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.07)', justifyContent: 'flex-end', overflow: 'hidden' },
@@ -1053,7 +1052,9 @@ const s = StyleSheet.create({
   voceNa: { fontSize: 13, color: CLAY.ink4 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
   note: { flex: 1, fontSize: 15, color: CLAY.ink, lineHeight: 20 },
-  noteEmpty: { color: CLAY.ink4 },
+  noteRowEmpty: { position: 'absolute', top: 16, right: 18, marginTop: 0 },
+  dueTx: { fontSize: 14, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.1 },
+  nextTx: { fontSize: 15, color: CLAY.ink, marginTop: 10, textAlign: 'center', letterSpacing: -0.2 },
   emptyText: { fontSize: 15, color: CLAY.ink3, paddingHorizontal: 4 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   callBtn: {

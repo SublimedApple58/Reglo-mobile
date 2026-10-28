@@ -12,6 +12,7 @@ import {
   CLAY_ROW_PRESSED,
   ClayEmpty,
   ClayList,
+  Icon3D,
   ClaySection,
   ClaySegmented,
   clayRowPadding,
@@ -22,6 +23,8 @@ import { studentPaymentsStore } from '../stores/studentPaymentsStore';
 import { paymentHistoryStore } from '../stores/paymentHistoryStore';
 import { regloApi } from '../services/regloApi';
 import { CLAY } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
+
 import { formatTime } from '../utils/date';
 import { LESSON_TYPE_LABEL_MAP } from '../utils/lessonTypes';
 import {
@@ -52,6 +55,13 @@ const MONTHS = [
 ];
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+
+/** «gio 1 ottobre» (con l'anno se non è quello in corso). */
+const oldestLabel = (iso: string) => {
+  const d = new Date(iso);
+  const year = d.getFullYear() === new Date().getFullYear() ? '' : ` ${d.getFullYear()}`;
+  return `${WEEKDAYS[d.getDay()].toLowerCase()} ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}${year}`;
+};
 
 const monthKey = (iso: string) => {
   const d = new Date(iso);
@@ -201,7 +211,15 @@ export const StudentPaymentsScreen = () => {
   const stack = (segments as string[]).includes('notes') ? 'notes' : 'home';
   const data = useSyncExternalStore(studentPaymentsStore.subscribe, studentPaymentsStore.get);
 
-  const [filter, setFilter] = useState<LessonFilter>('all');
+  // REG-639 «memorabile»: si apre su ciò che c'è da fare. Con guide da pagare
+  // il filtro parte da «Da pagare», altrimenti da «Tutte».
+  const [filter, setFilter] = useState<LessonFilter>(() => {
+    const seed = studentPaymentsStore.get();
+    const manual = isCompanyManualMode(seed?.settings);
+    return manual && (seed?.lessons ?? []).some((l) => isLessonUnpaid(l, manual)) ? 'unpaid' : 'all';
+  });
+  /** Mesi vecchi senza niente da riscuotere: piegati finché non si aprono. */
+  const [showOld, setShowOld] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   /**
@@ -256,7 +274,12 @@ export const StudentPaymentsScreen = () => {
   }, [manualMode, lessons, predicates]);
 
   const activeFilter = filterDefs.some((f) => f.value === filter) ? filter : 'all';
-  const unpaidCount = lessons.filter(predicates.unpaid).length;
+  const unpaidLessons = lessons.filter(predicates.unpaid);
+  const unpaidCount = unpaidLessons.length;
+  /** La più vecchia da riscuotere (lessons è dal più recente). */
+  const oldestUnpaid = unpaidLessons[unpaidLessons.length - 1] ?? null;
+  const firstName = (data?.studentName ?? '').trim().split(/\s+/)[0] || null;
+  const canTick = !!data?.canManagePayments;
 
   const rowModel = useCallback(
     (lesson: AutoscuolaAppointmentWithRelations): RowModel => {
@@ -321,6 +344,22 @@ export const StudentPaymentsScreen = () => {
     }
     return out;
   }, [lessons, predicates, activeFilter, rowModel]);
+
+  /**
+   * In «Tutte» i mesi prima del mese scorso che non hanno niente da riscuotere
+   * sono solo righe grigie (Programmata, A credito…): si piegano in una riga
+   * «Mostra agosto e prima» in fondo.
+   */
+  const { shown: shownSections, folded } = useMemo(() => {
+    if (activeFilter !== 'all' || showOld) return { shown: sections, folded: [] as typeof sections };
+    const now = new Date();
+    const limit = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const cut = sections.findIndex((sec) => new Date(sec.rows[0].lesson.startsAt).getTime() < limit);
+    if (cut < 1) return { shown: sections, folded: [] as typeof sections };
+    const rest = sections.slice(cut);
+    if (rest.some((sec) => sec.rows.some((r) => r.stateStrong))) return { shown: sections, folded: [] as typeof sections };
+    return { shown: sections.slice(0, cut), folded: rest };
+  }, [sections, activeFilter, showOld]);
 
   const applyStatus = useCallback(
     async (lesson: AutoscuolaAppointmentWithRelations, status: 'paid' | 'unpaid'): Promise<boolean> => {
@@ -390,16 +429,43 @@ export const StudentPaymentsScreen = () => {
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
       {manualMode ? (
-        <View style={s.hero} accessible accessibilityLabel={unpaidCount > 0 ? `${unpaidCount} da pagare` : 'Tutto saldato'}>
-          {unpaidCount > 0 ? (
-            <>
-              <Text style={s.heroNum}>{unpaidCount}</Text>
-              <Text style={s.heroLabel}>{unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}</Text>
-            </>
-          ) : (
-            <Text style={s.heroOk}>Tutto saldato</Text>
-          )}
-        </View>
+        // Hero (REG-639 «memorabile»): il salvadanaio dice a colpo d'occhio a
+        // che punto è l'allievo; spuntata l'ultima guida passa in dissolvenza a
+        // «Tutto saldato» col salvadanaio pieno (l'haptic lo dà la scrittura).
+        <Animated.View
+          key={unpaidCount > 0 ? 'due' : 'ok'}
+          entering={FadeIn.duration(320)}
+          style={s.hero}
+          accessible
+          accessibilityLabel={
+            unpaidCount > 0 ? `${unpaidCount} da pagare` : `Tutto saldato${firstName ? `: ${firstName} è in pari` : ''}`
+          }
+        >
+          <View style={s.heroText}>
+            {unpaidCount > 0 ? (
+              <>
+                <View style={s.heroLine}>
+                  <Text style={s.heroNum}>{unpaidCount}</Text>
+                  <Text style={s.heroLabel}>{unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}</Text>
+                </View>
+                {oldestUnpaid ? (
+                  <Text style={s.heroSub}>
+                    {unpaidCount === 1 ? 'È quella di ' : 'La più vecchia è di '}
+                    {oldestLabel(oldestUnpaid.startsAt)}
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Text style={s.heroOk}>Tutto saldato</Text>
+                <Text style={s.heroSub}>
+                  {firstName ? `${firstName} è in pari, niente da riscuotere.` : 'Niente da riscuotere.'}
+                </Text>
+              </>
+            )}
+          </View>
+          <Icon3D source={unpaidCount > 0 ? VITA_ART.salvadanaio : VITA_ART.salvadanaioPieno} size={76} />
+        </Animated.View>
       ) : (
         <Text style={s.note}>
           L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
@@ -422,10 +488,20 @@ export const StudentPaymentsScreen = () => {
       </View>
 
       <Animated.View key={activeFilter} entering={FadeIn.duration(180)}>
+        {manualMode && canTick && unpaidCount > 0 && activeFilter !== 'paid' ? (
+          <Text style={s.hint}>
+            Spunta la casella quando {firstName ?? "l'allievo"} ti paga.
+          </Text>
+        ) : null}
         {sections.length === 0 ? (
-          <ClayEmpty title="Nessuna guida" text="Non ci sono guide per questo filtro." />
+          activeFilter === 'unpaid' ? (
+            // Il salvadanaio pieno è già nell'hero: qui basta la frase.
+            <ClayEmpty title="Niente da riscuotere" text="Le guide saldate sono in «Pagate»." />
+          ) : (
+            <ClayEmpty title="Nessuna guida" text="Non ci sono guide per questo filtro." />
+          )
         ) : (
-          sections.map((section) => (
+          shownSections.map((section) => (
             <ClaySection key={section.key} title={section.label}>
               <ClayList>
                 {section.rows.map((row) => (
@@ -447,9 +523,21 @@ export const StudentPaymentsScreen = () => {
             </ClaySection>
           ))
         )}
+        {folded.length > 0 ? (
+          <Pressable
+            onPress={() => setShowOld(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={({ pressed }) => [s.more, pressed && { opacity: 0.55 }]}
+            testID="payments-show-old"
+          >
+            <Text style={s.moreTx}>Mostra {folded[0].label.toLowerCase()} e prima</Text>
+            <Ionicons name="chevron-down" size={15} color={CLAY.ink3} />
+          </Pressable>
+        ) : null}
       </Animated.View>
-      {manualMode && sections.length > 0 && data.canManagePayments ? (
-        <Text style={s.foot}>Tocca il cerchio per segnare una guida pagata; tocca la guida per lo storico.</Text>
+      {manualMode && sections.length > 0 && canTick ? (
+        <Text style={s.foot}>Tocca una guida per vedere chi l&apos;ha segnata e quando.</Text>
       ) : null}
     </FormSheet>
   );
@@ -461,10 +549,16 @@ const s = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: CLAY.bg },
   note: { fontSize: 14, lineHeight: 20, color: CLAY.ink3, marginTop: 4 },
 
-  hero: { flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 2 },
-  heroNum: { fontSize: 40, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.4, fontVariant: ['tabular-nums'] },
-  heroLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
-  heroOk: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
+  heroText: { flex: 1, minWidth: 0 },
+  heroLine: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
+  heroNum: { fontSize: 44, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
+  heroLabel: { fontSize: 17, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.3 },
+  heroOk: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6 },
+  heroSub: { fontSize: 14.5, lineHeight: 20, color: CLAY.ink3, marginTop: 3, letterSpacing: -0.1 },
+  hint: { fontSize: 14.5, lineHeight: 20, color: CLAY.ink3, marginTop: 14, marginBottom: -4, paddingHorizontal: 4 },
+  more: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 18 },
+  moreTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
 
   segment: { marginTop: 18 },
 
