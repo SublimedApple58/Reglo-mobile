@@ -1,7 +1,20 @@
-import React from 'react';
-import { Platform, ScrollView, ScrollViewProps, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  ScrollViewProps,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from 'react-native';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { useNavigation, useRouter } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
 
 import { SHEET_BOTTOM } from '../utils/sheetPresentation';
 import { ClayIconButton } from './clay/ClayIconButton';
@@ -16,7 +29,17 @@ import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/mo
  *   └ contenuto (entra/esce con dissolvenza morbida, l'altezza scivola)
  *   └ CTA: l'ULTIMA cosa, poi solo SHEET_BOTTOM (mai insets.bottom)
  * Presentazione della route: `FORM_SHEET` (utils/sheetPresentation): formSheet,
- * fitToContents, niente grabber, niente swipe, fondo bianco.
+ * fitToContents, niente grabber, fondo bianco. Si chiude con la X, trascinando
+ * in basso o toccando fuori (Tiziano 28/10/2026, REG-639 fluidità).
+ *
+ * Chiusura col gesto — tre casi, decisi qui e non nei singoli fogli:
+ * - `busy`: salvataggio in corso → il gesto non chiude (la X la blocca il foglio).
+ * - `dirty`: modifiche non salvate → trascinando o con la X compare la conferma
+ *   nativa «Vuoi uscire senza salvare?». Dopo un salvataggio riuscito il foglio
+ *   deve mettere `dirty` a false PRIMA di `router.back()` (o tenerlo legato a
+ *   `!saving`), altrimenti la conferma comparirebbe anche lì.
+ * - `onClose` con effetti (es. riepilogo Road che esce dalla modalità): con
+ *   `closeOnGesture` il gesto non chiude da sé ma chiama `onClose`.
  *
  * `contentKey`: quando cambia (es. passo di un foglio a più passi) il contenuto
  * fa una dissolvenza incrociata invece di cambiare di botto.
@@ -32,12 +55,15 @@ export function FormSheet({
   testID,
   scrollProps,
   headerStyle,
+  busy,
+  dirty,
+  closeOnGesture,
 }: {
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
   /** A sinistra del titolo: avatar, chevron «indietro». */
   leading?: React.ReactNode;
-  /** Default: `router.back()`. La X è l'unico modo di chiudere il foglio. */
+  /** Default: `router.back()`. */
   onClose?: () => void;
   /** CTA (una o una colonna di bottoni): ultima cosa del foglio. */
   cta?: React.ReactNode;
@@ -46,9 +72,34 @@ export function FormSheet({
   testID?: string;
   scrollProps?: Omit<ScrollViewProps, 'style' | 'contentContainerStyle' | 'contentInsetAdjustmentBehavior'>;
   headerStyle?: StyleProp<ViewStyle>;
+  /** Operazione in corso: trascinare o toccare fuori non chiude. */
+  busy?: boolean;
+  /** Modifiche non salvate: prima di chiudere chiede conferma. */
+  dirty?: boolean;
+  /** Il gesto di chiusura esegue `onClose` invece di chiudere da sé. */
+  closeOnGesture?: boolean;
 }) {
   const router = useRouter();
-  const close = onClose ?? (() => router.back());
+  const closeFn = onClose ?? (() => router.back());
+  const release = useSheetDismissGuard({ busy, dirty, onGesture: closeOnGesture ? closeFn : undefined });
+  // La X di un foglio con `closeOnGesture` non deve rientrare nel gesto.
+  const close = () => {
+    release();
+    closeFn();
+  };
+
+  // Testata fissa: il fondo bianco compare solo quando il contenuto le scorre
+  // sotto. A riposo è trasparente, così non copre l'alone delle ombre clay del
+  // primo blocco (prima tagliava in un rettangolo l'ombra dell'anello 13/6).
+  const [scrolled, setScrolled] = useState(false);
+  const userOnScroll = scrollProps?.onScroll;
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = e.nativeEvent.contentOffset.y > 2;
+    if (next !== scrolled) setScrolled(next);
+    userOnScroll?.(e);
+  };
+  const backdrop = useAnimatedStyle(() => ({ opacity: withTiming(scrolled ? 1 : 0, { duration: 140 }) }), [scrolled]);
+
   return (
     <ScrollView
       style={fs.scroll}
@@ -64,10 +115,13 @@ export function FormSheet({
       stickyHeaderIndices={[0]}
       testID={testID}
       {...scrollProps}
+      onScroll={onScroll}
+      scrollEventThrottle={32}
     >
       {/* Lo sticky header di RN sposta lo stile del figlio su un suo
           contenitore: la riga titolo·X sta in una View interna. */}
       <View style={fs.headSticky}>
+        <Animated.View pointerEvents="none" style={[fs.headBackdrop, backdrop]} />
         <View style={[fs.head, headerStyle]}>
           {leading}
           <View style={fs.titles}>
@@ -113,13 +167,59 @@ export function SheetCloseButton({ onPress }: { onPress: () => void }) {
   return <ClayIconButton icon="close" onPress={onPress} accessibilityLabel="Chiudi" testID="sheet-close" />;
 }
 
+/**
+ * Chiusura col gesto di un form sheet (trascinare giù, toccare fuori), usata da
+ * `FormSheet` e da chi presenta un foglio senza `FormSheet`.
+ * - `busy`: il gesto è spento (`gestureEnabled: false` sulla route); le chiusure
+ *   via codice (`router.back()` dopo il salvataggio) passano.
+ * - `dirty`: ogni chiusura (gesto, X, codice) chiede conferma nativa.
+ * - `onGesture`: il gesto non chiude da sé, chiama questa funzione (una volta).
+ */
+export function useSheetDismissGuard({
+  busy,
+  dirty,
+  onGesture,
+}: {
+  busy?: boolean;
+  dirty?: boolean;
+  onGesture?: () => void;
+}) {
+  const navigation = useNavigation();
+  const [released, setReleased] = useState(false);
+  const onGestureRef = useRef(onGesture);
+  onGestureRef.current = onGesture;
+
+  useEffect(() => {
+    if (busy === undefined) return;
+    navigation.setOptions({ gestureEnabled: !busy });
+  }, [busy, navigation]);
+
+  const intercept = !!onGesture && !released;
+  usePreventRemove(!!dirty || intercept, ({ data }) => {
+    if (dirty) {
+      Alert.alert('Vuoi uscire senza salvare?', 'Le modifiche andranno perse.', [
+        { text: 'Resta', style: 'cancel' },
+        { text: 'Esci', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+      ]);
+      return;
+    }
+    // Una volta sola: l'uscita vera (anche da un altro navigatore) deve passare.
+    setReleased(true);
+    onGestureRef.current?.();
+  });
+
+  return () => setReleased(true);
+}
+
 const fs = StyleSheet.create({
   scroll: { backgroundColor: '#FFFFFF' },
   // Misure §13.2.1: testata 26 sopra, CTA in fondo con SHEET_BOTTOM.
   root: { backgroundColor: '#FFFFFF', paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
   // Testata fissa: fondo bianco pieno a tutta larghezza, così il contenuto
   // che scorre sotto non si vede attraverso.
-  headSticky: { backgroundColor: '#FFFFFF', marginHorizontal: -22, paddingHorizontal: 22, paddingTop: 26, paddingBottom: 18, zIndex: 2 },
+  headSticky: { marginHorizontal: -22, paddingHorizontal: 22, paddingTop: 26, paddingBottom: 18, zIndex: 2 },
+  // Fondo bianco della testata, visibile solo a contenuto scorso.
+  headBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFFFFF' },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },

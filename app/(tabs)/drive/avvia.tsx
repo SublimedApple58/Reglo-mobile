@@ -294,7 +294,7 @@ export default function AvviaGuidaSheet() {
     const lic = selectedStudent?.licenseCategory ? `patente ${selectedStudent.licenseCategory}` : null;
     return (
       <FormSheet
-        // Indietro a sinistra, la X (unica chiusura del foglio) in alto a destra.
+        // Indietro a sinistra, la X in alto a destra.
         leading={back('summary')}
         title="Che auto usi?"
         subtitle={[who ? `Per ${who}` : null, lic].filter(Boolean).join(' · ') || nowLabel}
@@ -339,6 +339,7 @@ export default function AvviaGuidaSheet() {
       }
       contentKey="summary"
       testID="road-free-sheet"
+      busy={starting}
       cta={
         <ClayButton
           onPress={() => void onStart()}

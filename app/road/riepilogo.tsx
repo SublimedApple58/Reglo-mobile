@@ -95,6 +95,8 @@ export default function RiepilogoScreen() {
       subtitle={`Guida completata · ${sub}`}
       testID="road-summary"
       onClose={close}
+      // Trascinarlo giù = «Chiudi»: si esce da Road, non resta un foglio orfano.
+      closeOnGesture
       cta={
         <>
       <Animated.View style={s.foot} layout={ROAD_LAYOUT}>

@@ -301,6 +301,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
       title={title}
       subtitle={summary}
       onClose={() => { if (!pending) router.back(); }}
+      busy={pending}
       cta={cta}
       testID="block-sheet"
     >

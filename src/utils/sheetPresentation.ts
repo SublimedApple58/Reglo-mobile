@@ -62,16 +62,17 @@ export const SCROLL_SHEET = {
 
 /**
  * IL modo di presentare un form sheet (design-system §13.2): nativo, alto quanto
- * il contenuto, SENZA grabber e senza swipe per chiudere (si chiude solo con la
- * X in alto a destra), fondo bianco dichiarato (sotto il foglio non spunta mai
- * il colore dello stack). Il corpo è sempre `<FormSheet>` di
- * `components/SheetScaffold`. Android (non ancora rilasciato): detent alto,
- * la radice scrolla lo stesso.
+ * il contenuto, SENZA grabber; si chiude con la X in alto a destra, trascinando
+ * in basso o toccando fuori (REG-639 fluidità, 28/10/2026: prima era bloccato
+ * sulla sola X). Fondo bianco dichiarato (sotto il foglio non spunta mai il
+ * colore dello stack). Il corpo è sempre `<FormSheet>` di
+ * `components/SheetScaffold`: `busy` / `dirty` / `closeOnGesture` decidono
+ * quando il gesto non chiude o chiede conferma. Android (non ancora
+ * rilasciato): detent alto, la radice scrolla lo stesso.
  */
 export const FORM_SHEET = {
   presentation: 'formSheet',
   sheetGrabberVisible: false,
-  gestureEnabled: false,
   headerShown: false,
   sheetAllowedDetents: (Platform.OS === 'android' ? [0.92] : 'fitToContents') as number[] | 'fitToContents',
   contentStyle: { backgroundColor: '#FFFFFF' },

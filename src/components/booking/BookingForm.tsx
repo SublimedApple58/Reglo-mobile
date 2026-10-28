@@ -868,6 +868,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
       title="Nuova prenotazione"
       subtitle={summary}
       onClose={() => { if (!pending) router.back(); }}
+      busy={pending}
       cta={cta}
       testID="new-booking-sheet"
     >

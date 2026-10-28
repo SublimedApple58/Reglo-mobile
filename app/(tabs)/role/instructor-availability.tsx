@@ -428,6 +428,7 @@ export default function InstructorAvailabilitySheet() {
       }
       contentKey={availLoading ? 'loading' : isDay ? 'day' : 'main'}
       onClose={close}
+      busy={busy}
       testID="instructor-availability-sheet"
       cta={isDay ? dayCta : !availLoading && activeTab === 'default' ? defaultCta : undefined}
     >

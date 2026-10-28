@@ -243,6 +243,22 @@ export default function ManageLessonDetailsScreen() {
     }
   };
 
+  // Modifiche non salvate (tipo, note, esito, pagellino): chiudendo il foglio
+  // col gesto o con la X compare la conferma. Durante il salvataggio no: dopo
+  // `onSaveDetails` riuscito il foglio si chiude da sé.
+  const typesKey = (list: string[]) => [...list].sort().join('|');
+  const currentEvalKey = evalKeyOf(
+    evalRows
+      .filter((item) => legacyNa[item.id] || scores[item.id] != null)
+      .map((item) => ({ itemId: item.id, score: legacyNa[item.id] ? null : scores[item.id]!, notApplicable: !!legacyNa[item.id] })),
+  );
+  const dirty =
+    editable &&
+    (typesKey(types) !== typesKey(resolveInitialLessonTypes(lesson)) ||
+      notes !== (lesson.notes ?? '') ||
+      esito !== outcomeFromStatus(lesson.status) ||
+      currentEvalKey !== savedEvalKey);
+
   const toggleType = (value: string) => {
     if (!editable) return;
     setTypes((prev) => {
@@ -262,6 +278,7 @@ export default function ManageLessonDetailsScreen() {
       title={road ? 'Pagellino' : 'Dettagli guida'}
       subtitle={road ? road.subtitle : 'Tipo, pagellino e note di questa guida.'}
       testID={road ? 'road-pagellino-sheet' : 'lesson-details-sheet'}
+      dirty={dirty}
       cta={
         <ClayButton
           title="Salva"
@@ -479,12 +496,25 @@ export default function ManageLessonDetailsScreen() {
   );
 }
 
+/** Spazio sotto l'ultima card per l'ombra `raise` (scende ~24 pt). */
+const SHADOW_ROOM = 28;
+
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },
   body: { gap: 26 },
   // Lo spazio fra le sezioni lo dà `body` (gap), non il margine di ClaySection.
   sec: { marginTop: 0 },
-  collapsible: { gap: 26, overflow: 'hidden' },
+  // Si ritaglia per chiudersi in altezza: il margine interno (compensato da
+  // quello negativo) lascia all'ombra clay delle card lo spazio per sfumare,
+  // invece di tagliarla di netto sul bordo della card (REG-639 fluidità).
+  collapsible: {
+    gap: 26,
+    overflow: 'hidden',
+    marginHorizontal: -22,
+    paddingHorizontal: 22,
+    marginBottom: -SHADOW_ROOM,
+    paddingBottom: SHADOW_ROOM,
+  },
   pagellinoHint: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
   pagellinoLead: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, lineHeight: 19, marginBottom: 14, paddingHorizontal: 2 },
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },

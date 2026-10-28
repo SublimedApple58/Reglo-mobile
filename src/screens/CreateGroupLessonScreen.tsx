@@ -308,6 +308,7 @@ export const CreateGroupLessonScreen = () => {
       title="Guida di gruppo"
       subtitle={`1 istruttore · ${isMoto ? `${effectiveCapacity || '—'} moto + auto al seguito` : '1 veicolo'} · fino a ${effectiveCapacity || '—'} allievi`}
       onClose={() => { if (!saving) router.back(); }}
+      busy={saving}
       testID="create-group-lesson-sheet"
       cta={loading ? null : (
         <ClayButton

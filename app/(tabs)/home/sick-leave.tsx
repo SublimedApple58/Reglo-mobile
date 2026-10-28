@@ -121,6 +121,7 @@ export default function SickLeaveScreen() {
       title="Registra malattia"
       subtitle={`${summaryMain} · ${summarySub}`}
       onClose={() => { if (!pending) router.back(); }}
+      busy={pending}
       testID="sick-leave-sheet"
       cta={
         <ClayButton

@@ -47,6 +47,7 @@ export default function InstructorInviteSheet() {
       title="Invita istruttore"
       testID="instructor-invite-sheet"
       onClose={() => { if (!inviteSending) router.back(); }}
+      busy={inviteSending}
       cta={
         <ClayButton
           title="Invia invito"

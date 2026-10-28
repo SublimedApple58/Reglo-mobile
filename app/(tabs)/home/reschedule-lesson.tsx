@@ -124,6 +124,7 @@ export default function RescheduleLessonScreen() {
       title={`Sposta guida di ${studentName}`}
       subtitle={`Oggi: ${slotLabel(originalStart)}`}
       onClose={() => { if (!pending) router.back(); }}
+      busy={pending}
       testID="reschedule-lesson-sheet"
       cta={
         <ClayButton

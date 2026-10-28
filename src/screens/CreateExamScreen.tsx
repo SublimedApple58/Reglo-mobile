@@ -212,6 +212,7 @@ export const CreateExamScreen = () => {
       title="Crea esame"
       subtitle={loading ? undefined : subtitle}
       onClose={() => { if (!saving) router.back(); }}
+      busy={saving}
       testID="create-exam-sheet"
       cta={loading ? null : (
         <ClayButton title="Crea esame" loading={saving} onPress={handleCreate} testID="create-exam-submit" />
