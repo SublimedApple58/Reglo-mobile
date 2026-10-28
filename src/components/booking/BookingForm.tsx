@@ -19,7 +19,7 @@ import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { FormSheet } from '../SheetScaffold';
-import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle } from '../clay';
+import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle, markClayRow } from '../clay';
 import { VITA_ART } from '../../theme/vitaArt';
 import { car34Art } from '../../road/markerArt';
 
@@ -902,6 +902,7 @@ function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
     </Animated.View>
   );
 }
+markClayRow(SoftRow);
 
 const s = StyleSheet.create({
   // Card «Allievo» con la cartina (stesse misure della card «Guida» di «Nuovo»).

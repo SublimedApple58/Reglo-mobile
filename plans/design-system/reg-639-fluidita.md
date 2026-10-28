@@ -39,3 +39,18 @@ fogli chiudibili solo con la X, dettaglio guida con Road che compare a scatti.
 ## Non verificabile da qui
 - Swipe indietro dal bordo: Maestro non lo esegue nemmeno in Impostazioni di iOS.
 - Evidenziazione al tocco: Maestro non tiene la pressione abbastanza per fotografarla.
+
+## Seconda segnalazione (28/10 pomeriggio, dopo l'OTA e6ad8891) — fatto
+1. **Pressione**: l'evidenziazione era ancora un rettangolo con una striscia
+   bianca e senza gli angoli. Ora `ClayList` ritaglia le righe col raggio della
+   card (figlio con `overflow: hidden`, ombra sul genitore); riga premuta a tutta
+   larghezza; respiro di bordo dentro la riga (`clayRowPadding`); wrapper e righe
+   personalizzate si dichiarano con `markClayRow` (`SoftRow` di BookingForm e
+   sick-leave, `VehicleRow`/`PersonRow` di Road, notifiche, giorni della
+   pubblicazione, `ClayTextRow`).
+2. **Fogli lunghi**: il contenuto passava sopra il titolo (regressione della
+   testata trasparente del primo giro) e la CTA era in fondo al contenuto.
+   `FormSheet` ora = testata fissa opaca (linea quando si scorre) + centro che
+   scorre ad altezza esplicita + footer fisso con la CTA; altezza adattiva.
+   Trappole: niente `flexShrink`, niente `zIndex` sulla testata,
+   `collapsable={false}` (react-native-screens forzava il frame dello scroll).

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
 
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { ClayButton, ClayList, ClayListRow, ClayToggle } from '../../../src/components/clay';
+import { ClayButton, ClayList, ClayListRow, ClayToggle, markClayRow } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
 import { VITA_ART } from '../../../src/theme/vitaArt';
 import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
@@ -182,6 +182,7 @@ function SoftRow(props: React.ComponentProps<typeof ClayListRow>) {
     </Animated.View>
   );
 }
+markClayRow(SoftRow);
 
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },

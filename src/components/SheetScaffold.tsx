@@ -11,23 +11,28 @@ import {
   Text,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 
-import { SHEET_BOTTOM } from '../utils/sheetPresentation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
 import { ClayIconButton } from './clay/ClayIconButton';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
 
 /**
  * ─── FormSheet: IL form sheet di Reglo (design-system §13.2) ────────────────
  *
- * Struttura fissa, uguale per ogni foglio:
- *   radice = scroll del foglio stesso (contentInsetAdjustmentBehavior never)
- *   └ intestazione FISSA (sticky): [leading] titolo + sottotitolo · X in alto a destra
- *   └ contenuto (entra/esce con dissolvenza morbida, l'altezza scivola)
- *   └ CTA: l'ULTIMA cosa, poi solo SHEET_BOTTOM (mai insets.bottom)
+ * Struttura fissa, uguale per ogni foglio (come i fogli nativi di iOS):
+ *   testata FISSA e opaca: [leading] titolo + sottotitolo · X in alto a destra
+ *     (linea sottile sotto solo quando il contenuto ci scorre sotto)
+ *   contenuto in uno scroll (entra/esce con dissolvenza, l'altezza scivola)
+ *   footer FISSO con la CTA, poi solo SHEET_BOTTOM (mai insets.bottom)
+ * Altezza adattiva: se tutto ci sta niente scroll; se sfora, scorre solo il
+ * centro (REG-639 fluidità, dopo la segnalazione «il contenuto passa sopra il
+ * titolo e la CTA è attaccata al bordo»).
  * Presentazione della route: `FORM_SHEET` (utils/sheetPresentation): formSheet,
  * fitToContents, niente grabber, fondo bianco. Si chiude con la X, trascinando
  * in basso o toccando fuori (Tiziano 28/10/2026, REG-639 fluidità).
@@ -88,22 +93,50 @@ export function FormSheet({
     closeFn();
   };
 
-  // Testata fissa: il fondo bianco compare solo quando il contenuto le scorre
-  // sotto. A riposo è trasparente, così non copre l'alone delle ombre clay del
-  // primo blocco (prima tagliava in un rettangolo l'ombra dell'anello 13/6).
+  // Altezza adattiva (§13.2): il foglio abbraccia il contenuto; se sfora lo
+  // schermo, scorre SOLO la parte centrale e testata e CTA restano ferme. Il
+  // tetto è l'altezza massima del form sheet nativo: oltre, il sistema la
+  // taglierebbe e la CTA finirebbe fuori.
+  const { height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const maxH = winH - insets.top - SHEET_SYSTEM_BOTTOM - SHEET_TOP_GAP;
+  // Il centro ha un tetto esplicito (tetto del foglio − testata − footer
+  // misurati): con `flexShrink` lo scroll dentro un form sheet fitToContents
+  // collassava a pochi punti.
+  const [headH, setHeadH] = useState(0);
+  const [footH, setFootH] = useState(0);
+  const scrollMaxH = Math.max(120, maxH - headH - (cta ? footH : 0));
+  // Altezza del centro ESPLICITA = min(contenuto misurato, tetto): la misura
+  // nativa dello ScrollView non si aggiornava quando il contenuto cresceva
+  // dopo l'apertura (es. «Prenotazione multipla») e il contenuto finiva sotto
+  // la CTA. Prima della misura: altezza naturale.
+  const [innerH, setInnerH] = useState(0);
+  const bodyPad = BODY_PAD_TOP + (cta ? BODY_PAD_BOTTOM : BODY_PAD_BOTTOM_LAST);
+  const scrollH = innerH > 0 ? Math.min(innerH + bodyPad, scrollMaxH) : undefined;
+
+  // Linea sotto la testata solo a contenuto scorso; linea sopra il footer solo
+  // se sotto c'è ancora contenuto (come le barre native di iOS).
   const [scrolled, setScrolled] = useState(false);
-  const userOnScroll = scrollProps?.onScroll;
+  const [moreBelow, setMoreBelow] = useState(false);
+  const viewH = useRef(0);
+  const contentH = useRef(0);
+  const offsetY = useRef(0);
+  const updateEdges = () => {
+    const nextScrolled = offsetY.current > 2;
+    const nextBelow = contentH.current - (offsetY.current + viewH.current) > 2;
+    setScrolled((v) => (v === nextScrolled ? v : nextScrolled));
+    setMoreBelow((v) => (v === nextBelow ? v : nextBelow));
+  };
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = e.nativeEvent.contentOffset.y > 2;
-    if (next !== scrolled) setScrolled(next);
-    userOnScroll?.(e);
+    offsetY.current = e.nativeEvent.contentOffset.y;
+    updateEdges();
+    scrollProps?.onScroll?.(e);
   };
   // Fogli più alti dello schermo: il contenuto scorre e UIKit non passa il
   // trascinamento al foglio. Tirato giù oltre l'inizio e rilasciato = chiudi
   // (stesse regole del gesto nativo: `busy` no, `dirty` chiede conferma).
-  const userOnScrollEndDrag = scrollProps?.onScrollEndDrag;
   const onScrollEndDrag = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    userOnScrollEndDrag?.(e);
+    scrollProps?.onScrollEndDrag?.(e);
     if (busy || e.nativeEvent.contentOffset.y > -PULL_TO_CLOSE) return;
     // A rimbalzo finito: chiudere mentre lo scroll torna su lasciava il velo
     // scuro del foglio piantato sullo schermo.
@@ -121,65 +154,85 @@ export function FormSheet({
     scrollProps?.onMomentumScrollEnd?.(e);
     finishPendingClose();
   };
-  const backdrop = useAnimatedStyle(() => ({ opacity: withTiming(scrolled ? 1 : 0, { duration: 140 }) }), [scrolled]);
+  const headLine = useAnimatedStyle(() => ({ opacity: withTiming(scrolled ? 1 : 0, { duration: 140 }) }), [scrolled]);
+  const footLine = useAnimatedStyle(() => ({ opacity: withTiming(moreBelow ? 1 : 0, { duration: 140 }) }), [moreBelow]);
 
   return (
-    <ScrollView
-      style={fs.scroll}
-      contentContainerStyle={fs.root}
-      // La safe area la gestisce il foglio: iOS non deve aggiungerla sotto la CTA.
-      contentInsetAdjustmentBehavior="never"
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceVertical={false}
-      // Testata FISSA (Tiziano 28/10 notte): titolo e X restano in alto a
-      // destra, il contenuto scorre sotto. È il primo figlio dello scroll.
-      stickyHeaderIndices={[0]}
-      testID={testID}
-      {...scrollProps}
-      onScroll={onScroll}
-      onScrollEndDrag={onScrollEndDrag}
-      onMomentumScrollEnd={onMomentumScrollEnd}
-      scrollEventThrottle={32}
-    >
-      {/* Lo sticky header di RN sposta lo stile del figlio su un suo
-          contenitore: la riga titolo·X sta in una View interna. */}
-      <View style={fs.headSticky}>
-        <Animated.View pointerEvents="none" style={[fs.headBackdrop, backdrop]} />
-        <View style={[fs.head, headerStyle]}>
-          {leading}
-          <View style={fs.titles}>
-            {typeof title === 'string' ? (
-              <Text style={fs.title} numberOfLines={2}>{title}</Text>
-            ) : (
-              title
-            )}
-            {typeof subtitle === 'string' ? (
-              <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
-            ) : (
-              subtitle
-            )}
-          </View>
-          <SheetCloseButton onPress={close} />
+    // `collapsable={false}` qui e sul guscio dello scroll, testata PRIMA vista
+    // (senza zIndex): react-native-screens cerca uno ScrollView fra i figli
+    // diretti del foglio o lungo la catena delle prime viste e gli forza il
+    // frame nativo a tutto il foglio (lo scroll finiva sotto la CTA o alto
+    // pochi punti). Così non lo trova e decide solo il layout.
+    <View style={[fs.sheet, isAndroid && fs.sheetFill]} testID={testID} collapsable={false}>
+      {/* Testata FISSA e opaca: titolo e X non scorrono mai. */}
+      <View style={[fs.head, headerStyle]} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
+        {leading}
+        <View style={fs.titles}>
+          {typeof title === 'string' ? (
+            <Text style={fs.title} numberOfLines={2}>{title}</Text>
+          ) : (
+            title
+          )}
+          {typeof subtitle === 'string' ? (
+            <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
+          ) : (
+            subtitle
+          )}
         </View>
+        <SheetCloseButton onPress={close} />
+        <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />
       </View>
 
-      <Animated.View
-        key={contentKey ?? 'content'}
-        entering={contentKey ? SOFT_TEXT_IN : softEnter()}
-        exiting={SOFT_TEXT_OUT}
-        layout={SOFT_LAYOUT}
+      <View collapsable={false} style={isAndroid && fs.scrollFill} testID="sheet-body">
+      <ScrollView
+        testID="sheet-scroll"
+        style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
+        contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
+        // La safe area la gestisce il foglio: iOS non deve aggiungerla sotto.
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        alwaysBounceVertical={false}
+        {...scrollProps}
+        onLayout={(e) => {
+          viewH.current = e.nativeEvent.layout.height;
+          updateEdges();
+          scrollProps?.onLayout?.(e);
+        }}
+        onContentSizeChange={(w, h) => {
+          contentH.current = h;
+          updateEdges();
+          scrollProps?.onContentSizeChange?.(w, h);
+        }}
+        onScroll={onScroll}
+        onScrollEndDrag={onScrollEndDrag}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        scrollEventThrottle={32}
       >
-        {children}
-      </Animated.View>
-
-      {cta ? (
-        <Animated.View layout={SOFT_LAYOUT} style={fs.cta}>
-          {cta}
+        <Animated.View
+          key={contentKey ?? 'content'}
+          entering={contentKey ? SOFT_TEXT_IN : softEnter()}
+          exiting={SOFT_TEXT_OUT}
+          layout={SOFT_LAYOUT}
+          onLayout={(e) => {
+            const h = Math.ceil(e.nativeEvent.layout.height);
+            setInnerH((prev) => (prev === h ? prev : h));
+          }}
+        >
+          {children}
         </Animated.View>
+      </ScrollView>
+      </View>
+
+      {/* CTA FISSA nel footer del foglio: bianco, niente fascia grigia (§13.2.1). */}
+      {cta ? (
+        <View style={fs.foot} testID="sheet-foot" onLayout={(e) => setFootH(e.nativeEvent.layout.height)}>
+          <Animated.View pointerEvents="none" style={[fs.footLine, footLine]} />
+          {cta}
+        </View>
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -239,20 +292,39 @@ export function useSheetDismissGuard({
 /** Quanto tirare giù (pt, oltre l'inizio) un foglio che scorre per chiuderlo. */
 const PULL_TO_CLOSE = 64;
 
+// Margini interni del centro = spazio per le ombre clay (lo scroll ritaglia).
+const BODY_PAD_TOP = 4;
+const BODY_PAD_BOTTOM = 18;
+const BODY_PAD_BOTTOM_LAST = 22 + SHEET_BOTTOM;
+
+/** Margine di sicurezza sotto il bordo alto massimo del form sheet nativo. */
+const SHEET_TOP_GAP = 0;
+
 const fs = StyleSheet.create({
-  scroll: { backgroundColor: '#FFFFFF' },
-  // Misure §13.2.1: testata 26 sopra, CTA in fondo con SHEET_BOTTOM.
-  root: { backgroundColor: '#FFFFFF', paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  // Testata fissa: fondo bianco pieno a tutta larghezza, così il contenuto
-  // che scorre sotto non si vede attraverso.
-  headSticky: { marginHorizontal: -22, paddingHorizontal: 22, paddingTop: 26, paddingBottom: 18, zIndex: 2 },
-  // Fondo bianco della testata, visibile solo a contenuto scorso.
-  headBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFFFFF' },
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  sheet: { backgroundColor: '#FFFFFF' },
+  // Android: detent fisso alto (`FORM_SHEET`), il foglio lo riempie.
+  sheetFill: { flex: 1 },
+  // Misure §13.2.1: testata 26 sopra, padding laterale 22.
+  head: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    paddingHorizontal: 22, paddingTop: 26, paddingBottom: 14,
+    // Niente zIndex: Fabric monta le viste in ordine di zIndex e la testata
+    // finirebbe dopo lo scroll; react-native-screens, che segue la prima vista,
+    // troverebbe lo ScrollView e gli forzerebbe il frame a tutto il foglio.
+    backgroundColor: '#FFFFFF',
+  },
+  headLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   subtitle: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, lineHeight: 20 },
-  cta: { marginTop: 22 },
+  // Android: il centro riempie il detent fisso fra testata e footer.
+  scrollFill: { flex: 1 },
+  // Margini interni = spazio per le ombre clay (lo scroll ritaglia ai bordi):
+  // ~4 pt sopra, 22 di lato, ~24 sotto l'ultima card.
+  body: { paddingHorizontal: 22, paddingTop: BODY_PAD_TOP, paddingBottom: BODY_PAD_BOTTOM },
+  bodyLast: { paddingBottom: BODY_PAD_BOTTOM_LAST },
+  foot: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: SHEET_BOTTOM, backgroundColor: '#FFFFFF' },
+  footLine: { position: 'absolute', left: 0, right: 0, top: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
 });
 
 /**

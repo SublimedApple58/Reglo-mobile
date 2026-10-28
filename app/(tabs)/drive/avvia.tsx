@@ -17,6 +17,7 @@ import {
   ClaySurface,
   Icon3D,
   PlayGlyph,
+  markClayRow,
 } from '../../../src/components/clay';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadStagger } from '../../../src/road/motion';
 import { regloApi } from '../../../src/services/regloApi';
@@ -420,15 +421,21 @@ function VehicleRow({
   selected,
   onPress,
   divider,
+  first,
+  last,
 }: {
   vehicle: RoadFreeVehicle;
   selected: boolean;
   onPress?: () => void;
   divider?: boolean;
+  first?: boolean;
+  last?: boolean;
 }) {
   return (
     <ClayListRow
       divider={divider}
+      first={first}
+      last={last}
       dimmed={vehicle.busy}
       leading={<Icon3D source={car34Art(vehicle.carColor)} size={42} width={58} />}
       title={vehicle.name}
@@ -451,11 +458,13 @@ function byLetter(people: Person[]): Array<[string, Person[]]> {
 }
 
 /** Riga allievo: entra a cascata, filtrando esce e le altre scivolano. */
-function PersonRow({ person, onPress, index, divider }: { person: Person; onPress: () => void; index: number; divider?: boolean }) {
+function PersonRow({ person, onPress, index, divider, first, last }: { person: Person; onPress: () => void; index: number; divider?: boolean; first?: boolean; last?: boolean }) {
   return (
     <Animated.View entering={roadStagger(Math.min(index, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
       <ClayListRow
         divider={divider}
+        first={first}
+        last={last}
         // Stesso volto della tab Allievi e del resto di Road (foto o iniziali).
         leading={<RoadAvatar userId={person.id} name={person.name} size={44} />}
         title={person.name}
@@ -466,6 +475,10 @@ function PersonRow({ person, onPress, index, divider }: { person: Person; onPres
     </Animated.View>
   );
 }
+
+// Passano `first`/`last` alla ClayListRow: il respiro di bordo è nella riga.
+markClayRow(VehicleRow);
+markClayRow(PersonRow);
 
 const s = StyleSheet.create({
   // Intestazioni di sezione native in frase normale (niente maiuscoletto da eyebrow).

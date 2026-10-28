@@ -87,3 +87,10 @@ const IOS_MAJOR = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10)
  * vuoto. Lì 0; prima di iOS 26 il respiro fisso di 18 (§13.2.1).
  */
 export const SHEET_BOTTOM = IOS_MAJOR >= 26 ? 0 : 18;
+
+/**
+ * Spazio che il form sheet nativo aggiunge da sé sotto il contenuto e che va
+ * tolto dall'altezza massima utile (iOS 26: il foglio flottante, ~33 pt).
+ * Prima di iOS 26 il foglio arriva al bordo: 0.
+ */
+export const SHEET_SYSTEM_BOTTOM = IOS_MAJOR >= 26 ? 34 : 0;

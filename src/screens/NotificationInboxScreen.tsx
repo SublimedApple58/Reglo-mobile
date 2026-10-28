@@ -18,7 +18,7 @@ import {
 import { NotificationItem, PersistedNotification } from '../types/notifications';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
-import { Avatar, CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPressShape } from '../components/clay';
+import { Avatar, CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPadding, markClayRow } from '../components/clay';
 import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
 
@@ -273,7 +273,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
       >
         <Pressable
           onPress={onTap}
-          style={({ pressed }) => [styles.row, pressed && [CLAY_ROW_PRESSED, clayRowPressShape({ first, last })]]}
+          style={({ pressed }) => [styles.row, clayRowPadding({ first, last }, 13), pressed && CLAY_ROW_PRESSED]}
           accessibilityRole="button"
           accessibilityLabel={`${item.read ? '' : 'Da leggere. '}${title}${subtitle ? `, ${subtitle}` : ''}`}
         >
@@ -298,6 +298,7 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
     </View>
   );
 });
+markClayRow(NotificationCard);
 
 /* ── Screen ── */
 
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20 },
   firstSection: { marginTop: 18 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)', marginHorizontal: 18 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18 },
   rowMain: { flex: 1, minWidth: 0 },
   faceRead: { opacity: 0.55 },
   rowTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
