@@ -24,7 +24,7 @@ lun–sab), come dopo REG-638. REG-639 ne ha rifatto lo stile (clay v2:
 | `src/utils/agendaColors.ts` | Criterio colore (da «Aspetto agenda») + interruttore `AGENDA_BLOCK_BAR` (oggi `false`), `mixWithWhite`. |
 | `app/(tabs)/home/add-action.tsx` | Foglio «Nuovo» del «+» (`FORM_SHEET` + `<FormSheet>`): `ClayList` di solo testo — Guida, Guida di gruppo (se `groupLessonsEnabled`), Esame, Lezione teorica, Blocca un orario, Malattia. Al tocco chiude e lancia l'azione a foglio chiuso (iOS +380 ms). Dati da `homeAddSheetStore`. |
 | `app/(tabs)/home/quick-book.tsx` | Prenotazione veloce dal blocco fantasma della griglia: [quick-book.md](quick-book.md). |
-| `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`), cerchi bianchi clay `raiseSm`. |
+| `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`), cerchi bianchi clay `raiseSm`. Aprono `home/notifications` e `home/availability` come push (swipe indietro). Al tocco di un blocco l'Agenda chiede già il percorso Road della guida (`prefetchRoadForAppointment`). |
 
 ## La vista
 

@@ -76,6 +76,12 @@ funzionava già. `components/LessonsOverview.tsx` e `agendaLessons` /
     (`INSTRUCTOR` / `INSTRUCTOR_OWNER`): lì «Notifiche» non è nella barra, si
     apre dalla campanella dell'Agenda (`InboxBellButton`). Torna indietro o, se
     non c'è storia, a `/(tabs)/home`;
+  - **campanella = push nello stack corrente** (REG-639 fluidità, 28/10/2026):
+    `home/notifications` dall'Agenda, `drive/notifications` dalla tab Road
+    (`useStackBase`), così si chiude con lo swipe indietro nativo; prima saltava
+    alla tab nascosta `inbox`. Anche la bolla di `NotificationOverlay` per
+    l'istruttore apre `home/notifications`; le righe premute hanno gli angoli
+    della card in prima/ultima posizione (`clayRowPressShape`);
   - **raggruppate per giorno**: una `ClaySection` per giorno («Oggi», «Ieri»,
     poi «Lunedì 26 ottobre», `groupByDay`) con dentro una `ClayList` delle card;
     `ScrollView` semplice (non più `Animated.FlatList`), niente blur;

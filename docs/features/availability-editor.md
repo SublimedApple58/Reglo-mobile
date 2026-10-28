@@ -11,6 +11,15 @@ Instructor availability management. The mode (`default` vs `publication`) is cho
 
 For instructors, `index` renders `InstructorAvailabilityScreen` (the shell).
 
+**Opened from the Agenda clock (REG-639 fluidità, 28/10/2026)**: the instructor
+app has no Disponibilità tab, so the clock (`AvailabilityButton`) pushes
+`home/availability` — a real push in the Agenda stack with the native swipe-back
+(it used to jump to the hidden `role/` tab, with no gesture). The editors open
+their sheets in the CURRENT stack via `useStackBase()` (`src/hooks/useStackBase.ts`):
+`home/availability-exception`, `home/publish-day` (re-exports of the `role/` ones)
+and `home/time-picker` exist in the Agenda stack too. Add any new Disponibilità
+sheet to BOTH stacks.
+
 ## Key files
 - `src/screens/InstructorAvailabilityScreen.tsx` — shell: collapsible BlurView large-title header ("Disponibilità"), mode badge, immediacy skeleton until the mode resolves, then renders the right editor with `FadeIn`. Pull-to-refresh bumps an `editorKey` to remount + refetch the active editor.
 - `src/screens/DefaultAvailabilityEditor.tsx` — **default mode**: "Settimana tipo + Eccezioni".

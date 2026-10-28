@@ -198,3 +198,22 @@ niente blu, al posto delle Fluent; stessi nomi in `assets/road/` con
 pagellino e riga agenda nel riepilogo, statistiche, informativa, invito,
 sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
 
+
+## Fluidità (REG-639, 28/10/2026)
+
+- **Store**: `useRoadState()` ridisegna a OGNI cambio (anche ogni fix GPS, ~1/s):
+  solo la mappa dal vivo (`app/road/index.tsx`). Altrove `useRoadSelector(s => …)`
+  (tab, `RoadController`, riepilogo, segnala, tab Road): prima le tab intere si
+  ridisegnavano a ogni fix.
+- **Mappa dal vivo**: pin memoizzati (`RoadMarkerPin` con confronto per valore,
+  lista in `useMemo` su `markers`), `RoadTrack` memo; ombre dei marker in
+  `boxShadow`; l'auto (ombra sulla sagoma PNG) resta `shadow*` con
+  `shouldRasterizeIOS`.
+- **Dettaglio guida**: `RoadLessonCard` legge `useRoadForAppointment`
+  (`src/road/roadAppointmentQuery.ts`, React Query, 5 min, fuori dalla cache su
+  file con `meta.persist: false`); l'Agenda fa prefetch al tocco del blocco, così
+  la card è al suo posto dal primo fotogramma. La minimappa si monta dopo la
+  presentazione del foglio (`InteractionManager` + 120 ms) su un segnaposto
+  della stessa misura e compare in dissolvenza.
+- **Riepilogo**: trascinarlo giù = «Chiudi» (`FormSheet closeOnGesture`: esce da
+  Road); «Avvia guida» non si chiude col gesto mentre parte (`busy`).

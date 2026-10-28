@@ -89,6 +89,23 @@ non si anima, si anima solo la scala di `ClayPressable`.
   altrimenti l'ombra esterna viene tagliata.
 - L'ombra **interna** di un nodo si disegna **sotto i suoi figli**: su una
   foto (avatar) va in un velo assoluto sopra il contenuto (vedi `Avatar`).
+- **Ombre tagliate — le tre cause trovate (REG-639 fluidità, 28/10/2026)**:
+  1. un **antenato** con `overflow: 'hidden'` (es. un blocco che si chiude in
+     altezza) taglia l'ombra delle card dentro: dare all'antenato un margine
+     interno compensato da uno negativo (`paddingBottom: 28, marginBottom: -28`
+     e lo stesso in orizzontale) così l'ombra ha spazio per sfumare;
+  2. un **fratello/testata bianca** disegnata sopra copre l'alone: la testata
+     fissa di `FormSheet` è trasparente a riposo; l'alone esterno resta entro
+     lo spazio fra i blocchi (~20 pt);
+  3. le vecchie `shadow*` (iOS, fuori schermo e senza tracciato) vanno portate
+     a `boxShadow`: oltre al taglio, costano a ogni fotogramma (marker della
+     mappa, anello `ProgressRing`). Eccezione: ombra che segue la sagoma di un
+     PNG (auto sulla mappa) → resta `shadow*` con `shouldRasterizeIOS`.
+- **Pressione = mai un rettangolo**: in una `ClayList` la prima e l'ultima riga
+  prendono gli angoli della card (`clayRowPressShape({ first, last })` +
+  `CLAY_ROW_PRESSED`, `first`/`last` li passa la lista come `divider`); una riga
+  personalizzata dentro `ClayList` li legge e li usa. Altrove: scala
+  (`ClayPressable`) o opacità.
 
 ### 0.4 Icone 3D — meno icone, generate con l'AI, stile unico
 
@@ -235,7 +252,7 @@ bianco/nero, senza pillole. Piano completo: `plans/design-system/reg-639-vita.md
 | `ClayButton` | CTA a capsula `primary` (nero gonfio `CLAY_CTA.primary`) / `secondary` (bianco in rilievo `raise`); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premute sprofondano tutte e due (`CLAY_CTA.primaryPressed` / `secondaryPressed`) |
 | `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
 | `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
-| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto o auto), titolo, sottotitolo (solo testo), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
+| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto o auto), titolo, sottotitolo (solo testo), chevron se premibile | l'ombra sta sulla lista, non sulle righe; la lista passa `divider`/`first`/`last` (pressione con gli angoli della card, §0.3) |
 | `ClaySearchField` | capsula incavata 46, lente monocromatica | props di `TextInput` |
 | `ClaySegmented` | binario incavato + cursore clay nero; parte AL TOCCO (`onPressIn`) sul thread UI e arriva in 200 ms (`SEGMENT_TIMING`, mai una molla: `SOFT_SPRING` ci mette ~0,5 s); etichette grigia/bianca in dissolvenza incrociata guidata dal cursore, niente cambio di colore secco | haptic di selezione; il genitore si aggiorna dopo, il cursore non lo aspetta |
 | `Avatar` | foto (`UserPhotoCircle`) o iniziali su `avatarColors`, volume clay, anello nero se `selected` | ex `RoadAvatar` (alias) |
@@ -1813,8 +1830,10 @@ Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
 **1. Presentazione della route** — un solo helper, `FORM_SHEET`
 (`src/utils/sheetPresentation.ts`): `presentation: 'formSheet'`,
 `sheetAllowedDetents: 'fitToContents'` (Android: detent alto), **niente grabber**,
-**niente swipe per chiudere** (`gestureEnabled: false`), fondo bianco in
-`contentStyle` (sotto il foglio non spunta mai il colore dello stack).
+fondo bianco in `contentStyle` (sotto il foglio non spunta mai il colore dello
+stack). **Si chiude con la X, trascinando giù o toccando fuori** (Tiziano,
+28/10/2026, REG-639 fluidità: prima era bloccato sulla sola X con
+`gestureEnabled: false`, che NON va rimesso).
 
 ```tsx
 // app/(tabs)/<stack>/_layout.tsx
@@ -1832,6 +1851,9 @@ Usato in: AllievoTheoryHomeScreen, TopicListScreen, SchedaGridScreen.
   cta={<Bottone/>}                 // ultima cosa del foglio
   contentKey={step}                // fogli a più passi: dissolvenza fra i passi
   onClose={...}                    // default router.back()
+  busy={saving}                    // salvataggio in corso: il gesto non chiude
+  dirty={hasChanges && !saving}    // modifiche non salvate: conferma prima di chiudere
+  closeOnGesture                   // il gesto chiama onClose (es. riepilogo Road)
 >
   {contenuto}
 </FormSheet>
@@ -1843,8 +1865,19 @@ Cosa fa da solo, sempre uguale:
 - **intestazione**: `leading` + titolo `24/600` + sottotitolo `15/400`, e la **X
   in alto a destra, nell'angolo** (`SheetCloseButton` = `ClayIconButton`
   «close»: cerchio bianco in rilievo del clay v2, §0 — identico anche nei fogli
-  ancora fatti a mano, via `GlassCloseButton`): è l'unico modo di chiudere.
-  Niente eyebrow sopra il titolo;
+  ancora fatti a mano, via `GlassCloseButton`). Niente eyebrow sopra il titolo.
+  La testata è fissa ma **trasparente a riposo**: il fondo bianco compare solo
+  quando il contenuto le scorre sotto, così non copre l'alone delle ombre clay
+  del primo blocco;
+- **chiusura col gesto** (`useSheetDismissGuard`, anche esportato per i fogli
+  fuori da `FormSheet`): trascinare giù / toccare fuori chiude; con `busy` il
+  gesto è spento (le chiusure via codice passano); con `dirty` ogni chiusura
+  (gesto, X, codice) chiede «Vuoi uscire senza salvare?» (Resta / Esci) — dopo
+  un salvataggio riuscito `dirty` deve essere già false (legarlo a `!saving`);
+  con `closeOnGesture` il gesto esegue `onClose` (uscite con effetti). I fogli
+  più alti dello schermo scorrono e UIKit non passa il trascinamento al
+  foglio: tirati giù oltre l'inizio (64 pt) e rilasciati si chiudono, a
+  rimbalzo finito (chiudere durante il rimbalzo lasciava il velo scuro piantato);
 - **contenuto** che entra ed esce con dissolvenza morbida, l'altezza scivola
   (`utils/motion.ts`, niente rimbalzi, `ReduceMotion.Never`);
 - **CTA in fondo come ultima cosa**, poi solo `SHEET_BOTTOM` (0 da iOS 26, 18
