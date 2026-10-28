@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
-import { BlurView } from 'expo-blur';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,9 +15,10 @@ import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT } from '../../src/road/motion';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { markerArt } from '../../src/road/markerArt';
-import { formatHm, formatKm, formatMinutes, formatRange, initialsOf } from '../../src/road/format';
+import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
 import { SentimentBadge } from '../../src/components/road/RoadSentiment';
-import { SFSymbol } from '../../src/components/SFSymbol';
+import { Avatar, ClayButton, ClayMapControls, Icon3D } from '../../src/components/clay';
+import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
 
 /**
@@ -269,13 +269,9 @@ export default function RoadScreen() {
         ) : null}
       </MapView>
 
-      {/* Header vetro: allievo, guida in corso, pagellino */}
-      <View style={[s.header, { top: headerTop }]}>
-        <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-        <View style={s.headerTint} />
-        <View style={s.avatar}>
-          <Text style={s.avatarTx}>{initialsOf(name)}</Text>
-        </View>
+      {/* Testata clay: allievo (volto vero), guida in corso, pagellino */}
+      <View style={[s.header, CLAY_SHADOW.raise, { top: headerTop }]}>
+        <Avatar userId={lesson.student?.id} name={name} size={42} />
         <View style={s.who}>
           <Text style={s.name} numberOfLines={1}>{name}</Text>
           <View style={s.liveRow}>
@@ -288,11 +284,11 @@ export default function RoadScreen() {
         {st.evaluationEnabled ? (
           <Pressable
             onPress={() => openRoadPagellino(router, lesson, { showStayChip: true })}
-            style={({ pressed }) => [s.pgBtn, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [s.pgBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
             accessibilityRole="button"
             testID="road-pagellino"
           >
-            <Ionicons name="star-outline" size={18} color="#111111" />
+            <Icon3D name="memo" size={20} />
             <Text style={s.pgTx}>Pagellino</Text>
           </Pressable>
         ) : null}
@@ -322,7 +318,7 @@ export default function RoadScreen() {
       {/* Guida appena avviata da Road: è in agenda, e per 10 secondi si annulla */}
       {freeOpen && freeStarted && !st.toast ? (
         <RoadToastFrame key={freeStarted.sessionId} style={[s.toast, s.freeBanner, { top: headerTop + 70 + 10 }]}>
-          <Ionicons name="calendar-outline" size={19} color="#FFFFFF" style={{ marginLeft: 6 }} />
+          <Icon3D name="calendar" size={24} style={{ marginLeft: 4 }} />
           <Text style={[s.toastT1, { flex: 1 }]} numberOfLines={1}>
             In agenda: {freeStarted.label}
           </Text>
@@ -340,32 +336,11 @@ export default function RoadScreen() {
       {/* Controlli mappa raggruppati, come in Apple Maps: velocità e «centra»
           in un'unica card bianca piena con ombra morbida, a destra sopra il
           pannello. A sinistra restano liberi logo Maps e «Legal». */}
-      <View style={[s.mapCtl, { bottom: ctlBottom }]}>
-        <View style={s.speedCell} accessibilityLabel={`${speedKmh} chilometri orari`}>
-          <Text style={s.speedNum}>{speedKmh}</Text>
-          <Text style={s.speedUnit}>km/h</Text>
-        </View>
-        <View style={s.ctlSep} />
-        <Pressable
-          onPress={onRecenter}
-          style={({ pressed }) => [s.locBtn, pressed && { backgroundColor: '#F2F2F7' }]}
-          accessibilityRole="button"
-          accessibilityLabel="Centra sulla tua posizione"
-          testID="road-recenter"
-        >
-          <SFSymbol
-            name={following ? 'location.fill' : 'location'}
-            size={19}
-            color={following ? '#111111' : '#3A3A3C'}
-            // Ripiego: freccia piena Material, la più vicina a location.fill.
-            fallback="near-me"
-          />
-        </Pressable>
-      </View>
+      <ClayMapControls speedKmh={speedKmh} following={following} onRecenter={onRecenter} style={{ bottom: ctlBottom }} />
 
       {/* Pannello: numeri + azioni */}
       <View
-        style={[s.panel, { paddingBottom: Math.max(14, insets.bottom - 20) }]}
+        style={[s.panel, CLAY_SHADOW.raise, { paddingBottom: Math.max(14, insets.bottom - 20) }]}
         onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}
       >
         <View style={s.stats}>
@@ -389,59 +364,46 @@ export default function RoadScreen() {
           </View>
         </View>
         <View style={s.actions}>
-          <Pressable
+          <ClayButton
+            title="Segnala"
+            leading={<Ionicons name="add" size={24} color="#FFFFFF" />}
             onPress={onSegnala}
             disabled={ending}
-            style={({ pressed }) => [s.btn, s.btnDark, { flex: 1.45 }, pressed && { opacity: 0.88 }]}
+            style={[s.btn, { flex: 1.45 }]}
             testID="road-segnala"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-            <Text style={s.btnDarkTx}>Segnala</Text>
-          </Pressable>
-          <Pressable
+          />
+          <ClayButton
+            variant="secondary"
+            title="Termina guida"
             onPress={onTermina}
-            disabled={ending}
-            style={({ pressed }) => [s.btn, s.btnSoft, { flex: 1 }, pressed && { opacity: 0.8 }]}
+            loading={ending}
+            style={[s.btn, { flex: 1 }]}
             testID="road-termina"
-          >
-            {ending ? <ActivityIndicator color="#111111" /> : <Text style={s.btnSoftTx}>Termina guida</Text>}
-          </Pressable>
+          />
         </View>
       </View>
     </View>
   );
 }
 
-const GLASS_BORDER = 'rgba(255,255,255,0.7)';
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F4F1EA' },
+  root: { flex: 1, backgroundColor: CLAY.bg },
 
+  // Testata clay: superficie bianca in rilievo sopra la mappa (niente vetro).
   header: {
     position: 'absolute',
     left: 12,
     right: 12,
     height: 70,
     borderRadius: 28,
-    overflow: 'hidden',
+    backgroundColor: CLAY.surface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingLeft: 12,
-    paddingRight: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
+    paddingLeft: 14,
+    paddingRight: 12,
   },
-  headerTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.55)' },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#2B2B2B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarTx: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
   who: { flex: 1, minWidth: 0 },
   name: { fontSize: 16.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   liveRow: { flexDirection: 'row', alignItems: 'center', marginTop: 1 },
@@ -463,10 +425,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     height: 40,
-    paddingLeft: 11,
+    paddingLeft: 10,
     paddingRight: 14,
     borderRadius: 20,
-    backgroundColor: 'rgba(120,120,128,0.12)',
+    backgroundColor: CLAY.surface,
   },
   pgTx: { fontSize: 14.5, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
 
@@ -479,12 +441,8 @@ const s = StyleSheet.create({
     gap: 12,
     padding: 10,
     borderRadius: 24,
-    backgroundColor: 'rgba(17,17,17,0.92)',
-    shadowColor: '#000',
-    shadowOpacity: 0.28,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 8,
+    backgroundColor: CLAY.ink,
+    ...CLAY_SHADOW.ink,
   },
   toastIc: {
     width: 46,
@@ -509,56 +467,19 @@ const s = StyleSheet.create({
   undoTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   freeBanner: { paddingVertical: 8, paddingLeft: 12 },
 
-  glassTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
-  mapCtl: {
-    position: 'absolute',
-    right: 14,
-    width: 58,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  speedCell: { height: 58, alignItems: 'center', justifyContent: 'center' },
-  speedNum: {
-    fontSize: 21,
-    fontWeight: '600',
-    color: '#111111',
-    letterSpacing: -0.5,
-    lineHeight: 23,
-    fontVariant: ['tabular-nums'],
-  },
-  speedUnit: { fontSize: 10.5, fontWeight: '500', color: '#6A6A6A', marginTop: 1 },
-  ctlSep: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(60,60,67,0.22)', marginHorizontal: 10 },
-  locBtn: {
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-  },
-
   panel: {
     position: 'absolute',
     left: 8,
     right: 8,
     bottom: 8,
     borderRadius: 46,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CLAY.surface,
     paddingTop: 20,
     paddingHorizontal: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.13,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 12,
   },
   stats: { flexDirection: 'row', paddingHorizontal: 6 },
   stat: { flex: 1, paddingHorizontal: 12 },
-  statSep: { borderLeftWidth: 1, borderLeftColor: '#ECECEC' },
+  statSep: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: 'rgba(17,17,17,0.14)' },
   statNum: {
     fontSize: 27,
     fontWeight: '600',
@@ -569,9 +490,6 @@ const s = StyleSheet.create({
   statUnit: { fontSize: 14, fontWeight: '500', color: '#6A6A6A', letterSpacing: 0 },
   statLabel: { fontSize: 12.5, fontWeight: '400', color: '#6A6A6A', marginTop: 4 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 18 },
-  btn: { height: 62, borderRadius: 31, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnDark: { backgroundColor: '#111111' },
-  btnDarkTx: { fontSize: 17.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
-  btnSoft: { backgroundColor: '#F2F2F0' },
-  btnSoftTx: { fontSize: 17.5, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
+  // CTA da guida: più alte (62) delle CTA normali, stessa capsula clay.
+  btn: { height: 62, borderRadius: 31 },
 });
