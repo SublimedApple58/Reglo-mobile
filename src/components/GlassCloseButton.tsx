@@ -1,42 +1,22 @@
 import React from 'react';
-import { Platform, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { ClayIconButton } from './clay/ClayIconButton';
 
 /**
- * X di chiusura "liquid glass" nativa di iOS 26 per page sheet e form sheet.
+ * X di chiusura dei page/form sheet costruiti a mano (quelli non ancora su
+ * `FormSheet`). Dal clay v2 (REG-639, Tiziano 28/10/2026) è SEMPRE il cerchio
+ * bianco in rilievo, identico in tutti i fogli: niente più X «liquid glass»
+ * di iOS 26, che cambiava resa da un fondo all'altro.
  *
- * Usa `@expo/ui/swift-ui` (modulo nativo ExpoUI già presente nei binari 2.2.0 e
- * 2.3.0, compilati con SDK iOS 26.2): SF Symbol `xmark` dentro un `glassEffect`
- * circolare interattivo, lo stesso materiale dei bottoni di sistema.
- *
- * Si attiva solo su iOS 26+ con il modulo presente. Altrove (Android, iOS < 26)
- * mostra `children`, cioè la X originale dello sheet, così il look resta quello
- * di sempre; senza children usa la X tonda grigia standard.
+ * Il nome resta per non toccare le ~40 schermate che la usano; `children`
+ * (la vecchia X di ripiego) è ignorato.
  */
 
-const IOS_MAJOR = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0;
-
-type SwiftUI = typeof import('@expo/ui/swift-ui');
-type SwiftUIModifiers = typeof import('@expo/ui/swift-ui/modifiers');
-
-function loadSwiftUI(): { ui: SwiftUI; mod: SwiftUIModifiers } | null {
-  if (IOS_MAJOR < 26) return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { requireOptionalNativeModule } = require('expo-modules-core');
-    if (!requireOptionalNativeModule('ExpoUI')) return null;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return { ui: require('@expo/ui/swift-ui'), mod: require('@expo/ui/swift-ui/modifiers') };
-  } catch {
-    return null;
-  }
-}
-
-const SWIFT_UI = loadSwiftUI();
-const SIZE = 44;
-
-/** true se la X glass viene davvero disegnata (iOS 26+ con ExpoUI). */
-export const HAS_GLASS_CLOSE = SWIFT_UI !== null;
+/**
+ * Storico: valeva true solo su iOS 26 (X glass). Ora la X clay c'è ovunque,
+ * quindi anche i fogli che la mostravano solo lì (prenotazione) la hanno sempre.
+ */
+export const HAS_GLASS_CLOSE = true;
 
 export function GlassCloseButton({
   onPress,
@@ -44,71 +24,26 @@ export function GlassCloseButton({
   accessibilityLabel = 'Chiudi',
   testID,
   style,
-  children,
 }: {
   onPress: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
   testID?: string;
-  /** Solo per la X glass: posizionamento (es. assoluto) che la X originale aveva nel suo stile. */
+  /** Posizionamento (es. assoluto) che la X aveva nel suo stile. */
   style?: StyleProp<ViewStyle>;
-  /** X originale da mostrare dove la glass non c'è (Android, iOS < 26). */
+  /** @deprecated ignorato dal clay v2. */
   children?: React.ReactNode;
 }) {
-  if (SWIFT_UI) {
-    const { Host, Image } = SWIFT_UI.ui;
-    const { accessibilityLabel: a11yLabel, frame, glassEffect, onTapGesture } = SWIFT_UI.mod;
-    return (
-      <View style={[s.glassWrap, style, disabled && s.disabled]} testID={testID} pointerEvents={disabled ? 'none' : 'auto'}>
-        <Host matchContents style={s.host}>
-          <Image
-            systemName="xmark"
-            size={22}
-            color="#111111"
-            modifiers={[
-              frame({ width: SIZE, height: SIZE }),
-              glassEffect({ glass: { variant: 'regular', interactive: true }, shape: 'circle' }),
-              onTapGesture(() => {
-                if (!disabled) onPress();
-              }),
-              a11yLabel(accessibilityLabel),
-            ]}
-          />
-        </Host>
-      </View>
-    );
-  }
-
-  if (children) return <>{children}</>;
-
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={10}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      testID={testID}
-      style={({ pressed }) => [s.fallback, pressed && { opacity: 0.5 }]}
-    >
-      <Ionicons name="close" size={22} color="#6A6A6A" />
-    </Pressable>
+    <View style={[s.wrap, style, disabled && s.disabled]} pointerEvents={disabled ? 'none' : 'auto'}>
+      <ClayIconButton icon="close" onPress={onPress} accessibilityLabel={accessibilityLabel} testID={testID} />
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  // 44pt come i bottoni di sistema. Tutte le X degli sheet stanno a destra: il
-  // margine negativo tiene il bordo destro dove stava la X di prima (34pt) e non
-  // alza header e top bar; il cerchio in più cresce verso sinistra.
-  glassWrap: { width: SIZE, height: SIZE, marginVertical: -5, marginLeft: -10 },
-  host: { width: SIZE, height: SIZE },
+  // Stesso ingombro della X glass di prima (44 con margini negativi): header e
+  // top bar non si spostano; il cerchio clay è 40.
+  wrap: { width: 44, height: 44, marginVertical: -5, marginLeft: -10, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
-  fallback: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

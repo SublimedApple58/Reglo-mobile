@@ -1,10 +1,10 @@
 import React from 'react';
-import { Platform, Pressable, ScrollView, ScrollViewProps, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Platform, ScrollView, ScrollViewProps, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { SHEET_BOTTOM } from '../utils/sheetPresentation';
+import { ClayIconButton } from './clay/ClayIconButton';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
 
 /**
@@ -98,23 +98,12 @@ export function FormSheet({
 }
 
 /**
- * La X dei form sheet: SEMPRE cerchio grigio pieno, identica in ogni foglio.
- * Niente X «glass» di iOS 26 (GlassCloseButton): sopra fondi diversi cambiava
- * resa da un foglio all'altro (Tiziano 28/10/2026).
+ * La X dei form sheet: SEMPRE il cerchio bianco in rilievo del clay v2
+ * (`ClayIconButton`), identica in ogni foglio (Tiziano 28/10/2026, REG-639;
+ * prima era un cerchio grigio pieno). Niente X «glass» di iOS 26.
  */
 export function SheetCloseButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={10}
-      style={({ pressed }) => [fs.x, pressed && { opacity: 0.7, transform: [{ scale: 0.92 }] }]}
-      accessibilityRole="button"
-      accessibilityLabel="Chiudi"
-      testID="sheet-close"
-    >
-      <Ionicons name="close" size={20} color="#3A3A3C" />
-    </Pressable>
-  );
+  return <ClayIconButton icon="close" onPress={onPress} accessibilityLabel="Chiudi" testID="sheet-close" />;
 }
 
 const fs = StyleSheet.create({
@@ -125,15 +114,6 @@ const fs = StyleSheet.create({
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   subtitle: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, lineHeight: 20 },
-  x: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    // Grigio pieno opaco (non trasparente): uguale su qualunque fondo.
-    backgroundColor: '#EEEEF0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   cta: { marginTop: 22 },
 });
 

@@ -71,6 +71,8 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 - Il nodo con `boxShadow` deve avere `backgroundColor` e `borderRadius`
   propri; se serve `overflow: 'hidden'` (foto, mappa) metterlo su un figlio,
   altrimenti l'ombra esterna viene tagliata.
+- L'ombra **interna** di un nodo si disegna **sotto i suoi figli**: su una
+  foto (avatar) va in un velo assoluto sopra il contenuto (vedi `Avatar`).
 
 ### 0.4 Icone 3D — `src/theme/icons3d.ts` + `<Icon3D>`
 
@@ -81,6 +83,24 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 - Sempre su bianco, mai in un riquadro colorato, mai `tintColor`.
 - Dove: tab bar (28), voci del briefing/pagellino (30–36), motivo nelle righe
   di lista (17, prima del testo), card (44), statistiche (30), auto (70×56).
+
+### 0.5 Componenti — `src/components/clay/` (import da `src/components/clay`)
+
+| Componente | Cosa | Note |
+|---|---|---|
+| `ClayPressable` | base premibile: scala a molla senza rimbalzo (`cta` .96 · `card` .97 · `small` .92) | ex `RoadPressable` (che resta come alias) |
+| `ClayButton` | CTA a capsula `primary` (clay nero) / `secondary` (bianco in rilievo); `compact` 46; `leading` (es. `<PlayGlyph/>`); `loading` = spinner | premuta: ombra interna (`inkPressed`) |
+| `ClayIconButton` | cerchio 40 (`lg` 50), bianco `raiseSm` o nero `ink`; `icon` = `close`/`back`/`add` o un nodo (SF Symbol) | è la X di tutti i fogli |
+| `ClaySurface` | la card: bianco in rilievo, raggio 28, padding 20 (`padded={false}` per contenuti a filo); con `onPress` premibile | `overflow: hidden` su un figlio, mai qui |
+| `ClayList` + `ClayListRow` | una superficie con le righe; separatori automatici; riga = `leading` (volto), titolo, sottotitolo con `subtitleIcon` 3D (17), chevron se premibile | l'ombra sta sulla lista, non sulle righe |
+| `ClaySearchField` | capsula incavata 46, lente monocromatica | props di `TextInput` |
+| `ClaySegmented` | binario incavato + cursore clay nero che scivola (`SOFT_SPRING`), testo bianco sulla voce scelta | haptic di selezione |
+| `Avatar` | foto (`UserPhotoCircle`) o iniziali su `avatarColors`, volume clay, anello nero se `selected` | ex `RoadAvatar` (alias) |
+| `ClayMapControls` | colonna bianca 56 in rilievo: velocità + «centra» (SF Symbol `location(.fill)`, ripiego `near-me`) | `bottom` lo decide la schermata |
+| `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
+| `Icon3D` | icona 3D colorata (§0.4) | |
+| `FormSheet` | resta IL foglio (§13.2); X = `ClayIconButton` | `src/components/SheetScaffold.tsx` |
+| Tab bar | `src/components/AppTabBar.tsx`: icone 3D, voce attiva = bolla bianca in rilievo | |
 
 ---
 
@@ -1624,8 +1644,10 @@ Cosa fa da solo, sempre uguale:
 - **radice = scroll del foglio** (`contentInsetAdjustmentBehavior="never"`): se il
   contenuto supera lo schermo scorre il foglio stesso, mai una scroll interna;
 - **intestazione**: `leading` + titolo `24/600` + sottotitolo `15/400`, e la **X
-  in alto a destra, nell'angolo** (`GlassCloseButton`): è l'unico modo di
-  chiudere. Niente eyebrow sopra il titolo;
+  in alto a destra, nell'angolo** (`SheetCloseButton` = `ClayIconButton`
+  «close»: cerchio bianco in rilievo del clay v2, §0 — identico anche nei fogli
+  ancora fatti a mano, via `GlassCloseButton`): è l'unico modo di chiudere.
+  Niente eyebrow sopra il titolo;
 - **contenuto** che entra ed esce con dissolvenza morbida, l'altezza scivola
   (`utils/motion.ts`, niente rimbalzi, `ReduceMotion.Never`);
 - **CTA in fondo come ultima cosa**, poi solo `SHEET_BOTTOM` (0 da iOS 26, 18

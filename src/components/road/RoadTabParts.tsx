@@ -2,13 +2,10 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Polyline } from 'react-native-svg';
-import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { ROAD_EXIT, ROAD_LAYOUT, ROAD_SPRING, roadStagger } from '../../road/motion';
+import Animated from 'react-native-reanimated';
+import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing } from '../../types/regloApi';
-import { initialsOf } from '../../road/format';
-import { avatarColors } from '../../utils/avatarColors';
-import { UserPhotoCircle } from '../UserPhotoCircle';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
 
 /**
@@ -80,46 +77,8 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
 
 const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
-/**
- * Volto dell'allievo in tutto Road: lo stesso della tab Allievi (foto profilo
- * con `UserPhotoCircle`, altrimenti iniziali sul colore ricavato dall'id).
- * `selected` = anello nero che compare morbido, il volto si stringe dentro.
- */
-export function RoadAvatar({
-  userId,
-  name,
-  size = 64,
-  selected,
-}: {
-  userId: string | null | undefined;
-  name: string;
-  size?: number;
-  selected?: boolean;
-}) {
-  const ring = useAnimatedStyle(() => ({
-    opacity: withTiming(selected ? 1 : 0, { duration: 180 }),
-    transform: [{ scale: withSpring(selected ? 1 : 0.9, ROAD_SPRING) }],
-  }));
-  const face = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(selected ? (size - 8) / size : 1, ROAD_SPRING) }],
-  }));
-  const { bg, fg } = avatarColors(userId ?? name);
-  return (
-    <View style={[s.avatarWrap, { width: size, height: size }]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, s.avatarRing, { borderRadius: size / 2 }, ring]}
-      />
-      <Animated.View style={[{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }, face]}>
-        <UserPhotoCircle userId={userId} size={size}>
-          <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
-            <Text style={[s.avatarTx, { fontSize: Math.round(size * 0.3), color: fg }]}>{initialsOf(name)}</Text>
-          </View>
-        </UserPhotoCircle>
-      </Animated.View>
-    </View>
-  );
-}
+/** Volto di Road = il volto clay dell'app (REG-639). */
+export { Avatar as RoadAvatar } from '../clay/Avatar';
 
 /** Miniatura del percorso: polilinea nera su fondo mappa, niente MapView. */
 export function RouteThumb({ thumb, size = 56 }: { thumb: Array<[number, number]>; size?: number }) {
@@ -165,9 +124,5 @@ const s = StyleSheet.create({
   ring: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 16, fontWeight: '500', color: '#111111', letterSpacing: -0.2 },
   rowDetail: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
-  avatarWrap: { alignItems: 'center', justifyContent: 'center' },
-  avatarRing: { borderWidth: 2.5, borderColor: '#111111' },
-  avatar: { backgroundColor: '#ECECEA', alignItems: 'center', justifyContent: 'center' },
-  avatarTx: { fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   thumb: { borderRadius: 14, backgroundColor: '#F2F0EB', overflow: 'hidden' },
 });
