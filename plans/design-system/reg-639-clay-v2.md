@@ -36,5 +36,7 @@ sul simulatore quando Tiziano lo libera.
 
 - La X diventa il cerchio bianco in rilievo in tutti i fogli.
 - Le icone 3D blu (rotatoria, parcheggio) restano.
-- La tab bar cambia subito, con Road.
+- La tab bar cambia subito, con Road. **Poi bocciata (28/10, dopo la prova sul
+  simulatore: «sembra la versione finta di quella nativa Apple»): torna la «T1
+  piatta» di REG-638, la tab bar NON è clay.**
 - Il resto dell'app andrà tutto in clay (prossimo giro).

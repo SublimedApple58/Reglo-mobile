@@ -20,13 +20,17 @@ applica a Road per prima, poi a tutta l'app.
   ombra esterna morbida + bordo di luce (1px appena scuro che stacca il bianco
   dal bianco) + ombra interna in basso. Gli incavi (ricerca, binario del
   segmentato) hanno solo ombra interna.
-- **Il colore arriva solo dalle icone 3D e dalle foto** (tab bar, righe di
+- **Il colore arriva solo dalle icone 3D e dalle foto** (righe di
   lista, voci del briefing, auto, statistiche). Icone monocromatiche solo
   dove sono strumenti: X, cerca, chevron, indietro, «+», «centra».
 - Regole fisse che restano: niente pillole/tag/badge/eyebrow decorativi,
   niente blu/navy nella UI (le icone 3D colorate approvate restano come
   sono, anche se blu: rotatoria, parcheggio), animazioni sobrie senza
   rimbalzi (§8), sensazione nativa iOS/Airbnb.
+- **La tab bar NON è clay**: resta la «T1 piatta» di REG-638 (§6.19). La
+  capsula clay con bolla in rilievo è stata provata e bocciata da Tiziano il
+  28/10/2026 («sembra la versione finta di quella nativa Apple»): non
+  riproporla.
 
 ### 0.2 Token — `src/theme/clay.ts`, `src/theme/spacing.ts`
 
@@ -40,7 +44,7 @@ applica a Road per prima, poi a tutta l'app.
 | `CLAY.hairline` | `rgba(17,17,17,.07)` | separatori nelle liste |
 | `CLAY.chevron` | `#BDBDBD` | chevron |
 | `CTA_HEIGHT` / `CTA_RADIUS` | 54 / 27 | CTA a capsula |
-| `CLAY_RADIUS.card` | 28 | card, liste, tab bar (capsula 34 a parte) |
+| `CLAY_RADIUS.card` | 28 | card, liste |
 | `CLAY_RADIUS.tile` | 22 | tessere statistiche, riga auto |
 | `CLAY_RADIUS.sheet` | 38 | anteprime; il form sheet nativo usa il suo raggio |
 | `FIELD_HEIGHT` | 46 | ricerca e segmentato (capsula, raggio 23) |
@@ -49,8 +53,8 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 
 | Preset | Livelli | Uso |
 |---|---|---|
-| `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, tab bar, CTA secondaria, controlli mappa |
-| `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro, bolla tab attiva |
+| `raise` | bordo 1px · esterna 0/10/24/-10 α.16 · interna 0/-2.5/4 α.035 | card, liste, CTA secondaria, controlli mappa |
+| `raiseSm` | bordo · esterna 0/6/14/-6 α.18 · interna | bottone icona (X), cursore chiaro |
 | `sink` | interna 1px · interna 0/2/5 α.08 | ricerca, binario del segmentato |
 | `ink` | esterna 0/10/20/-8 α.45 · luce interna in alto · ombra interna in basso | CTA primaria, cursore segmentato, bottone nero |
 | `inkPressed` | interna 0/2/6 α.55 | CTA nera premuta |
@@ -81,7 +85,7 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
   Segnalazioni Road: `markerArt(kind)`; auto: `car34Art(color)`.
 - `<Icon3D name="exam" size={17} />` oppure `<Icon3D source={markerArt('stop')} />`.
 - Sempre su bianco, mai in un riquadro colorato, mai `tintColor`.
-- Dove: tab bar (28), voci del briefing/pagellino (30–36), motivo nelle righe
+- Dove (mai nella tab bar, che resta a glifi monocromatici): voci del briefing/pagellino (30–36), motivo nelle righe
   di lista (17, prima del testo), card (44), statistiche (30), auto (70×56).
 
 ### 0.5 Componenti — `src/components/clay/` (import da `src/components/clay`)
@@ -100,7 +104,7 @@ Ombre (`CLAY_SHADOW`, si stendono nello style: `[s.card, CLAY_SHADOW.raise]`):
 | `ClayStat` / `ClayHeroNumber` | tessera icona 3D + numero (unità più piccola) + etichetta; numero protagonista | cifre tabellari |
 | `Icon3D` | icona 3D colorata (§0.4) | |
 | `FormSheet` | resta IL foglio (§13.2); X = `ClayIconButton` | `src/components/SheetScaffold.tsx` |
-| Tab bar | `src/components/AppTabBar.tsx`: icone 3D, voce attiva = bolla bianca in rilievo | |
+| Tab bar | NON clay: resta la «T1 piatta» (§6.19), glifi monocromatici | bocciata la versione clay (28/10) |
 
 ---
 
@@ -872,7 +876,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ### 6.19 AppTabBar (era GlassTabBar)
 
-> **Clay v2 (REG-639, 28/10/2026) — vale questo:** capsula bianca in rilievo (`raise`, alta 66, raggio 33) staccata 16 dai bordi su fondo bianco pieno; ogni voce ha la sua **icona 3D colorata** (`ICONS_3D`: istruttore `agenda` · `road` · `people` · `profile`; allievo `car`/`motorcycle`/`book`, `clock`, `swap`, `bell`, `exam`); la voce attiva è una **bolla bianca in rilievo** (`raiseSm`) che compare in dissolvenza (si animano solo opacità e scala) con etichetta nera 600, le altre hanno icona appena più tenue ed etichetta `CLAY.ink3`. Il contenuto non passa sotto la barra. Il paragrafo «T1 piatta» qui sotto è storico.
+> **REG-639 (28/10/2026): la tab bar NON è clay — vale la «T1 piatta» qui sotto.** La capsula bianca in rilievo con icone 3D e bolla sulla voce attiva è stata provata sul simulatore e bocciata da Tiziano («sembra la versione finta di quella nativa Apple»); il file è tornato identico a REG-638. Non riproporla.
 >
 > **28/10/2026 (REG-638, «T1 piatta» scelta da Tiziano):** `src/components/AppTabBar.tsx`, un solo file. Barra **bianca piatta** con filo sottile in alto, niente vetro, niente ombre, niente cerchio in rilievo, niente pillole. Glifi monocromatici in stile SF Symbols: contorno grigio `#8E8E93` a riposo, pieno nero `#111111` sulla voce attiva, etichetta 10.5 sotto. **Istruttore e titolare-istruttore** (`useInstructorTabs`): **Agenda · Road · Allievi · Tu** (`calendar`, `map`, `people`, `person-circle`); Road solo con Road acceso. Disponibilità e Notifiche escono dalla barra: orologio e campanella (cerchi bianchi con ombra morbida, `InboxBellButton.tsx`) nell'intestazione dell'Agenda; la campanella anche nella tab Road. Il testo sotto è storico.
 
