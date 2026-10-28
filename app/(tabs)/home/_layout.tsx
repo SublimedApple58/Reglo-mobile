@@ -40,7 +40,7 @@ export default function HomeLayout() {
           allievo arriva a decine di guide) → page sheet con scroll nativo. */}
       <Stack.Screen name="student-payments" options={FORM_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
-      <Stack.Screen name="payment-history" options={HUG_SHEET} />
+      <Stack.Screen name="payment-history" options={FORM_SHEET} />
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />
       <Stack.Screen name="follow-car-conflict" options={FORM_SHEET} />
       <Stack.Screen name="follow-car-conflict-long" options={FORM_SHEET} />

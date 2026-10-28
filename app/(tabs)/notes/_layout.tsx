@@ -17,7 +17,7 @@ export default function NotesLayout() {
       {/* Pagamenti guide (REG-450): form sheet alto quanto il contenuto, scorre da sé (REG-639). */}
       <Stack.Screen name="student-payments" options={FORM_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
-      <Stack.Screen name="payment-history" options={HUG_SHEET} />
+      <Stack.Screen name="payment-history" options={FORM_SHEET} />
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />
       <Stack.Screen name="group-students" options={FORM_SHEET} />
       {/* Pagellino (REG-443): con più voci il foglio supera l'altezza dello

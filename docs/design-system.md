@@ -232,9 +232,10 @@ caldi**, **foto**, **un numero che conta** e **micro-copy umano**, sempre su
 bianco/nero, senza pillole. Piano completo: `plans/design-system/reg-639-vita.md`.
 
 - **Immagini**: `assets/vita/` (1x/@2x/@3x), registro `src/theme/vitaArt.ts`
-  (`VITA_ART`). Icone (calendario, volante, esame, edificio, termometro)
-  **opache su bianco puro**: vanno SOLO su superfici `#FFF`. Campanella PNG
-  trasparente. `cartina-road` (sfondo card «Guida») e `sede-foto` (copertina) JPG.
+  (`VITA_ART`). Icone (calendario, volante, esame, edificio, termometro,
+  stella, orologio, campanella) **PNG trasparenti**, ombra di contatto come
+  velo semitrasparente: reggono la riga premuta (`CLAY_ROW_PRESSED`) senza
+  quadrato bianco. Ogni icona nuova DEVE avere l'alfa (mai JPG o fondo pieno). `cartina-road` (sfondo card «Guida») e `sede-foto` (copertina) JPG.
 - **Agenda**: saluto con l'ora (`greetingFor`: Buongiorno <13, Buon pomeriggio
   <18, Buonasera) sopra il titolo; `AgendaTodayCard` (calendario 3D, «Oggi N
   guide», la prima/la prossima, la pausa; giornata vuota = volante); campanella

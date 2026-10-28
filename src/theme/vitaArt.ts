@@ -3,9 +3,10 @@ import type { ImageSourcePropType } from 'react-native';
 /**
  * Immagini della direzione «D · Mix» (REG-639, approvata da Tiziano il 28/10;
  * piano `plans/design-system/reg-639-vita.md`). Generate con Gemini (blocco
- * STILE §0.4), fondo portato a bianco puro: OPACHE, vanno solo su superfici
- * bianche (card clay, form sheet, pagina). L'ombra morbida di contatto è
- * dentro l'immagine.
+ * STILE §0.4). PNG TRASPARENTI (giro pagamenti 28/10: opache su bianco
+ * facevano un quadrato bianco sulla riga premuta): soggetto ritagliato con
+ * Vision, il bianco portato ad alfa, così l'ombra morbida di contatto resta
+ * come velo grigio semitrasparente e su bianco l'icona è identica a prima.
  */
 export const VITA_ART = {
   calendario: require('../../assets/vita/calendario.png') as ImageSourcePropType,

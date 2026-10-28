@@ -1,44 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  AccessibilityInfo,
-  ActionSheetIOS,
-  ActivityIndicator,
-  Alert,
-  LayoutChangeEvent,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 
-import {
-  notificationAsync,
-  selectionAsync,
-  NotificationFeedbackType,
-} from '../utils/haptics';
-import { HoldRing } from '../components/HoldRing';
+import { notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { FormSheet } from '../components/SheetScaffold';
+import { SettingValueRow } from '../components/SettingsRows';
+import {
+  CLAY_ROW_PRESSED,
+  ClayEmpty,
+  ClayList,
+  ClaySection,
+  clayRowPadding,
+  markClayRow,
+} from '../components/clay';
+import type { ClayRowPosition } from '../components/clay';
 import { studentPaymentsStore } from '../stores/studentPaymentsStore';
 import { paymentHistoryStore } from '../stores/paymentHistoryStore';
+import { optionsPickerStore } from '../stores/optionsPickerStore';
 import { regloApi } from '../services/regloApi';
-import { colors } from '../theme';
+import { CLAY } from '../theme/clay';
 import { formatTime } from '../utils/date';
 import { LESSON_TYPE_LABEL_MAP } from '../utils/lessonTypes';
 import {
@@ -48,12 +31,7 @@ import {
   isPenaltyCharged,
   isPenaltyPaid,
 } from '../utils/lessonPayments';
-import {
-  PAYMENT_EVENT_DOT,
-  PAYMENT_EVENT_SHORT_LABEL,
-  formatPaymentEventWhen,
-  lastEventMatchesState,
-} from '../utils/paymentHistory';
+import { formatEuro } from '../components/ledger/LedgerUI';
 import type { AutoscuolaAppointmentWithRelations, PaymentHistoryEvent } from '../types/regloApi';
 
 /** Filtri del registro guide — stessi identici del dettaglio allievo web. */
@@ -111,208 +89,113 @@ const statusLabel = (status: string) => {
   }
 };
 
-/**
- * Chiave "l'utente ha già capito che si tiene premuto". Si scrive alla PRIMA
- * conferma completata: da lì il suggerimento non parte più da solo (resta come
- * risposta al tocco singolo, che una risposta deve averla).
- */
-const HINT_KEY = 'reg450.paymentsLongPressLearned';
-
-/** Quanto va tenuto premuto perché la conferma scatti. */
-import {
-  LedgerFilterBar,
-  StateGlyph,
-  TONE,
-  formatEuro,
-  type FilterDef as LedgerFilterDef,
-  type RowIcon,
-  type RowTone,
-} from '../components/ledger/LedgerUI';
-
-const HOLD_MS = 900;
-
-const SPRING = { damping: 20, stiffness: 340, mass: 0.5 } as const;
-const ROW_LAYOUT = LinearTransition.springify().damping(24).stiffness(260).mass(0.6);
-
 /* ─────────────────────────────────── riga ───────────────────────────────── */
 
 /**
- * Riga del registro (R1): glifo di stato · due righe di testo · valore a destra
- * · anello di conferma.
- *
- * **La pressione lunga È la conferma.** Non apre più un foglio: l'anello si
- * riempie mentre tieni premuto e al 100% l'azione parte. Mollare prima annulla
- * e l'anello torna indietro. Niente action sheet che spunta di scatto.
- *
- * VoiceOver non sa tenere premuto: con lo screen reader attivo il doppio tocco
- * apre il menu nativo di ripiego.
+ * Riga di Pagamenti (REG-639, giro dopo la prova di Tiziano): dentro una
+ * `ClayList` come le altre liste. UN solo segnale di stato:
+ * - guida che si può segnare → la casella a destra: vuota = da pagare, nera
+ *   con la spunta = pagata. Si tocca e scrive (risposta del BE, poi toast);
+ * - guida che non si segna (annullata, futura, a credito, sola lettura) → lo
+ *   stato a parole, in grigio («Da pagare» in nero: è quella che conta).
+ * Il tocco sulla riga apre il foglio «Guida» con chi/quando e lo storico: via
+ * il pallino colorato e il chip «⏱ 2 ›» sotto la riga.
  */
-function LessonRow({
-  lesson,
-  actionable,
-  busy,
-  paid,
+const PaymentRow = markClayRow(function PaymentRow({
   title,
   subtitle,
-  value,
-  tone,
-  icon,
-  showSeparator,
-  screenReader,
-  onCommit,
-  onFallbackMenu,
-  onNudge,
-  onOpenHistory,
-}: {
-  lesson: AutoscuolaAppointmentWithRelations;
-  actionable: boolean;
-  busy: boolean;
-  paid: boolean;
+  state,
+  stateStrong,
+  dim,
+  check,
+  busy,
+  onPress,
+  onToggle,
+  testID,
+  divider,
+  ...pos
+}: ClayRowPosition & {
   title: string;
   subtitle: string;
-  value: string | null;
-  tone: RowTone;
-  icon: RowIcon;
-  showSeparator: boolean;
-  screenReader: boolean;
-  onCommit: (lesson: AutoscuolaAppointmentWithRelations) => void;
-  onFallbackMenu: (lesson: AutoscuolaAppointmentWithRelations) => void;
-  onNudge: () => void;
-  /** REG-637: con almeno 2 eventi il tocco apre lo storico (sheet nativo). */
-  onOpenHistory: (lesson: AutoscuolaAppointmentWithRelations) => void;
+  /** Stato a parole: solo quando non c'è la casella. */
+  state: string | null;
+  stateStrong?: boolean;
+  dim?: boolean;
+  /** Casella: `paid`/`unpaid`, assente se la guida non si segna. */
+  check?: 'paid' | 'unpaid' | null;
+  busy?: boolean;
+  onPress: () => void;
+  onToggle?: () => void;
+  testID?: string;
 }) {
-  const history = lesson.paymentHistory ?? [];
-  const last = history[0];
-  const trail =
-    last && lastEventMatchesState(last, lesson) ? { event: last, when: formatPaymentEventWhen(last.at) } : null;
-  const hasHistory = history.length >= 2;
-
-  const progress = useSharedValue(0);
-  const press = useSharedValue(0);
-
-  const rowStyle = useAnimatedStyle(() => ({
-    opacity: 1 - press.value * 0.04,
-    transform: [{ scale: 1 - press.value * 0.008 }],
-  }));
-
-  const commit = useCallback(() => {
-    void notificationAsync(NotificationFeedbackType.Success).catch(() => {});
-    onCommit(lesson);
-  }, [lesson, onCommit]);
-
-  const startHold = useCallback(() => {
-    press.value = withTiming(1, { duration: 90 });
-    void selectionAsync().catch(() => {});
-    progress.value = withTiming(1, { duration: HOLD_MS, easing: Easing.linear }, (finished) => {
-      if (finished) {
-        progress.value = 0;
-        runOnJS(commit)();
-      }
-    });
-  }, [commit, press, progress]);
-
-  const endHold = useCallback(() => {
-    press.value = withTiming(0, { duration: 140 });
-    cancelAnimation(progress);
-    progress.value = withSpring(0, SPRING);
-  }, [press, progress]);
-
-  // REG-637: la riga «chi e quando» sta SOTTO la guida a tutta larghezza
-  // (allineata al testo): accanto a valore e anello data e nome si troncavano.
-  const body = (
-    <View testID={hasHistory ? 'payment-row-history' : trail ? 'payment-row-trail' : undefined}>
-      <View style={[s.row, (trail || hasHistory) && s.rowWithTrail]}>
-        <StateGlyph tone={tone} icon={icon} />
-        <View style={s.rowBody}>
-          <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
-          <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
-        </View>
-        {value ? (
-          <Text style={[s.rowValue, { color: TONE[tone].ink }]} numberOfLines={1}>{value}</Text>
-        ) : null}
-        {busy ? (
-          <ActivityIndicator size="small" color="#111111" style={s.rowRing} />
-        ) : actionable ? (
-          <View style={s.rowRing}>
-            <HoldRing progress={progress} color={paid ? '#B45309' : '#067647'} />
-          </View>
-        ) : null}
-      </View>
-      {trail || hasHistory ? (
-        <View style={s.trail}>
-          {trail ? (
-            <>
-              <View style={[s.trailDot, { backgroundColor: PAYMENT_EVENT_DOT[trail.event.kind] }]} />
-              <Text style={s.trailText} numberOfLines={1}>
-                <Text style={s.trailLabel}>{PAYMENT_EVENT_SHORT_LABEL[trail.event.kind]}</Text>
-                {` · ${trail.when.day}, ${trail.when.time}`}
-                {trail.event.actorName ? ` · ${trail.event.actorName}` : ''}
-              </Text>
-            </>
-          ) : null}
-          {hasHistory ? (
-            <View style={s.trailHistory}>
-              <Ionicons name="time-outline" size={12} color="#6F6F6F" />
-              <Text style={s.trailHistoryText}>{history.length}</Text>
-              <Ionicons name="chevron-forward" size={11} color="#B7B7B7" />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-    </View>
-  );
-
+  const paid = check === 'paid';
   return (
-    <View>
-      {showSeparator ? <View style={s.sep} /> : null}
-      {actionable ? (
-        <Animated.View style={rowStyle}>
-          <Pressable
-            disabled={busy}
-            onPressIn={screenReader ? undefined : startHold}
-            onPressOut={screenReader ? undefined : endHold}
-            onPress={() => {
-              if (screenReader) {
-                onFallbackMenu(lesson);
-                return;
-              }
-              // Tocco breve: con uno storico lo apre (la pressione lunga resta la
-              // conferma); senza, il suggerimento torna a dire cosa fare.
-              if (hasHistory) {
-                onOpenHistory(lesson);
-                return;
-              }
-              onNudge();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`${title}. ${subtitle}. ${value ?? ''}`}
-            accessibilityHint={paid ? 'Tieni premuto per segnare da pagare' : 'Tieni premuto per segnare pagata'}
-          >
-            {body}
-          </Pressable>
-        </Animated.View>
-      ) : hasHistory ? (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.row, clayRowPadding(pos, 13), pressed && CLAY_ROW_PRESSED]}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${subtitle}. ${check ? (paid ? 'Pagata' : 'Da pagare') : (state ?? '')}`}
+      accessibilityHint="Apre il dettaglio della guida"
+      testID={testID}
+    >
+      {divider ? <View style={s.divider} /> : null}
+      <View style={s.rowBody}>
+        <Text style={[s.rowTitle, dim && s.rowTitleDim]} numberOfLines={1}>{title}</Text>
+        <Text style={s.rowSub} numberOfLines={1}>{subtitle}</Text>
+      </View>
+      {check ? (
         <Pressable
-          onPress={() => onOpenHistory(lesson)}
-          style={({ pressed }) => pressed && { opacity: 0.6 }}
-          accessibilityRole="button"
-          accessibilityLabel={`${title}. ${subtitle}. ${value ?? ''}`}
-          accessibilityHint="Apre lo storico pagamento"
+          onPress={busy ? undefined : onToggle}
+          hitSlop={12}
+          style={s.checkHit}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: paid, busy: !!busy }}
+          accessibilityLabel={paid ? 'Pagata. Tocca per segnare da pagare' : 'Da pagare. Tocca per segnare pagata'}
+          testID={testID ? `${testID}-check` : undefined}
         >
-          {body}
+          {busy ? (
+            <ActivityIndicator size="small" color={CLAY.ink} />
+          ) : paid ? (
+            <Animated.View key="on" entering={FadeIn.duration(160)} style={[s.check, s.checkOn]}>
+              <Ionicons name="checkmark" size={17} color="#FFFFFF" />
+            </Animated.View>
+          ) : (
+            <Animated.View key="off" entering={FadeIn.duration(160)} style={s.check} />
+          )}
         </Pressable>
-      ) : (
-        body
-      )}
-    </View>
+      ) : state ? (
+        <Text style={[s.rowState, stateStrong && s.rowStateStrong]} numberOfLines={1}>{state}</Text>
+      ) : null}
+    </Pressable>
   );
-}
+});
 
 /* ────────────────────────────────── schermo ─────────────────────────────── */
+
+const FILTER_LABEL: Record<LessonFilter, string> = {
+  all: 'Tutte',
+  upcoming: 'Future',
+  unpaid: 'Da pagare',
+  completed: 'Completate',
+  cancelled: 'Annullate',
+};
+
+/** Come la riga racconta una guida: stato, casella, sottotitolo. */
+type RowModel = {
+  lesson: AutoscuolaAppointmentWithRelations;
+  title: string;
+  subtitle: string;
+  /** Stato a parole (sempre: serve al foglio «Guida»). */
+  stateLabel: string;
+  stateStrong: boolean;
+  dim: boolean;
+  check: 'paid' | 'unpaid' | null;
+};
 
 export const StudentPaymentsScreen = () => {
   const router = useRouter();
   const segments = useSegments();
+  const stack = (segments as string[]).includes('notes') ? 'notes' : 'home';
   const data = useSyncExternalStore(studentPaymentsStore.subscribe, studentPaymentsStore.get);
 
   const [filter, setFilter] = useState<LessonFilter>('all');
@@ -326,39 +209,6 @@ export const StudentPaymentsScreen = () => {
   const [patched, setPatched] = useState<
     Record<string, { status: string | null; events: PaymentHistoryEvent[] }>
   >({});
-  const [hintVisible, setHintVisible] = useState(false);
-  const [screenReader, setScreenReader] = useState(false);
-  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const learned = useRef(false);
-
-  const showHint = useCallback((ms: number) => {
-    setHintVisible(true);
-    if (hintTimer.current) clearTimeout(hintTimer.current);
-    hintTimer.current = setTimeout(() => setHintVisible(false), ms);
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem(HINT_KEY)
-      .then((v) => {
-        learned.current = v === '1';
-        if (!learned.current) showHint(5200);
-      })
-      .catch(() => {});
-    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => {});
-    return () => {
-      if (hintTimer.current) clearTimeout(hintTimer.current);
-    };
-  }, [showHint]);
-
-  const nudge = useCallback(() => showHint(2600), [showHint]);
-
-  const markLearned = useCallback(() => {
-    if (hintTimer.current) clearTimeout(hintTimer.current);
-    setHintVisible(false);
-    if (learned.current) return;
-    learned.current = true;
-    AsyncStorage.setItem(HINT_KEY, '1').catch(() => {});
-  }, []);
 
   const manualMode = isCompanyManualMode(data?.settings);
 
@@ -393,40 +243,86 @@ export const StudentPaymentsScreen = () => {
       };
     }, [manualMode]);
 
-  // Il segmento "Da pagare" ha senso solo in modalità manuale, come sul web.
-  const filterDefs: LedgerFilterDef<LessonFilter>[] = useMemo(
+  // "Da pagare" ha senso solo in modalità manuale, come sul web.
+  const filterDefs = useMemo(
     () =>
-      [
-        { value: 'all' as const, label: 'Tutte' },
-        { value: 'upcoming' as const, label: 'Future' },
-        ...(manualMode ? [{ value: 'unpaid' as const, label: 'Da pagare' }] : []),
-        { value: 'completed' as const, label: 'Completate' },
-        { value: 'cancelled' as const, label: 'Annullate' },
-      ].map((f) => ({ ...f, count: lessons.filter(predicates[f.value]).length })),
+      (['all', 'upcoming', ...(manualMode ? (['unpaid'] as const) : []), 'completed', 'cancelled'] as LessonFilter[]).map(
+        (value) => ({ value, label: FILTER_LABEL[value], count: lessons.filter(predicates[value]).length }),
+      ),
     [manualMode, lessons, predicates],
   );
 
   const activeFilter = filterDefs.some((f) => f.value === filter) ? filter : 'all';
+  const activeCount = filterDefs.find((f) => f.value === activeFilter)?.count ?? 0;
   const unpaidCount = lessons.filter(predicates.unpaid).length;
+
+  const rowModel = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations): RowModel => {
+      const status = normalize(lesson.status);
+      const done = DONE.includes(status);
+      const missed = MISSED.includes(status);
+      const isExam = normalize(lesson.type) === 'esame';
+      const isGroup = normalize(lesson.type) === 'group_lesson' || !!lesson.groupLessonId;
+      const penaltyCharged = isPenaltyCharged(lesson);
+      const unpaid = isLessonUnpaid(lesson, manualMode);
+      const covered = !!lesson.creditApplied;
+      const paid = !covered && lesson.manualPaymentStatus === 'paid' && (manualMode || isPenaltyPaid(lesson));
+      const actionable = !!data?.canManagePayments && canToggleLessonPayment(lesson, data?.settings ?? null);
+
+      let stateLabel: string;
+      if (unpaid) stateLabel = 'Da pagare';
+      else if (covered) stateLabel = 'A credito';
+      else if (paid) stateLabel = 'Pagata';
+      else if (missed) stateLabel = statusLabel(lesson.status);
+      else if (isExam) stateLabel = 'Esame';
+      else if (done) stateLabel = 'Completata';
+      else stateLabel = 'Programmata';
+
+      const start = new Date(lesson.startsAt);
+      const title = `${WEEKDAYS[start.getDay()]} ${start.getDate()} · ${formatTime(lesson.startsAt)}`;
+      const types = (lesson.types?.length ? lesson.types : [lesson.type])
+        .filter((t) => t && t !== 'guida' && t !== 'group_lesson')
+        .map((t) => LESSON_TYPE_LABEL_MAP[t] ?? t);
+      const what = isGroup
+        ? 'Guida di gruppo'
+        : missed && isLate(lesson)
+          ? 'Annullata tardi'
+          : types.join(' · ') || 'Guida';
+      // La penale è un importo, non uno stato: sta nel sottotitolo.
+      const penalty = penaltyCharged && lesson.penaltyAmount != null ? `Penale ${formatEuro(lesson.penaltyAmount)}` : null;
+      const subtitle = [what, penalty, lesson.instructor?.name ?? null].filter(Boolean).join(' · ');
+
+      return {
+        lesson,
+        title,
+        subtitle,
+        stateLabel,
+        stateStrong: unpaid,
+        dim: missed && !penaltyCharged,
+        check: actionable ? (paid ? 'paid' : 'unpaid') : null,
+      };
+    },
+    [data?.canManagePayments, data?.settings, manualMode],
+  );
 
   /** Righe raggruppate per mese: l'ordine di lettura naturale su mobile. */
   const sections = useMemo(() => {
-    const out: { key: string; label: string; items: AutoscuolaAppointmentWithRelations[] }[] = [];
+    const out: { key: string; label: string; rows: RowModel[] }[] = [];
     for (const l of lessons.filter(predicates[activeFilter])) {
       const key = monthKey(l.startsAt);
       let sec = out[out.length - 1];
       if (!sec || sec.key !== key) {
-        sec = { key, label: monthLabel(l.startsAt), items: [] };
+        sec = { key, label: monthLabel(l.startsAt), rows: [] };
         out.push(sec);
       }
-      sec.items.push(l);
+      sec.rows.push(rowModel(l));
     }
     return out;
-  }, [lessons, predicates, activeFilter]);
+  }, [lessons, predicates, activeFilter, rowModel]);
 
   const applyStatus = useCallback(
-    async (lesson: AutoscuolaAppointmentWithRelations, status: 'paid' | 'unpaid') => {
-      if (savingId) return;
+    async (lesson: AutoscuolaAppointmentWithRelations, status: 'paid' | 'unpaid'): Promise<boolean> => {
+      if (savingId) return false;
       setSavingId(lesson.id);
       try {
         const res = await regloApi.setManualPaymentStatus(lesson.id, status);
@@ -439,14 +335,17 @@ export const StudentPaymentsScreen = () => {
               : (prev[lesson.id]?.events ?? []),
           },
         }));
+        void notificationAsync(NotificationFeedbackType.Success).catch(() => {});
         setToast({
           text: status === 'paid' ? 'Guida segnata come pagata.' : 'Guida segnata come da pagare.',
           tone: 'success',
         });
         await data?.onChanged?.();
+        return true;
       } catch (e) {
         void notificationAsync(NotificationFeedbackType.Error).catch(() => {});
         setToast({ text: e instanceof Error ? e.message : 'Errore nel salvataggio.', tone: 'danger' });
+        return false;
       } finally {
         setSavingId(null);
       }
@@ -454,315 +353,145 @@ export const StudentPaymentsScreen = () => {
     [savingId, data],
   );
 
-  /** REG-637: storico della guida in un form sheet nativo, già pieno dal seed. */
-  const openHistory = useCallback(
-    (lesson: AutoscuolaAppointmentWithRelations) => {
-      const start = new Date(lesson.startsAt);
+  const toggle = useCallback(
+    (row: RowModel) => void applyStatus(row.lesson, row.check === 'paid' ? 'unpaid' : 'paid'),
+    [applyStatus],
+  );
+
+  /** Foglio «Guida»: stato, chi/quando (storico) e la CTA per cambiarlo. */
+  const openDetail = useCallback(
+    (row: RowModel) => {
+      const start = new Date(row.lesson.startsAt);
       paymentHistoryStore.set({
-        lessonLabel: `${WEEKDAYS[start.getDay()]} ${start.getDate()} ${MONTHS[start.getMonth()].toLowerCase()} · ${formatTime(lesson.startsAt)}`,
-        events: lesson.paymentHistory ?? [],
+        lessonLabel: `${WEEKDAYS[start.getDay()]} ${start.getDate()} ${MONTHS[start.getMonth()].toLowerCase()} · ${formatTime(row.lesson.startsAt)}`,
+        lessonSubtitle: row.subtitle,
+        stateLabel: row.stateLabel,
+        events: row.lesson.paymentHistory ?? [],
+        action: row.check
+          ? {
+              label: row.check === 'paid' ? 'Segna da pagare' : 'Segna pagata',
+              run: () => applyStatus(row.lesson, row.check === 'paid' ? 'unpaid' : 'paid'),
+            }
+          : null,
       });
-      const stack = (segments as string[]).includes('notes') ? 'notes' : 'home';
       router.push(`/(tabs)/${stack}/payment-history`);
     },
-    [router, segments],
+    [applyStatus, router, stack],
   );
 
-  /** La pressione lunga è arrivata in fondo: si scrive, senza altre domande. */
-  const commit = useCallback(
-    (lesson: AutoscuolaAppointmentWithRelations) => {
-      markLearned();
-      void applyStatus(lesson, lesson.manualPaymentStatus === 'paid' ? 'unpaid' : 'paid');
-    },
-    [applyStatus, markLearned],
-  );
-
-  /**
-   * Ripiego per VoiceOver, che non sa tenere premuto: menu nativo
-   * (`ActionSheetIOS` / `Alert`) aperto dal doppio tocco.
-   */
-  const openFallbackMenu = useCallback(
-    (lesson: AutoscuolaAppointmentWithRelations) => {
-      markLearned();
-      const paid = lesson.manualPaymentStatus === 'paid';
-      const action = paid ? 'Segna da pagare' : 'Segna pagata';
-      const next: 'paid' | 'unpaid' = paid ? 'unpaid' : 'paid';
-      const start = new Date(lesson.startsAt);
-      const title = `${start.getDate()} ${MONTHS_SHORT[start.getMonth()]} · ${formatTime(lesson.startsAt)}`;
-
-      // REG-637: con VoiceOver lo storico si apre da qui (il tocco è il menu).
-      const withHistory = (lesson.paymentHistory?.length ?? 0) >= 2;
-
-      if (Platform.OS === 'ios') {
-        const options = withHistory ? [action, 'Storico pagamento', 'Annulla'] : [action, 'Annulla'];
-        ActionSheetIOS.showActionSheetWithOptions(
-          { title, options, cancelButtonIndex: options.length - 1 },
-          (i) => {
-            if (i === 0) void applyStatus(lesson, next);
-            if (withHistory && i === 1) openHistory(lesson);
-          },
-        );
-      } else {
-        Alert.alert(title, undefined, [
-          { text: action, onPress: () => void applyStatus(lesson, next) },
-          ...(withHistory ? [{ text: 'Storico pagamento', onPress: () => openHistory(lesson) }] : []),
-          { text: 'Annulla', style: 'cancel' as const },
-        ]);
-      }
-    },
-    [applyStatus, markLearned, openHistory],
-  );
+  /** Filtro: una riga che apre la scelta a spunta (come «Chi prenota»). */
+  const openFilter = useCallback(() => {
+    optionsPickerStore.set({
+      title: 'Mostra',
+      tone: 'mono',
+      multi: false,
+      options: filterDefs.map((f) => ({
+        value: f.value,
+        label: f.label,
+        subtitle: f.count === 1 ? '1 guida' : `${f.count} guide`,
+      })),
+      selected: [activeFilter],
+      onConfirm: ([v]) => v && setFilter(v as LessonFilter),
+    });
+    router.push(`/(tabs)/${stack}/select-options`);
+  }, [activeFilter, filterDefs, router, stack]);
 
   if (!data) return <View style={s.sheet} />;
 
-  // REG-639: form sheet nativo alto quanto il contenuto (FORM_SHEET + FormSheet),
-  // scorre da sé solo se supera lo schermo. Il contenuto tiene i suoi margini.
+  // Form sheet nativo alto quanto il contenuto (FORM_SHEET + FormSheet): testata
+  // fissa e opaca con la X, scorre solo il centro.
   return (
     <FormSheet title="Pagamenti" subtitle={data.studentName || undefined} testID="student-payments-sheet">
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <View style={s.bleed}>
-        <View style={s.pad}>
 
-          {manualMode ? (
-            <Animated.View entering={FadeIn.duration(320)} style={s.hero}>
-              {unpaidCount > 0 ? (
-                <>
-                  <Text style={s.heroNum}>{unpaidCount}</Text>
-                  <Text style={s.heroLabel}>
-                    {unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={s.heroOk}>
-                    <Ionicons name="checkmark" size={17} color="#15803D" />
-                  </View>
-                  <Text style={s.heroLabelOk}>Tutto saldato</Text>
-                </>
-              )}
-            </Animated.View>
+      {manualMode ? (
+        <View style={s.hero} accessible accessibilityLabel={unpaidCount > 0 ? `${unpaidCount} da pagare` : 'Tutto saldato'}>
+          {unpaidCount > 0 ? (
+            <>
+              <Text style={s.heroNum}>{unpaidCount}</Text>
+              <Text style={s.heroLabel}>{unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}</Text>
+            </>
           ) : (
-            <Text style={s.note}>
-              L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
-            </Text>
+            <Text style={s.heroOk}>Tutto saldato</Text>
           )}
         </View>
+      ) : (
+        <Text style={s.note}>
+          L&apos;autoscuola incassa dalla sezione Pagamenti: qui le guide sono in sola lettura.
+        </Text>
+      )}
 
-        <LedgerFilterBar defs={filterDefs} active={activeFilter} onChange={setFilter} />
+      <ClayList style={s.filter}>
+        <SettingValueRow
+          title="Mostra"
+          value={`${FILTER_LABEL[activeFilter]} · ${activeCount}`}
+          onPress={openFilter}
+          testID="payments-filter"
+        />
+      </ClayList>
 
-        {hintVisible ? (
-          <Animated.View
-            entering={FadeIn.duration(260)}
-            exiting={FadeOut.duration(200)}
-            style={[s.pad, s.hint]}
-            accessibilityLiveRegion="polite"
-          >
-            <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
-            <Text style={s.hintText}>Tieni premuta una guida finché il cerchio si chiude</Text>
-          </Animated.View>
-        ) : null}
-
+      <Animated.View key={activeFilter} entering={FadeIn.duration(180)}>
         {sections.length === 0 ? (
-          <View style={s.empty}>
-            <View style={s.emptyIcon}>
-              <Ionicons name="receipt-outline" size={24} color="#B7B7B7" />
-            </View>
-            <Text style={s.emptyTitle}>Nessuna guida</Text>
-            <Text style={s.emptyText}>Non ci sono guide per questo filtro.</Text>
-          </View>
+          <ClayEmpty title="Nessuna guida" text="Non ci sono guide per questo filtro." />
         ) : (
-          <Animated.View layout={ROW_LAYOUT}>
-            {sections.map((section) => (
-              <Animated.View key={section.key} layout={ROW_LAYOUT}>
-                <Text style={[s.pad, s.month]}>{section.label}</Text>
-                {section.items.map((lesson, i) => {
-                  const status = normalize(lesson.status);
-                  const done = DONE.includes(status);
-                  const missed = MISSED.includes(status);
-                  const isExam = normalize(lesson.type) === 'esame';
-                  const isGroup = normalize(lesson.type) === 'group_lesson' || !!lesson.groupLessonId;
-                  const penaltyCharged = isPenaltyCharged(lesson);
-                  const unpaid = isLessonUnpaid(lesson, manualMode);
-                  const covered = !!lesson.creditApplied;
-                  const paid =
-                    !covered && lesson.manualPaymentStatus === 'paid' && (manualMode || isPenaltyPaid(lesson));
-
-                  const actionable =
-                    data.canManagePayments && canToggleLessonPayment(lesson, data.settings);
-                  const busy = savingId === lesson.id;
-
-                  // Lo stato decide colore, glifo e valore a destra: una sola
-                  // lettura, non quattro badge da mettere insieme.
-                  let tone: RowTone = 'grey';
-                  let icon: RowIcon = 'clock';
-                  let value: string | null;
-                  if (unpaid) {
-                    tone = 'amber';
-                    icon = 'euro';
-                    value =
-                      penaltyCharged && lesson.penaltyAmount != null
-                        ? formatEuro(lesson.penaltyAmount)
-                        : 'Da pagare';
-                  } else if (covered) {
-                    tone = 'violet';
-                    icon = 'wallet';
-                    value = 'A credito';
-                  } else if (paid) {
-                    tone = 'green';
-                    icon = 'check';
-                    value = 'Pagata';
-                  } else if (missed) {
-                    tone = 'grey';
-                    icon = 'close';
-                    value = statusLabel(lesson.status);
-                  } else if (isExam) {
-                    tone = 'violet';
-                    icon = 'exam';
-                    value = 'Esame';
-                  } else if (done) {
-                    tone = 'green';
-                    icon = 'check';
-                    value = 'Completata';
-                  } else {
-                    tone = 'grey';
-                    icon = 'clock';
-                    value = 'Programmata';
-                  }
-
-                  const start = new Date(lesson.startsAt);
-                  const title = `${WEEKDAYS[start.getDay()]} ${start.getDate()} · ${formatTime(lesson.startsAt)}`;
-                  const types = (lesson.types?.length ? lesson.types : [lesson.type])
-                    .filter((t) => t && t !== 'guida' && t !== 'group_lesson')
-                    .map((t) => LESSON_TYPE_LABEL_MAP[t] ?? t);
-                  const what = isGroup
-                    ? 'Guida di gruppo'
-                    : missed && isLate(lesson)
-                      ? 'Annullata tardi'
-                      : types.join(' · ') || 'Guida';
-                  const subtitle = [what, lesson.instructor?.name ?? null].filter(Boolean).join(' · ');
-
-                  return (
-                    <Animated.View
-                      key={lesson.id}
-                      entering={FadeIn.duration(220)}
-                      exiting={FadeOut.duration(140)}
-                      layout={ROW_LAYOUT}
-                    >
-                      <LessonRow
-                        lesson={lesson}
-                        actionable={actionable}
-                        busy={busy}
-                        paid={paid}
-                        title={title}
-                        subtitle={subtitle}
-                        value={value}
-                        tone={tone}
-                        icon={icon}
-                        showSeparator={i > 0}
-                        screenReader={screenReader}
-                        onCommit={commit}
-                        onFallbackMenu={openFallbackMenu}
-                        onNudge={nudge}
-                        onOpenHistory={openHistory}
-                      />
-                    </Animated.View>
-                  );
-                })}
-              </Animated.View>
-            ))}
-          </Animated.View>
+          sections.map((section) => (
+            <ClaySection key={section.key} title={section.label}>
+              <ClayList>
+                {section.rows.map((row) => (
+                  <PaymentRow
+                    key={row.lesson.id}
+                    title={row.title}
+                    subtitle={row.subtitle}
+                    state={row.stateLabel}
+                    stateStrong={row.stateStrong}
+                    dim={row.dim}
+                    check={row.check}
+                    busy={savingId === row.lesson.id}
+                    onPress={() => openDetail(row)}
+                    onToggle={() => toggle(row)}
+                    testID={`payment-row-${row.lesson.id}`}
+                  />
+                ))}
+              </ClayList>
+            </ClaySection>
+          ))
         )}
-      </View>
+      </Animated.View>
+      {manualMode && sections.length > 0 && data.canManagePayments ? (
+        <Text style={s.foot}>Tocca il cerchio per segnare una guida pagata; tocca la guida per lo storico.</Text>
+      ) : null}
     </FormSheet>
   );
 };
 
-const PAD = 18;
-/** Rientro dei divisori: larghezza del glifo + il suo gap. Stile lista iOS. */
-const SEP_INSET = PAD + 36 + 13;
+const CHECK = 26;
 
 const s = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.background },
-  bleed: { marginHorizontal: -18, marginTop: -6 },
-  topBar: {
-    flexDirection: 'row', justifyContent: 'flex-end',
-    paddingLeft: 30, paddingRight: 16, paddingTop: 20, paddingBottom: 4,
-  },
-  closeBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#DDDDDD',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  content: { paddingTop: 4, paddingBottom: 60 },
-  pad: { paddingHorizontal: PAD },
+  sheet: { flex: 1, backgroundColor: CLAY.bg },
+  note: { fontSize: 14, lineHeight: 20, color: CLAY.ink3, marginTop: 4 },
 
-  title: { fontSize: 28, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: colors.textMuted, marginTop: 4 },
-  note: { fontSize: 13, fontWeight: '400', color: colors.textMuted, lineHeight: 19, marginTop: 18 },
+  hero: { flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 2 },
+  heroNum: { fontSize: 40, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.4, fontVariant: ['tabular-nums'] },
+  heroLabel: { fontSize: 16, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
+  heroOk: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
 
-  hero: { flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 22 },
-  heroNum: { fontSize: 40, fontWeight: '600', color: '#111111', letterSpacing: -1.4 },
-  heroLabel: { fontSize: 15, fontWeight: '400', color: colors.textSecondary },
-  heroOk: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: '#ECFDF3',
-    alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
-  },
-  heroLabelOk: { fontSize: 17, fontWeight: '500', color: '#15803D', alignSelf: 'center' },
+  filter: { marginTop: 18 },
 
-  filterScroll: { marginTop: 20 },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: PAD, paddingBottom: 2 },
-  filterPill: {
-    position: 'absolute', top: 0, bottom: 2, left: 0,
-    borderRadius: 999, backgroundColor: '#111111',
-  },
-  filterItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999,
-  },
-  filterText: { fontSize: 14, fontWeight: '400', color: '#595959' },
-  filterTextOn: { color: '#FFFFFF', fontWeight: '500' },
-  filterCount: { fontSize: 12, fontWeight: '500', color: '#9D9D9D' },
-  filterCountOn: { color: 'rgba(255,255,255,0.65)' },
-
-  hint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
-  hintText: { fontSize: 12.5, fontWeight: '400', color: colors.textMuted },
-
-  month: {
-    fontSize: 12, fontWeight: '600', color: '#B1B1B1', textTransform: 'uppercase',
-    letterSpacing: 0.5, marginTop: 26, marginBottom: 2,
-  },
-
-  // Lista flat sullo sfondo + divisori rientrati sotto il glifo (stile iOS).
-  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: PAD, paddingVertical: 11 },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: '#ECECF0', marginLeft: SEP_INSET },
-  glyph: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  glyphEuro: { fontSize: 15, fontWeight: '600' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, minHeight: 60 },
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 15, fontWeight: '400', color: '#111111', letterSpacing: -0.1 },
-  rowSub: { fontSize: 13, fontWeight: '400', color: '#9D9D9D', marginTop: 1 },
-  rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
-  // REG-637: «chi e quando» sotto il sottotitolo. Più piccolo e più chiaro
-  // del sottotitolo: è un dettaglio, non deve gareggiare con la guida.
-  rowWithTrail: { paddingBottom: 3 },
-  trail: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingLeft: SEP_INSET, paddingRight: PAD, paddingBottom: 12,
-  },
-  trailDot: { width: 6, height: 6, borderRadius: 3 },
-  trailText: { flexShrink: 1, fontSize: 12, fontWeight: '400', color: '#9D9D9D', letterSpacing: -0.05 },
-  trailLabel: { color: '#4E4E4E', fontWeight: '500' },
-  trailHistory: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingLeft: 6, paddingRight: 4, paddingVertical: 1.5,
-    borderRadius: 999, backgroundColor: '#F2F2F5',
-  },
-  trailHistoryText: { fontSize: 11.5, fontWeight: '500', color: '#6F6F6F', fontVariant: ['tabular-nums'] },
-  rowRing: { width: 26, height: 26, marginLeft: 9, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25, fontVariant: ['tabular-nums'] },
+  rowTitleDim: { color: CLAY.ink4 },
+  rowSub: { fontSize: 13.5, color: CLAY.ink3, marginTop: 2 },
+  rowState: { fontSize: 15, color: CLAY.ink4, letterSpacing: -0.2 },
+  rowStateStrong: { color: CLAY.ink, fontWeight: '600' },
 
-  empty: { alignItems: 'center', paddingTop: 70, gap: 6 },
-  emptyIcon: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#F1F1F5',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  checkHit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginRight: -3 },
+  check: {
+    width: CHECK, height: CHECK, borderRadius: CHECK / 2,
+    borderWidth: 1.5, borderColor: '#C4C4C4', alignItems: 'center', justifyContent: 'center',
   },
-  emptyTitle: { fontSize: 15, fontWeight: '500', color: '#111111' },
-  emptyText: { fontSize: 13, fontWeight: '400', color: colors.textMuted, textAlign: 'center' },
+  checkOn: { backgroundColor: CLAY.ink, borderColor: CLAY.ink },
+
+  foot: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4 },
 });
