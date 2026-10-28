@@ -167,7 +167,9 @@ export function AgendaDayView({
   onPressGroupLesson,
   onPressBlock,
   onBookAt,
-  bottomInset = 150,
+  // Altezza del «+» (56) + il suo margine dal fondo (24) + respiro: l'ultima
+  // riga si può sempre portare sopra il «+».
+  bottomInset = 56 + 24 + 64,
 }: Props) {
   const settings = useAutoscuolaSettings();
   const colorConfig = useMemo(() => resolveAgendaColorConfig(settings.data), [settings.data]);
@@ -434,7 +436,8 @@ const s = StyleSheet.create({
   nowRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: -2 },
   nowTx: { width: 46, fontSize: 12.5, fontWeight: '600', color: CLAY.ink, fontVariant: ['tabular-nums'] },
   nowDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: CLAY.ink, marginLeft: 1 },
-  nowLine: { flex: 1, height: 1.5, backgroundColor: CLAY.ink },
+  // Finisce prima del «+» (56 + margine destro 20 + respiro).
+  nowLine: { flex: 1, height: 1.5, backgroundColor: CLAY.ink, marginRight: 72 },
   skeletons: { gap: 12, paddingLeft: 52 },
   skeleton: { height: 66, borderRadius: 20, backgroundColor: '#FFFFFF', opacity: 0.6 },
 });

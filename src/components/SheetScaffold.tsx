@@ -12,7 +12,7 @@ import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/mo
  *
  * Struttura fissa, uguale per ogni foglio:
  *   radice = scroll del foglio stesso (contentInsetAdjustmentBehavior never)
- *   └ intestazione: [leading] titolo + sottotitolo · X in alto a destra
+ *   └ intestazione FISSA (sticky): [leading] titolo + sottotitolo · X in alto a destra
  *   └ contenuto (entra/esce con dissolvenza morbida, l'altezza scivola)
  *   └ CTA: l'ULTIMA cosa, poi solo SHEET_BOTTOM (mai insets.bottom)
  * Presentazione della route: `FORM_SHEET` (utils/sheetPresentation): formSheet,
@@ -59,24 +59,31 @@ export function FormSheet({
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
       alwaysBounceVertical={false}
+      // Testata FISSA (Tiziano 28/10 notte): titolo e X restano in alto a
+      // destra, il contenuto scorre sotto. È il primo figlio dello scroll.
+      stickyHeaderIndices={[0]}
       testID={testID}
       {...scrollProps}
     >
-      <View style={[fs.head, headerStyle]}>
-        {leading}
-        <View style={fs.titles}>
-          {typeof title === 'string' ? (
-            <Text style={fs.title} numberOfLines={2}>{title}</Text>
-          ) : (
-            title
-          )}
-          {typeof subtitle === 'string' ? (
-            <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
-          ) : (
-            subtitle
-          )}
+      {/* Lo sticky header di RN sposta lo stile del figlio su un suo
+          contenitore: la riga titolo·X sta in una View interna. */}
+      <View style={fs.headSticky}>
+        <View style={[fs.head, headerStyle]}>
+          {leading}
+          <View style={fs.titles}>
+            {typeof title === 'string' ? (
+              <Text style={fs.title} numberOfLines={2}>{title}</Text>
+            ) : (
+              title
+            )}
+            {typeof subtitle === 'string' ? (
+              <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
+            ) : (
+              subtitle
+            )}
+          </View>
+          <SheetCloseButton onPress={close} />
         </View>
-        <SheetCloseButton onPress={close} />
       </View>
 
       <Animated.View
@@ -109,8 +116,11 @@ export function SheetCloseButton({ onPress }: { onPress: () => void }) {
 const fs = StyleSheet.create({
   scroll: { backgroundColor: '#FFFFFF' },
   // Misure §13.2.1: testata 26 sopra, CTA in fondo con SHEET_BOTTOM.
-  root: { backgroundColor: '#FFFFFF', paddingTop: 26, paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 18 },
+  root: { backgroundColor: '#FFFFFF', paddingHorizontal: 22, paddingBottom: SHEET_BOTTOM },
+  // Testata fissa: fondo bianco pieno a tutta larghezza, così il contenuto
+  // che scorre sotto non si vede attraverso.
+  headSticky: { backgroundColor: '#FFFFFF', marginHorizontal: -22, paddingHorizontal: 22, paddingTop: 26, paddingBottom: 18, zIndex: 2 },
+  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },
   subtitle: { fontSize: 15, fontWeight: '400', color: '#6A6A6A', marginTop: 3, lineHeight: 20 },
