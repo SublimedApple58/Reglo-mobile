@@ -397,7 +397,6 @@ export default function AvviaGuidaSheet() {
       <Animated.Text key={endLine} entering={ROAD_TEXT_IN} style={[s.endLine, clash && { color: '#B42318' }]}>
         {endLine}
       </Animated.Text>
-      <Text style={s.note}>Entra in agenda da adesso, già presente, con crediti e pagamento come le altre guide.</Text>
     </FormSheet>
   );
 }
@@ -479,5 +478,4 @@ const s = StyleSheet.create({
   endLine: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, marginTop: 16, textAlign: 'center' },
   label: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, marginTop: 22, marginBottom: 8 },
   autoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 8, paddingRight: 18, paddingVertical: 8 },
-  note: { fontSize: 13, fontWeight: '400', color: CLAY.ink4, lineHeight: 18, marginTop: 4, textAlign: 'center' },
 });
