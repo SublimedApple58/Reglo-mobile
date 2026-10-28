@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ClayEmpty, ClayIconButton, ClayList, ClayListRow } from '../components/clay';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
 import { regloApi } from '../services/regloApi';
@@ -125,21 +125,18 @@ export const VehiclesScreen = () => {
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
+      <ClayLargeTitleScroll
+        title="Veicoli"
+        subtitle={headerLine}
+        onBack={() => router.back()}
+        actions={
+          <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi veicolo" testID="vehicles-add" />
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink3} colors={[CLAY.ink]} />
         }
-        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.content}
       >
-        <ClayPageHeader
-          title="Veicoli"
-          subtitle={headerLine}
-          onBack={() => router.back()}
-          actions={
-            <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi veicolo" testID="vehicles-add" />
-          }
-        />
 
         {loading ? (
           <ClayList style={styles.list}>
@@ -216,7 +213,7 @@ export const VehiclesScreen = () => {
             })}
           </ClayList>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };

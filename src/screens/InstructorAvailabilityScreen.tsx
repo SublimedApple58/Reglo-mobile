@@ -3,6 +3,7 @@ import { Image, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimension
 import Animated from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -27,6 +28,9 @@ const H_PAD = 20;
  * che sale sulla copertina con titolo, riga e la settimana a colpo d'occhio;
  * sotto le righe dei giorni e le eccezioni (ClaySection/ClayList).
  */
+/** Altezza della copertina sotto la safe area. */
+const COVER_H = 150;
+
 export const InstructorAvailabilityScreen = () => {
   const { instructorId, companies, activeCompanyId, refreshMe } = useSession();
   // Copertina: foto della sede caricata dal titolare (REG-639), altrimenti il
@@ -37,6 +41,7 @@ export const InstructorAvailabilityScreen = () => {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const router = useRouter();
+  const { scrollY, onScroll } = useLargeTitleScroll();
   const [editorKey, setEditorKey] = useState(0);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -79,14 +84,16 @@ export const InstructorAvailabilityScreen = () => {
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />
         }
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       >
-        <View style={[styles.cover, { width: winW, height: insets.top + 150 }]}>
+        <View style={[styles.cover, { width: winW, height: insets.top + COVER_H }]}>
           <Image
             source={coverSource}
             style={StyleSheet.absoluteFill}
@@ -123,12 +130,12 @@ export const InstructorAvailabilityScreen = () => {
             )}
           </Animated.View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Indietro clay sopra la copertina (resta fermo mentre si scorre). */}
-      <View style={[styles.top, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
-        <ClayIconButton icon="back" onPress={goBack} accessibilityLabel="Indietro" testID="availability-back" />
-      </View>
+      {/* Barra a titolo grande sopra la copertina (REG-639): trasparente sulla
+          foto, bianca opaca col titolo piccolo quando il titolo della card ci
+          passa sotto. L'indietro resta sempre lì. */}
+      <ClayNavBar title="Disponibilità" scrollY={scrollY} onBack={goBack} overlay={COVER_H - 40} />
     </GestureHandlerRootView>
   );
 };

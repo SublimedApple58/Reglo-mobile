@@ -1,20 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import {
   Avatar,
   ClayEmpty,
   ClayIconButton,
   ClayList,
   ClayListRow,
-  ClaySearchField,
   ClaySegmented,
   ClaySurface,
 } from '../components/clay';
@@ -55,7 +53,6 @@ type StudentEntry = {
  */
 export const InstructorNotesScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { instructorId } = useSession();
   const [students, setStudents] = useState<StudentEntry[]>([]);
   const [allAppointments, setAllAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
@@ -66,6 +63,7 @@ export const InstructorNotesScreen = () => {
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
   const [segment, setSegment] = useState<'mine' | 'all'>('mine');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -196,7 +194,7 @@ export const InstructorNotesScreen = () => {
   };
 
   const examCard = (() => {
-    if (!nextExam || query) return null;
+    if (!nextExam || query || searching) return null;
     const info = studentInfo.get(nextExam.student.id) ?? { total: 0, completed: 0 };
     const missing = Math.max(0, REQUIRED_LESSONS - info.completed);
     return (
@@ -226,39 +224,42 @@ export const InstructorNotesScreen = () => {
     <View style={s.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <ScrollView
-        contentContainerStyle={[s.content, { paddingTop: insets.top }]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
-      >
-        <ClayPageHeader
-          title="Allievi"
-          subtitle={lead}
-          actions={
-            autonomousMode ? (
+      <ClayLargeTitleScroll
+        title="Allievi"
+        subtitle={lead}
+        hideLargeTitle={searching}
+        search={{
+          active: searching,
+          onActiveChange: setSearching,
+          value: searchQuery,
+          onChangeText: setSearchQuery,
+          placeholder: 'Cerca un allievo',
+          testID: 'students-search',
+        }}
+        actions={
+          <>
+            <ClayIconButton
+              icon={<Ionicons name="search" size={19} color={CLAY.ink} />}
+              onPress={() => setSearching(true)}
+              accessibilityLabel="Cerca un allievo"
+              testID="students-search-open"
+            />
+            {autonomousMode ? (
               <ClayIconButton
                 icon={<Ionicons name="options-outline" size={20} color={CLAY.ink} />}
                 onPress={() => router.push('/(tabs)/notes/cluster-settings' as never)}
-                accessibilityLabel="Impostazioni allievi"
+                accessibilityLabel="Il mio gruppo"
                 testID="students-settings"
               />
-            ) : undefined
-          }
-        />
-
-        <ClaySearchField
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Cerca un allievo"
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          style={s.search}
-          testID="students-search"
-        />
-
-        {useClusters && !query ? (
+            ) : null}
+          </>
+        }
+        contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
+      >
+        {useClusters && !searching ? (
           <ClaySegmented
             options={[
               { value: 'mine', label: mineCount ? `I miei · ${mineCount}` : 'I miei', testID: 'students-mine' },
@@ -306,7 +307,7 @@ export const InstructorNotesScreen = () => {
             </ClayList>
           </Animated.View>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };
@@ -314,8 +315,7 @@ export const InstructorNotesScreen = () => {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: H_PAD, paddingBottom: 130 },
-  search: { marginTop: 18 },
-  segmented: { marginTop: 12 },
+  segmented: { marginTop: 18 },
   examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16, paddingVertical: 14, paddingHorizontal: 18 },
   examArt: { width: 54, height: 54 },
   examMain: { flex: 1, minWidth: 0 },

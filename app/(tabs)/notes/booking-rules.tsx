@@ -1,22 +1,27 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SelectableChip } from '../../../src/components/SelectableChip';
 import { FormSheet } from '../../../src/components/SheetScaffold';
-import { ClayButton, ClayToggle } from '../../../src/components/clay';
+import { ClayButton, ClayList, ClaySection } from '../../../src/components/clay';
+import { SettingCheckRow, SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
+import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120] as const;
 
-const ACTOR_OPTIONS = [
-  { value: undefined, label: 'Default' },
-  { value: 'students', label: 'Solo allievi' },
-  { value: 'instructors', label: 'Solo istruttori' },
-  { value: 'both', label: 'Entrambi' },
-] as const;
+const ACTOR_LABEL: Record<string, string> = {
+  students: 'Solo allievi',
+  instructors: 'Solo istruttori',
+  both: 'Entrambi',
+};
+const ACTOR_HINT: Record<string, string> = {
+  students: 'Prenotano gli allievi dall’app',
+  instructors: 'Prenoti tu per loro',
+  both: 'Gli allievi e tu',
+};
+/** Nel picker «nessun override» e «per percorso» hanno un valore proprio. */
+const INHERIT = '_inherit';
+const PER_PATH = '_per_path';
 
 // REG-426: le tre righe del pannello "differenzia per percorso". Ogni riga può
 // ereditare ("Default autoscuola") oppure forzare un valore (usa ACTOR_OPTIONS).
@@ -26,11 +31,10 @@ const PATH_BUCKETS = [
   { key: 'pro' as const, label: 'Percorso professionali', cats: 'C · CE · D · DE' },
 ];
 
-const MODE_OPTIONS = [
-  { value: undefined, label: 'Default' },
-  { value: 'manual_full', label: 'Manuale totale' },
-  { value: 'manual_engine', label: 'Manuale + motore' },
-] as const;
+const MODE_LABEL: Record<string, string> = {
+  manual_full: 'Manuale totale',
+  manual_engine: 'Manuale + motore',
+};
 
 export default function BookingRulesScreen() {
   const router = useRouter();
@@ -49,6 +53,7 @@ export default function BookingRulesScreen() {
   if (!data) return <View style={s.empty} />;
 
   const {
+    companyDefaults: cd,
     appBookingActors, setAppBookingActors,
     appBookingActorsByPath, setAppBookingActorsByPath,
     instructorBookingMode, setInstructorBookingMode,
@@ -83,13 +88,72 @@ export default function BookingRulesScreen() {
     setAppBookingActorsByPath(next);
   };
 
+  const inherit = (label: string | undefined) => (label ? `Come l’autoscuola · ${label}` : 'Come l’autoscuola');
+  const actorValue = perPathOpen ? 'Per percorso' : appBookingActors ? ACTOR_LABEL[appBookingActors] : inherit(ACTOR_LABEL[cd.appBookingActors]);
+  const modeValue = instructorBookingMode ? MODE_LABEL[instructorBookingMode] : inherit(MODE_LABEL[cd.instructorBookingMode]);
+
+  const actorOptions = (inheritLabel: string) => [
+    { value: INHERIT, label: inheritLabel },
+    ...Object.keys(ACTOR_LABEL).map((k) => ({ value: k, label: ACTOR_LABEL[k], subtitle: ACTOR_HINT[k] })),
+  ];
+
+  // Scelte da lista: il picker unico (form sheet sopra questo foglio).
+  const pickActor = () => {
+    optionsPickerStore.set({
+      title: 'Chi prenota',
+      hint: 'Chi può prenotare le guide con te',
+      tone: 'mono',
+      multi: false,
+      options: [
+        ...actorOptions(inherit(ACTOR_LABEL[cd.appBookingActors])),
+        { value: PER_PATH, label: 'Per percorso', subtitle: 'Moto, auto e professionali separati' },
+      ],
+      selected: [perPathOpen ? PER_PATH : appBookingActors ?? INHERIT],
+      onConfirm: ([v]) => {
+        if (v === PER_PATH) {
+          if (!perPathOpen) enterPerPath();
+        } else pickSimple(v === INHERIT ? undefined : v);
+      },
+    });
+    router.push('/(tabs)/notes/select-options' as never);
+  };
+  const pickBucket = (bucket: (typeof PATH_BUCKETS)[number]) => {
+    optionsPickerStore.set({
+      title: bucket.label,
+      hint: bucket.cats,
+      tone: 'mono',
+      multi: false,
+      options: actorOptions('Come l’autoscuola'),
+      selected: [byPath[bucket.key] ?? INHERIT],
+      onConfirm: ([v]) => pickPath(bucket.key, v === INHERIT ? undefined : v),
+    });
+    router.push('/(tabs)/notes/select-options' as never);
+  };
+  const pickMode = () => {
+    optionsPickerStore.set({
+      title: 'Modalità istruttore',
+      hint: 'Come prenoti tu per i tuoi allievi',
+      tone: 'mono',
+      multi: false,
+      options: [
+        { value: INHERIT, label: inherit(MODE_LABEL[cd.instructorBookingMode]) },
+        { value: 'manual_full', label: MODE_LABEL.manual_full },
+        { value: 'manual_engine', label: MODE_LABEL.manual_engine },
+      ],
+      selected: [instructorBookingMode ?? INHERIT],
+      onConfirm: ([v]) => setInstructorBookingMode(v === INHERIT ? undefined : v),
+    });
+    router.push('/(tabs)/notes/select-options' as never);
+  };
+
   return (
-    // REG-639 (Tiziano 28/10): form sheet alto quanto il contenuto come tutti i
-    // fogli; il pannello «per percorso» lo allunga e allora scorre il foglio
-    // stesso (§13.2.1: niente scroll interno, quindi niente conflitto col pan).
+    // REG-639 (giro dopo la prova sull'iPhone, 28/10): niente chip a griglia.
+    // Le scelte singole aprono il picker, le durate sono righe con la spunta
+    // (come Impostazioni iOS). Form sheet alto quanto il contenuto: con il
+    // percorso aperto si allunga e scorre il foglio stesso (§13.2.1).
     <FormSheet
       title="Prenotazione guide"
-      subtitle="Chi può prenotare, modalità e durate."
+      subtitle="Chi prenota, come e per quanto"
       busy={saving}
       testID="booking-rules-sheet"
       cta={
@@ -101,123 +165,50 @@ export default function BookingRulesScreen() {
         />
       }
     >
-      <View style={s.body}>
-      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
-        <Text style={s.label}>Chi prenota</Text>
-        <View style={s.chips}>
-          {ACTOR_OPTIONS.map((opt) => (
-            <SelectableChip
-              key={opt.value ?? '_default'}
-              label={opt.label}
-              active={!perPathOpen && appBookingActors === opt.value}
-              onPress={() => pickSimple(opt.value)}
-            />
-          ))}
-          {/* REG-426: voce che apre il pannello per-percorso (equivalente mobile
-              della voce "Differenzia per percorso patente…" del dropdown web). */}
-          <SelectableChip
-            label="Per percorso"
-            active={perPathOpen}
-            onPress={enterPerPath}
-          />
-        </View>
+      <ClayList>
+        <SettingValueRow title="Chi prenota" value={perPathOpen ? 'Per percorso' : actorValue.replace('Come l’autoscuola · ', '')} subtitle={!perPathOpen && !appBookingActors ? 'Come l’autoscuola' : null} onPress={pickActor} testID="booking-rules-actor" />
+        {perPathOpen
+          ? PATH_BUCKETS.map((b) => (
+              <SettingValueRow
+                key={b.key}
+                title={b.label}
+                subtitle={b.cats}
+                value={byPath[b.key] ? ACTOR_LABEL[byPath[b.key]!] : 'Autoscuola'}
+                onPress={() => pickBucket(b)}
+                testID={`booking-rules-path-${b.key}`}
+              />
+            ))
+          : null}
+        <SettingValueRow title="Modalità istruttore" value={modeValue.replace('Come l’autoscuola · ', '')} subtitle={!instructorBookingMode ? 'Come l’autoscuola' : null} onPress={pickMode} testID="booking-rules-mode" />
+      </ClayList>
 
-        {perPathOpen && (
-          // entering/exiting = fade; il layout della sezione (+ delle sezioni
-          // sotto) anima l'altezza → reveal/collapse fluido (height + opacity).
-          <Animated.View
-            style={s.pathCard}
-            entering={FadeIn.duration(220)}
-            exiting={FadeOut.duration(150)}
-          >
-            {PATH_BUCKETS.map((bucket, i) => (
-              <View key={bucket.key} style={[s.pathRow, i > 0 && s.pathRowBorder]}>
-                <Text style={s.pathTitle}>{bucket.label}</Text>
-                <Text style={s.pathCats}>{bucket.cats}</Text>
-                <View style={s.pathChips}>
-                  {ACTOR_OPTIONS.map((opt) => (
-                    <SelectableChip
-                      key={opt.value ?? '_default'}
-                      label={opt.value === undefined ? 'Default autoscuola' : opt.label}
-                      active={(byPath[bucket.key] ?? undefined) === opt.value}
-                      onPress={() => pickPath(bucket.key, opt.value)}
-                    />
-                  ))}
-                </View>
-              </View>
-            ))}
-            <Text style={s.pathHint}>
-              «Default autoscuola» eredita, per quel percorso, il valore impostato dall&apos;autoscuola.
-            </Text>
-          </Animated.View>
-        )}
-      </Animated.View>
-
-      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
-        <Text style={s.label}>Modalità istruttore</Text>
-        <View style={s.chips}>
-          {MODE_OPTIONS.map((opt) => (
-            <SelectableChip
-              key={opt.value ?? '_default'}
-              label={opt.label}
-              active={instructorBookingMode === opt.value}
-              onPress={() => setInstructorBookingMode(opt.value)}
-            />
-          ))}
-        </View>
-      </Animated.View>
-
-      <Animated.View style={s.section} layout={LinearTransition.duration(240)}>
-        <Text style={s.label}>Durata guide</Text>
-        <View style={s.chips}>
+      <ClaySection title="Durata delle guide" footnote="Gli allievi scelgono fra le durate con la spunta." style={s.section}>
+        <ClayList>
           {DURATION_OPTIONS.map((dur) => (
-            <SelectableChip
+            <SettingCheckRow
               key={dur}
-              label={`${dur} min`}
-              active={bookingSlotDurations.includes(dur)}
+              title={`${dur} minuti`}
+              checked={bookingSlotDurations.includes(dur)}
               onPress={() => toggleDuration(dur)}
+              testID={`booking-rules-duration-${dur}`}
             />
           ))}
-        </View>
-      </Animated.View>
+        </ClayList>
+      </ClaySection>
 
-      <Animated.View style={s.card} layout={LinearTransition.duration(240)}>
-        <View style={s.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.toggleLabel}>Solo orari tondi</Text>
-            <Text style={s.toggleDesc}>Slot solo a ore piene (es. 9:00, 10:00).</Text>
-          </View>
-          <ClayToggle value={roundedHoursOnly} onValueChange={setRoundedHoursOnly} accessibilityLabel="Solo orari tondi" />
-        </View>
-      </Animated.View>
-      </View>
+      <ClayList style={s.section}>
+        <SettingToggleRow
+          title="Solo orari tondi"
+          subtitle="Guide solo a ore piene, come 9:00 e 10:00"
+          value={roundedHoursOnly}
+          onValueChange={setRoundedHoursOnly}
+        />
+      </ClayList>
     </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },
-  body: { gap: 20 },
-  section: { gap: 11 },
-  label: { fontSize: 13, fontWeight: '600', color: '#4A4A4A' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  // REG-426 per-path panel
-  pathCard: {
-    marginTop: 4,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ECECEC',
-    paddingHorizontal: 16,
-  },
-  pathRow: { paddingVertical: 16, gap: 10 },
-  pathRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F0' },
-  pathTitle: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  pathCats: { fontSize: 12, fontWeight: '500', color: '#A0A0A0', marginTop: -6 },
-  pathChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pathHint: { fontSize: 12, fontWeight: '500', color: colors.textMuted, lineHeight: 17, paddingBottom: 16 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  toggleDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
+  section: { marginTop: 22 },
 });

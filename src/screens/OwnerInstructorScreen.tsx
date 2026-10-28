@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice } from '../components/ToastNotice';
 import {
@@ -244,15 +245,29 @@ export const OwnerInstructorScreen = () => {
   const lessonsLabel = (n: number) => `${n} ${n === 1 ? 'guida' : 'guide'} oggi`;
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <View style={s.root}>
       <StatusBar style="dark" />
       <ToastNotice message={error} tone="danger" onHide={() => setError(null)} />
       <ToastNotice message={successMsg} tone="success" onHide={() => setSuccessMsg(null)} />
 
-      <ScrollView
-        ref={scrollRef}
+      <ClayLargeTitleScroll
+        ref={scrollRef as never}
+        title="I tuoi istruttori"
+        subtitle={
+          initialLoading
+            ? ' '
+            : `${instructors.length} ${instructors.length === 1 ? 'istruttore' : 'istruttori'} · ${busyCount} in guida`
+        }
+        onBack={pushed ? () => router.back() : undefined}
+        actions={
+          <ClayIconButton
+            icon="add"
+            onPress={openInviteSheet}
+            accessibilityLabel="Invita istruttore"
+            testID="owner-instructors-invite"
+          />
+        }
         contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={
@@ -264,33 +279,6 @@ export const OwnerInstructorScreen = () => {
           />
         }
       >
-        {/* ── Testata ─────────────────────────────── */}
-        {pushed ? (
-          <ClayIconButton
-            icon="back"
-            onPress={() => router.back()}
-            accessibilityLabel="Indietro"
-            style={s.back}
-            testID="owner-instructors-back"
-          />
-        ) : null}
-        <View style={s.head}>
-          <View style={s.titles}>
-            <Text style={s.title} accessibilityRole="header">I tuoi istruttori</Text>
-            <Text style={s.subtitle} numberOfLines={1}>
-              {initialLoading
-                ? ' '
-                : `${instructors.length} ${instructors.length === 1 ? 'istruttore' : 'istruttori'} · ${busyCount} in guida`}
-            </Text>
-          </View>
-          <ClayIconButton
-            icon="add"
-            onPress={openInviteSheet}
-            accessibilityLabel="Invita istruttore"
-            testID="owner-instructors-invite"
-          />
-        </View>
-
         {initialLoading ? (
           <ClayList style={s.firstBlock}>
             {Array.from({ length: 3 }).map((_, i) => (
@@ -396,7 +384,7 @@ export const OwnerInstructorScreen = () => {
             </ClaySection>
           </>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };
@@ -412,7 +400,7 @@ const s = StyleSheet.create({
   dayNum: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.7 },
   daySub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 1 },
   root: { flex: 1, backgroundColor: CLAY.bg },
-  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 120 },
+  content: { paddingHorizontal: 20, paddingBottom: 120 },
   back: { marginBottom: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   titles: { flex: 1, minWidth: 0 },

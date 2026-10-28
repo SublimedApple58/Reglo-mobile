@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ClayEmpty, ClayIconButton, ClayList, ClayListRow, ClaySection, ClaySurface } from '../components/clay';
 import { SEDE_COVER_FALLBACK } from '../theme/vitaArt';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
 import { regloApi } from '../services/regloApi';
@@ -138,15 +138,15 @@ export const LocationsScreen = () => {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
-        <ClayPageHeader
-          title="Luoghi guida"
-          subtitle="Da dove partono le tue guide"
-          onBack={() => router.back()}
-          actions={
-            <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi luogo" testID="locations-add" />
-          }
-        />
+      <ClayLargeTitleScroll
+        title="Luoghi guida"
+        subtitle="Da dove partono le tue guide"
+        onBack={() => router.back()}
+        actions={
+          <ClayIconButton icon="add" onPress={() => openForm(null)} accessibilityLabel="Aggiungi luogo" testID="locations-add" />
+        }
+        contentContainerStyle={styles.scroll}
+      >
 
         {/* REG-639 «vita»: la sede con la sua foto (caricata dal titolare dalla
             web app; senza foto, o se non si carica, la foto d'esempio). */}
@@ -220,7 +220,7 @@ export const LocationsScreen = () => {
             </ClayList>
           )}
         </ClaySection>
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };

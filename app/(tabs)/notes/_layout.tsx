@@ -32,8 +32,8 @@ export default function NotesLayout() {
       {/* REG-638: percorso Road di una guida dallo storico allievo. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-      <Stack.Screen name="limits" options={TALL_SHEET} />
-      <Stack.Screen name="extras" options={TALL_SHEET} />
+      <Stack.Screen name="limits" options={FORM_SHEET} />
+      <Stack.Screen name="extras" options={FORM_SHEET} />
     </Stack>
   );
 }

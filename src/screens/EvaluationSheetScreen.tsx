@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SkeletonBlock } from '../components/Skeleton';
 import { ClayButton, ClayList, ClaySection, ClaySurface, ClayToggle } from '../components/clay';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { VITA_ART } from '../theme/vitaArt';
 import { SOFT_CARD_EXIT, SOFT_LAYOUT, SOFT_SPRING, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
@@ -320,12 +320,12 @@ export const EvaluationSheetScreen = () => {
     <View style={s.root}>
       <StatusBar style="dark" />
 
-      <ScrollView
+      <ClayLargeTitleScroll
+        title="Pagellino" subtitle="Come valuti ogni guida" onBack={() => router.back()}
         scrollEnabled={!dragging}
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top, paddingBottom: 40 + insets.bottom + (dirty ? 96 : 0) }]}
+        contentContainerStyle={[s.scroll, { paddingBottom: 40 + insets.bottom + (dirty ? 96 : 0) }]}
         showsVerticalScrollIndicator={false}
       >
-        <ClayPageHeader title="Pagellino" subtitle="Come valuti ogni guida" onBack={() => router.back()} />
 
         {isLoading && !data ? (
           <View style={s.skel}>
@@ -444,7 +444,7 @@ export const EvaluationSheetScreen = () => {
             )}
           </>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
 
       {/* La CTA entra solo quando c'è davvero qualcosa da salvare. */}
       {dirty ? (

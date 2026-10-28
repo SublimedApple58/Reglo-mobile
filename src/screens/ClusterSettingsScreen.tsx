@@ -3,23 +3,14 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- expo-clipboard non è nel binario
   // corrente (aggiungerlo richiede una build nativa): il Clipboard core di RN è OTA-safe.
   Clipboard,
+  ImageSourcePropType,
   Platform,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -29,11 +20,14 @@ import { regloApi } from '../services/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
 import { groupStudentsStore } from '../stores/groupStudentsStore';
 import { clusterSettingsStore, ClusterCompanyDefaults } from '../stores/clusterSettingsStore';
-import { colors } from '../theme';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayIconButton, ClayList, ClayListRow, ClaySection, ClaySurface, Icon3D } from '../components/clay';
+import { CLAY } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
 
-const H_PAD = 22;
-const COMPACT_H = 54;
-const LARGE_TITLE_H = 56;
+const H_PAD = 20;
+const PERSONE_ART = require('../../assets/icons3d-ai/persone.png') as ImageSourcePropType;
+const SCAMBIO_ART = require('../../assets/icons3d-ai/scambio.png') as ImageSourcePropType;
 
 const timeStringToDate = (hhmm: string | undefined | null): Date => {
   const safe = hhmm ?? '08:00';
@@ -64,7 +58,6 @@ const DEFAULTS: ClusterCompanyDefaults = {
 
 export const ClusterSettingsScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -275,177 +268,70 @@ export const ClusterSettingsScreen = () => {
     ? 'Nessun allievo nel gruppo'
     : `${assignedCount} ${assignedCount === 1 ? 'allievo' : 'allievi'} nel gruppo`;
 
-  /* ── Collapsible header ── */
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
-  const largeTitleStyle = useAnimatedStyle(() => {
-    const ty = scrollY.value < 0
-      ? scrollY.value
-      : interpolate(scrollY.value, [0, LARGE_TITLE_H], [0, -12], Extrapolation.CLAMP);
-    return {
-      opacity: interpolate(scrollY.value, [0, LARGE_TITLE_H * 0.7], [1, 0], Extrapolation.CLAMP),
-      transform: [{ translateY: ty }],
-    };
-  });
-  const compactStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [LARGE_TITLE_H * 0.5, LARGE_TITLE_H * 0.95], [0, 1], Extrapolation.CLAMP),
-  }));
-  const headerBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  const Row = ({
-    icon, label, hint, onPress, danger,
-  }: { icon: keyof typeof Ionicons.glyphMap; label: string; hint: string; onPress: () => void; danger?: boolean }) => (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-      <Ionicons name={icon} size={23} color={danger ? '#DC2626' : '#111111'} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {loading ? (
-          <SkeletonBlock width={150} height={11} radius={6} style={{ marginTop: 5 }} />
-        ) : (
-          <Text style={styles.rowHint} numberOfLines={1}>{hint}</Text>
-        )}
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-    </Pressable>
+  const row = (art: ImageSourcePropType, label: string, hint: string, onPress: () => void, testID: string) => (
+    <ClayListRow
+      key={label}
+      leading={<Icon3D source={art} size={40} />}
+      title={label}
+      subtitle={
+        loading ? <SkeletonBlock width={150} height={11} radius={6} style={{ marginTop: 3 }} /> : hint
+      }
+      onPress={onPress}
+      testID={testID}
+    />
   );
 
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-
-      {/* Sticky collapsible header */}
-      <View style={[styles.headerWrap, { height: insets.top + COMPACT_H, paddingTop: insets.top }]} pointerEvents="box-none">
-        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]} pointerEvents="none">
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.96)' }]} />
-          )}
-          <View style={styles.headerBorder} />
-        </Animated.View>
-
-        <View style={styles.compactRow}>
-          <Pressable onPress={() => router.back()} hitSlop={6} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#111111" />
-          </Pressable>
-          <Animated.Text style={[styles.compactTitle, compactStyle]} numberOfLines={1}>Il mio gruppo</Animated.Text>
-        </View>
-      </View>
-
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={false}
-            onRefresh={loadData}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-            progressViewOffset={insets.top + COMPACT_H}
-          />
-        }
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + COMPACT_H }]}
+      <ClayLargeTitleScroll
+        title="Il mio gruppo"
+        subtitle="Come i tuoi allievi prenotano le guide con te"
+        onBack={() => router.back()}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={loadData} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
+        contentContainerStyle={styles.content}
       >
-        <View style={{ height: LARGE_TITLE_H, justifyContent: 'flex-end' }}>
-          <Animated.Text style={[styles.largeTitle, largeTitleStyle]}>Il mio gruppo</Animated.Text>
-        </View>
-        <Text style={styles.pageDesc}>
-          Configura come i tuoi allievi prenotano le guide con te.
-        </Text>
 
-        <View style={styles.menuGroup}>
-          <Row icon="people-outline" label="Allievi del gruppo" hint={studentsSummary} onPress={openStudentsSheet} />
-          <View style={styles.rowDivider} />
-          <Row icon="calendar-outline" label="Prenotazione guide" hint={bookingSummary} onPress={() => router.push('/(tabs)/notes/booking-rules' as never)} />
-          <View style={styles.rowDivider} />
-          <Row icon="time-outline" label="Limiti e orari" hint={limitsSummary} onPress={() => router.push('/(tabs)/notes/limits' as never)} />
-          <View style={styles.rowDivider} />
-          <Row icon="sparkles-outline" label="Funzionalità extra" hint={extrasSummary} onPress={() => router.push('/(tabs)/notes/extras' as never)} />
-        </View>
+        <ClayList style={styles.list}>
+          {row(PERSONE_ART, 'Allievi del gruppo', studentsSummary, openStudentsSheet, 'cluster-students')}
+          {row(VITA_ART.calendario, 'Prenotazione guide', bookingSummary, () => router.push('/(tabs)/notes/booking-rules' as never), 'cluster-booking')}
+          {row(VITA_ART.orologio, 'Limiti e orari', limitsSummary, () => router.push('/(tabs)/notes/limits' as never), 'cluster-limits')}
+          {row(SCAMBIO_ART, 'Funzionalità extra', extrasSummary, () => router.push('/(tabs)/notes/extras' as never), 'cluster-extras')}
+        </ClayList>
 
-        {/* Codice di invito — gli allievi che si registrano con questo codice
-            entrano direttamente nel gruppo. Tap = copia. */}
+        {/* Codice di invito: chi si registra con questo codice entra
+            direttamente nel gruppo. Tocco sulla card o sul bottone = copia. */}
         {autonomousMode && inviteCode ? (
-          <Pressable
-            onPress={copyInviteCode}
-            style={({ pressed }) => [styles.codeCard, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
+          <ClaySection
+            title="Codice di invito"
+            footnote="Chi si registra con questo codice entra in autoscuola già nel tuo gruppo."
           >
-            <View style={styles.codeCardHeader}>
-              <Text style={styles.codeCardLabel}>Codice di invito</Text>
-              <Ionicons name="copy-outline" size={17} color="#929292" />
-            </View>
-            <Text style={styles.codeCardValue}>{inviteCode}</Text>
-            <Text style={styles.codeCardHint}>
-              Condividilo con i nuovi allievi: registrandosi con questo codice si iscriveranno all'autoscuola direttamente nel tuo gruppo.
-            </Text>
-          </Pressable>
+            <ClaySurface onPress={copyInviteCode} style={styles.codeCard} testID="cluster-invite-code" accessibilityLabel={`Codice di invito ${inviteCode}, copia`}>
+              <Text style={styles.codeValue} selectable>{inviteCode}</Text>
+              <ClayIconButton
+                icon={<Ionicons name="copy-outline" size={18} color={CLAY.ink} />}
+                onPress={copyInviteCode}
+                accessibilityLabel="Copia il codice"
+              />
+            </ClaySurface>
+          </ClaySection>
         ) : null}
-      </Animated.ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: H_PAD, paddingBottom: 120 },
-
-  /* Header */
-  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  headerBorder: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    height: StyleSheet.hairlineWidth, backgroundColor: colors.border,
-  },
-  compactRow: { height: COMPACT_H, justifyContent: 'center', alignItems: 'center' },
-  backBtn: {
-    position: 'absolute', left: H_PAD - 4, width: 40, height: 40, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  compactTitle: { fontSize: 17, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-
-  largeTitle: { fontSize: 32, fontWeight: '600', color: '#111111', letterSpacing: -0.5 },
-  pageDesc: { fontSize: 14, color: colors.textMuted, lineHeight: 20, marginTop: 6, marginBottom: 22 },
-
-  /* Flat menu rows */
-  menuGroup: { paddingHorizontal: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, minHeight: 60 },
-  rowPressed: { opacity: 0.55 },
-  rowLabel: { fontSize: 16, fontWeight: '500', color: '#111111' },
-  rowHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 39 },
-
-  /* Codice di invito */
-  codeCard: {
-    marginTop: 28,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ECECEC',
-    shadowColor: '#111111',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
-  },
-  codeCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  codeCardLabel: {
-    fontSize: 12,
+  list: { marginTop: 22 },
+  codeCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 18, paddingHorizontal: 20 },
+  codeValue: {
+    fontSize: 28,
     fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  codeCardValue: {
-    fontSize: 30,
-    fontWeight: '600',
-    color: '#111111',
-    letterSpacing: 6,
-    marginTop: 10,
+    color: CLAY.ink,
+    letterSpacing: 5,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  codeCardHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 10, lineHeight: 18 },
 });

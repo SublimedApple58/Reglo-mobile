@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { ClayEmpty, ClayList, ClayListRow, ClaySection, ClaySegmented, ClayToggle } from '../components/clay';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY } from '../theme/clay';
 import { useSession } from '../context/SessionContext';
 import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
@@ -223,12 +223,12 @@ export const AppearanceSettingsScreen = () => {
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={[s.scroll, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
-        <ClayPageHeader
-          title="Aspetto agenda"
-          onBack={() => router.back()}
-          actions={saving ? <ActivityIndicator size="small" color={CLAY.ink3} /> : null}
-        />
+      <ClayLargeTitleScroll
+        title="Aspetto agenda"
+        onBack={() => router.back()}
+        actions={saving ? <ActivityIndicator size="small" color={CLAY.ink3} /> : null}
+        contentContainerStyle={s.scroll}
+      >
 
         {!canEdit ? (
           <ClayEmpty title="Riservato allo staff dell'autoscuola." />
@@ -340,7 +340,7 @@ export const AppearanceSettingsScreen = () => {
             ) : null}
           </>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
     </View>
   );

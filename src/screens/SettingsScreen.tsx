@@ -18,6 +18,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { ClayList, ClayListRow, ClaySection } from '../components/clay';
 import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { AppVersionFooter, CLAY_DANGER, ClayTextRow, ProfileSummaryCard } from '../components/ClayAccountParts';
 import { CLAY } from '../theme/clay';
 import { softStagger } from '../utils/motion';
@@ -642,11 +643,6 @@ export const SettingsScreen = () => {
   // l'eliminazione dell'account.
   const renderNonStudentContent = () => (
     <>
-      <ClayPageHeader
-        title="Impostazioni"
-        onBack={router.canGoBack() ? () => router.back() : undefined}
-      />
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {initialLoading ? (
@@ -706,25 +702,34 @@ export const SettingsScreen = () => {
     </>
   );
 
+  const refreshControl = (
+    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink3} colors={[CLAY.ink]} />
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={CLAY.ink3}
-            colors={[CLAY.ink]}
-          />
-        }
-      >
-        {isStudent(autoscuolaRole) ? renderStudentContent() : renderNonStudentContent()}
-      </ScrollView>
+      {isStudent(autoscuolaRole) ? (
+        // App allievo: la barra a titolo grande arriva in un secondo giro.
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
+        >
+          {renderStudentContent()}
+        </ScrollView>
+      ) : (
+        <ClayLargeTitleScroll
+          title="Impostazioni"
+          onBack={router.canGoBack() ? () => router.back() : undefined}
+          contentContainerStyle={styles.content}
+          refreshControl={refreshControl}
+        >
+          {renderNonStudentContent()}
+        </ClayLargeTitleScroll>
+      )}
     </View>
   );
 };

@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { Avatar, ClayList, ClayListRow } from '../components/clay';
 import { AppVersionFooter, ClayTextRow } from '../components/ClayAccountParts';
 import { MonthHoursCard } from '../components/MonthHoursCard';
@@ -29,7 +29,6 @@ const APPEARANCE_ITEM: MenuItem = { route: 'appearance', label: 'Aspetto agenda'
  */
 export const MoreScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, autoscuolaRole, instructorId, signOut } = useSession();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const name = user?.name?.trim() || user?.email?.split('@')[0] || 'Account';
@@ -53,14 +52,10 @@ export const MoreScreen = () => {
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={[s.content, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={s.head}>
-          <Text style={s.title} accessibilityRole="header">
-            {isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'}
-          </Text>
+      <ClayLargeTitleScroll
+        title={isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'}
+        contentContainerStyle={s.content}
+        actions={
           <Pressable
             onPress={() => go('profile-edit')}
             hitSlop={8}
@@ -73,11 +68,11 @@ export const MoreScreen = () => {
                 <Image source={{ uri: user.photoUrl }} style={s.photo} />
               </View>
             ) : (
-              <Avatar userId={user?.id} name={name} size={46} />
+              <Avatar userId={user?.id} name={name} size={40} />
             )}
           </Pressable>
-        </View>
-
+        }
+      >
         {isInstructor(autoscuolaRole) && instructorId ? (
           <View style={s.month}>
             <MonthHoursCard instructorId={instructorId} onPress={() => go(INSTRUCTOR_HOURS_ITEM.route)} />
@@ -92,7 +87,7 @@ export const MoreScreen = () => {
         </ClayList>
 
         <AppVersionFooter />
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };
@@ -100,9 +95,7 @@ export const MoreScreen = () => {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   content: { paddingHorizontal: 20, paddingBottom: 140 },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 6 },
-  title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
-  photo: { width: 46, height: 46, borderRadius: 23 },
+  photo: { width: 40, height: 40, borderRadius: 20 },
   month: { marginTop: 18 },
   list: { marginTop: 18 },
 });

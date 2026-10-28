@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSession } from '../context/SessionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { notificationEvents } from '../services/notificationEvents';
@@ -402,49 +403,21 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
 
   const groups = useMemo(() => groupByDay(items.filter((i) => !i.dismissed)), [items]);
 
-  return (
-    <GestureHandlerRootView style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Testata clay (come l'Agenda): titolo grande, riga grigia, azioni a destra. */}
-      <View style={styles.hd}>
-        {/* Indietro: sempre se spinta; nella app istruttore anche come tab,
-            perché lì «Notifiche» non è nella barra (si apre dalla campanella). */}
-        {!asTab || isInstructorApp ? (
-          <ClayIconButton
-            icon="back"
-            onPress={() => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/home'))}
-            accessibilityLabel="Indietro"
-            style={styles.back}
-            testID="inbox-back"
-          />
-        ) : null}
-        <View style={styles.hdTop}>
-          <View style={styles.hdTitles}>
-            <Text style={styles.title} accessibilityRole="header">
-              Notifiche
-            </Text>
-            <Text style={styles.sub} numberOfLines={1}>
-              {hasUnread
-                ? unreadCount === 1 ? '1 novità da leggere' : `${unreadCount} novità da leggere`
-                : visibleItems.length ? 'Sei in pari, hai letto tutto' : 'Sei in pari'}
-            </Text>
-          </View>
-          {hasUnread ? (
-            <ClayIconButton
-              icon={<Ionicons name="checkmark-done" size={20} color={CLAY.ink} />}
-              onPress={handleMarkAllRead}
-              accessibilityLabel="Segna tutte come lette"
-              testID="inbox-mark-all"
-            />
-          ) : null}
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} />}
-      >
+  const subtitle = hasUnread
+    ? unreadCount === 1 ? '1 novità da leggere' : `${unreadCount} novità da leggere`
+    : visibleItems.length ? 'Sei in pari, hai letto tutto' : 'Sei in pari';
+  const goBack = () => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/home'));
+  const markAll = hasUnread ? (
+    <ClayIconButton
+      icon={<Ionicons name="checkmark-done" size={20} color={CLAY.ink} />}
+      onPress={handleMarkAllRead}
+      accessibilityLabel="Segna tutte come lette"
+      testID="inbox-mark-all"
+    />
+  ) : null;
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} />;
+  const list = (
+    <>
         {groups.length === 0 ? (
           <Animated.View entering={FadeIn.duration(250)} style={styles.empty}>
             <ClayEmpty
@@ -469,6 +442,55 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
             </ClaySection>
           ))
         )}
+    </>
+  );
+
+  // App istruttore: la barra a titolo grande che collassa (REG-639). Nella app
+  // istruttore «Notifiche» si apre dalla campanella: l'indietro c'è sempre.
+  if (isInstructorApp) {
+    return (
+      <GestureHandlerRootView style={styles.rootPlain}>
+        <ClayLargeTitleScroll
+          title="Notifiche"
+          subtitle={subtitle}
+          onBack={goBack}
+          actions={markAll}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
+          refreshControl={refreshControl}
+        >
+          {list}
+        </ClayLargeTitleScroll>
+      </GestureHandlerRootView>
+    );
+  }
+
+  return (
+    <GestureHandlerRootView style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Testata clay (come l'Agenda): titolo grande, riga grigia, azioni a destra. */}
+      <View style={styles.hd}>
+        {!asTab ? (
+          <ClayIconButton icon="back" onPress={goBack} accessibilityLabel="Indietro" style={styles.back} testID="inbox-back" />
+        ) : null}
+        <View style={styles.hdTop}>
+          <View style={styles.hdTitles}>
+            <Text style={styles.title} accessibilityRole="header">
+              Notifiche
+            </Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+          {markAll}
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
+        {list}
       </ScrollView>
     </GestureHandlerRootView>
   );
@@ -476,6 +498,7 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
+  rootPlain: { flex: 1, backgroundColor: CLAY.bg },
 
   /* Testata */
   hd: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },

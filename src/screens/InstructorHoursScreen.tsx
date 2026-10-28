@@ -15,7 +15,7 @@ import {
   ClaySurface,
   Icon3D,
 } from '../components/clay';
-import { ClayPageHeader } from '../components/ClayPageHeader';
+import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY } from '../theme/clay';
 import { VITA_ART } from '../theme/vitaArt';
 import { useInstructorHours } from '../hooks/queries/useInstructorHours';
@@ -162,12 +162,12 @@ export const InstructorHoursScreen = () => {
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top }]}
+      <ClayLargeTitleScroll
+        title="Ore di guida" subtitle="Il tempo che hai passato al volante" onBack={() => router.back()}
+        contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={CLAY.ink3} />}
       >
-        <ClayPageHeader title="Ore di guida" subtitle="Il tempo che hai passato al volante" onBack={() => router.back()} />
 
         <ClayList style={s.period}>
           <ClayListRow
@@ -235,7 +235,7 @@ export const InstructorHoursScreen = () => {
             </ClaySection>
           </>
         )}
-      </ScrollView>
+      </ClayLargeTitleScroll>
     </View>
   );
 };

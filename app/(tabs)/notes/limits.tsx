@@ -1,42 +1,23 @@
 import React, { useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { SelectableChip } from '../../../src/components/SelectableChip';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { ToggleSwitch } from '../../../src/components/ToggleSwitch';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayList } from '../../../src/components/clay';
+import { SettingStepperRow, SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
 
-const WEEKLY_OPTIONS = [1, 2, 3, 4, 5, 7, 10] as const;
+const WEEKLY_MIN = 1;
+const WEEKLY_MAX = 14;
 
-// Defined at module level (NOT inside the screen) so they are not remounted on
-// every render — that would reset the ToggleSwitch's animation shared value.
-const ToggleRow = ({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) => (
-  <View style={s.toggleRow}>
-    <View style={{ flex: 1 }}>
-      <Text style={s.toggleLabel}>{label}</Text>
-      <Text style={s.toggleDesc}>{on ? 'Attivo' : 'Disattivo'}</Text>
-    </View>
-    <ToggleSwitch value={on} onValueChange={onChange} />
-  </View>
-);
-
-const SelectRow = ({ label, value, onPress }: { label: string; value: string; onPress: () => void }) => (
-  <Pressable onPress={onPress} style={({ pressed }) => [s.selectRow, pressed && { opacity: 0.6 }]}>
-    <Text style={s.selectLabel}>{label}</Text>
-    <Text style={s.selectValue}>{value}</Text>
-    <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
-  </Pressable>
-);
-
+/**
+ * «Limiti e orari» del gruppo (REG-639, giro dopo la prova sull'iPhone):
+ * form sheet clay alto quanto il contenuto, righe da Impostazioni iOS.
+ * Il limite settimanale è uno stepper, gli orari aprono il time picker.
+ */
 export default function LimitsScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(clusterSettingsStore.subscribe, clusterSettingsStore.get);
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={s.empty} />;
 
   const {
     companyDefaults: cd,
@@ -53,107 +34,60 @@ export default function LimitsScreen() {
   const cutoffOn = bookingCutoffEnabled ?? cd.bookingCutoffEnabled;
   const limitOn = weeklyLimitEnabled ?? cd.weeklyBookingLimitEnabled;
   const rangeOn = restrictedTimeEnabled ?? cd.restrictedTimeRangeEnabled;
+  const cutoff = bookingCutoffTime ?? cd.bookingCutoffTime;
+  const start = restrictedTimeStart ?? cd.restrictedTimeRangeStart;
+  const end = restrictedTimeEnd ?? cd.restrictedTimeRangeEnd;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <View style={s.headerBlock}>
-        <Text style={s.title}>Limiti e orari</Text>
-        <Text style={s.subtitle}>Cutoff, limite settimanale e fasce orarie.</Text>
-      </View>
-
-      <SheetScaffold
-        style={{ gap: 16 }}
-        contentContainerStyle={{ gap: 16 }}
-        footer={
-          <Pressable
-            onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
-            disabled={saving}
-            style={({ pressed }) => [s.cta, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }, saving && { opacity: 0.6 }]}
-          >
-            <GradientCTABackground radius={27} />
-            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.ctaText}>Salva</Text>}
-          </Pressable>
-        }
-      >
-      {/* Cutoff */}
-      <View style={s.card}>
-        <ToggleRow label="Cutoff prenotazione" on={cutoffOn} onChange={setBookingCutoffEnabled} />
+    <FormSheet
+      title="Limiti e orari"
+      subtitle="Fino a quando e quanto si prenota"
+      busy={saving}
+      testID="limits-sheet"
+      cta={
+        <ClayButton
+          title="Salva"
+          loading={saving}
+          onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
+          testID="limits-save"
+        />
+      }
+    >
+      <ClayList>
+        <SettingToggleRow title="Cutoff prenotazione" subtitle="Dopo quest’ora non si prenota per il giorno dopo" value={cutoffOn} onValueChange={setBookingCutoffEnabled} testID="limits-cutoff" />
         {cutoffOn ? (
-          <>
-            <View style={s.divider} />
-            <SelectRow label="Orario limite" value={bookingCutoffTime ?? cd.bookingCutoffTime} onPress={() => openTimePicker(bookingCutoffTime ?? cd.bookingCutoffTime, setBookingCutoffTime)} />
-          </>
+          <SettingValueRow title="Orario limite" value={cutoff} onPress={() => openTimePicker(cutoff, setBookingCutoffTime)} testID="limits-cutoff-time" />
         ) : null}
-      </View>
+      </ClayList>
 
-      {/* Limite settimanale */}
-      <View style={s.card}>
-        <ToggleRow label="Limite settimanale" on={limitOn} onChange={setWeeklyLimitEnabled} />
+      <ClayList style={s.group}>
+        <SettingToggleRow title="Limite settimanale" subtitle="Quante guide può prenotare ogni allievo" value={limitOn} onValueChange={setWeeklyLimitEnabled} testID="limits-weekly" />
         {limitOn ? (
-          <>
-            <View style={s.divider} />
-            <View style={s.chipsRow}>
-              {WEEKLY_OPTIONS.map((n) => (
-                <SelectableChip
-                  key={n}
-                  label={`${n}`}
-                  active={(weeklyLimit ?? cd.weeklyBookingLimit) === n}
-                  onPress={() => setWeeklyLimit(n)}
-                />
-              ))}
-            </View>
-          </>
+          <SettingStepperRow
+            title="Guide a settimana"
+            value={weeklyLimit ?? cd.weeklyBookingLimit}
+            min={WEEKLY_MIN}
+            max={WEEKLY_MAX}
+            onChange={setWeeklyLimit}
+            testID="limits-weekly-stepper"
+          />
         ) : null}
-      </View>
+      </ClayList>
 
-      {/* Fascia oraria ristretta */}
-      <View style={s.card}>
-        <ToggleRow label="Fascia oraria ristretta" on={rangeOn} onChange={setRestrictedTimeEnabled} />
+      <ClayList style={s.group}>
+        <SettingToggleRow title="Fascia oraria ristretta" subtitle="Gli allievi prenotano solo in questa fascia" value={rangeOn} onValueChange={setRestrictedTimeEnabled} testID="limits-range" />
         {rangeOn ? (
-          <>
-            <View style={s.divider} />
-            <SelectRow label="Inizio" value={restrictedTimeStart ?? cd.restrictedTimeRangeStart} onPress={() => openTimePicker(restrictedTimeStart ?? cd.restrictedTimeRangeStart, setRestrictedTimeStart)} />
-            <View style={s.divider} />
-            <SelectRow label="Fine" value={restrictedTimeEnd ?? cd.restrictedTimeRangeEnd} onPress={() => openTimePicker(restrictedTimeEnd ?? cd.restrictedTimeRangeEnd, setRestrictedTimeEnd)} />
-          </>
+          <SettingValueRow title="Dalle" value={start} onPress={() => openTimePicker(start, setRestrictedTimeStart)} testID="limits-range-start" />
         ) : null}
-      </View>
-      </SheetScaffold>
-    </View>
+        {rangeOn ? (
+          <SettingValueRow title="Alle" value={end} onPress={() => openTimePicker(end, setRestrictedTimeEnd)} testID="limits-range-end" />
+        ) : null}
+      </ClayList>
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 32, gap: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: -4, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  headerBlock: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
-
-  card: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ECECEC' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#111111' },
-  toggleDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-
-  selectRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  selectLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#111111' },
-  selectValue: { fontSize: 15, fontWeight: '600', color: '#6A6A6A' },
-
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 14 },
-
-  cta: {
-    minHeight: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    ...primaryCtaShadow,
-  },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  empty: { backgroundColor: '#FFFFFF', height: 1 },
+  group: { marginTop: 18 },
 });
