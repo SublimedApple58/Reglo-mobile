@@ -68,9 +68,17 @@ export function guideHotspots(list: RoadStudentHotspot[] | null | undefined): Ro
 
 const loading = new Set<string>();
 
-async function startPoint(session: RoadSessionWithLesson, fix: { lat: number; lng: number } | null) {
-  if (fix) return fix;
+type Pt = { lat: number; lng: number };
+
+/**
+ * Da dove parte la linea: l'ultima posizione della sessione, o la prima del
+ * GPS. Appena entrati in Road spesso non c'è ancora nessun fix (e
+ * `getLastKnownPosition` può essere vuoto): si aspetta il primo, fino a 60 s.
+ */
+async function startPoint(session: RoadSessionWithLesson, waitFix: () => Promise<Pt | null>) {
   if (session.last) return { lat: session.last.lat, lng: session.last.lng };
+  const first = await waitFix();
+  if (first) return first;
   const p = await Location.getLastKnownPositionAsync().catch(() => null);
   return p ? { lat: p.coords.latitude, lng: p.coords.longitude } : null;
 }
@@ -81,7 +89,7 @@ async function startPoint(session: RoadSessionWithLesson, fix: { lat: number; ln
  */
 export async function loadRoadGuide(
   session: RoadSessionWithLesson,
-  fix: { lat: number; lng: number } | null,
+  waitFix: () => Promise<Pt | null>,
   onReady: (guide: RoadGuide) => void,
 ) {
   if (loading.has(session.id)) return;
@@ -99,7 +107,7 @@ export async function loadRoadGuide(
     : Promise.resolve([] as RoadStudentHotspot[]);
 
   const routeReq = planStops.length
-    ? startPoint(session, fix).then((start) =>
+    ? startPoint(session, waitFix).then((start) =>
         start ? regloApi.getRoadPlanRoute({ start, stops: planStops }).catch(() => null) : null,
       )
     : Promise.resolve(null);

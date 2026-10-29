@@ -41,6 +41,24 @@ const ZOOM = 16.2; // Android
 // metà dello schermo, con più strada davanti (come l'anteprima). La scritta
 // «Legal» di Apple sta fra il pannello e il cerchio della velocità.
 const MAP_PADDING_TOP = 330;
+/** Il primo fix GPS della guida (o null dopo 60 s): la linea parte da lì. */
+function waitFirstFix(): Promise<{ lat: number; lng: number } | null> {
+  const now = roadStore.get().fix;
+  if (now) return Promise.resolve({ lat: now.lat, lng: now.lng });
+  return new Promise((resolve) => {
+    const done = (v: { lat: number; lng: number } | null) => {
+      clearTimeout(t);
+      off();
+      resolve(v);
+    };
+    const off = roadStore.subscribe(() => {
+      const f = roadStore.get().fix;
+      if (f) done({ lat: f.lat, lng: f.lng });
+    });
+    const t = setTimeout(() => done(null), 60_000);
+  });
+}
+
 const EMPTY_STOPS: never[] = [];
 const EMPTY_HOTSPOTS: never[] = [];
 
@@ -96,8 +114,7 @@ export default function RoadScreen() {
   useEffect(() => {
     const cur = roadStore.get().session;
     if (!cur || cur.id !== sessionId || !cur.lesson) return;
-    const f = roadStore.get().fix;
-    void loadRoadGuide(cur, f ? { lat: f.lat, lng: f.lng } : null, (g) => roadStore.setGuide(g));
+    void loadRoadGuide(cur, waitFirstFix, (g) => roadStore.setGuide(g));
   }, [sessionId]);
 
   // La nota della guida si carica subito: il foglio «Note» si apre senza attese.
