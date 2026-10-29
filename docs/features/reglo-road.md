@@ -244,3 +244,21 @@ sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
 - **Lente «Tutti»** (`avvia.tsx`): `FormSheet` ha la prop `list` (FlatList virtualizzata nello stesso posto dello scroll); un elemento per gruppo (ultime guide, lettere), righe `PersonRow` statiche in memo. Allievi e ore pronti dall'avvio (`refreshRoadStudents` in `warmRoadFree`), riconfermati dopo l'animazione del foglio.
 - `BriefingLines`/`BriefingRows` senza entrate a cascata.
 - **Allievi**: «I miei / Tutti» → il cursore scorre da solo, la lista cambia 150 ms dopo in `startTransition`; righe e volti della settimana di entrambe le liste già montati (nascosti con `display: none`).
+
+## Punti critici nell'app istruttore (REG-646, 29/10)
+
+Dove gli allievi dell'autoscuola sbagliano più spesso, anche per l'istruttore (decisione di Tiziano, piano `reglo/plans/road/003-punti-critici-e-giro.md`). API del backend REG-643: `GET /road/hotspots?from=` (mappa aggregata dell'autoscuola, soglia 3 errori di almeno 2 allievi) e `GET /road/hotspots/[key]?from=` (per l'istruttore solo le sue guide e i suoi allievi, `hiddenSessions` = quante sono di colleghi); percorsi d'esame da `GET /road/exam-routes`.
+
+| Cosa | Dove |
+|---|---|
+| Tipi | `src/types/regloApi.ts` (`RoadHotspot`, `RoadHotspots`, `RoadHotspotDetail`, `RoadExamRoute`) |
+| Endpoint | `src/services/regloApi.ts` (`getRoadHotspots`, `getRoadHotspot`, `getRoadExamRoutes`) |
+| Cache e prefetch | `src/road/hotspotsStore.ts` (`warmRoadHotspots`, `loadHotspots`, `prefetchHotspotDetails`, `prefetchHotspotSessions`, `hotspotSheetStore`) |
+| Accesso | riga «Punti critici» nella tab Road (`HotspotsEntry` in `app/(tabs)/drive/index.tsx`, sopra «Ultime guide»): simbolo 3D e via dell'errore più frequente |
+| Schermata | `app/(tabs)/drive/punti-critici.tsx` → `src/screens/RoadHotspotsScreen.tsx` (in `FULL_PAGES` di `app/(tabs)/_layout.tsx`) |
+| Dettaglio | `app/(tabs)/drive/punto-critico.tsx` (`FORM_SHEET`) → `src/screens/RoadHotspotSheet.tsx` |
+
+- **Schermata**: testata nativa a titolo grande in modalità `overlay` sopra la mappa (`ClayNavBar`), mappa montata una volta nell'intestazione della `FlatList`, non interattiva: aloni rossi (`Circle`, raggio e opacità per numero di errori rispetto al punto peggiore), simbolo 3D dell'errore sul punto (`RoadMarkerPin` piccolo, bordo «da migliorare», ora con `onPress`), percorsi d'esame tratteggiati. Pannello bianco con titolo, riga «N punti negli ultimi 3 mesi», `ClaySegmented` 30 giorni / 3 mesi / 1 anno. Lista = `FlatList` con righe `memo` (`HotspotRow`: simbolo 3D, errore, via · «sul percorso d'esame», numero di errori a destra) sopra un'unica superficie clay dietro le righe (stesso schema di Allievi). Skeleton al primo caricamento, stato vuoto `ClayEmpty` (piantina) con quante segnalazioni ci sono ancora sparse.
+- **Foglio del punto** (`FormSheet`, niente CTA): simbolo 3D, via e periodo; tre numeri dell'autoscuola (errori, allievi, guide); «Sul percorso d'esame …»; «I tuoi allievi che ci sbagliano» (volti, errori) e «Le tue guide» (giorno, ora, errori qui) → «Percorso Road» (`drive/road-percorso`, dettaglio da `getRoadSession` già scaricato); nota sulle guide dei colleghi. Massimo 5 righe per lista, poi «e altri N».
+- **Fluidità (§15)**: nessun fetch al tocco. La tab Road scalda il periodo di default e i percorsi d'esame a riposo; la schermata scalda gli altri due periodi e i dettagli dei primi 8 punti (uno alla volta); il foglio scalda i percorsi delle prime 6 guide. `from` = inizio del giorno di N giorni fa (chiave di cache stabile per tutto il giorno, anche sul server). Il segmentato anima subito, la lista cambia in `startTransition`. Righe in dissolvenza 180 ms (`ROAD_FADE_IN`), mai `ReduceMotion` che le spenga.
+- Solo JS (react-native-maps è già nel binario 2.4.0) → OTA sul runtime 2.4.0.

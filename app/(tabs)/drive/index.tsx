@@ -26,9 +26,11 @@ import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore'
 import { dayLabel, formatHm } from '../../../src/road/format';
 import { openRoadPagellino } from '../../../src/road/pagellino';
 import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
+import { DEFAULT_HOTSPOT_PERIOD, hotspotsStore, useHotspotsVersion, warmRoadHotspots } from '../../../src/road/hotspotsStore';
+import { markerArt, ROAD_ASSETS } from '../../../src/road/markerArt';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme';
-import { ClayButton, ClayList, ClayListRow, ClaySurface, PlayGlyph } from '../../../src/components/clay';
+import { ClayButton, ClayList, ClayListRow, ClaySurface, Icon3D, PlayGlyph } from '../../../src/components/clay';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ClayNavBar, NAV_BAR_H } from '../../../src/components/ClayLargeTitle';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
@@ -139,7 +141,11 @@ export default function RoadTab() {
 
   useFocusEffect(
     useCallback(() => {
-      const task = InteractionManager.runAfterInteractions(() => void load());
+      const task = InteractionManager.runAfterInteractions(() => {
+        void load();
+        // Punti critici pronti prima del tocco (§15.8): una volta per avvio.
+        warmRoadHotspots();
+      });
       return () => task.cancel();
     }, [load]),
   );
@@ -311,6 +317,8 @@ export default function RoadTab() {
             </Animated.View>
           )}
         </View>
+
+        {!inRoad && options ? <HotspotsEntry /> : null}
 
         {recent?.length && !inRoad ? (
           <Animated.View entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT}>
@@ -589,6 +597,39 @@ const RecentSection = React.memo(function RecentSection({
             testID="road-tab-recent"
           />
         ))}
+      </ClayList>
+    </View>
+  );
+});
+
+/**
+ * REG-646 — accesso ai «Punti critici»: una riga col simbolo dell'errore più
+ * frequente e dove capita. Legge lo store scaldato dalla tab (nessun fetch al tocco).
+ */
+const HotspotsEntry = React.memo(function HotspotsEntry() {
+  const router = useRouter();
+  useHotspotsVersion();
+  const data = hotspotsStore.list(DEFAULT_HOTSPOT_PERIOD);
+  const top = data?.hotspots[0] ?? null;
+  const count = data?.hotspots.length ?? 0;
+  const subtitle = top
+    ? [`${top.label}${top.street ? ` in ${top.street}` : ''}`, count > 1 ? `e altri ${count - 1}` : null].filter(Boolean).join(' · ')
+    : data
+      ? 'Ancora nessuno: si riempie con le segnalazioni'
+      : 'Dove gli allievi sbagliano più spesso';
+  return (
+    <View style={s.recent}>
+      <ClayList style={s.recentList}>
+        <ClayListRow
+          leading={<Icon3D source={top ? markerArt(top.kind) : ROAD_ASSETS.road} size={40} />}
+          title="Punti critici"
+          subtitle={subtitle}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => undefined);
+            router.push('/(tabs)/drive/punti-critici' as never);
+          }}
+          testID="road-tab-hotspots"
+        />
       </ClayList>
     </View>
   );

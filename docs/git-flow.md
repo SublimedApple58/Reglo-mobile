@@ -32,7 +32,7 @@ Le modifiche solo-JS si vedono in **hot-reload** (Metro), niente rebuild nativo;
 
 ## Rilascio build nativa (store) + OTA dopo
 
-> **Stato attuale** (aggiorna questa riga a ogni rilascio nativo): `runtimeVersion` **2.3.0** (= `version` 2.3.0, live su App Store + Play Store dal 2026-09-16) · force-update floor **2.3.0** iOS+Android.
+> **Stato attuale** (aggiorna questa riga a ogni rilascio nativo, 29/10/2026): sugli **store** c'è la **2.3.0** (`runtimeVersion` 2.3.0, App Store + Play Store dal 2026-09-16); la **2.4.0** (`runtimeVersion` 2.4.0, moduli nativi di Road) è **solo la build TestFlight** con cui si prova Road, e `master` ha già `app.json` → `runtimeVersion: "2.4.0"`. Store e TestFlight leggono lo **stesso canale EAS `production`**: a separarli è solo il runtime. Quindi ogni OTA da `master` arriva **solo ai 2.4.0** (TestFlight), mai agli utenti 2.3.0 degli store. Prima di ogni `eas update`: `app.json` runtimeVersion = 2.4.0, `--branch production`, e nell'output di eas update il runtime deve dire 2.4.0. Force-update floor **2.3.0** iOS+Android (non alzarlo finché la 2.4.0 non è sugli store).
 
 Ogni passo outward-facing (build prod, submit, OTA, floor) solo con **OK esplicito dell'utente**.
 

@@ -120,6 +120,9 @@ import {
   RoadFreeOptions,
   RoadFreeStartInput,
   RoadDetail,
+  RoadExamRoute,
+  RoadHotspotDetail,
+  RoadHotspots,
   RoadStudentItem,
   RoadBriefing,
   RoadMarker,
@@ -1072,6 +1075,16 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<{ items: RoadStudentItem[]; briefing?: RoadBriefing | null }>(
         `/api/autoscuole/road/students/${studentId}`,
       ),
+    /** Punti critici dell'autoscuola (REG-646): mappa aggregata, anche per l'istruttore. */
+    getRoadHotspots: async (params: { from: string }) =>
+      client.request<RoadHotspots>(`/api/autoscuole/road/hotspots?from=${encodeURIComponent(params.from)}`),
+    /** Dettaglio di un punto: per l'istruttore solo le sue guide e i suoi allievi. */
+    getRoadHotspot: async (key: string, params: { from: string }) =>
+      client.request<RoadHotspotDetail>(
+        `/api/autoscuole/road/hotspots/${encodeURIComponent(key)}?from=${encodeURIComponent(params.from)}`,
+      ),
+    getRoadExamRoutes: async () =>
+      client.request<RoadExamRoute[]>('/api/autoscuole/road/exam-routes'),
     /** «Annulla» nei primi secondi di una guida avviata da Road. */
     undoFreeRoadSession: async (sessionId: string) =>
       client.request<{ appointmentId: string }>('/api/autoscuole/road/free/undo', {

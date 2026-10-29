@@ -62,6 +62,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   small = false,
   zIndex,
   sentiment,
+  onPress,
 }: {
   coordinate: LatLng;
   kind: string;
@@ -70,6 +71,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   zIndex?: number;
   /** Bordo verde/rosso: fatto bene / da migliorare. */
   sentiment?: Sentiment | null;
+  /** Tocco sul pin (punti critici, REG-646). */
+  onPress?: () => void;
 }) {
   const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '']);
   const tagH = small ? TAG_H_SMALL : TAG_H;
@@ -82,6 +85,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
       centerOffset={{ x: 0, y: -(height / 2 - DOT / 2) }}
       tracksViewChanges={tracksViewChanges}
       zIndex={zIndex ?? (small ? 3 : 5)}
+      onPress={onPress}
     >
       <View style={[pin.wrap, { height }]} pointerEvents="none">
         <View
@@ -106,7 +110,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   a.label === b.label &&
   a.small === b.small &&
   a.zIndex === b.zIndex &&
-  a.sentiment === b.sentiment,
+  a.sentiment === b.sentiment &&
+  a.onPress === b.onPress,
 );
 
 /** Puntino bianco bordato di nero: partenza / arrivo nelle minimappe. */

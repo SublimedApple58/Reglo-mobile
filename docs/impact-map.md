@@ -113,6 +113,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Form sheet nativi**: `evaluation-item` usa `HUG_SHEET` e le misure §13.2.1 del design system (testata 26/26 perché ha titolo+sottotitolo+bottoncini)
 
 ### Reglo Road (REG-638)
+- **Punti critici (REG-646)**: `drive/punti-critici` (`RoadHotspotsScreen`, in `FULL_PAGES`) e `drive/punto-critico` (`RoadHotspotSheet`) leggono `src/road/hotspotsStore.ts`, scaldato dalla tab Road (`HotspotsEntry` in `drive/index`). Il foglio apre `drive/road-percorso` via `roadRouteMapStore`. `RoadMarkerPin` ha `onPress` (nel confronto del memo). Contratto: `reglo/docs/features/reglo-road.md` › Punti critici.
 - **AuthGate** (`app/_layout.tsx`): il gruppo `road` è ammesso accanto a `(tabs)`; `RoadController` instrada su `/road` finché `roadStore.phase !== 'idle'`. Toccare l'AuthGate può buttare fuori da Road a metà guida.
 - **Pagellino (REG-443)**: `manage-lesson-details` ha la variante `road` (solo pagellino, CTA nera) ed è registrato anche in `app/road/` (re-export) + `select-options(-long)`. Cambiare il foglio cambia anche il pagellino di Road; cambiare il calcolo «N voci su M» del riepilogo richiede `AppointmentEvaluation` (`getAppointmentEvaluation`).
 - **IstruttoreHomeScreen** (WeeklyLiveCard rimossa il 28/10 con la vista settimana): prop `onEnterRoad` solo se la guida «In corso» è la `eligibleLesson` di `/road/state`.

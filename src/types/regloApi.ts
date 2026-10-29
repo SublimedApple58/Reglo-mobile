@@ -1737,6 +1737,56 @@ export type RoadDetail = RoadSessionWithLesson & {
   evaluation?: RoadEvaluationSummary | null;
 };
 
+/** Punto critico (REG-643/646): dove gli allievi dell'autoscuola sbagliano più spesso. */
+export type RoadHotspot = {
+  /** `kind~lat4~lng4`: stabile, va nell'URL del dettaglio. */
+  key: string;
+  kind: string;
+  label: string;
+  lat: number;
+  lng: number;
+  street: string | null;
+  errors: number;
+  students: number;
+  sessions: number;
+  lastAt: string;
+  examRoutes: Array<{ id: Uuid; name: string }>;
+};
+
+export type RoadHotspots = {
+  from: string;
+  to: string;
+  hotspots: RoadHotspot[];
+  /** Anche le segnalazioni «da migliorare» sotto soglia (stato vuoto). */
+  totalErrors: number;
+  examRoutes: number;
+};
+
+/** Dettaglio di un punto: l'istruttore riceve solo le sue guide (`hiddenSessions` = le altre). */
+export type RoadHotspotDetail = {
+  hotspot: RoadHotspot;
+  sessions: Array<{
+    id: Uuid;
+    startedAt: string;
+    student: { id: Uuid; name: string | null } | null;
+    instructor: { id: Uuid; name: string } | null;
+    errors: number;
+    lastAt: string;
+  }>;
+  students: Array<{ id: Uuid; name: string | null; errors: number }>;
+  hiddenSessions: number;
+};
+
+/** Percorso d'esame dell'autoscuola (REG-641), coordinate [lat, lng]. */
+export type RoadExamRoute = {
+  id: Uuid;
+  name: string;
+  examSite: string | null;
+  licenseCategories: string[];
+  path: Array<[number, number]>;
+  lengthMeters: number;
+};
+
 /** Percorso Road di una guida nello storico allievo (`GET /road/students/[id]`). */
 export type RoadStudentItem = {
   id: Uuid;

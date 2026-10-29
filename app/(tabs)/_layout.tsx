@@ -28,6 +28,8 @@ const UNDER_GLASS_TABS = new Set(['home', 'drive', 'notes', 'more']);
 const FULL_PAGES = new Set([
   'availability', 'notifications', 'swaps', 'group-lesson-invites',
   'cluster-settings',
+  // REG-646: punti critici nella tab Road.
+  'punti-critici',
   'settings', 'appearance', 'instructor-hours', 'instructors-overview', 'locations', 'vehicles', 'evaluation-sheet',
 ]);
 
