@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Alert, InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRouter } from 'expo-router';
@@ -25,7 +25,13 @@ import type { AutoscuolaStudent, RoadBriefing, RoadFreeOptions, RoadFreeVehicle 
 import { vehicleServesStudent } from '../../../src/utils/license';
 import { matchesPersonSearch } from '../../../src/utils/peopleSearch';
 import { beginRoadEntry, roadPendingStart, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
-import { ROAD_FREE_PRIVACY_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
+import {
+  getRoadStudents,
+  refreshRoadStudents,
+  ROAD_FREE_PRIVACY_ROUTE,
+  roadFreePreselect,
+  roadFreeStore,
+} from '../../../src/road/freeStartStore';
 import { BriefingRows, RoadAvatar } from '../../../src/components/road/RoadTabParts';
 import { enterRoadFree, hasSeenRoadPrivacy } from '../../../src/road/roadActions';
 import { car34Art } from '../../../src/road/markerArt';
@@ -66,8 +72,11 @@ export default function AvviaGuidaSheet() {
   const navigation = useNavigation();
   const live = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
   const [options] = useState<RoadFreeOptions | null>(() => live);
-  const [students, setStudents] = useState<AutoscuolaStudent[] | null>(null);
-  const [minutes, setMinutes] = useState<Record<string, number>>({});
+  // Lista già pronta dal prefetch d'avvio (`refreshRoadStudents`): il foglio
+  // si apre pieno, la riconferma arriva dopo l'animazione e ridisegna solo se
+  // qualcosa è cambiato (fluidità 29/10).
+  const [students, setStudents] = useState<AutoscuolaStudent[] | null>(() => getRoadStudents()?.students ?? null);
+  const [minutes, setMinutes] = useState<Record<string, number>>(() => getRoadStudents()?.minutes ?? {});
   // Volto già scelto nella tab Road → si apre direttamente su «Parti con».
   const [preselected] = useState(() => roadFreePreselect.take());
   const [step, setStep] = useState<'student' | 'summary' | 'vehicle'>(preselected ? 'summary' : 'student');
@@ -81,16 +90,20 @@ export default function AvviaGuidaSheet() {
 
   useEffect(() => {
     let alive = true;
-    regloApi
-      .getStudents()
-      .then((list) => alive && setStudents(list))
-      .catch(() => alive && setStudents([]));
-    regloApi
-      .getStudentsCompletedHours()
-      .then((m) => alive && setMinutes(m ?? {}))
-      .catch(() => undefined);
+    const task = InteractionManager.runAfterInteractions(() => {
+      void refreshRoadStudents().then((res) => {
+        if (!alive) return;
+        if (!res) {
+          setStudents((prev) => prev ?? []);
+          return;
+        }
+        setStudents((prev) => (prev === res.students ? prev : res.students));
+        setMinutes((prev) => (prev === res.minutes ? prev : res.minutes));
+      });
+    });
     return () => {
       alive = false;
+      task.cancel();
     };
   }, []);
 
@@ -159,12 +172,12 @@ export default function AvviaGuidaSheet() {
 
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId) ?? null;
 
-  const pick = (id: string) => {
+  const pick = useCallback((id: string) => {
     Haptics.selectionAsync().catch(() => undefined);
     setStudentId(id);
     setQuery('');
     setStep('summary');
-  };
+  }, []);
 
   const onStart = async () => {
     if (!studentId || !vehicleId || starting) return;
@@ -220,48 +233,37 @@ export default function AvviaGuidaSheet() {
   );
 
   // ── Passo 1: con chi guidi? ────────────────────────────────────────────
+  // Lista virtualizzata (fluidità 29/10): un elemento per gruppo (ultime
+  // guide, poi una lettera alla volta), righe statiche in memo; il foglio
+  // monta solo i gruppi a schermo.
   if (step === 'student') {
+    const groups: PickGroup[] = [];
+    if (shownSuggested.length) groups.push({ key: 'sugg', title: 'Le tue ultime guide', people: shownSuggested });
+    groups.push({
+      key: 'all',
+      head: q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`,
+      status: !students ? 'loading' : !shownAll.length ? 'empty' : undefined,
+      people: [],
+    });
+    if (students && shownAll.length) {
+      if (q) groups.push({ key: 'results', people: shownAll });
+      else for (const [letter, people] of byLetter(shownAll)) groups.push({ key: `l-${letter}`, letter, people });
+    }
     return (
-      <FormSheet title="Con chi guidi?" subtitle={nowLabel} contentKey="student" testID="road-free-pick">
+      <FormSheet
+        title="Con chi guidi?"
+        subtitle={nowLabel}
+        testID="road-free-pick"
+        list={{
+          data: groups,
+          keyExtractor: (g: PickGroup) => g.key,
+          renderItem: ({ item }: { item: PickGroup }) => <PickGroupView group={item} onPick={pick} />,
+          initialNumToRender: 4,
+          maxToRenderPerBatch: 3,
+          windowSize: 7,
+        }}
+      >
         {searchField(query, setQuery, 'Cerca allievo', 'road-free-search')}
-        {/* Liste clay: una superficie per gruppo (ultime guide, poi una per
-            lettera), l'ombra sul gruppo e non sulle righe. */}
-        {shownSuggested.length ? (
-          <Animated.View layout={ROAD_LAYOUT}>
-            <Text style={s.section}>Le tue ultime guide</Text>
-            <ClayList>
-              {shownSuggested.map((p, i) => (
-                <PersonRow key={`s-${p.id}`} index={i} person={p} onPress={() => pick(p.id)} />
-              ))}
-            </ClayList>
-          </Animated.View>
-        ) : null}
-
-        <Text style={s.section}>
-          {q ? `Risultati · ${shownAll.length}` : `Tutti gli allievi${students ? ` · ${shownAll.length}` : ''}`}
-        </Text>
-        {!students ? (
-          <ActivityIndicator color={CLAY.ink3} style={{ marginTop: 18 }} />
-        ) : !shownAll.length ? (
-          <Text style={s.empty}>Nessun allievo trovato.</Text>
-        ) : q ? (
-          <ClayList>
-            {shownAll.map((p, i) => (
-              <PersonRow key={p.id} index={i} person={p} onPress={() => pick(p.id)} />
-            ))}
-          </ClayList>
-        ) : (
-          byLetter(shownAll).map(([letter, people], g) => (
-            <Animated.View key={letter} entering={roadStagger(Math.min(g, 8))} layout={ROAD_LAYOUT}>
-              <Text style={s.letter}>{letter}</Text>
-              <ClayList>
-                {people.map((p, i) => (
-                  <PersonRow key={p.id} index={i} person={p} onPress={() => pick(p.id)} />
-                ))}
-              </ClayList>
-            </Animated.View>
-          ))
-        )}
       </FormSheet>
     );
   }
@@ -457,24 +459,73 @@ function byLetter(people: Person[]): Array<[string, Person[]]> {
   return [...groups.entries()];
 }
 
-/** Riga allievo: entra a cascata, filtrando esce e le altre scivolano. */
-function PersonRow({ person, onPress, index, divider, first, last }: { person: Person; onPress: () => void; index: number; divider?: boolean; first?: boolean; last?: boolean }) {
+type PickGroup = {
+  key: string;
+  /** Titolo di sezione («Le tue ultime guide»). */
+  title?: string;
+  /** Intestazione «Tutti gli allievi · N» con l'eventuale stato. */
+  head?: string;
+  status?: 'loading' | 'empty';
+  letter?: string;
+  people: Person[];
+};
+
+/** Un gruppo della lista: titolo o lettera e la sua superficie clay. */
+const PickGroupView = React.memo(function PickGroupView({ group, onPick }: { group: PickGroup; onPick: (id: string) => void }) {
+  if (group.head !== undefined) {
+    return (
+      <View>
+        <Text style={s.section}>{group.head}</Text>
+        {group.status === 'loading' ? (
+          <ActivityIndicator color={CLAY.ink3} style={{ marginTop: 18 }} />
+        ) : group.status === 'empty' ? (
+          <Text style={s.empty}>Nessun allievo trovato.</Text>
+        ) : null}
+      </View>
+    );
+  }
   return (
-    <Animated.View entering={roadStagger(Math.min(index, 10))} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
-      <ClayListRow
-        divider={divider}
-        first={first}
-        last={last}
-        // Stesso volto della tab Allievi e del resto di Road (foto o iniziali).
-        leading={<RoadAvatar userId={person.id} name={person.name} size={44} />}
-        title={person.name}
-        subtitle={person.detail}
-        onPress={onPress}
-        testID="road-free-student"
-      />
-    </Animated.View>
+    <View>
+      {group.title ? <Text style={s.section}>{group.title}</Text> : null}
+      {group.letter ? <Text style={s.letter}>{group.letter}</Text> : null}
+      <ClayList>
+        {group.people.map((p, i) => (
+          <PersonRow key={p.id} index={i} person={p} onPick={onPick} />
+        ))}
+      </ClayList>
+    </View>
   );
-}
+});
+
+/** Riga allievo statica (niente entrate a cascata: la lista è virtualizzata). */
+const PersonRow = React.memo(function PersonRow({
+  person,
+  onPick,
+  divider,
+  first,
+  last,
+}: {
+  person: Person;
+  onPick: (id: string) => void;
+  index: number;
+  divider?: boolean;
+  first?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <ClayListRow
+      divider={divider}
+      first={first}
+      last={last}
+      // Stesso volto della tab Allievi e del resto di Road (foto o iniziali).
+      leading={<RoadAvatar userId={person.id} name={person.name} size={44} />}
+      title={person.name}
+      subtitle={person.detail}
+      onPress={() => onPick(person.id)}
+      testID="road-free-student"
+    />
+  );
+});
 
 // Passano `first`/`last` alla ClayListRow: il respiro di bordo è nella riga.
 markClayRow(VehicleRow);

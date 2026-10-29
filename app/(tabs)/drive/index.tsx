@@ -16,7 +16,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { regloApi } from '../../../src/services/regloApi';
-import type { RoadFreeOptions, RoadSuggestion } from '../../../src/types/regloApi';
+import type { RoadBriefing, RoadFreeOptions, RoadLesson, RoadRecentSession, RoadSuggestion } from '../../../src/types/regloApi';
 import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
@@ -29,27 +29,10 @@ import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme';
 import { ClayButton, ClayList, ClayListRow, ClaySurface, PlayGlyph } from '../../../src/components/clay';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ClayNavBar, NAV_BAR_H } from '../../../src/components/ClayLargeTitle';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
-import {
-  ROAD_EXIT,
-  ROAD_LAYOUT,
-  ROAD_LAYOUT_AFTER_EXIT,
-  ROAD_TEXT_IN,
-  ROAD_TEXT_OUT,
-  roadEnter,
-  roadStagger,
-  SWITCH_IN,
-  SWITCH_LAYOUT,
-  SWITCH_OUT,
-} from '../../../src/road/motion';
+import { CROSSFADE_TIMING, ROAD_FADE_IN, ROAD_FADE_OUT } from '../../../src/road/motion';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { useTabBarOverlap } from '../../../src/components/tabBarSpace';
 
@@ -59,9 +42,12 @@ const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
 const ZOOM = 15.6; // Android
 const FALLBACK = { latitude: 45.0703, longitude: 7.6869 };
-/** Altezza della barra compatta sotto la status bar. */
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+
+/** Stesse opzioni = niente ridisegno (la risposta arriva identica quasi sempre). */
+const sameOptions = (a: RoadFreeOptions | null, b: RoadFreeOptions | null) =>
+  a === b || (!!a && !!b && JSON.stringify(a) === JSON.stringify(b));
 
 /**
  * REG-638 Road «mappa corta» (variante 2 scelta da Tiziano, 27/10).
@@ -74,6 +60,14 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
  *   server) + «Tutti», briefing del volto scelto e «Parti con …».
  * In fondo le ultime guide registrate. Niente pillole né badge: i motivi sono
  * righe secondarie, il segno delle segnalazioni è un glifo.
+ *
+ * Leggera (fluidità 29/10, Tiziano): la schermata è divisa in sezioni in
+ * `memo` (mappa, volti, briefing, bottone, ultime guide), così il tocco su un
+ * volto ridisegna solo volti, briefing e bottone. Niente entrate dal basso né
+ * transizioni di layout: solo dissolvenze brevi. Il cambio allievo è una
+ * dissolvenza incrociata di contenuti GIÀ montati (i briefing dei tre volti
+ * arrivano con le opzioni), ad altezza fissa: la pagina non si muove e al
+ * tocco non parte nessuna chiamata.
  */
 export default function RoadTab() {
   const router = useRouter();
@@ -81,12 +75,12 @@ export default function RoadTab() {
   const barOverlap = useTabBarOverlap();
   const { height } = useWindowDimensions();
   // Solo fase e sessione: la tab non si ridisegna a ogni fix GPS.
-  const roadPhase = useRoadSelector((s) => s.phase);
-  const roadSession = useRoadSelector((s) => s.session);
+  const roadPhase = useRoadSelector((st) => st.phase);
+  const roadSession = useRoadSelector((st) => st.session);
   const mapRef = useRef<MapView>(null);
   // Montata in anticipo (tab `lazy: false`): finché non la si apre, la
   // schermata vera (mappa compresa) aspetta che l'app sia a riposo dopo
-  // l'avvio, così non ruba fotogrammi all'Agenda (fluidità 29/10).
+  // l'avvio, così non ruba fotogrammi all'Agenda.
   const focused = useIsFocused();
   const [armed, setArmed] = useState(focused);
   useEffect(() => {
@@ -105,51 +99,48 @@ export default function RoadTab() {
     };
   }, [armed, focused]);
   const [pos, setPos] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
+  const [options, setOptionsRaw] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
+  const setOptions = useCallback((next: RoadFreeOptions | null) => {
+    setOptionsRaw((prev) => (sameOptions(prev, next) ? prev : next));
+  }, []);
   // Opzioni arrivate dal prefetch d'avvio (`warmRoadFree`) mentre la tab era già montata.
   useEffect(
     () =>
       roadFreeStore.subscribe(() => {
         const next = roadFreeStore.get();
-        if (next) setOptions((prev) => prev ?? next);
+        if (next) setOptionsRaw((prev) => prev ?? next);
       }),
     [],
   );
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Cambio di volto: per ~0,3 s le altezze scivolano coi tempi brevi della
-  // scelta (200 ms), non con quelli dei cambi di stato (300 ms, +130 ms di
-  // attesa sotto). Tiziano 28/10: il cambio allievo era lentissimo.
-  const [switching, setSwitching] = useState(false);
-  const switchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (switchTimer.current) clearTimeout(switchTimer.current);
-  }, []);
-  const pickFace = useCallback((id: string) => {
-    Haptics.selectionAsync().catch(() => undefined);
-    setSwitching(true);
-    setSelectedId(id);
-    if (switchTimer.current) clearTimeout(switchTimer.current);
-    switchTimer.current = setTimeout(() => setSwitching(false), 320);
-  }, []);
-  const lay = switching ? SWITCH_LAYOUT : ROAD_LAYOUT;
   const [otherMode, setOtherMode] = useState(false);
 
+  const pickFace = useCallback((id: string) => {
+    Haptics.selectionAsync().catch(() => undefined);
+    setSelectedId(id);
+  }, []);
+
+  // Riconferma delle opzioni a ogni ritorno sulla tab, ma DOPO il cambio di
+  // tab e senza ridisegnare se la risposta è la stessa.
   const load = useCallback(async () => {
     try {
       const next = await regloApi.getRoadFreeOptions();
-      roadFreeStore.set(next);
-      prefetchRoadFaces(next);
+      if (!sameOptions(roadFreeStore.get(), next)) {
+        roadFreeStore.set(next);
+        prefetchRoadFaces(next);
+      }
       setOptions(next);
       setError(null);
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Road non risponde. Riprova tra poco.');
     }
-  }, []);
+  }, [setOptions]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      const task = InteractionManager.runAfterInteractions(() => void load());
+      return () => task.cancel();
     }, [load]),
   );
 
@@ -173,10 +164,11 @@ export default function RoadTab() {
   }, []);
 
   const hq = options?.headquarters ?? null;
-  const center = pos ?? (hq ? { latitude: hq.lat, longitude: hq.lng } : FALLBACK);
+  const centerLat = pos?.latitude ?? hq?.lat ?? FALLBACK.latitude;
+  const centerLng = pos?.longitude ?? hq?.lng ?? FALLBACK.longitude;
   useEffect(() => {
-    mapRef.current?.setCamera({ center, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM });
-  }, [center.latitude, center.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
+    mapRef.current?.setCamera({ center: { latitude: centerLat, longitude: centerLng }, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM });
+  }, [centerLat, centerLng]);
 
   const inRoad = roadPhase !== 'idle' && !!roadSession;
   const current = options?.currentLesson ?? null;
@@ -185,18 +177,17 @@ export default function RoadTab() {
   // Volti: nella modalità «altro allievo» si toglie quello della guida in agenda.
   const faces: RoadSuggestion[] = useMemo(() => {
     const list = options?.suggestions ?? [];
-    const filtered = current?.student ? list.filter((s) => s.id !== current.student!.id) : list;
+    const filtered = current?.student ? list.filter((f) => f.id !== current.student!.id) : list;
     return filtered.slice(0, 3);
   }, [options, current]);
-  const selected = faces.find((f) => f.id === selectedId) ?? faces[0] ?? null;
+  const selId = (faces.find((f) => f.id === selectedId) ?? faces[0] ?? null)?.id ?? null;
 
-  const recent = options?.recentSessions ?? [];
+  const recent = options?.recentSessions ?? null;
   // Guida finita col pagellino da compilare: niente CTA nella tab (resta una
   // sola primaria, «Parti con»). Si apre da sola il foglio «Appena finita»,
   // una volta per avvio dell'app; poi resta la riga in «Ultime guide».
   const toClose = options?.toClose ?? null;
-  const toCloseSession = toClose ? recent.find((r) => r.id === toClose.sessionId) ?? null : null;
-  const toCloseId = toCloseSession?.id ?? null;
+  const toCloseId = toClose ? recent?.find((r) => r.id === toClose.sessionId)?.id ?? null : null;
   useFocusEffect(
     useCallback(() => {
       if (!toCloseId || inRoad || !pagellinoPrompt.shouldShow(toCloseId)) return;
@@ -221,25 +212,31 @@ export default function RoadTab() {
     .filter(Boolean)
     .join(' · ');
 
-  const openStart = (studentId: string | null) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    roadFreePreselect.set(studentId);
-    router.push(ROAD_FREE_SHEET_ROUTE);
-  };
+  const openStart = useCallback(
+    (studentId: string | null) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+      roadFreePreselect.set(studentId);
+      router.push(ROAD_FREE_SHEET_ROUTE);
+    },
+    [router],
+  );
+  const toOther = useCallback(() => setOtherMode(true), []);
+  const toAgenda = useCallback(() => setOtherMode(false), []);
 
   const mapH = Math.round(height * 0.36);
 
-  // Barra in alto: il fondo (blur) entra mentre il bordo del pannello arriva
-  // sotto la status bar, il titolo subito dopo. Tutto legato allo scroll,
-  // quindi segue il dito senza scatti né rimbalzi.
+  // Barra in alto: il fondo entra mentre il bordo del pannello arriva sotto
+  // la status bar, il titolo subito dopo. Tutto legato allo scroll.
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
   const panelTopAt = mapH - 26 - (insets.top + NAV_BAR_H); // offset a cui il pannello tocca la barra
-  const briefingOf = (id: string | null | undefined) => (id ? options?.briefings?.[id] ?? null : null);
+  const bell = useMemo(() => <InboxBellButton />, []);
 
   if (!armed) return <View style={s.root} />;
+
+  const panelKey = !options && !inRoad ? (error ? 'err' : 'load') : inRoad ? 'inroad' : showAgenda && current ? 'agenda' : 'free';
 
   return (
     <View style={s.root}>
@@ -251,196 +248,73 @@ export default function RoadTab() {
         showsVerticalScrollIndicator={false}
         testID="road-tab"
       >
-        <View style={{ height: mapH }}>
-          <MapView
-            ref={mapRef}
-            style={StyleSheet.absoluteFill}
-            initialCamera={{ center, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }}
-            mapPadding={{ top: insets.top, right: 0, bottom: 28, left: 0 }}
-            // Niente legalLabelInsets: con mapPadding Apple mette logo e «Legal»
-            // affiancati sopra il pannello; spostarne uno solo li sovrapponeva.
-            mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-            showsPointsOfInterest={false}
-            showsCompass={false}
-            showsScale={false}
-            showsTraffic={false}
-            showsUserLocation={false}
-            toolbarEnabled={false}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            rotateEnabled={false}
-            pitchEnabled={false}
-            userInterfaceStyle="light"
-          >
-            {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={defaultVehicle?.carColor ?? null} /> : null}
-            {hq ? (
-              <HqMarker coordinate={{ latitude: hq.lat, longitude: hq.lng }} />
-            ) : null}
-          </MapView>
-        </View>
+        <RoadMap
+          mapRef={mapRef}
+          height={mapH}
+          topInset={insets.top}
+          lat={centerLat}
+          lng={centerLng}
+          pos={pos}
+          hq={hq}
+          carColor={defaultVehicle?.carColor ?? null}
+        />
 
-        <Animated.View style={s.panel} layout={lay} testID="road-tab-panel">
-          {!options && !inRoad ? (
-            error ? (
-              <Animated.Text key="err" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} style={s.sub}>{error}</Animated.Text>
-            ) : (
-              // Skeleton con la stessa forma di «Con chi guidi?» (giro Road
-              // 28/10): niente rotella, il pannello non cambia altezza all'arrivo.
-              <Animated.View key="load" entering={ROAD_TEXT_IN} exiting={ROAD_TEXT_OUT} testID="road-tab-skeleton">
-                <SkeletonBlock width="58%" height={28} radius={8} />
-                <SkeletonBlock width="80%" height={15} radius={6} style={{ marginTop: 10 }} />
-                <View style={s.faces}>
-                  {[0, 1, 2, 3].map((i) => (
-                    <View key={i} style={s.face}>
-                      <SkeletonBlock width={64} height={64} radius={32} />
-                      <SkeletonBlock width={44} height={12} radius={5} style={{ marginTop: 3 }} />
-                    </View>
-                  ))}
-                </View>
-                <SkeletonBlock height={54} radius={27} style={s.cta} />
-              </Animated.View>
-            )
-          ) : inRoad ? (
+        <View style={s.panel} testID="road-tab-panel">
+          {panelKey === 'err' ? (
+            <Animated.Text key="err" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} style={s.sub}>
+              {error}
+            </Animated.Text>
+          ) : panelKey === 'load' ? (
+            // Skeleton con la stessa forma di «Con chi guidi?»: il pannello non cambia altezza all'arrivo.
+            <Animated.View key="load" exiting={ROAD_FADE_OUT} testID="road-tab-skeleton">
+              <SkeletonBlock width="58%" height={28} radius={8} />
+              <SkeletonBlock width="80%" height={15} radius={6} style={{ marginTop: 10 }} />
+              <View style={s.faces}>
+                {[0, 1, 2, 3].map((i) => (
+                  <View key={i} style={s.face}>
+                    <SkeletonBlock width={64} height={64} radius={32} />
+                    <SkeletonBlock width={44} height={12} radius={5} style={{ marginTop: 3 }} />
+                  </View>
+                ))}
+              </View>
+              <SkeletonBlock height={54} radius={27} style={s.cta} />
+            </Animated.View>
+          ) : panelKey === 'inroad' ? (
             // ── Road in corso ────────────────────────────────────────────
-            <Animated.View key="inroad" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay}>
+            <Animated.View key="inroad" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT}>
               <Text style={s.kicker}>Guida in corso</Text>
               <Text style={s.name}>{lessonStudentName(roadSession?.lesson)}</Text>
               <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.cta} />
             </Animated.View>
-          ) : showAgenda && current ? (
-            // ── Guida in agenda tra poco ─────────────────────────────────
-            <Animated.View key="agenda" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay} testID="road-tab-agenda">
-              <Text style={s.kicker}>
-                {['In agenda', formatHm(current.startsAt), current.vehicle ? [current.vehicle.name, current.vehicle.plate].filter(Boolean).join(' ') : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-              <Text style={s.name}>{lessonStudentName(current)}</Text>
-              {briefingOf(current.student?.id)?.lines.length ? (
-                <ClaySurface style={s.brief}>
-                  <Text style={s.briefTitle}>{briefingOf(current.student?.id)!.title}</Text>
-                  <BriefingLines lines={briefingOf(current.student?.id)!.lines} />
-                </ClaySurface>
-              ) : (
-                <Text style={[s.sub, { marginTop: 6 }]}>Prima guida in Road con questo allievo.</Text>
-              )}
-              <ClayButton
-                title="Entra in Road"
-                leading={<PlayGlyph />}
-                onPress={() => void beginRoadEntry(router, current)}
-                style={s.cta}
-                testID="road-tab-enter"
-              />
-              <RoadPressable kind="small" onPress={() => setOtherMode(true)} hitSlop={8} style={s.secondary}>
-                <Text style={s.secondaryTx}>Parti con un altro allievo</Text>
-              </RoadPressable>
+          ) : panelKey === 'agenda' && current ? (
+            <Animated.View key="agenda" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-tab-agenda">
+              <AgendaPanel lesson={current} briefing={options?.briefings?.[current.student?.id ?? ''] ?? null} onOther={toOther} />
             </Animated.View>
           ) : (
-            <Animated.View key="free" entering={roadEnter()} exiting={ROAD_EXIT} layout={lay}>
-              {/* ── Libero: con chi guidi? ─────────────────────────────── */}
-              <Animated.View layout={lay} testID="road-tab-free">
-                <Text style={s.title}>Con chi guidi?</Text>
-                {freeLine ? (
-                  <Animated.Text key={freeLine} entering={ROAD_TEXT_IN} style={s.sub}>
-                    {freeLine}
-                  </Animated.Text>
-                ) : null}
-
-                <View style={s.faces}>
-                  {faces.map((f, i) => (
-                    <Animated.View key={f.id} entering={roadStagger(i)}>
-                    <RoadPressable
-                      kind="small"
-                      onPress={() => pickFace(f.id)}
-                      style={s.face}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${f.name}, ${f.reason}`}
-                      testID="road-tab-face"
-                    >
-                      <RoadAvatar userId={f.id} name={f.name} size={64} selected={selected?.id === f.id} />
-                      <Text style={[s.faceName, selected?.id === f.id && s.faceNameOn]} numberOfLines={1}>
-                        {firstName(f.name)}
-                      </Text>
-                    </RoadPressable>
-                    </Animated.View>
-                  ))}
-                  <Animated.View entering={roadStagger(faces.length)}>
-                    <RoadPressable kind="small" onPress={() => openStart(null)} style={s.face} accessibilityRole="button" testID="road-tab-all">
-                      <View style={[s.allCircle, CLAY_SHADOW.raiseSm]}>
-                        <Ionicons name="search" size={21} color={CLAY.ink} />
-                      </View>
-                      <Text style={s.faceName}>Tutti</Text>
-                    </RoadPressable>
-                  </Animated.View>
-                </View>
-
-                {selected ? (
-                  <Animated.View layout={lay}>
-                    {/* Il briefing cambia col volto: dissolvenza incrociata, l'altezza scivola. */}
-                    <Animated.View layout={lay}>
-                      <ClaySurface style={s.brief}>
-                        <Animated.View key={selected.id} entering={SWITCH_IN} exiting={SWITCH_OUT} layout={lay}>
-                          <Text style={s.briefHead} numberOfLines={1}>
-                            {firstName(selected.name)} · {selected.reason}
-                          </Text>
-                          {briefingOf(selected.id)?.lines.length ? (
-                            <>
-                              <Text style={s.briefTitle}>{briefingOf(selected.id)!.title}</Text>
-                              <BriefingLines lines={briefingOf(selected.id)!.lines} />
-                            </>
-                          ) : (
-                            <Text style={[s.briefTitle, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
-                          )}
-                        </Animated.View>
-                      </ClaySurface>
-                    </Animated.View>
-                    <Animated.View layout={lay}>
-                      <ClayButton leading={<PlayGlyph />} onPress={() => openStart(selected.id)} style={s.cta} testID="road-tab-start">
-                        <Animated.Text key={selected.id} entering={SWITCH_IN} exiting={SWITCH_OUT} style={s.ctaTx} numberOfLines={1}>
-                          Parti con {firstName(selected.name)} · {options?.defaultDuration ?? 60} min
-                        </Animated.Text>
-                      </ClayButton>
-                    </Animated.View>
-                  </Animated.View>
-                ) : (
-                  <ClayButton title="Scegli l'allievo" onPress={() => openStart(null)} style={s.cta} testID="road-tab-start" />
-                )}
-                {otherMode && current ? (
-                  <Animated.View entering={roadEnter()} exiting={ROAD_EXIT}>
-                    <RoadPressable kind="small" onPress={() => setOtherMode(false)} hitSlop={8} style={s.secondary}>
-                      <Text style={s.secondaryTx}>Torna alla guida delle {formatHm(current.startsAt)}</Text>
-                    </RoadPressable>
-                  </Animated.View>
-                ) : null}
-              </Animated.View>
+            <Animated.View key="free" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-tab-free">
+              <Text style={s.title}>Con chi guidi?</Text>
+              {freeLine ? <Text style={s.sub}>{freeLine}</Text> : null}
+              <FaceRow faces={faces} selId={selId} onPick={pickFace} onAll={openStart} />
+              {faces.length ? (
+                <>
+                  <BriefStack faces={faces} selId={selId} briefings={options?.briefings} />
+                  <StartButton faces={faces} selId={selId} duration={options?.defaultDuration ?? 60} onStart={openStart} />
+                </>
+              ) : (
+                <ClayButton title="Scegli l'allievo" onPress={() => openStart(null)} style={s.cta} testID="road-tab-start" />
+              )}
+              {otherMode && current ? (
+                <RoadPressable kind="small" onPress={toAgenda} hitSlop={8} style={s.secondary}>
+                  <Text style={s.secondaryTx}>Torna alla guida delle {formatHm(current.startsAt)}</Text>
+                </RoadPressable>
+              ) : null}
             </Animated.View>
           )}
-        </Animated.View>
+        </View>
 
-        {recent.length && !inRoad ? (
-          <Animated.View style={s.recent} entering={roadEnter(120)} exiting={ROAD_EXIT} layout={switching ? SWITCH_LAYOUT : ROAD_LAYOUT_AFTER_EXIT}>
-            <Text style={s.section}>Ultime guide</Text>
-            {/* Una superficie con le righe: l'ombra sta sulla lista, non sulle righe. */}
-            <ClayList style={s.recentList}>
-              {recent.map((r) => (
-                <ClayListRow
-                  key={r.id}
-                  leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} carColor={r.lesson.carColor ?? null} />}
-                  title={lessonStudentName(r.lesson)}
-                  subtitle={
-                    r.id === toCloseId
-                      ? `${dayLabel(r.startedAt)} ${formatHm(r.lesson.startsAt)} · Pagellino da compilare`
-                      : <SessionNumbers session={r} withDay />
-                  }
-                  onPress={() =>
-                    r.id === toCloseId
-                      ? openRoadPagellino(router, r.lesson, { showStayChip: false }, '/(tabs)/drive/pagellino')
-                      : void openRoadPercorso(router, 'drive', r.appointmentId)
-                  }
-                  testID="road-tab-recent"
-                />
-              ))}
-            </ClayList>
+        {recent?.length && !inRoad ? (
+          <Animated.View entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT}>
+            <RecentSection recent={recent} hq={hq} toCloseId={toCloseId} />
           </Animated.View>
         ) : null}
       </Animated.ScrollView>
@@ -448,18 +322,286 @@ export default function RoadTab() {
       {/* Barra a titolo grande (REG-639, componente unico): trasparente sulla
           mappa, bianca opaca col titolo quando il pannello ci arriva sotto. La
           campanella sta nella barra, così resta sempre a portata. */}
-      <ClayNavBar title="Road" scrollY={scrollY} overlay={panelTopAt + 30} actions={<InboxBellButton />} />
+      <ClayNavBar title="Road" scrollY={scrollY} overlay={panelTopAt + 30} actions={bell} />
     </View>
   );
 }
+
+/** Mappa in alto: si ridisegna solo se cambiano centro, posizione o sede. */
+const RoadMap = React.memo(function RoadMap({
+  mapRef,
+  height,
+  topInset,
+  lat,
+  lng,
+  pos,
+  hq,
+  carColor,
+}: {
+  mapRef: React.RefObject<MapView | null>;
+  height: number;
+  topInset: number;
+  lat: number;
+  lng: number;
+  pos: { latitude: number; longitude: number } | null;
+  hq: { lat: number; lng: number } | null;
+  carColor: string | null;
+}) {
+  // Camera iniziale fissata al primo render: dopo si sposta con `setCamera`.
+  const [initialCamera] = useState(() => ({ center: { latitude: lat, longitude: lng }, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }));
+  return (
+    <View style={{ height }}>
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        initialCamera={initialCamera}
+        mapPadding={{ top: topInset, right: 0, bottom: 28, left: 0 }}
+        // Niente legalLabelInsets: con mapPadding Apple mette logo e «Legal»
+        // affiancati sopra il pannello; spostarne uno solo li sovrapponeva.
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        showsPointsOfInterest={false}
+        showsCompass={false}
+        showsScale={false}
+        showsTraffic={false}
+        showsUserLocation={false}
+        toolbarEnabled={false}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        userInterfaceStyle="light"
+      >
+        {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={carColor} /> : null}
+        {hq ? <HqMarker lat={hq.lat} lng={hq.lng} /> : null}
+      </MapView>
+    </View>
+  );
+});
+
+/** Guida in agenda tra poco: briefing di quell'allievo e «Entra in Road». */
+const AgendaPanel = React.memo(function AgendaPanel({
+  lesson,
+  briefing,
+  onOther,
+}: {
+  lesson: RoadLesson;
+  briefing: RoadBriefing | null;
+  onOther: () => void;
+}) {
+  const router = useRouter();
+  return (
+    <>
+      <Text style={s.kicker}>
+        {['In agenda', formatHm(lesson.startsAt), lesson.vehicle ? [lesson.vehicle.name, lesson.vehicle.plate].filter(Boolean).join(' ') : null]
+          .filter(Boolean)
+          .join(' · ')}
+      </Text>
+      <Text style={s.name}>{lessonStudentName(lesson)}</Text>
+      {briefing?.lines.length ? (
+        <ClaySurface style={s.brief}>
+          <Text style={s.briefTitle}>{briefing.title}</Text>
+          <BriefingLines lines={briefing.lines} />
+        </ClaySurface>
+      ) : (
+        <Text style={[s.sub, { marginTop: 6 }]}>Prima guida in Road con questo allievo.</Text>
+      )}
+      <ClayButton title="Entra in Road" leading={<PlayGlyph />} onPress={() => void beginRoadEntry(router, lesson)} style={s.cta} testID="road-tab-enter" />
+      <RoadPressable kind="small" onPress={onOther} hitSlop={8} style={s.secondary}>
+        <Text style={s.secondaryTx}>Parti con un altro allievo</Text>
+      </RoadPressable>
+    </>
+  );
+});
+
+/** I tre volti suggeriti + «Tutti». Al tocco cambia solo l'anello (thread UI). */
+const FaceRow = React.memo(function FaceRow({
+  faces,
+  selId,
+  onPick,
+  onAll,
+}: {
+  faces: RoadSuggestion[];
+  selId: string | null;
+  onPick: (id: string) => void;
+  onAll: (id: string | null) => void;
+}) {
+  return (
+    <View style={s.faces}>
+      {faces.map((f) => (
+        <FaceButton key={f.id} face={f} selected={selId === f.id} onPick={onPick} />
+      ))}
+      <RoadPressable kind="small" onPress={() => onAll(null)} style={s.face} accessibilityRole="button" testID="road-tab-all">
+        <View style={[s.allCircle, CLAY_SHADOW.raiseSm]}>
+          <Ionicons name="search" size={21} color={CLAY.ink} />
+        </View>
+        <Text style={s.faceName}>Tutti</Text>
+      </RoadPressable>
+    </View>
+  );
+});
+
+const FaceButton = React.memo(function FaceButton({
+  face,
+  selected,
+  onPick,
+}: {
+  face: RoadSuggestion;
+  selected: boolean;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <RoadPressable
+      kind="small"
+      onPress={() => onPick(face.id)}
+      style={s.face}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${face.name}, ${face.reason}`}
+      testID="road-tab-face"
+    >
+      <RoadAvatar userId={face.id} name={face.name} size={64} selected={selected} />
+      <Text style={[s.faceName, selected && s.faceNameOn]} numberOfLines={1}>
+        {firstName(face.name)}
+      </Text>
+    </RoadPressable>
+  );
+});
+
+/**
+ * Strato di una dissolvenza incrociata: tutti gli strati sono montati e
+ * sovrapposti; quello attivo va a opacità 1 in 180 ms sul thread UI.
+ */
+function CrossfadeLayer({ active, style, children }: { active: boolean; style?: object; children: React.ReactNode }) {
+  const fade = useAnimatedStyle(() => ({ opacity: withTiming(active ? 1 : 0, CROSSFADE_TIMING) }), [active]);
+  return (
+    <Animated.View
+      style={[style, fade]}
+      pointerEvents={active ? 'auto' : 'none'}
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * Briefing dei tre volti, già pronti e sovrapposti nella stessa card: la card
+ * è alta quanto il più alto (riga con `marginLeft: -100%`), quindi al cambio
+ * allievo non cambia altezza e sotto non si muove niente.
+ */
+const BriefStack = React.memo(function BriefStack({
+  faces,
+  selId,
+  briefings,
+}: {
+  faces: RoadSuggestion[];
+  selId: string | null;
+  briefings: Record<string, RoadBriefing> | undefined;
+}) {
+  return (
+    <ClaySurface style={s.brief}>
+      <View style={s.stack}>
+        {faces.map((f, i) => {
+          const b = briefings?.[f.id] ?? null;
+          return (
+            <CrossfadeLayer key={f.id} active={f.id === selId} style={[s.layer, i > 0 && s.layerOver]}>
+              <Text style={s.briefHead} numberOfLines={1}>
+                {firstName(f.name)} · {f.reason}
+              </Text>
+              {b?.lines.length ? (
+                <>
+                  <Text style={s.briefTitle}>{b.title}</Text>
+                  <BriefingLines lines={b.lines} />
+                </>
+              ) : (
+                <Text style={[s.briefTitle, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
+              )}
+            </CrossfadeLayer>
+          );
+        })}
+      </View>
+    </ClaySurface>
+  );
+});
+
+/** «Parti con …»: le tre scritte sovrapposte, larghe quanto la più lunga. */
+const StartButton = React.memo(function StartButton({
+  faces,
+  selId,
+  duration,
+  onStart,
+}: {
+  faces: RoadSuggestion[];
+  selId: string | null;
+  duration: number;
+  onStart: (id: string | null) => void;
+}) {
+  const labels = faces.map((f) => `Parti con ${firstName(f.name)} · ${duration} min`);
+  const longest = labels.reduce((a, b) => (b.length > a.length ? b : a), '');
+  return (
+    <ClayButton leading={<PlayGlyph />} onPress={() => onStart(selId)} style={s.cta} testID="road-tab-start">
+      <View>
+        <Text style={[s.ctaTx, s.ghost]} numberOfLines={1} importantForAccessibility="no">
+          {longest}
+        </Text>
+        {faces.map((f, i) => (
+          <CrossfadeLayer key={f.id} active={f.id === selId} style={s.ctaLayer}>
+            <Text style={s.ctaTx} numberOfLines={1}>
+              {labels[i]}
+            </Text>
+          </CrossfadeLayer>
+        ))}
+      </View>
+    </ClayButton>
+  );
+});
+
+/** Ultime guide: non dipendono dal volto scelto, non si ridisegnano al tocco. */
+const RecentSection = React.memo(function RecentSection({
+  recent,
+  hq,
+  toCloseId,
+}: {
+  recent: RoadRecentSession[];
+  hq: { lat: number; lng: number } | null;
+  toCloseId: string | null;
+}) {
+  const router = useRouter();
+  return (
+    <View style={s.recent}>
+      <Text style={s.section}>Ultime guide</Text>
+      {/* Una superficie con le righe: l'ombra sta sulla lista, non sulle righe. */}
+      <ClayList style={s.recentList}>
+        {recent.map((r) => (
+          <ClayListRow
+            key={r.id}
+            leading={<RouteThumb thumb={r.thumb} size={52} fallback={hq} carColor={r.lesson.carColor ?? null} />}
+            title={lessonStudentName(r.lesson)}
+            subtitle={
+              r.id === toCloseId ? `${dayLabel(r.startedAt)} ${formatHm(r.lesson.startsAt)} · Pagellino da compilare` : <SessionNumbers session={r} withDay />
+            }
+            onPress={() =>
+              r.id === toCloseId
+                ? openRoadPagellino(router, r.lesson, { showStayChip: false }, '/(tabs)/drive/pagellino')
+                : void openRoadPercorso(router, 'drive', r.appointmentId)
+            }
+            testID="road-tab-recent"
+          />
+        ))}
+      </ClayList>
+    </View>
+  );
+});
 
 /**
  * Sede sulla mappa: punto nero in un cerchio bianco in rilievo + «Sede»
  * (niente icona, design-system §0.4). `tracksViewChanges` resta acceso fino
  * al primo layout, altrimenti iOS fotografa il marker vuoto.
  */
-function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: number } }) {
+const HqMarker = React.memo(function HqMarker({ lat, lng }: { lat: number; lng: number }) {
   const [ready, setReady] = useState(false);
+  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready}>
       <View style={s.hq} onLayout={() => setReady(true)}>
@@ -470,7 +612,7 @@ function HqMarker({ coordinate }: { coordinate: { latitude: number; longitude: n
       </View>
     </Marker>
   );
-}
+});
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
@@ -525,7 +667,14 @@ const s = StyleSheet.create({
   brief: { marginTop: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6, borderRadius: 26 },
   briefHead: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   briefTitle: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2, marginBottom: 4 },
+  // Strati sovrapposti nella stessa riga: la riga prende l'altezza del più
+  // alto, gli altri ci stanno sopra (`marginLeft: -100%`).
+  stack: { flexDirection: 'row', alignItems: 'flex-start' },
+  layer: { width: '100%' },
+  layerOver: { marginLeft: '-100%' },
   cta: { marginTop: 18 },
+  ghost: { opacity: 0 },
+  ctaLayer: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' },
   ctaTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.3 },
   secondary: { alignItems: 'center', paddingVertical: 14 },
   secondaryTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink2 },

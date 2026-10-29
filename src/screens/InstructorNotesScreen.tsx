@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -83,6 +83,18 @@ export const InstructorNotesScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const { scrollY, onScroll } = useLargeTitleScroll();
+  // «I miei / Tutti» (fluidità 29/10): il cursore scorre da solo sul thread
+  // UI (parte al tocco dentro `ClaySegmented`); la lista cambia DOPO, a
+  // cursore arrivato, come aggiornamento non urgente. Le righe sono già tutte
+  // montate: cambia solo cosa si vede.
+  const segTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (segTimer.current) clearTimeout(segTimer.current);
+  }, []);
+  const changeSegment = useCallback((v: 'mine' | 'all') => {
+    if (segTimer.current) clearTimeout(segTimer.current);
+    segTimer.current = setTimeout(() => startTransition(() => setSegment(v)), SEGMENT_SETTLE_MS);
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -213,6 +225,9 @@ export const InstructorNotesScreen = () => {
   }, [allAppointments, instructorId]);
   /** Chi guida con me questa settimana (fra gli allievi in lista): i volti in cima. */
   const weekFaces = useMemo(() => visibleStudents.filter((st) => weekIds.has(st.id)), [visibleStudents, weekIds]);
+  // I volti di entrambe le liste, montati una volta: il filtro li nasconde.
+  const weekFacesAll = useMemo(() => students.filter((st) => weekIds.has(st.id)), [students, weekIds]);
+  const weekVisible = useMemo(() => new Set(weekFaces.map((st) => st.id)), [weekFaces]);
   // «3 guidano con te questa settimana»: solo fra gli allievi in lista
   // («5 allievi · 6 guidano con te» non torna).
   const drivingThisWeek = weekFaces.length;
@@ -242,24 +257,7 @@ export const InstructorNotesScreen = () => {
     weekFaces.length > 0 && !query && !searching && !loading ? (
       <Animated.View entering={FadeIn.duration(260)} style={s.faces}>
         <Text style={s.facesTitle}>Guidano con te questa settimana</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.facesRow} style={s.facesScroll}>
-          {weekFaces.map((st) => (
-            <Pressable
-              key={st.id}
-              onPress={() => {
-                void selectionAsync().catch(() => {});
-                navigateToStudent(st);
-              }}
-              style={({ pressed }) => [s.face, pressed && { opacity: 0.6 }]}
-              accessibilityRole="button"
-              accessibilityLabel={`${st.firstName} ${st.lastName}`}
-              testID={`students-face-${st.id}`}
-            >
-              <Avatar userId={st.id} name={`${st.firstName} ${st.lastName}`} size={58} />
-              <Text style={s.faceName} numberOfLines={1}>{st.firstName}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <WeekFaces all={weekFacesAll} visible={weekVisible} onOpen={navigateToStudent} />
       </Animated.View>
     ) : null;
 
@@ -337,7 +335,7 @@ export const InstructorNotesScreen = () => {
             { value: 'all', label: 'Tutti', testID: 'students-all' },
           ]}
           value={segment}
-          onChange={setSegment}
+          onChange={changeSegment}
           style={s.segmented}
         />
       ) : null}
@@ -429,6 +427,57 @@ export const InstructorNotesScreen = () => {
 };
 
 const EMPTY: StudentEntry[] = [];
+/**
+ * Il cursore del segmentato arriva in 200 ms (`SEGMENT_TIMING`); a 150 ms è
+ * quasi fermo e il cambio della lista (solo visibilità di righe già montate)
+ * è leggero: parte lì, così fra tocco e lista nuova non c'è un vuoto.
+ */
+const SEGMENT_SETTLE_MS = 150;
+
+/** Volti della settimana: tutti montati, quelli fuori filtro nascosti. */
+const WeekFaces = React.memo(function WeekFaces({
+  all,
+  visible,
+  onOpen,
+}: {
+  all: StudentEntry[];
+  visible: Set<string>;
+  onOpen: (st: StudentEntry) => void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.facesRow} style={s.facesScroll}>
+      {all.map((st) => (
+        <WeekFace key={st.id} st={st} hidden={!visible.has(st.id)} onOpen={onOpen} />
+      ))}
+    </ScrollView>
+  );
+});
+
+const WeekFace = React.memo(function WeekFace({
+  st,
+  hidden,
+  onOpen,
+}: {
+  st: StudentEntry;
+  hidden: boolean;
+  onOpen: (st: StudentEntry) => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        void selectionAsync().catch(() => {});
+        onOpen(st);
+      }}
+      style={({ pressed }) => [s.face, hidden && s.rowHidden, pressed && { opacity: 0.6 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${st.firstName} ${st.lastName}`}
+      testID={`students-face-${st.id}`}
+    >
+      <Avatar userId={st.id} name={`${st.firstName} ${st.lastName}`} size={58} />
+      <Text style={s.faceName} numberOfLines={1}>{st.firstName}</Text>
+    </Pressable>
+  );
+});
 const keyOf = (st: StudentEntry) => st.id;
 /** Respiro sopra la prima e sotto l'ultima riga (lo stesso di `ClayList`). */
 const LIST_INSET = 4;
@@ -492,8 +541,9 @@ const StudentRow = React.memo(function StudentRow({
   const wasHidden = useRef(hidden);
   useEffect(() => {
     if (wasHidden.current && !hidden) {
-      opacity.value = 0;
-      opacity.value = withTiming(1, { duration: 200, easing: Easing.bezier(0.25, 0.1, 0.25, 1), reduceMotion: ReduceMotion.Never });
+      // Da una trasparenza parziale: la lista non sembra mai vuota.
+      opacity.value = 0.35;
+      opacity.value = withTiming(1, { duration: 180, easing: Easing.bezier(0.25, 0.1, 0.25, 1), reduceMotion: ReduceMotion.Never });
     }
     wasHidden.current = hidden;
   }, [hidden, opacity]);

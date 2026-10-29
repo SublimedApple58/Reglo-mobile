@@ -236,3 +236,11 @@ sede sulla mappa. Le voci dell'autoscuola usano l'icona di «altro».
 - **Miniature «Ultime guide»** (`RouteThumb` + `src/road/thumbCache.ts`): su iOS la prima volta mappa vera e snapshot (`takeSnapshot`, da `onMapReady`: `onMapLoaded` su iOS non arriva) salvato in `cacheDirectory/route-thumbs/`; poi solo l'immagine. Lo snapshot (MKMapSnapshotter) non applica `showsPointsOfInterest={false}`: può mostrare icone di punti di interesse.
 - **Mappa grande**: la tab Road è `lazy: false` (solo per chi ha la tab) e `RoadTab` monta la schermata vera a riposo (`InteractionManager` + 1,5 s) o al primo focus.
 - **Allievi** (`InstructorNotesScreen`): `Animated.FlatList` con `ClayNavBar`; tutte le righe montate una volta (`StudentRow` in memo), filtro e ricerca le nascondono con `display: 'none'` e la riga che torna entra in dissolvenza 200 ms; la superficie clay è un unico fondo dietro le righe; settimana (`weekIds`) calcolata una volta sola.
+
+### Road fluida (29/10 pomeriggio, dopo OTA 01a18778)
+- **`drive/index.tsx` in sezioni `memo`**: `RoadMap`, `AgendaPanel`, `FaceRow`/`FaceButton`, `BriefStack`, `StartButton`, `RecentSection`. Tolto il timer `switching`. Niente `layout=` né entrate dal basso: solo `ROAD_FADE_IN` (180 ms) / `ROAD_FADE_OUT` (120 ms) quando cambia lo stato del pannello.
+- **Cambio allievo**: i briefing dei tre volti (dalle opzioni) sono tutti montati e sovrapposti (`CrossfadeLayer`, riga con `marginLeft: -100%`): la card è alta quanto il più alto e non cambia altezza; dissolvenza incrociata 180 ms sul thread UI. Il testo di «Parti con …» idem, largo quanto la scritta più lunga. Al tocco nessuna chiamata.
+- **Opzioni**: la riconferma al focus parte dopo le interazioni e non ridisegna se la risposta è identica (`sameOptions`).
+- **Lente «Tutti»** (`avvia.tsx`): `FormSheet` ha la prop `list` (FlatList virtualizzata nello stesso posto dello scroll); un elemento per gruppo (ultime guide, lettere), righe `PersonRow` statiche in memo. Allievi e ore pronti dall'avvio (`refreshRoadStudents` in `warmRoadFree`), riconfermati dopo l'animazione del foglio.
+- `BriefingLines`/`BriefingRows` senza entrate a cascata.
+- **Allievi**: «I miei / Tutti» → il cursore scorre da solo, la lista cambia 150 ms dopo in `startTransition`; righe e volti della settimana di entrambe le liste già montati (nascosti con `display: none`).

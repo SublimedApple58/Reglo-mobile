@@ -1,4 +1,4 @@
-import type { RoadFreeOptions } from '../types/regloApi';
+import type { AutoscuolaStudent, RoadFreeOptions } from '../types/regloApi';
 import { regloApi } from '../services/regloApi';
 import { prefetchUserPhotos } from '../services/userPhotos';
 
@@ -46,10 +46,40 @@ export function warmRoadFree() {
     .then((next) => {
       if (!roadFreeStore.get()) roadFreeStore.set(next);
       prefetchRoadFaces(next);
+      void refreshRoadStudents();
     })
     .catch(() => {
       warmed = false;
     });
+}
+
+/**
+ * Allievi e ore per la lente «Tutti» (foglio «Con chi guidi?»), pronti prima
+ * che il foglio si apra (fluidità 29/10): il foglio parte da qui e riconferma
+ * in sottofondo; chi legge si ridisegna solo se la lista è cambiata.
+ */
+export type RoadStudents = { students: AutoscuolaStudent[]; minutes: Record<string, number> };
+let roadStudents: RoadStudents | null = null;
+let studentsKey = '';
+let studentsInflight: Promise<RoadStudents | null> | null = null;
+export const getRoadStudents = () => roadStudents;
+export function refreshRoadStudents(): Promise<RoadStudents | null> {
+  if (studentsInflight) return studentsInflight;
+  studentsInflight = Promise.all([regloApi.getStudents(), regloApi.getStudentsCompletedHours().catch(() => ({}))])
+    .then(([students, minutes]) => {
+      const next = { students, minutes: minutes ?? {} };
+      const key = JSON.stringify(next);
+      if (key !== studentsKey) {
+        studentsKey = key;
+        roadStudents = next;
+      }
+      return roadStudents;
+    })
+    .catch(() => roadStudents)
+    .finally(() => {
+      studentsInflight = null;
+    });
+  return studentsInflight;
 }
 
 export const ROAD_FREE_SHEET_ROUTE = '/(tabs)/drive/avvia' as const;

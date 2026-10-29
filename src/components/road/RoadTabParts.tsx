@@ -2,8 +2,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Image, Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import Animated from 'react-native-reanimated';
-import { ROAD_EXIT, ROAD_LAYOUT, roadStagger } from '../../road/motion';
 
 import type { RoadBriefing, RoadRecentSession } from '../../types/regloApi';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../road/format';
@@ -31,25 +29,23 @@ function toneGlyph(tone: Line['tone']) {
   return null;
 }
 
-/** Tab: icona 3D, «Stop · 4 volte su 5», glifo in fondo. */
+/**
+ * Tab: icona 3D, «Stop · 4 volte su 5», glifo in fondo. Righe statiche
+ * (fluidità 29/10): niente entrata dal basso né transizioni di layout; chi le
+ * contiene decide la dissolvenza.
+ */
 export function BriefingLines({ lines, style }: { lines: Line[]; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
       {lines.map((l, i) => (
-        <Animated.View
-          key={`${l.kind}-${l.label}`}
-          entering={roadStagger(i)}
-          exiting={ROAD_EXIT}
-          layout={ROAD_LAYOUT}
-          style={[s.line, i > 0 && s.sep]}
-        >
+        <View key={`${l.kind}-${l.label}`} style={[s.line, i > 0 && s.sep]}>
           <Icon3D source={markerArt(l.kind)} size={30} />
           <Text style={s.lineTx} numberOfLines={1}>
             {l.label}
             {l.detail ? <Text style={s.lineDetail}> · {l.detail}</Text> : null}
           </Text>
           {toneGlyph(l.tone)}
-        </Animated.View>
+        </View>
       ))}
     </View>
   );
@@ -60,20 +56,14 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
   return (
     <View>
       {lines.map((l, i) => (
-        <Animated.View
-          key={`${l.kind}-${l.label}`}
-          entering={roadStagger(i)}
-          exiting={ROAD_EXIT}
-          layout={ROAD_LAYOUT}
-          style={[s.row, i > 0 && s.sep]}
-        >
+        <View key={`${l.kind}-${l.label}`} style={[s.row, i > 0 && s.sep]}>
           <Icon3D source={markerArt(l.kind)} size={36} />
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle} numberOfLines={1}>{l.label}</Text>
             {l.detail ? <Text style={s.rowDetail} numberOfLines={1}>{capitalize(l.detail)}</Text> : null}
           </View>
           {toneGlyph(l.tone)}
-        </Animated.View>
+        </View>
       ))}
     </View>
   );

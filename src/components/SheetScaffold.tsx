@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  FlatList,
+  FlatListProps,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -73,6 +75,7 @@ export function FormSheet({
   busy,
   dirty,
   closeOnGesture,
+  list,
 }: {
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -87,6 +90,13 @@ export function FormSheet({
   testID?: string;
   scrollProps?: Omit<ScrollViewProps, 'style' | 'contentContainerStyle' | 'contentInsetAdjustmentBehavior'>;
   headerStyle?: StyleProp<ViewStyle>;
+  /**
+   * Liste lunghe (es. tutti gli allievi): al posto dello scroll una FlatList
+   * virtualizzata nello stesso posto, con le stesse regole di altezza, bordi e
+   * gesti. `children` va nell'intestazione della lista.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  list?: Pick<FlatListProps<any>, 'data' | 'renderItem' | 'keyExtractor' | 'initialNumToRender' | 'maxToRenderPerBatch' | 'windowSize'>;
   /** Operazione in corso: trascinare o toccare fuori non chiude. */
   busy?: boolean;
   /** Modifiche non salvate: prima di chiudere chiede conferma. */
@@ -211,6 +221,35 @@ export function FormSheet({
       </View>
 
       <View collapsable={false} style={isAndroid && fs.scrollFill} testID="sheet-body">
+      {list ? (
+        <FlatList
+          {...list}
+          testID="sheet-scroll"
+          style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
+          contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={false}
+          ListHeaderComponent={<SheetAnticipateContext.Provider value={anticipate}>{children}</SheetAnticipateContext.Provider>}
+          onLayout={(e) => {
+            viewH.current = e.nativeEvent.layout.height;
+            updateEdges();
+          }}
+          onContentSizeChange={(_w, h) => {
+            contentH.current = h;
+            // Il foglio abbraccia la lista finché ci sta (come lo scroll).
+            const inner = Math.ceil(h - bodyPad);
+            setInnerH((prev) => (prev === inner ? prev : inner));
+            updateEdges();
+          }}
+          onScroll={onScroll}
+          onScrollEndDrag={onScrollEndDrag}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          scrollEventThrottle={32}
+        />
+      ) : (
       <ScrollView
         testID="sheet-scroll"
         style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
@@ -250,6 +289,7 @@ export function FormSheet({
           <SheetAnticipateContext.Provider value={anticipate}>{children}</SheetAnticipateContext.Provider>
         </Animated.View>
       </ScrollView>
+      )}
       </View>
 
       {/* CTA FISSA nel footer del foglio: bianco, niente fascia grigia (§13.2.1). */}

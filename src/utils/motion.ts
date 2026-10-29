@@ -87,3 +87,13 @@ export const SOFT_SPRING = ROAD_SPRING;
 /** Dissolvenza incrociata di un contenuto che cambia (giorno dell'agenda, vista Giorno↔Settimana). */
 export const SOFT_SWAP_IN = FadeIn.duration(220).easing(SOFT).reduceMotion(N);
 export const SOFT_SWAP_OUT = FadeOut.duration(120).easing(SOFT).reduceMotion(N);
+
+/**
+ * Road leggera (fluidità 29/10, Tiziano): in Road niente entrate dal basso né
+ * transizioni di layout. Solo dissolvenze brevi: un blocco che compare (180 ms),
+ * uno che se ne va (120 ms) e la dissolvenza incrociata del cambio allievo
+ * (`CROSSFADE_TIMING`, 180 ms, contenuti sovrapposti ad altezza fissa).
+ */
+export const ROAD_FADE_IN = FadeIn.duration(180).easing(SOFT).reduceMotion(N);
+export const ROAD_FADE_OUT = FadeOut.duration(120).easing(SOFT).reduceMotion(N);
+export const CROSSFADE_TIMING = { duration: 180, easing: SOFT, reduceMotion: N } as const;
