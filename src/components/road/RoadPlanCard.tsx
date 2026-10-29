@@ -43,6 +43,35 @@ export const RoadPlanCard = React.memo(function RoadPlanCard({
   return <PlanBody plan={plan} on={on} onToggle={setOn} style={style} testID={testID} />;
 });
 
+/**
+ * Tab Road, nel briefing di ogni volto: il giro in una riga («Il giro · Via
+ * Roma, Via Sacchi · circa 16 min»), le tappe numerate sono sulla mappa. Le
+ * tappe per esteso e «Segui il giro» stanno nel foglio dove si parte, così i
+ * tre briefing sovrapposti restano bassi (una riga in più al massimo).
+ */
+export const RoadPlanLine = React.memo(function RoadPlanLine({
+  studentId,
+  durationMin,
+}: {
+  studentId: string | null | undefined;
+  durationMin: number;
+}) {
+  const res = usePlan(studentId, durationMin);
+  const [on] = usePlanChoice(studentId);
+  const stops = res?.plan?.stops ?? [];
+  if (!stops.length) return null;
+  return (
+    <View style={s.line} testID="road-tab-plan">
+      <Text style={[s.lineTx, !on && { color: CLAY.ink3 }]} numberOfLines={1}>
+        <Text style={s.lineHead}>{on ? 'Il giro' : 'Senza giro'}</Text>
+        {' · '}
+        {stops.map((x) => x.title).join(', ')}
+        {` · circa ${res!.plan!.minutes} min`}
+      </Text>
+    </View>
+  );
+});
+
 export function hasPlanStops(plan: RoadPlan | null | undefined) {
   return !!plan?.stops.length;
 }
@@ -122,16 +151,19 @@ function PlanSkeleton({ style }: { style?: object }) {
 
 const s = StyleSheet.create({
   card: { marginTop: 14 },
+  line: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CLAY.hairline },
+  lineTx: { fontSize: 14.5, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
+  lineHead: { fontWeight: '600', color: CLAY.ink },
   title: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2, marginBottom: 4 },
   titleMeta: { fontWeight: '400', color: CLAY.ink3 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CLAY.hairline },
   // Lo stesso numero del segnaposto sulla mappa: nero, cifra bianca.
-  num: { width: 26, height: 26, borderRadius: 13, backgroundColor: CLAY.ink, alignItems: 'center', justifyContent: 'center' },
+  num: { marginTop: -1, width: 26, height: 26, borderRadius: 13, backgroundColor: CLAY.ink, alignItems: 'center', justifyContent: 'center' },
   numTx: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
   stopTitle: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   reason: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2, lineHeight: 18 },
-  minutes: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, fontVariant: ['tabular-nums'] },
+  minutes: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, fontVariant: ['tabular-nums'], marginTop: 2 },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

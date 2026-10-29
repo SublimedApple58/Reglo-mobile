@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { regloApi } from '../../../src/services/regloApi';
 import type { RoadBriefing, RoadFreeOptions, RoadLesson, RoadPlanStop, RoadRecentSession, RoadSuggestion } from '../../../src/types/regloApi';
 import { lessonMinutes, prefetchLessonPlan, prefetchPlan, setPlanOrigin, usePlan, usePlanChoice } from '../../../src/road/planStore';
-import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
+import { RoadPlanCard, RoadPlanLine } from '../../../src/components/road/RoadPlanCard';
 import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
@@ -326,8 +326,7 @@ export default function RoadTab() {
               <FaceRow faces={faces} selId={selId} onPick={pickFace} onAll={openStart} />
               {faces.length ? (
                 <>
-                  <BriefStack faces={faces} selId={selId} briefings={options?.briefings} />
-                  <PlanStack faces={faces} selId={selId} durationMin={defaultDuration} />
+                  <BriefStack faces={faces} selId={selId} briefings={options?.briefings} durationMin={defaultDuration} />
                   <StartButton faces={faces} selId={selId} duration={options?.defaultDuration ?? 60} onStart={openStart} />
                 </>
               ) : (
@@ -418,9 +417,10 @@ const RoadMap = React.memo(function RoadMap({
         pitchEnabled={false}
         userInterfaceStyle="light"
       >
+        {/* Prima i posti fissi del giro, poi auto e sede (che possono arrivare dopo). */}
+        <PlanOverlay stops={stops} from={pos ? { lat: pos.latitude, lng: pos.longitude } : hq} on={stopsOn} center={{ lat, lng }} />
         {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={carColor} /> : null}
         {hq ? <HqMarker lat={hq.lat} lng={hq.lng} /> : null}
-        {stops ? <PlanOverlay stops={stops} from={pos ? { lat: pos.latitude, lng: pos.longitude } : hq} on={stopsOn} /> : null}
       </MapView>
     </View>
   );
@@ -543,10 +543,12 @@ const BriefStack = React.memo(function BriefStack({
   faces,
   selId,
   briefings,
+  durationMin,
 }: {
   faces: RoadSuggestion[];
   selId: string | null;
   briefings: Record<string, RoadBriefing> | undefined;
+  durationMin: number;
 }) {
   return (
     <ClaySurface style={s.brief}>
@@ -566,6 +568,8 @@ const BriefStack = React.memo(function BriefStack({
               ) : (
                 <Text style={[s.briefTitle, { marginBottom: 0 }]}>Nessuna segnalazione Road finora.</Text>
               )}
+              {/* REG-649: il giro in una riga (tappe numerate sulla mappa, per esteso nel foglio «Parti con»). */}
+              <RoadPlanLine studentId={f.id} durationMin={durationMin} />
             </CrossfadeLayer>
           );
         })}
@@ -692,79 +696,79 @@ function planCamera(points: Array<{ lat: number; lng: number }>) {
     (Math.max(...lngs) - Math.min(...lngs)) * 111_320 * Math.cos((cLat * Math.PI) / 180) * 0.45,
   );
   // La mappa è bassa e larga: lo spazio utile in verticale comanda.
-  const altitude = Math.max(ALTITUDE, spanM * 3.2);
+  // Fattore largo: in alto c'è la barra di stato, in basso il pannello che copre 26 pt.
+  const altitude = Math.max(ALTITUDE, spanM * 5);
   const zoom = Math.max(11, Math.min(ZOOM, ZOOM - Math.log2(altitude / ALTITUDE)));
-  return { center: { latitude: cLat, longitude: cLng }, heading: 0, pitch: PITCH, altitude, zoom };
+  // Un po' più a sud: in basso il pannello copre il bordo della mappa.
+  const dLat = (Math.max(...lats) - Math.min(...lats)) * 0.14;
+  return { center: { latitude: cLat - dLat, longitude: cLng }, heading: 0, pitch: PITCH, altitude, zoom };
 }
 
 /**
  * Le tappe del giro sulla mappa della tab: tratteggio sottile dalla partenza
  * alle tappe in ordine (non la strada: quella arriva in Road, REG-652) e i
  * numeri neri, gli stessi della card. «Segui il giro» spento = attenuate.
+ *
+ * Posti FISSI (una linea e tre numeri sempre montati, nascosti quando non
+ * servono): con react-native-maps 1.20 in New Architecture aggiungere e
+ * togliere figli della mappa al cambio allievo fa crashare `AIRMap
+ * insertReactSubview` (oggetto nil).
  */
+const PLAN_SLOTS = 3;
 const PlanOverlay = React.memo(function PlanOverlay({
   stops,
   from,
   on,
+  center,
 }: {
-  stops: RoadPlanStop[];
+  stops: RoadPlanStop[] | null;
   from: { lat: number; lng: number } | null;
   on: boolean;
+  center: { lat: number; lng: number };
 }) {
   const line = useMemo(() => {
     const pts = from ? [{ latitude: from.lat, longitude: from.lng }] : [];
-    for (const st of stops) {
+    for (const st of stops ?? []) {
       pts.push({ latitude: st.lat, longitude: st.lng });
       if (st.endLat != null && st.endLng != null) pts.push({ latitude: st.endLat, longitude: st.endLng });
     }
-    return pts;
-  }, [stops, from]);
+    // Senza giro: due punti uguali, linea trasparente (resta montata).
+    return pts.length >= 2 && stops?.length ? pts : [{ latitude: center.lat, longitude: center.lng }, { latitude: center.lat, longitude: center.lng }];
+  }, [stops, from, center.lat, center.lng]);
+  const visible = !!stops?.length;
   return (
     <>
-      {line.length >= 2 ? (
-        <Polyline coordinates={line} strokeColor={on ? 'rgba(17,17,17,0.55)' : 'rgba(17,17,17,0.2)'} strokeWidth={2} lineDashPattern={[5, 6]} />
-      ) : null}
-      {stops.map((st, i) => (
-        <StopMarker key={st.key} lat={st.lat} lng={st.lng} n={i + 1} on={on} />
-      ))}
+      <Polyline
+        coordinates={line}
+        strokeColor={!visible ? 'rgba(17,17,17,0)' : on ? 'rgba(17,17,17,0.7)' : 'rgba(17,17,17,0.25)'}
+        strokeWidth={3}
+        lineDashPattern={[6, 6]}
+      />
+      {Array.from({ length: PLAN_SLOTS }, (_, i) => {
+        const st = stops?.[i];
+        return (
+          <StopMarker
+            key={i}
+            lat={st?.lat ?? center.lat}
+            lng={st?.lng ?? center.lng}
+            n={i + 1}
+            opacity={!st ? 0 : on ? 1 : 0.4}
+          />
+        );
+      })}
     </>
   );
 });
 
-const StopMarker = React.memo(function StopMarker({ lat, lng, n, on }: { lat: number; lng: number; n: number; on: boolean }) {
+const StopMarker = React.memo(function StopMarker({ lat, lng, n, opacity }: { lat: number; lng: number; n: number; opacity: number }) {
   const [ready, setReady] = useState(false);
   const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
   return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready} opacity={on ? 1 : 0.4}>
-      <View style={[s.stop, CLAY_SHADOW.raiseSm]} onLayout={() => setReady(true)} testID="road-tab-plan-stop">
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready} opacity={opacity}>
+      <View style={[s.stop, CLAY_SHADOW.raiseSm]} onLayout={() => setReady(true)}>
         <Text style={s.stopTx}>{n}</Text>
       </View>
     </Marker>
-  );
-});
-
-/**
- * Il giro dei tre volti, già montati e sovrapposti come il briefing: al
- * cambio allievo dissolvenza incrociata, nessuna chiamata, l'altezza è quella
- * del più alto. Nessun volto con un giro = niente.
- */
-const PlanStack = React.memo(function PlanStack({
-  faces,
-  selId,
-  durationMin,
-}: {
-  faces: RoadSuggestion[];
-  selId: string | null;
-  durationMin: number;
-}) {
-  return (
-    <View style={s.stack}>
-      {faces.map((f, i) => (
-        <CrossfadeLayer key={f.id} active={f.id === selId} style={[s.layer, i > 0 && s.layerOver]}>
-          <RoadPlanCard studentId={f.id} durationMin={durationMin} testID="road-tab-plan" />
-        </CrossfadeLayer>
-      ))}
-    </View>
   );
 });
 
