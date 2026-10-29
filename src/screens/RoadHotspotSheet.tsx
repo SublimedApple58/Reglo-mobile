@@ -93,6 +93,8 @@ export default function RoadHotspotSheet() {
       leading={<Icon3D source={markerArt(hotspot.kind)} size={44} />}
       testID="hotspot-sheet"
     >
+      {/* Senza CTA il foglio flottante di iOS aggiunge già il suo spazio sotto: si stringe sul contenuto. */}
+      <View style={s.trim}>
       <View style={s.stats}>
         <ClayStat value={hotspot.errors} label="Errori" />
         <ClayStat value={hotspot.students} label="Allievi" />
@@ -120,6 +122,7 @@ export default function RoadHotspotSheet() {
           <SkeletonBlock height={64} radius={22} style={{ marginTop: 12 }} />
         </View>
       )}
+      </View>
     </FormSheet>
   );
 }
@@ -191,6 +194,7 @@ const DetailBody = React.memo(function DetailBody({
 });
 
 const s = StyleSheet.create({
+  trim: { marginBottom: -14 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 4 },
   caption: { fontSize: 13, color: CLAY.ink3, marginTop: 10 },
   exam: { fontSize: 15, fontWeight: '500', color: CLAY.ink, marginTop: 14 },

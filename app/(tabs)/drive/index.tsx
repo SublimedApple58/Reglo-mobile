@@ -613,7 +613,7 @@ const HotspotsEntry = React.memo(function HotspotsEntry() {
   const top = data?.hotspots[0] ?? null;
   const count = data?.hotspots.length ?? 0;
   const subtitle = top
-    ? [`${top.label}${top.street ? ` in ${top.street}` : ''}`, count > 1 ? `e altri ${count - 1}` : null].filter(Boolean).join(' · ')
+    ? [`${top.label}${top.street ? ` in ${top.street}` : ''}`, count === 2 ? 'e un altro' : count > 2 ? `e altri ${count - 1}` : null].filter(Boolean).join(' · ')
     : data
       ? 'Ancora nessuno: si riempie con le segnalazioni'
       : 'Dove gli allievi sbagliano più spesso';

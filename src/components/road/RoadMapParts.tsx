@@ -53,6 +53,8 @@ const TAG_H = 36;
 const TAG_H_SMALL = 30;
 const GAP = 7;
 const DOT = 18;
+/** Quanto la punta del fumetto scende sotto il fumetto (`pin.tail`). */
+const TAIL_TIP = 6;
 
 /** Memo: in guida la mappa si ridisegna a ogni fix GPS, i pin no. */
 export const RoadMarkerPin = React.memo(function RoadMarkerPin({
@@ -63,6 +65,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   zIndex,
   sentiment,
   onPress,
+  dot = true,
 }: {
   coordinate: LatLng;
   kind: string;
@@ -73,16 +76,23 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   sentiment?: Sentiment | null;
   /** Tocco sul pin (punti critici, REG-646). */
   onPress?: () => void;
+  /**
+   * Puntino sotto il fumetto (default). Senza (punti critici): un solo
+   * segnaposto, la punta del fumetto sta sul punto.
+   */
+  dot?: boolean;
 }) {
-  const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '']);
+  const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '', dot]);
   const tagH = small ? TAG_H_SMALL : TAG_H;
-  const height = tagH + GAP + DOT;
-  const anchorY = (height - DOT / 2) / height;
+  // Senza puntino: il fumetto e la sua punta (quadrato ruotato, ~6 pt sotto il fumetto).
+  const height = dot ? tagH + GAP + DOT : tagH + TAIL_TIP + 1;
+  const pointY = dot ? height - DOT / 2 : tagH + TAIL_TIP;
+  const anchorY = pointY / height;
   return (
     <Marker
       coordinate={coordinate}
       anchor={{ x: 0.5, y: anchorY }}
-      centerOffset={{ x: 0, y: -(height / 2 - DOT / 2) }}
+      centerOffset={{ x: 0, y: -(pointY - height / 2) }}
       tracksViewChanges={tracksViewChanges}
       zIndex={zIndex ?? (small ? 3 : 5)}
       onPress={onPress}
@@ -99,7 +109,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
           {small ? null : <Text style={pin.label} numberOfLines={1}>{label}</Text>}
           <View style={pin.tail} />
         </View>
-        <View style={pin.dot} />
+        {dot ? <View style={pin.dot} /> : null}
       </View>
     </Marker>
   );
@@ -111,7 +121,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   a.small === b.small &&
   a.zIndex === b.zIndex &&
   a.sentiment === b.sentiment &&
-  a.onPress === b.onPress,
+  a.onPress === b.onPress &&
+  a.dot === b.dot,
 );
 
 /** Puntino bianco bordato di nero: partenza / arrivo nelle minimappe. */

@@ -344,7 +344,7 @@ const HeatHalo = React.memo(function HeatHalo({ lat, lng, k }: { lat: number; ln
   );
 });
 
-/** Simbolo dell'errore sul punto (pin di Road, bordo rosso «da migliorare»). */
+/** Un solo segnaposto: il fumetto col simbolo dell'errore, punta sul punto, alone sotto. */
 const PinTap = React.memo(function PinTap({ hotspot, onOpen }: { hotspot: RoadHotspot; onOpen: (h: RoadHotspot) => void }) {
   const coordinate = useMemo(() => ({ latitude: hotspot.lat, longitude: hotspot.lng }), [hotspot.lat, hotspot.lng]);
   const press = useCallback(() => onOpen(hotspot), [onOpen, hotspot]);
@@ -355,6 +355,7 @@ const PinTap = React.memo(function PinTap({ hotspot, onOpen }: { hotspot: RoadHo
       label={hotspot.label}
       small
       sentiment="bad"
+      dot={false}
       onPress={press}
     />
   );
