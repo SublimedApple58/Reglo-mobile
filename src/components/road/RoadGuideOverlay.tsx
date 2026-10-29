@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Marker, Polyline } from 'react-native-maps';
 
@@ -11,6 +11,9 @@ import { RoadMarkerPin } from './RoadMapParts';
  * REG-652 — la guida del giro sulla mappa di Road: linea suggerita (grigio
  * scuro sottile, mai blu; la parte già fatta si attenua), punti critici
  * dell'allievo col fumetto di REG-646, tappe numerate, sede.
+ *
+ * Riaggancio (REG-654): la linea nuova arriva al posto della vecchia, che sfuma
+ * nei due posti `prev` (4 Polyline fisse in tutto).
  *
  * TUTTO a posti fissi, sempre montato e messo PRIMA degli altri figli della
  * MapView: aggiungere/togliere figli fa crashare react-native-maps 1.20 con la
@@ -25,23 +28,43 @@ const FADE_MS = 240;
 
 type Pt = { latitude: number; longitude: number };
 
-/** Dissolvenza della linea in 240 ms (le Polyline non hanno animazioni proprie). */
-function useFade(on: boolean) {
-  const [k, setK] = useState(on ? 1 : 0);
+type Shown = { ahead: Pt[]; done: Pt[]; cut: number } | null;
+
+/**
+ * Dissolvenza della linea in 240 ms, senza rimbalzo (le Polyline non hanno
+ * animazioni proprie). Al riaggancio (REG-654) la linea vecchia sfuma nei suoi
+ * due posti mentre la nuova compare: `p` va da 0 a 1, la nuova vale `p`, la
+ * vecchia `1 - p`. Non dipende da «Riduci movimento».
+ */
+function useLineFade(pts: Pt[] | null, shown: Shown) {
+  const [p, setP] = useState(1);
+  const [prev, setPrev] = useState<Shown>(null);
+  const last = useRef<Shown>(null);
+  const first = useRef(true);
   useEffect(() => {
-    const from = k;
-    const to = on ? 1 : 0;
-    if (from === to) return;
+    // Al primo montaggio senza linea non c'è niente da sfumare.
+    if (first.current) {
+      first.current = false;
+      if (!pts) return;
+    }
+    setPrev(last.current);
+    setP(0);
     const t0 = Date.now();
     const id = setInterval(() => {
-      const p = Math.min(1, (Date.now() - t0) / FADE_MS);
-      setK(from + (to - from) * p);
-      if (p >= 1) clearInterval(id);
+      const x = Math.min(1, (Date.now() - t0) / FADE_MS);
+      setP(1 - (1 - x) * (1 - x));
+      if (x >= 1) {
+        clearInterval(id);
+        setPrev(null);
+      }
     }, 40);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [on]);
-  return k;
+  }, [pts]);
+  // Dopo l'effetto qui sopra: per il prossimo cambio, la linea che si vede adesso.
+  useEffect(() => {
+    last.current = shown;
+  });
+  return { k: pts ? p : 0, prev, kPrev: prev ? 1 - p : 0 };
 }
 
 const withAlpha = (rgba: string, k: number) =>
@@ -52,6 +75,7 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   passed,
   stops,
   reached,
+  skipped,
   end,
   hotspots,
   center,
@@ -60,6 +84,8 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   passed: number;
   stops: RoadPlanStop[];
   reached: string[];
+  /** REG-654: tappe lasciate perdere (attenuate come le raggiunte). */
+  skipped: string[];
   end: { lat: number; lng: number } | null;
   hotspots: RoadStudentHotspot[];
   center: { lat: number; lng: number };
@@ -81,10 +107,12 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   const cut = pts ? Math.min(Math.max(0, passed), pts.length - 1) : 0;
   const ahead = useMemo(() => (pts ? pts.slice(cut) : still), [pts, cut, still]);
   const done = useMemo(() => (pts && cut > 0 ? pts.slice(0, cut + 1) : still), [pts, cut, still]);
-  const k = useFade(!!pts);
+  const { k, prev, kPrev } = useLineFade(pts, pts ? { ahead, done, cut } : null);
 
   return (
     <>
+      <Polyline coordinates={prev && prev.cut > 0 ? prev.done : still} strokeColor={withAlpha(LINE_PASSED, prev && prev.cut > 0 ? kPrev : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_AHEAD, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
       <Polyline coordinates={done} strokeColor={withAlpha(LINE_PASSED, cut > 0 ? k : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
       <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_AHEAD, ahead.length >= 2 ? k : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
       {Array.from({ length: GUIDE_HOTSPOT_SLOTS }, (_, i) => (
@@ -98,7 +126,7 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
             lat={st?.lat ?? center.lat}
             lng={st?.lng ?? center.lng}
             n={i + 1}
-            opacity={!st ? 0 : reached.includes(st.key) ? 0.45 : 1}
+            opacity={!st ? 0 : reached.includes(st.key) || skipped.includes(st.key) ? 0.45 : 1}
           />
         );
       })}

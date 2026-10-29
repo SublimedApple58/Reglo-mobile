@@ -23,7 +23,7 @@ import { Avatar, ClayButton, ClayMapControls } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
-import { loadRoadGuide } from '../../src/road/roadGuide';
+import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 
 /**
  * REG-638 Reglo Road — la guida in diretta, a tutto schermo.
@@ -116,6 +116,14 @@ export default function RoadScreen() {
     if (!cur || cur.id !== sessionId || !cur.lesson) return;
     void loadRoadGuide(cur, waitFirstFix, (g) => roadStore.setGuide(g));
   }, [sessionId]);
+
+  // REG-654: fuori percorso, lo store chiede il riaggancio (al massimo uno ogni 45 s).
+  useEffect(() => {
+    roadStore.setRerouteHandler((req) => {
+      void fetchReroute(req.start, req.stops).then((route) => roadStore.applyReroute(req.sessionId, route));
+    });
+    return () => roadStore.setRerouteHandler(null);
+  }, []);
 
   // La nota della guida si carica subito: il foglio «Note» si apre senza attese.
   useEffect(() => {
@@ -338,6 +346,7 @@ export default function RoadScreen() {
           passed={st.guidePassed}
           stops={guide?.stops ?? EMPTY_STOPS}
           reached={st.planProgress.reached}
+          skipped={st.reroute.skipped}
           end={guide?.end ?? null}
           hotspots={guide?.hotspots ?? EMPTY_HOTSPOTS}
           center={guideCenter}

@@ -13,7 +13,8 @@ import { lessonMinutes } from './planStore';
  * Due richieste, una volta per sessione, all'ingresso in Road (mai durante la
  * guida): `POST /road/plan/route` (solo con un giro) e `GET /road/plan` per i
  * punti dell'allievo. Rete giù o Routes API giù = niente linea, restano tappe e
- * punti; nessun errore a schermo. Il riaggancio dopo una deviazione è REG-654.
+ * punti; nessun errore a schermo. Il riaggancio dopo una deviazione (REG-654)
+ * sta in `reroute.ts` + `fetchReroute`.
  */
 
 export type LatLngTuple = [number, number];
@@ -131,4 +132,18 @@ export async function loadRoadGuide(
 /** A fine guida / uscita: la prossima sessione ricarica. */
 export function forgetRoadGuide(sessionId: string) {
   loading.delete(sessionId);
+}
+
+/**
+ * REG-654: la linea riagganciata dalla posizione attuale, con le sole tappe
+ * rimaste nell'ordine già scelto (niente riottimizzazione), poi la sede. Null
+ * se la rete o Google non rispondono: resta la linea vecchia.
+ */
+export async function fetchReroute(
+  start: Pt,
+  stops: RoadPlanStop[],
+): Promise<{ line: LatLngTuple[] | null; end: Pt | null } | null> {
+  const route = await regloApi.getRoadPlanRoute({ start, stops, optimize: false }).catch(() => null);
+  if (!route) return null;
+  return { line: route.line && route.line.length >= 2 ? route.line : null, end: route.end };
 }

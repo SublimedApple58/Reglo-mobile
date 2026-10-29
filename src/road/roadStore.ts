@@ -3,6 +3,7 @@ import type {
   RoadCatalog,
   RoadDetail,
   RoadLesson,
+  RoadPlanStop,
   RoadPoint,
   RoadSessionWithLesson,
 } from '../types/regloApi';
@@ -16,6 +17,7 @@ import {
   type PlanAlert,
   type PlanProgress,
 } from './planAlerts';
+import { INITIAL_REROUTE, remainingStops, stepReroute, type RerouteState } from './reroute';
 import { advanceOnLine, type RoadGuide } from './roadGuide';
 
 /**
@@ -92,7 +94,17 @@ type State = {
   guide: RoadGuide | null;
   /** REG-652: fin dove la linea è già percorsa (indice di vertice, solo avanti). */
   guidePassed: number;
+  /** REG-654: fuori percorso, ultimo ricalcolo, tappe lasciate perdere. */
+  reroute: RerouteState;
 };
+
+/** REG-654: il ricalcolo da chiedere (lo fa la schermata Road, lo store non va in rete). */
+export type RerouteRequest = {
+  sessionId: string;
+  start: { lat: number; lng: number };
+  stops: RoadPlanStop[];
+};
+let rerouteHandler: ((req: RerouteRequest) => void) | null = null;
 
 const INITIAL: State = {
   phase: 'idle',
@@ -115,6 +127,7 @@ const INITIAL: State = {
   planAlert: null,
   guide: null,
   guidePassed: 0,
+  reroute: INITIAL_REROUTE,
 };
 
 let state: State = INITIAL;
@@ -172,6 +185,26 @@ export const roadStore = {
     set({ guide, ...(sameLine ? {} : { guidePassed: 0 }) });
   },
 
+  /** REG-654: chi chiede il ricalcolo (la schermata Road, finché è montata). */
+  setRerouteHandler(fn: ((req: RerouteRequest) => void) | null) {
+    rerouteHandler = fn;
+  },
+
+  /** REG-654: la linea riagganciata. Null (rete o Google giù) = resta la vecchia. */
+  applyReroute(sessionId: string, route: { line: Array<[number, number]> | null; end: { lat: number; lng: number } | null } | null) {
+    if (state.session?.id !== sessionId || !state.guide) return;
+    const reroute = { ...state.reroute, pending: false };
+    if (!route?.line || route.line.length < 2) {
+      set({ reroute });
+      return;
+    }
+    set({
+      guide: { ...state.guide, line: route.line, end: route.end },
+      guidePassed: 0,
+      reroute: { ...reroute, offSince: null },
+    });
+  },
+
   setEvaluationEnabled(enabled: boolean) {
     set({ evaluationEnabled: enabled });
   },
@@ -205,6 +238,7 @@ export const roadStore = {
             planAlert: null,
             guide: null,
             guidePassed: 0,
+            reroute: INITIAL_REROUTE,
           }),
     });
   },
@@ -244,11 +278,15 @@ export const roadStore = {
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters, planProgress, planAlert, guidePassed } = state;
+    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute } = state;
+    let request: RerouteRequest | null = null;
     const track = state.track.slice();
     // Le tappe nell'ordine della linea (REG-652), così il numero dell'avviso è quello sulla mappa.
-    const stops = state.planAlertsEnabled ? state.guide?.stops ?? state.session?.plan?.stops ?? [] : [];
+    // Le tappe raggiunte si contano anche con gli avvisi spenti (servono al riaggancio, REG-654).
+    const stops = state.guide?.stops ?? state.session?.plan?.stops ?? [];
+    const alertsOn = state.planAlertsEnabled;
     const line = state.guide?.line ?? null;
+    const guideStops = state.guide?.stops ?? [];
     for (const p of points) {
       const [t, lat, lng, speed, heading, accuracy] = p;
       if (accuracy != null && accuracy > MAX_ACCURACY_M) continue;
@@ -265,10 +303,31 @@ export const roadStore = {
       if (stops.length) {
         if (planAlert && planAlertExpired(planAlert, t)) planAlert = null;
         ({ progress: planProgress, alert: planAlert } = stepPlanAlerts(stops, planProgress, planAlert, { lat, lng, t }));
+        if (!alertsOn) planAlert = null;
       }
-      if (line) guidePassed = advanceOnLine(line, guidePassed, { lat, lng });
+      if (line) {
+        guidePassed = advanceOnLine(line, guidePassed, { lat, lng });
+        const step = stepReroute(reroute, { lat, lng, t }, {
+          line,
+          passed: guidePassed,
+          stops: guideStops,
+          reached: planProgress.reached,
+          end: state.guide?.end ?? null,
+        });
+        reroute = step.state;
+        if (step.request && state.session && rerouteHandler) {
+          request = {
+            sessionId: state.session.id,
+            start: { lat, lng },
+            stops: remainingStops(guideStops, planProgress.reached, reroute.skipped),
+          };
+        } else if (step.request) {
+          reroute = { ...reroute, pending: false };
+        }
+      }
     }
-    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed });
+    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute });
+    if (request) rerouteHandler?.(request);
   },
 
   setStreet(street: string | null) {
