@@ -12,6 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const FADE_MS = 200;
+/** Dispari: finisce sul grigio pieno (opacità 1). */
+const SKELETON_HALF_CYCLES = 5;
 // Ease morbida e simmetrica: con un out-cubic l'80% arrivava nei primi 60 ms
 // e la foto sembrava comparire di botto (Tiziano 28/10).
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
@@ -92,6 +94,8 @@ export function FadeImage({
 /**
  * Skeleton clay bianco: grigio appena percettibile che respira piano (lo
  * stesso ritmo di `SkeletonBlock`), riempie il posto della foto.
+ * Respira al massimo ~4 s (5 mezzi cicli) e poi resta fermo al grigio pieno:
+ * mai un'animazione infinita per ogni volto in attesa (fluidità 29/10).
  */
 export function SkeletonFill({ radius = 0 }: { radius?: number }) {
   const pulse = useSharedValue(0.55);
@@ -102,7 +106,7 @@ export function SkeletonFill({ radius = 0 }: { radius?: number }) {
         easing: Easing.inOut(Easing.quad),
         reduceMotion: ReduceMotion.Never,
       }),
-      -1,
+      SKELETON_HALF_CYCLES,
       true,
       undefined,
       ReduceMotion.Never,

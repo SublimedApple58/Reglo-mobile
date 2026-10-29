@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  InteractionManager,
   Platform,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { regloApi } from '../../../src/services/regloApi';
@@ -51,6 +53,8 @@ import {
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { useTabBarOverlap } from '../../../src/components/tabBarSpace';
 
+/** Dopo quanto, a app ferma, si monta la schermata (mappa) in sottofondo. */
+const ROAD_WARM_DELAY_MS = 1500;
 const PITCH = 0;
 const ALTITUDE = 1100; // iOS (metri)
 const ZOOM = 15.6; // Android
@@ -80,6 +84,26 @@ export default function RoadTab() {
   const roadPhase = useRoadSelector((s) => s.phase);
   const roadSession = useRoadSelector((s) => s.session);
   const mapRef = useRef<MapView>(null);
+  // Montata in anticipo (tab `lazy: false`): finché non la si apre, la
+  // schermata vera (mappa compresa) aspetta che l'app sia a riposo dopo
+  // l'avvio, così non ruba fotogrammi all'Agenda (fluidità 29/10).
+  const focused = useIsFocused();
+  const [armed, setArmed] = useState(focused);
+  useEffect(() => {
+    if (armed) return;
+    if (focused) {
+      setArmed(true);
+      return;
+    }
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const task = InteractionManager.runAfterInteractions(() => {
+      t = setTimeout(() => setArmed(true), ROAD_WARM_DELAY_MS);
+    });
+    return () => {
+      task.cancel();
+      if (t) clearTimeout(t);
+    };
+  }, [armed, focused]);
   const [pos, setPos] = useState<{ latitude: number; longitude: number } | null>(null);
   const [options, setOptions] = useState<RoadFreeOptions | null>(() => roadFreeStore.get());
   // Opzioni arrivate dal prefetch d'avvio (`warmRoadFree`) mentre la tab era già montata.
@@ -214,6 +238,8 @@ export default function RoadTab() {
   });
   const panelTopAt = mapH - 26 - (insets.top + NAV_BAR_H); // offset a cui il pannello tocca la barra
   const briefingOf = (id: string | null | undefined) => (id ? options?.briefings?.[id] ?? null : null);
+
+  if (!armed) return <View style={s.root} />;
 
   return (
     <View style={s.root}>

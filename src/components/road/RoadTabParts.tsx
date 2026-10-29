@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Image, Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { Icon3D } from '../clay/Icon3D';
 import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
 import { RoadTrack } from './RoadMapParts';
 import { regionFor } from './RoadMiniMap';
+import { cachedThumbUri, saveThumbSnapshot, thumbKey } from '../../road/thumbCache';
 
 /**
  * REG-638 Road «mappa corta» — pezzi condivisi da tab Road e foglio «Parti
@@ -92,6 +93,12 @@ const MIN_SPAN_DEG = 0.0005;
  * - Percorso vuoto o troppo corto: la zona del punto di partenza (o della
  *   sede, se non c'è nessun punto) con un puntino nero al centro.
  * Mai un riquadro bianco vuoto (Tiziano 28/10/2026).
+ *
+ * Leggera (fluidità 29/10, Tiziano): una mappa Apple vera per riga costava
+ * quanto la mappa grande. Su iOS la prima volta si mostra la mappa e se ne
+ * salva uno snapshot (`takeSnapshot`, traccia compresa) su disco
+ * (`road/thumbCache`); dalle volte dopo c'è solo l'immagine, identica. Se lo
+ * snapshot non riesce resta la mappa, come prima.
  */
 export function RouteThumb({
   thumb,
@@ -129,6 +136,26 @@ export function RouteThumb({
     return { region: { ...c, latitudeDelta: 0.006, longitudeDelta: 0.006 }, track: false, dot: true };
   }, [coords, fallback]);
 
+  const key = useMemo(() => thumbKey(view.region, view.track ? thumb : null, size), [view, thumb, size]);
+  const [snap, setSnap] = useState<string | null>(() => (Platform.OS === 'ios' ? cachedThumbUri(key) : null));
+  const mapRef = useRef<MapView>(null);
+  const taken = useRef(false);
+  const takeSnap = () => {
+    if (Platform.OS !== 'ios' || taken.current || snap) return;
+    taken.current = true;
+    // `onMapLoaded` su iOS non arriva: si parte da `onMapReady`. Lo snapshot
+    // (MKMapSnapshotter) scarica le sue tessere, non serve aspettare la vista.
+    setTimeout(() => {
+      mapRef.current
+        ?.takeSnapshot({ width: size, height: size, format: 'png', result: 'file' })
+        .then((file) => saveThumbSnapshot(key, file))
+        .then((uri) => {
+          if (uri) setSnap(uri);
+        })
+        .catch(() => {});
+    }, 300);
+  };
+
   if (carColor !== undefined && !view.track) {
     return (
       <View style={[s.carThumb, { width: size, height: size }]} pointerEvents="none">
@@ -140,7 +167,12 @@ export function RouteThumb({
   return (
     <View style={[s.thumb, { width: size, height: size }]} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, s.thumbClip]}>
+        {snap ? (
+          <Image source={{ uri: snap }} style={StyleSheet.absoluteFill} />
+        ) : (
         <MapView
+          ref={mapRef}
+          onMapReady={takeSnap}
           style={StyleSheet.absoluteFill}
           region={view.region}
           mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
@@ -158,6 +190,7 @@ export function RouteThumb({
         >
           {view.track ? <RoadTrack coordinates={coords} width={2.5} /> : null}
         </MapView>
+        )}
         {/* Puntino al centro (la mappa è centrata sul punto): una View, niente Marker. */}
         {view.dot ? <View style={s.thumbDot} /> : null}
       </View>

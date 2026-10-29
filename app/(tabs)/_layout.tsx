@@ -157,7 +157,9 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="home" options={{ title: instructorApp ? 'Agenda' : 'Home' }} />
         <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
-        <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road' }} />
+        {/* Road montata in anticipo (fluidità 29/10): la mappa nasce a riposo
+            dopo l'avvio, non al primo tocco. Solo per chi ha la tab. */}
+        <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road', lazy: !showDriveTab }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: instructorApp ? 'Tu' : 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />

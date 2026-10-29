@@ -1,22 +1,29 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
-import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayLargeTitle, ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
 import {
   Avatar,
   ClayEmpty,
   ClayIconButton,
-  ClayList,
   ClayListRow,
   ClaySegmented,
   ClaySurface,
 } from '../components/clay';
 import { CLAY } from '../theme/clay';
+import { CLAY_RADIUS } from '../theme/spacing';
 import { VITA_ART } from '../theme/vitaArt';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
@@ -75,6 +82,7 @@ export const InstructorNotesScreen = () => {
   const [manualPayments, setManualPayments] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const { scrollY, onScroll } = useLargeTitleScroll();
 
   const loadData = useCallback(async () => {
     try {
@@ -175,12 +183,15 @@ export const InstructorNotesScreen = () => {
     return students.filter((s) => s.assignedInstructorId === instructorId);
   }, [useClusters, segment, students, instructorId]);
 
-  const navigateToStudent = (student: StudentEntry) => {
-    router.push({
-      pathname: '/(tabs)/notes/[studentId]',
-      params: { studentId: student.id, name: `${student.firstName} ${student.lastName}` },
-    } as never);
-  };
+  const navigateToStudent = useCallback(
+    (student: StudentEntry) => {
+      router.push({
+        pathname: '/(tabs)/notes/[studentId]',
+        params: { studentId: student.id, name: `${student.firstName} ${student.lastName}` },
+      } as never);
+    },
+    [router],
+  );
 
   const query = searchQuery.trim().toLowerCase();
   const shown = useMemo(
@@ -188,20 +199,23 @@ export const InstructorNotesScreen = () => {
     [query, students, visibleStudents],
   );
 
-  // «3 guidano con te questa settimana»: allievi distinti con una guida mia
-  // (non annullata) da lunedì a domenica.
-  const drivingThisWeek = useMemo(() => {
-    if (!instructorId) return 0;
-    const { start, end } = weekBounds();
-    // Solo fra gli allievi in lista: «5 allievi · 6 guidano con te» non torna.
-    const shownIds = new Set(visibleStudents.map((st) => st.id));
+  // Chi ha una guida mia (non annullata) da lunedì a domenica: calcolato UNA
+  // volta sola sulle guide (fluidità 29/10), non a ogni «I miei / Tutti».
+  const weekIds = useMemo(() => {
     const ids = new Set<string>();
+    if (!instructorId) return ids;
+    const { start, end } = weekBounds();
     for (const a of allAppointments) {
       const t = new Date(a.startsAt).getTime();
-      if (a.instructorId === instructorId && t >= start && t < end && shownIds.has(a.studentId)) ids.add(a.studentId);
+      if (a.instructorId === instructorId && t >= start && t < end) ids.add(a.studentId);
     }
-    return ids.size;
-  }, [allAppointments, instructorId, visibleStudents]);
+    return ids;
+  }, [allAppointments, instructorId]);
+  /** Chi guida con me questa settimana (fra gli allievi in lista): i volti in cima. */
+  const weekFaces = useMemo(() => visibleStudents.filter((st) => weekIds.has(st.id)), [visibleStudents, weekIds]);
+  // «3 guidano con te questa settimana»: solo fra gli allievi in lista
+  // («5 allievi · 6 guidano con te» non torna).
+  const drivingThisWeek = weekFaces.length;
 
   // Il prossimo esame fra gli allievi visibili: la card in evidenza.
   const nextExam = useMemo(() => {
@@ -222,46 +236,7 @@ export const InstructorNotesScreen = () => {
           : null,
       ].filter(Boolean).join(' · ');
 
-  const rowSubtitle = (st: StudentEntry) => {
-    const info = studentInfo.get(st.id) ?? { total: 0, completed: 0 };
-    const done = Math.min(info.completed, REQUIRED_LESSONS);
-    const exam = studentExam.get(st.id);
-    const step = studentNext.get(st.id);
-    // Il prossimo passo prima del contatore: la prossima guida e il da
-    // riscuotere (in nero solo da DUE_STRONG_FROM in su). Il contatore delle guide resta solo se non c'è altro.
-    const when = exam
-      ? `Esame il ${dayMonth(exam)}`
-      : step?.next
-        ? `Prossima ${formatDay(step.next)} · ${formatTime(step.next)}`
-        : null;
-    const due = step?.unpaid ? (step.unpaid === 1 ? '1 da pagare' : `${step.unpaid} da pagare`) : null;
-    if (when || due) {
-      return (
-        <Text style={s.rowSub} numberOfLines={1}>
-          {when}
-          {when && due ? ' · ' : null}
-          {due ? <Text style={(step?.unpaid ?? 0) >= DUE_STRONG_FROM ? s.rowDue : null}>{due}</Text> : null}
-        </Text>
-      );
-    }
-    return info.total === 0
-      ? 'Nessuna guida ancora'
-      : done >= REQUIRED_LESSONS
-        ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
-        : `${done} di ${REQUIRED_LESSONS} guide`;
-  };
 
-  /** Chi guida con me questa settimana (fra gli allievi in lista): i volti in cima. */
-  const weekFaces = useMemo(() => {
-    if (!instructorId) return [] as StudentEntry[];
-    const { start, end } = weekBounds();
-    const ids = new Set<string>();
-    for (const a of allAppointments) {
-      const t = new Date(a.startsAt).getTime();
-      if (a.instructorId === instructorId && t >= start && t < end) ids.add(a.studentId);
-    }
-    return visibleStudents.filter((st) => ids.has(st.id));
-  }, [allAppointments, instructorId, visibleStudents]);
 
   const facesStrip =
     weekFaces.length > 0 && !query && !searching && !loading ? (
@@ -315,14 +290,98 @@ export const InstructorNotesScreen = () => {
     );
   })();
 
+  // Righe montate UNA volta sola (fluidità 29/10, Tiziano): la lista ha
+  // sempre tutti gli allievi; «I miei / Tutti» e la ricerca nascondono le
+  // righe che non c'entrano, senza smontarle né rimontare la lista.
+  const shownIds = useMemo(() => new Set(shown.map((st) => st.id)), [shown]);
+  const order = useMemo(() => {
+    const pos = new Map<string, number>();
+    shown.forEach((st, i) => pos.set(st.id, i));
+    return pos;
+  }, [shown]);
+  const [rowBase, setRowBase] = useState(0);
+  const onRowBase = useCallback((h: number) => setRowBase((prev) => (prev ? prev : h)), []);
+  const listShown = !loading && shown.length > 0;
+  // La superficie clay dietro le righe (prima `ClayList`): altezza dalle righe
+  // visibili, così ombra e bianco seguono la lista nello stesso commit.
+  const backdropH = listShown && rowBase ? shown.length * rowBase + LIST_INSET * 2 : 0;
+
+  const renderItem = useCallback(
+    ({ item }: { item: StudentEntry }) => {
+      const i = order.get(item.id);
+      const hidden = i === undefined;
+      return (
+        <StudentRow
+          st={item}
+          hidden={hidden}
+          first={i === 0}
+          last={i === shown.length - 1}
+          info={studentInfo.get(item.id)}
+          step={studentNext.get(item.id)}
+          exam={studentExam.get(item.id)}
+          onOpen={navigateToStudent}
+          onBase={onRowBase}
+        />
+      );
+    },
+    [order, shown.length, studentInfo, studentNext, studentExam, navigateToStudent, onRowBase],
+  );
+
+  const header = (
+    <View>
+      {searching ? null : <ClayLargeTitle title="Allievi" subtitle={lead} />}
+      {useClusters && !searching ? (
+        <ClaySegmented
+          options={[
+            { value: 'mine', label: mineCount ? `I miei · ${mineCount}` : 'I miei', testID: 'students-mine' },
+            { value: 'all', label: 'Tutti', testID: 'students-all' },
+          ]}
+          value={segment}
+          onChange={setSegment}
+          style={s.segmented}
+        />
+      ) : null}
+
+      {facesStrip}
+
+      {examCard}
+
+      {loading ? (
+        <ClaySurface padded={false} style={s.list}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={s.skRow}>
+              <SkeletonBlock width={46} height={46} radius={23} />
+              <View style={{ flex: 1, gap: 7 }}>
+                <SkeletonBlock width="50%" height={15} radius={6} />
+                <SkeletonBlock width="70%" height={12} radius={6} />
+              </View>
+            </View>
+          ))}
+        </ClaySurface>
+      ) : shown.length === 0 ? (
+        <ClayEmpty
+          icon={VITA_ART.volante}
+          title={query ? 'Nessun risultato' : 'Ancora nessun allievo'}
+          text={query ? `Nessun allievo si chiama «${searchQuery.trim()}».` : 'Quando l’autoscuola ti assegna un allievo, lo trovi qui.'}
+        />
+      ) : (
+        <View style={s.listGap} />
+      )}
+      {backdropH ? (
+        <View pointerEvents="none" style={[s.backdrop, { height: backdropH }]}>
+          <ClaySurface padded={false} style={s.backdropFill} />
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <ClayLargeTitleScroll
+      <ClayNavBar
         title="Allievi"
-        subtitle={lead}
-        hideLargeTitle={searching}
+        scrollY={scrollY}
         search={{
           active: searching,
           onActiveChange: setSearching,
@@ -349,69 +408,123 @@ export const InstructorNotesScreen = () => {
             ) : null}
           </>
         }
+      />
+      <Animated.FlatList
+        data={loading ? EMPTY : students}
+        keyExtractor={keyOf}
+        renderItem={renderItem}
+        ListHeaderComponent={header}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        initialNumToRender={14}
+        windowSize={9}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
-      >
-        {useClusters && !searching ? (
-          <ClaySegmented
-            options={[
-              { value: 'mine', label: mineCount ? `I miei · ${mineCount}` : 'I miei', testID: 'students-mine' },
-              { value: 'all', label: 'Tutti', testID: 'students-all' },
-            ]}
-            value={segment}
-            onChange={setSegment}
-            style={s.segmented}
-          />
-        ) : null}
-
-        {facesStrip}
-
-        {examCard}
-
-        {loading ? (
-          <ClaySurface padded={false} style={s.list}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <View key={i} style={s.skRow}>
-                <SkeletonBlock width={46} height={46} radius={23} />
-                <View style={{ flex: 1, gap: 7 }}>
-                  <SkeletonBlock width="50%" height={15} radius={6} />
-                  <SkeletonBlock width="70%" height={12} radius={6} />
-                </View>
-              </View>
-            ))}
-          </ClaySurface>
-        ) : shown.length === 0 ? (
-          <ClayEmpty
-            icon={VITA_ART.volante}
-            title={query ? 'Nessun risultato' : 'Ancora nessun allievo'}
-            text={query ? `Nessun allievo si chiama «${searchQuery.trim()}».` : 'Quando l’autoscuola ti assegna un allievo, lo trovi qui.'}
-          />
-        ) : (
-          <Animated.View key={`${segment}-${query ? 'q' : ''}`} entering={FadeIn.duration(220)}>
-            <ClayList style={s.list}>
-              {shown.map((st) => (
-                <ClayListRow
-                  key={st.id}
-                  leading={<Avatar userId={st.id} name={`${st.firstName} ${st.lastName}`} size={46} />}
-                  title={`${st.firstName} ${st.lastName}`}
-                  subtitle={rowSubtitle(st)}
-                  onPress={() => navigateToStudent(st)}
-                  testID={`student-row-${st.id}`}
-                />
-              ))}
-            </ClayList>
-          </Animated.View>
-        )}
-      </ClayLargeTitleScroll>
+      />
     </View>
   );
 };
 
+const EMPTY: StudentEntry[] = [];
+const keyOf = (st: StudentEntry) => st.id;
+/** Respiro sopra la prima e sotto l'ultima riga (lo stesso di `ClayList`). */
+const LIST_INSET = 4;
+
+type StudentInfo = { total: number; completed: number };
+type StudentStep = { next: string | null; unpaid: number };
+
+function rowSubtitle(info: StudentInfo | undefined, step: StudentStep | undefined, exam: string | undefined) {
+  const done = Math.min(info?.completed ?? 0, REQUIRED_LESSONS);
+  // Il prossimo passo prima del contatore: la prossima guida e il da
+  // riscuotere (in nero solo da DUE_STRONG_FROM in su). Il contatore delle guide resta solo se non c'è altro.
+  const when = exam
+    ? `Esame il ${dayMonth(exam)}`
+    : step?.next
+      ? `Prossima ${formatDay(step.next)} · ${formatTime(step.next)}`
+      : null;
+  const due = step?.unpaid ? (step.unpaid === 1 ? '1 da pagare' : `${step.unpaid} da pagare`) : null;
+  if (when || due) {
+    return (
+      <Text style={s.rowSub} numberOfLines={1}>
+        {when}
+        {when && due ? ' · ' : null}
+        {due ? <Text style={(step?.unpaid ?? 0) >= DUE_STRONG_FROM ? s.rowDue : null}>{due}</Text> : null}
+      </Text>
+    );
+  }
+  return !info || info.total === 0
+    ? 'Nessuna guida ancora'
+    : done >= REQUIRED_LESSONS
+      ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
+      : `${done} di ${REQUIRED_LESSONS} guide`;
+}
+
+/**
+ * Riga allievo in memo: si ridisegna solo se cambia lei (posizione, dati,
+ * visibilità). Nascosta = `display: none`, resta montata; quando torna
+ * visibile entra in dissolvenza (200 ms, thread UI).
+ */
+const StudentRow = React.memo(function StudentRow({
+  st,
+  hidden,
+  first,
+  last,
+  info,
+  step,
+  exam,
+  onOpen,
+  onBase,
+}: {
+  st: StudentEntry;
+  hidden: boolean;
+  first: boolean;
+  last: boolean;
+  info: StudentInfo | undefined;
+  step: StudentStep | undefined;
+  exam: string | undefined;
+  onOpen: (st: StudentEntry) => void;
+  onBase: (h: number) => void;
+}) {
+  const opacity = useSharedValue(1);
+  const wasHidden = useRef(hidden);
+  useEffect(() => {
+    if (wasHidden.current && !hidden) {
+      opacity.value = 0;
+      opacity.value = withTiming(1, { duration: 200, easing: Easing.bezier(0.25, 0.1, 0.25, 1), reduceMotion: ReduceMotion.Never });
+    }
+    wasHidden.current = hidden;
+  }, [hidden, opacity]);
+  const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const name = `${st.firstName} ${st.lastName}`;
+  return (
+    <Animated.View
+      style={[first && s.rowFirst, last && s.rowLast, hidden && s.rowHidden, fade]}
+      onLayout={
+        hidden
+          ? undefined
+          : (e) => onBase(e.nativeEvent.layout.height - (first ? LIST_INSET : 0) - (last ? LIST_INSET : 0))
+      }
+    >
+      <ClayListRow
+        leading={<Avatar userId={st.id} name={name} size={46} />}
+        title={name}
+        subtitle={rowSubtitle(info, step, exam)}
+        onPress={() => onOpen(st)}
+        divider={!first}
+        first={first}
+        last={last}
+        testID={`student-row-${st.id}`}
+      />
+    </Animated.View>
+  );
+});
+
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
-  content: { paddingHorizontal: H_PAD, paddingBottom: 130 },
+  content: { paddingHorizontal: H_PAD, paddingTop: 4, paddingBottom: 130 },
   segmented: { marginTop: 18 },
   examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16, paddingVertical: 14, paddingHorizontal: 18 },
   examArt: { width: 54, height: 54 },
@@ -419,6 +532,13 @@ const s = StyleSheet.create({
   examTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   examSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
   list: { marginTop: 16 },
+  listGap: { height: 16 },
+  // Superficie clay dietro le righe: parte dove finisce l'intestazione.
+  backdrop: { position: 'absolute', top: '100%', left: 0, right: 0 },
+  backdropFill: { flex: 1 },
+  rowFirst: { borderTopLeftRadius: CLAY_RADIUS.card, borderTopRightRadius: CLAY_RADIUS.card, overflow: 'hidden' },
+  rowLast: { borderBottomLeftRadius: CLAY_RADIUS.card, borderBottomRightRadius: CLAY_RADIUS.card, overflow: 'hidden' },
+  rowHidden: { display: 'none' },
   rowSub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },
   rowDue: { color: CLAY.ink, fontWeight: '600' },
   faces: { marginTop: 20 },
