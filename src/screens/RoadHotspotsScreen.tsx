@@ -1,6 +1,6 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import MapView, { Circle, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -105,7 +105,8 @@ export default function RoadHotspotsScreen() {
   const mapH = Math.round(height * 0.38);
 
   const [rowBase, setRowBase] = useState(0);
-  const onRowBase = useCallback((h: number) => setRowBase((prev) => (prev ? prev : Math.round(h))), []);
+  // La riga più alta (le icone arrivano dopo il primo layout): la superficie non resta mai più corta.
+  const onRowBase = useCallback((h: number) => setRowBase((prev) => Math.max(prev, Math.round(h))), []);
   const backdropH = hotspots?.length && rowBase ? hotspots.length * rowBase + LIST_INSET * 2 : 0;
 
   const renderItem = useCallback(
@@ -146,6 +147,8 @@ export default function RoadHotspotsScreen() {
         />
       </View>
       <View style={s.body}>
+        {/* Spazio vero e non padding: la superficie sotto parte da `top: '100%'` del contenuto. */}
+        <View style={s.gap} />
         {error && !hotspots ? (
           <Animated.Text entering={ROAD_FADE_IN} style={s.error}>
             {error}
@@ -240,33 +243,26 @@ const HotspotsMap = React.memo(function HotspotsMap({
 }) {
   const mapRef = useRef<MapView>(null);
   const [ready, setReady] = useState(false);
-  const [initialRegion] = useState(() => {
-    const first = hotspots?.[0];
-    const c = first ? { latitude: first.lat, longitude: first.lng } : FALLBACK;
-    return { ...c, latitudeDelta: 0.04, longitudeDelta: 0.04 };
-  });
   const max = hotspots?.reduce((m, h) => Math.max(m, h.errors), 0) ?? 0;
   const routeLines = useMemo(
     () => (routes ?? []).map((r) => ({ id: r.id, coords: r.path.map(([latitude, longitude]) => ({ latitude, longitude })) })),
     [routes],
   );
-
-  // Inquadra i punti (e i percorsi se non ci sono punti); al cambio periodo con la camera di MapKit.
-  const fittedOnce = useRef(false);
-  useEffect(() => {
-    if (!ready) return;
+  const target = useMemo(() => {
     const pts = hotspots?.length
       ? hotspots.map((h) => ({ latitude: h.lat, longitude: h.lng }))
       : routeLines.flatMap((r) => r.coords);
-    if (!pts.length) return;
-    const edgePadding = { top: topInset + NAV_BAR_H + 30, right: 50, bottom: 70, left: 50 };
-    if (pts.length === 1) {
-      mapRef.current?.animateToRegion({ ...pts[0], latitudeDelta: 0.012, longitudeDelta: 0.012 }, fittedOnce.current ? 260 : 0);
-    } else {
-      mapRef.current?.fitToCoordinates(pts, { edgePadding, animated: fittedOnce.current });
-    }
-    fittedOnce.current = true;
-  }, [ready, hotspots, routeLines, topInset]);
+    return regionFor(pts);
+  }, [hotspots, routeLines]);
+  // Di solito i punti sono già pronti (store scaldato): la mappa nasce inquadrata.
+  const [initialRegion] = useState(() => target ?? { ...FALLBACK, latitudeDelta: 0.04, longitudeDelta: 0.04 });
+  const first = useRef(true);
+  useEffect(() => {
+    if (!ready || !target) return;
+    // Al cambio periodo la camera scivola (260 ms, animazione di MapKit).
+    mapRef.current?.animateToRegion(target, first.current ? 0 : 260);
+    first.current = false;
+  }, [ready, target]);
 
   return (
     <View style={{ height }} testID="hotspots-map">
@@ -300,25 +296,51 @@ const HotspotsMap = React.memo(function HotspotsMap({
             zIndex={1}
           />
         ))}
-        {(hotspots ?? []).map((h) => {
-          const k = max ? h.errors / max : 1;
-          return (
-            <Circle
-              key={`c-${h.key}`}
-              center={{ latitude: h.lat, longitude: h.lng }}
-              radius={70 + 90 * k}
-              fillColor={`rgba(220,38,38,${(0.14 + 0.2 * k).toFixed(2)})`}
-              strokeColor="rgba(220,38,38,0)"
-              strokeWidth={0}
-              zIndex={2}
-            />
-          );
-        })}
+        {(hotspots ?? []).map((h) => (
+          <HeatHalo key={`c-${h.key}`} lat={h.lat} lng={h.lng} k={max ? h.errors / max : 1} />
+        ))}
         {(hotspots ?? []).map((h) => (
           <PinTap key={`p-${h.key}`} hotspot={h} onOpen={onOpen} />
         ))}
       </MapView>
     </View>
+  );
+});
+
+/** Quadro della mappa sui punti: centro e ampiezza con un minimo (un solo punto = zona dell'incrocio). */
+function regionFor(pts: Array<{ latitude: number; longitude: number }>) {
+  if (!pts.length) return null;
+  const lats = pts.map((p) => p.latitude);
+  const lngs = pts.map((p) => p.longitude);
+  const [minLat, maxLat, minLng, maxLng] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
+  return {
+    // Un po' più in alto del centro: sotto la mappa sale il pannello.
+    latitude: (minLat + maxLat) / 2 - Math.max(maxLat - minLat, 0.006) * 0.12,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * 2.4, 0.012),
+    longitudeDelta: Math.max((maxLng - minLng) * 2.4, 0.012),
+  };
+}
+
+/**
+ * Alone rosso sotto il punto (più errori = più grande e più intenso).
+ * Marker con una vista e non `Circle`: con questa versione di
+ * react-native-maps sulla New Architecture il cerchio non si disegnava.
+ */
+const HeatHalo = React.memo(function HeatHalo({ lat, lng, k }: { lat: number; lng: number; k: number }) {
+  const [laid, setLaid] = useState(false);
+  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
+  const size = Math.round(56 + 52 * k);
+  return (
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1}>
+      <View
+        pointerEvents="none"
+        onLayout={() => setLaid(true)}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: `rgba(220,38,38,${(0.12 + 0.14 * k).toFixed(2)})`, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <View style={{ width: size * 0.56, height: size * 0.56, borderRadius: size * 0.28, backgroundColor: `rgba(220,38,38,${(0.1 + 0.12 * k).toFixed(2)})` }} />
+      </View>
+    </Marker>
   );
 });
 
@@ -391,14 +413,13 @@ const s = StyleSheet.create({
     backgroundColor: CLAY.bg,
     paddingTop: 24,
     paddingHorizontal: H_PAD + 4,
-    boxShadow: [
-      { offsetX: 0, offsetY: 0, blurRadius: 0, spreadDistance: 1, color: 'rgba(17,17,17,0.04)' },
-      { offsetX: 0, offsetY: -10, blurRadius: 28, spreadDistance: -14, color: 'rgba(17,17,17,0.22)' },
-    ],
+    // Solo l'ombra verso l'alto: l'anello da 1 px disegnava una linea sotto il pannello.
+    boxShadow: [{ offsetX: 0, offsetY: -10, blurRadius: 28, spreadDistance: -14, color: 'rgba(17,17,17,0.22)' }],
   },
   note: { fontSize: 14, lineHeight: 20, color: CLAY.ink3, marginTop: 10 },
   segmented: { marginTop: 18 },
-  body: { paddingHorizontal: H_PAD, paddingTop: 18 },
+  body: { paddingHorizontal: H_PAD },
+  gap: { height: 18 },
   error: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, paddingHorizontal: 4 },
   skList: { paddingVertical: 6 },
   skRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 12 },
