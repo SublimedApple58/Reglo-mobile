@@ -6,6 +6,7 @@ import { CLAY } from '../../../src/theme';
 import { useRouter } from 'expo-router';
 
 import { enterRoad, markRoadPrivacySeen } from '../../../src/road/roadActions';
+import { chosenLessonPlan } from '../../../src/road/planStore';
 import { ROAD_ROUTE, SHEET_HANDOFF_MS, roadEntryStore, roadPendingStart } from '../../../src/road/entryFlow';
 
 // Solo titolo + testo: le icone sono tolte (design-system §0.4, meno icone).
@@ -41,7 +42,7 @@ export default function RoadPrivacySheet() {
     router.back();
     if (!pending && !seed) return;
     setTimeout(async () => {
-      const ok = pending ? await pending() : seed ? await enterRoad(seed.lesson.appointmentId) : false;
+      const ok = pending ? await pending() : seed ? await enterRoad(seed.lesson.appointmentId, chosenLessonPlan(seed.lesson)) : false;
       if (ok) router.replace(ROAD_ROUTE);
     }, SHEET_HANDOFF_MS);
   };

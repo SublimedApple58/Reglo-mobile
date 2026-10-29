@@ -1606,6 +1606,55 @@ export type RoadSession = {
     street: string | null;
     at: string | null;
   } | null;
+  /** REG-648: il giro scelto alla partenza (null = senza giro). */
+  plan?: RoadStoredPlan | null;
+  /** REG-648: a fine guida, le tappe raggiunte. */
+  planReached?: { reached: string[]; total: number } | null;
+};
+
+/** Una tappa del giro della prossima guida (REG-647/648). */
+export type RoadPlanStop = {
+  key: string;
+  source: 'student' | 'school' | 'exam';
+  kind: string | null;
+  /** La via, o il nome della voce / del percorso d'esame. */
+  title: string;
+  /** Una riga: «Precedenza da migliorare 3 volte in 2 guide». */
+  reason: string;
+  lat: number;
+  lng: number;
+  street?: string | null;
+  /** Minuti di strada dalla tappa prima (o dalla partenza). */
+  minutes: number;
+  errors?: number | null;
+  lastAt?: string | null;
+  examRouteId: string | null;
+  endLat: number | null;
+  endLng: number | null;
+};
+
+export type RoadPlan = { stops: RoadPlanStop[]; minutes: number };
+export type RoadStoredPlan = RoadPlan & { chosenAt: string };
+
+/** Punto critico dell'allievo: i suoi errori ripetuti (REG-647). */
+export type RoadStudentHotspot = {
+  key: string;
+  kind: string;
+  label: string;
+  lat: number;
+  lng: number;
+  street: string | null;
+  errors: number;
+  sessions: number;
+  lastAt: string;
+};
+
+export type RoadPlanResponse = {
+  planEnabled: boolean;
+  planAlertsEnabled: boolean;
+  /** Null con «Proponi il giro» spento. */
+  plan: RoadPlan | null;
+  studentHotspots: RoadStudentHotspot[];
 };
 
 export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
@@ -1632,6 +1681,9 @@ export type RoadCatalog = {
 
 export type RoadState = {
   roadEnabled: boolean;
+  /** REG-648: «Proponi il giro» e «Avvisi delle tappe» (accesi se il server non li manda). */
+  planEnabled?: boolean;
+  planAlertsEnabled?: boolean;
   catalog: RoadCatalog;
   activeSession: RoadSessionWithLesson | null;
   eligibleLesson: RoadLesson | null;
@@ -1717,6 +1769,8 @@ export type RoadFreeStartInput = {
   confirmNoBuffer?: boolean;
   /** L'allievo ha le prenotazioni bloccate: l'istruttore procede comunque (come in agenda). */
   confirmStudentBlocked?: boolean;
+  /** REG-649: le tappe scelte; null/assente = senza giro. */
+  plan?: RoadPlan | null;
 };
 
 export type RoadPointsResult = {

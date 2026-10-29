@@ -4,6 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 import { useRouter, useSegments } from 'expo-router';
 import { useSession } from '../context/SessionContext';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
+import { prefetchLessonPlan } from './planStore';
 import { regloApi } from '../services/regloApi';
 import { isInstructor } from '../utils/roles';
 import { roadStore, useRoadSelector } from './roadStore';
@@ -51,6 +52,8 @@ export function RoadController() {
         return;
       }
       roadStore.setEligible(st.activeSession ? null : st.eligibleLesson);
+      // REG-649: il giro della guida dell'invito pronto prima che il foglio si apra.
+      if (!st.activeSession && st.planEnabled !== false) prefetchLessonPlan(st.eligibleLesson);
       if (st.activeSession) {
         await resumeRoad(st.activeSession);
         return;

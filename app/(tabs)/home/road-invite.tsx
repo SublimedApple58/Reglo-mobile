@@ -10,6 +10,8 @@ import { car34Art } from '../../../src/road/markerArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { dismissInvite } from '../../../src/road/roadActions';
+import { lessonMinutes, usePlan } from '../../../src/road/planStore';
+import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
 import {
   SHEET_HANDOFF_MS,
   beginRoadEntry,
@@ -34,8 +36,14 @@ export default function RoadInviteSheet() {
     };
   }, []);
 
+  const planLesson = seed?.lesson ?? null;
+  const planMin = planLesson ? lessonMinutes(planLesson) : 60;
+  const plan = usePlan(planLesson?.student?.id, planMin);
+
   if (!seed) return <View style={s.root} />;
   const { lesson, locationName } = seed;
+  // REG-649: con un giro da proporre le tre righe su Road lasciano il posto alle tappe.
+  const showPlan = plan === undefined || !!plan?.plan?.stops.length;
   const meta = [formatRange(lesson.startsAt, lesson.endsAt), lesson.vehicle?.name ?? null].filter(Boolean).join(' · ');
 
   const onEnter = () => {
@@ -77,12 +85,16 @@ export default function RoadInviteSheet() {
         </View>
       </ClaySurface>
 
-      {/* Solo testo: le tre cose che fa Road (icone tolte, design-system §0.4). */}
-      <View style={s.features}>
-        <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
-        <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
-        <Text style={s.featureTx}>Pagellino a portata di mano</Text>
-      </View>
+      {showPlan ? (
+        <RoadPlanCard studentId={lesson.student?.id} durationMin={planMin} style={s.plan} testID="road-invite-plan" />
+      ) : (
+        // Solo testo: le tre cose che fa Road (icone tolte, design-system §0.4).
+        <View style={s.features}>
+          <Text style={s.featureTx}>Percorso registrato mentre guidate</Text>
+          <Text style={s.featureTx}>Segnali gli errori sul punto esatto</Text>
+          <Text style={s.featureTx}>Pagellino a portata di mano</Text>
+        </View>
+      )}
     </FormSheet>
   );
 }
@@ -95,5 +107,6 @@ const s = StyleSheet.create({
   features: { marginTop: 20, marginHorizontal: 4, gap: 10, marginBottom: 4 },
   featureTx: { flex: 1, fontSize: 15, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
   stack: { gap: 12 },
+  plan: { marginTop: 16, marginBottom: 4 },
   laterHint: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, textAlign: 'center', marginTop: -2 },
 });

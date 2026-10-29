@@ -36,6 +36,8 @@ import { BriefingRows, RoadAvatar } from '../../../src/components/road/RoadTabPa
 import { enterRoadFree, hasSeenRoadPrivacy } from '../../../src/road/roadActions';
 import { car34Art } from '../../../src/road/markerArt';
 import { formatHm } from '../../../src/road/format';
+import { chosenPlan, prefetchPlan } from '../../../src/road/planStore';
+import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
 
 type Person = { id: string; name: string; detail: string; sortKey: string };
 
@@ -120,6 +122,18 @@ export default function AvviaGuidaSheet() {
     };
   }, [studentId, briefings]);
 
+  // REG-649: il giro dell'allievo scelto per TUTTE le durate, così cambiare
+  // durata non aspetta la rete (dalla tab arriva già quello di default).
+  const durationsKey = (options?.durations ?? []).join(',');
+  useEffect(() => {
+    if (!studentId) return;
+    const task = InteractionManager.runAfterInteractions(() => {
+      for (const d of durationsKey ? durationsKey.split(',').map(Number) : [duration]) prefetchPlan(studentId, d);
+    });
+    return () => task.cancel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId, durationsKey]);
+
   const byId = useMemo(() => new Map((students ?? []).map((st) => [st.id, st])), [students]);
   const blocked = useMemo(() => new Set(options?.blockedStudentIds ?? []), [options]);
 
@@ -182,7 +196,7 @@ export default function AvviaGuidaSheet() {
   const onStart = async () => {
     if (!studentId || !vehicleId || starting) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-    const input = { studentId, vehicleId, durationMin: duration };
+    const input = { studentId, vehicleId, durationMin: duration, plan: chosenPlan(studentId, duration) };
     const start = async () => {
       const res = await enterRoadFree(input);
       if (res.kind === 'current') {
@@ -369,6 +383,8 @@ export default function AvviaGuidaSheet() {
         </>
       ) : null}
 
+      <RoadPlanCard studentId={studentId} durationMin={duration} style={s.plan} testID="road-free-plan" />
+
       <Text style={s.label}>Guida</Text>
       <ClaySurface
         onPress={() => setStep('vehicle')}
@@ -532,6 +548,7 @@ markClayRow(VehicleRow);
 markClayRow(PersonRow);
 
 const s = StyleSheet.create({
+  plan: { marginTop: 18 },
   // Intestazioni di sezione native in frase normale (niente maiuscoletto da eyebrow).
   section: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, paddingHorizontal: 4, paddingTop: 22, paddingBottom: 8 },
   letter: { fontSize: 13, fontWeight: '600', color: CLAY.ink4, paddingHorizontal: 4, paddingTop: 16, paddingBottom: 6 },

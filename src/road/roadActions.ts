@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
-import type { RoadFreeStartInput, RoadLesson, RoadSessionWithLesson } from '../types/regloApi';
+import type { RoadFreeStartInput, RoadLesson, RoadPlan, RoadSessionWithLesson } from '../types/regloApi';
 import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
@@ -144,11 +144,11 @@ function messageOf(err: unknown, fallback: string) {
  * «Entra in Road» su una guida. Ritorna true se la modalità Road è partita
  * (chi chiama naviga su `/road`).
  */
-export async function enterRoad(appointmentId: string): Promise<boolean> {
+export async function enterRoad(appointmentId: string, plan?: RoadPlan | null): Promise<boolean> {
   if (!(await ensureRoadLocationPermission())) return false;
   let started;
   try {
-    started = await regloApi.startRoadSession(appointmentId);
+    started = await regloApi.startRoadSession(appointmentId, plan);
   } catch (err) {
     Alert.alert('Road non disponibile', messageOf(err, 'Non è stato possibile avviare Road. Riprova.'));
     return false;

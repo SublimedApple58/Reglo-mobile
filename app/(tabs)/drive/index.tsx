@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,9 @@ import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { regloApi } from '../../../src/services/regloApi';
-import type { RoadBriefing, RoadFreeOptions, RoadLesson, RoadRecentSession, RoadSuggestion } from '../../../src/types/regloApi';
+import type { RoadBriefing, RoadFreeOptions, RoadLesson, RoadPlanStop, RoadRecentSession, RoadSuggestion } from '../../../src/types/regloApi';
+import { lessonMinutes, prefetchLessonPlan, prefetchPlan, setPlanOrigin, usePlan, usePlanChoice } from '../../../src/road/planStore';
+import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
 import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
@@ -159,6 +161,7 @@ export default function RoadTab() {
         if (!perm.granted) return;
         const last = await Location.getLastKnownPositionAsync({ maxAge: 10 * 60_000 });
         if (!alive || !last) return;
+        setPlanOrigin({ lat: last.coords.latitude, lng: last.coords.longitude });
         setPos({ latitude: last.coords.latitude, longitude: last.coords.longitude });
       } catch {
         // la mappa resta sulla sede o sulla città di default
@@ -172,9 +175,7 @@ export default function RoadTab() {
   const hq = options?.headquarters ?? null;
   const centerLat = pos?.latitude ?? hq?.lat ?? FALLBACK.latitude;
   const centerLng = pos?.longitude ?? hq?.lng ?? FALLBACK.longitude;
-  useEffect(() => {
-    mapRef.current?.setCamera({ center: { latitude: centerLat, longitude: centerLng }, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM });
-  }, [centerLat, centerLng]);
+  // La camera la muove la mappa (`RoadMap`): centro su di te, o sul giro (REG-649).
 
   const inRoad = roadPhase !== 'idle' && !!roadSession;
   const current = options?.currentLesson ?? null;
@@ -187,6 +188,26 @@ export default function RoadTab() {
     return filtered.slice(0, 3);
   }, [options, current]);
   const selId = (faces.find((f) => f.id === selectedId) ?? faces[0] ?? null)?.id ?? null;
+
+  // REG-649: il giro dei tre volti e della guida in agenda, scaricato appena
+  // arrivano le opzioni (dopo le animazioni): al tocco su un volto è già pronto.
+  const defaultDuration = options?.defaultDuration ?? 60;
+  const faceIds = faces.map((f) => f.id).join(',');
+  useEffect(() => {
+    if (!options || inRoad) return;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (current) prefetchLessonPlan(current);
+      for (const id of faceIds ? faceIds.split(',') : []) prefetchPlan(id, defaultDuration);
+    });
+    return () => task.cancel();
+  }, [options, inRoad, current, faceIds, defaultDuration]);
+
+  // Tappe del giro mostrato (guida in agenda o volto scelto) sulla mappa in alto.
+  const planStudent = showAgenda && current ? current.student?.id ?? null : selId;
+  const planMin = showAgenda && current ? lessonMinutes(current) : defaultDuration;
+  const shownPlan = usePlan(inRoad ? null : planStudent, planMin);
+  const [planOn] = usePlanChoice(planStudent);
+  const mapStops = shownPlan?.plan?.stops.length ? shownPlan.plan.stops : null;
 
   const recent = options?.recentSessions ?? null;
   // Guida finita col pagellino da compilare: niente CTA nella tab (resta una
@@ -263,6 +284,8 @@ export default function RoadTab() {
           pos={pos}
           hq={hq}
           carColor={defaultVehicle?.carColor ?? null}
+          stops={mapStops}
+          stopsOn={planOn}
         />
 
         <View style={s.panel} testID="road-tab-panel">
@@ -304,6 +327,7 @@ export default function RoadTab() {
               {faces.length ? (
                 <>
                   <BriefStack faces={faces} selId={selId} briefings={options?.briefings} />
+                  <PlanStack faces={faces} selId={selId} durationMin={defaultDuration} />
                   <StartButton faces={faces} selId={selId} duration={options?.defaultDuration ?? 60} onStart={openStart} />
                 </>
               ) : (
@@ -345,7 +369,11 @@ const RoadMap = React.memo(function RoadMap({
   pos,
   hq,
   carColor,
+  stops,
+  stopsOn,
 }: {
+  stops: RoadPlanStop[] | null;
+  stopsOn: boolean;
   mapRef: React.RefObject<MapView | null>;
   height: number;
   topInset: number;
@@ -357,6 +385,17 @@ const RoadMap = React.memo(function RoadMap({
 }) {
   // Camera iniziale fissata al primo render: dopo si sposta con `setCamera`.
   const [initialCamera] = useState(() => ({ center: { latitude: lat, longitude: lng }, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM }));
+  // REG-649: con un giro la camera abbraccia partenza e tappe (260 ms, senza
+  // rimbalzo); senza giro torna su di te. Una chiave = una sola animazione.
+  const stopsKey = stops?.map((x) => x.key).join(',') ?? '';
+  useEffect(() => {
+    const cam = stops?.length ? planCamera([{ lat, lng }, ...stops]) : null;
+    mapRef.current?.animateCamera(
+      cam ?? { center: { latitude: lat, longitude: lng }, heading: 0, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM },
+      { duration: 260 },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopsKey, lat, lng]);
   return (
     <View style={{ height }}>
       <MapView
@@ -381,6 +420,7 @@ const RoadMap = React.memo(function RoadMap({
       >
         {pos ? <RoadCarMarker coordinate={pos} rotation={0} color={carColor} /> : null}
         {hq ? <HqMarker lat={hq.lat} lng={hq.lng} /> : null}
+        {stops ? <PlanOverlay stops={stops} from={pos ? { lat: pos.latitude, lng: pos.longitude } : hq} on={stopsOn} /> : null}
       </MapView>
     </View>
   );
@@ -413,6 +453,7 @@ const AgendaPanel = React.memo(function AgendaPanel({
       ) : (
         <Text style={[s.sub, { marginTop: 6 }]}>Prima guida in Road con questo allievo.</Text>
       )}
+      <RoadPlanCard studentId={lesson.student?.id} durationMin={lessonMinutes(lesson)} testID="road-tab-plan" />
       <ClayButton title="Entra in Road" leading={<PlayGlyph />} onPress={() => void beginRoadEntry(router, lesson)} style={s.cta} testID="road-tab-enter" />
       <RoadPressable kind="small" onPress={onOther} hitSlop={8} style={s.secondary}>
         <Text style={s.secondaryTx}>Parti con un altro allievo</Text>
@@ -640,6 +681,93 @@ const HotspotsEntry = React.memo(function HotspotsEntry() {
  * (niente icona, design-system §0.4). `tracksViewChanges` resta acceso fino
  * al primo layout, altrimenti iOS fotografa il marker vuoto.
  */
+/** Camera che contiene tutti i punti, nella mappa bassa (altezza ~36% dello schermo). */
+function planCamera(points: Array<{ lat: number; lng: number }>) {
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const cLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+  const cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+  const spanM = Math.max(
+    (Math.max(...lats) - Math.min(...lats)) * 111_320,
+    (Math.max(...lngs) - Math.min(...lngs)) * 111_320 * Math.cos((cLat * Math.PI) / 180) * 0.45,
+  );
+  // La mappa è bassa e larga: lo spazio utile in verticale comanda.
+  const altitude = Math.max(ALTITUDE, spanM * 3.2);
+  const zoom = Math.max(11, Math.min(ZOOM, ZOOM - Math.log2(altitude / ALTITUDE)));
+  return { center: { latitude: cLat, longitude: cLng }, heading: 0, pitch: PITCH, altitude, zoom };
+}
+
+/**
+ * Le tappe del giro sulla mappa della tab: tratteggio sottile dalla partenza
+ * alle tappe in ordine (non la strada: quella arriva in Road, REG-652) e i
+ * numeri neri, gli stessi della card. «Segui il giro» spento = attenuate.
+ */
+const PlanOverlay = React.memo(function PlanOverlay({
+  stops,
+  from,
+  on,
+}: {
+  stops: RoadPlanStop[];
+  from: { lat: number; lng: number } | null;
+  on: boolean;
+}) {
+  const line = useMemo(() => {
+    const pts = from ? [{ latitude: from.lat, longitude: from.lng }] : [];
+    for (const st of stops) {
+      pts.push({ latitude: st.lat, longitude: st.lng });
+      if (st.endLat != null && st.endLng != null) pts.push({ latitude: st.endLat, longitude: st.endLng });
+    }
+    return pts;
+  }, [stops, from]);
+  return (
+    <>
+      {line.length >= 2 ? (
+        <Polyline coordinates={line} strokeColor={on ? 'rgba(17,17,17,0.55)' : 'rgba(17,17,17,0.2)'} strokeWidth={2} lineDashPattern={[5, 6]} />
+      ) : null}
+      {stops.map((st, i) => (
+        <StopMarker key={st.key} lat={st.lat} lng={st.lng} n={i + 1} on={on} />
+      ))}
+    </>
+  );
+});
+
+const StopMarker = React.memo(function StopMarker({ lat, lng, n, on }: { lat: number; lng: number; n: number; on: boolean }) {
+  const [ready, setReady] = useState(false);
+  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
+  return (
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!ready} opacity={on ? 1 : 0.4}>
+      <View style={[s.stop, CLAY_SHADOW.raiseSm]} onLayout={() => setReady(true)} testID="road-tab-plan-stop">
+        <Text style={s.stopTx}>{n}</Text>
+      </View>
+    </Marker>
+  );
+});
+
+/**
+ * Il giro dei tre volti, già montati e sovrapposti come il briefing: al
+ * cambio allievo dissolvenza incrociata, nessuna chiamata, l'altezza è quella
+ * del più alto. Nessun volto con un giro = niente.
+ */
+const PlanStack = React.memo(function PlanStack({
+  faces,
+  selId,
+  durationMin,
+}: {
+  faces: RoadSuggestion[];
+  selId: string | null;
+  durationMin: number;
+}) {
+  return (
+    <View style={s.stack}>
+      {faces.map((f, i) => (
+        <CrossfadeLayer key={f.id} active={f.id === selId} style={[s.layer, i > 0 && s.layerOver]}>
+          <RoadPlanCard studentId={f.id} durationMin={durationMin} testID="road-tab-plan" />
+        </CrossfadeLayer>
+      ))}
+    </View>
+  );
+});
+
 const HqMarker = React.memo(function HqMarker({ lat, lng }: { lat: number; lng: number }) {
   const [ready, setReady] = useState(false);
   const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
@@ -667,6 +795,17 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   hqDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CLAY.ink },
+  stop: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: CLAY.ink,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopTx: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hqTx: {
     fontSize: 12.5,
     fontWeight: '600',

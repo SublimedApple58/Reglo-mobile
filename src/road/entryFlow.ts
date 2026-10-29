@@ -1,6 +1,7 @@
 import type { Router } from 'expo-router';
 import type { RoadLesson } from '../types/regloApi';
 import { enterRoad, hasSeenRoadPrivacy } from './roadActions';
+import { chosenLessonPlan } from './planStore';
 
 /**
  * REG-638 Reglo Road — ingresso. Seed dei due form sheet nativi della home
@@ -79,6 +80,7 @@ export async function beginRoadEntry(router: Router, lesson: RoadLesson) {
     router.push(ROAD_PRIVACY_ROUTE);
     return;
   }
-  const ok = await enterRoad(lesson.appointmentId);
+  // REG-649: il giro scelto nella card (o nessuno con «Segui il giro» spento).
+  const ok = await enterRoad(lesson.appointmentId, chosenLessonPlan(lesson));
   if (ok) router.replace(ROAD_ROUTE);
 }

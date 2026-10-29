@@ -119,6 +119,8 @@ import {
   RoadStartResult,
   RoadFreeOptions,
   RoadFreeStartInput,
+  RoadPlan,
+  RoadPlanResponse,
   RoadDetail,
   RoadExamRoute,
   RoadHotspotDetail,
@@ -1034,11 +1036,20 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
-    startRoadSession: async (appointmentId: string) =>
+    startRoadSession: async (appointmentId: string, plan?: RoadPlan | null) =>
       client.request<RoadStartResult>('/api/autoscuole/road/sessions', {
         method: 'POST',
-        body: { appointmentId },
+        body: plan ? { appointmentId, plan } : { appointmentId },
       }),
+    /** REG-649: il giro proposto per allievo e durata, più i suoi punti critici. */
+    getRoadPlan: async (params: { studentId: string; durationMin: number; lat?: number | null; lng?: number | null }) => {
+      const q = new URLSearchParams({ studentId: params.studentId, durationMin: String(params.durationMin) });
+      if (params.lat != null && params.lng != null) {
+        q.set('lat', params.lat.toFixed(5));
+        q.set('lng', params.lng.toFixed(5));
+      }
+      return client.request<RoadPlanResponse>(`/api/autoscuole/road/plan?${q.toString()}`);
+    },
     getRoadSession: async (sessionId: string) =>
       client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}`),
     /** Lotto di punti idempotente su `seq`: rimandarlo dà `duplicate: true`. */

@@ -28,6 +28,8 @@ import { RoadLessonCard } from '../../../src/components/road/RoadLessonCard';
 import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
 import { useRoadSelector } from '../../../src/road/roadStore';
 import { SHEET_HANDOFF_MS, beginRoadEntry } from '../../../src/road/entryFlow';
+import { lessonMinutes } from '../../../src/road/planStore';
+import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
 import * as Haptics from '../../../src/utils/haptics';
 
 const DANGER = '#C13515';
@@ -501,6 +503,16 @@ export default function ManageLessonScreen() {
           </View>
         ) : null}
 
+        {/* REG-649: il giro di questa guida, sopra «Avvia con Road». */}
+        {roadLesson ? (
+          <RoadPlanCard
+            studentId={roadLesson.student?.id}
+            durationMin={lessonMinutes(roadLesson)}
+            style={s.roadPlan}
+            testID="manage-lesson-plan"
+          />
+        ) : null}
+
         {askHowItWent ? (
           <ClayList>
             <ClayListRow
@@ -599,6 +611,7 @@ export default function ManageLessonScreen() {
 }
 
 const s = StyleSheet.create({
+  roadPlan: { marginTop: 0 },
   empty: { backgroundColor: '#FFFFFF', height: 1 },
 
   // Testata
