@@ -194,7 +194,7 @@ const DetailBody = React.memo(function DetailBody({
 });
 
 const s = StyleSheet.create({
-  trim: { marginBottom: -14 },
+  trim: { marginBottom: -22 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 4 },
   caption: { fontSize: 13, color: CLAY.ink3, marginTop: 10 },
   exam: { fontSize: 15, fontWeight: '500', color: CLAY.ink, marginTop: 14 },
