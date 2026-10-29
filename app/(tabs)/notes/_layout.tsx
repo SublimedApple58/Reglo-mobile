@@ -16,6 +16,7 @@ export default function NotesLayout() {
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
       {/* Pagamenti guide (REG-450): form sheet alto quanto il contenuto, scorre da sé (REG-639). */}
       <Stack.Screen name="student-payments" options={FORM_SHEET} />
+      <Stack.Screen name="lesson-history" options={FORM_SHEET} />
       {/* REG-637: storico corto e già pronto dal seed → hug nativo, niente scroll. */}
       <Stack.Screen name="payment-history" options={FORM_SHEET} />
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />

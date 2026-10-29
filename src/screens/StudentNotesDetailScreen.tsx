@@ -8,29 +8,18 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  ReduceMotion,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
 import { studentSettingsStore } from '../stores/studentSettingsStore';
+import { lessonHistoryStore } from '../stores/lessonHistoryStore';
 import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/studentPaymentsStore';
 import { isCompanyManualMode, isLessonUnpaid, canManageLessonPayments } from '../utils/lessonPayments';
-import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
 import { useSession } from '../context/SessionContext';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
-import { StarRating } from '../components/StarRating';
-import {
-  aggregateStudentEvaluations,
-  evaluationSummary,
-  evaluationSummaryLabel,
-} from '../utils/evaluationSheet';
+import { aggregateStudentEvaluations } from '../utils/evaluationSheet';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
@@ -51,19 +40,10 @@ import {
   pathForDate,
 } from '../utils/licensePaths';
 import { colors } from '../theme';
-import { formatDay, formatTime } from '../utils/date';
 import { transmissionLabel } from '../utils/license';
-import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS } from '../utils/motoLessonType';
-import {
-  asExamOutcome,
-  askExamOutcome,
-  canRecordExamOutcome,
-  EXAM_OUTCOME_LABELS,
-  EXAM_OUTCOME_TONE,
-  type ExamOutcome,
-} from '../utils/examOutcome';
+import { asExamOutcome, askExamOutcome, type ExamOutcome } from '../utils/examOutcome';
 import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
-import { RoadHistoryChip } from '../components/road/RoadLessonCard';
+import { LessonHistoryRow } from '../components/student/LessonHistoryRow';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import type { RoadStudentItem } from '../types/regloApi';
@@ -86,11 +66,6 @@ const formatExamDate = (iso: string) => {
   return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-/** Le righe si riassestano quando un pagellino si apre o si chiude. Preesiste
- *  al filtro per percorso, che invece NON usa transizioni di layout: una
- *  lista che scivola di molla a ogni cambio di filtro ondeggia. */
-const EVAL_LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass(0.6);
-
 /** REG-458 — cambiando percorso lo storico guide è un altro elenco: sfuma una
  *  volta, come contenuto che si sostituisce.
  *
@@ -101,20 +76,28 @@ const EVAL_LAYOUT = LinearTransition.springify().damping(22).stiffness(240).mass
  *  solo l'opacità, una volta, in 180ms. */
 const LIST_DISSOLVE = FadeIn.duration(180).reduceMotion(ReduceMotion.Never);
 
-/** L'unico movimento del filtro: toccando «Vedi tutto» lo storico si apre o si
- *  chiude e **l'altezza scorre**, invece di saltare, così quello che sta sotto
- *  scivola al suo posto.
- *
- *  ⚠️ `duration` + `easing` e **niente `springify()`**: una molla qui fa
- *  ondeggiare la scheda, ed è esattamente quello che è stato bocciato. 240ms
- *  con decelerazione semplice: si vede che si apre, non si vede l'animazione.
- *  Con «Riduci movimento» si disattiva da sé (`ReduceMotion.System` è il
- *  default delle transizioni di layout). */
-const HEIGHT_GLIDE = LinearTransition.duration(240).easing(Easing.out(Easing.cubic));
-
 /** I numeri cambiano valore restando dove sono: dissolvenza corta, perché una
  *  cifra grossa che si sostituisce di colpo è lo scatto più visibile. */
 const STAT_DISSOLVE = FadeIn.duration(160).reduceMotion(ReduceMotion.Never);
+
+/** Guide mostrate nella scheda per «Prossime guide» e «Storico»: il resto sta
+ *  nel foglio «Tutte le guide» (Tiziano 29/10: niente liste infinite). */
+const HISTORY_PREVIEW = 5;
+
+/** Ultima riga della card: apre l'elenco intero. */
+const SeeAllRow = React.memo(function SeeAllRow({ count, onPress, testID }: { count: number; onPress: () => void; testID: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      testID={testID}
+      style={({ pressed }) => [s.seeAll, pressed && { opacity: 0.6 }]}
+    >
+      <Text style={s.seeAllTx}>Vedi tutte ({count})</Text>
+      <Ionicons name="chevron-forward" size={16} color={CLAY.chevron} />
+    </Pressable>
+  );
+});
 
 export const StudentNotesDetailScreen = () => {
   const router = useRouter();
@@ -147,7 +130,6 @@ export const StudentNotesDetailScreen = () => {
   /** Modalità di incasso dell'autoscuola: decide se esiste il "segna pagata". */
   const [paymentSettings, setPaymentSettings] = useState<StudentPaymentsSettings | null>(null);
   /** Guida con il pagellino espanso nello storico (una alla volta). */
-  const [openEvalId, setOpenEvalId] = useState<string | null>(null);
   /** Blocco pagellino aggregato: a riposo è una riga sola. */
   const [pagellinoOpen, setPagellinoOpen] = useState(false);
   const [cases, setCases] = useState<AutoscuolaCase[]>([]);
@@ -578,14 +560,43 @@ export const StudentNotesDetailScreen = () => {
   })();
 
   const subtitleLine = [licenseLabel, giaConseguite].filter(Boolean).join(' · ');
-  /** La prossima guida (o esame) in programma, la più vicina. */
-  const nextLesson = useMemo(() => {
+  /** Prossime guide (dalla più vicina) e storico già svolto (dalla più
+   *  recente), dallo stesso elenco del percorso mostrato. Calcolati una volta
+   *  per caricamento: il tocco non ricalcola niente. */
+  const { upcoming, past } = useMemo(() => {
     const now = Date.now();
-    return [...allAppointments]
-      .filter((a) => ['scheduled', 'confirmed'].includes((a.status ?? '').trim().toLowerCase()))
-      .filter((a) => new Date(a.startsAt).getTime() > now)
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ?? null;
-  }, [allAppointments]);
+    const up: AutoscuolaAppointmentWithRelations[] = [];
+    const done: AutoscuolaAppointmentWithRelations[] = [];
+    for (const a of appointments) (new Date(a.startsAt).getTime() > now ? up : done).push(a);
+    up.reverse();
+    return { upcoming: up, past: done };
+  }, [appointments]);
+
+  const stackName = segments[1] === 'notes' ? 'notes' : 'home';
+  const openRoad = useCallback(
+    (appointmentId: string) => void openRoadPercorso(router, stackName, appointmentId),
+    [router, stackName],
+  );
+
+  // Seed del foglio «Tutte le guide»: ripubblicato a ogni ricarica, così il
+  // foglio aperto si aggiorna dopo un salvataggio (dati già pronti, §15).
+  useEffect(() => {
+    lessonHistoryStore.set({
+      studentName: fullName,
+      upcoming,
+      past,
+      roadByLesson,
+      savingId: outcomeSavingId,
+      onDetails: openDetails,
+      onOutcome: recordOutcome,
+      onRoad: openRoad,
+    });
+  }, [fullName, upcoming, past, roadByLesson, outcomeSavingId, openDetails, recordOutcome, openRoad]);
+
+  const openHistory = useCallback(
+    (kind: 'upcoming' | 'past') => router.push(`/(tabs)/${stackName}/lesson-history?kind=${kind}`),
+    [router, stackName],
+  );
   const showSettings = groupEnabled || studentPhase === 'PRATICA' || locations.length > 0;
 
   // REG-639 «vita ovunque» (Tiziano 28/10): il dettaglio allievo è un FORM SHEET
@@ -622,18 +633,108 @@ export const StudentNotesDetailScreen = () => {
         <Avatar userId={studentId ?? null} name={fullName} size={88} />
         <Text style={s.heroName} numberOfLines={1}>{fullName}</Text>
         {subtitleLine ? <Text style={s.heroSub} numberOfLines={2}>{subtitleLine}</Text> : null}
-        {!loading ? (
-          // REG-639 «memorabile»: il prossimo passo, subito sotto il nome.
-          <Animated.Text entering={STAT_DISSOLVE} style={s.nextTx} numberOfLines={1}>
-            {nextLesson
-              ? `Prossima guida ${formatDay(nextLesson.startsAt)} · ${formatTime(nextLesson.startsAt)}`
-              : 'Nessuna guida in programma'}
-          </Animated.Text>
-        ) : (
-          <SkeletonBlock width={210} height={15} radius={6} style={s.nextSkel} />
-        )}
       </View>
 
+      {/* Allievo: contatti e patenti, subito sotto il nome (Tiziano 29/10:
+          in fondo, sotto tutto lo storico, non li trovava nessuno). */}
+      {loading ? (
+        <ClaySurface padded={false} style={s.firstBlock}>
+          {[0, 1].map((i) => (
+            <View key={i} style={[s.skelRow, i > 0 && s.hDivider]}>
+              <SkeletonBlock width="30%" height={15} radius={6} />
+              <SkeletonBlock width="55%" height={12} radius={6} style={{ marginTop: 8 }} />
+            </View>
+          ))}
+        </ClaySurface>
+      ) : email || phone || obtained.length > 0 || defaultLocationName ? (
+        <Animated.View entering={LIST_DISSOLVE} style={s.firstBlock}>
+          <ClayList>
+            {phone ? <ClayListRow title="Telefono" subtitle={phone} onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
+            {email ? <ClayListRow title="Email" subtitle={email} onPress={() => Linking.openURL(`mailto:${email}`)} /> : null}
+            {obtained.length > 0 ? (
+              <ClayListRow
+                title={obtained.length === 1 ? 'Patente già conseguita' : 'Patenti già conseguite'}
+                subtitle={obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
+              />
+            ) : null}
+            {defaultLocationName ? <ClayListRow title="Luogo abituale" subtitle={defaultLocationName} /> : null}
+          </ClayList>
+        </Animated.View>
+      ) : null}
+
+      {/* Pagamenti e impostazioni: una lista sola */}
+      {!loading && (paymentsManualMode || showSettings) ? (
+        <ClayList style={s.listGap}>
+          {paymentsManualMode ? (
+            <ClayListRow
+              title="Pagamenti"
+              subtitle={
+                // REG-639 «memorabile»: il da riscuotere è il prossimo passo, in
+                // nero; in pari resta grigio. Il salvadanaio lo dice a colpo d'occhio.
+                unpaidCount === 0 ? (
+                  'In pari, niente da riscuotere'
+                ) : (
+                  <Text style={s.dueTx} numberOfLines={1}>
+                    {unpaidCount === 1 ? '1 guida da pagare' : `${unpaidCount} guide da pagare`}
+                  </Text>
+                )
+              }
+              trailing={
+                <Icon3D source={unpaidCount === 0 ? VITA_ART.salvadanaioPieno : VITA_ART.salvadanaio} size={46} />
+              }
+              onPress={openPayments}
+              testID="student-payments-row"
+            />
+          ) : null}
+          {showSettings ? (
+            <ClayListRow
+              title="Impostazioni"
+              subtitle={[
+                groupEnabled ? (groupOptIn ? 'Guide di gruppo sì' : 'Guide di gruppo no') : null,
+                studentPhase === 'PRATICA' ? (examReady ? 'pronto per l’esame' : null) : null,
+              ].filter(Boolean).join(' · ') || 'Gruppo, esame e luogo'}
+              onPress={openStudentSettings}
+              testID="student-settings-row"
+            />
+          ) : null}
+        </ClayList>
+      ) : null}
+
+      {/* Esame in arrivo */}
+      {!loading && upcomingExam ? (
+        <ClaySurface radius={22} style={[s.card, s.examCard]}>
+          <Image source={VITA_ART.esame} style={s.examArt} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
+            <Text style={s.cardSub}>{formatExamDate(upcomingExam.date)}</Text>
+          </View>
+        </ClaySurface>
+      ) : null}
+
+      {/* Prossime guide: le cose da fare, prima dello storico */}
+      {!loading && upcoming.length > 0 ? (
+        <ClaySection title="Prossime guide">
+          <Animated.View entering={LIST_DISSOLVE}>
+            <ClaySurface padded={false}>
+              {upcoming.slice(0, HISTORY_PREVIEW).map((appt, idx) => (
+                <LessonHistoryRow
+                  key={appt.id}
+                  appt={appt}
+                  divider={idx > 0}
+                  roadItem={roadByLesson.get(appt.id)}
+                  saving={outcomeSavingId === appt.id}
+                  onDetails={openDetails}
+                  onOutcome={recordOutcome}
+                  onRoad={openRoad}
+                />
+              ))}
+              {upcoming.length > HISTORY_PREVIEW ? (
+                <SeeAllRow count={upcoming.length} onPress={() => openHistory('upcoming')} testID="upcoming-see-all" />
+              ) : null}
+            </ClaySurface>
+          </Animated.View>
+        </ClaySection>
+      ) : null}
       {/* REG-458 — percorso mostrato: esiste solo con più di un percorso. */}
       {licensePaths.length > 1 ? (
         <ClaySurface
@@ -679,58 +780,9 @@ export const StudentNotesDetailScreen = () => {
         ))}
       </View>
 
-      {/* Esame in arrivo */}
-      {!loading && upcomingExam ? (
-        <ClaySurface radius={22} style={[s.card, s.examCard]}>
-          <Image source={VITA_ART.esame} style={s.examArt} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
-            <Text style={s.cardSub}>{formatExamDate(upcomingExam.date)}</Text>
-          </View>
-        </ClaySurface>
-      ) : null}
-
-      {/* Pagamenti e impostazioni: una lista sola */}
-      {!loading && (paymentsManualMode || showSettings) ? (
-        <ClayList style={s.listGap}>
-          {paymentsManualMode ? (
-            <ClayListRow
-              title="Pagamenti"
-              subtitle={
-                // REG-639 «memorabile»: il da riscuotere è il prossimo passo, in
-                // nero; in pari resta grigio. Il salvadanaio lo dice a colpo d'occhio.
-                unpaidCount === 0 ? (
-                  'In pari, niente da riscuotere'
-                ) : (
-                  <Text style={s.dueTx} numberOfLines={1}>
-                    {unpaidCount === 1 ? '1 guida da pagare' : `${unpaidCount} guide da pagare`}
-                  </Text>
-                )
-              }
-              trailing={
-                <Icon3D source={unpaidCount === 0 ? VITA_ART.salvadanaioPieno : VITA_ART.salvadanaio} size={46} />
-              }
-              onPress={openPayments}
-              testID="student-payments-row"
-            />
-          ) : null}
-          {showSettings ? (
-            <ClayListRow
-              title="Impostazioni"
-              subtitle={[
-                groupEnabled ? (groupOptIn ? 'Guide di gruppo sì' : 'Guide di gruppo no') : null,
-                studentPhase === 'PRATICA' ? (examReady ? 'pronto per l’esame' : null) : null,
-              ].filter(Boolean).join(' · ') || 'Gruppo, esame e luogo'}
-              onPress={openStudentSettings}
-              testID="student-settings-row"
-            />
-          ) : null}
-        </ClayList>
-      ) : null}
-
       {/* Pagellino: una riga, il dettaglio si apre al tocco */}
       {!loading && pagellino ? (
-        <Animated.View layout={EVAL_LAYOUT} style={s.listGap}>
+        <View style={s.listGap}>
           <ClaySurface radius={22} padded={false}>
             <Pressable
               onPress={() => setPagellinoOpen((v) => !v)}
@@ -784,167 +836,51 @@ export const StudentNotesDetailScreen = () => {
               </Animated.View>
             ) : null}
           </ClaySurface>
-        </Animated.View>
+        </View>
       ) : null}
-
-      {/* Storico guide */}
+      {/* Storico: solo le ultime 5 già svolte, il resto in «Vedi tutte» */}
       <ClaySection title="Storico guide">
-        <Animated.View layout={HEIGHT_GLIDE}>
-          {loading ? (
-            <ClaySurface padded={false}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={[s.hRow, i > 0 && s.hDivider]}>
-                  <SkeletonBlock width="52%" height={15} radius={6} />
-                  <SkeletonBlock width="38%" height={12} radius={6} style={{ marginTop: 8 }} />
-                </View>
-              ))}
-            </ClaySurface>
-          ) : appointments.length === 0 ? (
-            <Animated.Text key={`empty-${hiddenByPath}`} entering={LIST_DISSOLVE} style={s.emptyText}>
-              {hiddenByPath === 1
-                ? "Nessuna guida in questo percorso. L'altra è sotto «Vedi tutto»."
-                : hiddenByPath > 1
-                  ? `Nessuna guida in questo percorso. Le altre ${hiddenByPath} sono sotto «Vedi tutto».`
+        {loading ? (
+          <ClaySurface padded={false}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={[s.skelRow, i > 0 && s.hDivider]}>
+                <SkeletonBlock width="52%" height={15} radius={6} />
+                <SkeletonBlock width="38%" height={12} radius={6} style={{ marginTop: 8 }} />
+              </View>
+            ))}
+          </ClaySurface>
+        ) : past.length === 0 ? (
+          <Animated.Text entering={LIST_DISSOLVE} style={s.emptyText}>
+            {hiddenByPath === 1
+              ? "Nessuna guida in questo percorso. L'altra è sotto «Vedi tutto»."
+              : hiddenByPath > 1
+                ? `Nessuna guida in questo percorso. Le altre ${hiddenByPath} sono sotto «Vedi tutto».`
+                : upcoming.length > 0
+                  ? `Ancora nessuna guida svolta con ${firstName}.`
                   : `Ancora nessuna guida con ${firstName}.`}
-            </Animated.Text>
-          ) : (
-            <Animated.View key={shownPathId ?? 'all'} entering={LIST_DISSOLVE}>
-              <ClaySurface padded={false}>
-                {appointments.map((appt, idx) => {
-                  const isExam = (appt.type ?? '').trim().toLowerCase() === 'esame';
-                  const isGroup = (appt.type ?? '').trim().toLowerCase() === 'group_lesson' || !!appt.groupLessonId;
-                  const isMotoGroup = appt.groupLessonKind === 'moto';
-                  const motoType = asMotoLessonType(appt.motoLessonType);
-                  const allTypes = (appt.types?.length ? appt.types : (appt.type ? [appt.type] : []))
-                    .filter((t: string) => t !== 'guida' && t !== 'group_lesson' && t.toLowerCase() !== 'esame')
-                    .map((t: string) => t.charAt(0).toUpperCase() + t.slice(1));
-                  const kind = isExam
-                    ? 'Esame'
-                    : isGroup
-                      ? `${isMotoGroup ? 'Gruppo moto' : 'Guida di gruppo'}${appt.groupLessonCapacity ? ` · ${appt.groupLessonFilled ?? 0}/${appt.groupLessonCapacity}` : ''}`
-                      : [...allTypes, motoType ? MOTO_LESSON_TYPE_LABELS[motoType] : null].filter(Boolean).join(' · ');
-                  const vehicles = [appt.vehicle?.name, ...(appt.extraMotoVehicles ?? []).map((v) => v.name), appt.followVehicle?.name]
-                    .filter(Boolean)
-                    .join(' + ');
-                  const meta = isExam ? kind : [appt.instructor?.name ?? 'Istruttore', vehicles || null, kind || null].filter(Boolean).join(' · ');
-                  const summary = evaluationSummary(appt.evaluations);
-                  const open = openEvalId === appt.id;
-                  const outcome = isExam ? asExamOutcome(appt.examOutcome) : null;
-                  const recordable = isExam && canRecordExamOutcome(appt);
-                  const saving = outcomeSavingId === appt.id;
-                  return (
-                    <View key={appt.id} style={[s.hRow, idx > 0 && s.hDivider]}>
-                      <View style={s.rowBetween}>
-                        <Text style={s.hDate}>
-                          {formatDay(appt.startsAt)} ·{' '}
-                          {examTimeIsTbd(appt) ? EXAM_TIME_TBD : formatTime(appt.startsAt)}
-                        </Text>
-                        {appt.rating != null && !appt.evaluations?.length ? (
-                          <StarRating value={appt.rating} readOnly size={13} tone="gold" />
-                        ) : null}
-                      </View>
-                      <Text style={s.hMeta} numberOfLines={2}>{meta}</Text>
-
-                      {isExam && (outcome || recordable) ? (
-                        <Pressable
-                          onPress={recordable && !saving ? () => recordOutcome(appt) : undefined}
-                          disabled={!recordable || saving}
-                          hitSlop={6}
-                          accessibilityRole={recordable ? 'button' : 'text'}
-                          style={({ pressed }) => [s.inlineAction, (pressed || saving) && { opacity: 0.6 }]}
-                        >
-                          <Text
-                            style={[
-                              s.inlineActionTx,
-                              outcome ? { color: EXAM_OUTCOME_TONE[outcome].ink, textDecorationLine: 'none' } : null,
-                            ]}
-                          >
-                            {outcome ? `Esito: ${EXAM_OUTCOME_LABELS[outcome]}` : 'Registra esito'}
-                          </Text>
-                        </Pressable>
-                      ) : null}
-
-                      {summary ? (
-                        <Animated.View layout={EVAL_LAYOUT}>
-                          <Pressable
-                            onPress={() => setOpenEvalId((cur) => (cur === appt.id ? null : appt.id))}
-                            hitSlop={6}
-                            accessibilityRole="button"
-                            accessibilityState={{ expanded: open }}
-                            style={({ pressed }) => [s.evalRow, pressed && { opacity: 0.6 }]}
-                          >
-                            <Ionicons name="star" size={12} color="#F5A524" />
-                            <Text style={s.evalTx}>{evaluationSummaryLabel(summary)}</Text>
-                            <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={12} color={CLAY.ink4} />
-                          </Pressable>
-                          {open ? (
-                            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={s.voci}>
-                              {(appt.evaluations ?? [])
-                                .filter((row) => row.notApplicable || row.score != null)
-                                .map((row, i) => (
-                                  <View key={row.itemId} style={[s.voce, i > 0 && s.hDivider]}>
-                                    <Text style={s.voceName} numberOfLines={2}>{row.label}</Text>
-                                    {row.notApplicable || row.score == null ? (
-                                      <Text style={s.voceNa}>non valutabile</Text>
-                                    ) : (
-                                      <StarRating value={row.score} total={row.scaleMax} readOnly size={13} tone="gold" />
-                                    )}
-                                  </View>
-                                ))}
-                            </Animated.View>
-                          ) : null}
-                        </Animated.View>
-                      ) : null}
-
-                      {roadByLesson.get(appt.id) ? (
-                        <RoadHistoryChip
-                          item={roadByLesson.get(appt.id)!}
-                          onPress={() => void openRoadPercorso(router, segments[1] === 'notes' ? 'notes' : 'home', appt.id)}
-                        />
-                      ) : null}
-
-                      <Pressable
-                        onPress={() => openDetails(appt)}
-                        accessibilityRole="button"
-                        accessibilityLabel={appt.notes?.trim() ? 'Modifica dettagli' : 'Aggiungi dettagli'}
-                        hitSlop={10}
-                        style={({ pressed }) => [
-                          s.noteRow,
-                          // Senza note la matita sale accanto alla data (se lì
-                          // non c'è già la vecchia stellina).
-                          !appt.notes?.trim() && !(appt.rating != null && !appt.evaluations?.length) && s.noteRowEmpty,
-                          pressed && { opacity: 0.6 },
-                        ]}
-                      >
-                        {/* Senza note resta solo la matita: «Aggiungi dettagli» su
-                            ogni riga era rumore (REG-639 «memorabile»). */}
-                        {appt.notes?.trim() ? <Text style={s.note}>{appt.notes.trim()}</Text> : <View style={{ flex: 1 }} />}
-                        <Ionicons name="create-outline" size={15} color={CLAY.ink4} />
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </ClaySurface>
-            </Animated.View>
-          )}
-        </Animated.View>
+          </Animated.Text>
+        ) : (
+          <Animated.View entering={LIST_DISSOLVE}>
+            <ClaySurface padded={false}>
+              {past.slice(0, HISTORY_PREVIEW).map((appt, idx) => (
+                <LessonHistoryRow
+                  key={appt.id}
+                  appt={appt}
+                  divider={idx > 0}
+                  roadItem={roadByLesson.get(appt.id)}
+                  saving={outcomeSavingId === appt.id}
+                  onDetails={openDetails}
+                  onOutcome={recordOutcome}
+                  onRoad={openRoad}
+                />
+              ))}
+              {past.length > HISTORY_PREVIEW ? (
+                <SeeAllRow count={past.length} onPress={() => openHistory('past')} testID="history-see-all" />
+              ) : null}
+            </ClaySurface>
+          </Animated.View>
+        )}
       </ClaySection>
-
-      {/* Contatti (prima sul retro della card che si girava) */}
-      {!loading && (email || phone || obtained.length > 0) ? (
-        <ClaySection title="Contatti">
-          <ClayList>
-            {phone ? <ClayListRow title="Telefono" subtitle={phone} /> : null}
-            {email ? <ClayListRow title="Email" subtitle={email} /> : null}
-            {obtained.length > 0 ? (
-              <ClayListRow
-                title={obtained.length === 1 ? 'Patente già conseguita' : 'Patenti già conseguite'}
-                subtitle={obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
-              />
-            ) : null}
-          </ClayList>
-        </ClaySection>
-      ) : null}
     </FormSheet>
   );
 };
@@ -954,7 +890,6 @@ const s = StyleSheet.create({
   // volto usciva tagliato piatto. Lo stesso posto lo dà la testata più bassa.
   hero: { alignItems: 'center' },
   sheetHead: { paddingBottom: 6 },
-  nextSkel: { marginTop: 12, marginBottom: 3 },
   heroName: { fontSize: 26, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 12 },
   heroSub: { fontSize: 15, color: CLAY.ink3, marginTop: 3, textAlign: 'center' },
   pathCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18, paddingVertical: 14, paddingHorizontal: 18 },
@@ -986,23 +921,20 @@ const s = StyleSheet.create({
   pagFill: { height: '100%', borderRadius: 3, backgroundColor: CLAY.ink },
   pagFoot: { fontSize: 13.5, color: CLAY.ink3, marginTop: 14 },
   pagFootStrong: { fontWeight: '600', color: CLAY.ink },
-  hRow: { paddingVertical: 14, paddingHorizontal: 18 },
   hDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
-  hDate: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
-  hMeta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
-  inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
-  inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
-  evalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8 },
-  evalTx: { fontSize: 14, fontWeight: '500', color: CLAY.ink2 },
-  voci: { marginTop: 6 },
-  voce: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 8 },
-  voceName: { flex: 1, fontSize: 14, color: CLAY.ink },
-  voceNa: { fontSize: 13, color: CLAY.ink4 },
-  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
-  note: { flex: 1, fontSize: 15, color: CLAY.ink, lineHeight: 20 },
-  noteRowEmpty: { position: 'absolute', top: 16, right: 18, marginTop: 0 },
   dueTx: { fontSize: 14, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.1 },
-  nextTx: { fontSize: 15, color: CLAY.ink, marginTop: 10, textAlign: 'center', letterSpacing: -0.2 },
+  firstBlock: { marginTop: 20 },
+  skelRow: { paddingVertical: 14, paddingHorizontal: 18 },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(17,17,17,0.12)',
+  },
+  seeAllTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink },
   emptyText: { fontSize: 15, color: CLAY.ink3, paddingHorizontal: 4 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   callBtn: {
