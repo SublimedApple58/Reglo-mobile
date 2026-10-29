@@ -22,6 +22,7 @@ import { RoadPlanCard, RoadPlanLine } from '../../../src/components/road/RoadPla
 import { RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { BriefingLines, RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
+import { headquartersPrompt } from '../../../src/road/headquartersPrompt';
 import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
 import { prefetchRoadFaces, ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
@@ -225,6 +226,22 @@ export default function RoadTab() {
       }, 450);
       return () => clearTimeout(t);
     }, [toCloseId, inRoad, router]),
+  );
+
+  // REG-658: sede senza indirizzo → avviso, una volta per avvio, solo se non
+  // c'è già il foglio «Appena finita» da mostrare. `undefined` (server vecchio)
+  // non conta: serve proprio `null`.
+  const hqMissing = options != null && options.headquarters === null;
+  const pagellinoPending = !!toCloseId && pagellinoPrompt.shouldShow(toCloseId);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hqMissing || inRoad || pagellinoPending || !headquartersPrompt.shouldShow()) return;
+      const t = setTimeout(() => {
+        headquartersPrompt.markShown();
+        router.push('/(tabs)/drive/sede-mancante');
+      }, 450);
+      return () => clearTimeout(t);
+    }, [hqMissing, inRoad, pagellinoPending, router]),
   );
 
   const defaultVehicle = options?.vehicles.find((v) => v.id === options.defaultVehicleId) ?? null;

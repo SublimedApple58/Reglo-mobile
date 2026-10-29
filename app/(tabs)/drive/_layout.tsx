@@ -23,6 +23,8 @@ export default function DriveLayout() {
       {/* «Compila il pagellino» dalla tab: lo stack /road esiste solo in guida. */}
       <Stack.Screen name="pagellino" options={FORM_SHEET} />
       <Stack.Screen name="note" options={FORM_SHEET} />
+      {/* REG-658: la sede non ha l'indirizzo (avviso, una volta per avvio). */}
+      <Stack.Screen name="sede-mancante" options={FORM_SHEET} />
       {/* «Ultime guide»: percorso della guida e mappa a tutto schermo, come in home. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
       {/* REG-646: punti critici dell'autoscuola (schermata intera) e dettaglio di un punto. */}
