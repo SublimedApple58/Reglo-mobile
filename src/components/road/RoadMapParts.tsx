@@ -66,6 +66,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   sentiment,
   onPress,
   dot = true,
+  hidden = false,
 }: {
   coordinate: LatLng;
   kind: string;
@@ -81,6 +82,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
    * segnaposto, la punta del fumetto sta sul punto.
    */
   dot?: boolean;
+  /** Posto fisso vuoto (REG-652): resta montato ma non si vede. */
+  hidden?: boolean;
 }) {
   const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '', dot]);
   const tagH = small ? TAG_H_SMALL : TAG_H;
@@ -95,7 +98,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
       centerOffset={{ x: 0, y: -(pointY - height / 2) }}
       tracksViewChanges={tracksViewChanges}
       zIndex={zIndex ?? (small ? 3 : 5)}
-      onPress={onPress}
+      opacity={hidden ? 0 : 1}
+      onPress={hidden ? undefined : onPress}
     >
       <View style={[pin.wrap, { height }]} pointerEvents="none">
         <View

@@ -121,6 +121,8 @@ import {
   RoadFreeStartInput,
   RoadPlan,
   RoadPlanResponse,
+  RoadPlanRouteResponse,
+  RoadPlanStop,
   RoadDetail,
   RoadExamRoute,
   RoadHotspotDetail,
@@ -1050,6 +1052,17 @@ export const createRegloApi = (baseUrl?: string) => {
       }
       return client.request<RoadPlanResponse>(`/api/autoscuole/road/plan?${q.toString()}`);
     },
+    /**
+     * REG-652: la linea suggerita del giro (strade vere, chiusa in sede) con
+     * l'ordine delle tappe. Una volta alla partenza; `optimize: false` per il
+     * riaggancio (REG-654).
+     */
+    getRoadPlanRoute: async (input: {
+      start: { lat: number; lng: number };
+      stops: RoadPlanStop[];
+      optimize?: boolean;
+    }) =>
+      client.request<RoadPlanRouteResponse>('/api/autoscuole/road/plan/route', { method: 'POST', body: input }),
     getRoadSession: async (sessionId: string) =>
       client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}`),
     /** Lotto di punti idempotente su `seq`: rimandarlo dà `duplicate: true`. */

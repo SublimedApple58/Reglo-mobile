@@ -16,6 +16,7 @@ import {
   type PlanAlert,
   type PlanProgress,
 } from './planAlerts';
+import { advanceOnLine, type RoadGuide } from './roadGuide';
 
 /**
  * REG-638 Reglo Road — stato della modalità Road (un solo store di modulo,
@@ -87,6 +88,10 @@ type State = {
   planProgress: PlanProgress;
   /** REG-650: la card dell'avviso a schermo (una alla volta). */
   planAlert: PlanAlert | null;
+  /** REG-652: linea suggerita, tappe in ordine, sede, punti dell'allievo. */
+  guide: RoadGuide | null;
+  /** REG-652: fin dove la linea è già percorsa (indice di vertice, solo avanti). */
+  guidePassed: number;
 };
 
 const INITIAL: State = {
@@ -108,6 +113,8 @@ const INITIAL: State = {
   planAlertsEnabled: true,
   planProgress: EMPTY_PROGRESS,
   planAlert: null,
+  guide: null,
+  guidePassed: 0,
 };
 
 let state: State = INITIAL;
@@ -158,6 +165,13 @@ export const roadStore = {
     set({ planAlert: null });
   },
 
+  /** REG-652: arriva (anche a pezzi) la guida della sessione attiva. */
+  setGuide(guide: RoadGuide) {
+    if (state.session?.id !== guide.sessionId) return;
+    const sameLine = state.guide?.line === guide.line;
+    set({ guide, ...(sameLine ? {} : { guidePassed: 0 }) });
+  },
+
   setEvaluationEnabled(enabled: boolean) {
     set({ evaluationEnabled: enabled });
   },
@@ -189,6 +203,8 @@ export const roadStore = {
             toast: null,
             planProgress: EMPTY_PROGRESS,
             planAlert: null,
+            guide: null,
+            guidePassed: 0,
           }),
     });
   },
@@ -228,9 +244,11 @@ export const roadStore = {
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters, planProgress, planAlert } = state;
+    let { fix, distanceMeters, planProgress, planAlert, guidePassed } = state;
     const track = state.track.slice();
-    const stops = state.planAlertsEnabled ? state.session?.plan?.stops ?? [] : [];
+    // Le tappe nell'ordine della linea (REG-652), così il numero dell'avviso è quello sulla mappa.
+    const stops = state.planAlertsEnabled ? state.guide?.stops ?? state.session?.plan?.stops ?? [] : [];
+    const line = state.guide?.line ?? null;
     for (const p of points) {
       const [t, lat, lng, speed, heading, accuracy] = p;
       if (accuracy != null && accuracy > MAX_ACCURACY_M) continue;
@@ -248,8 +266,9 @@ export const roadStore = {
         if (planAlert && planAlertExpired(planAlert, t)) planAlert = null;
         ({ progress: planProgress, alert: planAlert } = stepPlanAlerts(stops, planProgress, planAlert, { lat, lng, t }));
       }
+      if (line) guidePassed = advanceOnLine(line, guidePassed, { lat, lng });
     }
-    set({ fix, distanceMeters, track, planProgress, planAlert });
+    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed });
   },
 
   setStreet(street: string | null) {

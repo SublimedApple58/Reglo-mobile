@@ -1657,6 +1657,17 @@ export type RoadPlanResponse = {
   studentHotspots: RoadStudentHotspot[];
 };
 
+/** REG-648/653: la linea suggerita chiusa in sede e l'ordine delle tappe. */
+export type RoadPlanRouteResponse = {
+  /** `[[lat,lng],…]`, null se la Routes API non risponde. */
+  line: Array<[number, number]> | null;
+  lengthMeters: number | null;
+  /** Le chiavi delle tappe nell'ordine della linea. */
+  order: string[];
+  /** La sede dove si chiude la linea, o null. */
+  end: { lat: number; lng: number } | null;
+};
+
 export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
 
 export type RoadMarker = {

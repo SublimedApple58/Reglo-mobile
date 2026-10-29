@@ -22,6 +22,8 @@ import { SentimentBadge } from '../../src/components/road/RoadSentiment';
 import { Avatar, ClayButton, ClayMapControls } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { RoadCarMarker, RoadMarkerPin, RoadTrack } from '../../src/components/road/RoadMapParts';
+import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
+import { loadRoadGuide } from '../../src/road/roadGuide';
 
 /**
  * REG-638 Reglo Road — la guida in diretta, a tutto schermo.
@@ -39,6 +41,9 @@ const ZOOM = 16.2; // Android
 // metà dello schermo, con più strada davanti (come l'anteprima). La scritta
 // «Legal» di Apple sta fra il pannello e il cerchio della velocità.
 const MAP_PADDING_TOP = 330;
+const EMPTY_STOPS: never[] = [];
+const EMPTY_HOTSPOTS: never[] = [];
+
 /** Altezza della card della tappa (cerchio 46 + padding 10): i toast vanno sotto. */
 const PLAN_CARD_H = 66;
 
@@ -76,6 +81,7 @@ export default function RoadScreen() {
   const st = useRoadState();
   const mapRef = useRef<MapView>(null);
   const camHeading = useRef(0);
+  const guideCenterRef = useRef<{ lat: number; lng: number } | null>(null);
   const [following, setFollowing] = useState(true);
   const [panelH, setPanelH] = useState(170);
   const [ending, setEnding] = useState(false);
@@ -84,6 +90,15 @@ export default function RoadScreen() {
   const session = st.session;
   const lesson = session?.lesson ?? null;
   const fix = st.fix;
+
+  // REG-652: linea suggerita, tappe e punti dell'allievo, una volta per sessione.
+  const sessionId = session?.id;
+  useEffect(() => {
+    const cur = roadStore.get().session;
+    if (!cur || cur.id !== sessionId || !cur.lesson) return;
+    const f = roadStore.get().fix;
+    void loadRoadGuide(cur, f ? { lat: f.lat, lng: f.lng } : null, (g) => roadStore.setGuide(g));
+  }, [sessionId]);
 
   // La nota della guida si carica subito: il foglio «Note» si apre senza attese.
   useEffect(() => {
@@ -261,6 +276,11 @@ export default function RoadScreen() {
   };
 
   const initialFix = session.last;
+  const guide = st.guide;
+  const guideCenter = guideCenterRef.current ?? (guideCenterRef.current = {
+    lat: fix?.lat ?? initialFix?.lat ?? 45.0703,
+    lng: fix?.lng ?? initialFix?.lng ?? 7.6869,
+  });
 
   return (
     <View style={s.root}>
@@ -295,6 +315,16 @@ export default function RoadScreen() {
           if (following) setFollowing(false);
         }}
       >
+        {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
+        <RoadGuideOverlay
+          line={guide?.line ?? null}
+          passed={st.guidePassed}
+          stops={guide?.stops ?? EMPTY_STOPS}
+          reached={st.planProgress.reached}
+          end={guide?.end ?? null}
+          hotspots={guide?.hotspots ?? EMPTY_HOTSPOTS}
+          center={guideCenter}
+        />
         <RoadTrack coordinates={coords} />
         {pins}
         {fix ? (
