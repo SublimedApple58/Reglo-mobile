@@ -5,14 +5,15 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
 import { lessonStudentName, roadStore, useRoadState } from '../../src/road/roadStore';
 import { endRoad, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
-import { ROAD_EXIT } from '../../src/road/motion';
+import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
+import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { openRoadNotes, prefetchRoadNotes } from '../../src/road/roadNotes';
 import { markerArt } from '../../src/road/markerArt';
@@ -38,6 +39,8 @@ const ZOOM = 16.2; // Android
 // metà dello schermo, con più strada davanti (come l'anteprima). La scritta
 // «Legal» di Apple sta fra il pannello e il cerchio della velocità.
 const MAP_PADDING_TOP = 330;
+/** Altezza della card della tappa (cerchio 46 + padding 10): i toast vanno sotto. */
+const PLAN_CARD_H = 66;
 
 function useNow(everyMs: number) {
   const [now, setNow] = useState(Date.now());
@@ -55,7 +58,8 @@ function useNow(everyMs: number) {
 function RoadToastFrame({ children, style }: { children: React.ReactNode; style: object }) {
   const p = useSharedValue(0);
   useEffect(() => {
-    p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
+    // «Riduci movimento» non spegne niente (regola fissa).
+    p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never });
   }, [p]);
   const anim = useAnimatedStyle(() => ({
     opacity: p.value,
@@ -132,6 +136,23 @@ export default function RoadScreen() {
     const t = setTimeout(() => roadStore.dismissToast(toastId), 5000);
     return () => clearTimeout(t);
   }, [toastId]);
+
+  // REG-650: la card della tappa si chiude da sola anche da fermi (senza fix).
+  const planAlert = st.planAlert;
+  const planAlertId = planAlert ? `${planAlert.key}:${planAlert.reached ? 'ok' : 'near'}` : null;
+  useEffect(() => {
+    if (!planAlert) return;
+    const left = (planAlert.reached ? PLAN_REACHED_MS : PLAN_ALERT_MS) - (Date.now() - planAlert.at);
+    const t = setTimeout(() => roadStore.dismissPlanAlert(planAlert.key), Math.max(400, left));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planAlertId]);
+  // Vibrazione: avviso = colpo deciso, tappa raggiunta = successo.
+  useEffect(() => {
+    if (!planAlertId) return;
+    if (planAlertId.endsWith(':ok')) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
+  }, [planAlertId]);
 
   const markers = st.markers;
   const lastMarkerId = markers.length ? markers[markers.length - 1].clientId : null;
@@ -318,9 +339,42 @@ export default function RoadScreen() {
         ) : null}
       </View>
 
+      {/* REG-650: la tappa del giro qui vicino (una alla volta, si chiude da sola) */}
+      {planAlert ? (
+        <RoadToastFrame key={planAlert.key} style={[s.toast, { top: headerTop + 70 + 10 }]}>
+          <Pressable
+            onPress={() => roadStore.dismissPlanAlert(planAlert.key)}
+            style={s.planRow}
+            accessibilityRole="button"
+            accessibilityLabel={
+              planAlert.reached
+                ? `Tappa ${planAlert.n} raggiunta: ${planAlert.title}`
+                : `Tra ${planAlert.meters} metri, tappa ${planAlert.n}: ${planAlert.title}. ${planAlert.reason}`
+            }
+            testID="road-plan-alert"
+          >
+            <View style={s.planNum}>
+              {planAlert.reached ? (
+                <Animated.View key="ok" entering={ROAD_TEXT_IN}>
+                  <Ionicons name="checkmark" size={24} color="#111111" />
+                </Animated.View>
+              ) : (
+                <Text style={s.planNumTx}>{planAlert.n}</Text>
+              )}
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.toastT1} numberOfLines={1}>
+                {planAlert.reached ? `Tappa raggiunta · ${planAlert.title}` : `${planAlert.meters} m · ${planAlert.title}`}
+              </Text>
+              <Text style={s.toastT2} numberOfLines={1}>{planAlert.reason}</Text>
+            </View>
+          </Pressable>
+        </RoadToastFrame>
+      ) : null}
+
       {/* Toast della segnalazione appena fatta */}
       {st.toast ? (
-        <RoadToastFrame key={st.toast.clientId} style={[s.toast, { top: headerTop + 70 + 10 }]}>
+        <RoadToastFrame key={st.toast.clientId} style={[s.toast, { top: headerTop + 70 + 10 + (planAlert ? PLAN_CARD_H + 8 : 0) }]}>
           <View style={s.toastIc}>
             <Image source={markerArt(st.toast.kind)} style={s.toastImg} resizeMode="contain" />
             {st.toast.sentiment ? (
@@ -341,7 +395,10 @@ export default function RoadScreen() {
 
       {/* Guida appena avviata da Road: è in agenda, e per 10 secondi si annulla */}
       {freeOpen && freeStarted && !st.toast ? (
-        <RoadToastFrame key={freeStarted.sessionId} style={[s.toast, s.freeBanner, { top: headerTop + 70 + 10 }]}>
+        <RoadToastFrame
+          key={freeStarted.sessionId}
+          style={[s.toast, s.freeBanner, { top: headerTop + 70 + 10 + (planAlert ? PLAN_CARD_H + 8 : 0) }]}
+        >
           <Text style={[s.toastT1, { flex: 1 }]} numberOfLines={1}>
             In agenda: {freeStarted.label}
           </Text>
@@ -489,6 +546,10 @@ const s = StyleSheet.create({
   },
   undoTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   freeBanner: { paddingVertical: 8, paddingLeft: 18 },
+  planRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // Il numero della tappa come nella card del giro, ma bianco sul nero.
+  planNum: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  planNumTx: { fontSize: 19, fontWeight: '600', color: '#111111', fontVariant: ['tabular-nums'] },
 
   panel: {
     position: 'absolute',

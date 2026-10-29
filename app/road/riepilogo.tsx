@@ -18,6 +18,7 @@ import { ClayButton, ClayStat, ClaySurface } from '../../src/components/clay';
 import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
 import { RoadNotesCard } from '../../src/components/road/RoadNotesCard';
+import { planOutcomeLine } from '../../src/road/planAlerts';
 
 type EvalState = { enabled: boolean; total: number; done: number } | null;
 
@@ -152,6 +153,13 @@ export default function RiepilogoScreen() {
 
       <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
+      {/* REG-650: l'esito del giro, dal server (tappa entro 40 m, percorso d'esame al 60%). */}
+      {planOutcomeLine(summary.planReached) ? (
+        <Animated.View entering={roadEnter(100)} layout={ROAD_LAYOUT} style={s.agendaLine}>
+          <Text style={s.planTx} testID="road-summary-plan">{planOutcomeLine(summary.planReached)}</Text>
+        </Animated.View>
+      ) : null}
+
       {freeStarted && freeStarted.sessionId === summary.id ? (
         <Animated.View entering={roadEnter(120)} layout={ROAD_LAYOUT} style={s.agendaLine}>
           <Text style={s.agendaTx}>
@@ -190,6 +198,7 @@ const s = StyleSheet.create({
   miniWrap: { borderRadius: 24, backgroundColor: CLAY.surface },
   mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
   agendaLine: { marginTop: 14 },
+  planTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   agendaTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
   foot: {},

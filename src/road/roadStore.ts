@@ -8,6 +8,14 @@ import type {
 } from '../types/regloApi';
 import { bearingDeg, haversineMeters } from './format';
 import { FALLBACK_BASE_CATALOG } from './markerArt';
+import {
+  EMPTY_PROGRESS,
+  planAlertExpired,
+  progressFromTrack,
+  stepPlanAlerts,
+  type PlanAlert,
+  type PlanProgress,
+} from './planAlerts';
 
 /**
  * REG-638 Reglo Road — stato della modalità Road (un solo store di modulo,
@@ -73,6 +81,12 @@ type State = {
   roadKnown: boolean;
   /** Ultimo segno scelto in «Segnala»: resta per la sessione (default «da migliorare»). */
   sentimentMode: RoadSentiment;
+  /** REG-650: «Avvisi delle tappe» dell'autoscuola (da `/road/state`, acceso se assente). */
+  planAlertsEnabled: boolean;
+  /** REG-650: tappe del giro raggiunte / già avvisate in questa guida. */
+  planProgress: PlanProgress;
+  /** REG-650: la card dell'avviso a schermo (una alla volta). */
+  planAlert: PlanAlert | null;
 };
 
 const INITIAL: State = {
@@ -91,6 +105,9 @@ const INITIAL: State = {
   roadEnabled: false,
   roadKnown: false,
   sentimentMode: 'bad',
+  planAlertsEnabled: true,
+  planProgress: EMPTY_PROGRESS,
+  planAlert: null,
 };
 
 let state: State = INITIAL;
@@ -131,6 +148,16 @@ export const roadStore = {
     if (enabled !== state.roadEnabled || !state.roadKnown) set({ roadEnabled: enabled, roadKnown: true });
   },
 
+  setPlanAlertsEnabled(enabled: boolean) {
+    if (enabled !== state.planAlertsEnabled) set({ planAlertsEnabled: enabled, ...(enabled ? {} : { planAlert: null }) });
+  },
+
+  /** La card dell'avviso si chiude (tempo scaduto o tocco). */
+  dismissPlanAlert(key?: string) {
+    if (!state.planAlert || (key && state.planAlert.key !== key)) return;
+    set({ planAlert: null });
+  },
+
   setEvaluationEnabled(enabled: boolean) {
     set({ evaluationEnabled: enabled });
   },
@@ -160,6 +187,8 @@ export const roadStore = {
             street: session.last?.street ?? null,
             markers: [],
             toast: null,
+            planProgress: EMPTY_PROGRESS,
+            planAlert: null,
           }),
     });
   },
@@ -182,7 +211,13 @@ export const roadStore = {
         sentiment: m.sentiment ?? null,
         recordedAt: m.recordedAt,
       }));
+    const stops = state.session?.plan?.stops ?? [];
+    const fromTrack = stops.length ? progressFromTrack(stops, serverTrack) : EMPTY_PROGRESS;
     set({
+      planProgress: {
+        reached: [...new Set([...state.planProgress.reached, ...fromTrack.reached])],
+        alerted: [...new Set([...state.planProgress.alerted, ...fromTrack.alerted])],
+      },
       track: [...serverTrack, ...state.track],
       distanceMeters: Math.max(state.distanceMeters, detail.distanceMeters ?? 0),
       markers: [...serverMarkers, ...state.markers].sort(
@@ -193,8 +228,9 @@ export const roadStore = {
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters } = state;
+    let { fix, distanceMeters, planProgress, planAlert } = state;
     const track = state.track.slice();
+    const stops = state.planAlertsEnabled ? state.session?.plan?.stops ?? [] : [];
     for (const p of points) {
       const [t, lat, lng, speed, heading, accuracy] = p;
       if (accuracy != null && accuracy > MAX_ACCURACY_M) continue;
@@ -208,8 +244,12 @@ export const roadStore = {
       }
       fix = { lat, lng, speed, heading: h ?? fix?.heading ?? null, accuracy, t };
       track.push({ latitude: lat, longitude: lng });
+      if (stops.length) {
+        if (planAlert && planAlertExpired(planAlert, t)) planAlert = null;
+        ({ progress: planProgress, alert: planAlert } = stepPlanAlerts(stops, planProgress, planAlert, { lat, lng, t }));
+      }
     }
-    set({ fix, distanceMeters, track });
+    set({ fix, distanceMeters, track, planProgress, planAlert });
   },
 
   setStreet(street: string | null) {
@@ -248,7 +288,7 @@ export const roadStore = {
   },
 
   showSummary(summary: RoadDetail) {
-    set({ phase: 'summary', summary, toast: null });
+    set({ phase: 'summary', summary, toast: null, planAlert: null });
   },
 
   updateSummary(summary: RoadDetail) {
@@ -256,7 +296,7 @@ export const roadStore = {
   },
 
   reset() {
-    state = { ...INITIAL, catalog: state.catalog, evaluationEnabled: state.evaluationEnabled, eligible: null, roadEnabled: state.roadEnabled, roadKnown: state.roadKnown };
+    state = { ...INITIAL, catalog: state.catalog, evaluationEnabled: state.evaluationEnabled, eligible: null, roadEnabled: state.roadEnabled, roadKnown: state.roadKnown, planAlertsEnabled: state.planAlertsEnabled };
     listeners.forEach((fn) => fn());
   },
 };

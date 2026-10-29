@@ -47,6 +47,7 @@ export function RoadController() {
       const st = await regloApi.getRoadState();
       roadStore.setCatalog(st.catalog);
       roadStore.setRoadEnabled(st.roadEnabled);
+      roadStore.setPlanAlertsEnabled(st.planAlertsEnabled !== false);
       if (!st.roadEnabled) {
         roadStore.setEligible(null);
         return;
