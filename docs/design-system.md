@@ -1389,6 +1389,8 @@ Ogni foglio, anche con liste lunghe, è un **form sheet alto quanto il contenuto
 
 ## 8. Animazioni
 
+> **Prima di tutto §15 «Fluidità e prestazioni»** (29/10/2026): niente layout transitions né entrate dal basso su contenitori con ombre, il tocco anima prima del contenuto. Dove questa sezione dice altro, vince §15.
+
 > **Filosofia: L'app deve sentirsi viva.**
 > Ogni transizione di stato, ogni interazione, ogni cambiamento di contenuto deve avere un'animazione.
 > L'assenza di animazione e un bug visivo.
@@ -2242,3 +2244,18 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 - **Non** dare ombre esterne a card informative — usare inset shadow
 - **Non** dare inset shadow a CTA — usare ombre esterne
 - **Non** usare colore navy per sfondi grandi, card informative, o elementi non interattivi
+
+---
+
+## 15. Fluidità e prestazioni (regola permanente, Tiziano 29/10/2026)
+
+> Lezioni di REG-639 «Road fluida» (commit 69cb0c3). Valgono per ogni schermata e vincono sul §8 quando lo contraddicono. Il metro di paragone è il foglio di dettaglio allievo: deve sentirsi tutto così.
+
+1. **Il tocco anima, il contenuto segue.** Un tocco che anima (cursore, anello, segmentato) non ricostruisce mai liste o UI pesante nello stesso fotogramma. Prima parte l'animazione, poi il contenuto arriva come aggiornamento non urgente (`startTransition` o `InteractionManager.runAfterInteractions`) e compare in dissolvenza. Riferimento: `changeSegment` in `InstructorNotesScreen.tsx`.
+2. **Le varianti che si alternano restano montate.** Filtri, allievo selezionato e simili restano montati e pronti: si nascondono (`display: 'none'`, opacità) o si sovrappongono in dissolvenza incrociata ad altezza fissa. Niente `key` che li rimontino.
+3. **Liste lunghe solo con `FlatList`** (anche nei fogli: `FormSheet list`) e righe in `React.memo`. Niente `.map()` di decine di righe dentro una `ScrollView`.
+4. **Niente `MapView` ripetute nelle liste.** Le miniature sono immagini salvate (`takeSnapshot` → `src/road/thumbCache.ts`). La mappa grande si monta una volta sola, in anticipo e a riposo.
+5. **Niente layout transitions né entrate dal basso** (`FadeInDown`, stagger, `layout=`) su contenitori con ombre. Solo dissolvenze da 150–200 ms (`ROAD_FADE_IN`/`ROAD_FADE_OUT`, `CROSSFADE_TIMING` in `src/utils/motion.ts`).
+6. **Strati minimi sui componenti ripetuti.** Su iOS ogni voce di `boxShadow` costa uno strato in più e un rendering fuori schermo. Volti, righe e celle hanno una sola ombra esterna. Lucentezze e bordini vanno cotti in un'immagine fissa (`Avatar.tsx`). Le animazioni stanno solo dove c'è davvero una selezione.
+7. **Schermate grandi in sezioni con `memo`**, con props stabili (`useCallback`, dati confrontati prima di `setState`). Niente timer che le ridisegnano e niente ricaricamento se a ogni focus arrivano dati identici.
+8. **Nessun fetch al tocco.** I dati si caricano prima (warm-up all'avvio o al focus, cache di modulo) e al tocco sono già pronti. L'aggiornamento di rete arriva dopo, senza bloccare l'animazione.
