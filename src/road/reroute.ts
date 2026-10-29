@@ -7,7 +7,7 @@ import type { LatLngTuple } from './roadGuide';
  *
  * Tutto in JS sulle posizioni di `tracking.ts`, niente rete per accorgersene:
  * oltre 50 m dalla linea per 12 s = fuori percorso; allora (al massimo una
- * volta ogni 45 s) si chiede `POST /road/plan/route` dalla posizione attuale
+ * volta ogni 45 s, e solo se l'auto si è spostata) si chiede `POST /road/plan/route` dalla posizione attuale
  * con le sole tappe rimaste, nell'ordine già scelto, poi la sede. Rete giù =
  * resta la linea vecchia e si riprova al giro dopo.
  *
@@ -27,12 +27,17 @@ const SKIP_TRIES = 3;
 const SKIP_PROGRESS_M = 100;
 /** Vertici della linea guardati davanti a quello già passato (~1,5 km a 10 m l'uno). */
 const LINE_WINDOW = 150;
+/** Ferma fuori percorso (sosta, semaforo): niente ricalcoli finché non si sposta di tanto. */
+const REROUTE_MOVED_M = 50;
+
+type Pt = { lat: number; lng: number };
 
 export type RerouteState = {
   /** Da quando l'auto è oltre 50 m dalla linea (null = sulla linea). */
   offSince: number | null;
-  /** Ultimo ricalcolo chiesto (ms). */
+  /** Ultimo ricalcolo chiesto (ms) e da dove. */
   lastAt: number;
+  lastFrom: Pt | null;
   pending: boolean;
   /** La prossima tappa da raggiungere, e com'è andata finora verso di lei. */
   target: string | null;
@@ -46,6 +51,7 @@ export type RerouteState = {
 export const INITIAL_REROUTE: RerouteState = {
   offSince: null,
   lastAt: 0,
+  lastFrom: null,
   pending: false,
   target: null,
   targetMin: Infinity,
@@ -53,8 +59,6 @@ export const INITIAL_REROUTE: RerouteState = {
   triesFromM: Infinity,
   skipped: [],
 };
-
-type Pt = { lat: number; lng: number };
 
 /** Distanza (m) dal tratto a–b, in proiezione locale (va bene a scala di città). */
 function segmentMeters(p: Pt, a: LatLngTuple, b: LatLngTuple): number {
@@ -132,7 +136,8 @@ export function stepReroute(
   const due =
     !next.pending &&
     p.t - (next.offSince ?? p.t) >= REROUTE_OFF_MS &&
-    p.t - next.lastAt >= REROUTE_GAP_MS;
+    p.t - next.lastAt >= REROUTE_GAP_MS &&
+    (!next.lastFrom || haversineMeters(p.lat, p.lng, next.lastFrom.lat, next.lastFrom.lng) >= REROUTE_MOVED_M);
   if (!due) return { state: next, request: false };
 
   // Terzo ricalcolo di fila verso la stessa tappa senza avvicinarsi: si passa alla dopo.
@@ -150,6 +155,6 @@ export function stepReroute(
   if (!remainingStops(ctx.stops, ctx.reached, next.skipped).length && !ctx.end) {
     return { state: next, request: false };
   }
-  patch({ pending: true, lastAt: p.t });
+  patch({ pending: true, lastAt: p.t, lastFrom: { lat: p.lat, lng: p.lng } });
   return { state: next, request: true };
 }
