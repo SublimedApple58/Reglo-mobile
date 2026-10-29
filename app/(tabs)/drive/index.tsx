@@ -11,7 +11,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -231,17 +231,24 @@ export default function RoadTab() {
   // REG-658: sede senza indirizzo → avviso, una volta per avvio, solo se non
   // c'è già il foglio «Appena finita» da mostrare. `undefined` (server vecchio)
   // non conta: serve proprio `null`.
+  const navigation = useNavigation();
   const hqMissing = options != null && options.headquarters === null;
-  const pagellinoPending = !!toCloseId && pagellinoPrompt.shouldShow(toCloseId);
   useFocusEffect(
     useCallback(() => {
+      // Letto qui e non al render: `pagellinoPrompt` è stato di modulo e,
+      // chiuso «Appena finita», al ritorno sulla tab il valore va riletto.
+      const pagellinoPending = !!toCloseId && pagellinoPrompt.shouldShow(toCloseId);
       if (!hqMissing || inRoad || pagellinoPending || !headquartersPrompt.shouldShow()) return;
       const t = setTimeout(() => {
+        // Un foglio alla volta: se «Appena finita» si è appena aperto si
+        // riprova al prossimo ritorno sulla tab (con un form sheet sopra la
+        // schermata resta «focused», e lo stato della navigazione arriva dopo).
+        if (!navigation.isFocused() || pagellinoPrompt.shownRecently()) return;
         headquartersPrompt.markShown();
         router.push('/(tabs)/drive/sede-mancante');
-      }, 450);
+      }, 600);
       return () => clearTimeout(t);
-    }, [hqMissing, inRoad, pagellinoPending, router]),
+    }, [hqMissing, inRoad, toCloseId, router, navigation]),
   );
 
   const defaultVehicle = options?.vehicles.find((v) => v.id === options.defaultVehicleId) ?? null;

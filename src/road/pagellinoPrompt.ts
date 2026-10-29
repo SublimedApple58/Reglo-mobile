@@ -5,11 +5,15 @@
  * dell'app: lo stato vive solo in memoria, di proposito non persistito.
  */
 const shown = new Set<string>();
+let lastShownAt = 0;
 
 export const pagellinoPrompt = {
   /** true se il foglio per questa sessione non è ancora stato mostrato. */
   shouldShow: (sessionId: string) => !shown.has(sessionId),
   markShown: (sessionId: string) => {
     shown.add(sessionId);
+    lastShownAt = Date.now();
   },
+  /** REG-658: il foglio si è aperto da poco: gli altri fogli automatici aspettano. */
+  shownRecently: (ms = 5_000) => Date.now() - lastShownAt < ms,
 };
