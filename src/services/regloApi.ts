@@ -128,6 +128,7 @@ import {
   RoadHotspotDetail,
   RoadHotspots,
   RoadStudentItem,
+  RoadStudentRoad,
   RoadBriefing,
   RoadMarker,
   RoadPoint,
@@ -1096,7 +1097,7 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<RoadDetail | null>(`/api/autoscuole/road/appointments/${appointmentId}`),
     /** Percorsi Road delle guide di un allievo (titolare: tutte; istruttore: le sue). */
     getRoadForStudent: async (studentId: string) =>
-      client.request<{ items: RoadStudentItem[]; briefing?: RoadBriefing | null }>(
+      client.request<RoadStudentRoad>(
         `/api/autoscuole/road/students/${studentId}`,
       ),
     /** Punti critici dell'autoscuola (REG-646): mappa aggregata, anche per l'istruttore. */

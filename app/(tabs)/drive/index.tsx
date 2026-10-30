@@ -15,7 +15,8 @@ import { HeatHalo, RoadCarMarker, RoadMarkerPin } from '../../../src/components/
 import { RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { headquartersPrompt } from '../../../src/road/headquartersPrompt';
-import { beginRoadEntry, ROAD_ROUTE } from '../../../src/road/entryFlow';
+import { ROAD_ROUTE } from '../../../src/road/entryFlow';
+import { AVVIO_ALLIEVO_ROUTE, avvioStore } from '../../../src/road/avvioFlow';
 import { prefetchRoadFaces, ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
 import { dayLabel, formatHm, formatRange } from '../../../src/road/format';
@@ -313,7 +314,12 @@ const AgendaNow = React.memo(function AgendaNow({ lesson, onOther }: { lesson: R
       <ClayButton
         title="Entra in Road"
         leading={<PlayGlyph />}
-        onPress={() => void beginRoadEntry(router, lesson)}
+        onPress={() => {
+          // REG-662: prima il foglio «<Nome> su Road» (briefing, giro), poi si entra.
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+          avvioStore.set({ studentId: lesson.student?.id ?? null, lesson });
+          router.push(AVVIO_ALLIEVO_ROUTE as never);
+        }}
         style={s.ctaGap}
         testID="road-tab-enter"
       />

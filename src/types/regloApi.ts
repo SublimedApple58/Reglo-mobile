@@ -1864,6 +1864,17 @@ export type RoadStudentItem = {
   markerBad: number;
   /** Miniatura del percorso: [lat, lng]. */
   thumb: Array<[number, number]>;
+  /** REG-660: inizio della guida (assente sui backend vecchi). */
+  startedAt?: string;
+  /** REG-660: pagellino della guida; null col pagellino spento. */
+  evaluation?: { done: number; total: number } | null;
+};
+
+/** `GET /road/students/[id]`: guide, briefing e (REG-660) punti dell'allievo. */
+export type RoadStudentRoad = {
+  items: RoadStudentItem[];
+  briefing?: RoadBriefing | null;
+  hotspots?: RoadStudentHotspot[];
 };
 
 export type AddRoadMarkerInput = {

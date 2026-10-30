@@ -16,7 +16,10 @@ export default function DriveLayout() {
       <Stack.Screen name="index" />
       {/* Campanella: notifiche come push di questo stack (swipe indietro nativo). */}
       <Stack.Screen name="notifications" />
+      {/* REG-662: avvio in tre fogli spinti uno sopra l'altro (giù = passo prima, X = chiude tutto). */}
       <Stack.Screen name="avvia" options={FORM_SHEET} />
+      <Stack.Screen name="avvia-allievo" options={FORM_SHEET} />
+      <Stack.Screen name="avvia-parti" options={FORM_SHEET} />
       <Stack.Screen name="road-privacy" options={FORM_SHEET} />
       {/* Guida appena finita col pagellino da compilare: si apre da sola (una volta per avvio). */}
       <Stack.Screen name="appena-finita" options={FORM_SHEET} />
