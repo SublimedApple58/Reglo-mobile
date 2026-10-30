@@ -332,3 +332,7 @@ Invito (`home/road-invite`) e foglio della guida (`manage-lesson`, «Avvia con R
 - Stato vuoto in una card composta (piantina + testo) subito sotto il periodo, al posto della pianta grande in mezzo.
 - Segnaposti e aloni sulla mappa in 12 posti FISSI (`PinSlot`, `HeatHalo hidden`): al cambio periodo iOS perdeva il simbolo di un punto ricreato (difetto di REG-646). Tocco sul simbolo = dettaglio solo dove la lista non copre la mappa (la copertina sta dietro lo scroll).
 - Logo «Maps / Legal» sopra il bordo del foglio (`mapPadding.bottom = COVER_OVERLAP + 18`).
+
+### Tracce pulite e soste (REG-665, 30/10)
+- Il backend restituisce nel dettaglio della guida `track` già pulita (e agganciata alle strade a guida finita) e `stops` (soste ≥ 5 min, tipo `RoadStop` in `regloApi.ts`). Logica tutta lato server: `reglo/lib/autoscuole/road/clean-track.ts`.
+- `RoadRouteMap` (`RoadMiniMap.tsx`) prende `stops`: `RoadStopMarker` (`RoadMapParts.tsx`) = cerchio nero con la «pausa» bianca (diverso dal punto delle segnalazioni); sulla mappa grande (`labeled`) con sopra la capsula «Sosta X min». Passato da riepilogo Road, dettaglio guida, card guida Road, percorso e mappa a tutto schermo.

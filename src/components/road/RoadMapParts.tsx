@@ -53,7 +53,7 @@ const TAG_H = 36;
 const TAG_H_SMALL = 30;
 const GAP = 7;
 const DOT = 18;
-const STOP_DOT = 14;
+const STOP_DOT = 24;
 /** Quanto la punta del fumetto scende sotto il fumetto (`pin.tail`). */
 const TAIL_TIP = 6;
 
@@ -150,7 +150,7 @@ export function RoadStopMarker({ coordinate, minutes, labeled }: { coordinate: L
   if (!labeled) {
     return (
       <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={tracksViewChanges} zIndex={3}>
-        <View style={pin.stop} pointerEvents="none" />
+        <StopGlyph />
       </Marker>
     );
   }
@@ -166,9 +166,19 @@ export function RoadStopMarker({ coordinate, minutes, labeled }: { coordinate: L
           <Text style={pin.label}>Sosta {minutes} min</Text>
           <View style={pin.tail} />
         </View>
-        <View style={[pin.stop, { marginTop: GAP }]} />
+        <StopGlyph style={{ marginTop: GAP }} />
       </View>
     </Marker>
+  );
+}
+
+/** Il segno della sosta: cerchio nero con la «pausa» bianca (≠ dal punto delle segnalazioni). */
+function StopGlyph({ style }: { style?: object }) {
+  return (
+    <View style={[pin.stop, style]} pointerEvents="none">
+      <View style={pin.stopBar} />
+      <View style={pin.stopBar} />
+    </View>
   );
 }
 
@@ -255,10 +265,15 @@ const pin = StyleSheet.create({
     height: STOP_DOT,
     borderRadius: STOP_DOT / 2,
     backgroundColor: '#111111',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
     boxShadow: '0px 1px 3px rgba(0,0,0,0.3)',
   },
+  stopBar: { width: 3, height: 9, borderRadius: 1, backgroundColor: '#FFFFFF' },
   stopTag: { height: TAG_H_SMALL, borderRadius: TAG_H_SMALL / 2, paddingLeft: 12, paddingRight: 12 },
   endpoint: {
     width: 16,
