@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { regloApi } from '../services/regloApi';
 import type { RoadPlanStop, RoadSessionWithLesson, RoadStudentHotspot } from '../types/regloApi';
 import { haversineMeters } from './format';
-import { lessonMinutes } from './planStore';
+import { hasPlanOverride, lessonMinutes } from './planStore';
 
 /**
  * REG-652 Reglo Road — la mappa del giro durante la guida: linea suggerita
@@ -107,9 +107,11 @@ export async function loadRoadGuide(
         .catch(() => [] as RoadStudentHotspot[])
     : Promise.resolve([] as RoadStudentHotspot[]);
 
+  // REG-667: un giro modificato dall'istruttore tiene il suo ordine (niente riottimizzazione).
+  const custom = !!studentId && hasPlanOverride(studentId, lessonMinutes(session.lesson));
   const routeReq = planStops.length
     ? startPoint(session, waitFix).then((start) =>
-        start ? regloApi.getRoadPlanRoute({ start, stops: planStops }).catch(() => null) : null,
+        start ? regloApi.getRoadPlanRoute({ start, stops: planStops, optimize: !custom }).catch(() => null) : null,
       )
     : Promise.resolve(null);
 

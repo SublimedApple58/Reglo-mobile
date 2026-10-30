@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { regloApi } from '../services/regloApi';
-import type { RoadLesson, RoadPlan, RoadPlanResponse } from '../types/regloApi';
+import { FALLBACK_BASE_CATALOG } from './markerArt';
+import type { RoadLesson, RoadPlan, RoadPlanResponse, RoadPlanRouteResponse, RoadPlanStop } from '../types/regloApi';
 
 /**
  * REG-649 Reglo Road — il giro della prossima guida nei fogli di partenza.
@@ -75,12 +76,88 @@ export function prefetchLessonPlan(lesson: RoadLesson | null | undefined) {
   if (lesson?.student?.id) prefetchPlan(lesson.student.id, lessonMinutes(lesson));
 }
 
+/**
+ * REG-667: il giro modificato dall'istruttore (tappe tolte, riordinate,
+ * aggiunte) vince su quello proposto, per allievo e durata. Resta in memoria
+ * come la scelta «Segui il giro»; si manda al server all'ingresso in Road.
+ */
+const overrides = new Map<string, RoadPlan>();
+/** Risposta con il giro modificato al posto di quello proposto (stabile per useSyncExternalStore). */
+const merged = new Map<string, { base: RoadPlanResponse | null; over: RoadPlan; out: RoadPlanResponse | null }>();
+function withOverride(key: string, data: RoadPlanResponse | null): RoadPlanResponse | null {
+  const over = overrides.get(key);
+  if (!over) return data;
+  const hit = merged.get(key);
+  if (hit && hit.base === data && hit.over === over) return hit.out;
+  const out = data ? { ...data, plan: over } : null;
+  merged.set(key, { base: data, over, out });
+  return out;
+}
+
+export function setPlanOverride(studentId: string, durationMin: number, plan: RoadPlan | null) {
+  const key = planKey(studentId, durationMin);
+  if (plan) overrides.set(key, plan);
+  else overrides.delete(key);
+  merged.delete(key);
+  notify();
+}
+
+export function hasPlanOverride(studentId: string | null | undefined, durationMin: number) {
+  return !!studentId && overrides.has(planKey(studentId, durationMin));
+}
+
 /** Il giro di allievo + durata: `undefined` = in arrivo, `null` = non c'è. */
 export function usePlan(studentId: string | null | undefined, durationMin: number): RoadPlanResponse | null | undefined {
   const key = studentId ? planKey(studentId, durationMin) : '';
-  const get = useCallback(() => (key ? entries.get(key) : undefined), [key]);
-  const entry = useSyncExternalStore(subscribe, get);
-  return entry ? entry.data : undefined;
+  const get = useCallback(() => {
+    const entry = key ? entries.get(key) : undefined;
+    return entry ? withOverride(key, entry.data) : undefined;
+  }, [key]);
+  return useSyncExternalStore(subscribe, get);
+}
+
+// ─── REG-667: la linea del giro per la miniatura e il foglio ────────────────
+
+type Pt = { lat: number; lng: number };
+const routes = new Map<string, RoadPlanRouteResponse | null>();
+const routeJobs = new Map<string, Promise<RoadPlanRouteResponse | null>>();
+const routeKey = (start: Pt, stops: RoadPlanStop[], optimize: boolean) =>
+  `${start.lat.toFixed(4)},${start.lng.toFixed(4)}|${stops.map((x) => x.key).join(',')}|${optimize ? 1 : 0}`;
+
+/**
+ * La linea del giro (strade vere, chiusa in sede) da `POST /road/plan/route`:
+ * il server la tiene in cache 90 giorni per gli stessi punti, qui la si tiene
+ * per la sessione dell'app. Si chiede all'apertura del dettaglio, mai al tocco.
+ */
+export function prefetchPlanRoute(start: Pt, stops: RoadPlanStop[], optimize = true): Promise<RoadPlanRouteResponse | null> {
+  const key = routeKey(start, stops, optimize);
+  if (routes.has(key)) return Promise.resolve(routes.get(key) ?? null);
+  const running = routeJobs.get(key);
+  if (running) return running;
+  const job = regloApi
+    .getRoadPlanRoute({ start, stops, optimize })
+    .catch(() => null)
+    .then((r) => {
+      routes.set(key, r);
+      routeJobs.delete(key);
+      notify();
+      return r;
+    });
+  routeJobs.set(key, job);
+  return job;
+}
+
+/** `undefined` = in arrivo, `null` = niente linea (rete o Google giù). */
+export function usePlanRoute(start: Pt | null, stops: RoadPlanStop[] | null, optimize = true): RoadPlanRouteResponse | null | undefined {
+  const key = start && stops?.length ? routeKey(start, stops, optimize) : '';
+  const get = useCallback(() => (key ? routes.get(key) : null), [key]);
+  return useSyncExternalStore(subscribe, get);
+}
+
+/** Minuti stimati del giro dalla lunghezza della linea (25 km/h di media + 5 min per tappa, come il server). */
+export function planMinutesFor(lengthMeters: number | null | undefined, stops: number) {
+  if (lengthMeters == null) return null;
+  return Math.round((lengthMeters / 1000 / 25) * 60) + stops * 5;
 }
 
 export function usePlanChoice(studentId: string | null | undefined): [boolean, (v: boolean) => void] {
@@ -100,10 +177,18 @@ export function usePlanChoice(studentId: string | null | undefined): [boolean, (
 /** Il giro da mandare all'ingresso in Road: solo se c'è, è acceso e l'istruttore non ha scelto «Senza giro». */
 export function chosenPlan(studentId: string | null | undefined, durationMin: number): RoadPlan | null {
   if (!studentId || choices.get(studentId) === false) return null;
-  const plan = entries.get(planKey(studentId, durationMin))?.data?.plan ?? null;
+  const key = planKey(studentId, durationMin);
+  const plan = overrides.get(key) ?? entries.get(key)?.data?.plan ?? null;
   return plan?.stops.length ? plan : null;
 }
 
 export function chosenLessonPlan(lesson: RoadLesson): RoadPlan | null {
   return chosenPlan(lesson.student?.id, lessonMinutes(lesson));
+}
+
+/** «Pedoni · SS150»: cosa e dove (la via da sola si ripete, QA 30/10). Percorso d'esame: il suo nome. */
+export function planStopLabel(stop: RoadPlanStop): string {
+  const what = stop.kind ? FALLBACK_BASE_CATALOG.find((c) => c.key === stop.kind)?.label : null;
+  const where = stop.title.replace(/^Strada Statale (\d+).*$/i, 'SS$1');
+  return what && what !== where ? `${what} · ${where}` : where;
 }

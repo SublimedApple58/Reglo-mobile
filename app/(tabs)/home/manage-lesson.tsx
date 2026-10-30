@@ -29,7 +29,7 @@ import { useRoadEnabled } from '../../../src/hooks/useRoadEnabled';
 import { useRoadSelector } from '../../../src/road/roadStore';
 import { SHEET_HANDOFF_MS, beginRoadEntry } from '../../../src/road/entryFlow';
 import { lessonMinutes } from '../../../src/road/planStore';
-import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
+import { RoadPlanRow } from '../../../src/components/road/RoadPlanCard';
 import * as Haptics from '../../../src/utils/haptics';
 
 const DANGER = '#C13515';
@@ -505,8 +505,10 @@ export default function ManageLessonScreen() {
 
         {/* REG-649: il giro di questa guida, sopra «Avvia con Road». */}
         {roadLesson ? (
-          <RoadPlanCard
+          // REG-667: una riga con la miniatura del giro; tocco = foglio «Il giro».
+          <RoadPlanRow
             studentId={roadLesson.student?.id}
+            studentName={roadLesson.student?.name}
             durationMin={lessonMinutes(roadLesson)}
             style={s.roadPlan}
             testID="manage-lesson-plan"

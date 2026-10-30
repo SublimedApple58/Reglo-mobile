@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useSyncExternalStore } from 'react';
+import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { RoadPlan, RoadPlanStop } from '../../types/regloApi';
@@ -8,7 +10,11 @@ import { ClaySurface } from '../clay/ClaySurface';
 import { ClayToggle } from '../clay/ClayToggle';
 import { SkeletonBlock } from '../Skeleton';
 import { SEGMENT_TIMING } from '../../utils/motion';
-import { usePlan, usePlanChoice } from '../../road/planStore';
+import { hasPlanOverride, planMinutesFor, planStopLabel, prefetchPlanRoute, usePlan, usePlanChoice, usePlanRoute } from '../../road/planStore';
+import { roadFreeStore, warmRoadFree } from '../../road/freeStartStore';
+import { GIRO_SHEET_ROUTE, giroSheetStore } from '../../road/giroSheetStore';
+import { orderGuideStops } from '../../road/roadGuide';
+import { RoadPlanMap } from './RoadPlanMap';
 
 /**
  * REG-649 Reglo Road — «Il giro» nei fogli di partenza (tab Road, invito,
@@ -69,6 +75,81 @@ export const RoadPlanLine = React.memo(function RoadPlanLine({
         {` · circa ${res!.plan!.minutes} min`}
       </Text>
     </View>
+  );
+});
+
+/**
+ * REG-667 — il giro nel dettaglio di una guida futura, in una riga sola (QA
+ * 30/10: la lista delle tappe riempiva il dettaglio): miniatura con la linea e
+ * le tappe numerate, «Il giro · circa N min» e le tappe in breve; sotto «Segui
+ * il giro». Tocco sulla riga = foglio «Il giro» con mappa grande e tappe
+ * modificabili. Linea e sede arrivano all'apertura del dettaglio, mai al tocco.
+ */
+export const RoadPlanRow = React.memo(function RoadPlanRow({
+  studentId,
+  studentName,
+  durationMin,
+  style,
+  testID = 'road-plan-row',
+}: {
+  studentId: string | null | undefined;
+  studentName?: string | null;
+  durationMin: number;
+  style?: object;
+  testID?: string;
+}) {
+  const router = useRouter();
+  const res = usePlan(studentId, durationMin);
+  const [on, setOn] = usePlanChoice(studentId);
+  const free = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
+  const hq = free?.headquarters ?? null;
+  const start = hq ? { lat: hq.lat, lng: hq.lng } : null;
+  const plan = res?.plan ?? null;
+  const stops = plan?.stops ?? null;
+  // Giro modificato dall'istruttore: il suo ordine, niente riottimizzazione.
+  const custom = hasPlanOverride(studentId, durationMin);
+  const route = usePlanRoute(start, stops, !custom);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!free) warmRoadFree();
+      if (start && stops?.length) void prefetchPlanRoute(start, stops, !custom);
+    });
+    return () => task.cancel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [free, start?.lat, start?.lng, stops, custom]);
+
+  if (res === undefined) return studentId ? <PlanSkeleton style={style} /> : null;
+  if (!plan?.stops.length) return null;
+  const ordered = custom ? plan.stops : orderGuideStops(plan.stops, route?.order);
+  const minutes = planMinutesFor(route?.lengthMeters, ordered.length) ?? plan.minutes;
+  const open = () => {
+    if (!studentId) return;
+    giroSheetStore.set({ studentId, durationMin, studentName });
+    router.push(GIRO_SHEET_ROUTE as never);
+  };
+  return (
+    <ClaySurface padded={false} style={[s.rowCard, style]} testID={testID}>
+      <Pressable onPress={open} style={({ pressed }) => [s.rowMain, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Apri il giro" testID={`${testID}-open`}>
+        <View style={[s.thumb, !on && s.dim]} pointerEvents="none">
+          <RoadPlanMap line={route?.line} stops={ordered} start={start} small />
+        </View>
+        <View style={[s.rowText, !on && s.dim]}>
+          <Text style={s.title} numberOfLines={1}>
+            Il giro <Text style={s.titleMeta}>· circa {minutes} min</Text>
+          </Text>
+          {ordered.map((st, i) => (
+            <Text key={st.key} style={s.rowStop} numberOfLines={1}>
+              {i + 1}  {planStopLabel(st)}
+            </Text>
+          ))}
+        </View>
+        <Ionicons name="chevron-forward" size={17} color="#B9B9B9" />
+      </Pressable>
+      <View style={s.rowToggle}>
+        <Text style={s.toggleTx}>Segui il giro</Text>
+        <ClayToggle value={on} onValueChange={setOn} accessibilityLabel="Segui il giro" testID={`${testID}-toggle`} />
+      </View>
+    </ClaySurface>
   );
 });
 
@@ -174,4 +255,20 @@ const s = StyleSheet.create({
     borderTopColor: CLAY.hairline,
   },
   toggleTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  rowCard: { marginTop: 14 },
+  rowMain: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, paddingRight: 16 },
+  pressed: { opacity: 0.7 },
+  thumb: { width: 92, height: 92, borderRadius: 16, overflow: 'hidden', backgroundColor: '#F2F1EE' },
+  dim: { opacity: 0.4 },
+  rowText: { flex: 1, minWidth: 0, gap: 3 },
+  rowStop: { fontSize: 14, color: CLAY.ink3, letterSpacing: -0.1 },
+  rowToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: CLAY.hairline,
+  },
 });
