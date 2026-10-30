@@ -46,6 +46,8 @@ import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { LessonHistoryRow } from '../components/student/LessonHistoryRow';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
+import { forgetRoadStudent, prefetchRoadStudent } from '../road/avvioFlow';
+import { ROAD_ASSETS } from '../road/markerArt';
 import type { RoadStudentItem } from '../types/regloApi';
 import { isMandatoryLessonDuration } from '../utils/mandatoryLessons';
 
@@ -106,15 +108,18 @@ export const StudentNotesDetailScreen = () => {
   // REG-638: percorsi Road delle guide dello storico (chip «Percorso»).
   const { enabled: roadEnabled } = useRoadEnabled();
   const [roadByLesson, setRoadByLesson] = useState<Map<string, RoadStudentItem>>(new Map());
+  // REG-663: la stessa risposta serve alla riga «Road» e al foglio «Road di …»
+  // (cache condivisa: al tocco il foglio è già pieno). Riletta a ogni apertura.
+  const [roadSummary, setRoadSummary] = useState<{ guides: number; points: number } | null>(null);
   useEffect(() => {
     if (!roadEnabled || !studentId) return;
     let alive = true;
-    regloApi
-      .getRoadForStudent(String(studentId))
-      .then((res) => {
-        if (alive) setRoadByLesson(new Map(res.items.map((it) => [it.appointmentId, it])));
-      })
-      .catch(() => undefined);
+    forgetRoadStudent(String(studentId));
+    void prefetchRoadStudent(String(studentId)).then((res) => {
+      if (!alive || !res) return;
+      setRoadByLesson(new Map(res.items.map((it) => [it.appointmentId, it])));
+      setRoadSummary({ guides: res.items.length, points: res.hotspots?.length ?? 0 });
+    });
     return () => {
       alive = false;
     };
@@ -663,8 +668,30 @@ export const StudentNotesDetailScreen = () => {
       ) : null}
 
       {/* Pagamenti e impostazioni: una lista sola */}
-      {!loading && (paymentsManualMode || showSettings) ? (
+      {!loading && (paymentsManualMode || showSettings || roadEnabled) ? (
         <ClayList style={s.listGap}>
+          {roadEnabled ? (
+            <ClayListRow
+              title="Road"
+              subtitle={
+                !roadSummary
+                  ? ' '
+                  : roadSummary.guides === 0
+                    ? 'Ancora nessuna guida in Road'
+                    : [
+                        roadSummary.guides === 1 ? '1 guida' : `${roadSummary.guides} guide`,
+                        roadSummary.points ? `${roadSummary.points} ${roadSummary.points === 1 ? 'punto' : 'punti'} da migliorare` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+              }
+              trailing={<Icon3D source={ROAD_ASSETS.road} size={46} />}
+              onPress={() =>
+                router.push({ pathname: `/(tabs)/${stackName}/road-allievo` as never, params: { studentId: String(studentId), name: fullName } })
+              }
+              testID="student-road-row"
+            />
+          ) : null}
           {paymentsManualMode ? (
             <ClayListRow
               title="Pagamenti"

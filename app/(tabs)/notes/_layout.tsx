@@ -32,6 +32,8 @@ export default function NotesLayout() {
       <Stack.Screen name="booking-rules" options={FORM_SHEET} />
       {/* REG-638: percorso Road di una guida dallo storico allievo. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
+      {/* REG-663: «Road di <allievo>» dal dettaglio allievo. */}
+      <Stack.Screen name="road-allievo" options={FORM_SHEET} />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="limits" options={FORM_SHEET} />
       <Stack.Screen name="extras" options={FORM_SHEET} />

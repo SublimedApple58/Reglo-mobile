@@ -76,6 +76,8 @@ export default function HomeLayout() {
       {/* REG-638: «Percorso Road» di una guida (dettaglio guida, storico allievo):
           form sheet che abbraccia il contenuto, niente vuoto sotto (§13.2.1). */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
+      {/* REG-663: «Road di <allievo>» dal dettaglio allievo. */}
+      <Stack.Screen name="road-allievo" options={FORM_SHEET} />
     </Stack>
   );
 }
