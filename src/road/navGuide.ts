@@ -52,6 +52,41 @@ export function projectOnLine(
   return best;
 }
 
+/** REG-689: sotto questa distanza l'auto mostrata sta sulla linea del giro. */
+const SNAP_FULL_M = 10;
+/** …e oltre questa è libera (GPS smorzato); in mezzo sfuma. */
+const SNAP_NONE_M = 25;
+
+/**
+ * REG-689 — aggancio dell'auto alla linea del giro, per ogni fotogramma.
+ * Cerca vicino all'ultimo tratto trovato (la linea può ripassare dalla stessa
+ * strada); se lì non c'è, al massimo una volta al secondo su tutta la linea.
+ */
+export function createLineSnap(m: MeasuredLine) {
+  let idx = 0;
+  let fullAt = 0;
+  return (lat: number, lng: number) => {
+    const p = { lat, lng };
+    let hit = projectOnLine(m, p, idx - 5, idx + 60);
+    if (hit.off > SNAP_NONE_M) {
+      const now = Date.now();
+      if (now - fullAt < 1000) return null;
+      fullAt = now;
+      hit = projectOnLine(m, p);
+      if (hit.off > SNAP_NONE_M) return null;
+    }
+    idx = hit.index;
+    const [aLat, aLng] = m.line[hit.index];
+    const [bLat, bLng] = m.line[Math.min(hit.index + 1, m.line.length - 1)];
+    const segLen = m.cum[Math.min(hit.index + 1, m.cum.length - 1)] - m.cum[hit.index];
+    const t = segLen > 0 ? (hit.along - m.cum[hit.index]) / segLen : 0;
+    const kx = mPerDegLng(aLat);
+    const bearing = ((Math.atan2((bLng - aLng) * kx, (bLat - aLat) * M_PER_DEG_LAT) * 180) / Math.PI + 360) % 360;
+    const w = hit.off <= SNAP_FULL_M ? 1 : (SNAP_NONE_M - hit.off) / (SNAP_NONE_M - SNAP_FULL_M);
+    return { lat: aLat + (bLat - aLat) * t, lng: aLng + (bLng - aLng) * t, bearing, w };
+  };
+}
+
 /** Svolte messe sulla linea, in ordine (ognuna cercata dopo la precedente). */
 export type PlacedStep = RoadRouteStep & { along: number };
 
@@ -145,6 +180,8 @@ export function formatDistance(m: number): { value: string; unit: string } {
 export type NavState = {
   /** La prossima svolta e quanto manca, o null (finite, o senza svolte). */
   step: { maneuver: string; text: string; meters: number } | null;
+  /** REG-690: la svolta subito dopo, se arriva entro 250 m (riga «Poi» del banner). */
+  then: { maneuver: string; text: string } | null;
   /** La prossima tappa ancora da fare e quanto manca (sulla linea, o in linea d'aria). */
   stop: { key: string; n: number; title: string; street: string | null; meters: number } | null;
   /** Metri di giro che restano (null senza linea). */
@@ -157,6 +194,8 @@ export type NavState = {
 const NAV_OFF_M = 50;
 /** Una svolta già passata da tanti metri non è più «la prossima». */
 const STEP_PASSED_M = 8;
+/** La svolta dopo si annuncia («Poi …») solo se è vicina alla prossima. */
+const THEN_MAX_M = 250;
 
 /**
  * Lo stato della card in alto per la posizione `p`. `prevAlong` = dove era
@@ -199,6 +238,11 @@ export function navState(input: {
   const step = nextStep
     ? { maneuver: nextStep.maneuver, text: nextStep.text || maneuverFallbackText(nextStep.maneuver), meters: nextStep.along - along }
     : null;
+  const after = nextStep ? input.steps[input.steps.indexOf(nextStep) + 1] ?? null : null;
+  const then =
+    after && after.along - nextStep!.along <= THEN_MAX_M
+      ? { maneuver: after.maneuver, text: after.text || maneuverFallbackText(after.maneuver) }
+      : null;
 
   let stop: NavState['stop'] = null;
   input.stops.some((s, i) => {
@@ -212,7 +256,7 @@ export function navState(input: {
     return true;
   });
 
-  return { step, stop, left: m ? Math.max(0, m.length - along) : null, offLine, along };
+  return { step, then, stop, left: m ? Math.max(0, m.length - along) : null, offLine, along };
 }
 
 // ─── Punti critici: avviso anticipato e ripasso ────────────────────────────

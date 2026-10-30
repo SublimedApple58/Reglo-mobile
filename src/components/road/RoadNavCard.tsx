@@ -12,9 +12,11 @@ import { CLAY, CLAY_SHADOW } from '../../theme';
  * bianco sul quadrato nero, distanza grande, l'indicazione di Google) e sotto
  * la prossima tappa del giro con quanto manca. Senza svolte (backend vecchio,
  * Google giù) o fuori dal giro resta solo la riga della tappa.
+ * REG-690: banner di manovra grande come Apple Mappe / Google Maps (glifo 68,
+ * distanza 40) e, se la svolta dopo arriva entro 250 m, la riga «Poi …».
  */
 export const RoadNavCard = React.memo(function RoadNavCard({ nav, style }: { nav: NavState; style?: object }) {
-  const { step, stop, offLine } = nav;
+  const { step, then, stop, offLine } = nav;
   if (!step && !stop && !offLine) return null;
   const d = step ? formatDistance(step.meters) : null;
   const stopD = stop ? formatDistance(stop.meters) : null;
@@ -25,7 +27,7 @@ export const RoadNavCard = React.memo(function RoadNavCard({ nav, style }: { nav
         <View style={s.row} accessibilityLabel={`Tra ${d.value} ${d.unit === 'm' ? 'metri' : 'chilometri'}: ${step.text}`}>
           <View style={s.glyph}>
             <Animated.View key={step.maneuver} entering={ROAD_TEXT_IN}>
-              <MaterialIcons name={maneuverGlyph(step.maneuver) as never} size={34} color="#FFFFFF" />
+              <MaterialIcons name={maneuverGlyph(step.maneuver) as never} size={46} color="#FFFFFF" />
             </Animated.View>
           </View>
           <View style={s.texts}>
@@ -36,7 +38,15 @@ export const RoadNavCard = React.memo(function RoadNavCard({ nav, style }: { nav
             <Text style={s.what} numberOfLines={2}>{step.text}</Text>
           </View>
         </View>
-      ) : offLine ? (
+      ) : null}
+      {step && then ? (
+        <View style={[s.next, s.nextSep]} accessibilityLabel={`Poi: ${then.text}`} testID="road-nav-then">
+          <Text style={s.thenLabel}>Poi</Text>
+          <MaterialIcons name={maneuverGlyph(then.maneuver) as never} size={22} color={CLAY.ink} />
+          <Text style={s.nextTx} numberOfLines={1}>{then.text}</Text>
+        </View>
+      ) : null}
+      {!step && offLine ? (
         <View style={s.row}>
           <View style={[s.glyph, s.glyphSoft]}>
             <MaterialIcons name="alt-route" size={30} color={CLAY.ink} />
@@ -77,12 +87,13 @@ const s = StyleSheet.create({
     paddingVertical: 14,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  glyph: { width: 58, height: 58, borderRadius: 18, backgroundColor: CLAY.ink, alignItems: 'center', justifyContent: 'center' },
+  glyph: { width: 68, height: 68, borderRadius: 20, backgroundColor: CLAY.ink, alignItems: 'center', justifyContent: 'center' },
   glyphSoft: { backgroundColor: 'rgba(17,17,17,0.06)' },
   texts: { flex: 1, minWidth: 0 },
-  dist: { fontSize: 30, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8, lineHeight: 34, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 18, fontWeight: '500', color: CLAY.ink3, letterSpacing: 0 },
-  what: { fontSize: 16, fontWeight: '500', color: CLAY.ink2, lineHeight: 20, marginTop: 1 },
+  dist: { fontSize: 40, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.2, lineHeight: 44, fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 21, fontWeight: '500', color: CLAY.ink3, letterSpacing: 0 },
+  what: { fontSize: 18, fontWeight: '500', color: CLAY.ink, lineHeight: 22, marginTop: 1, letterSpacing: -0.2 },
+  thenLabel: { fontSize: 15, fontWeight: '600', color: CLAY.ink },
   offT1: { fontSize: 19, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   next: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   nextSep: { marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.14)' },

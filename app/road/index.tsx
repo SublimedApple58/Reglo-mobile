@@ -11,7 +11,7 @@ import {
   View,
   type GestureResponderEvent,
 } from 'react-native';
-import MapView, { Polyline } from 'react-native-maps';
+import MapView, { Polyline, type Camera } from 'react-native-maps';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -29,9 +29,20 @@ import { openRoadPagellino } from '../../src/road/pagellino';
 import { openRoadNotes, prefetchRoadNotes } from '../../src/road/roadNotes';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
-import { createLiveMotion, headingDelta } from '../../src/road/liveMotion';
+import { createLiveMotion, headingDelta, type MotionFix, type MotionSample } from '../../src/road/liveMotion';
+import {
+  AUTO_RETURN_MS,
+  RETURN_MS,
+  blendPose,
+  cameraTarget,
+  createLiveCamera,
+  easeInOut,
+  zoomForAltitude,
+  type CamPose,
+} from '../../src/road/liveCamera';
 import {
   HOTSPOT_DECIDE_MS,
+  createLineSnap,
   measureLine,
   navState,
   placeSteps,
@@ -62,19 +73,17 @@ import type { RoadHotspotOutcome } from '../../src/types/regloApi';
  *   riaggancia, la bussola rimette il nord;
  * - in alto la prossima svolta e la prossima tappa; i punti critici
  *   dell'allievo avvisano 180 m prima e sul punto si segna «Meglio» / «Ancora no».
+ * REG-683 (piano 008 fase 1, 31/10/2026): il tocco sgancia la camera subito
+ * (ref letto dal loop, niente più «mappa inchiodata»), dopo 10 s senza tocchi
+ * torna da sola sull'auto con una fusione morbida, GPS da una sola fonte con
+ * l'ora del fix, camera a ogni fotogramma con zoom e inclinazione automatici
+ * (`liveCamera.ts`), auto agganciata alla linea del giro, traccia a pezzi.
  * Lo schermo resta acceso finché si è qui.
  */
 
-const PITCH = 40;
-const ALTITUDE = 900; // iOS (metri)
-const ZOOM = 16.4; // Android
 // Spazio sopra/sotto in cui la mappa centra l'auto: la tiene sotto la metà
 // dello schermo, con più strada davanti.
 const MAP_PADDING_TOP = 330;
-/** Ogni quanto si muove la camera (ms): ~30 al secondo bastano e non intasano. */
-const CAMERA_FRAME_MS = 33;
-/** Quanto dura il riaggancio animato prima che riparta il fotogramma per fotogramma. */
-const RECENTER_MS = 500;
 /** Il «Segnato» del ripasso resta 5 s (come il toast delle segnalazioni), poi la card si chiude. */
 const CHECK_DONE_MS = 5_000;
 
@@ -133,19 +142,63 @@ const STILL = (c: { lat: number; lng: number }) => [
   { latitude: c.lat, longitude: c.lng },
 ];
 
-/** La traccia fatta: grigia e sottile, sempre montata (posto fisso in MapView). */
-const LiveTrack = React.memo(function LiveTrack({ center }: { center: { lat: number; lng: number } }) {
-  const track = useRoadSelector((s) => s.track);
-  const still = useMemo(() => STILL(center), [center]);
+/**
+ * La traccia fatta: grigia e sottile. REG-687: a pezzi. I pezzi chiusi non
+ * cambiano più (stesso array → la mappa non li ridisegna) e a ogni punto GPS
+ * si rimanda solo la coda; prima a ogni punto ripartiva verso la mappa TUTTA la
+ * traccia, migliaia di punti a fine guida. Posti fissi, sempre montati (crash
+ * AIRMap aggiungendo figli, vedi RoadGuideOverlay): TRACK_SLOTS pezzi + la coda.
+ * Se i pezzi non bastano raddoppiano di lunghezza (si ricalcolano una volta).
+ */
+const TRACK_SLOTS = 10;
+const TRACK_CHUNK = 300;
+type TrackPt = { latitude: number; longitude: number };
+
+function useTrackChunks(track: TrackPt[]) {
+  const cache = useRef<{ first: TrackPt | null; size: number; chunks: TrackPt[][] }>({ first: null, size: TRACK_CHUNK, chunks: [] });
+  const c = cache.current;
+  let size = c.size;
+  while (Math.floor(Math.max(0, track.length - 1) / size) > TRACK_SLOTS) size *= 2;
+  // Traccia ricominciata o ricaricata dal server (punti aggiunti in testa): da capo.
+  if (c.first !== (track[0] ?? null) || size !== c.size || c.chunks.length * c.size >= track.length) {
+    cache.current = { first: track[0] ?? null, size, chunks: [] };
+  }
+  const cc = cache.current;
+  // Ogni pezzo chiuso ripete l'ultimo punto del precedente: la linea resta continua.
+  while ((cc.chunks.length + 1) * size < track.length) {
+    const i = cc.chunks.length;
+    cc.chunks.push(track.slice(i * size, (i + 1) * size + 1));
+  }
+  const tail = track.slice(cc.chunks.length * size);
+  return { chunks: cc.chunks, tail };
+}
+
+const TRACK_INK = 'rgba(17,17,17,0.30)';
+const TrackPiece = React.memo(function TrackPiece({ pts, still }: { pts: TrackPt[] | null; still: TrackPt[] }) {
+  const on = !!pts && pts.length >= 2;
   return (
     <Polyline
-      coordinates={track.length >= 2 ? track : still}
-      strokeColor={track.length >= 2 ? 'rgba(17,17,17,0.30)' : 'rgba(17,17,17,0)'}
+      coordinates={on ? pts : still}
+      strokeColor={on ? TRACK_INK : 'rgba(17,17,17,0)'}
       strokeWidth={5}
       lineCap="round"
       lineJoin="round"
       zIndex={1}
     />
+  );
+});
+
+const LiveTrack = React.memo(function LiveTrack({ center }: { center: { lat: number; lng: number } }) {
+  const track = useRoadSelector((s) => s.track);
+  const still = useMemo(() => STILL(center), [center]);
+  const { chunks, tail } = useTrackChunks(track);
+  return (
+    <>
+      {Array.from({ length: TRACK_SLOTS }, (_, i) => (
+        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} />
+      ))}
+      <TrackPiece pts={tail} still={still} />
+    </>
   );
 });
 
@@ -187,31 +240,123 @@ const LivePins = React.memo(function LivePins() {
   );
 });
 
-/** L'auto come marker, visibile solo con la mappa libera (ultimo figlio della mappa). */
+/**
+ * L'auto come marker, visibile solo con la mappa libera (ultimo figlio della
+ * mappa). REG-689: prende la posizione stimata 10 volte al secondo, così non
+ * salta più da un punto GPS all'altro.
+ */
+const FREE_CAR_MS = 50;
 const LiveCarMarker = React.memo(function LiveCarMarker({
   following,
-  mapHeading,
   color,
   epoch,
+  liveRef,
+  mapHeadRef,
 }: {
   following: boolean;
-  mapHeading: number;
   color?: string | null;
   epoch: number;
+  liveRef: React.MutableRefObject<MotionSample | null>;
+  /** La direzione della mappa adesso (il marker ruota rispetto allo schermo). */
+  mapHeadRef: React.MutableRefObject<number>;
 }) {
-  const fix = useRoadSelector((s) => (following ? null : s.fix));
-  const last = useRef<typeof fix>(null);
-  if (fix) last.current = fix;
-  const shown = fix ?? last.current ?? roadStore.get().fix;
-  if (!shown) return null;
+  const read = () => {
+    const f = liveRef.current ?? roadStore.get().fix;
+    return f ? { lat: f.lat, lng: f.lng, rot: (f.heading ?? 0) - mapHeadRef.current } : null;
+  };
+  const [shown, setShown] = useState(read);
+  useEffect(() => {
+    if (following) return;
+    setShown(read());
+    const t = setInterval(() => setShown(read()), FREE_CAR_MS);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [following]);
+  const fix = shown ?? read();
+  if (!fix) return null;
   return (
     <RoadLiveCarMarker
       key={`car-${epoch}`}
-      coordinate={{ latitude: shown.lat, longitude: shown.lng }}
-      rotation={(shown.heading ?? 0) - mapHeading}
+      coordinate={{ latitude: fix.lat, longitude: fix.lng }}
+      rotation={fix.rot}
       color={color}
       opacity={following ? 0 : 1}
     />
+  );
+});
+
+/**
+ * REG-687: la mappa in un pezzo a sé, con props stabili. Si ridisegna solo
+ * quando cambia davvero qualcosa (sgancio/ritorno, bussola, pannello), non a
+ * ogni render della schermata.
+ */
+const LiveMap = React.memo(function LiveMap({
+  mapRef,
+  center,
+  panelH,
+  following,
+  carColor,
+  carEpoch,
+  liveRef,
+  mapHeadRef,
+  onPanDrag,
+  onRegionDone,
+}: {
+  mapRef: React.RefObject<MapView | null>;
+  center: { lat: number; lng: number; heading: number };
+  panelH: number;
+  following: boolean;
+  carColor?: string | null;
+  carEpoch: number;
+  liveRef: React.MutableRefObject<MotionSample | null>;
+  mapHeadRef: React.MutableRefObject<number>;
+  onPanDrag: () => void;
+  onRegionDone: () => void;
+}) {
+  const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
+  const initialCamera = useMemo(() => {
+    const t = cameraTarget(0, null);
+    return {
+      center: { latitude: center.lat, longitude: center.lng },
+      heading: center.heading,
+      pitch: t.pitch,
+      altitude: t.altitude,
+      zoom: zoomForAltitude(t.altitude),
+    };
+  }, [center]);
+  const padding = useMemo(() => ({ top: MAP_PADDING_TOP, right: 0, bottom: 8 + panelH, left: 0 }), [panelH]);
+  const legal = useMemo(() => ({ top: 0, right: 0, bottom: 8 + panelH + 14, left: 18 }), [panelH]);
+  return (
+    <MapView
+      ref={mapRef}
+      style={StyleSheet.absoluteFill}
+      initialCamera={initialCamera}
+      mapPadding={padding}
+      legalLabelInsets={legal}
+      mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+      showsPointsOfInterest={false}
+      // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
+      showsBuildings={false}
+      showsCompass={false}
+      showsScale={false}
+      showsTraffic={false}
+      showsUserLocation={false}
+      toolbarEnabled={false}
+      // REG-679: pan, zoom e rotazione nativi (prima rotazione e inclinazione erano spente).
+      rotateEnabled
+      pitchEnabled
+      zoomEnabled
+      scrollEnabled
+      userInterfaceStyle="light"
+      onPanDrag={onPanDrag}
+      onRegionChangeComplete={onRegionDone}
+    >
+      {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
+      <LiveGuide center={where} />
+      <LiveTrack center={where} />
+      <LivePins />
+      <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
+    </MapView>
   );
 });
 
@@ -235,7 +380,7 @@ function useNav(): NavState {
   }
   const done = useMemo(() => [...reached, ...skipped], [reached, skipped]);
   return useMemo(() => {
-    if (!fix) return { step: null, stop: null, left: null, offLine: false };
+    if (!fix) return { step: null, then: null, stop: null, left: null, offLine: false };
     const offConfirmed = offSince != null && fix.t - offSince >= REROUTE_OFF_MS;
     const r = navState({ m: measured, steps, stops, stopAlong, done, p: fix, prevAlong: along.current, offConfirmed });
     along.current = r.along;
@@ -245,6 +390,18 @@ function useNav(): NavState {
 
 // ─── Schermata ──────────────────────────────────────────────────────────────
 
+type CamMode = 'follow' | 'free' | 'returning';
+/** Un trascinamento oltre questi punti sgancia la camera (prima 8: più reattivo). */
+const DRAG_RELEASE_PT = 4;
+/** Il GPS dell'ascolto è fermo da tanto: i punti del tracking tornano buoni. */
+const WATCH_STALE_MS = 3000;
+/** Un fix più vecchio di così rispetto a ora: l'orologio non torna, vale l'arrivo. */
+const FIX_MAX_AGE_MS = 3000;
+/** Il loop non chiede la camera più spesso di così (schermi a 120 Hz). */
+const MIN_FRAME_MS = 15;
+
+const altitudeForZoom = (zoom: number) => 900 * Math.pow(2, 16.4 - zoom);
+
 export default function RoadScreen() {
   useKeepAwake('reglo-road');
   const router = useRouter();
@@ -253,39 +410,107 @@ export default function RoadScreen() {
   const lesson = session?.lesson ?? null;
   const mapRef = useRef<MapView>(null);
   const [following, setFollowing] = useState(true);
-  const followingRef = useRef(true);
-  followingRef.current = following;
   const [panelH, setPanelH] = useState(220);
   const [topH, setTopH] = useState(0);
   const [mapHeading, setMapHeading] = useState(0);
   const [ending, setEnding] = useState(false);
   // REG-673: al ritorno dal background il marker si rimonta da zero.
   const [carEpoch, setCarEpoch] = useState(0);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
 
   // ── Movimento fluido (REG-678) ──
   const motion = useRef(createLiveMotion(null)).current;
+  const liveCam = useRef(createLiveCamera()).current;
   const carRot = useSharedValue(0);
   const carHalo = useSharedValue(CAR_DISC);
   const carVisible = useSharedValue(1);
-  const [carPt, setCarPt] = useState<{ x: number; y: number } | null>(null);
-  const resumeAt = useRef(0);
-  const camOk = useRef(false);
+  /** L'ultimo campione del movimento: lo legge il marker a mappa libera. */
+  const liveRef = useRef<MotionSample | null>(null);
+  /** Metri alla prossima svolta (dalla card in alto): lo zoom automatico scende lì (REG-688). */
+  const turnRef = useRef<number | null>(null);
 
-  // I punti GPS (tracking) entrano nel motore del movimento, senza ridisegnare.
-  useEffect(() => {
-    let last = roadStore.get().fix;
-    if (last) motion.push(last);
-    return roadStore.subscribe(() => {
-      const f = roadStore.get().fix;
-      if (f && f !== last) {
-        last = f;
-        motion.push(f);
-      }
-    });
+  // ── Chi comanda la camera (REG-684/685) ──
+  // Un ref e non uno stato: il loop lo legge a ogni fotogramma, quindi lo
+  // sgancio vale dal tocco stesso. Prima era uno stato React: il loop si
+  // fermava solo dopo il ridisegno di tutta la schermata e nel frattempo
+  // rimetteva la camera sull'auto, mangiando i primi 100–300 ms di ogni
+  // trascinamento («la mappa resta inchiodata»).
+  const mode = useRef<CamMode>('follow');
+  const lastTouch = useRef(0);
+  const back = useRef<{ from: CamPose; t0: number } | null>(null);
+  /** La direzione della camera adesso (marker a mappa libera, bussola). */
+  const mapHeadRef = useRef(0);
+
+  const release = useCallback(() => {
+    lastTouch.current = Date.now();
+    if (mode.current === 'free') return;
+    mode.current = 'free';
+    back.current = null;
+    setFollowing(false);
+    setMapHeading(mapHeadRef.current);
+  }, []);
+
+  // Ritorno morbido sull'auto: il loop stesso mescola la camera lasciata
+  // dall'utente con quella che segue (niente animateCamera con frenata, niente
+  // scatto quando riparte il fotogramma per fotogramma).
+  const startReturn = useCallback(() => {
+    if (mode.current !== 'free' || !liveRef.current) return;
+    mode.current = 'returning';
+    const begin = (c: Camera | null) => {
+      if (mode.current !== 'returning') return; // un tocco nel frattempo
+      motion.alignCamera();
+      const smp = liveRef.current;
+      if (!smp) return;
+      const altitude = c?.altitude ?? (c?.zoom != null ? altitudeForZoom(c.zoom) : 900);
+      back.current = {
+        from: c
+          ? {
+              lat: c.center.latitude,
+              lng: c.center.longitude,
+              heading: c.heading ?? 0,
+              pitch: c.pitch ?? 45,
+              altitude,
+              zoom: c.zoom ?? zoomForAltitude(altitude),
+            }
+          : { lat: smp.lat, lng: smp.lng, heading: smp.heading, pitch: 45, altitude, zoom: zoomForAltitude(altitude) },
+        t0: Date.now(),
+      };
+    };
+    const map = mapRef.current;
+    if (!map) return begin(null);
+    map.getCamera().then(begin, () => begin(null));
   }, [motion]);
 
-  // Più punti solo per il disegno (1 al secondo) finché la schermata è aperta:
-  // il tracking ne manda uno ogni 8 m e a passo d'uomo diventano radi.
+  // ── GPS: una sola fonte, con l'ora del fix (REG-686) ──
+  // Prima il movimento prendeva i punti sia dal tracking (in ritardo, a
+  // gruppi) sia dall'ascolto da 1 s, timbrati con l'ora d'arrivo: un punto
+  // vecchio arrivato dopo uno nuovo tirava l'auto indietro.
+  const lastFixTs = useRef(0);
+  const lastWatchAt = useRef(0);
+  const feed = useCallback(
+    (f: MotionFix, ts: number) => {
+      if (ts <= lastFixTs.current) return;
+      lastFixTs.current = ts;
+      const now = Date.now();
+      const age = now - ts;
+      motion.push(f, age >= 0 && age < FIX_MAX_AGE_MS ? ts : now);
+    },
+    [motion],
+  );
+
+  // I punti del tracking servono solo finché l'ascolto non parte (o se tace).
+  useEffect(() => {
+    let last = roadStore.get().fix;
+    if (last) feed(last, last.t);
+    return roadStore.subscribe(() => {
+      const f = roadStore.get().fix;
+      if (!f || f === last) return;
+      last = f;
+      if (Date.now() - lastWatchAt.current > WATCH_STALE_MS) feed(f, f.t);
+    });
+  }, [feed]);
+
+  // L'ascolto della schermata: un punto al secondo, la fonte del movimento.
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
     let alive = true;
@@ -294,13 +519,17 @@ export default function RoadScreen() {
       (l) => {
         const c = l.coords;
         if (c.accuracy != null && c.accuracy > 50) return;
-        motion.push({
-          lat: c.latitude,
-          lng: c.longitude,
-          speed: c.speed != null && c.speed >= 0 ? c.speed : null,
-          heading: c.heading != null && c.heading >= 0 ? c.heading : null,
-          accuracy: c.accuracy ?? null,
-        });
+        lastWatchAt.current = Date.now();
+        feed(
+          {
+            lat: c.latitude,
+            lng: c.longitude,
+            speed: c.speed != null && c.speed >= 0 ? c.speed : null,
+            heading: c.heading != null && c.heading >= 0 ? c.heading : null,
+            accuracy: c.accuracy ?? null,
+          },
+          l.timestamp,
+        );
       },
     )
       .then((s) => {
@@ -312,15 +541,28 @@ export default function RoadScreen() {
       alive = false;
       sub?.remove();
     };
+  }, [feed]);
+
+  // REG-689: l'auto si aggancia alla linea del giro (anche dopo un riaggancio).
+  useEffect(() => {
+    let line: unknown = undefined;
+    const apply = () => {
+      const g = roadStore.get().guide?.line ?? null;
+      if (g === line) return;
+      line = g;
+      motion.setSnap(g && g.length >= 2 ? createLineSnap(measureLine(g)) : null);
+    };
+    apply();
+    const off = roadStore.subscribe(apply);
+    return () => {
+      off();
+      motion.setSnap(null);
+    };
   }, [motion]);
 
-  // La camera segue l'auto fotogramma per fotogramma (niente animazioni da 900 ms
-  // con accelerazione e frenata a ogni punto: erano gli «scattini»).
+  // La camera segue l'auto a ogni fotogramma (REG-686: prima 30 al secondo,
+  // con l'auto a 60: la strada «tremava» sotto l'auto).
   useEffect(() => {
-    if (!following) {
-      carVisible.value = withTiming(0, { duration: 150, reduceMotion: ReduceMotion.Never });
-      return;
-    }
     let raf = 0;
     let lastCam = 0;
     const tick = () => {
@@ -328,43 +570,57 @@ export default function RoadScreen() {
       const now = Date.now();
       const smp = motion.sample(now);
       if (!smp) return;
+      liveRef.current = smp;
+      const frame = liveCam.step(now, smp.speed, turnRef.current);
+      if (mode.current === 'free') {
+        // REG-685: 10 s senza toccare la mappa → si torna da soli sull'auto.
+        if (now - lastTouch.current >= AUTO_RETURN_MS) startReturn();
+        return;
+      }
       carRot.value = headingDelta(smp.camHeading, smp.heading);
       const acc = smp.accuracy ?? 10;
       carHalo.value = Math.max(CAR_DISC, Math.min(120, acc * 3.2));
-      if (now < resumeAt.current || now - lastCam < CAMERA_FRAME_MS) return;
-      lastCam = now;
-      mapRef.current?.setCamera({
-        center: { latitude: smp.lat, longitude: smp.lng },
+      if (now - lastCam < MIN_FRAME_MS) return;
+      const to: CamPose = {
+        lat: smp.lat,
+        lng: smp.lng,
         heading: smp.camHeading,
-        pitch: PITCH,
-        altitude: ALTITUDE,
-        zoom: ZOOM,
-      });
-      if (!camOk.current) {
-        camOk.current = true;
-        // Dove cade il centro della camera sullo schermo: lì sta l'auto. La
-        // camera si ferma un attimo mentre si misura (se no la misura è vecchia).
-        resumeAt.current = now + 260;
-        const at = { latitude: smp.lat, longitude: smp.lng };
-        setTimeout(() => {
-          mapRef.current
-            ?.pointForCoordinate(at)
-            .then((p) => {
-              if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) setCarPt({ x: p.x, y: p.y });
-            })
-            .catch(() => undefined);
-        }, 120);
+        pitch: frame.pitch,
+        altitude: frame.altitude,
+        zoom: frame.zoom,
+      };
+      let pose = to;
+      if (mode.current === 'returning') {
+        const r = back.current;
+        if (!r) return; // si aspetta la camera di partenza
+        const k = Math.min(1, (now - r.t0) / RETURN_MS);
+        pose = blendPose(r.from, to, easeInOut(k));
+        if (k >= 1) {
+          mode.current = 'follow';
+          back.current = null;
+          setFollowing(true);
+          setMapHeading(0);
+        }
       }
+      lastCam = now;
+      mapHeadRef.current = pose.heading;
+      mapRef.current?.setCamera({
+        center: { latitude: pose.lat, longitude: pose.lng },
+        heading: pose.heading,
+        pitch: pose.pitch,
+        altitude: pose.altitude,
+        zoom: pose.zoom,
+      });
     };
     raf = requestAnimationFrame(tick);
-    carVisible.value = withTiming(1, { duration: 150, reduceMotion: ReduceMotion.Never });
     return () => cancelAnimationFrame(raf);
-  }, [following, motion, carRot, carHalo, carVisible]);
+  }, [motion, liveCam, carRot, carHalo, startReturn]);
 
-  // Cambia lo spazio della mappa (pannello, card): si rimisura dove sta l'auto.
+  // L'auto ferma sullo schermo c'è solo mentre si segue; a mappa libera e
+  // durante il ritorno c'è il marker (sta sul punto vero della mappa).
   useEffect(() => {
-    camOk.current = false;
-  }, [panelH]);
+    carVisible.value = withTiming(following ? 1 : 0, { duration: 150, reduceMotion: ReduceMotion.Never });
+  }, [following, carVisible]);
 
   // REG-652: linea suggerita, tappe e punti dell'allievo, una volta per sessione.
   const sessionId = session?.id;
@@ -387,15 +643,13 @@ export default function RoadScreen() {
     prefetchRoadNotes(lesson);
   }, [lesson]);
 
-  // Ritorno dal background: marker rimontato (REG-673), camera rimisurata.
+  // Ritorno dal background: marker rimontato (REG-673).
   useEffect(() => {
     let prev = AppState.currentState;
     const sub = AppState.addEventListener('change', (next) => {
       const back = next === 'active' && prev !== 'active';
       prev = next;
-      if (!back) return;
-      setCarEpoch((n) => n + 1);
-      camOk.current = false;
+      if (back) setCarEpoch((n) => n + 1);
     });
     return () => sub.remove();
   }, []);
@@ -407,12 +661,13 @@ export default function RoadScreen() {
     Location.getLastKnownPositionAsync()
       .then((p) => {
         if (!alive || !p || motion.ready) return;
+        const t = cameraTarget(0, null);
         mapRef.current?.setCamera({
           center: { latitude: p.coords.latitude, longitude: p.coords.longitude },
           heading: 0,
-          pitch: PITCH,
-          altitude: ALTITUDE,
-          zoom: ZOOM,
+          pitch: t.pitch,
+          altitude: t.altitude,
+          zoom: zoomForAltitude(t.altitude),
         });
       })
       .catch(() => undefined);
@@ -421,110 +676,113 @@ export default function RoadScreen() {
     };
   }, [motion]);
 
-  // Un gesto sulla mappa (trascinare, pizzicare, ruotare) sgancia la camera.
-  // Su iOS react-native-maps non dice se il movimento nasce da un gesto: si
-  // guardano i tocchi sul contenitore (un tocco fermo non sgancia).
+  // Un gesto sulla mappa (trascinare, pizzicare, ruotare) sgancia la camera
+  // SUBITO (ref, vedi sopra). Su iOS react-native-maps non dice se il
+  // movimento nasce da un gesto: si guardano i tocchi sul contenitore (un
+  // tocco fermo non sgancia) e il pan nativo (`onPanDrag`).
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (e: GestureResponderEvent) => {
-    const t = e.nativeEvent;
-    touch.current = { x: t.pageX, y: t.pageY };
-    if ((t.touches?.length ?? 1) > 1 && followingRef.current) setFollowing(false);
-  };
-  const onTouchMove = (e: GestureResponderEvent) => {
-    if (!followingRef.current || !touch.current) return;
-    const t = e.nativeEvent;
-    if ((t.touches?.length ?? 1) > 1 || Math.hypot(t.pageX - touch.current.x, t.pageY - touch.current.y) > 8) {
-      setFollowing(false);
-    }
-  };
+  const onTouchStart = useCallback(
+    (e: GestureResponderEvent) => {
+      const t = e.nativeEvent;
+      touch.current = { x: t.pageX, y: t.pageY };
+      if ((t.touches?.length ?? 1) > 1) release();
+    },
+    [release],
+  );
+  const onTouchMove = useCallback(
+    (e: GestureResponderEvent) => {
+      lastTouch.current = Date.now();
+      if (mode.current === 'free' || !touch.current) return;
+      const t = e.nativeEvent;
+      if ((t.touches?.length ?? 1) > 1 || Math.hypot(t.pageX - touch.current.x, t.pageY - touch.current.y) > DRAG_RELEASE_PT) {
+        release();
+      }
+    },
+    [release],
+  );
+  const onTouchEnd = useCallback(() => {
+    touch.current = null;
+  }, []);
+  // Ogni tocco sulla schermata (mappa, card, bottoni) fa ripartire i 10 s.
+  const onAnyTouch = useCallback(() => {
+    lastTouch.current = Date.now();
+  }, []);
 
   // Con la mappa libera: la direzione della mappa (bussola, auto marker).
   const onRegionDone = useCallback(() => {
-    if (followingRef.current) return;
+    if (mode.current !== 'free') return;
     mapRef.current
       ?.getCamera()
-      .then((c) => setMapHeading(c?.heading ?? 0))
+      .then((c) => {
+        mapHeadRef.current = c?.heading ?? 0;
+        setMapHeading(mapHeadRef.current);
+      })
       .catch(() => undefined);
   }, []);
 
   const onRecenter = useCallback(() => {
     Haptics.selectionAsync().catch(() => undefined);
-    const smp = motion.sample();
-    motion.alignCamera();
-    resumeAt.current = Date.now() + RECENTER_MS;
-    setMapHeading(0);
-    if (smp) {
-      mapRef.current?.animateCamera(
-        { center: { latitude: smp.lat, longitude: smp.lng }, heading: smp.heading, pitch: PITCH, altitude: ALTITUDE, zoom: ZOOM },
-        { duration: RECENTER_MS },
-      );
-    }
-    setFollowing(true);
-  }, [motion]);
+    startReturn();
+  }, [startReturn]);
 
   const onNorth = useCallback(() => {
     Haptics.selectionAsync().catch(() => undefined);
     mapRef.current?.animateCamera({ heading: 0 }, { duration: 350 });
+    mapHeadRef.current = 0;
     setMapHeading(0);
   }, []);
 
+  const onTurn = useCallback((m: number | null) => {
+    turnRef.current = m;
+  }, []);
+
+  // Il centro iniziale della mappa si fissa una volta (la mappa è memo).
+  const centerRef = useRef<{ lat: number; lng: number; heading: number } | null>(null);
   if (!session || !lesson) {
     return <View style={s.root} />;
   }
+  if (!centerRef.current) {
+    const f = session.last ?? roadStore.get().fix;
+    centerRef.current = f ? { lat: f.lat, lng: f.lng, heading: f.heading ?? 0 } : { lat: 45.0703, lng: 7.6869, heading: 0 };
+  }
+  const center = centerRef.current;
 
-  const initialFix = session.last ?? roadStore.get().fix;
-  const center = initialFix ? { lat: initialFix.lat, lng: initialFix.lng } : { lat: 45.0703, lng: 7.6869 };
   const topStart = insets.top + 4;
   const ctlBottom = 8 + panelH + 12;
+  // REG-687: dove sta l'auto mentre si segue = il centro dell'area della mappa
+  // senza il padding (lì cade il centro della camera). Calcolato, non misurato:
+  // prima la camera si fermava 260 ms per chiederlo alla mappa.
+  const carPt = box ? { x: box.w / 2, y: MAP_PADDING_TOP + (box.h - MAP_PADDING_TOP - (8 + panelH)) / 2 } : null;
 
   return (
-    <View style={s.root}>
-      <View style={StyleSheet.absoluteFill} onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFill}
-          initialCamera={{
-            center: { latitude: center.lat, longitude: center.lng },
-            heading: initialFix?.heading ?? 0,
-            pitch: PITCH,
-            altitude: ALTITUDE,
-            zoom: ZOOM,
-          }}
-          mapPadding={{ top: MAP_PADDING_TOP, right: 0, bottom: 8 + panelH, left: 0 }}
-          legalLabelInsets={{ top: 0, right: 0, bottom: 8 + panelH + 14, left: 18 }}
-          mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-          showsPointsOfInterest={false}
-          // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
-          showsBuildings={false}
-          showsCompass={false}
-          showsScale={false}
-          showsTraffic={false}
-          showsUserLocation={false}
-          toolbarEnabled={false}
-          // REG-679: pan, zoom e rotazione nativi (prima rotazione e inclinazione erano spente).
-          rotateEnabled
-          pitchEnabled
-          zoomEnabled
-          scrollEnabled
-          userInterfaceStyle="light"
-          onPanDrag={() => {
-            if (followingRef.current) setFollowing(false);
-          }}
-          onRegionChangeComplete={onRegionDone}
-        >
-          {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
-          <LiveGuide center={center} />
-          <LiveTrack center={center} />
-          <LivePins />
-          <LiveCarMarker following={following && !!carPt} mapHeading={mapHeading} color={lesson.carColor} epoch={carEpoch} />
-        </MapView>
+    <View style={s.root} onTouchStart={onAnyTouch}>
+      <View
+        style={StyleSheet.absoluteFill}
+        onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        <LiveMap
+          mapRef={mapRef}
+          center={center}
+          panelH={panelH}
+          following={following}
+          carColor={lesson.carColor}
+          carEpoch={carEpoch}
+          liveRef={liveRef}
+          mapHeadRef={mapHeadRef}
+          onPanDrag={release}
+          onRegionDone={onRegionDone}
+        />
       </View>
 
       {carPt ? (
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
       ) : null}
 
-      <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} />
+      <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} />
 
       <LiveControls
         bottom={ctlBottom}
@@ -569,8 +827,23 @@ export default function RoadScreen() {
 
 // ─── In alto: svolta, punto critico, tappa, toast ───────────────────────────
 
-function LiveTop({ top, topH, onLayoutTop }: { top: number; topH: number; onLayoutTop: (h: number) => void }) {
+function LiveTop({
+  top,
+  topH,
+  onLayoutTop,
+  onTurn,
+}: {
+  top: number;
+  topH: number;
+  onLayoutTop: (h: number) => void;
+  /** Metri alla prossima svolta, per lo zoom automatico (REG-688). */
+  onTurn: (meters: number | null) => void;
+}) {
   const nav = useNav();
+  const turnM = nav.step?.meters ?? null;
+  useEffect(() => {
+    onTurn(turnM);
+  }, [turnM, onTurn]);
   const watch = useRoadSelector((s) => s.hotspotWatch);
   const planAlert = useRoadSelector((s) => s.planAlert);
   const toast = useRoadSelector((s) => s.toast);

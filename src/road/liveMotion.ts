@@ -33,7 +33,16 @@ export type MotionSample = {
   /** Direzione della camera (gradi): segue l'auto con un po' di ritardo. */
   camHeading: number;
   accuracy: number | null;
+  /** m/s dell'ultimo punto (0 se ferma o non nota). */
+  speed: number;
 };
+
+/**
+ * REG-689: aggancio alla linea del giro. Dato il punto stimato, il punto più
+ * vicino sulla linea, la direzione della strada lì e quanto fidarsi (`w`, 0…1:
+ * 1 vicino alla linea, 0 oltre ~25 m). Null = niente linea.
+ */
+export type MotionSnap = (lat: number, lng: number) => { lat: number; lng: number; bearing: number; w: number } | null;
 
 /** Oltre questa distanza da quella mostrata (ripresa, salto del GPS) l'auto ci va subito. */
 const SNAP_M = 120;
@@ -71,29 +80,41 @@ export function createLiveMotion(initial?: MotionFix | null, initialHeading = 0)
   let heading = norm(initial?.heading ?? initialHeading);
   let camHeading = heading;
   let target = heading;
+  /** La direzione dal GPS (la linea del giro può sostituirla, vedi `sample`). */
+  let gpsTarget = heading;
   let last = 0;
+  let snap: MotionSnap | null = null;
 
   return {
     get ready() {
       return fix !== null;
     },
 
-    /** Un punto GPS nuovo (dal tracking o dall'ascolto della schermata). */
+    /** REG-689: la linea del giro su cui agganciare l'auto (null = guida libera). */
+    setSnap(fn: MotionSnap | null) {
+      snap = fn;
+    },
+
+    /**
+     * Un punto GPS nuovo. `at` = quando è stato preso, sull'orologio del
+     * telefono (REG-686: non quando è arrivato; la stima riparte da lì).
+     */
     push(next: MotionFix, at = Date.now()) {
       // Direzione: quella del GPS se in movimento, altrimenti dal tragitto.
       const moving = (next.speed ?? 0) >= MIN_MOVING_MS;
-      if (moving && next.heading != null && next.heading >= 0) target = norm(next.heading);
+      if (moving && next.heading != null && next.heading >= 0) gpsTarget = norm(next.heading);
       else if (fix && moving) {
         const dLat = (next.lat - fix.lat) * M_PER_DEG_LAT;
         const dLng = (next.lng - fix.lng) * mPerDegLng(next.lat);
-        if (Math.hypot(dLat, dLng) > 3) target = bearing(fix.lat, fix.lng, next.lat, next.lng);
+        if (Math.hypot(dLat, dLng) > 3) gpsTarget = bearing(fix.lat, fix.lng, next.lat, next.lng);
       }
+      target = gpsTarget;
       const first = fix === null;
       fix = { ...next, at };
       if (first) {
         lat = next.lat;
         lng = next.lng;
-        heading = camHeading = target = norm(next.heading ?? target);
+        heading = camHeading = target = gpsTarget = norm(next.heading ?? target);
       }
     },
 
@@ -107,11 +128,23 @@ export function createLiveMotion(initial?: MotionFix | null, initialHeading = 0)
       let tLat = fix.lat;
       let tLng = fix.lng;
       const v = fix.speed ?? 0;
+      // REG-689: vicino alla linea del giro la direzione è quella della strada
+      // (pulita, senza il rumore del GPS), purché vada nel verso di marcia.
+      target = gpsTarget;
+      const s0 = snap ? snap(fix.lat, fix.lng) : null;
+      if (s0 && s0.w >= 0.5 && v >= MIN_MOVING_MS && Math.abs(headingDelta(gpsTarget, s0.bearing)) < 60) target = s0.bearing;
       if (v >= MIN_MOVING_MS) {
         const ahead = Math.min(MAX_AHEAD_S, Math.max(0, (now - fix.at) / 1000)) * v;
         const r = (target * Math.PI) / 180;
         tLat += (Math.cos(r) * ahead) / M_PER_DEG_LAT;
         tLng += (Math.sin(r) * ahead) / mPerDegLng(fix.lat);
+      }
+
+      // …e la posizione sta sulla linea (con `w` che sfuma fra 10 e 25 m).
+      const s1 = snap && s0 ? snap(tLat, tLng) : null;
+      if (s1 && s1.w > 0) {
+        tLat += (s1.lat - tLat) * s1.w;
+        tLng += (s1.lng - tLng) * s1.w;
       }
 
       const gap = Math.hypot((tLat - lat) * M_PER_DEG_LAT, (tLng - lng) * mPerDegLng(lat));
@@ -125,7 +158,7 @@ export function createLiveMotion(initial?: MotionFix | null, initialHeading = 0)
       }
       heading = norm(heading + headingDelta(heading, target) * (1 - Math.exp(-CAR_TURN_RATE * dt)));
       camHeading = norm(camHeading + headingDelta(camHeading, heading) * (1 - Math.exp(-CAM_TURN_RATE * dt)));
-      return { lat, lng, heading, camHeading, accuracy: fix.accuracy };
+      return { lat, lng, heading, camHeading, accuracy: fix.accuracy, speed: v };
     },
 
     /** Dopo «Ricentra» la camera riparte allineata all'auto. */

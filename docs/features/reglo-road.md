@@ -379,3 +379,33 @@ Approvata da Tiziano sulle anteprime (`/tmp/hiro-anteprime/road-live-redesign/`)
 - **Card in alto** — prima la svolta, sotto il punto critico (o la tappa raggiunta, o i toast). Con la card della svolta l'avviso «tra 300 m» della tappa non compare più (doppione); resta «Tappa raggiunta».
 - **Provato** — simulatore contro staging (istruttore@reglo.it su «Autoscuola Reglo», allieva Giulia Longo, dati di `scripts/seed-road-hotspots.ts`), GPS simulato lungo la linea vera di Torino con `xcrun simctl location … start --speed=12`. La guida libera non ha giro: per vedere le svolte si è usato in locale il giro suggerito dell'allieva (forzatura tolta prima del commit).
 - **Auto 3D (REG-682, 30/10 sera)** — su richiesta di Tiziano («l'auto non è più in 3D?»): via il disco bianco, l'auto 3D vista dall'alto (`auto-su-<colore>`, la stessa del web) sta da sola sulla mappa a 30×46 pt = PNG @3x senza ingrandimenti (non esistono originali più grandi), con l'ombra della sagoma su un contenitore che non ruota (luce sempre dall'alto; su Android una sagoma con `boxShadow`). La 3/4 è stata scartata: ruotata con la direzione sembra storta.
+- **Navigazione fluida, fase 1 del piano 008 (REG-683 → 684…690, 31/10/2026)**, tutto JS (OTA 2.4.0). Piano e diagnosi: `../reglo/plans/road/008-navigazione-nativa.md`.
+  - **Chi muove la camera** (`app/road/index.tsx`): un ref `mode` = `follow` | `free` | `returning`, letto dal loop a ogni fotogramma.
+    - Il tocco sgancia subito: `onTouchMove` oltre 4 pt, un secondo dito o `onPanDrag`.
+    - Prima lo sgancio era uno stato React: il loop si fermava solo dopo il ridisegno della schermata e nel frattempo rimetteva la camera sull'auto, da cui «la mappa resta inchiodata».
+  - **Ritorno automatico (REG-685)**: a mappa libera, 10 s senza tocchi riportano la camera sull'auto.
+    - Ogni tocco sulla schermata fa ripartire il conteggio.
+    - «Ricentra» fa lo stesso subito.
+    - Il ritorno è una fusione di 700 ms (cubica) fatta dal loop stesso, partendo dalla camera lasciata dall'utente (`getCamera`): niente `animateCamera` e nessuno scatto.
+  - **GPS (REG-686)**:
+    - il movimento si alimenta dall'ascolto da 1 s, con l'ora del fix (`location.timestamp`);
+    - un punto più vecchio dell'ultimo si scarta;
+    - i punti del tracking servono solo se l'ascolto tace da 3 s.
+    - La camera si muove a ogni fotogramma (prima ogni 33 ms).
+  - **Fluidità (REG-687)**:
+    - **Traccia a pezzi** (10 posti fissi da 300 punti più la coda): i pezzi chiusi non vengono più rimandati alla mappa.
+    - **`LiveMap` memo** con props stabili.
+    - **Auto ferma sullo schermo**: la posizione si calcola dal padding della mappa, non più con `pointForCoordinate`, che costava pause di 260 ms.
+  - **Zoom automatico (REG-688, `src/road/liveCamera.ts`)**:
+    - altitudine da 560 m (fermi) a 1150 m (60 km/h);
+    - entro 160 m dalla svolta scende a 470 m e si inclina da 45° a 55°;
+    - su Android lo zoom si ricava dall'altitudine.
+  - **Aggancio al giro (REG-689, `createLineSnap` in `navGuide.ts` + `motion.setSnap`)**:
+    - sotto 10 m l'auto mostrata sta sulla linea, fra 10 e 25 m sfuma, oltre è libera;
+    - la direzione è quella della strada, se concorda col GPS entro 60°.
+    - Il marker a mappa libera segue la posizione stimata 20 volte al secondo, con la rotazione rispetto alla camera vera.
+  - **Banner (REG-690)**:
+    - glifo 68 e distanza 40 pt;
+    - riga «Poi …» se la svolta dopo arriva entro 250 m (`NavState.then`);
+    - linea del giro 10/16 pt.
+  - **Limite noto (iOS)**: MapKit disegna gli edifici 3D anche con `showsBuildings={false}`, e la linea (overlay a livello strade) passa sotto i loro bordi. Si toglie solo in nativo (livello `aboveLabels` o Mapbox, fase 2 rimandata).
