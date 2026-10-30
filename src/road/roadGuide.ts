@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 
 import { regloApi } from '../services/regloApi';
-import type { RoadPlanStop, RoadSessionWithLesson, RoadStudentHotspot } from '../types/regloApi';
+import type { RoadPlanStop, RoadRouteStep, RoadSessionWithLesson, RoadStudentHotspot } from '../types/regloApi';
 import { haversineMeters } from './format';
 import { hasPlanOverride, lessonMinutes } from './planStore';
 
@@ -29,6 +29,8 @@ export type RoadGuide = {
   end: { lat: number; lng: number } | null;
   /** I punti critici dell'allievo (i suoi errori ripetuti). */
   hotspots: RoadStudentHotspot[];
+  /** REG-676: le svolte della linea (vuoto senza linea o da un backend precedente). */
+  steps: RoadRouteStep[];
 };
 
 /** Massimo di punti dell'allievo sulla mappa: posti fissi in MapView (crash AIRMap). */
@@ -96,7 +98,7 @@ export async function loadRoadGuide(
   if (loading.has(session.id)) return;
   loading.add(session.id);
   const planStops = session.plan?.stops ?? [];
-  let guide: RoadGuide = { sessionId: session.id, line: null, stops: planStops, end: null, hotspots: [] };
+  let guide: RoadGuide = { sessionId: session.id, line: null, stops: planStops, end: null, hotspots: [], steps: [] };
   onReady(guide);
 
   const studentId = session.lesson.student?.id;
@@ -126,6 +128,7 @@ export async function loadRoadGuide(
       line: route.line && route.line.length >= 2 ? route.line : null,
       stops: orderGuideStops(planStops, route.order),
       end: route.end,
+      steps: route.line && route.line.length >= 2 ? route.steps ?? [] : [],
     };
     onReady(guide);
   });
@@ -144,8 +147,9 @@ export function forgetRoadGuide(sessionId: string) {
 export async function fetchReroute(
   start: Pt,
   stops: RoadPlanStop[],
-): Promise<{ line: LatLngTuple[] | null; end: Pt | null } | null> {
+): Promise<{ line: LatLngTuple[] | null; end: Pt | null; steps: RoadRouteStep[] } | null> {
   const route = await regloApi.getRoadPlanRoute({ start, stops, optimize: false }).catch(() => null);
   if (!route) return null;
-  return { line: route.line && route.line.length >= 2 ? route.line : null, end: route.end };
+  const line = route.line && route.line.length >= 2 ? route.line : null;
+  return { line, end: route.end, steps: line ? route.steps ?? [] : [] };
 }

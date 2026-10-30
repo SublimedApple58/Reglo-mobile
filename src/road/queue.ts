@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import type { AddRoadMarkerInput, RoadPoint } from '../types/regloApi';
+import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint } from '../types/regloApi';
 
 /**
  * REG-638 Reglo Road — code persistenti su file (sopravvivono a kill/crash).
@@ -10,6 +10,7 @@ import type { AddRoadMarkerInput, RoadPoint } from '../types/regloApi';
  *   backend (`@@unique(sessionId, seq)`) non perde mai punti.
  * - `markerOps`: segnalazioni da creare / annullare, coda separata. Ogni
  *   segnalazione ha il suo `clientId` generato in app (idempotente lato server).
+ *   Nella stessa coda i ripassi sui punti critici (REG-681, `check-*`).
  *
  * Un solo runtime JS: lo stato vive in memoria e si scrive su file a ogni
  * modifica (scritture in fila, mai concorrenti).
@@ -17,7 +18,9 @@ import type { AddRoadMarkerInput, RoadPoint } from '../types/regloApi';
 
 export type MarkerOp =
   | { op: 'add'; sessionId: string; input: AddRoadMarkerInput }
-  | { op: 'remove'; sessionId: string; clientId: string };
+  | { op: 'remove'; sessionId: string; clientId: string }
+  | { op: 'check-add'; sessionId: string; input: AddRoadHotspotCheckInput }
+  | { op: 'check-remove'; sessionId: string; clientId: string };
 
 type QueueState = {
   sessionId: string | null;
@@ -133,9 +136,10 @@ export const roadQueue = {
 
   async pushMarkerOp(op: MarkerOp) {
     await loadQueue();
-    if (op.op === 'remove') {
+    if (op.op === 'remove' || op.op === 'check-remove') {
       // «Annulla» prima che l'add sia partito: basta togliere l'add.
-      const idx = state.markerOps.findIndex((m) => m.op === 'add' && m.input.clientId === op.clientId);
+      const addOp = op.op === 'remove' ? 'add' : 'check-add';
+      const idx = state.markerOps.findIndex((m) => m.op === addOp && m.input.clientId === op.clientId);
       if (idx >= 0) {
         state.markerOps.splice(idx, 1);
         await persist();

@@ -71,14 +71,21 @@ async function flushMarkers() {
     try {
       if (op.op === 'add') {
         await regloApi.addRoadMarker(op.sessionId, op.input);
-      } else {
+      } else if (op.op === 'remove') {
         await regloApi.removeRoadMarker(op.sessionId, op.clientId);
+      } else if (op.op === 'check-add') {
+        await regloApi.addRoadHotspotCheck(op.sessionId, op.input);
+      } else {
+        await regloApi.removeRoadHotspotCheck(op.sessionId, op.clientId);
       }
       await roadQueue.shiftMarkerOp(op);
     } catch (err) {
       // Rifiuto del server (guida chiusa da > 2 h, tipo sconosciuto, …):
       // rimandarla non cambierebbe niente → si scarta. Rete: si ritenta.
-      if (isRejection(err)) {
+      // Un ripasso verso un backend che non lo conosce ancora (404) non deve
+      // bloccare per sempre la coda delle segnalazioni dietro di lui.
+      const unknownRoute = (op.op === 'check-add' || op.op === 'check-remove') && err instanceof RegloApiError && err.status === 404;
+      if (isRejection(err) || unknownRoute) {
         await roadQueue.shiftMarkerOp(op);
         continue;
       }

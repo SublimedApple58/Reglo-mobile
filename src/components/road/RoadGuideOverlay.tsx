@@ -8,8 +8,8 @@ import { CLAY, CLAY_SHADOW } from '../../theme';
 import { RoadMarkerPin } from './RoadMapParts';
 
 /**
- * REG-652 — la guida del giro sulla mappa di Road: linea suggerita (grigio
- * scuro sottile, mai blu; la parte già fatta si attenua), punti critici
+ * REG-652 — la guida del giro sulla mappa di Road: linea suggerita (nera con
+ * bordo bianco da REG-679, mai blu; la parte già fatta sparisce), punti critici
  * dell'allievo col fumetto di REG-646, tappe numerate, sede.
  *
  * Riaggancio (REG-654): la linea nuova arriva al posto della vecchia, che sfuma
@@ -22,8 +22,10 @@ import { RoadMarkerPin } from './RoadMapParts';
  */
 
 const STOP_SLOTS = 3;
-const LINE_AHEAD = 'rgba(17,17,17,0.7)';
-const LINE_PASSED = 'rgba(17,17,17,0.18)';
+const LINE_AHEAD = 'rgba(17,17,17,0.92)';
+const LINE_CASE = 'rgba(255,255,255,1)';
+const LINE_W = 6;
+const CASE_W = 11;
 const FADE_MS = 240;
 
 type Pt = { latitude: number; longitude: number };
@@ -107,14 +109,19 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   const cut = pts ? Math.min(Math.max(0, passed), pts.length - 1) : 0;
   const ahead = useMemo(() => (pts ? pts.slice(cut) : still), [pts, cut, still]);
   const done = useMemo(() => (pts && cut > 0 ? pts.slice(0, cut + 1) : still), [pts, cut, still]);
+  // `done` resta per la dissolvenza del riaggancio (forma di `Shown`), non si disegna più.
   const { k, prev, kPrev } = useLineFade(pts, pts ? { ahead, done, cut } : null);
 
   return (
     <>
-      <Polyline coordinates={prev && prev.cut > 0 ? prev.done : still} strokeColor={withAlpha(LINE_PASSED, prev && prev.cut > 0 ? kPrev : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_AHEAD, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={done} strokeColor={withAlpha(LINE_PASSED, cut > 0 ? k : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_AHEAD, ahead.length >= 2 ? k : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={0} />
+      {/* REG-679: il giro da fare è nero con un bordo bianco (si stacca dalla
+          traccia grigia e dalle strade); il tratto già fatto sparisce, lì resta
+          la traccia vera. Stessi 4 posti fissi di prima: bordo + linea per la
+          linea vecchia che sfuma al riaggancio, bordo + linea per la nuova. */}
+      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_CASE, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_AHEAD, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_CASE, ahead.length >= 2 ? k : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_AHEAD, ahead.length >= 2 ? k : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
       {Array.from({ length: GUIDE_HOTSPOT_SLOTS }, (_, i) => (
         <HotspotSlot key={`h${i}`} hotspot={hotspots[i] ?? null} center={still[0]} />
       ))}

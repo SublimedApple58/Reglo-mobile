@@ -5,6 +5,7 @@ import { useNavigation, useRouter } from 'expo-router';
 
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
 import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
+import { RoadCheckList } from '../../src/components/road/RoadCheckList';
 import { countSentiments, SentimentCounts } from '../../src/components/road/RoadSentiment';
 import { lessonStudentName, useRoadSelector } from '../../src/road/roadStore';
 import { useQueryClient } from '@tanstack/react-query';
@@ -157,6 +158,13 @@ export default function RiepilogoScreen() {
       {planOutcomeLine(summary.planReached) ? (
         <Animated.View entering={roadEnter(100)} layout={ROAD_LAYOUT} style={s.agendaLine}>
           <Text style={s.planTx} testID="road-summary-plan">{planOutcomeLine(summary.planReached)}</Text>
+        </Animated.View>
+      ) : null}
+
+      {/* REG-681: «Meglio» / «Ancora no» segnati passando sui punti critici. */}
+      {summary.hotspotChecks?.length ? (
+        <Animated.View entering={roadEnter(110)} layout={ROAD_LAYOUT}>
+          <RoadCheckList checks={summary.hotspotChecks} />
         </Animated.View>
       ) : null}
 

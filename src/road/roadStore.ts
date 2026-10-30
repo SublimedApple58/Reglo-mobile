@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type {
   RoadCatalog,
   RoadDetail,
+  RoadHotspotOutcome,
   RoadLesson,
   RoadPlanStop,
   RoadPoint,
@@ -19,6 +20,7 @@ import {
 } from './planAlerts';
 import { INITIAL_REROUTE, remainingStops, stepReroute, type RerouteState } from './reroute';
 import { advanceOnLine, type RoadGuide } from './roadGuide';
+import { EMPTY_HOTSPOT_WATCH, stepHotspotWatch, type HotspotWatch } from './navGuide';
 
 /**
  * REG-638 Reglo Road — stato della modalità Road (un solo store di modulo,
@@ -63,6 +65,16 @@ export type RoadToast = {
 
 export type RoadPhase = 'idle' | 'active' | 'ending' | 'summary';
 
+/** REG-681: un ripasso sul punto critico fatto in questa guida. */
+export type RoadLocalCheck = {
+  clientId: string;
+  hotspotKey: string;
+  kind: string;
+  label: string;
+  outcome: RoadHotspotOutcome;
+  recordedAt: string;
+};
+
 type State = {
   phase: RoadPhase;
   session: RoadSessionWithLesson | null;
@@ -96,6 +108,10 @@ type State = {
   guidePassed: number;
   /** REG-654: fuori percorso, ultimo ricalcolo, tappe lasciate perdere. */
   reroute: RerouteState;
+  /** REG-681: la card del punto critico che si avvicina (una alla volta). */
+  hotspotWatch: HotspotWatch;
+  /** REG-681: i ripassi fatti in questa guida («Meglio» / «Ancora no»). */
+  checks: RoadLocalCheck[];
 };
 
 /** REG-654: il ricalcolo da chiedere (lo fa la schermata Road, lo store non va in rete). */
@@ -128,6 +144,8 @@ const INITIAL: State = {
   guide: null,
   guidePassed: 0,
   reroute: INITIAL_REROUTE,
+  hotspotWatch: EMPTY_HOTSPOT_WATCH,
+  checks: [],
 };
 
 let state: State = INITIAL;
@@ -191,7 +209,10 @@ export const roadStore = {
   },
 
   /** REG-654: la linea riagganciata. Null (rete o Google giù) = resta la vecchia. */
-  applyReroute(sessionId: string, route: { line: Array<[number, number]> | null; end: { lat: number; lng: number } | null } | null) {
+  applyReroute(
+    sessionId: string,
+    route: { line: Array<[number, number]> | null; end: { lat: number; lng: number } | null; steps?: RoadGuide['steps'] } | null,
+  ) {
     if (state.session?.id !== sessionId || !state.guide) return;
     const reroute = { ...state.reroute, pending: false };
     if (!route?.line || route.line.length < 2) {
@@ -199,7 +220,7 @@ export const roadStore = {
       return;
     }
     set({
-      guide: { ...state.guide, line: route.line, end: route.end },
+      guide: { ...state.guide, line: route.line, end: route.end, steps: route.steps ?? [] },
       guidePassed: 0,
       reroute: { ...reroute, offSince: null },
     });
@@ -239,6 +260,8 @@ export const roadStore = {
             guide: null,
             guidePassed: 0,
             reroute: INITIAL_REROUTE,
+            hotspotWatch: EMPTY_HOTSPOT_WATCH,
+            checks: [],
           }),
     });
   },
@@ -261,6 +284,17 @@ export const roadStore = {
         sentiment: m.sentiment ?? null,
         recordedAt: m.recordedAt,
       }));
+    const knownChecks = new Set(state.checks.map((c) => c.clientId));
+    const serverChecks: RoadLocalCheck[] = (detail.hotspotChecks ?? [])
+      .filter((c) => !knownChecks.has(c.clientId))
+      .map((c) => ({
+        clientId: c.clientId,
+        hotspotKey: c.hotspotKey ?? '',
+        kind: c.kind,
+        label: c.label,
+        outcome: c.outcome,
+        recordedAt: c.recordedAt,
+      }));
     const stops = state.session?.plan?.stops ?? [];
     const fromTrack = stops.length ? progressFromTrack(stops, serverTrack) : EMPTY_PROGRESS;
     set({
@@ -273,12 +307,14 @@ export const roadStore = {
       markers: [...serverMarkers, ...state.markers].sort(
         (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
       ),
+      checks: [...serverChecks, ...state.checks],
     });
   },
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute } = state;
+    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute, hotspotWatch } = state;
+    const hotspots = state.guide?.hotspots ?? [];
     let request: RerouteRequest | null = null;
     const track = state.track.slice();
     // Le tappe nell'ordine della linea (REG-652), così il numero dell'avviso è quello sulla mappa.
@@ -300,6 +336,7 @@ export const roadStore = {
       }
       fix = { lat, lng, speed, heading: h ?? fix?.heading ?? null, accuracy, t };
       track.push({ latitude: lat, longitude: lng });
+      if (hotspots.length) hotspotWatch = stepHotspotWatch(hotspotWatch, hotspots, { lat, lng, t });
       if (stops.length) {
         if (planAlert && planAlertExpired(planAlert, t)) planAlert = null;
         ({ progress: planProgress, alert: planAlert } = stepPlanAlerts(stops, planProgress, planAlert, { lat, lng, t }));
@@ -326,8 +363,23 @@ export const roadStore = {
         }
       }
     }
-    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute });
+    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute, hotspotWatch });
     if (request) rerouteHandler?.(request);
+  },
+
+  /** REG-681: la card del punto critico si chiude (tempo scaduto, tocco, ripasso segnato). */
+  closeHotspotAlert(key?: string) {
+    const cur = state.hotspotWatch.alert;
+    if (!cur || (key && cur.hotspot.key !== key)) return;
+    set({ hotspotWatch: { ...state.hotspotWatch, alert: null } });
+  },
+
+  addCheck(check: RoadLocalCheck) {
+    set({ checks: [...state.checks.filter((c) => c.clientId !== check.clientId), check] });
+  },
+
+  removeCheck(clientId: string) {
+    set({ checks: state.checks.filter((c) => c.clientId !== clientId) });
   },
 
   setStreet(street: string | null) {
@@ -366,7 +418,7 @@ export const roadStore = {
   },
 
   showSummary(summary: RoadDetail) {
-    set({ phase: 'summary', summary, toast: null, planAlert: null });
+    set({ phase: 'summary', summary, toast: null, planAlert: null, hotspotWatch: EMPTY_HOTSPOT_WATCH });
   },
 
   updateSummary(summary: RoadDetail) {

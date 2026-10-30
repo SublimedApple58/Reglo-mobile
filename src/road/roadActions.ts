@@ -3,7 +3,14 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
-import type { RoadFreeStartInput, RoadLesson, RoadPlan, RoadSessionWithLesson } from '../types/regloApi';
+import type {
+  RoadFreeStartInput,
+  RoadHotspotOutcome,
+  RoadLesson,
+  RoadPlan,
+  RoadSessionWithLesson,
+  RoadStudentHotspot,
+} from '../types/regloApi';
 import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
@@ -360,6 +367,42 @@ export async function recordRoadMarker(input: {
   });
   void roadUploader.flush(true);
   return clientId;
+}
+
+/**
+ * REG-681: ripassando sul punto critico, «Meglio» o «Ancora no» con un tocco.
+ * Va nella stessa coda offline delle segnalazioni (idempotente su clientId).
+ */
+export async function recordHotspotCheck(hotspot: RoadStudentHotspot, outcome: RoadHotspotOutcome) {
+  const { session } = roadStore.get();
+  if (!session) return null;
+  const clientId = makeClientId();
+  const recordedAt = new Date().toISOString();
+  await roadQueue.pushMarkerOp({
+    op: 'check-add',
+    sessionId: session.id,
+    input: {
+      clientId,
+      hotspotKey: hotspot.key,
+      kind: hotspot.kind,
+      label: hotspot.label,
+      lat: hotspot.lat,
+      lng: hotspot.lng,
+      outcome,
+      recordedAt,
+    },
+  });
+  roadStore.addCheck({ clientId, hotspotKey: hotspot.key, kind: hotspot.kind, label: hotspot.label, outcome, recordedAt });
+  void roadUploader.flush(true);
+  return clientId;
+}
+
+export async function undoHotspotCheck(clientId: string) {
+  const { session } = roadStore.get();
+  if (!session) return;
+  roadStore.removeCheck(clientId);
+  await roadQueue.pushMarkerOp({ op: 'check-remove', sessionId: session.id, clientId });
+  void roadUploader.flush(true);
 }
 
 /** «Annulla» sul toast. */

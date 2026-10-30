@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { InteractionManager, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, InteractionManager, Platform, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import Animated from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { ROAD_FADE_IN } from '../road/motion';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import { formatKm } from '../road/format';
+import { markerArt } from '../road/markerArt';
 import { useRoadStudent } from '../road/avvioFlow';
 import type { RoadStudentHotspot, RoadStudentItem } from '../types/regloApi';
 import { CLAY, CLAY_SHADOW } from '../theme';
@@ -104,6 +105,7 @@ export function StudentRoadSheet() {
           <ClayStat value={totals.markers} label="Segnalazioni" style={{ flex: 1 }} />
         </View>
         {data?.hotspots?.length ? <HotspotsMap hotspots={data.hotspots} /> : null}
+        {data?.hotspots?.length ? <HotspotsList hotspots={data.hotspots} /> : null}
         {data?.briefing?.lines.length ? (
           <>
             <Text style={s.section}>Da migliorare</Text>
@@ -161,6 +163,40 @@ const GuidesList = React.memo(function GuidesList({
         ),
       )}
     </ClayList>
+  );
+});
+
+/**
+ * REG-681: i suoi punti critici uno per uno, con l'andamento dei ripassi in
+ * guida («Meglio» / «Ancora no»): in miglioramento, superato, o da lavorare.
+ */
+function hotspotSubtitle(h: RoadStudentHotspot): string {
+  const errors = `${h.errors} ${h.errors === 1 ? 'errore' : 'errori'} in ${h.sessions} ${h.sessions === 1 ? 'guida' : 'guide'}`;
+  const better = h.checks?.better ?? 0;
+  const worse = h.checks?.worse ?? 0;
+  const ripassi = better + worse ? ` · ripassato ${better + worse} ${better + worse === 1 ? 'volta' : 'volte'}, ${better} meglio` : '';
+  if (h.status === 'overcome') return `Superato · ${errors}${ripassi}`;
+  if (h.status === 'improving') return `In miglioramento · ${errors}${ripassi}`;
+  return `${errors}${ripassi}`;
+}
+
+const HotspotsList = React.memo(function HotspotsList({ hotspots }: { hotspots: RoadStudentHotspot[] }) {
+  return (
+    <>
+      <Text style={s.section}>Punti critici</Text>
+      <ClayList>
+        {hotspots.slice(0, 8).map((h) => (
+          <ClayListRow
+            key={h.key}
+            leading={<Image source={markerArt(h.kind)} style={s.hsImg} resizeMode="contain" />}
+            title={h.street ? `${h.label} · ${h.street}` : h.label}
+            subtitle={h.note ? `${hotspotSubtitle(h)}\n«${h.note}»` : hotspotSubtitle(h)}
+            dimmed={h.status === 'overcome'}
+            testID="student-road-hotspot"
+          />
+        ))}
+      </ClayList>
+    </>
   );
 });
 
@@ -241,6 +277,7 @@ const HotspotsMap = React.memo(function HotspotsMap({ hotspots }: { hotspots: Ro
 
 const s = StyleSheet.create({
   stats: { flexDirection: 'row', gap: 10 },
+  hsImg: { width: 36, height: 36 },
   mapWrap: { marginTop: 14, borderRadius: 24, backgroundColor: CLAY.surface },
   mapClip: { height: 156, borderRadius: 24, overflow: 'hidden' },
   section: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2, paddingHorizontal: 4, marginTop: 24, marginBottom: 10 },

@@ -1652,6 +1652,49 @@ export type RoadStudentHotspot = {
   errors: number;
   sessions: number;
   lastAt: string;
+  /** REG-677: l'ultima nota scritta dall'istruttore su quel punto (assente dai backend precedenti). */
+  note?: string | null;
+  /** REG-677: ripassi «Meglio» / «Ancora no» fatti in guida. */
+  checks?: { better: number; worse: number };
+  lastCheck?: { outcome: RoadHotspotOutcome; at: string } | null;
+  /** REG-677: open = da lavorare, improving = l'ultima volta meglio, overcome = superato. */
+  status?: 'open' | 'improving' | 'overcome';
+};
+
+/** REG-677: com'è andata ripassando sul punto critico. */
+export type RoadHotspotOutcome = 'better' | 'worse';
+
+/** REG-677: un ripasso sul punto critico, segnato con un tocco durante la guida. */
+export type RoadHotspotCheck = {
+  id?: Uuid;
+  clientId: string;
+  hotspotKey?: string;
+  kind: string;
+  label: string;
+  lat: number;
+  lng: number;
+  outcome: RoadHotspotOutcome;
+  recordedAt: string;
+};
+
+export type AddRoadHotspotCheckInput = {
+  clientId: string;
+  hotspotKey: string;
+  kind: string;
+  label: string;
+  lat: number;
+  lng: number;
+  outcome: RoadHotspotOutcome;
+  recordedAt: string;
+};
+
+/** REG-676: una svolta del giro (Google Routes, testo in italiano). */
+export type RoadRouteStep = {
+  lat: number;
+  lng: number;
+  /** Manovra di Google (`TURN_RIGHT`, `ROUNDABOUT_LEFT`, …). */
+  maneuver: string;
+  text: string;
 };
 
 export type RoadPlanResponse = {
@@ -1671,6 +1714,8 @@ export type RoadPlanRouteResponse = {
   order: string[];
   /** La sede dove si chiude la linea, o null. */
   end: { lat: number; lng: number } | null;
+  /** REG-676: le svolte nell'ordine della linea (assenti dai backend precedenti). */
+  steps?: RoadRouteStep[];
 };
 
 export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
@@ -1807,6 +1852,8 @@ export type RoadDetail = RoadSessionWithLesson & {
   /** REG-665: soste di almeno 5 minuti (assente dai backend precedenti). */
   stops?: RoadStop[];
   evaluation?: RoadEvaluationSummary | null;
+  /** REG-677: i ripassi sui punti critici fatti in questa guida. */
+  hotspotChecks?: RoadHotspotCheck[];
 };
 
 /** REG-665: l'auto è rimasta ferma qui per `minutes` minuti (≥ 5). */

@@ -122,6 +122,7 @@ import {
   RoadPlan,
   RoadPlanResponse,
   RoadPlanRouteResponse,
+  AddRoadHotspotCheckInput,
   RoadPlanStop,
   SavedRoadPlan,
   RoadDetail,
@@ -1095,6 +1096,17 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+    /** REG-677: «Meglio» / «Ancora no» sul punto critico (idempotente su clientId). */
+    addRoadHotspotCheck: async (sessionId: string, input: AddRoadHotspotCheckInput) =>
+      client.request<{ id: string; clientId: string }>(`/api/autoscuole/road/sessions/${sessionId}/hotspot-checks`, {
+        method: 'POST',
+        body: input,
+      }),
+    removeRoadHotspotCheck: async (sessionId: string, checkIdOrClientId: string) =>
+      client.request<{ removed: boolean }>(
+        `/api/autoscuole/road/sessions/${sessionId}/hotspot-checks/${encodeURIComponent(checkIdOrClientId)}`,
+        { method: 'DELETE' },
+      ),
     removeRoadMarker: async (sessionId: string, markerIdOrClientId: string) =>
       client.request<{ removed: boolean }>(
         `/api/autoscuole/road/sessions/${sessionId}/markers/${encodeURIComponent(markerIdOrClientId)}`,
