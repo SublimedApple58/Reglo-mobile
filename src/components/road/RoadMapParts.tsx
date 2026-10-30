@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Marker, Polyline } from 'react-native-maps';
 import { carTopArt, markerArt } from '../../road/markerArt';
@@ -253,3 +253,26 @@ const car = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
   },
 });
+
+/**
+ * Alone rosso sotto il punto (più errori = più grande e più intenso).
+ * Marker con una vista e non `Circle`: con questa versione di
+ * react-native-maps sulla New Architecture il cerchio non si disegnava.
+ */
+export const HeatHalo = React.memo(function HeatHalo({ lat, lng, k, hidden = false }: { lat: number; lng: number; k: number; hidden?: boolean }) {
+  const [laid, setLaid] = useState(false);
+  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
+  const size = Math.round(56 + 52 * k);
+  return (
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1} opacity={hidden ? 0 : 1}>
+      <View
+        pointerEvents="none"
+        onLayout={() => setLaid(true)}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: `rgba(220,38,38,${(0.12 + 0.14 * k).toFixed(2)})`, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <View style={{ width: size * 0.56, height: size * 0.56, borderRadius: size * 0.28, backgroundColor: `rgba(220,38,38,${(0.1 + 0.12 * k).toFixed(2)})` }} />
+      </View>
+    </Marker>
+  );
+});
+

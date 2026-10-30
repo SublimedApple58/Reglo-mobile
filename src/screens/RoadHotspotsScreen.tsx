@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import type { RoadExamRoute, RoadHotspot } from '../types/regloApi';
 import { ClayEmpty, ClayListRow, ClaySegmented, ClaySurface, Icon3D } from '../components/clay';
 import { ClayLargeTitle, ClayNavBar, NAV_BAR_H, useLargeTitleScroll } from '../components/ClayLargeTitle';
-import { RoadMarkerPin } from '../components/road/RoadMapParts';
+import { HeatHalo, RoadMarkerPin } from '../components/road/RoadMapParts';
 import { SkeletonBlock } from '../components/Skeleton';
 import { markerArt } from '../road/markerArt';
 import { ROAD_FADE_IN, ROAD_FADE_OUT } from '../road/motion';
@@ -321,28 +321,6 @@ function regionFor(pts: Array<{ latitude: number; longitude: number }>) {
     longitudeDelta: Math.max((maxLng - minLng) * 2.4, 0.012),
   };
 }
-
-/**
- * Alone rosso sotto il punto (più errori = più grande e più intenso).
- * Marker con una vista e non `Circle`: con questa versione di
- * react-native-maps sulla New Architecture il cerchio non si disegnava.
- */
-const HeatHalo = React.memo(function HeatHalo({ lat, lng, k }: { lat: number; lng: number; k: number }) {
-  const [laid, setLaid] = useState(false);
-  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
-  const size = Math.round(56 + 52 * k);
-  return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1}>
-      <View
-        pointerEvents="none"
-        onLayout={() => setLaid(true)}
-        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: `rgba(220,38,38,${(0.12 + 0.14 * k).toFixed(2)})`, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <View style={{ width: size * 0.56, height: size * 0.56, borderRadius: size * 0.28, backgroundColor: `rgba(220,38,38,${(0.1 + 0.12 * k).toFixed(2)})` }} />
-      </View>
-    </Marker>
-  );
-});
 
 /** Un solo segnaposto: il fumetto col simbolo dell'errore, punta sul punto, alone sotto. */
 const PinTap = React.memo(function PinTap({ hotspot, onOpen }: { hotspot: RoadHotspot; onOpen: (h: RoadHotspot) => void }) {
